@@ -24,6 +24,7 @@ export const ACK_SKIP_THRESHOLD_MILLISECONDS = (process.env.ACK_SKIP_THRESHOLD_M
 export const COMPLEX_TASK_INTENTS: DeterminedIntent[] = [
     'content_plan',
     'report',
+    'ask_community_inspiration',
 ];
 
 export const COMMON_GREETINGS_FOR_STRIPPING: string[] = [

@@ -50,6 +50,7 @@ export default function WhatsAppUpsellPage() {
           <li>Resumo semanal automático com destaques e prioridades.</li>
           <li>Atalhos de prompts para tirar dúvidas em tempo real.</li>
           <li>Integração direta com seu Instagram conectado.</li>
+          <li>Participação no grupo VIP com mentorias estratégicas semanais exclusivas.</li>
         </ul>
       </div>
 

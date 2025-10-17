@@ -262,6 +262,8 @@ export interface IUser extends Document {
   cancelAtPeriodEnd?: boolean;
   currency?: string;
   lastProcessedEventId?: string;
+  lastStripeEventAt?: Date | null;
+  lastSubscriptionEventId?: string | null;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
 
@@ -449,6 +451,8 @@ const userSchema = new Schema<IUser>(
     currentPeriodEnd: { type: Date, default: null },
     currency: { type: String, default: 'BRL' },
     lastProcessedEventId: { type: String },
+    lastStripeEventAt: { type: Date, default: null },
+    lastSubscriptionEventId: { type: String, default: null },
     
     inferredExpertiseLevel: {
       type: String,

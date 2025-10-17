@@ -35,6 +35,7 @@ import {
   CommunityInspirationFilters, 
   IDailyMetricSnapshot,
   getDailySnapshotsForMetric,
+  recordDailyInspirationShown,
   getLatestAccountInsights as getLatestAccountInsightsFromDataService,
   getLatestAudienceDemographics as getLatestAudienceDemographicsFromDataService,
   getTopPostsByMetric as getTopPostsByMetricFromDataService,
@@ -527,6 +528,13 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
         message: "Não encontrei nenhuma inspiração na comunidade para esses critérios no momento. Que tal explorarmos outra combinação, ou posso te dar algumas dicas gerais sobre esse tema?",
         inspirations: []
       };
+    }
+    const inspirationIds = inspirations.map(insp => insp._id.toString());
+    try {
+      await recordDailyInspirationShown(loggedUser._id.toString(), inspirationIds);
+      logger.debug(`${fnTag} IDs de inspiração registrados para evitar repetição no mesmo dia: ${inspirationIds.join(', ')}`);
+    } catch (recordError) {
+      logger.warn(`${fnTag} Falha ao registrar inspirações mostradas para User ${loggedUser._id}:`, recordError);
     }
     const formattedInspirations = inspirations.map(insp => ({
       id: insp._id.toString(),

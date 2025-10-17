@@ -699,11 +699,18 @@ Gere a mensagem final agora.
             logger.info(`${turnTag} Intenção '${currentIntent}' permite function calling. Habilitando funções padrão.`);
             // Filtra funções sensíveis para o chat geral: não expor inspirações da comunidade
             const defaultFunctions = [...functionSchemas];
-            const filteredFunctions = currentIntent === 'general'
+            const shouldKeepCommunityInspirationsForGeneral =
+                currentIntent === 'general' &&
+                currentEnrichedContext.dialogueState?.currentTask?.name === 'ask_community_inspiration';
+            const filteredFunctions = currentIntent === 'general' && !shouldKeepCommunityInspirationsForGeneral
                 ? defaultFunctions.filter((fn) => fn.name !== 'fetchCommunityInspirations')
                 : defaultFunctions;
-            if (filteredFunctions.length !== defaultFunctions.length) {
-                logger.info(`${turnTag} Funções filtradas para intent 'general': removido 'fetchCommunityInspirations'.`);
+            if (currentIntent === 'general') {
+                if (shouldKeepCommunityInspirationsForGeneral) {
+                    logger.info(`${turnTag} Intenção 'general' em continuidade de inspiração: mantendo 'fetchCommunityInspirations'.`);
+                } else if (filteredFunctions.length !== defaultFunctions.length) {
+                    logger.info(`${turnTag} Funções filtradas para intent 'general': removido 'fetchCommunityInspirations'.`);
+                }
             }
             requestPayload.functions = filteredFunctions;
             requestPayload.function_call = 'auto';

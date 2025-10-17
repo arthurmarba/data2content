@@ -144,7 +144,7 @@ export default function MediaKitSelfServePage() {
   // Lógica do Modal de Pagamento
   const [showBillingModal, setShowBillingModal] = useState(false);
   const closeBillingModal = () => setShowBillingModal(false);
-  const openedAfterIgRef = useRef(false);
+  const communityModalShownRef = useRef(false);
   const showIgConnectSuccess = sp.get("instagramLinked") === "true";
   const processingIgLinkRef = useRef(false);
 
@@ -163,6 +163,7 @@ export default function MediaKitSelfServePage() {
     billingStatus.hasPremiumAccess || isPlanActiveLike(effectivePlanStatus);
   const isGracePeriod = billingStatus.isGracePeriod || effectivePlanStatus === "non_renewing";
   
+  const [showCommunityModal, setShowCommunityModal] = useState(false);
   // Lógica e Estado para o Modal do WhatsApp
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const handleWhatsAppLink = useCallback(() => {
@@ -242,9 +243,9 @@ export default function MediaKitSelfServePage() {
   }, [showIgConnectSuccess, update, router]);
 
   useEffect(() => {
-    if (showIgConnectSuccess && instagramConnected && !hasPremiumAccess && !openedAfterIgRef.current) {
-      openedAfterIgRef.current = true;
-      setShowBillingModal(true);
+    if (showIgConnectSuccess && instagramConnected && !hasPremiumAccess && !communityModalShownRef.current) {
+      communityModalShownRef.current = true;
+      setShowCommunityModal(true);
     }
   }, [showIgConnectSuccess, instagramConnected, hasPremiumAccess]);
 
@@ -360,6 +361,64 @@ export default function MediaKitSelfServePage() {
       </section>
 
       <BillingSubscribeModal open={showBillingModal} onClose={closeBillingModal} />
+
+      <AnimatePresence>
+        {showCommunityModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCommunityModal(false)}
+              className="fixed inset-0 bg-black/50 z-[70]"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 38 }}
+              className="fixed bottom-0 left-0 right-0 z-[80]"
+            >
+              <div className="mx-auto max-w-lg px-4 pb-6">
+                <div className="rounded-2xl bg-white shadow-2xl border border-emerald-100 overflow-hidden">
+                  <div className="flex justify-between items-start px-5 pt-5">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                        <FaWhatsapp className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Faça parte da nossa comunidade gratuita
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setShowCommunityModal(false)}
+                      className="p-1 rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                      aria-label="Fechar convite da comunidade"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                  <div className="px-5 pt-3 pb-5 text-sm text-gray-600 leading-relaxed">
+                    Acesse o grupo exclusivo no WhatsApp para receber dicas semanais, materiais de apoio e trocar experiências com outros criadores.
+                  </div>
+                  <div className="bg-gray-50 px-5 py-5">
+                    <a
+                      href="https://chat.whatsapp.com/BAeBQZ8zuhQJOxXXJJaTnH"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex w-full items-center justify-center rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 transition-colors"
+                      onClick={() => setShowCommunityModal(false)}
+                    >
+                      Acessar comunidade no WhatsApp
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showWhatsAppModal && (

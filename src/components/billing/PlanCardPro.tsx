@@ -422,6 +422,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
           'Análises automáticas do Instagram',
           'Sugestões personalizadas por nicho',
           'Relatórios e alertas de performance',
+          'Participação no grupo VIP com mentorias estratégicas semanais exclusivas',
         ].map((b) => (
           <li key={b} className="flex items-center gap-3">
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-pink/10 flex-shrink-0">

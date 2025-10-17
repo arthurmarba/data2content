@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { User } from "@/server/db/models/User";
 import { stripe } from "@/app/lib/stripe";
+import { logger } from "@/app/lib/logger";
 import {
   findUserByCustomerId,
   markEventIfNew,
@@ -15,6 +16,139 @@ import { adjustBalance } from "@/server/affiliate/balance";
 import { processAffiliateRefund } from "@/server/affiliate/refund";
 
 const HOLD_DAYS = Number(process.env.AFFILIATE_HOLD_DAYS ?? "7");
+const DEFAULT_RETRY_ATTEMPTS = 2;
+const DEFAULT_RETRY_DELAY_MS = 200;
+
+type RetryOptions = {
+  attempts?: number;
+  delayMs?: number;
+  context?: Record<string, unknown>;
+};
+
+async function withRetries<T>(fn: () => Promise<T>, options?: RetryOptions): Promise<T> {
+  const attempts = options?.attempts ?? DEFAULT_RETRY_ATTEMPTS;
+  const delayMs = options?.delayMs ?? DEFAULT_RETRY_DELAY_MS;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
+
+      if (options?.context) {
+        logger.warn("stripe_retry", {
+          ...options.context,
+          attempt,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("Retryable operation failed without error instance");
+}
+
+function eventCreatedMs(event: Stripe.Event | { created?: number }): number | null {
+  const created = (event as any)?.created;
+  if (typeof created === "number") return created * 1000;
+  return null;
+}
+
+function eventCreatedDate(event: Stripe.Event | { created?: number }): Date | null {
+  const ms = eventCreatedMs(event);
+  return ms ? new Date(ms) : null;
+}
+
+function buildEventMeta(
+  user: any,
+  event: Stripe.Event,
+  extra?: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    userId: String(user._id),
+    eventId: event.id,
+    eventType: event.type,
+    ...extra,
+  };
+}
+
+function shouldIgnoreOutOfOrderEvent(user: any, event: Stripe.Event): boolean {
+  const last = user.lastStripeEventAt instanceof Date ? user.lastStripeEventAt.getTime() : null;
+  const current = eventCreatedMs(event);
+
+  if (last != null && current != null && current < last) {
+    logger.info("stripe_event_out_of_order", {
+      ...buildEventMeta(user, event, {
+        lastStripeEventAt: new Date(last).toISOString(),
+        incomingCreatedAt: new Date(current).toISOString(),
+      }),
+    });
+    return true;
+  }
+
+  return false;
+}
+
+type SubscriptionMismatchOptions = {
+  requireMatch?: boolean;
+  logLevel?: "warn" | "info";
+};
+
+function isSubscriptionMismatch(
+  user: any,
+  subscriptionId: string | null | undefined,
+  event: Stripe.Event,
+  options?: SubscriptionMismatchOptions
+): boolean {
+  const current = user.stripeSubscriptionId;
+  const requireMatch = options?.requireMatch ?? false;
+  const logLevel = options?.logLevel ?? "warn";
+
+  if (!subscriptionId) {
+    if (!requireMatch) return false;
+    const meta = buildEventMeta(user, event, {
+      eventSubscriptionId: subscriptionId,
+      currentSubscriptionId: current ?? null,
+    });
+    if (logLevel === "warn") logger.warn("stripe_subscription_missing_event_id", meta);
+    else logger.info("stripe_subscription_missing_event_id", meta);
+    return true;
+  }
+
+  if (!current) {
+    if (!requireMatch) return false;
+    const meta = buildEventMeta(user, event, {
+      eventSubscriptionId: subscriptionId,
+      currentSubscriptionId: current ?? null,
+    });
+    if (logLevel === "warn") {
+      logger.warn("stripe_subscription_missing_current_id", meta);
+    } else {
+      logger.info("stripe_subscription_missing_current_id", meta);
+    }
+    return true;
+  }
+
+  if (current === subscriptionId) return false;
+
+  const meta = buildEventMeta(user, event, {
+    eventSubscriptionId: subscriptionId,
+    currentSubscriptionId: current,
+  });
+
+  if (logLevel === "warn") {
+    logger.warn("stripe_subscription_mismatch", meta);
+  } else {
+    logger.info("stripe_subscription_mismatch", meta);
+  }
+
+  return true;
+}
 
 /* ---------------------- Helpers de extração ---------------------- */
 
@@ -220,18 +354,31 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
       if (!user) return;
 
-      const proceed = await markEventIfNew(user, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
       if (customerId && !(user as any).stripeCustomerId) {
         (user as any).stripeCustomerId = customerId;
       }
 
+      const eventDate = eventCreatedDate(event) ?? new Date();
+
       if (subscriptionId) {
         try {
-          const sub = await stripe.subscriptions.retrieve(subscriptionId, {
-            expand: ["items.data.price"],
-          });
+          const sub = await withRetries(
+            () =>
+              stripe.subscriptions.retrieve(subscriptionId, {
+                expand: ["items.data.price"],
+              }),
+            {
+              context: buildEventMeta(user, event, {
+                action: "retrieve_subscription",
+                subscriptionId,
+              }),
+            }
+          );
 
           // Força trial somente se trial_end > agora
           const trialEndSec =
@@ -242,35 +389,66 @@ export async function handleStripeEvent(event: Stripe.Event) {
           applyNormalizedUserBilling(user, sub, event.id, {
             overrideStatus: isTrialingNow ? "trialing" : undefined,
           });
+          (user as any).lastSubscriptionEventId = event.id;
 
           // Evita múltiplos trials simultâneos para o mesmo cliente
           if (customerId) {
             try {
-              const siblings = await stripe.subscriptions.list({
-                customer: customerId,
-                status: "all",
-                limit: 20,
-              });
+              const siblings = await withRetries(
+                () =>
+                  stripe.subscriptions.list({
+                    customer: customerId,
+                    status: "all",
+                    limit: 20,
+                  }),
+                {
+                  context: buildEventMeta(user, event, {
+                    action: "list_customer_subscriptions",
+                    customerId,
+                  }),
+                }
+              );
               const duplicates = siblings.data.filter(
                 (other) =>
                   other.id !== sub.id &&
                   (other.status === "trialing" || other.status === "incomplete")
               );
               await Promise.allSettled(
-                duplicates.map((other) => stripe.subscriptions.cancel(other.id))
+                duplicates.map((other) =>
+                  withRetries(
+                    () => stripe.subscriptions.cancel(other.id),
+                    {
+                      context: buildEventMeta(user, event, {
+                        action: "cancel_duplicate_subscription",
+                        subscriptionId: other.id,
+                      }),
+                    }
+                  )
+                )
               );
             } catch {
               /* noop */
             }
           }
-        } catch {
+        } catch (error) {
+          logger.warn("stripe_checkout_subscription_fetch_failed", {
+            ...buildEventMeta(user, event, { subscriptionId }),
+            error: error instanceof Error ? error.message : String(error),
+          });
           (user as any).lastProcessedEventId = event.id;
         }
       } else {
         (user as any).lastProcessedEventId = event.id;
       }
 
-      await user.save();
+      (user as any).lastStripeEventAt = eventDate;
+
+      await markEventIfNew(user, event.id);
+
+      await withRetries(
+        () => user.save(),
+        { context: buildEventMeta(user, event, { action: "user.save" }) }
+      );
       return;
     }
 
@@ -283,17 +461,33 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const user = await findUserByCustomerId(customerId);
       if (!user) return;
 
-      const proceed = await markEventIfNew(user, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
       // 1) Atualiza billing pela assinatura
       const subId = getSubscriptionIdFromInvoice(invoice);
+      if (subId && isSubscriptionMismatch(user, subId, event)) return;
+
+      const eventDate = eventCreatedDate(event) ?? new Date();
+
       if (subId) {
         try {
-          const sub = await stripe.subscriptions.retrieve(subId, {
-            expand: ["items.data.price"],
-          });
+          const sub = await withRetries(
+            () =>
+              stripe.subscriptions.retrieve(subId, {
+                expand: ["items.data.price"],
+              }),
+            {
+              context: buildEventMeta(user, event, {
+                action: "retrieve_subscription",
+                subscriptionId: subId,
+              }),
+            }
+          );
           applyNormalizedUserBilling(user, sub, event.id);
+          (user as any).lastSubscriptionEventId = event.id;
         } catch {
           // Fallback: se for fatura de $0 (subscription_create com trial),
           // NÃO devemos marcar como "active".
@@ -310,6 +504,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
           (user as any).cancelAtPeriodEnd = false;
           (user as any).currency = (invoice.currency ?? "brl").toUpperCase();
           (user as any).lastProcessedEventId = event.id;
+          (user as any).lastSubscriptionEventId = event.id;
         }
       } else {
         const period = invoice.lines?.data?.[0]?.period;
@@ -357,7 +552,17 @@ export async function handleStripeEvent(event: Stripe.Event) {
                   availableAt: addDays(new Date(), HOLD_DAYS),
                   createdAt: new Date(),
                 });
-                await owner.save();
+                await withRetries(
+                  () => owner.save(),
+                  {
+                    context: {
+                      ownerId: String(owner._id),
+                      action: "owner.save",
+                      eventId: event.id,
+                      eventType: event.type,
+                    },
+                  }
+                );
               }
             }
           }
@@ -366,7 +571,14 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
       // 3) Limpa erro anterior e salva
       (user as any).lastPaymentError = undefined;
-      await user.save();
+      (user as any).lastStripeEventAt = eventDate;
+
+      await markEventIfNew(user, event.id);
+
+      await withRetries(
+        () => user.save(),
+        { context: buildEventMeta(user, event, { action: "user.save" }) }
+      );
       return;
     }
 
@@ -378,8 +590,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const user = await findUserByCustomerId(customerId);
       if (!user) return;
 
-      const proceed = await markEventIfNew(user, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (shouldIgnoreOutOfOrderEvent(user, event)) return;
+
+      const subId = getSubscriptionIdFromInvoice(invoice);
+      if (subId && isSubscriptionMismatch(user, subId, event)) return;
 
       const pmErr =
         invoice?.last_finalization_error?.message ||
@@ -392,9 +609,28 @@ export async function handleStripeEvent(event: Stripe.Event) {
         status: "failed",
         statusDetail: pmErr,
       };
-      (user as any).lastProcessedEventId = event.id;
-      // planStatus será ajustado por customer.subscription.updated
-      await user.save();
+
+      const invoiceStatus = typeof invoice.status === "string" ? invoice.status : undefined;
+      let desiredStatus: Normalized["planStatus"] | undefined = "past_due";
+      if (invoiceStatus === "uncollectible") desiredStatus = "unpaid";
+
+      if (desiredStatus) {
+        (user as any).planStatus = toDbPlanStatus(desiredStatus);
+      }
+
+      if (subId) {
+        (user as any).lastSubscriptionEventId = event.id;
+      }
+
+      const eventDate = eventCreatedDate(event) ?? new Date();
+      (user as any).lastStripeEventAt = eventDate;
+
+      await markEventIfNew(user, event.id);
+
+      await withRetries(
+        () => user.save(),
+        { context: buildEventMeta(user, event, { action: "user.save" }) }
+      );
       return;
     }
 
@@ -406,16 +642,30 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const buyer = await findUserByCustomerId(customerId);
       if (!buyer) return;
 
-      const proceed = await markEventIfNew(buyer, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(buyer, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (shouldIgnoreOutOfOrderEvent(buyer, event)) return;
+
+      const eventDate = eventCreatedDate(event) ?? new Date();
 
       if (!(buyer as any).affiliateUsed) {
-        await buyer.save();
+        (buyer as any).lastStripeEventAt = eventDate;
+        await markEventIfNew(buyer, event.id);
+        await withRetries(
+          () => buyer.save(),
+          { context: buildEventMeta(buyer, event, { action: "buyer.save" }) }
+        );
         return;
       }
       const owner = await User.findOne({ affiliateCode: (buyer as any).affiliateUsed });
       if (!owner) {
-        await buyer.save();
+        (buyer as any).lastStripeEventAt = eventDate;
+        await markEventIfNew(buyer, event.id);
+        await withRetries(
+          () => buyer.save(),
+          { context: buildEventMeta(buyer, event, { action: "buyer.save" }) }
+        );
         return;
       }
 
@@ -433,9 +683,26 @@ export async function handleStripeEvent(event: Stripe.Event) {
         entry.status = "reversed";
         (entry as any).reversedAt = new Date();
         (entry as any).reversalReason = "invoice.voided";
-        await owner.save();
+        await withRetries(
+          () => owner.save(),
+          {
+            context: {
+              ownerId: String(owner._id),
+              action: "owner.save",
+              eventId: event.id,
+              eventType: event.type,
+            },
+          }
+        );
       }
-      await buyer.save();
+      (buyer as any).lastStripeEventAt = eventDate;
+
+      await markEventIfNew(buyer, event.id);
+
+      await withRetries(
+        () => buyer.save(),
+        { context: buildEventMeta(buyer, event, { action: "buyer.save" }) }
+      );
       return;
     }
 
@@ -457,8 +724,10 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const user = await findUserByCustomerId(customerId);
       if (!user) return;
 
-      const proceed = await markEventIfNew(user, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
       // Tentar chegar na assinatura via invoice do PI
       let subId: string | null = null;
@@ -474,15 +743,34 @@ export async function handleStripeEvent(event: Stripe.Event) {
         }
       }
 
+      if (subId && isSubscriptionMismatch(user, subId, event)) return;
+
       let updated = false;
+      const eventDate = eventCreatedDate(event) ?? new Date();
+
       if (subId) {
         try {
-          const sub = await stripe.subscriptions.retrieve(subId, {
-            expand: ["items.data.price"],
-          });
+          const sub = await withRetries(
+            () =>
+              stripe.subscriptions.retrieve(subId, {
+                expand: ["items.data.price"],
+              }),
+            {
+              context: buildEventMeta(user, event, {
+                action: "retrieve_subscription",
+                subscriptionId: subId,
+              }),
+            }
+          );
           applyNormalizedUserBilling(user, sub, event.id);
           (user as any).lastPaymentError = undefined;
-          await user.save();
+          (user as any).lastStripeEventAt = eventDate;
+          (user as any).lastSubscriptionEventId = event.id;
+          await markEventIfNew(user, event.id);
+          await withRetries(
+            () => user.save(),
+            { context: buildEventMeta(user, event, { action: "user.save" }) }
+          );
           updated = true;
         } catch {
           /* ignore */
@@ -490,7 +778,12 @@ export async function handleStripeEvent(event: Stripe.Event) {
       }
       if (!updated) {
         (user as any).lastProcessedEventId = event.id;
-        await user.save();
+        (user as any).lastStripeEventAt = eventDate;
+        await markEventIfNew(user, event.id);
+        await withRetries(
+          () => user.save(),
+          { context: buildEventMeta(user, event, { action: "user.save" }) }
+        );
       }
       return;
     }
@@ -503,8 +796,10 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const user = await findUserByCustomerId(customerId);
       if (!user) return;
 
-      const proceed = await markEventIfNew(user, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
       (user as any).lastPaymentError = {
         at: new Date(),
@@ -515,7 +810,14 @@ export async function handleStripeEvent(event: Stripe.Event) {
           "Falha ao processar o pagamento.",
       };
       (user as any).lastProcessedEventId = event.id;
-      await user.save();
+      (user as any).lastStripeEventAt = eventCreatedDate(event) ?? new Date();
+
+      await markEventIfNew(user, event.id);
+
+      await withRetries(
+        () => user.save(),
+        { context: buildEventMeta(user, event, { action: "user.save" }) }
+      );
       return;
     }
 
@@ -528,13 +830,26 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const user = await findUserByCustomerId(customerId);
       if (!user) return;
 
-      const proceed = await markEventIfNew(user, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (shouldIgnoreOutOfOrderEvent(user, event)) return;
+
+      if (isSubscriptionMismatch(user, subEventObj.id, event)) return;
 
       // Rebusca com expansões necessárias para decidir heurística
-      const sub = await stripe.subscriptions.retrieve(subEventObj.id, {
-        expand: ["items.data.price", "latest_invoice.payment_intent"],
-      });
+      const sub = await withRetries(
+        () =>
+          stripe.subscriptions.retrieve(subEventObj.id, {
+            expand: ["items.data.price", "latest_invoice.payment_intent"],
+          }),
+        {
+          context: buildEventMeta(user, event, {
+            action: "retrieve_subscription",
+            subscriptionId: subEventObj.id,
+          }),
+        }
+      );
 
       const normalized = normalizeFromSubscription(sub);
 
@@ -571,7 +886,15 @@ export async function handleStripeEvent(event: Stripe.Event) {
       }
 
       applyNormalizedUserBilling(user, sub, event.id, { overrideStatus });
-      await user.save();
+      (user as any).lastSubscriptionEventId = event.id;
+      (user as any).lastStripeEventAt = eventCreatedDate(event) ?? new Date();
+
+      await markEventIfNew(user, event.id);
+
+      await withRetries(
+        () => user.save(),
+        { context: buildEventMeta(user, event, { action: "user.save" }) }
+      );
       return;
     }
 
@@ -583,8 +906,12 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const user = await findUserByCustomerId(customerId);
       if (!user) return;
 
-      const proceed = await markEventIfNew(user, event.id);
-      if (!proceed) return;
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      if (isSubscriptionMismatch(user, sub.id, event, { requireMatch: true })) return;
+
+      if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
       // Marca como cancelada; zera flags que confundem o UI
       (user as any).planStatus = "canceled";
@@ -597,9 +924,15 @@ export async function handleStripeEvent(event: Stripe.Event) {
           ? new Date((sub as any).ended_at * 1000)
           : new Date();
       (user as any).currentPeriodEnd = (user as any).planExpiresAt;
-      (user as any).lastProcessedEventId = event.id;
+      (user as any).lastSubscriptionEventId = event.id;
+      (user as any).lastStripeEventAt = eventCreatedDate(event) ?? new Date();
 
-      await user.save();
+      await markEventIfNew(user, event.id);
+
+      await withRetries(
+        () => user.save(),
+        { context: buildEventMeta(user, event, { action: "user.save" }) }
+      );
       return;
     }
 

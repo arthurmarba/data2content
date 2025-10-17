@@ -10,9 +10,18 @@ export async function findUserByCustomerId(customerId: string) {
   return User.findOne({ stripeCustomerId: customerId });
 }
 
-export async function markEventIfNew(user: any, eventId: string): Promise<boolean> {
+type MarkEventOptions = {
+  commit?: boolean;
+};
+
+export async function markEventIfNew(
+  user: any,
+  eventId: string,
+  opts?: MarkEventOptions
+): Promise<boolean> {
   if (!eventId) return true;
   if (user.lastProcessedEventId === eventId) return false;
+  if (opts?.commit === false) return true;
   user.lastProcessedEventId = eventId;
   return true;
 }

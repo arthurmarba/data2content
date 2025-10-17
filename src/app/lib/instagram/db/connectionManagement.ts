@@ -5,6 +5,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser, { IUser } from '@/app/models/User';
 import { Client } from '@upstash/qstash';
 import { sendInstagramReconnectEmail } from '@/app/lib/emailService';
+import { isPlanActiveLike } from '@/utils/planStatus';
 
 // Acessar variáveis de ambiente diretamente
 const qstashToken = process.env.QSTASH_TOKEN;
@@ -57,6 +58,21 @@ export async function connectInstagramAccount(
   try {
     await connectToDatabase();
 
+    const existingUser = await DbUser.findById(userId).select('planStatus planExpiresAt role');
+    if (!existingUser) {
+      const errorMsg = `Usuário ${userId} não encontrado no DB para conectar conta IG.`;
+      logger.error(`${TAG} ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+
+    const now = Date.now();
+    const hasActivePlan = isPlanActiveLike(existingUser.planStatus);
+    const hasValidExpiry = existingUser.planExpiresAt instanceof Date && existingUser.planExpiresAt.getTime() > now;
+    const eligibleForTrial =
+      !hasActivePlan &&
+      existingUser.role !== 'guest' &&
+      (!existingUser.planExpiresAt || !hasValidExpiry);
+
     const updateData: Partial<IUser> & { $unset?: any } = {
       instagramAccountId: instagramAccountId,
       isInstagramConnected: true,
@@ -66,6 +82,15 @@ export async function connectInstagramAccount(
       instagramSyncErrorCode: null,
       instagramReconnectNotifiedAt: null,
     };
+
+    if (eligibleForTrial) {
+      const trialEndsAt = new Date(now + 48 * 60 * 60 * 1000);
+      updateData.role = 'guest';
+      updateData.planStatus = 'trial';
+      updateData.planExpiresAt = trialEndsAt;
+      (updateData as any).currentPeriodEnd = trialEndsAt;
+      logger.info(`${TAG} Concedendo trial de 48h para User ${userId} após conexão do Instagram.`);
+    }
 
     if (longLivedAccessToken) {
       updateData.instagramAccessToken = longLivedAccessToken;

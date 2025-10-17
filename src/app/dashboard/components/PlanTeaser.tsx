@@ -309,6 +309,7 @@ function PlanTeaserContent() {
         <li>✅ Análises automáticas do Instagram</li>
         <li>✅ Sugestões personalizadas por nicho</li>
         <li>✅ Relatórios e alertas de performance</li>
+        <li>✅ Participação no grupo VIP com mentorias estratégicas semanais exclusivas</li>
       </ul>
 
       {/* Afiliado */}

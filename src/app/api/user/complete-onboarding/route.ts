@@ -6,6 +6,7 @@ import DbUser from "@/app/models/User"; // Ajuste o caminho se for diferente
 import { logger } from "@/app/lib/logger"; // Ajuste o caminho se for diferente
 import { NextResponse } from "next/server";
 import { Types } from "mongoose";
+import { isPlanActiveLike } from "@/utils/planStatus";
 
 export async function POST(req: Request) {
   const TAG = "[API complete-onboarding]";
@@ -34,17 +35,40 @@ export async function POST(req: Request) {
     await connectToDatabase();
     logger.info(`${TAG} Conectado ao banco de dados para o usuário: ${userId}.`);
 
+    const userDoc = await DbUser.findById(userId);
+
+    if (!userDoc) {
+      logger.error(`${TAG} Usuário não encontrado no banco de dados para atualização: ${userId}`);
+      return NextResponse.json({ message: "Usuário não encontrado." }, { status: 404 });
+    }
+
+    const now = Date.now();
+    const hasActivePlan = isPlanActiveLike(userDoc.planStatus);
+    const hasValidExpiry = userDoc.planExpiresAt instanceof Date && userDoc.planExpiresAt.getTime() > now;
+    const eligibleForTrial =
+      !hasActivePlan &&
+      userDoc.role !== "guest" &&
+      (!userDoc.planExpiresAt || !hasValidExpiry);
+
+    const trialEndsAt = eligibleForTrial ? new Date(now + 48 * 60 * 60 * 1000) : null;
+
+    const updatePayload: Record<string, unknown> = {
+      isNewUserForOnboarding: false,
+      onboardingCompletedAt: new Date(),
+    };
+
+    if (eligibleForTrial && trialEndsAt) {
+      updatePayload.role = "guest";
+      updatePayload.planStatus = "trial";
+      updatePayload.planExpiresAt = trialEndsAt;
+      updatePayload.currentPeriodEnd = trialEndsAt;
+      logger.info(`${TAG} Trial de 48h concedido automaticamente durante conclusão do onboarding para usuário ${userId}.`);
+    }
+
     const updatedUser = await DbUser.findByIdAndUpdate(
       userId,
-      {
-        $set: {
-          isNewUserForOnboarding: false, // Marca que o onboarding foi concluído
-          onboardingCompletedAt: new Date(), // Opcional, mas bom para rastreamento
-          // Se você atualizou a versão dos termos aceitos aqui, poderia setar também:
-          // communityInspirationTermsVersion: "SUA_VERSAO_ATUAL_DOS_TERMOS_GERAIS",
-        },
-      },
-      { new: true } // Retorna o documento atualizado
+      { $set: updatePayload },
+      { new: true }
     );
 
     if (!updatedUser) {

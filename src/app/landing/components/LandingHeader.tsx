@@ -20,9 +20,17 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
+  const ctaButtonRef = useRef<HTMLButtonElement>(null);
 
-  const handleSignIn = () => {
-    track('login_button_click');
+  const navLinks = [
+    { href: '#como-funciona', label: 'Como funciona' },
+    { href: '#ranking', label: 'Ranking' },
+    { href: '#categorias', label: 'Insights' },
+    { href: '#beneficios', label: 'Benefícios' },
+  ];
+
+  const handleJoinCommunity = () => {
+    track('cta_join_community_click');
     signIn('google', { callbackUrl: MAIN_DASHBOARD_ROUTE });
   };
 
@@ -35,16 +43,24 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
 
   useEffect(() => {
     if (isMenuOpen) {
-      firstLinkRef.current?.focus();
+      if (!session) {
+        firstLinkRef.current?.focus();
+      } else {
+        ctaButtonRef.current?.focus();
+      }
     } else {
       menuButtonRef.current?.focus();
     }
-  }, [isMenuOpen]);
+  }, [isMenuOpen, session]);
 
   return (
-    <header className={`fixed top-0 w-full z-50 backdrop-blur-md transition-all ${isScrolled ? 'bg-white shadow' : 'bg-white/60'}`}>
-      <Container className="flex justify-between items-center h-20 relative">
-        <Link href="/" className="font-bold text-2xl text-brand-dark flex items-center gap-2 group">
+    <header
+      className={`fixed top-0 z-50 w-full transition-all ${
+        isScrolled ? 'bg-white/95 shadow-lg backdrop-blur-md' : 'bg-white/75 backdrop-blur'
+      }`}
+    >
+      <Container className="relative flex h-20 items-center justify-between">
+        <Link href="/" className="group flex items-center gap-2 text-2xl font-bold text-brand-dark">
           <div className="relative h-8 w-8 overflow-hidden">
             <Image
               src="/images/Colorido-Simbolo.png"
@@ -56,39 +72,37 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
           </div>
           <span>data2content</span>
         </Link>
-        <div className="flex items-center gap-5">
-          <nav className="hidden md:flex items-center gap-5">
+        <div className="flex items-center gap-4">
+          <nav className="hidden items-center gap-6 md:flex">
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-sm font-medium text-gray-600 transition-colors hover:text-brand-magenta"
+              >
+                {link.label}
+              </a>
+            ))}
             {session ? (
-              <Link
+              <ButtonPrimary
                 href={MAIN_DASHBOARD_ROUTE}
-                className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
+                className="px-4 py-2 text-sm"
               >
-                Meu Painel
-              </Link>
+                Ir para o painel
+              </ButtonPrimary>
             ) : (
-              // CORREÇÃO: Simplificado para um único link de Login
-              <button
-                onClick={handleSignIn}
-                className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
+              <ButtonPrimary
+                onClick={handleJoinCommunity}
+                className="px-4 py-2 text-sm"
               >
-                Login
-              </button>
+                Entrar na comunidade
+              </ButtonPrimary>
             )}
-            {/* Mantido o botão principal de "Começar Agora" */}
-            <ButtonPrimary
-              onClick={() => {
-                track('cta_start_now_click');
-                handleSignIn();
-              }}
-              className="px-4 py-2 text-sm" // Ajustado para um tamanho menor
-            >
-              Começar Agora
-            </ButtonPrimary>
           </nav>
-          
+
           <button
             ref={menuButtonRef}
-            className="md:hidden p-2 text-gray-600"
+            className="p-2 text-gray-600 md:hidden"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Menu"
             aria-controls="mobile-menu"
@@ -104,41 +118,31 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
         {isMenuOpen && (
           <div className="absolute top-20 right-0 w-full rounded-md bg-white shadow-lg md:hidden">
             <nav id="mobile-menu" className="flex flex-col p-2">
-              {session ? (
-                <Link
-                  href={MAIN_DASHBOARD_ROUTE}
-                  className="px-4 py-2 text-sm hover:bg-gray-100"
+              {navLinks.map((link, index) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
                   onClick={() => setIsMenuOpen(false)}
-                  ref={firstLinkRef}
+                  ref={!session && index === 0 ? firstLinkRef : undefined}
                 >
-                  Meu Painel
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    onClick={() => {
-                      track('login_link_click');
-                      setIsMenuOpen(false);
-                    }}
-                    className="px-4 py-2 text-sm hover:bg-gray-100"
-                    ref={firstLinkRef}
-                    rel="nofollow"
-                  >
-                    Login
-                  </Link>
-                  <button
-                    onClick={() => {
-                      track('cta_start_now_click');
-                      setIsMenuOpen(false);
-                      handleSignIn();
-                    }}
-                    className="px-4 py-2 text-sm font-bold text-brand-pink hover:bg-gray-100 text-left"
-                  >
-                    Começar Agora
-                  </button>
-                </>
-              )}
+                  {link.label}
+                </a>
+              ))}
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  if (session) {
+                    window.location.assign(MAIN_DASHBOARD_ROUTE);
+                  } else {
+                    handleJoinCommunity();
+                  }
+                }}
+                className="mt-1 rounded-md px-4 py-2 text-left text-sm font-semibold text-brand-magenta hover:bg-gray-100"
+                ref={session ? ctaButtonRef : undefined}
+              >
+                {session ? 'Ir para o painel' : 'Entrar na comunidade'}
+              </button>
             </nav>
           </div>
         )}

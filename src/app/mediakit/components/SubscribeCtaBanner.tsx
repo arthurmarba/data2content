@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Crown } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 
 export interface SubscribeCtaBannerProps {
   /** Se true, oculta o banner (já é assinante) */
@@ -55,13 +56,22 @@ const SubscribeCtaBanner: React.FC<SubscribeCtaBannerProps> = ({
             </div>
           </div>
 
-          <div className="flex w-full sm:w-auto">
+          <div className="flex w-full sm:w-auto flex-col gap-2">
             <button
               onClick={openSubscribe}
               className="inline-flex w-full items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm sm:text-base font-semibold text-white shadow hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
             >
               {primaryLabel}
             </button>
+            <a
+              href="https://chat.whatsapp.com/BAeBQZ8zuhQJOxXXJJaTnH"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-emerald-200 bg-white px-4 py-2 text-sm sm:text-base font-semibold text-emerald-600 shadow-sm hover:border-emerald-300 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 transition-colors"
+            >
+              <FaWhatsapp aria-hidden="true" className="h-4 w-4" />
+              Entrar na Comunidade (WhatsApp)
+            </a>
           </div>
         </div>
       </div>
