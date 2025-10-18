@@ -1,6 +1,5 @@
 // src/app/api/whatsapp/generateCode/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { guardPremiumRequest } from "@/app/lib/planGuard";
 import { getToken } from "next-auth/jwt";
 import { jwtVerify } from "jose";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -62,9 +61,6 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
 }
 
 export async function POST(request: NextRequest) {
-  const guardResponse = await guardPremiumRequest(request);
-  if (guardResponse) return guardResponse;
-
   console.log("[whatsapp/generateCode] ▶︎ Request received");
 
   try {

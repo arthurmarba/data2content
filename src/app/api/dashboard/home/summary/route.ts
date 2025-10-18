@@ -40,6 +40,14 @@ const communityTotalsCache = new Map<
 const FREE_COMMUNITY_URL = process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL || "/dashboard/discover";
 const VIP_COMMUNITY_URL = process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL || "/dashboard/whatsapp";
 const WHATSAPP_TRIAL_URL = process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_URL || "/dashboard/whatsapp";
+const WHATSAPP_TRIAL_ENABLED =
+  String(
+    process.env.WHATSAPP_TRIAL_ENABLED ??
+      process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED ??
+      "true"
+  )
+    .toLowerCase()
+    .trim() !== "false";
 
 type UserSnapshot = Pick<
   IUser,
@@ -47,6 +55,13 @@ type UserSnapshot = Pick<
   | "communityInspirationOptInDate"
   | "whatsappVerified"
   | "whatsappPhone"
+  | "whatsappLinkedAt"
+  | "whatsappTrialEligible"
+  | "whatsappTrialActive"
+  | "whatsappTrialStartedAt"
+  | "whatsappTrialExpiresAt"
+  | "whatsappTrialLastReminderAt"
+  | "whatsappTrialLastNotificationAt"
   | "planStatus"
   | "planExpiresAt"
   | "planInterval"
@@ -685,6 +700,13 @@ export async function GET(request: Request) {
           communityInspirationOptInDate: 1,
           whatsappVerified: 1,
           whatsappPhone: 1,
+          whatsappLinkedAt: 1,
+          whatsappTrialEligible: 1,
+          whatsappTrialActive: 1,
+          whatsappTrialStartedAt: 1,
+          whatsappTrialExpiresAt: 1,
+          whatsappTrialLastReminderAt: 1,
+          whatsappTrialLastNotificationAt: 1,
           planStatus: 1,
           planExpiresAt: 1,
           planInterval: 1,
@@ -746,13 +768,53 @@ export async function GET(request: Request) {
         : null;
     const validPlanExpiresAt =
       planExpiresAt && !Number.isNaN(planExpiresAt.getTime()) ? planExpiresAt : null;
-    const trialActive = normalizedStatus === "trial" || normalizedStatus === "trialing";
-    const hasPremiumAccess = accessMeta.hasPremiumAccess && !trialActive ? true : false;
-    const hasEverHadPlan = Boolean(validPlanExpiresAt);
-    const trialEligible = !trialActive && !hasPremiumAccess && !hasEverHadPlan;
-    const trialStarted = trialActive || (!trialEligible && !hasPremiumAccess && hasEverHadPlan);
-    const trialExpiresIso =
-      trialActive && validPlanExpiresAt ? validPlanExpiresAt.toISOString() : null;
+    const nowMs = Date.now();
+    const trialExpiresFromRecordRaw = userSnapshot?.whatsappTrialExpiresAt ?? null;
+    const trialExpiresFromRecord =
+      trialExpiresFromRecordRaw instanceof Date
+        ? trialExpiresFromRecordRaw
+        : trialExpiresFromRecordRaw
+        ? new Date(trialExpiresFromRecordRaw)
+        : null;
+    const validTrialExpires =
+      trialExpiresFromRecord && !Number.isNaN(trialExpiresFromRecord.getTime())
+        ? trialExpiresFromRecord
+        : null;
+
+    const trialActiveFromPlan = normalizedStatus === "trial" || normalizedStatus === "trialing";
+    const trialActiveFromWhatsapp =
+      WHATSAPP_TRIAL_ENABLED &&
+      Boolean(userSnapshot?.whatsappTrialActive) &&
+      (!validTrialExpires || validTrialExpires.getTime() > nowMs);
+    const trialActive = trialActiveFromPlan || trialActiveFromWhatsapp;
+
+    const hasPremiumPlan = accessMeta.hasPremiumAccess;
+    const hasPremiumAccess = hasPremiumPlan || trialActive;
+
+    const trialEligibleRecord = userSnapshot?.whatsappTrialEligible;
+    const trialStartedRecord = Boolean(userSnapshot?.whatsappTrialStartedAt);
+    const hasEverHadPlan = Boolean(validPlanExpiresAt) || trialStartedRecord;
+
+    let trialEligible =
+      WHATSAPP_TRIAL_ENABLED &&
+      (typeof trialEligibleRecord === "boolean"
+        ? trialEligibleRecord
+        : !trialActive && !hasPremiumPlan && !hasEverHadPlan);
+
+    if (trialActiveFromWhatsapp || trialStartedRecord) {
+      trialEligible = false;
+    }
+
+    trialEligible = Boolean(trialEligible);
+
+    const trialStarted = trialStartedRecord || trialActive;
+    const trialExpiresIso = trialActiveFromWhatsapp
+      ? validTrialExpires
+        ? validTrialExpires.toISOString()
+        : null
+      : trialActiveFromPlan && validPlanExpiresAt
+      ? validPlanExpiresAt.toISOString()
+      : null;
 
     responsePayload.plan = {
       status: planStatus ?? null,
@@ -762,7 +824,7 @@ export async function GET(request: Request) {
       expiresAt: validPlanExpiresAt ? validPlanExpiresAt.toISOString() : null,
       priceId: userSnapshot?.stripePriceId ?? null,
       hasPremiumAccess,
-      isPro: hasPremiumAccess,
+      isPro: hasPremiumPlan,
       trial: {
         active: trialActive,
         eligible: trialEligible,
@@ -771,7 +833,7 @@ export async function GET(request: Request) {
       },
     };
 
-    const whatsappLinked = Boolean(userSnapshot?.whatsappVerified);
+    const whatsappLinked = Boolean(userSnapshot?.whatsappVerified || userSnapshot?.whatsappPhone);
 
     responsePayload.whatsapp = {
       linked: whatsappLinked,

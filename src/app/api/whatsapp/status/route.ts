@@ -6,6 +6,15 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import mongoose from "mongoose";
 import User from "@/app/models/User";
 
+const WHATSAPP_TRIAL_ENABLED =
+  String(
+    process.env.WHATSAPP_TRIAL_ENABLED ??
+      process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED ??
+      "true"
+  )
+    .toLowerCase()
+    .trim() !== "false";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -60,7 +69,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
 
     const doc = await User.findById(userId).select(
-      "_id whatsappVerificationCode whatsappPhone whatsappVerified"
+      "_id whatsappVerificationCode whatsappVerificationCodeExpiresAt whatsappPhone whatsappVerified whatsappTrialActive whatsappTrialEligible whatsappTrialStartedAt whatsappTrialExpiresAt"
     );
 
     if (!doc) {
@@ -70,25 +79,64 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const now = Date.now();
+    const trialExpiresAt =
+      doc.whatsappTrialExpiresAt instanceof Date
+        ? doc.whatsappTrialExpiresAt
+        : doc.whatsappTrialExpiresAt
+        ? new Date(doc.whatsappTrialExpiresAt)
+        : null;
+    const trialActiveFromWhatsapp =
+      WHATSAPP_TRIAL_ENABLED &&
+      Boolean(doc.whatsappTrialActive) &&
+      (!trialExpiresAt || trialExpiresAt.getTime() > now);
+    const trialStarted = Boolean(doc.whatsappTrialStartedAt) || trialActiveFromWhatsapp;
+    const trialEligible =
+      WHATSAPP_TRIAL_ENABLED &&
+      (doc.whatsappTrialEligible === undefined || doc.whatsappTrialEligible === null
+        ? !trialStarted
+        : doc.whatsappTrialEligible);
+    const trialPayload = {
+      active: trialActiveFromWhatsapp,
+      eligible: Boolean(trialEligible),
+      started: trialStarted,
+      expiresAt:
+        WHATSAPP_TRIAL_ENABLED && trialActiveFromWhatsapp && trialExpiresAt
+          ? trialExpiresAt.toISOString()
+          : null,
+    };
+
     // Já vinculado
     if (doc.whatsappVerified === true && doc.whatsappPhone) {
       return NextResponse.json(
-        { linked: true, phone: doc.whatsappPhone },
+        { linked: true, phone: doc.whatsappPhone, trial: trialPayload },
         { status: 200, headers: { "Cache-Control": "no-store" } }
       );
     }
 
     // Pendente com código
     if (doc.whatsappVerificationCode) {
+      const expiresAt =
+        doc.whatsappVerificationCodeExpiresAt instanceof Date
+          ? doc.whatsappVerificationCodeExpiresAt.toISOString()
+          : doc.whatsappVerificationCodeExpiresAt
+          ? new Date(doc.whatsappVerificationCodeExpiresAt).toISOString()
+          : null;
       return NextResponse.json(
-        { linked: false, pending: true, code: doc.whatsappVerificationCode },
+        {
+          linked: false,
+          pending: true,
+          code: doc.whatsappVerificationCode,
+          expiresAt,
+          trial: trialPayload,
+        },
         { status: 200, headers: { "Cache-Control": "no-store" } }
       );
     }
 
     // Não vinculado e sem código pendente
     return NextResponse.json(
-      { linked: false, pending: false, code: null },
+      { linked: false, pending: false, code: null, trial: trialPayload },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {

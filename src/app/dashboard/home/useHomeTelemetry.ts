@@ -45,10 +45,18 @@ export function useHomeTelemetry() {
     [emit]
   );
 
+  const trackWhatsappEvent = React.useCallback(
+    (type: "start" | "success" | "fail", extra?: Record<string, unknown>) => {
+      emit(`whatsapp_connect_${type}`, extra);
+    },
+    [emit]
+  );
+
   return {
     trackCardAction,
     trackCardPeriodChange,
     trackHeroAction,
     trackSurfaceView,
+    trackWhatsappEvent,
   };
 }

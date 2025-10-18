@@ -271,6 +271,13 @@ export interface IUser extends Document {
   whatsappVerificationCodeExpiresAt?: Date | null; // <<< NOVO
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
+  whatsappLinkedAt?: Date | null;
+  whatsappTrialEligible?: boolean;
+  whatsappTrialActive?: boolean;
+  whatsappTrialStartedAt?: Date | null;
+  whatsappTrialExpiresAt?: Date | null;
+  whatsappTrialLastReminderAt?: Date | null;
+  whatsappTrialLastNotificationAt?: Date | null;
 
   profileTone?: string;
   hobbies?: string[];
@@ -500,6 +507,13 @@ const userSchema = new Schema<IUser>(
     whatsappVerificationCodeExpiresAt: { type: Date, default: null }, // <<< NOVO
     whatsappPhone: { type: String, default: null, index: true },
     whatsappVerified: { type: Boolean, default: false },
+    whatsappLinkedAt: { type: Date, default: null },
+    whatsappTrialEligible: { type: Boolean, default: undefined },
+    whatsappTrialActive: { type: Boolean, default: false, index: true },
+    whatsappTrialStartedAt: { type: Date, default: null },
+    whatsappTrialExpiresAt: { type: Date, default: null, index: true },
+    whatsappTrialLastReminderAt: { type: Date, default: null },
+    whatsappTrialLastNotificationAt: { type: Date, default: null },
 
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
@@ -577,6 +591,11 @@ userSchema.index(
   { name: 'idx_whatsapp_code_and_exp' }
 );
 
+userSchema.index(
+  { whatsappTrialActive: 1, whatsappTrialExpiresAt: 1 },
+  { name: 'idx_whatsapp_trial_active_exp' }
+);
+
 userSchema.pre<IUser>("save", function (next) {
   const TAG_PRE_SAVE = '[User.ts pre-save v1.9.24]';
   if (this.isNew && !this.affiliateCode) {
@@ -593,6 +612,9 @@ userSchema.pre<IUser>("save", function (next) {
       logger.debug(`${TAG_PRE_SAVE} Limpando campos de verificação de WhatsApp por conta verificada.`);
       this.whatsappVerificationCode = null;
       this.whatsappVerificationCodeExpiresAt = null;
+    }
+    if (!this.whatsappLinkedAt) {
+      this.whatsappLinkedAt = new Date();
     }
   }
   next();
