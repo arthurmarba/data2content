@@ -142,13 +142,21 @@ export default function LandingPageClient() {
   const nextMentorship = resolvedStats.nextMentorship;
 
   return (
-    <div className="bg-white font-sans">
+    <div
+      className="bg-white font-sans"
+      style={{ "--landing-header-extra": "1.5rem" } as React.CSSProperties}
+    >
       <div ref={headerWrapRef}>
         <LandingHeader showLoginButton />
       </div>
-      <div aria-hidden className="h-[var(--landing-header-h,4.5rem)]" />
 
-      <main style={{ scrollPaddingTop: "var(--landing-header-h, 4.5rem)" }}>
+      <main
+        className="md:[--landing-header-extra:0px]"
+        style={{
+          scrollPaddingTop:
+            "calc(var(--landing-header-h, 4.5rem) + var(--landing-header-extra, 0px))",
+        }}
+      >
         <CommunityHero onPrimaryCta={handleSignIn} metrics={metrics} nextMentorship={nextMentorship} />
         <TopCreatorsSection creators={resolvedStats.ranking} />
         <CategoryInsightsSection categories={resolvedStats.categories} />

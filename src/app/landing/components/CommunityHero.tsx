@@ -45,6 +45,9 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
     <section
       id="hero"
       className="relative overflow-hidden bg-gradient-to-br from-brand-purple via-[#5B2ADE] to-brand-magenta text-white"
+      style={{
+        paddingTop: "calc(var(--landing-header-h, 4.5rem) + var(--landing-header-extra, 0px))",
+      }}
     >
       <div className="absolute inset-0 opacity-70">
         <div className="absolute -top-40 -left-24 h-72 w-72 rounded-full bg-white/20 blur-[140px]" />
