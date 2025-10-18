@@ -360,14 +360,6 @@ export default function HomeClientPage() {
     handleNavigate(communityVipInviteUrl);
   }, [communityVipInviteUrl, handleNavigate]);
 
-  const handleJoinCommunityCta = React.useCallback(() => {
-    if (communityVipHasAccess) {
-      handleMentorshipAction("join_community");
-    } else {
-      handleJoinFreeCommunity();
-    }
-  }, [communityVipHasAccess, handleJoinFreeCommunity, handleMentorshipAction]);
-
   const whatsappBanner = React.useMemo(() => {
     const previewMessages = [
       "IA: Hoje, 19h segue sendo o horário com maior alcance pelos seus últimos Reels.",
@@ -478,19 +470,31 @@ export default function HomeClientPage() {
     whatsappTrialStarted,
   ]);
 
-  const communityHeroAction = React.useMemo(
+  const communityFreeAction = React.useMemo(
     () => ({
-      key: communityFreeMember ? "open-community" : "join-community",
-      label: communityFreeMember ? "Abrir comunidade" : "Entrar na comunidade",
+      key: communityFreeMember ? "community_free_open" : "community_free_join",
+      label: communityFreeMember ? "Abrir comunidade gratuita" : "Entrar na comunidade gratuita",
       description: communityVipHasAccess
-        ? "Mentorias exclusivas e bastidores PRO."
-        : "Encontros ao vivo + troca de experiência com criadores.",
+        ? "Avisos, desafios e materiais liberados para todos."
+        : "Grupo gratuito com avisos e temas da semana.",
       icon: <FaUsers />,
       variant: "secondary" as const,
-      onClick: handleJoinCommunityCta,
+      onClick: handleJoinFreeCommunity,
     }),
-    [communityFreeMember, communityVipHasAccess, handleJoinCommunityCta]
+    [communityFreeMember, communityVipHasAccess, handleJoinFreeCommunity]
   );
+
+  const communityVipAction = React.useMemo(() => {
+    if (!communityVipHasAccess) return null;
+    return {
+      key: communityVipMember ? "community_vip_open" : "community_vip_join",
+      label: communityVipMember ? "Abrir comunidade VIP" : "Entrar na comunidade VIP",
+      description: "Mentorias exclusivas e bastidores PRO.",
+      icon: <FaGem />,
+      variant: "vip" as const,
+      onClick: handleJoinVip,
+    };
+  }, [communityVipHasAccess, communityVipMember, handleJoinVip]);
 
   const communityMetricsItems = summary?.communityMetrics?.metrics ?? [];
   const communitySpotlightHighlights = communityMetricsItems.slice(0, 2);
@@ -659,6 +663,34 @@ export default function HomeClientPage() {
   const shouldDisplayConnectBanner = showWhatsAppConnect && !whatsappLinked;
   const connectBanner = shouldDisplayConnectBanner ? (
     <div className="mb-6 rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-6">
+      {trialExpired ? (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="font-semibold">Seu teste de 48h chegou ao fim.</p>
+              <p className="text-xs text-amber-700">
+                Assine PRO, ganhe +7 dias grátis e continue recebendo roteiros e alertas no WhatsApp.
+              </p>
+            </div>
+            <ActionButton
+              label="Assinar PRO (+7 dias)"
+              icon={<FaGem />}
+              variant="pro"
+              onClick={() => {
+                trackHeroAction("connect_banner_upgrade", {
+                  stage: heroStage,
+                  whatsapp_linked: whatsappLinked,
+                  plan_is_pro: planIsPro,
+                  community_free_member: communityFreeMember,
+                  community_vip_member: communityVipMember,
+                });
+                openSubscribeModal();
+              }}
+              className="w-full justify-center px-4 py-2 text-sm sm:w-auto"
+            />
+          </div>
+        </div>
+      ) : null}
       <div className="mb-3 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-slate-900">Conecte seu WhatsApp</p>
@@ -768,8 +800,8 @@ export default function HomeClientPage() {
                     </span>
                     <div className="space-y-1">
                       <h2 className="text-2xl font-semibold text-slate-900">Comunidade D2C</h2>
-                      {communityHeroAction.description ? (
-                        <p className="text-sm text-slate-600">{communityHeroAction.description}</p>
+                      {communityFreeAction.description ? (
+                        <p className="text-sm text-slate-600">{communityFreeAction.description}</p>
                       ) : null}
                     </div>
                   </div>
@@ -791,22 +823,49 @@ export default function HomeClientPage() {
                       Agenda da semana liberada para membros.
                     </p>
                   )}
-                  <ActionButton
-                    label={communityHeroAction.label}
-                    variant={communityHeroAction.variant}
-                    onClick={() => {
-                      trackHeroAction(communityHeroAction.key, {
-                        stage: heroStage,
-                        whatsapp_linked: whatsappLinked,
-                        plan_is_pro: planIsPro,
-                        community_free_member: communityFreeMember,
-                        community_vip_member: communityVipMember,
-                      });
-                      communityHeroAction.onClick();
-                    }}
-                    disabled={isInitialLoading}
-                    className="w-full justify-center px-5 py-3 text-base sm:w-auto"
-                  />
+                  <div className="space-y-3">
+                    <ActionButton
+                      label={communityFreeAction.label}
+                      icon={communityFreeAction.icon}
+                      variant={communityFreeAction.variant}
+                      onClick={() => {
+                        trackHeroAction(communityFreeAction.key, {
+                          stage: heroStage,
+                          whatsapp_linked: whatsappLinked,
+                          plan_is_pro: planIsPro,
+                          community_free_member: communityFreeMember,
+                          community_vip_member: communityVipMember,
+                        });
+                        communityFreeAction.onClick();
+                      }}
+                      disabled={isInitialLoading}
+                      className="w-full justify-center px-5 py-3 text-base sm:w-auto"
+                    />
+                    {communityVipAction ? (
+                      <div className="space-y-2">
+                        <ActionButton
+                          label={communityVipAction.label}
+                          icon={communityVipAction.icon}
+                          variant={communityVipAction.variant}
+                          onClick={() => {
+                            trackHeroAction(communityVipAction.key, {
+                              stage: heroStage,
+                              whatsapp_linked: whatsappLinked,
+                              plan_is_pro: planIsPro,
+                              community_free_member: communityFreeMember,
+                              community_vip_member: communityVipMember,
+                            });
+                            communityVipAction.onClick();
+                          }}
+                          disabled={isInitialLoading}
+                          className="w-full justify-center px-5 py-3 text-base sm:w-auto"
+                        />
+                        {communityVipAction.description ? (
+                          <p className="text-sm text-amber-700">{communityVipAction.description}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
