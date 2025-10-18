@@ -119,7 +119,7 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
             </div>
 
             <div className="mt-10 grid gap-6 sm:mt-12 lg:grid-cols-2 lg:gap-8 xl:mt-14" id={CTA_SECONDARY_ID}>
-              <div className="rounded-3xl border border-white/15 bg-white/12 p-7 shadow-lg backdrop-blur-lg md:p-8 lg:p-9">
+              <div className="rounded-3xl border border-white/15 bg-[#140835]/90 p-7 text-white shadow-lg md:p-8 lg:p-9 supports-[backdrop-filter]:backdrop-blur-2xl supports-[backdrop-filter]:bg-white/12">
                 <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70 md:text-sm md:tracking-[0.24em]">
                   Comunidade Aberta (Grátis)
                 </div>
