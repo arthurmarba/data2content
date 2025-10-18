@@ -625,31 +625,31 @@ function buildCommunityMetrics(period: PeriodKey, current: any, previous: any) {
   const metrics = [
     {
       id: "creators",
-      label: "Creators ativos",
+      label: "Criadores ativos",
       value: formatCompactNumber(current.creators),
       deltaPercent: toPercentDelta(current.creators, previous.creators),
     },
     {
       id: "posts",
-      label: "Posts analisados",
+      label: "Posts verificados",
       value: formatCompactNumber(current.postCount),
       deltaPercent: toPercentDelta(current.postCount, previous.postCount),
     },
     {
       id: "views",
-      label: "Visualizações geradas",
+      label: "Visualizações",
       value: formatCompactNumber(current.totalViews),
       deltaPercent: toPercentDelta(current.totalViews, previous.totalViews),
     },
     {
       id: "interactions",
-      label: "Interações totais",
+      label: "Interações",
       value: formatCompactNumber(current.totalInteractions),
       deltaPercent: toPercentDelta(current.totalInteractions, previous.totalInteractions),
     },
     {
       id: "reach",
-      label: "Alcance somado",
+      label: "Alcance total",
       value: formatCompactNumber(current.totalReach),
       deltaPercent: toPercentDelta(current.totalReach, previous.totalReach),
     },

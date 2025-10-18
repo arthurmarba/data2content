@@ -4,17 +4,19 @@
 "use client";
 
 import React from "react";
-import { FaGlobeAmericas, FaChartLine } from "react-icons/fa";
+import { FaGlobeAmericas, FaChartLine, FaInfoCircle } from "react-icons/fa";
 
 import CardShell from "../CardShell";
 import ActionButton from "../ActionButton";
 import type { CommunityMetricsCardData } from "../../types";
+import QuickStat from "../QuickStat";
 
 interface CommunityMetricsCardProps {
   data?: CommunityMetricsCardData | null;
   loading?: boolean;
   onViewInsights?: () => void;
   onChangePeriod?: (period: CommunityMetricsCardData["period"]) => void;
+  className?: string;
 }
 
 const PERIOD_OPTIONS: Array<{ label: string; value: CommunityMetricsCardData["period"] }> = [
@@ -31,72 +33,129 @@ function formatDelta(delta?: number | null) {
   return `${prefix}${rounded}%`;
 }
 
-export default function CommunityMetricsCard({ data, loading, onViewInsights, onChangePeriod }: CommunityMetricsCardProps) {
+export default function CommunityMetricsCard({
+  data,
+  loading,
+  onViewInsights,
+  onChangePeriod,
+  className,
+}: CommunityMetricsCardProps) {
   const period = data?.period ?? "30d";
   const metrics = data?.metrics ?? [];
+  const highlightPeriod = metrics[0]?.periodLabel ?? null;
+  const displayedMetrics = metrics.slice(0, 3);
+  const hasMoreMetrics = metrics.length > displayedMetrics.length;
 
   const footer = (
-    <ActionButton label="Abrir insights da comunidade" icon={<FaChartLine />} variant="secondary" onClick={onViewInsights} />
+    <ActionButton
+      label="Ver insights"
+      icon={<FaChartLine />}
+      variant="secondary"
+      onClick={onViewInsights}
+      className="px-4 py-2 text-sm"
+    />
+  );
+
+  const resolveLabel = React.useCallback((label: string) => {
+    if (/^ER/i.test(label)) return "Engajamento (30 dias)";
+    return label;
+  }, []);
+
+  const resolveTooltip = React.useCallback((label: string) => {
+    if (label.startsWith("Engajamento")) {
+      return "% de pessoas que interagiram (curtidas, comentários, envios).";
+    }
+    return undefined;
+  }, []);
+
+  const segmentedControl = (
+    <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1">
+      {PERIOD_OPTIONS.map((option) => {
+        const isActive = option.value === period;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChangePeriod?.(option.value)}
+            disabled={isActive || loading}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-1 ${
+              isActive
+                ? "bg-brand-purple text-white"
+                : "text-slate-500 hover:bg-brand-purple/10 hover:text-brand-purple"
+            } ${loading ? "cursor-not-allowed opacity-60" : ""}`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 
   return (
     <CardShell
-      className="md:col-span-2 xl:col-span-1"
-      title="Pulso da Comunidade"
-      description="Compare seu ritmo com a média dos criadores conectados."
+      className={className}
+      title="Atividade da Comunidade"
+      description="Veja como você está em relação aos outros criadores."
       icon={<FaGlobeAmericas />}
       loading={loading}
       footer={footer}
     >
-      <div className="space-y-4">
-        <div className="flex gap-2">
-          {PERIOD_OPTIONS.map((option) => {
-            const isActive = option.value === period;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onChangePeriod?.(option.value)}
-                disabled={isActive || loading}
-                className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  isActive
-                    ? "cursor-default border-brand-purple bg-brand-purple text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-brand-purple/40 hover:bg-brand-purple/5 hover:text-brand-purple"
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {segmentedControl}
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+            {highlightPeriod ? <span>Período: {highlightPeriod}</span> : null}
+            <span
+              className="inline-flex items-center gap-1"
+              title="Mostramos os totais do período e a variação em relação ao período anterior."
+            >
+              <FaInfoCircle aria-hidden="true" />
+            </span>
+          </div>
         </div>
 
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {metrics.map((item) => {
-            const deltaLabel = formatDelta(item.deltaPercent);
-            const deltaPositive = typeof item.deltaPercent === "number" ? item.deltaPercent >= 0 : undefined;
-            return (
-              <li key={item.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_1px_0_#f2f4f7]">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
-                <p className="mt-2 text-xl font-semibold text-slate-900">{item.value}</p>
-                <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                  <span>{item.periodLabel}</span>
-                  {deltaLabel ? (
-                    <span
-                      className={`font-semibold ${
-                        deltaPositive ? "text-emerald-600" : "text-rose-600"
-                      }`}
-                    >
-                      {deltaLabel}
-                    </span>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        {displayedMetrics.length ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {displayedMetrics.map((item) => {
+              const deltaLabel = formatDelta(item.deltaPercent);
+              const deltaPositive = typeof item.deltaPercent === "number" ? item.deltaPercent >= 0 : null;
+              const tone: "default" | "alert" | "success" =
+                deltaPositive == null ? "default" : deltaPositive ? "success" : "alert";
+              const label = resolveLabel(item.label);
+              const tooltip = resolveTooltip(label);
+              const helper =
+                deltaLabel && deltaPositive != null
+                  ? `${deltaPositive ? "▲" : "▼"} ${deltaLabel.replace("+", "")} vs período anterior`
+                  : "Sem variação relevante.";
 
-        {metrics.length === 0 ? (
-          <p className="text-sm text-slate-500">Conecte mais criadores ou aguarde novas medições para ver o painel coletivo.</p>
+              return (
+                <QuickStat
+                  key={item.id}
+                  label={
+                    tooltip ? (
+                      <span className="inline-flex items-center gap-1">
+                        {label}
+                        <FaInfoCircle className="text-xs text-slate-400" title={tooltip} aria-label={tooltip} />
+                      </span>
+                    ) : (
+                      label
+                    )
+                  }
+                  value={item.value}
+                  helper={helper}
+                  tone={tone}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">Conecte seus dados ou aguarde novas medições para ver o panorama coletivo.</p>
+        )}
+
+        {hasMoreMetrics ? (
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Mais métricas disponíveis em “Ver insights”.
+          </p>
         ) : null}
       </div>
     </CardShell>
