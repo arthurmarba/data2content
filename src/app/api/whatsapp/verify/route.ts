@@ -2,22 +2,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import { isActiveLike } from "@/app/lib/isActiveLike";
+import {
+  buildWhatsappTrialActivation,
+  canStartWhatsappTrial,
+} from "@/app/lib/whatsappTrial";
 import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const TRIAL_DURATION_MS = 48 * 60 * 60 * 1000; // 48h
-const WHATSAPP_TRIAL_ENABLED =
-  String(
-    process.env.WHATSAPP_TRIAL_ENABLED ??
-      process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED ??
-      "true"
-  )
-    .toLowerCase()
-    .trim() !== "false";
 
 /**
  * POST /api/whatsapp/verify
@@ -73,16 +66,10 @@ export async function POST(request: NextRequest) {
         { status: 410, headers: { "Cache-Control": "no-store" } }
       );
     }
-    const isPlanActive = isActiveLike(user.planStatus);
-    const trialAlreadyStarted = Boolean(user.whatsappTrialStartedAt);
-    const trialAlreadyActive = Boolean(user.whatsappTrialActive);
-    const trialStillEligible =
-      WHATSAPP_TRIAL_ENABLED &&
-      user.whatsappTrialEligible !== false &&
-      !trialAlreadyStarted &&
-      !trialAlreadyActive;
-    const shouldStartTrial = !isPlanActive && trialStillEligible;
-    const newTrialExpiresAt = shouldStartTrial ? new Date(now.getTime() + TRIAL_DURATION_MS) : null;
+    const shouldStartTrial = canStartWhatsappTrial(user);
+    const trialActivation = shouldStartTrial
+      ? buildWhatsappTrialActivation(now)
+      : null;
 
     // 3) Atualiza atomically: define phone + verified, remove code
     const setPayload: Record<string, unknown> = {
@@ -91,13 +78,8 @@ export async function POST(request: NextRequest) {
       whatsappLinkedAt: user.whatsappLinkedAt ?? now,
     };
 
-    if (shouldStartTrial && newTrialExpiresAt) {
-      setPayload.whatsappTrialActive = true;
-      setPayload.whatsappTrialStartedAt = now;
-      setPayload.whatsappTrialExpiresAt = newTrialExpiresAt;
-      setPayload.whatsappTrialEligible = false;
-      setPayload.whatsappTrialLastReminderAt = null;
-      setPayload.whatsappTrialLastNotificationAt = null;
+    if (trialActivation) {
+      Object.assign(setPayload, trialActivation.set);
     }
 
     const updated = await User.findOneAndUpdate(
@@ -132,11 +114,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: "Vinculação concluída com sucesso!",
-        trial: shouldStartTrial && newTrialExpiresAt
+        trial: trialActivation
           ? {
               active: true,
               startedAt: now.toISOString(),
-              expiresAt: newTrialExpiresAt.toISOString(),
+              expiresAt: trialActivation.expiresAt.toISOString(),
             }
           : {
               active: Boolean(updated.whatsappTrialActive),
