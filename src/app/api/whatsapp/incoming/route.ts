@@ -12,6 +12,10 @@ import { logger } from '@/app/lib/logger';
 import { Client as QStashClient } from '@upstash/qstash';
 import * as dataService from '@/app/lib/dataService';
 import {
+  buildWhatsappTrialActivation,
+  canStartWhatsappTrial,
+} from '@/app/lib/whatsappTrial';
+import {
   normalizeText,
   determineIntent,
   getRandomGreeting,
@@ -212,8 +216,8 @@ export async function POST(request: NextRequest) {
         }
         // ===== FIM: checagem de expiração =====
 
-        const raw = userWithCode.planStatus;
-        const norm = normalizePlanStatusStrong(raw);
+        let raw = userWithCode.planStatus;
+        let norm = normalizePlanStatusStrong(raw);
         logger.debug(`${verifyTag} user=${userWithCode._id} planStatus raw="${raw}" normalized="${norm}"`);
 
         // Checagem normalizada + revalidação
@@ -222,6 +226,21 @@ export async function POST(request: NextRequest) {
           const reval = await revalidateActiveLikeById(String(userWithCode._id));
           logger.debug(`${verifyTag} Revalidação: raw="${reval.raw}" normalized="${reval.norm}" active=${reval.active}`);
           activeLike = reval.active;
+        }
+
+        let trialActivation: ReturnType<typeof buildWhatsappTrialActivation> | null = null;
+        if (!activeLike && canStartWhatsappTrial(userWithCode as any)) {
+          const activationNow = new Date();
+          trialActivation = buildWhatsappTrialActivation(activationNow);
+          for (const [key, value] of Object.entries(trialActivation.set)) {
+            (userWithCode as any)[key] = value;
+          }
+          raw = userWithCode.planStatus;
+          norm = normalizePlanStatusStrong(raw);
+          activeLike = true;
+          logger.info(
+            `${verifyTag} Trial de WhatsApp iniciado para user=${userWithCode._id}, expira em ${trialActivation.expiresAt.toISOString()}`
+          );
         }
 
         let reply = '';
@@ -236,6 +255,10 @@ export async function POST(request: NextRequest) {
           reply = `Olá ${firstName}, me chamo Mobi! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta. A partir de agora serei seu assistente de métricas e insights via WhatsApp. 👋
 Vou acompanhar em tempo real o desempenho dos seus conteúdos, enviar resumos diários com os principais indicadores e sugerir dicas práticas para você melhorar seu engajamento. Sempre que quiser consultar alguma métrica, receber insights sobre seus posts ou configurar alertas personalizados, é só me chamar por aqui. Estou à disposição para ajudar você a crescer de forma inteligente!
 Você pode começar me pedindo um planejamento de conteudo que otimize seu alcance. :)`;
+
+          if (trialActivation) {
+            reply += '\n\n🎉 Você ganhou 48 horas de acesso gratuito via WhatsApp. Após esse período, ative seu plano PRO para desbloquear mais 7 dias gratuitos.';
+          }
 
           // PS: conexão do Instagram, se ainda não estiver conectado
           if (!userWithCode.isInstagramConnected || !userWithCode.instagramAccountId) {
