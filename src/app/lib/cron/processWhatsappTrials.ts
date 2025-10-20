@@ -5,19 +5,14 @@ import {
   sendTemplateMessage,
   sendWhatsAppMessage,
 } from "@/app/lib/whatsappService";
+import {
+  buildWhatsappTrialDeactivation,
+  isWhatsappTrialEnabled,
+} from "@/app/lib/whatsappTrial";
 
 const DEFAULT_BATCH_LIMIT = 50;
 const DEFAULT_GRACE_MINUTES = 5;
 const TRIAL_DURATION_HOURS = 48;
-
-const WHATSAPP_TRIAL_ENABLED =
-  String(
-    process.env.WHATSAPP_TRIAL_ENABLED ??
-      process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED ??
-      "true"
-  )
-    .toLowerCase()
-    .trim() !== "false";
 
 const UPGRADE_URL =
   process.env.NEXT_PUBLIC_PRO_UPGRADE_URL ||
@@ -70,7 +65,7 @@ async function notifyUser(phone: string, name?: string | null) {
 export async function processWhatsappTrials(
   options: ProcessWhatsappTrialsOptions = {}
 ): Promise<ProcessWhatsappTrialsResult> {
-  if (!WHATSAPP_TRIAL_ENABLED) {
+  if (!isWhatsappTrialEnabled()) {
     logger.warn("[cron.whatsappTrial] Flag desativada — nada será processado.");
     return {
       processed: 0,
@@ -111,7 +106,7 @@ export async function processWhatsappTrials(
 
   const expiringUsers = await User.find(query)
     .select(
-      "_id email name whatsappPhone whatsappTrialExpiresAt whatsappTrialActive whatsappTrialLastNotificationAt"
+      "_id email name planStatus whatsappPhone whatsappTrialExpiresAt whatsappTrialActive whatsappTrialLastNotificationAt"
     )
     .limit(batchLimit)
     .lean()
@@ -145,15 +140,14 @@ export async function processWhatsappTrials(
       });
       result.missingPhone += 1;
       if (!dryRun) {
-        await User.updateOne(
-          { _id: user._id },
-          {
-            $set: {
-              whatsappTrialActive: false,
-              whatsappTrialEligible: false,
-            },
-          }
-        ).exec();
+      const deactivation = buildWhatsappTrialDeactivation(now, {
+        resetPlanStatus: (user as any).planStatus === "trial",
+        recordNotificationTimestamp: false,
+      });
+      await User.updateOne(
+        { _id: user._id },
+        { $set: deactivation.set }
+      ).exec();
         result.deactivated += 1;
       }
       continue;
@@ -180,15 +174,13 @@ export async function processWhatsappTrials(
       continue;
     }
 
+    const deactivation = buildWhatsappTrialDeactivation(now, {
+      resetPlanStatus: (user as any).planStatus === "trial",
+      recordNotificationTimestamp: true,
+    });
     await User.updateOne(
       { _id: user._id },
-      {
-        $set: {
-          whatsappTrialActive: false,
-          whatsappTrialEligible: false,
-          whatsappTrialLastNotificationAt: now,
-        },
-      }
+      { $set: deactivation.set }
     ).exec();
 
     result.deactivated += 1;
