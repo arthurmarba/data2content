@@ -915,72 +915,61 @@ export default function HomeClientPage() {
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,620px)_1fr] lg:items-start">
             <div className="space-y-6">
-              <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-[#FFF7FB] to-[#F9F9FF] p-8 sm:p-10 shadow-[0_18px_50px_rgba(92,61,196,0.22)] backdrop-blur-sm">
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)] lg:gap-12">
-                  <div className="mx-auto w-full space-y-6 text-left lg:mx-0 lg:max-w-none">
-                    <div className="flex items-center gap-3 justify-center lg:justify-start">
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-purple/10 text-brand-purple">
-                        <FaRobot className="h-5 w-5" aria-hidden="true" />
+              <div className="w-full space-y-6 rounded-2xl border border-slate-100 bg-gradient-to-br from-[#FFF7FB] to-[#F9F9FF] px-8 py-6 text-left shadow-sm backdrop-blur-sm lg:px-10">
+                <div className="flex items-center gap-3">
+                  <span aria-hidden="true" className="text-2xl">
+                    🤖
+                  </span>
+                  <h2 className="text-xl font-semibold text-slate-900">{whatsappBanner.heading}</h2>
+                </div>
+
+                <p className="text-slate-600 leading-relaxed">
+                  {whatsappBanner.subheading} {whatsappBanner.description}
+                </p>
+
+                <ul className="space-y-1 text-sm text-slate-700">
+                  {whatsappBanner.bullets.map((item) => (
+                    <li key={item.text} className="flex items-start gap-2">
+                      <span aria-hidden="true" className="text-base leading-none">
+                        {item.icon}
                       </span>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Mobi no WhatsApp
-                        </p>
-                        <p className="text-lg font-semibold text-slate-900">{whatsappBanner.subheading}</p>
-                      </div>
-                    </div>
+                      <span>{item.text}</span>
+                    </li>
+                  ))}
+                </ul>
 
-                    <p className="text-sm leading-relaxed text-slate-600">
-                      {whatsappBanner.description}
-                    </p>
-
-                    <div className="flex flex-wrap justify-center gap-3 text-sm text-slate-700 lg:justify-start">
-                      {whatsappBanner.bullets.map((item) => (
-                        <span
-                          key={item.text}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 shadow-sm shadow-slate-900/5"
-                        >
-                          <span>{item.icon}</span>
-                          <span>{item.text}</span>
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <h3 className="text-xl font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
-                        <p className="text-sm text-slate-600 leading-relaxed">{whatsappBanner.calloutSubtitle}</p>
-                      </div>
-                      <div className="flex flex-col items-center gap-2 lg:items-start">
-                        <ActionButton
-                          label={whatsappBanner.primary.label}
-                          icon={whatsappBanner.primary.icon}
-                          variant={whatsappBanner.primary.variant}
-                          onClick={() => {
-                            trackHeroAction(whatsappBanner.primary.trackingKey, {
-                              stage: heroStage,
-                              whatsapp_linked: whatsappLinked,
-                              plan_is_pro: planIsPro,
-                              community_free_member: communityFreeMember,
-                              community_vip_member: communityVipMember,
-                            });
-                            whatsappBanner.primary.onClick();
-                          }}
-                          disabled={isInitialLoading}
-                          className={[
-                            "w-full px-6 py-3 text-base sm:w-auto",
-                            whatsappBanner.primary.className ?? null,
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        />
-                        {whatsappBanner.footnote ? (
-                          <p className="text-xs font-medium text-slate-500">{whatsappBanner.footnote}</p>
-                        ) : null}
-                      </div>
-                    </div>
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-1.5">
+                    <h3 className="text-lg font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
+                    <p className="text-sm leading-relaxed text-slate-600">{whatsappBanner.calloutSubtitle}</p>
                   </div>
-
+                  <div className="space-y-2">
+                    <ActionButton
+                      label={whatsappBanner.primary.label}
+                      icon={whatsappBanner.primary.icon}
+                      variant={whatsappBanner.primary.variant}
+                      onClick={() => {
+                        trackHeroAction(whatsappBanner.primary.trackingKey, {
+                          stage: heroStage,
+                          whatsapp_linked: whatsappLinked,
+                          plan_is_pro: planIsPro,
+                          community_free_member: communityFreeMember,
+                          community_vip_member: communityVipMember,
+                        });
+                        whatsappBanner.primary.onClick();
+                      }}
+                      disabled={isInitialLoading}
+                      className={[
+                        "w-full px-6 py-3 text-base font-medium sm:w-auto",
+                        whatsappBanner.primary.className ?? null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    />
+                    {whatsappBanner.footnote ? (
+                      <p className="text-xs text-slate-500">{whatsappBanner.footnote}</p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
