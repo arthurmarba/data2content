@@ -917,8 +917,8 @@ export default function HomeClientPage() {
             <div className="space-y-6">
               <div className="rounded-3xl border border-white/60 bg-gradient-to-br from-[#FFF7FB] to-[#F9F9FF] p-8 sm:p-10 shadow-[0_18px_50px_rgba(92,61,196,0.22)] backdrop-blur-sm">
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)] lg:gap-12">
-                  <div className="space-y-6 max-w-xl mx-auto text-left lg:mx-0 lg:text-left">
-                    <div className="flex items-center gap-3">
+                  <div className="mx-auto max-w-xl space-y-6 text-center lg:mx-0 lg:text-left">
+                    <div className="flex items-center gap-3 justify-center lg:justify-start">
                       <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-purple/10 text-brand-purple">
                         <FaRobot className="h-5 w-5" aria-hidden="true" />
                       </span>
@@ -934,7 +934,7 @@ export default function HomeClientPage() {
                       {whatsappBanner.description}
                     </p>
 
-                    <div className="flex flex-wrap gap-3 text-sm text-slate-700">
+                    <div className="flex flex-wrap justify-center gap-3 text-sm text-slate-700 lg:justify-start">
                       {whatsappBanner.bullets.map((item) => (
                         <span
                           key={item.text}
@@ -951,7 +951,7 @@ export default function HomeClientPage() {
                         <h3 className="text-xl font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
                         <p className="text-sm text-slate-600 leading-relaxed">{whatsappBanner.calloutSubtitle}</p>
                       </div>
-                      <div className="flex flex-col items-start gap-2">
+                      <div className="flex flex-col items-center gap-2 lg:items-start">
                         <ActionButton
                           label={whatsappBanner.primary.label}
                           icon={whatsappBanner.primary.icon}
