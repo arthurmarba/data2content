@@ -196,7 +196,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
 
       <div className="select-none px-4 pb-5 pt-3 text-[11px] tracking-wide text-slate-400">
         {showLabels && (
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-3 py-1 uppercase text-slate-500">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-3 py-1 text-[12px] font-semibold uppercase text-[#999999]">
             v1.0
           </span>
         )}

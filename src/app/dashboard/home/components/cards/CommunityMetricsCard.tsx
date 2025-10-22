@@ -4,12 +4,18 @@
 "use client";
 
 import React from "react";
-import { FaGlobeAmericas, FaChartLine, FaInfoCircle } from "react-icons/fa";
+import {
+  FaGlobeAmericas,
+  FaChartLine,
+  FaInfoCircle,
+  FaUsers,
+  FaRegCalendarCheck,
+  FaEye,
+} from "react-icons/fa";
 
 import CardShell from "../CardShell";
 import ActionButton from "../ActionButton";
 import type { CommunityMetricsCardData } from "../../types";
-import QuickStat from "../QuickStat";
 
 interface CommunityMetricsCardProps {
   data?: CommunityMetricsCardData | null;
@@ -56,18 +62,6 @@ export default function CommunityMetricsCard({
     />
   );
 
-  const resolveLabel = React.useCallback((label: string) => {
-    if (/^ER/i.test(label)) return "Engajamento (30 dias)";
-    return label;
-  }, []);
-
-  const resolveTooltip = React.useCallback((label: string) => {
-    if (label.startsWith("Engajamento")) {
-      return "% de pessoas que interagiram (curtidas, comentários, envios).";
-    }
-    return undefined;
-  }, []);
-
   const segmentedControl = (
     <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1">
       {PERIOD_OPTIONS.map((option) => {
@@ -94,8 +88,8 @@ export default function CommunityMetricsCard({
   return (
     <CardShell
       className={className}
-      title="Atividade da Comunidade"
-      description="Veja como você está em relação aos outros criadores."
+      title="📊 Atividade da Comunidade"
+      description="Desempenho coletivo da base no período selecionado."
       icon={<FaGlobeAmericas />}
       loading={loading}
       footer={footer}
@@ -103,53 +97,62 @@ export default function CommunityMetricsCard({
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {segmentedControl}
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            {highlightPeriod ? <span>Período: {highlightPeriod}</span> : null}
-            <span
-              className="inline-flex items-center gap-1"
-              title="Mostramos os totais do período e a variação em relação ao período anterior."
-            >
-              <FaInfoCircle aria-hidden="true" />
-            </span>
-          </div>
+          <span
+            className="flex items-center gap-2 text-xs font-semibold text-slate-500"
+            title="Mostramos os totais do período e a variação em relação ao período anterior."
+          >
+            {highlightPeriod ? <span>{highlightPeriod}</span> : null}
+            <FaInfoCircle aria-hidden="true" />
+          </span>
         </div>
 
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <span aria-hidden="true">📊</span>
+          Desempenho coletivo da comunidade
+        </p>
+
         {displayedMetrics.length ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {displayedMetrics.map((item) => {
+          <ul className="space-y-3">
+            {displayedMetrics.map((item, index) => {
               const deltaLabel = formatDelta(item.deltaPercent);
-              const deltaPositive = typeof item.deltaPercent === "number" ? item.deltaPercent >= 0 : null;
-              const tone: "default" | "alert" | "success" =
-                deltaPositive == null ? "default" : deltaPositive ? "success" : "alert";
-              const label = resolveLabel(item.label);
-              const tooltip = resolveTooltip(label);
-              const helper =
+              const deltaPositive =
+                typeof item.deltaPercent === "number" ? item.deltaPercent >= 0 : null;
+              const deltaText =
                 deltaLabel && deltaPositive != null
                   ? `${deltaPositive ? "▲" : "▼"} ${deltaLabel.replace("+", "")} vs período anterior`
                   : "Sem variação relevante.";
+              const deltaClass =
+                deltaPositive == null
+                  ? "text-slate-400"
+                  : deltaPositive
+                  ? "text-emerald-600"
+                  : "text-rose-500";
+              const icons = [FaUsers, FaRegCalendarCheck, FaEye];
+              const Icon = icons[index] ?? FaGlobeAmericas;
 
               return (
-                <QuickStat
+                <li
                   key={item.id}
-                  label={
-                    tooltip ? (
-                      <span className="inline-flex items-center gap-1">
-                        {label}
-                        <FaInfoCircle className="text-xs text-slate-400" title={tooltip} aria-label={tooltip} />
-                      </span>
-                    ) : (
-                      label
-                    )
-                  }
-                  value={item.value}
-                  helper={helper}
-                  tone={tone}
-                />
+                  className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm shadow-slate-900/5"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
+                      <Icon aria-hidden="true" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                      <p className={`text-xs font-semibold ${deltaClass}`}>{deltaText}</p>
+                    </div>
+                  </div>
+                  <p className="text-base font-semibold text-slate-900">{item.value}</p>
+                </li>
               );
             })}
-          </div>
+          </ul>
         ) : (
-          <p className="text-sm text-slate-500">Conecte seus dados ou aguarde novas medições para ver o panorama coletivo.</p>
+          <p className="text-sm text-slate-500">
+            Conecte seus dados ou aguarde novas medições para ver o panorama coletivo.
+          </p>
         )}
 
         {hasMoreMetrics ? (

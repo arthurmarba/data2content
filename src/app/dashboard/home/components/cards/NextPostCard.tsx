@@ -55,9 +55,17 @@ export default function NextPostCard({
   }, [data?.slotLabel, isConnected]);
 
   const emptyState = (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-slate-600">Conecte seu Instagram para liberar o horário forte e ganchos prontos.</p>
-      <ActionButton label="Conectar Instagram" variant="primary" onClick={onConnectInstagram} icon={<FaLink />} />
+    <div className="space-y-3 text-left">
+      <p className="text-sm font-medium text-slate-600">
+        Conecte o Instagram para destravar horários quentes e ganchos personalizados pela IA.
+      </p>
+      <ActionButton
+        label="Conectar Instagram"
+        variant="primary"
+        onClick={onConnectInstagram}
+        icon={<FaLink />}
+        className="px-4 py-2 text-sm"
+      />
     </div>
   );
 
@@ -67,27 +75,27 @@ export default function NextPostCard({
   const content = (
     <div className="space-y-5">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Próximo horário</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-2xl font-semibold text-slate-900">{slotLabel}</span>
+        <p className="text-sm font-medium text-slate-600">Seu melhor horário está chegando.</p>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/70 px-4 py-3 shadow-inner">
+          <span className="text-lg font-semibold text-slate-900">Sugestão: {slotLabel}</span>
           {liftHelper ? (
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+            <span className="rounded-full bg-brand-purple/10 px-3 py-1 text-xs font-semibold text-brand-purple">
               {liftHelper}
             </span>
           ) : null}
         </div>
-        <p className="text-xs text-slate-500">Ajustado pelos últimos posts analisados.</p>
+        <p className="text-xs text-slate-500">Slot ideal pra alcance — ajustado pelos seus últimos posts.</p>
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hook sugerido</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hook sugerido agora</p>
         {primaryHook ? (
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800">
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm">
             {primaryHook}
           </div>
         ) : (
           <p className="text-sm text-slate-400">
-            Conecte-se ao planner ou publique novamente para destravar novas ideias.
+            Conecte-se ao planner ou publique novamente para liberar novas ideias.
           </p>
         )}
         {remainingHooks > 0 ? (
@@ -96,7 +104,7 @@ export default function NextPostCard({
             onClick={onShowVariations}
             className="w-max text-xs font-semibold text-brand-purple hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-1"
           >
-            +{remainingHooks} variações no planner
+            Ver +{remainingHooks} variações no planner
           </button>
         ) : null}
       </div>
@@ -106,7 +114,7 @@ export default function NextPostCard({
   const footer =
     isConnected && onGenerateScript ? (
       <ActionButton
-        label="Criar roteiro"
+        label="Abrir planner"
         onClick={onGenerateScript}
         icon={<FaMagic />}
         className="px-4 py-2 text-sm"
@@ -117,7 +125,7 @@ export default function NextPostCard({
     <CardShell
       className={className}
       title="Próximo Post"
-      description="Hora ideal e ganchos que performam melhor."
+      description="Trave o horário quente e saia com roteiro pronto."
       icon={<FaPenFancy />}
       loading={loading}
       emptyState={isConnected === false ? emptyState : undefined}

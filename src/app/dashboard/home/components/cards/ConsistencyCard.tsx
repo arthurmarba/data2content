@@ -43,8 +43,8 @@ export default function ConsistencyCard({ data, loading, onPlanWeek, onViewHotSl
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Posts na semana</p>
-          <div className="flex items-baseline gap-2">
+          <p className="text-sm font-medium text-slate-600">Sua frequência desta semana</p>
+          <div className="flex items-baseline gap-2 rounded-2xl bg-white/70 px-4 py-3 shadow-inner">
             <span className="text-3xl font-semibold text-slate-900">{data?.postsSoFar ?? 0}</span>
             {hasGoal ? <span className="text-sm font-medium text-slate-500">de {goal}</span> : null}
           </div>
@@ -62,9 +62,11 @@ export default function ConsistencyCard({ data, loading, onPlanWeek, onViewHotSl
           />
         </div>
         {hasGoal ? (
-          <p className="text-xs text-slate-500">Faltam {remainingLabel} para fechar a semana.</p>
+          <p className="text-xs text-slate-500">
+            Faltam {remainingLabel} pra fechar a semana no ritmo certo. Bora manter o hábito.
+          </p>
         ) : (
-          <p className="text-xs text-slate-500">Defina uma meta semanal para acompanhar o ritmo.</p>
+          <p className="text-xs text-slate-500">Defina uma meta semanal para acompanhar o ritmo com a IA.</p>
         )}
       </div>
 
@@ -89,9 +91,7 @@ export default function ConsistencyCard({ data, loading, onPlanWeek, onViewHotSl
         ) : (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Próximo passo</p>
-            <p className="text-sm font-medium text-slate-700">
-              Use o planner para travar horários quentes da semana.
-            </p>
+            <p className="text-sm font-medium text-slate-700">Trave horários quentes no planner e receba alertas da IA.</p>
           </div>
         )}
       </div>
@@ -100,7 +100,9 @@ export default function ConsistencyCard({ data, loading, onPlanWeek, onViewHotSl
 
   const emptyState = (
     <div className="space-y-3">
-      <p className="text-sm font-medium text-slate-600">Defina sua meta semanal (recomendamos 3 a 5 posts).</p>
+      <p className="text-sm font-medium text-slate-600">
+        Defina uma meta semanal (3 a 5 posts) para a IA manter seu ritmo sob controle.
+      </p>
       <ActionButton
         label="Planejar agora"
         variant="primary"
@@ -138,7 +140,7 @@ export default function ConsistencyCard({ data, loading, onPlanWeek, onViewHotSl
     <CardShell
       className={className}
       title="Frequência de Posts"
-      description="Veja o progresso da semana e mantenha o ritmo recomendado."
+      description="Acompanhe se você está no ritmo certo da semana."
       icon={<FaFireAlt />}
       loading={loading}
       emptyState={!hasMetrics ? emptyState : undefined}

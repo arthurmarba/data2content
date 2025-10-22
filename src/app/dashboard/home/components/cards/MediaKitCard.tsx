@@ -9,7 +9,6 @@ import { FaIdBadge, FaCopy } from "react-icons/fa";
 import CardShell from "../CardShell";
 import ActionButton from "../ActionButton";
 import type { MediaKitCardData } from "../../types";
-import QuickStat from "../QuickStat";
 
 interface MediaKitCardProps {
   data?: MediaKitCardData | null;
@@ -89,57 +88,57 @@ export default function MediaKitCard({
 
   const emptyState = (
     <div className="space-y-3">
-      <p className="text-sm font-medium text-slate-600">Gere seu kit de mídia em um clique e transforme números em prova social.</p>
-      <ActionButton label="Criar kit agora" onClick={onCreateMediaKit} icon={<FaIdBadge />} />
+      <p className="text-sm font-medium text-slate-600">
+        Gere seu kit vivo em um clique e transforme dados recentes em prova social.
+      </p>
+      <ActionButton
+        label="Criar kit agora"
+        onClick={onCreateMediaKit}
+        icon={<FaIdBadge />}
+        className="px-4 py-2 text-sm"
+      />
     </div>
   );
 
   const content = hasMediaKit ? (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <QuickStat
-          label="Link do kit"
-          icon={<FaIdBadge aria-hidden="true" />}
-          tone="success"
-          value={
-            shareUrl ? (
-              <span className="flex items-center gap-2 text-base font-semibold">
-                <span className="truncate">{formatUrl(shareUrl)}</span>
-                <button
-                  type="button"
-                  onClick={handleCopyClick}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-sm text-brand-purple hover:border-brand-purple/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-1"
-                  title="Copiar link"
-                >
-                  <FaCopy aria-hidden="true" />
-                </button>
-              </span>
-            ) : (
-              "Sem link"
-            )
-          }
-          helper={copied ? "Link copiado!" : "Copie e envie para marcas em segundos."}
-        />
-        <QuickStat
-          label="Última atualização"
-          value={data?.lastUpdatedLabel ?? "Atualize agora"}
-          helper={
-            onRefreshHighlights ? (
-              <span className="inline-flex items-center gap-2">
-                <span>{data?.lastUpdatedLabel ? "Manter fresco reforça credibilidade." : "Gere uma versão com seus dados atuais."}</span>
-                <button
-                  type="button"
-                  onClick={onRefreshHighlights}
-                  className="text-xs font-semibold text-brand-purple hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-1"
-                >
-                  Atualizar
-                </button>
-              </span>
-            ) : (
-              "Manter fresco reforça credibilidade."
-            )
-          }
-        />
+    <div className="flex flex-col gap-5">
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-slate-900">Seu kit</p>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[rgba(246,0,123,0.15)] bg-white px-4 py-3 shadow-sm">
+          {shareUrl ? (
+            <>
+              <span className="truncate font-mono text-sm text-slate-900">{formatUrl(shareUrl)}</span>
+              <button
+                type="button"
+                onClick={handleCopyClick}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-magenta/30 bg-brand-magenta/5 text-brand-magenta hover:bg-brand-magenta/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/30 focus-visible:ring-offset-1"
+                title="Copiar link"
+              >
+                <FaCopy aria-hidden="true" />
+              </button>
+            </>
+          ) : (
+            <span className="text-sm text-slate-500">Sem link gerado ainda.</span>
+          )}
+        </div>
+        <p className="text-xs text-slate-500">
+          {copied ? "Link copiado!" : "Copie e compartilhe com marcas em segundos."}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+        <p className="text-sm text-slate-600">
+          Última atualização {data?.lastUpdatedLabel ?? "há pouco"}.
+        </p>
+        {onRefreshHighlights ? (
+          <button
+            type="button"
+            onClick={onRefreshHighlights}
+            className="inline-flex items-center gap-2 rounded-lg border border-brand-purple/20 px-3 py-1.5 text-sm font-semibold text-brand-purple hover:bg-brand-purple/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-1"
+          >
+            Atualizar agora
+          </button>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -161,7 +160,7 @@ export default function MediaKitCard({
             })}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500">Atualize o kit para gerar resultados com dados recentes.</p>
+          <p className="text-sm text-slate-500">Atualize o kit para mostrar métricas vivas às marcas.</p>
         )}
         {extraHighlights.length ? (
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
@@ -218,8 +217,8 @@ export default function MediaKitCard({
   return (
     <CardShell
       className={className}
-      title="Kit de Mídia"
-      description="Use o kit vivo para fechar propostas com dados frescos."
+      title="Atualize seu Kit de Mídia"
+      description="Marcas valorizam dados vivos e recentes."
       icon={<FaIdBadge />}
       loading={loading}
       emptyState={!hasMediaKit ? emptyState : undefined}
