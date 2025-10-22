@@ -95,7 +95,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                 onClick={handleJoinCommunity}
                 className="px-4 py-2 text-sm"
               >
-                Entrar na comunidade
+                Entrar na comunidade gratuita
               </ButtonPrimary>
             )}
           </nav>
@@ -141,7 +141,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                 className="mt-1 rounded-md px-4 py-2 text-left text-sm font-semibold text-brand-magenta hover:bg-gray-100"
                 ref={session ? ctaButtonRef : undefined}
               >
-                {session ? 'Ir para o painel' : 'Entrar na comunidade'}
+                {session ? 'Ir para o painel' : 'Entrar na comunidade gratuita'}
               </button>
             </nav>
           </div>

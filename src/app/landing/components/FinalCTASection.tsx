@@ -2,6 +2,8 @@
 
 import React from "react";
 
+import ButtonPrimary from "./ButtonPrimary";
+
 type Props = {
   onPrimaryCta: () => void;
 };
@@ -17,12 +19,9 @@ export const FinalCTASection: React.FC<Props> = ({ onPrimaryCta }) => (
       </p>
 
       <div className="mt-6 flex flex-col items-center gap-4 md:mt-8 lg:mt-10">
-        <button
-          onClick={onPrimaryCta}
-          className="rounded-lg bg-black px-8 py-4 text-base font-semibold text-white shadow-lg transition hover:scale-[1.01] hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 lg:px-10 lg:py-5 lg:text-lg"
-        >
-          Entrar na Comunidade agora
-        </button>
+        <ButtonPrimary onClick={onPrimaryCta} className="px-10 py-4 text-base lg:text-lg">
+          Entrar na comunidade gratuita
+        </ButtonPrimary>
         <p className="text-xs text-gray-600 lg:text-sm">
           Login via Google • Nenhum cartão necessário • Segurança com API oficial do Instagram
         </p>
