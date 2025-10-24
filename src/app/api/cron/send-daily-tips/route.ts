@@ -6,6 +6,7 @@ import { Client as QStashClient } from "@upstash/qstash"; // Importa o Cliente Q
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User, { IUser } from '@/app/models/User';
+import { isActiveLike, type ActiveLikeStatus } from '@/app/lib/isActiveLike';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Garante que a função execute dinamicamente a cada chamada
@@ -80,13 +81,20 @@ export async function POST(request: NextRequest) {
     logger.debug(`${TAG} Conectado ao banco de dados.`);
 
     // 3. Buscar Usuários Ativos com WhatsApp Verificado
+    const activeLikeStatuses: ActiveLikeStatus[] = [
+        'active',
+        'non_renewing',
+        'trial',
+        'trialing',
+    ].filter(isActiveLike);
+
     const activeUsers = await User.find({
-        planStatus: 'active',
+        planStatus: { $in: activeLikeStatuses },
         whatsappPhone: { $ne: null, $exists: true }, // Garante que o campo existe e não é null
         whatsappVerified: true // Garante que o número foi verificado
     }).select('_id name').lean(); // Seleciona apenas o ID e nome
 
-    logger.info(`${TAG} Encontrados ${activeUsers.length} usuários ativos e verificados para receber dicas.`);
+    logger.info(`${TAG} Encontrados ${activeUsers.length} usuários com plano ativo-like e WhatsApp verificado para receber dicas.`);
 
     if (activeUsers.length === 0) {
         logger.info(`${TAG} Nenhum usuário elegível encontrado. Encerrando.`);
