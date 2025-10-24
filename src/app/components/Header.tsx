@@ -279,17 +279,22 @@ export default function Header() {
   const shellClasses = buildShellClasses(config.variant, config.sticky, condensed, config.mobileDocked);
   const innerClasses = buildLayoutClasses(config.variant, condensed);
 
+  const handleOpenSubscribeModal = useCallback(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new Event("open-subscribe-modal"));
+  }, []);
+
   const effectiveCta = useMemo<HeaderCta | null>(() => {
     if (config.cta) return config.cta;
     if (config.variant === "default") {
       return {
         label: "WhatsApp PRO",
-        href: "/dashboard/whatsapp-pro",
         icon: <FaWhatsapp className="w-5 h-5" />,
+        onClick: handleOpenSubscribeModal,
       };
     }
     return null;
-  }, [config]);
+  }, [config, handleOpenSubscribeModal]);
 
   const titleBlock = useMemo(() => {
     if (!config.title && !config.subtitle) return null;
