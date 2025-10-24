@@ -18,7 +18,21 @@ import type { IEnrichedReport, IAccountInsight, CommunityInspirationFilters } fr
 import { calculateInspirationSimilarity, UserEngagementProfile } from '@/app/lib/dataService/communityService';
 import type { ICommunityInspiration } from '@/app/models/CommunityInspiration';
 import type { IMetric } from '@/app/models/Metric';
-import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; 
+import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User';
+import {
+    VALID_FORMATS,
+    VALID_PROPOSALS,
+    VALID_CONTEXTS,
+    VALID_TONES,
+    VALID_REFERENCES,
+    VALID_PERFORMANCE_HIGHLIGHTS,
+    type FormatType,
+    type ProposalType,
+    type ContextType,
+    type ToneType,
+    type ReferenceType,
+    type PerformanceHighlightType,
+} from '@/app/lib/constants/communityInspirations.constants';
 
 import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types';
 
@@ -40,84 +54,30 @@ import { subDays, startOfDay } from 'date-fns';
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 import { isActiveLike } from '@/app/lib/isActiveLike';
 
-// ===================================================================================
-// INÍCIO: Definições de Tipos e Validadores (Type Guards) para Correção
-// ===================================================================================
-
-// Definindo os tipos literais para os filtros, para garantir a consistência dos dados.
-type FormatType = "Reel" | "Foto" | "Carrossel" | "Story" | "Live" | "Vídeo Longo" | "Outro Formato" | "Desconhecido";
-
-// ATENÇÃO: O tipo 'ProposalType' foi atualizado com base na mensagem de erro.
-// A mensagem indicava "... 8 more ...", o que significa que esta lista pode estar INCOMPLETA.
-// Por favor, verifique a definição original em 'dataService' e adicione os valores que faltam.
-type ProposalType = 
-    | "Anúncio" | "Bastidores" | "Chamada" | "Clipe" | "Comparação" | "Sorteio/Giveaway" 
-    | "Humor/Cena" | "LifeStyle" | "Mensagem/Motivacional" | "Notícia" | "Participação" 
-    | "Posicionamento/Autoridade";
-    // | "VALOR_FALTANTE_1" | ... (adicione os 8 tipos restantes aqui)
-
-// ATENÇÃO: O tipo 'ContextType' foi atualizado com base na nova mensagem de erro.
-// A mensagem indicava "... 27 more ...", o que significa que esta lista pode estar INCOMPLETA.
-// Por favor, verifique a definição original em 'dataService' e adicione os valores que faltam.
-type ContextType = 
-    | "Estilo de Vida e Bem-Estar" | "Moda/Estilo" | "Beleza/Cuidados Pessoais" | "Fitness/Esporte"
-    | "Alimentação/Culinária" | "Saúde/Bem-Estar" | "Pessoal e Profissional";
-    // | "VALOR_FALTANTE_1" | ... (adicione os 27 tipos restantes aqui)
-
-type ToneType = "humorous" | "inspirational" | "educational" | "critical" | "promotional" | "neutral";
-
-// CORREÇÃO: Novo tipo para 'reference' baseado na mensagem de erro.
-type ReferenceType = "country" | "city" | "pop_culture" | "pop_culture_movies_series" | "pop_culture_books" | "pop_culture_games" | "pop_culture_music" | "pop_culture_internet" | "people_and_groups" | "regional_stereotypes" | "professions" | "geography";
-
-type PerformanceHighlightType = 'excelente_retencao_em_reels' | 'viralizou_nos_compartilhamentos' | 'desempenho_padrao' | 'baixo_volume_de_dados';
-
-// Arrays de valores válidos para usar nas funções de verificação (type guards).
-const validFormats: FormatType[] = ["Reel", "Foto", "Carrossel", "Story", "Live", "Vídeo Longo", "Outro Formato", "Desconhecido"];
-
-// ATENÇÃO: Complete esta lista com os mesmos valores que faltam no 'ProposalType' acima.
-const validProposals: ProposalType[] = [
-    "Anúncio", "Bastidores", "Chamada", "Clipe", "Comparação", "Sorteio/Giveaway", 
-    "Humor/Cena", "LifeStyle", "Mensagem/Motivacional", "Notícia", "Participação", 
-    "Posicionamento/Autoridade"
-];
-
-// ATENÇÃO: Complete esta lista com os mesmos valores que faltam no 'ContextType' acima.
-const validContexts: ContextType[] = [
-    "Estilo de Vida e Bem-Estar", "Moda/Estilo", "Beleza/Cuidados Pessoais", "Fitness/Esporte",
-    "Alimentação/Culinária", "Saúde/Bem-Estar", "Pessoal e Profissional"
-];
-
-const validTones: ToneType[] = ["humorous", "inspirational", "educational", "critical", "promotional", "neutral"];
-
-// CORREÇÃO: Nova lista de referências válidas.
-const validReferences: ReferenceType[] = ["country", "city", "pop_culture", "pop_culture_movies_series", "pop_culture_books", "pop_culture_games", "pop_culture_music", "pop_culture_internet", "people_and_groups", "regional_stereotypes", "professions", "geography"];
-
-const validPerformanceHighlights: PerformanceHighlightType[] = ['excelente_retencao_em_reels', 'viralizou_nos_compartilhamentos', 'desempenho_padrao', 'baixo_volume_de_dados'];
-
 // Funções "Type Guard" que verificam se um valor pertence ao tipo específico em tempo de execução.
 function isFormatType(value: any): value is FormatType {
-    return validFormats.includes(value);
+    return VALID_FORMATS.includes(value as FormatType);
 }
 
 function isProposalType(value: any): value is ProposalType {
-    return validProposals.includes(value as ProposalType);
+    return VALID_PROPOSALS.includes(value as ProposalType);
 }
 
 function isContextType(value: any): value is ContextType {
-    return validContexts.includes(value as ContextType);
+    return VALID_CONTEXTS.includes(value as ContextType);
 }
 
 function isToneType(value: any): value is ToneType {
-    return validTones.includes(value as ToneType);
+    return VALID_TONES.includes(value as ToneType);
 }
 
 // CORREÇÃO: Novo type guard para 'reference'.
 function isReferenceType(value: any): value is ReferenceType {
-    return validReferences.includes(value as ReferenceType);
+    return VALID_REFERENCES.includes(value as ReferenceType);
 }
 
 function isPerformanceHighlightType(value: any): value is PerformanceHighlightType {
-    return validPerformanceHighlights.includes(value);
+    return VALID_PERFORMANCE_HIGHLIGHTS.includes(value as PerformanceHighlightType);
 }
 
 
