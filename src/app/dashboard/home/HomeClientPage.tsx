@@ -302,17 +302,6 @@ export default function HomeClientPage() {
   );
   const isFreePlan = !(hasPremiumAccessPlan || planTrialActive);
   const microInsight = summary?.microInsight ?? null;
-  const isNewUserForOnboarding =
-    Boolean((session?.user as any)?.isNewUserForOnboarding);
-  const [welcomeDismissed, setWelcomeDismissed] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("d2c_welcome_modal_dismissed");
-    if (stored === "1") {
-      setWelcomeDismissed(true);
-    }
-  }, []);
 
   type HeroStage = "join_free" | "start_trial" | "use_trial" | "upgrade" | "join_vip" | "pro_engaged";
 
@@ -325,16 +314,6 @@ export default function HomeClientPage() {
     if (planIsPro && !communityVipMember) return "join_vip";
     return "pro_engaged";
   }, [communityFreeMember, communityVipMember, planIsPro, whatsappTrialActive, whatsappTrialEligible, whatsappTrialStarted]);
-
-  const shouldShowWelcomeModal =
-    isNewUserForOnboarding && !isInstagramConnected && !welcomeDismissed;
-
-  const dismissWelcomeModal = React.useCallback(() => {
-    setWelcomeDismissed(true);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("d2c_welcome_modal_dismissed", "1");
-    }
-  }, []);
 
   React.useEffect(() => {
     if (!planTrialActive || !planTrialExpiresAt) {
@@ -379,18 +358,6 @@ export default function HomeClientPage() {
     },
     [handleNavigate, trackCardAction]
   );
-
-  const handleWelcomeConnect = React.useCallback(() => {
-    trackHeroAction("welcome_modal_connect_instagram", { stage: heroStage });
-    dismissWelcomeModal();
-    handleHeaderConnectInstagram();
-  }, [dismissWelcomeModal, handleHeaderConnectInstagram, heroStage, trackHeroAction]);
-
-  const handleWelcomeExplore = React.useCallback(() => {
-    trackHeroAction("welcome_modal_open_discover", { stage: heroStage });
-    dismissWelcomeModal();
-    handleOpenDiscover("welcome_modal");
-  }, [dismissWelcomeModal, handleOpenDiscover, heroStage, trackHeroAction]);
 
   const handleMentorshipAction = React.useCallback(
     (action: string) => {
@@ -825,6 +792,7 @@ export default function HomeClientPage() {
     handleHeaderStartTrial,
     handleHeaderSubscribe,
     handleJoinFreeCommunity,
+    handleNavigate,
     handleJoinVip,
     handleMentorshipAction,
     handleOpenWhatsApp,
@@ -1163,64 +1131,8 @@ export default function HomeClientPage() {
     }
   }, [shouldDisplayConnectBanner, trackSurfaceView]);
 
-  const welcomeModal = shouldShowWelcomeModal ? (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 px-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
-        <button
-          type="button"
-          onClick={dismissWelcomeModal}
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
-          aria-label="Fechar"
-        >
-          <FaTimes aria-hidden="true" />
-        </button>
-        <div className="space-y-4">
-          <div className="space-y-2 pr-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
-              Primeiro acesso confirmado
-            </p>
-            <h2 className="text-2xl font-semibold text-slate-900">
-              Bem-vindo(a) à sua base na Data2Content
-            </h2>
-            <p className="text-sm text-slate-600">
-              Você já pode explorar a Comunidade e o Planner demo. Conectar o Instagram libera o
-              relatório estratégico gratuito e os alertas automáticos.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={handleWelcomeExplore}
-              className="inline-flex w-full items-center justify-center rounded-lg bg-brand-red px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:w-auto"
-            >
-              Entrar na Comunidade
-            </button>
-            <button
-              type="button"
-              onClick={handleWelcomeConnect}
-              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
-            >
-              Conectar Instagram agora
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={dismissWelcomeModal}
-            className="text-xs font-semibold text-slate-400 underline-offset-2 hover:underline"
-          >
-            Depois eu vejo
-          </button>
-        </div>
-      </div>
-    </div>
-  ) : null;
   return (
     <>
-      {welcomeModal}
       <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
       {connectBanner}
       <section className="rounded-3xl border border-slate-200 bg-white/95 px-6 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">

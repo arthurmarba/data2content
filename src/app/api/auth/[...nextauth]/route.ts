@@ -869,7 +869,7 @@ export const authOptions: NextAuthOptions = {
       }
       if (!ensureStringId(token.id)) {
         logger.warn(`${TAG_JWT} Persistindo token SEM id mesmo após fallbacks. Invalidando token.`);
-        return {} as JWT;
+        return null;
       }
 
       if (token.id && Types.ObjectId.isValid(token.id)) {
@@ -1009,7 +1009,7 @@ export const authOptions: NextAuthOptions = {
               );
             } else {
               logger.warn(`${TAG_JWT} Utilizador ${token.id} não encontrado no DB. Invalidando token.`);
-              return {} as JWT;
+              return null;
             }
           } catch (error) {
             logger.error(`${TAG_JWT} Erro ao enriquecer token ${token.id} do DB:`, error);
@@ -1018,7 +1018,7 @@ export const authOptions: NextAuthOptions = {
       } else {
         if (trigger !== "signIn" && trigger !== "signUp") {
           logger.warn(`${TAG_JWT} Token com ID inválido/ausente ('${(token as any).id}') fora do login/signup. Invalidando.`);
-          return {} as JWT;
+          return null;
         }
       }
 
@@ -1035,8 +1035,10 @@ export const authOptions: NextAuthOptions = {
       logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.Provider: ${token?.provider}, Token.planStatus: ${token?.planStatus}`);
 
       if (!token?.id || !Types.ObjectId.isValid(token.id)) {
-        logger.error(`${TAG_SESSION} Token ID inválido/ausente ('${token?.id}') na sessão. Retornando sessão básica.`);
-        return { ...session, user: undefined, expires: session.expires };
+        logger.error(
+          `${TAG_SESSION} Token ID inválido/ausente ('${token?.id}') na sessão. Invalidando sessão.`
+        );
+        return null;
       }
 
       if (session.user) {
@@ -1161,7 +1163,10 @@ export const authOptions: NextAuthOptions = {
           if (dbUserCheck.role) session.user.role = dbUserCheck.role;
           if (dbUserCheck.image) session.user.image = dbUserCheck.image;
         } else if (!dbUserCheck) {
-          logger.warn(`${TAG_SESSION} Utilizador ${token.id} não encontrado no DB. Usando dados do token.`);
+          logger.warn(
+            `${TAG_SESSION} Utilizador ${token.id} não encontrado no DB. Invalidando sessão.`
+          );
+          return null;
         }
       } catch (error) {
         logger.error(`${TAG_SESSION} Erro ao revalidar sessão ${token.id}:`, error);
