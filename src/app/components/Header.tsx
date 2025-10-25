@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   FaBars,
@@ -216,6 +217,7 @@ export default function Header() {
   const user = session?.user as SessionUser | undefined;
   const { config } = useHeaderConfig();
   const { toggleSidebar } = useSidebar();
+  const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -288,6 +290,8 @@ export default function Header() {
   }, []);
 
   const effectiveCta = useMemo<HeaderCta | null>(() => {
+    const isHomePage = pathname === "/dashboard/home";
+    if (isHomePage) return null;
     if (config.cta) return config.cta;
     if (config.variant === "default") {
       return {
@@ -297,7 +301,7 @@ export default function Header() {
       };
     }
     return null;
-  }, [config, handleOpenSubscribeModal]);
+  }, [config, handleOpenSubscribeModal, pathname]);
 
   const titleBlock = useMemo(() => {
     if (!config.title && !config.subtitle) return null;
