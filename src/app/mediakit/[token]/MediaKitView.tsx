@@ -20,6 +20,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   X,
+  Lock,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import VideosTable from '@/app/admin/creator-dashboard/components/VideosTable';
@@ -33,6 +34,8 @@ import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
 import { useSession } from 'next-auth/react';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
+import { track } from '@/lib/track';
+import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 
 /**
  * UTILS & CONSTANTS
@@ -254,6 +257,108 @@ const PerformanceHighlightsCarousel = ({ userId }: { userId: string }) => {
   ].filter(Boolean) as React.ReactNode[];
 
   return <MultiItemCarousel>{cards}</MultiItemCarousel>;
+};
+
+const LockedCategoriesPeek = () => {
+  const sections = [
+    { label: "Formato", items: ["Reels", "Stories", "Carrossel"] },
+    { label: "Proposta", items: ["Bastidores", "Educação", "Review"] },
+    { label: "Contexto", items: ["Tutorial", "Diário", "Entrevista"] },
+  ];
+  return (
+    <div className="space-y-3" aria-hidden="true">
+      {sections.map((section) => (
+        <div key={section.label} className="space-y-2">
+          <h4 className="text-xs font-semibold text-gray-500">{section.label}</h4>
+          <div className="flex flex-wrap gap-2">
+            {section.items.map((item) => (
+              <span
+                key={`${section.label}-${item}`}
+                className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700/90 blur-[1px]"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const LockedHighlightsPeek = () => {
+  const samples = [
+    { title: "Melhor formato", detail: "+22% interações" },
+    { title: "Contexto vencedor", detail: "+18% alcance" },
+    { title: "Horário quente", detail: "19h – 21h" },
+  ];
+  return (
+    <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+      {samples.map((item) => (
+        <div
+          key={item.title}
+          className="rounded-lg border border-pink-100 bg-white/80 p-4 shadow-sm"
+        >
+          <p className="text-sm font-semibold text-gray-800">{item.title}</p>
+          <p className="text-xs text-gray-500 mt-2 blur-[1px]">{item.detail}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+type LockedPremiumSectionProps = {
+  title: string;
+  description: string;
+  ctaLabel: string;
+  subtitle?: string;
+  badgeLabel?: string;
+  showBadge?: boolean;
+  onAction?: () => void;
+  peek: React.ReactNode;
+};
+
+const LockedPremiumSection = ({
+  title,
+  description,
+  ctaLabel,
+  subtitle,
+  badgeLabel = "Modo PRO",
+  showBadge = true,
+  onAction,
+  peek,
+}: LockedPremiumSectionProps) => {
+  const disabled = typeof onAction !== "function";
+
+  return (
+    <div className="space-y-4">
+      {showBadge ? (
+        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
+          <Lock className="h-4 w-4" aria-hidden="true" />
+          {badgeLabel}
+        </span>
+      ) : null}
+      <div className="space-y-2">
+        <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+        <p className="text-gray-500 text-sm">{description}</p>
+      </div>
+      <div>{peek}</div>
+      <div>
+        <button
+          type="button"
+          onClick={disabled ? undefined : () => onAction?.()}
+          disabled={disabled}
+          className={`inline-flex items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 ${
+            disabled ? "opacity-70 cursor-not-allowed" : ""
+          }`}
+        >
+          {ctaLabel}
+          <ArrowUpRight className="ml-2 h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+      {subtitle ? <p className="text-xs text-gray-500">{subtitle}</p> : null}
+    </div>
+  );
 };
 
 interface SectionCardProps {
@@ -483,6 +588,7 @@ export default function MediaKitView({
   belowAffiliateSlot,
   compactPadding = false,
   publicUrlForCopy,
+  premiumAccess,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -537,6 +643,32 @@ export default function MediaKitView({
     num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
   const demographicSummary = useMemo(() => generateDemographicSummary(demographics), [demographics]);
 
+  const isPublicView = !showOwnerCtas;
+  const baseVisibilityMode = premiumAccess?.visibilityMode ?? 'lock';
+  const visibilityMode = isPublicView ? 'hide' : baseVisibilityMode;
+  const canViewPremiumSections = premiumAccess?.canViewCategories ?? true;
+  const canViewCategories = canViewPremiumSections;
+  const shouldLockPremiumSections = !canViewPremiumSections && visibilityMode === 'lock';
+  const shouldHidePremiumSections = !canViewPremiumSections && visibilityMode === 'hide';
+  const lockedCtaLabel = premiumAccess?.ctaLabel ?? "Ver categorias do meu perfil (Ativar trial 48h)";
+  const lockedSubtitle = premiumAccess?.subtitle ?? PRO_PLAN_FLEXIBILITY_COPY;
+  const categoryCtaLabel = premiumAccess?.categoryCtaLabel ?? lockedCtaLabel;
+  const categorySubtitle = premiumAccess?.categorySubtitle ?? lockedSubtitle;
+  const highlightDefaultCta = "Descobrir o que mais faz meu conteúdo crescer (Ativar trial 48h)";
+  const highlightCtaLabel = premiumAccess?.highlightCtaLabel ?? highlightDefaultCta;
+  const highlightSubtitle = premiumAccess?.highlightSubtitle ?? lockedSubtitle;
+  const premiumTrialState = premiumAccess?.trialState ?? null;
+  const lockedCategoriesDescription =
+    premiumTrialState === "expired"
+      ? "Seus dados ficaram congelados. Assine para continuar recebendo atualizações semanais."
+      : "Ative o modo PRO para ver os formatos, propostas e contextos que mais puxam crescimento.";
+  const lockedHighlightsDescription =
+    premiumTrialState === "expired"
+      ? "Retome o modo PRO para seguir recebendo os destaques automáticos da semana."
+      : "Ative o modo PRO para destravar os principais insights sobre formatos, contextos e horários.";
+  const lockedViewTrackedRef = useRef(false);
+  const topPostsLockedViewTrackedRef = useRef(false);
+
   // ✅ Bio com a mesma regra do componente antigo + fallbacks
   const bioText = useMemo(() => {
     const directUser = typeof (user as any)?.biography === 'string' ? (user as any).biography.trim() : '';
@@ -581,6 +713,26 @@ export default function MediaKitView({
 
   const displayKpis = kpiData as any;
 
+  useEffect(() => {
+    if (showOwnerCtas && shouldLockPremiumSections && !lockedViewTrackedRef.current) {
+      track('media_kit_categories_locked_viewed', { surface: 'media_kit' });
+      lockedViewTrackedRef.current = true;
+    }
+    if (showOwnerCtas && canViewPremiumSections) {
+      lockedViewTrackedRef.current = false;
+    }
+  }, [showOwnerCtas, canViewPremiumSections, shouldLockPremiumSections]);
+
+  useEffect(() => {
+    if (showOwnerCtas && !canViewCategories && visibilityMode === 'lock' && !topPostsLockedViewTrackedRef.current) {
+      track('media_kit_top_posts_locked_viewed', { surface: 'media_kit' });
+      topPostsLockedViewTrackedRef.current = true;
+    }
+    if (showOwnerCtas && canViewCategories) {
+      topPostsLockedViewTrackedRef.current = false;
+    }
+  }, [showOwnerCtas, canViewCategories, visibilityMode]);
+
   // Dono do Mídia Kit: considera o planStatus da sessão para esconder o CTA de assinatura
   const isSubscribed = useMemo(() => {
     if (billingStatus.hasPremiumAccess) return true;
@@ -595,6 +747,17 @@ export default function MediaKitView({
   }, [session?.user, user]);
 
   const [isCitiesModalOpen, setCitiesModalOpen] = useState(false);
+  const handleLockedCtaClick = useCallback(
+    (surface: string) => {
+      track('media_kit_trial_cta_clicked', { surface });
+      premiumAccess?.onRequestUpgrade?.();
+    },
+    [premiumAccess]
+  );
+  const handleTopPostsCtaClick = useCallback(() => {
+    track('media_kit_top_posts_trial_cta_clicked', { surface: 'media_kit_top_posts' });
+    premiumAccess?.onRequestUpgrade?.();
+  }, [premiumAccess]);
 
   return (
     <GlobalTimePeriodProvider>
@@ -833,11 +996,40 @@ export default function MediaKitView({
                   </div>
                 ) : (
                   <>
-                    <p className="text-gray-600 mb-6 font-light">
-                      Uma amostra do conteúdo de maior impacto{' '}
-                      <span className="font-medium text-gray-700">— clique em um post para ver a análise detalhada.</span>
+                    <p className="text-gray-600 mb-4 font-light">
+                      {canViewCategories ? (
+                        <>
+                          Uma amostra do conteúdo de maior impacto{' '}
+                          <span className="font-medium text-gray-700">— clique em um post para ver a análise detalhada.</span>
+                        </>
+                      ) : visibilityMode === 'lock' ? (
+                        <>Veja os posts que mais performaram e ative o modo PRO para entender as categorias, desbloquear a análise detalhada e descobrir o que impulsiona esses resultados.</>
+                      ) : (
+                        <>Veja os posts que mais performaram. Este criador utiliza o plano gratuito, portanto categorias detalhadas e análise completa não estão disponíveis nesta visualização.</>
+                      )}
                     </p>
-                    <VideosTable videos={videosWithCorrectStats} readOnly onRowClick={setSelectedPostId} followersCount={user?.followers_count ?? (user as any)?.followersCount ?? 0} />
+                    {!canViewCategories && visibilityMode === 'lock' && (
+                      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <button
+                          type="button"
+                          onClick={handleTopPostsCtaClick}
+                          className="inline-flex items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
+                        >
+                          Descobrir o que mais faz meus posts crescerem (Ativar trial 48h)
+                        </button>
+                        {categorySubtitle ? (
+                          <p className="text-xs text-gray-500 sm:text-right">{categorySubtitle}</p>
+                        ) : null}
+                      </div>
+                    )}
+                    <VideosTable
+                      videos={videosWithCorrectStats}
+                      readOnly
+                      onRowClick={canViewCategories ? setSelectedPostId : undefined}
+                      followersCount={user?.followers_count ?? (user as any)?.followersCount ?? 0}
+                      showStrategyTags={visibilityMode === 'hide' ? true : canViewCategories}
+                      strategyMode={visibilityMode}
+                    />
                   </>
                 )}
               </motion.div>
@@ -845,11 +1037,24 @@ export default function MediaKitView({
           </div>
 
           <div className="mt-8 space-y-8 lg:mt-10 lg:space-y-10">
-            {user?._id && (
+            {user?._id && !shouldHidePremiumSections && (
               <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.7} className={cardStyle}>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Destaques de Performance</h2>
-                <p className="text-gray-500 text-sm mb-6">Arraste para ver os principais insights e conquistas.</p>
-                <PerformanceHighlightsCarousel userId={String(user._id)} />
+                {canViewPremiumSections ? (
+                  <>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Destaques de Performance</h2>
+                    <p className="text-gray-500 text-sm mb-6">Arraste para ver os principais insights e conquistas.</p>
+                    <PerformanceHighlightsCarousel userId={String(user._id)} />
+                  </>
+                ) : shouldLockPremiumSections ? (
+                  <LockedPremiumSection
+                    title="Destaques de performance disponíveis no modo PRO"
+                    description={lockedHighlightsDescription}
+                    ctaLabel={highlightCtaLabel}
+                    subtitle={highlightSubtitle}
+                    onAction={() => handleLockedCtaClick('media_kit_highlights')}
+                    peek={<LockedHighlightsPeek />}
+                  />
+                ) : null}
               </motion.div>
             )}
 
@@ -887,11 +1092,25 @@ export default function MediaKitView({
               </div>
             )}
 
-            {user?._id && (
+            {user?._id && !shouldHidePremiumSections && (
               <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.8} className={cardStyle}>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Rankings por Categorias</h2>
-                <p className="text-gray-500 text-sm mb-6">Veja a posição do criador em diferentes nichos.</p>
-                <CategoryRankingsCarousel userId={String(user._id)} />
+                {canViewPremiumSections ? (
+                  <>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Rankings por Categorias</h2>
+                    <p className="text-gray-500 text-sm mb-6">Veja a posição do criador em diferentes nichos.</p>
+                    <CategoryRankingsCarousel userId={String(user._id)} />
+                  </>
+                ) : shouldLockPremiumSections ? (
+                  <LockedPremiumSection
+                    title="Categorias disponíveis no modo PRO"
+                    description={lockedCategoriesDescription}
+                    ctaLabel={categoryCtaLabel}
+                    subtitle={categorySubtitle}
+                    showBadge={false}
+                    onAction={() => handleLockedCtaClick('media_kit_categories')}
+                    peek={<LockedCategoriesPeek />}
+                  />
+                ) : null}
               </motion.div>
             )}
 

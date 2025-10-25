@@ -173,6 +173,7 @@ const PostDetailModal = ({ isOpen, onClose, postId, apiPrefix }: {
           <>
             <div className="flex space-x-4">
               {data.coverUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={data.coverUrl}
                   alt="capa"

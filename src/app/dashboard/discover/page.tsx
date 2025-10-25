@@ -1,6 +1,7 @@
 // src/app/dashboard/discover/page.tsx
 import React from 'react';
 import { headers } from 'next/headers';
+import Link from 'next/link';
 // Grid é a única visualização
 import NextDynamic from 'next/dynamic';
 const DiscoverViewTracker = NextDynamic(() => import('../../discover/components/DiscoverViewTracker'), { ssr: false });
@@ -100,7 +101,7 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
     );
   }
 
-  const { sections } = result as FeedOk;
+  const { sections, allowedPersonalized } = result as FeedOk;
 
   // Remover listas específicas solicitadas
   const blockedTitles = new Set<string>([
@@ -127,10 +128,31 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
 
         {/* Filtros por categoria */}
         {/* Cabeçalho e orientação */}
-        <div className="mb-3">
+        <div className="mb-3 space-y-2">
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Descubra novas ideias</h1>
+          <p className="text-sm text-slate-600 sm:text-base">
+            Este espaço mostra o que outros criadores estão publicando agora. Explore à vontade mesmo sem conectar
+            seu Instagram — e libere sugestões personalizadas quando estiver pronto.
+          </p>
+          {!allowedPersonalized ? (
+            <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-rose-800">Conecte seu Instagram para personalizar a curadoria</p>
+                <p className="text-xs text-rose-700">
+                  Assim o Mobi ranqueia horários, formatos e concorrentes diretos com base nos seus dados reais.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/instagram/connect"
+                className="inline-flex items-center justify-center rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+              >
+                Conectar Instagram
+              </Link>
+            </div>
+          ) : null}
         </div>
-        <div className="mb-6">
+        <div className="mb-6 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Filtrar por categoria</p>
           <DiscoverChips />
         </div>
 

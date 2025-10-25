@@ -67,4 +67,28 @@ describe('MediaKitView ownership visibility', () => {
     expect(screen.getByTestId('subscribe-banner')).toBeInTheDocument();
     expect(screen.queryByTestId('affiliate-card')).not.toBeInTheDocument();
   });
+
+  it('hides locked premium teasers for public viewers', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: null });
+    render(
+      <MediaKitView
+        {...baseProps}
+        premiumAccess={{ canViewCategories: false, visibilityMode: 'lock' } as any}
+        showOwnerCtas={false}
+      />
+    );
+    expect(screen.queryByText(/Destaques de performance disponíveis no modo PRO/i)).not.toBeInTheDocument();
+  });
+
+  it('shows locked premium teasers for owners without access', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+    render(
+      <MediaKitView
+        {...baseProps}
+        premiumAccess={{ canViewCategories: false, visibilityMode: 'lock' } as any}
+        showOwnerCtas={true}
+      />
+    );
+    expect(screen.getByText(/Destaques de performance disponíveis no modo PRO/i)).toBeInTheDocument();
+  });
 });

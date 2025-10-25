@@ -47,6 +47,8 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
   // Determina as categorias principais do usuário por USO (posts)
   const [topIds, setTopIds] = useState<{ format?: string; proposal?: string; context?: string }>({});
 
+  const { format: topFormat, proposal: topProposal, context: topContext } = topIds;
+
   useEffect(() => {
     let cancelled = false;
     const fetchTop = async () => {
@@ -85,14 +87,14 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
   useEffect(() => {
     let cancelled = false;
     const fetchRanks = async () => {
-      if (!topIds.format && !topIds.proposal && !topIds.context) return;
+      if (!topFormat && !topProposal && !topContext) return;
       try {
         setLoading(true); setError(null);
         const base = `/api/v1/users/${userId}/rankings/by-category`;
         const qs = (cat: CategoryKey, value: string) => new URLSearchParams({ category: cat, value, metric: 'avg_total_interactions', timePeriod }).toString();
         const requests: Array<Promise<[CategoryKey, RankResponse | null]>> = [];
         (['format','proposal','context'] as CategoryKey[]).forEach((cat) => {
-          const val = (topIds as any)[cat];
+          const val = (cat === 'format' ? topFormat : cat === 'proposal' ? topProposal : topContext) as string | undefined;
           if (val) {
             requests.push(
               fetch(`${base}?${qs(cat, val)}`).then(async (r) => [cat, r.ok ? await r.json() : null])
@@ -110,13 +112,13 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
     };
     fetchRanks();
     return () => { cancelled = true; };
-  }, [userId, timePeriod, topIds.format, topIds.proposal, topIds.context]);
+  }, [userId, timePeriod, topFormat, topProposal, topContext]);
 
   const labels = useMemo(() => ({
-    format: topIds.format ? (getCategoryById(topIds.format, 'format')?.label || topIds.format) : null,
-    proposal: topIds.proposal ? (getCategoryById(topIds.proposal, 'proposal')?.label || topIds.proposal) : null,
-    context: topIds.context ? (getCategoryById(topIds.context, 'context')?.label || topIds.context) : null,
-  }), [topIds.format, topIds.proposal, topIds.context]);
+    format: topFormat ? (getCategoryById(topFormat, 'format')?.label || topFormat) : null,
+    proposal: topProposal ? (getCategoryById(topProposal, 'proposal')?.label || topProposal) : null,
+    context: topContext ? (getCategoryById(topContext, 'context')?.label || topContext) : null,
+  }), [topFormat, topProposal, topContext]);
 
   if (loading && !labels.format && !labels.proposal && !labels.context) {
     return <div className="text-xs text-gray-500">Calculando posições…</div>;
@@ -141,4 +143,3 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
 };
 
 export default UserCategoryPositionBadges;
-

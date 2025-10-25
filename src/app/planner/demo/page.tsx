@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { idsToLabels } from "@/app/lib/classification";
 
 type SlotCategories = { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
@@ -38,6 +39,7 @@ const Chip = ({ children, color = "gray" }: ChipProps) => {
 // --- FIM DA CORREÇÃO ---
 
 export default function PlannerDemoPage() {
+  const router = useRouter();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [title, setTitle] = useState<string>("");
   const [script, setScript] = useState<string>("");
@@ -238,14 +240,49 @@ export default function PlannerDemoPage() {
 
   const label = (ids?: string[], type?: "proposal" | "context" | "reference") => idsToLabels(ids, type as any).join(", ");
   const toneLabel = (t?: string) => idsToLabels(t ? [t] : [], "tone")[0] || "";
+  const handleConnectInstagram = useCallback(() => {
+    router.push("/dashboard/instagram/connect");
+  }, [router]);
+
+  const handleOpenDiscover = useCallback(() => {
+    router.push("/dashboard/discover");
+  }, [router]);
 
   return (
     <div className="bg-white">
       <div ref={containerRef} className="max-w-5xl mx-auto p-4 md:p-6 lg:p-8">
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">Experimente o Planner IA na prática</p>
+          <p className="mt-1 text-xs text-slate-600 sm:text-sm">
+            Este é um exemplo gerado com dados fictícios. Conecte seu Instagram para que o Mobi calcule horários
+            quentes, temas e roteiros com base no seu histórico real.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={handleConnectInstagram}
+              className="inline-flex w-full items-center justify-center rounded-lg bg-brand-red px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:w-auto"
+            >
+              Conectar Instagram e gerar meus horários
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenDiscover}
+              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+            >
+              Ver ideias na Comunidade
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs text-gray-500">Slot sugerido</div>
+            <div className="text-xs text-gray-500">Slot demo sugerido</div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{headerText}</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Quando a IA lê o seu perfil, ela adapta este painel com base nos horários e formatos que performam melhor
+              nos seus últimos posts.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Chip color="teal">Formato: Reel</Chip>

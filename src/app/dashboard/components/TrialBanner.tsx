@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { useSession } from "next-auth/react";
 import { RocketLaunchIcon } from "@heroicons/react/24/outline";
+import { track } from "@/lib/track";
 
 const STORAGE_KEY = "d2c-trial-checklist-v1";
 
@@ -134,78 +135,97 @@ function ActiveTrialBanner({
       <div className="absolute -left-20 top-0 h-40 w-40 rounded-full bg-white/15 blur-3xl" />
       <div className="absolute -bottom-16 right-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
 
-      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-white/15 p-2 shadow-inner">
-            <RocketLaunchIcon className="h-6 w-6 text-white" aria-hidden="true" />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-white/75">Modo PRO liberado</p>
-            <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
-              Você tem acesso PRO grátis pelas próximas {countdownLabel}.
-            </h2>
-            <p className="mt-1 text-sm text-white/80">
-              Durante essas 48h você está no mesmo nível do PRO: Grupo VIP liberado, mentorias estratégicas semanais,
-              alertas premium no WhatsApp e planos guiados pelo Mobi.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                href="/dashboard/media-kit"
-                className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-purple shadow hover:bg-white/90"
-              >
-                Ver meu Mídia Kit
-              </Link>
-              <Link
-                href="/dashboard/whatsapp"
-                className="inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
-              >
-                Ativar WhatsApp IA
-              </Link>
-              <Link
-                href="/dashboard/billing"
-                className="inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
-              >
-                Conferir agenda do Grupo VIP
-              </Link>
+      <div className="relative flex flex-col gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white/15 p-2 shadow-inner">
+              <RocketLaunchIcon className="h-6 w-6 text-white" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-white/75">Modo PRO liberado</p>
+              <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
+                Mobi está ativo pelas próximas {countdownLabel}.
+              </h2>
+              <p className="mt-1 text-sm text-white/80">
+                Peça conselhos no WhatsApp, libere o planner IA completo e veja o relatório estratégico avançado
+                enquanto o acesso gratuito estiver valendo.
+              </p>
             </div>
           </div>
+          <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center text-sm text-white/80 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60">Trial encerra em</p>
+            <div className="mt-1 text-2xl font-semibold text-white">{countdownLabel}</div>
+            <p className="mt-1 text-[11px] text-white/60">Expira em {expiresAt.toLocaleString("pt-BR")}</p>
+          </div>
         </div>
-        <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center text-sm text-white/80 backdrop-blur">
-          Trial encerra em
-          <div className="mt-1 text-2xl font-semibold text-white">{countdownLabel}</div>
-          <p className="mt-1 text-[11px] text-white/60">
-            Expira em {expiresAt.toLocaleString("pt-BR")}
+
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/media-kit"
+            className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-purple shadow hover:bg-white/90"
+          >
+            Abrir relatório completo
+          </Link>
+          <Link
+            href="/dashboard/whatsapp"
+            className="inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+          >
+            Falar com o Mobi no WhatsApp
+          </Link>
+          <Link
+            href="/dashboard/planner"
+            className="inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
+          >
+            Usar planner IA
+          </Link>
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+            Checklist sugerido
           </p>
+          <p className="text-xs text-white/60">
+            Garanta o WOW moment completando as etapas abaixo durante o trial.
+          </p>
+          <TrialChecklist />
         </div>
       </div>
-
-      <TrialChecklist />
     </div>
   );
 }
 
 function TrialExpiredBanner({ onSubscribe }: { onSubscribe: () => void }) {
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm sm:px-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-base font-semibold">Seu modo PRO gratuito terminou</h2>
-          <p className="mt-1 text-sm">
-            Continue com o estrategista pessoal, mantenha o Grupo VIP e libere alertas ilimitados assinando o plano PRO.
-          </p>
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-5 text-amber-900 shadow-sm sm:px-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-base font-semibold">Seu modo PRO gratuito terminou 💡</h2>
+            <p className="mt-1 text-sm">
+              Continue com o Mobi ativo para receber alertas, planner guiado e categorias completas do seu perfil.
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-amber-800 shadow-sm">
+            <p className="font-semibold">Durante o trial você desbloqueou:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>Relatório estratégico com categorias e benchmarks completos.</li>
+              <li>Insights personalizados do Mobi direto no WhatsApp.</li>
+              <li>Planner IA com sugestões de slots e roteiros prontos.</li>
+            </ul>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:items-end">
           <button
             onClick={onSubscribe}
-            className="inline-flex items-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-600"
+            className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-600"
           >
-            Assinar plano PRO
+            Assinar agora e continuar
           </button>
           <Link
             href="/dashboard/billing"
-            className="inline-flex items-center rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100"
+            className="inline-flex items-center justify-center rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100"
           >
-            Ver planos
+            Ver planos detalhados
           </Link>
         </div>
       </div>
@@ -229,6 +249,9 @@ export default function TrialBanner() {
   const [remainingLabel, setRemainingLabel] = useState(() =>
     expiresAt ? formatRemaining(expiresAt.getTime() - Date.now()) : ""
   );
+
+  const countdownTrackedRef = useRef(false);
+  const expiredTrackedRef = useRef(false);
 
   useEffect(() => {
     if (!expiresAt) return;
@@ -254,6 +277,38 @@ export default function TrialBanner() {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    if (billingStatus.isTrialActive && expiresAt && !countdownTrackedRef.current) {
+      countdownTrackedRef.current = true;
+      try {
+        track("trial_countdown_visible", {
+          remaining_minutes: Math.floor(Math.max(expiresAt.getTime() - Date.now(), 0) / 60000),
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (!billingStatus.isTrialActive) {
+      countdownTrackedRef.current = false;
+    }
+  }, [billingStatus.isTrialActive, expiresAt]);
+
+  useEffect(() => {
+    if (showExpired && !expiredTrackedRef.current) {
+      expiredTrackedRef.current = true;
+      try {
+        track("trial_expired_viewed");
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (!showExpired) {
+      expiredTrackedRef.current = false;
+    }
+  }, [showExpired]);
 
   if (isLoading) return null;
 

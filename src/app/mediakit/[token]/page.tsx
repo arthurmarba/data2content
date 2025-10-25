@@ -18,7 +18,9 @@ import {
   PerformanceSummary,
   KpiComparison,
   DemographicsData,
+  MediaKitPremiumAccessConfig,
 } from '@/types/mediakit';
+import { isPlanActiveLike } from '@/utils/planStatus';
 
 // Força a renderização dinâmica e evita qualquer cache estático
 export const dynamic = 'force-dynamic';
@@ -202,14 +204,14 @@ export default async function MediaKitPage(
   const host = reqHeaders.get('host') || 'localhost:3000';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
 
-  const [summary, videos, kpis, demographics] = await Promise.all([
+  let [summary, videos, kpis, demographics] = await Promise.all([
     fetchSummary(baseUrl, (user as any)._id.toString()),
     fetchTopPosts(baseUrl, (user as any)._id.toString()), // ALTERADO
     fetchKpis(baseUrl, (user as any)._id.toString()),
     fetchDemographics(baseUrl, (user as any)._id.toString()),
   ]);
 
-  const compatibleVideos = (videos || []).map((video: any) => ({
+  let compatibleVideos = (videos || []).map((video: any) => ({
     ...video,
     format: video.format ? [video.format] : [],
     proposal: video.proposal ? [video.proposal] : [],
@@ -219,6 +221,30 @@ export default async function MediaKitPage(
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));
+  const now = Date.now();
+  const planStatus = (plainUser?.planStatus ?? null) as any;
+  const trialStatus = (plainUser?.proTrialStatus ?? null) as string | null;
+  const trialExpiresAtValue = plainUser?.proTrialExpiresAt ? new Date(plainUser.proTrialExpiresAt).getTime() : null;
+  const trialActive = trialStatus === 'active' && trialExpiresAtValue !== null && trialExpiresAtValue > now;
+  const ownerHasPremiumAccess = isPlanActiveLike(planStatus) || trialActive;
+
+  let premiumAccessConfig: MediaKitPremiumAccessConfig | undefined;
+
+  if (!ownerHasPremiumAccess) {
+    summary = null;
+    compatibleVideos = compatibleVideos.map((video: any) => ({
+      ...video,
+      format: [],
+      proposal: [],
+      context: [],
+      tone: [],
+      references: [],
+    }));
+    premiumAccessConfig = {
+      canViewCategories: false,
+      visibilityMode: 'hide',
+    };
+  }
 
   return (
         <MediaKitView
@@ -229,6 +255,7 @@ export default async function MediaKitPage(
           demographics={demographics}
           showSharedBanner={!isOwner}
           showOwnerCtas={false}
+          premiumAccess={premiumAccessConfig}
         />
   );
 }

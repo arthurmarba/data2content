@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaWhatsapp, FaSpinner, FaCheckCircle, FaCopy } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import { track } from "@/lib/track";
+import { PRO_PLAN_FLEXIBILITY_COPY } from "@/app/constants/trustCopy";
 
 interface WhatsAppPanelProps {
   userId: string;
@@ -117,39 +118,85 @@ export default function WhatsAppPanel({
 
   // U P S E L L  –  quando não há acesso ou upsellOnly=true, mostra cartão de vendas PRO
   if (!canAccessFeatures || upsellOnly) {
+    const origin = upsellOnly ? "upsell_only" : "panel";
+    const previewMessages = [
+      "⏰ Hoje, 19h — pico de alcance para Reels.",
+      "💡 Ideia: bastidores da produção com CTA de salvamento.",
+      "⚠️ 3 dias sem postar Stories no slot forte (17h).",
+    ];
+
+    const handleStartTrial = () => {
+      track("whatsapp_upsell_cta_click", { cta: "start_trial", origin });
+      onActionRedirect();
+    };
+
+    const handleViewPlans = () => {
+      track("whatsapp_upsell_cta_click", { cta: "view_plans", origin });
+    };
+
     return (
-      <div className="relative">
-        <div className="flex items-center gap-3 mb-4">
-          <FaWhatsapp className="w-10 h-10 text-green-500" />
+      <div className="space-y-5 rounded-2xl border border-emerald-200 bg-white px-5 py-6 shadow-sm">
+        <div className="flex items-center gap-3">
+          <FaWhatsapp className="h-10 w-10 text-emerald-500" aria-hidden />
           <div>
-            <h3 className="font-semibold text-lg text-gray-800">WhatsApp IA PRO</h3>
-            <p className="text-sm text-gray-500 mt-1">Alertas proativos, relatórios semanais e consultoria no seu WhatsApp.</p>
+            <h3 className="text-lg font-semibold text-slate-900">WhatsApp IA PRO</h3>
+            <p className="text-sm text-slate-600">
+              Alertas inteligentes, micro-insights semanais e mentorias direto no seu WhatsApp.
+            </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-2">
-            <li>Alertas proativos de performance e oportunidades de conteúdo.</li>
-            <li>Resumo semanal automático com destaques e prioridades.</li>
-            <li>Atalhos de prompts para tirar dúvidas em tempo real.</li>
-            <li>Integração direta com seu Instagram conectado.</li>
-            <li>Participação no grupo VIP com mentorias estratégicas semanais exclusivas.</li>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+            O que a IA faz por você
+          </p>
+          <ul className="mt-2 space-y-2 text-sm text-slate-700">
+            <li>• Alertas proativos sempre que o engajamento mudar.</li>
+            <li>• Resumo semanal com prioridades e oportunidades.</li>
+            <li>• Prompts rápidos para tirar dúvidas ou gerar ideias.</li>
+            <li>• Integração direta aos dados do seu Instagram conectado.</li>
           </ul>
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button
-              onClick={() => onActionRedirect()}
-              className="flex-1 px-4 py-2.5 bg-pink-600 text-white rounded-lg text-sm font-semibold hover:bg-pink-700 transition-colors"
-            >
-              Fazer upgrade para PRO
-            </button>
-            <a
-              href="/dashboard/billing"
-              className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 border border-gray-200 text-center"
-            >
-              Ver planos e preços
-            </a>
-          </div>
         </div>
+
+        <div className="rounded-xl border border-emerald-100 bg-white px-4 py-4">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">
+            <span aria-hidden>👀</span> Prévia borrada do chat
+          </div>
+          <div className="mt-3 space-y-2">
+            {previewMessages.map((message, index) => (
+              <div
+                key={`${message}-${index}`}
+                className="rounded-2xl bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm blur-[2px]"
+                aria-hidden="true"
+              >
+                {message}
+              </div>
+            ))}
+          </div>
+          <p className="sr-only">
+            Prévia borrada das mensagens que você recebe no WhatsApp IA PRO; disponível com o trial de 48h.
+          </p>
+          <p className="mt-3 text-xs text-slate-500">
+            Ative 48h grátis para ver os alertas completos, puxar insights sob demanda e receber o resumo semanal sem bloqueios.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            onClick={handleStartTrial}
+            className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+          >
+            Ativar WhatsApp IA (48h grátis)
+          </button>
+          <a
+            href="/dashboard/billing"
+            onClick={handleViewPlans}
+            className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+          >
+            Ver planos completos
+          </a>
+        </div>
+        <p className="text-[11px] text-slate-500">{PRO_PLAN_FLEXIBILITY_COPY}</p>
       </div>
     );
   }

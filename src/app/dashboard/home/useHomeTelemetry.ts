@@ -12,7 +12,8 @@ export type HomeCardId =
   | "mentorship"
   | "media_kit"
   | "community_metrics"
-  | "micro_insight";
+  | "micro_insight"
+  | "connect_prompt";
 
 export function useHomeTelemetry() {
   const emit = React.useCallback((event: string, payload?: Record<string, unknown>) => {

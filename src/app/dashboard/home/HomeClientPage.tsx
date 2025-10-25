@@ -12,18 +12,20 @@ import {
   FaCalendarAlt,
   FaChalkboardTeacher,
   FaChevronDown,
+  FaCompass,
   FaGem,
   FaLink,
-  FaLock,
   FaMagic,
   FaPenFancy,
   FaRegCalendarCheck,
   FaRocket,
   FaRobot,
+  FaShieldAlt,
   FaUsers,
   FaWhatsapp,
   FaTimes,
 } from "react-icons/fa";
+import { INSTAGRAM_READ_ONLY_COPY } from "@/app/constants/trustCopy";
 
 import MediaKitCard from "./components/cards/MediaKitCard";
 import CommunityMetricsCard from "./components/cards/CommunityMetricsCard";
@@ -32,6 +34,7 @@ import QuickActionCard from "./components/QuickActionCard";
 import type { CommunityMetricsCardData, HomeSummaryResponse } from "./types";
 import { useHomeTelemetry } from "./useHomeTelemetry";
 import WhatsAppConnectInline from "../WhatsAppConnectInline";
+import { useHeaderSetup } from "../context/HeaderContext";
 
 type Period = CommunityMetricsCardData["period"];
 const DEFAULT_PERIOD: Period = "30d";
@@ -82,6 +85,69 @@ const STEP_STATUS_ICONS: Record<StepStatus, string> = {
 };
 
 const STEP_NUMBER_ICONS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"];
+
+type MicroInsightCardState = {
+  message: string;
+  contextLabel: string | null;
+  impactLabel: string | null;
+  ctaLabel?: string;
+  variant: "primary" | "secondary";
+  footnote?: string;
+  teaser?: { label: string; blurred: boolean };
+};
+
+type QuickActionDefinition = {
+  key: string;
+  icon: React.ReactNode;
+  title: string;
+  highlight: React.ReactNode;
+  description: React.ReactNode;
+  footnote?: string;
+  tone: "default" | "muted";
+  primaryAction?: {
+    label: string;
+    onClick: () => void;
+    icon?: React.ReactNode;
+  };
+  secondaryAction?: {
+    label: string;
+    onClick: () => void;
+  };
+};
+
+const PERCENT_HIGHLIGHT_REGEX = /(\+?\d{1,3})%/;
+const TIME_WINDOW_REGEX = /\d{1,2}h(?:\s*[–-]\s*\d{1,2}h)?/u;
+
+function extractInsightHighlight(text?: string | null): string | null {
+  if (!text) return null;
+  const percentMatch = text.match(PERCENT_HIGHLIGHT_REGEX);
+  if (percentMatch?.[1]) return `${percentMatch[1]}%`;
+  const timeMatch = text.match(TIME_WINDOW_REGEX);
+  if (timeMatch?.[0]) return timeMatch[0];
+  return null;
+}
+
+function buildTrialCtaLabel(message?: string | null): string {
+  const normalized = message?.toLowerCase() ?? "";
+  if (normalized.includes("reels")) return "Entender meus Reels (48h grátis)";
+  if (normalized.includes("horário") || normalized.includes("horarios")) {
+    return "Ver horários por categoria (48h grátis)";
+  }
+  if (normalized.includes("categoria")) return "Ver categorias do meu perfil (48h grátis)";
+  return "Ver por quê (48h grátis)";
+}
+
+function formatCountdownLabel(ms: number): string {
+  if (ms <= 60_000) return "menos de 1m";
+  const totalMinutes = Math.floor(ms / 60_000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${Math.max(minutes, 1)}m`;
+}
 
 export default function HomeClientPage() {
   const router = useRouter();
@@ -214,8 +280,8 @@ export default function HomeClientPage() {
   );
 
   const handleNextPostAction = React.useCallback(
-    (action: string) => {
-      trackCardAction("next_post", action);
+    (action: string, origin?: string) => {
+      trackCardAction("next_post", action, origin ? { origin } : undefined);
       const plannerUrl = summary?.nextPost?.plannerUrl ?? "/dashboard/planning";
       const slotId = summary?.nextPost?.plannerSlotId ?? null;
       const plannerUrlWithSlot = slotId ? appendQueryParam(plannerUrl, "slotId", slotId) : plannerUrl;
@@ -232,7 +298,7 @@ export default function HomeClientPage() {
           break;
       }
     },
-    [trackCardAction, summary?.nextPost?.plannerUrl, summary?.nextPost?.plannerSlotId, appendQueryParam, handleNavigate]
+    [appendQueryParam, handleNavigate, summary?.nextPost?.plannerSlotId, summary?.nextPost?.plannerUrl, trackCardAction]
   );
 
   const handleConsistencyAction = React.useCallback(
@@ -311,8 +377,31 @@ export default function HomeClientPage() {
     !whatsappTrialActive && whatsappTrialStarted && !whatsappTrialEligible && !planIsPro;
   const hasPremiumAccessPlan = summary?.plan?.hasPremiumAccess ?? false;
   const planTrialActive = summary?.plan?.trial?.active ?? false;
+  const planTrialEligible = summary?.plan?.trial?.eligible ?? false;
+  const planTrialStarted = summary?.plan?.trial?.started ?? false;
+  const planTrialExpiresAtIso =
+    summary?.plan?.trial?.expiresAt ?? summary?.plan?.expiresAt ?? null;
+  const planTrialExpiresAt = React.useMemo(() => {
+    if (!planTrialExpiresAtIso) return null;
+    const date = new Date(planTrialExpiresAtIso);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }, [planTrialExpiresAtIso]);
+  const [planTrialCountdownLabel, setPlanTrialCountdownLabel] = React.useState<string | null>(
+    null
+  );
   const isFreePlan = !(hasPremiumAccessPlan || planTrialActive);
   const microInsight = summary?.microInsight ?? null;
+  const isNewUserForOnboarding =
+    Boolean((session?.user as any)?.isNewUserForOnboarding);
+  const [welcomeDismissed, setWelcomeDismissed] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("d2c_welcome_modal_dismissed");
+    if (stored === "1") {
+      setWelcomeDismissed(true);
+    }
+  }, []);
 
   type HeroStage = "join_free" | "start_trial" | "use_trial" | "upgrade" | "join_vip" | "pro_engaged";
 
@@ -325,6 +414,80 @@ export default function HomeClientPage() {
     if (planIsPro && !communityVipMember) return "join_vip";
     return "pro_engaged";
   }, [communityFreeMember, communityVipMember, planIsPro, whatsappTrialActive, whatsappTrialEligible, whatsappTrialStarted]);
+
+  const shouldShowWelcomeModal =
+    isNewUserForOnboarding && !isInstagramConnected && !welcomeDismissed;
+
+  const dismissWelcomeModal = React.useCallback(() => {
+    setWelcomeDismissed(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("d2c_welcome_modal_dismissed", "1");
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!planTrialActive || !planTrialExpiresAt) {
+      setPlanTrialCountdownLabel(null);
+      return;
+    }
+    const update = () => {
+      const diff = planTrialExpiresAt.getTime() - Date.now();
+      setPlanTrialCountdownLabel(formatCountdownLabel(diff));
+    };
+    update();
+    const id = window.setInterval(update, 60_000);
+    return () => window.clearInterval(id);
+  }, [planTrialActive, planTrialExpiresAt]);
+
+  const openSubscribeModal = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("open-subscribe-modal"));
+    }
+  }, []);
+
+  const handleHeaderConnectInstagram = React.useCallback(() => {
+    trackHeroAction("header_cta_connect_instagram", { stage: heroStage });
+    router.push("/dashboard/instagram/connect");
+  }, [heroStage, router, trackHeroAction]);
+
+  const handleHeaderStartTrial = React.useCallback(() => {
+    trackHeroAction("header_cta_start_trial", { stage: heroStage });
+    setShowWhatsAppConnect(true);
+    trackWhatsappEvent("start", { origin: "header_cta" });
+  }, [heroStage, setShowWhatsAppConnect, trackHeroAction, trackWhatsappEvent]);
+
+  const handleHeaderSubscribe = React.useCallback(() => {
+    trackHeroAction("header_cta_subscribe", { stage: heroStage });
+    openSubscribeModal();
+  }, [heroStage, openSubscribeModal, trackHeroAction]);
+
+  const handleOpenDiscover = React.useCallback(
+    (origin?: string) => {
+      trackCardAction("connect_prompt", "open_discover", origin ? { origin } : undefined);
+      handleNavigate("/dashboard/discover");
+    },
+    [handleNavigate, trackCardAction]
+  );
+
+  const handleOpenPlannerDemo = React.useCallback(
+    (origin?: string) => {
+      trackCardAction("next_post", "open_demo", origin ? { origin } : undefined);
+      handleNavigate("/dashboard/planner/demo");
+    },
+    [handleNavigate, trackCardAction]
+  );
+
+  const handleWelcomeConnect = React.useCallback(() => {
+    trackHeroAction("welcome_modal_connect_instagram", { stage: heroStage });
+    dismissWelcomeModal();
+    handleHeaderConnectInstagram();
+  }, [dismissWelcomeModal, handleHeaderConnectInstagram, heroStage, trackHeroAction]);
+
+  const handleWelcomeExplore = React.useCallback(() => {
+    trackHeroAction("welcome_modal_open_discover", { stage: heroStage });
+    dismissWelcomeModal();
+    handleOpenDiscover("welcome_modal");
+  }, [dismissWelcomeModal, handleOpenDiscover, heroStage, trackHeroAction]);
 
   const handleMentorshipAction = React.useCallback(
     (action: string) => {
@@ -342,15 +505,14 @@ export default function HomeClientPage() {
     [communityFreeInviteUrl, communityVipInviteUrl, handleNavigate, summary?.mentorship, trackCardAction]
   );
 
-  const openSubscribeModal = React.useCallback(() => {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("open-subscribe-modal"));
-    }
-  }, []);
-
-  const handleJoinFreeCommunity = React.useCallback(() => {
-    handleNavigate(communityFreeInviteUrl);
-  }, [communityFreeInviteUrl, handleNavigate]);
+  const handleJoinFreeCommunity = React.useCallback(
+    (origin?: unknown) => {
+      const originLabel = typeof origin === "string" ? origin : "default";
+      trackCardAction("connect_prompt", "explore_community", { origin: originLabel });
+      handleNavigate(communityFreeInviteUrl);
+    },
+    [communityFreeInviteUrl, handleNavigate, trackCardAction]
+  );
 
   const whatsappBotNumber = React.useMemo(() => {
     const raw = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER ?? "552120380975";
@@ -371,24 +533,178 @@ export default function HomeClientPage() {
     openWhatsAppChat();
   }, [openWhatsAppChat, trackWhatsappEvent, whatsappLinked]);
 
-  const handleMicroInsightAction = React.useCallback(() => {
+  const headerCta = React.useMemo(() => {
     if (!isInstagramConnected) {
-      trackCardAction("micro_insight", "connect_instagram");
+      return {
+        label: "Conectar Instagram",
+        onClick: handleHeaderConnectInstagram,
+      };
+    }
+
+    if (!planIsPro) {
+      if (planTrialActive) {
+        return {
+          label: "Assinar agora",
+          onClick: handleHeaderSubscribe,
+        };
+      }
+
+      if (planTrialEligible && !planTrialStarted) {
+        return {
+          label: "Liberar IA por 48h",
+          onClick: handleHeaderStartTrial,
+        };
+      }
+
+      return {
+        label: "Assinar plano PRO",
+        onClick: handleHeaderSubscribe,
+      };
+    }
+
+    return {
+      label: whatsappLinked ? "Abrir WhatsApp IA" : "Ativar WhatsApp IA",
+      onClick: whatsappLinked ? handleOpenWhatsApp : handleHeaderStartTrial,
+    };
+  }, [
+    handleHeaderConnectInstagram,
+    handleHeaderStartTrial,
+    handleHeaderSubscribe,
+    handleOpenWhatsApp,
+    isInstagramConnected,
+    planIsPro,
+    planTrialActive,
+    planTrialEligible,
+    planTrialStarted,
+    whatsappLinked,
+  ]);
+
+  const headerPill = React.useMemo(() => {
+    if (!isInstagramConnected) {
+      return {
+        icon: "📊",
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+        text: "Relatório estratégico gratuito",
+      };
+    }
+
+    if (!planIsPro) {
+      if (planTrialActive) {
+        return {
+          icon: "⏳",
+          className: "border-rose-200 bg-rose-50 text-rose-700",
+          text: planTrialCountdownLabel ? `Termina em ${planTrialCountdownLabel}` : "Modo PRO ativo",
+        };
+      }
+
+      if (planTrialEligible && !planTrialStarted) {
+        return {
+          icon: "✨",
+          className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+          text: "48h grátis • sem cartão",
+        };
+      }
+
+      if (planTrialStarted && !planTrialActive) {
+        return {
+          icon: "💡",
+          className: "border-amber-200 bg-amber-50 text-amber-700",
+          text: "Trial terminou — mantenha o Mobi ativo",
+        };
+      }
+
+      return null;
+    }
+
+    return {
+      icon: "✅",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      text: "PRO ativo",
+    };
+  }, [
+    isInstagramConnected,
+    planIsPro,
+    planTrialActive,
+    planTrialCountdownLabel,
+    planTrialEligible,
+    planTrialStarted,
+  ]);
+
+  const headerExtraContent = React.useMemo(() => {
+    if (!headerPill) return null;
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none ${headerPill.className}`}
+        title={headerPill.text}
+      >
+        <span aria-hidden="true">{headerPill.icon}</span>
+        <span className="truncate max-w-[11rem]">{headerPill.text}</span>
+      </span>
+    );
+  }, [headerPill]);
+
+  useHeaderSetup(
+    React.useMemo(
+      () => ({
+        cta: headerCta ?? null,
+        extraContent: headerExtraContent ?? null,
+      }),
+      [headerCta, headerExtraContent]
+    ),
+    [headerCta, headerExtraContent]
+  );
+
+  const handleMicroInsightAction = React.useCallback(() => {
+    const highlight =
+      extractInsightHighlight(microInsight?.impactLabel) ??
+      extractInsightHighlight(microInsight?.message) ??
+      undefined;
+    const hasHighlight = Boolean(highlight);
+    const trialLabel = buildTrialCtaLabel(microInsight?.message);
+    const planLabel = isFreePlan ? "free" : planIsPro ? "pro" : "free";
+    const ctaLabel = !isInstagramConnected
+      ? "Conectar Instagram"
+      : isFreePlan
+      ? trialLabel
+      : microInsight?.ctaLabel ?? "Ver detalhes";
+    const telemetryPayload = {
+      cta_label: ctaLabel,
+      highlight,
+      has_highlight: hasHighlight,
+      plan: planLabel,
+    };
+
+    if (!isInstagramConnected) {
+      trackCardAction("micro_insight", "connect_instagram", telemetryPayload);
       handleNavigate("/dashboard/instagram");
       return;
     }
     if (isFreePlan) {
-      trackCardAction("micro_insight", "start_trial");
+      trackCardAction("micro_insight", "start_trial", {
+        ...telemetryPayload,
+        teaser_blurred: hasHighlight,
+      });
       openSubscribeModal();
       return;
     }
     if (microInsight?.ctaUrl) {
-      trackCardAction("micro_insight", "open_cta");
+      trackCardAction("micro_insight", "open_cta", telemetryPayload);
       handleNavigate(microInsight.ctaUrl);
       return;
     }
-    trackCardAction("micro_insight", "view_details");
-  }, [handleNavigate, isFreePlan, isInstagramConnected, microInsight?.ctaUrl, openSubscribeModal, trackCardAction]);
+    trackCardAction("micro_insight", "view_details", telemetryPayload);
+  }, [
+    handleNavigate,
+    isFreePlan,
+    isInstagramConnected,
+    microInsight?.ctaLabel,
+    microInsight?.ctaUrl,
+    microInsight?.impactLabel,
+    microInsight?.message,
+    openSubscribeModal,
+    planIsPro,
+    trackCardAction,
+  ]);
 
   const handleJoinVip = React.useCallback(() => {
     handleNavigate(communityVipInviteUrl);
@@ -589,7 +905,11 @@ export default function HomeClientPage() {
         icon: <FaRocket />,
         status: plannerStatus,
         actionLabel: isInstagramConnected ? "Abrir planner" : "Conectar agora",
-        action: () => handleNextPostAction(isInstagramConnected ? "generate_script" : "connect_instagram"),
+        action: () =>
+          handleNextPostAction(
+            isInstagramConnected ? "generate_script" : "connect_instagram",
+            "journey_step"
+          ),
         variant: isInstagramConnected ? "ghost" : "secondary",
         disabled: isInitialLoading,
         metric: isInstagramConnected && summary?.nextPost?.slotLabel ? `Próximo horário: ${summary.nextPost.slotLabel}` : undefined,
@@ -651,7 +971,7 @@ export default function HomeClientPage() {
               handleJoinVip();
             }
           } else {
-            handleJoinFreeCommunity();
+            handleJoinFreeCommunity("journey_step");
           }
         },
         variant: communityVipHasAccess ? (communityVipMember ? "ghost" : "vip") : communityFreeMember ? "ghost" : "secondary",
@@ -684,10 +1004,9 @@ export default function HomeClientPage() {
   const completedSteps = steps.filter((step) => step.status === "done").length;
   const checklistProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
-  const quickActions = React.useMemo(() => {
+  const quickActions = React.useMemo<QuickActionDefinition[]>(() => {
     const bestSlot = isInstagramConnected ? nextSlotLabel || "Calculando..." : null;
     const primaryHook = nextPostHooks[0] ?? null;
-
     const hasGoal = weeklyGoal > 0;
     const remainingPosts = Math.max(0, weeklyGoal - postsSoFar);
     const shareUrl = summary?.mediaKit?.shareUrl ?? "";
@@ -696,38 +1015,49 @@ export default function HomeClientPage() {
 
     const communityStatLabel = communitySpotlightHighlights.length
       ? communitySpotlightHighlights
-          .map((item) => `${item.value} ${item.label.toLowerCase()}`)
+          .map((item) => `${item.label}: ${item.value}`)
           .join(" · ")
       : "Entre para acompanhar os desafios da semana.";
 
-    return [
-      {
-        key: "next_post",
-        icon: <FaPenFancy />,
-        title: "Próximo Post",
-        highlight: isInstagramConnected
-          ? (
-              <>
-                Melhor horário: <span className="font-mono">{bestSlot}</span>
-              </>
-            )
-          : "Conecte para destravar horários",
-        description: isInstagramConnected
-          ? primaryHook
-            ? `Gatilho do dia: ${primaryHook}`
-            : "Peça um roteiro e eu gero agora mesmo."
-          : "Integre o Instagram e eu monitoro seus horários fortes.",
-        footnote: isInstagramConnected
-          ? "Posso gerar o roteiro agora mesmo."
-          : "Conexão segura em 30 segundos.",
-        primaryAction: {
-          label: isInstagramConnected ? "Abrir planner" : "Conectar Instagram",
-          onClick: () =>
-            handleNextPostAction(isInstagramConnected ? "generate_script" : "connect_instagram"),
-          icon: isInstagramConnected ? <FaMagic /> : <FaLink />,
-        },
-        tone: "default" as const,
+    const plannerAction: QuickActionDefinition = {
+      key: "next_post",
+      icon: <FaPenFancy />,
+      title: "Próximo Post",
+      highlight: isInstagramConnected
+        ? (
+            <>
+              Melhor horário: <span className="font-mono">{bestSlot}</span>
+            </>
+          )
+        : "Conecte para destravar horários",
+      description: isInstagramConnected
+        ? primaryHook
+          ? `Gatilho do dia: ${primaryHook}`
+          : "Peça um roteiro e eu gero agora mesmo."
+        : "Integre o Instagram e eu monitoro seus horários fortes.",
+      footnote: isInstagramConnected
+        ? "Posso gerar o roteiro agora mesmo."
+        : "Conexão segura em 30 segundos.",
+      primaryAction: {
+        label: isInstagramConnected ? "Abrir planner" : "Conectar Instagram",
+        onClick: () =>
+          handleNextPostAction(
+            isInstagramConnected ? "generate_script" : "connect_instagram",
+            "quick_actions"
+          ),
+        icon: isInstagramConnected ? <FaMagic /> : <FaLink />,
       },
+      tone: "default" as const,
+      secondaryAction: !isInstagramConnected
+        ? {
+            label: "Ver planner demo",
+            onClick: () => handleOpenPlannerDemo("quick_actions"),
+          }
+        : undefined,
+    };
+
+    const actions: QuickActionDefinition[] = [
+      plannerAction,
       {
         key: "consistency",
         icon: <FaRegCalendarCheck />,
@@ -735,8 +1065,7 @@ export default function HomeClientPage() {
         highlight: hasGoal
           ? (
               <>
-                Posts na semana:{" "}
-                <span className="font-mono">{`${postsSoFar}/${weeklyGoal}`}</span>
+                Posts na semana: <span className="font-mono">{`${postsSoFar}/${weeklyGoal}`}</span>
               </>
             )
           : "Defina a meta semanal",
@@ -789,12 +1118,35 @@ export default function HomeClientPage() {
           : "Acesso gratuito e leve, sem cartão.",
         primaryAction: {
           label: communityFreeMember ? "Abrir comunidade" : "Entrar na comunidade",
-          onClick: handleJoinFreeCommunity,
+          onClick: () => handleJoinFreeCommunity("quick_actions"),
           icon: <FaUsers />,
         },
         tone: "muted" as const,
       },
     ];
+
+    if (!isInstagramConnected) {
+      actions.splice(1, 0, {
+        key: "discover",
+        icon: <FaCompass />,
+        title: "Explore ideias agora",
+        highlight: "Feed curado diário",
+        description: "Veja posts vencedores da comunidade mesmo sem conectar o Instagram.",
+        footnote: "Personalize a curadoria ao conectar seu perfil.",
+        primaryAction: {
+          label: "Abrir Discover",
+          onClick: () => handleOpenDiscover("quick_actions"),
+          icon: <FaCompass />,
+        },
+        secondaryAction: {
+          label: "Ver planner demo",
+          onClick: () => handleOpenPlannerDemo("quick_actions"),
+        },
+        tone: "muted" as const,
+      });
+    }
+
+    return actions;
   }, [
     communityFreeMember,
     communitySpotlightHighlights,
@@ -803,6 +1155,8 @@ export default function HomeClientPage() {
     handleJoinFreeCommunity,
     handleMediaKitAction,
     handleNextPostAction,
+    handleOpenDiscover,
+    handleOpenPlannerDemo,
     hasMediaKit,
     isInstagramConnected,
     nextPostHooks,
@@ -812,6 +1166,7 @@ export default function HomeClientPage() {
     summary?.mediaKit?.shareUrl,
     weeklyGoal,
   ]);
+
 
   const headerStats = React.useMemo(
     () => [
@@ -843,37 +1198,87 @@ export default function HomeClientPage() {
     [isInstagramConnected, nextSlotLabel, postsSoFar, weeklyGoal, whatsappLinked]
   );
 
-  const microInsightCard = React.useMemo(() => {
+  const connectCardViewTracked = React.useRef(false);
+  React.useEffect(() => {
+    if (!isInstagramConnected && !connectCardViewTracked.current) {
+      trackSurfaceView("home_connect_instagram_card", { variant: "empty_state" });
+      connectCardViewTracked.current = true;
+    }
+  }, [isInstagramConnected, trackSurfaceView]);
+
+  const microInsightCard = React.useMemo<MicroInsightCardState>(() => {
     if (!isInstagramConnected) {
       return {
         message:
-          "Conecte seu Instagram para receber, toda semana, um micro-insight com oportunidades reais de crescimento.",
+          "Conecte seu Instagram para liberar o Relatório semanal (grátis) e entrar no sorteio de análise desta sexta.",
         contextLabel: null,
         impactLabel: null,
         ctaLabel: "Conectar Instagram",
-        variant: "primary" as const,
+        variant: "primary",
+        footnote: INSTAGRAM_READ_ONLY_COPY,
       };
     }
+
     if (microInsight?.message) {
+      const highlight =
+        extractInsightHighlight(microInsight.impactLabel) ??
+        extractInsightHighlight(microInsight.message);
+      const trialLabel = buildTrialCtaLabel(microInsight.message);
+
       return {
         message: microInsight.message,
         contextLabel: microInsight.contextLabel ?? null,
         impactLabel: microInsight.impactLabel ?? null,
-        ctaLabel: isFreePlan
-          ? "Ver por quê (48h grátis)"
-          : microInsight.ctaLabel ?? "Ver detalhes",
-        variant: isFreePlan ? ("primary" as const) : ("secondary" as const),
+        ctaLabel: isFreePlan ? trialLabel : microInsight.ctaLabel ?? "Ver detalhes",
+        variant: isFreePlan ? "primary" : "secondary",
+        footnote: isFreePlan
+          ? "48h grátis • Sem cartão • Cancele quando quiser."
+          : "Incluído no seu plano atual.",
+        teaser: highlight ? { label: highlight, blurred: isFreePlan } : undefined,
       };
     }
+
     return {
       message:
         "Estamos analisando seus dados recentes para gerar o micro-insight da semana. Volte em breve.",
       contextLabel: null,
       impactLabel: null,
       ctaLabel: isFreePlan ? "Liberar IA por 48h" : undefined,
-      variant: isFreePlan ? ("primary" as const) : ("secondary" as const),
+      variant: isFreePlan ? "primary" : "secondary",
+      footnote: isFreePlan
+        ? "48h grátis • Sem cartão • Cancele quando quiser."
+        : "Atualizamos assim que os novos dados chegarem.",
     };
   }, [isFreePlan, isInstagramConnected, microInsight]);
+
+  const microInsightViewTracked = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!microInsightCard.teaser) return;
+    const keyBase =
+      microInsight?.id ??
+      microInsight?.message ??
+      (isInstagramConnected ? "connected" : "not_connected");
+    if (!keyBase) return;
+    const highlight =
+      extractInsightHighlight(microInsight?.impactLabel) ??
+      extractInsightHighlight(microInsight?.message) ??
+      "";
+    const signature = `${keyBase}|${highlight}|${isFreePlan ? "free" : "pro"}`;
+    if (microInsightViewTracked.current === signature) return;
+    trackSurfaceView("home_micro_insight_peek", {
+      blurred: microInsightCard.teaser?.blurred ?? false,
+      plan: isFreePlan ? "free" : "pro",
+    });
+    microInsightViewTracked.current = signature;
+  }, [
+    isFreePlan,
+    isInstagramConnected,
+    microInsight?.id,
+    microInsight?.impactLabel,
+    microInsight?.message,
+    microInsightCard.teaser,
+    trackSurfaceView,
+  ]);
 
 
   const shouldDisplayConnectBanner = showWhatsAppConnect && !whatsappLinked;
@@ -932,8 +1337,66 @@ export default function HomeClientPage() {
       trackSurfaceView("home_whatsapp_connect", { origin: "home" });
     }
   }, [shouldDisplayConnectBanner, trackSurfaceView]);
+
+  const welcomeModal = shouldShowWelcomeModal ? (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 px-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+        <button
+          type="button"
+          onClick={dismissWelcomeModal}
+          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
+          aria-label="Fechar"
+        >
+          <FaTimes aria-hidden="true" />
+        </button>
+        <div className="space-y-4">
+          <div className="space-y-2 pr-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
+              Primeiro acesso confirmado
+            </p>
+            <h2 className="text-2xl font-semibold text-slate-900">
+              Bem-vindo(a) à sua base na Data2Content
+            </h2>
+            <p className="text-sm text-slate-600">
+              Você já pode explorar a Comunidade e o Planner demo. Conectar o Instagram libera o
+              relatório estratégico gratuito e os alertas automáticos.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={handleWelcomeExplore}
+              className="inline-flex w-full items-center justify-center rounded-lg bg-brand-red px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:w-auto"
+            >
+              Entrar na Comunidade
+            </button>
+            <button
+              type="button"
+              onClick={handleWelcomeConnect}
+              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+            >
+              Conectar Instagram agora
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={dismissWelcomeModal}
+            className="text-xs font-semibold text-slate-400 underline-offset-2 hover:underline"
+          >
+            Depois eu vejo
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+    <>
+      {welcomeModal}
+      <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
       {connectBanner}
       <section className="rounded-3xl border border-[#E1DAFF] bg-[#F4F1FF] px-6 py-8 shadow-[0_24px_60px_rgba(92,61,196,0.18)]">
         <div className="flex flex-col gap-8">
@@ -975,6 +1438,36 @@ export default function HomeClientPage() {
                   </div>
                 ))}
               </div>
+              {!isInstagramConnected ? (
+                <div className="rounded-2xl border border-blue-100 bg-white/95 px-5 py-4 shadow-sm">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-blue-500">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-blue-500">
+                      <FaLink className="h-3 w-3" aria-hidden />
+                    </span>
+                    Conecte para liberar
+                  </div>
+                  <p className="mt-2 text-base leading-relaxed text-slate-900">
+                    Conecte seu Instagram para receber seu Relatório gratuito e participar do sorteio de análise desta semana.
+                  </p>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleNextPostAction("connect_instagram", "empty_state_card")}
+                      className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:w-auto"
+                    >
+                      Conectar Instagram
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleJoinFreeCommunity("empty_state_card")}
+                      className="inline-flex w-full items-center justify-center rounded-lg border border-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+                    >
+                      Explorar comunidade primeiro
+                    </button>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500">{INSTAGRAM_READ_ONLY_COPY}</p>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -1106,24 +1599,42 @@ export default function HomeClientPage() {
             {microInsightCard.contextLabel ? (
               <p className="text-xs text-slate-500">{microInsightCard.contextLabel}</p>
             ) : null}
+            {microInsightCard.teaser ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                  Peek de valor
+                </span>
+                <span
+                  className={`rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm ${
+                    microInsightCard.teaser.blurred ? "filter blur-[2px]" : ""
+                  }`}
+                >
+                  {microInsightCard.teaser.label}
+                </span>
+              </div>
+            ) : null}
           </div>
-          {microInsightCard.ctaLabel ? (
+          {microInsightCard.ctaLabel || microInsightCard.footnote ? (
             <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
-              <button
-                type="button"
-                onClick={handleMicroInsightAction}
-                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                  microInsightCard.variant === "primary"
-                    ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/40"
-                    : "border border-slate-300 text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300"
-                }`}
-              >
-                {microInsightCard.ctaLabel}
-              </button>
-              <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                <FaLock className="h-3 w-3" aria-hidden />
-                Só leitura: a IA analisa, mas não publica por você.
-              </span>
+              {microInsightCard.ctaLabel ? (
+                <button
+                  type="button"
+                  onClick={handleMicroInsightAction}
+                  className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                    microInsightCard.variant === "primary"
+                      ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/40"
+                      : "border border-slate-300 text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300"
+                  }`}
+                >
+                  {microInsightCard.ctaLabel}
+                </button>
+              ) : null}
+              {microInsightCard.footnote ? (
+                <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                  <FaShieldAlt className="h-3 w-3" aria-hidden />
+                  {microInsightCard.footnote}
+                </span>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -1172,6 +1683,7 @@ export default function HomeClientPage() {
                 highlight={action.highlight}
                 footnote={action.footnote}
                 primaryAction={action.primaryAction}
+                secondaryAction={action.secondaryAction}
                 tone={action.tone}
                 disabled={isInitialLoading}
               />
@@ -1302,5 +1814,6 @@ export default function HomeClientPage() {
         </ol>
       </section>
     </div>
+  </>
   );
 }

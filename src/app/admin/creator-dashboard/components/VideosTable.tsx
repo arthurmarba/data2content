@@ -20,6 +20,8 @@ interface VideosTableProps {
   onRowClick?: (postId: string) => void;
   readOnly?: boolean;
   followersCount?: number; // usado para calcular engajamento por post
+  showStrategyTags?: boolean;
+  strategyMode?: 'lock' | 'hide';
 }
 
 /* ============================
@@ -119,7 +121,9 @@ const VideoCard: React.FC<{
   readOnly?: boolean;
   onRowClick?: (postId: string) => void;
   followersCount?: number;
-}> = ({ video, index, readOnly, onRowClick, followersCount }) => {
+  showStrategyTags?: boolean;
+  strategyMode?: 'lock' | 'hide';
+}> = ({ video, index, readOnly, onRowClick, followersCount, showStrategyTags = true, strategyMode = 'lock' }) => {
   const formatDate = (d?: string | Date) => {
     if (!d) return 'N/A';
     return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -180,37 +184,57 @@ const VideoCard: React.FC<{
 
         {/* Estratégia (chips) */}
         <div className={`col-span-12 ${readOnly ? 'md:col-span-3' : 'md:col-span-2'} flex flex-col gap-1.5 content-start`}>
-          {/* Linha 1: Formato (sozinho) */}
-          <div className="w-full flex flex-wrap gap-1.5">
-            {getTranslatedLabels((video as any).format, 'format').map((tag) => (
-              <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>
-                {tag}
-              </span>
-            ))}
-          </div>
-          {/* Linha 2: Demais categorias */}
-          <div className="w-full flex flex-wrap gap-1.5">
-            {getTranslatedLabels((video as any).proposal, 'proposal').map((tag) => (
-              <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>
-                {tag}
-              </span>
-            ))}
-            {getTranslatedLabels((video as any).context, 'context').map((tag) => (
-              <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>
-                {tag}
-              </span>
-            ))}
-            {getTranslatedLabels((video as any).tone, 'tone').map((tag) => (
-              <span key={tag} className={`${tagBaseClasses} bg-yellow-100 text-yellow-800`}>
-                {tag}
-              </span>
-            ))}
-            {getTranslatedLabels((video as any).references, 'reference').map((tag) => (
-              <span key={tag} className={`${tagBaseClasses} bg-green-100 text-green-800`}>
-                {tag}
-              </span>
-            ))}
-          </div>
+          {showStrategyTags ? (
+            <>
+              <div className="w-full flex flex-wrap gap-1.5">
+                {getTranslatedLabels((video as any).format, 'format').map((tag) => (
+                  <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              <div className="w-full flex flex-wrap gap-1.5">
+                {getTranslatedLabels((video as any).proposal, 'proposal').map((tag) => (
+                  <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>
+                    {tag}
+                  </span>
+                ))}
+                {getTranslatedLabels((video as any).context, 'context').map((tag) => (
+                  <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>
+                    {tag}
+                  </span>
+                ))}
+                {getTranslatedLabels((video as any).tone, 'tone').map((tag) => (
+                  <span key={tag} className={`${tagBaseClasses} bg-yellow-100 text-yellow-800`}>
+                    {tag}
+                  </span>
+                ))}
+                {getTranslatedLabels((video as any).references, 'reference').map((tag) => (
+                  <span key={tag} className={`${tagBaseClasses} bg-green-100 text-green-800`}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            strategyMode === 'lock' ? (
+              <div className="w-full space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {['Formato', 'Proposta', 'Contexto'].map((label) => (
+                    <span
+                      key={label}
+                      className={`${tagBaseClasses} bg-gray-100 text-gray-700/70 blur-[1px] select-none`}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-400">Categorias disponíveis no modo PRO.</p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-400">Categorias detalhadas não estão inclusas no plano atual deste criador.</p>
+            )
+          )}
         </div>
 
         {/* Engajamento (coluna dedicada somente quando NÃO readOnly) */}
@@ -282,7 +306,7 @@ const VideoCard: React.FC<{
   );
 };
 
-const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
+const VideosTable: React.FC<VideosTableProps> = ({ videos, showStrategyTags = true, strategyMode = 'lock', ...props }) => {
   return (
     <div className="space-y-3">
       <div className="hidden md:grid md:grid-cols-12 md:gap-x-4 px-4 py-2 border-b border-gray-200">
@@ -290,7 +314,7 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
           Conteúdo
         </h4>
         <h4 className={`${props.readOnly ? 'md:col-span-3' : 'md:col-span-2'} text-left text-xs font-semibold text-gray-400 uppercase tracking-wider`}>
-          Estratégia
+          {showStrategyTags ? 'Estratégia' : strategyMode === 'lock' ? 'Categorias (Modo PRO)' : 'Categorias'}
         </h4>
         {!props.readOnly && (
           <h4 className="md:col-span-1 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -306,7 +330,15 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
       </div>
 
       {videos.map((video, index) => (
-        <VideoCard key={video._id} video={video} index={index} followersCount={props.followersCount} {...props} />
+        <VideoCard
+          key={video._id}
+          video={video}
+          index={index}
+          followersCount={props.followersCount}
+          showStrategyTags={showStrategyTags}
+          strategyMode={strategyMode}
+          {...props}
+        />
       ))}
     </div>
   );

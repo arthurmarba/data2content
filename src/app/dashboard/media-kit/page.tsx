@@ -12,6 +12,8 @@ import WhatsAppConnectInline from '../WhatsAppConnectInline';
 import { useHeaderSetup } from '../context/HeaderContext';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
+import type { MediaKitPremiumAccessConfig } from '@/types/mediakit';
+import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 
 type Summary = any;
 type VideoListItem = any;
@@ -19,10 +21,17 @@ type Kpis = any;
 type Demographics = any;
 
 function SelfMediaKitContent({
-  userId, fallbackName, fallbackEmail, fallbackImage, compactPadding, publicUrlForCopy,
+  userId,
+  fallbackName,
+  fallbackEmail,
+  fallbackImage,
+  compactPadding,
+  publicUrlForCopy,
+  premiumAccess,
 }: {
   userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null;
   compactPadding?: boolean; publicUrlForCopy?: string | null;
+  premiumAccess?: MediaKitPremiumAccessConfig;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,6 +132,7 @@ function SelfMediaKitContent({
       showOwnerCtas={true}
       compactPadding={compactPadding}
       publicUrlForCopy={publicUrlForCopy || undefined}
+      premiumAccess={premiumAccess}
     />
   );
 }
@@ -162,6 +172,33 @@ export default function MediaKitSelfServePage() {
   const hasPremiumAccess =
     billingStatus.hasPremiumAccess || isPlanActiveLike(effectivePlanStatus);
   const isGracePeriod = billingStatus.isGracePeriod || effectivePlanStatus === "non_renewing";
+  const trialState = billingStatus.trial?.state ?? null;
+  const trialExpired = trialState === "expired";
+  const canViewCategories = Boolean(billingStatus.hasPremiumAccess);
+  const categoriesCtaLabel = trialExpired
+    ? "Assinar e continuar de onde parei"
+    : "Ver categorias do meu perfil (Ativar trial 48h)";
+  const categoriesSubtitle = trialExpired ? PRO_PLAN_FLEXIBILITY_COPY : INSTAGRAM_READ_ONLY_COPY;
+  const highlightCtaLabel = trialExpired
+    ? "Assinar e continuar de onde parei"
+    : "Descobrir o que mais faz meu conteúdo crescer (Ativar trial 48h)";
+  const highlightSubtitle = categoriesSubtitle;
+  const handleUpgrade = useCallback(() => setShowBillingModal(true), [setShowBillingModal]);
+  const premiumAccessConfig = useMemo<MediaKitPremiumAccessConfig>(
+    () => ({
+      canViewCategories,
+      ctaLabel: canViewCategories ? undefined : categoriesCtaLabel,
+      subtitle: canViewCategories ? undefined : categoriesSubtitle,
+      categoryCtaLabel: canViewCategories ? undefined : categoriesCtaLabel,
+      categorySubtitle: canViewCategories ? undefined : categoriesSubtitle,
+      highlightCtaLabel: canViewCategories ? undefined : highlightCtaLabel,
+      highlightSubtitle: canViewCategories ? undefined : highlightSubtitle,
+      onRequestUpgrade: handleUpgrade,
+      trialState,
+      visibilityMode: 'lock',
+    }),
+    [canViewCategories, categoriesCtaLabel, categoriesSubtitle, handleUpgrade, highlightCtaLabel, highlightSubtitle, trialState]
+  );
   
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   // Lógica e Estado para o Modal do WhatsApp
@@ -357,6 +394,7 @@ export default function MediaKitSelfServePage() {
           fallbackImage={session?.user?.image}
           publicUrlForCopy={url}
           compactPadding
+          premiumAccess={premiumAccessConfig}
         />
       </section>
 

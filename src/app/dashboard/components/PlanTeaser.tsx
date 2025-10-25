@@ -37,7 +37,12 @@ function PlanTeaserContent() {
 
   // Preços base (para economia e fallback)
   const { data, isLoading } = useSWR('/api/billing/prices', fetcher, { revalidateOnFocus: false });
-  const prices = (data?.prices ?? []) as { plan: Plan; currency: Currency; unitAmount: number | null }[];
+  const prices = useMemo(() => {
+    const raw = Array.isArray(data?.prices)
+      ? (data?.prices as { plan: Plan; currency: Currency; unitAmount: number | null }[])
+      : [];
+    return raw;
+  }, [data?.prices]);
 
   const [currency, setCurrency] = useState<Currency>('BRL');
   const [plan, setPlan] = useState<Plan>('monthly');

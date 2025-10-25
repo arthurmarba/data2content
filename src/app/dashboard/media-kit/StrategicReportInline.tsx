@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import useCachedFetch from '@/hooks/useCachedFetch';
 import Card from '@/components/ui/Card';
@@ -14,6 +15,7 @@ import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal
 import type { StrategicReport } from 'types/StrategicReport';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
+import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 
 type ApiResponse = {
   status: 'ready' | 'building' | 'error';
@@ -91,25 +93,90 @@ export default function StrategicReportInline() {
         <h2 className="text-2xl font-bold text-gray-900">Relatório Estratégico</h2>
 
         {!isActiveLike && (
-          <Card variant="brand" title="Desbloqueie o Relatório Estratégico" subtitle="Transforme seu Mídia Kit em um relatório completo para enviar às marcas.">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="p-3 border border-gray-200 rounded-lg bg-white">
-                <div className="text-sm font-medium">Insights Prioritários</div>
-                <p className="text-xs text-gray-600 mt-1">Principais oportunidades com impacto e confiança.</p>
+          <Card
+            variant="brand"
+            title="Desbloqueie o Relatório Estratégico"
+            subtitle="Transforme seu Mídia Kit em um relatório completo, com horários, categorias e benchmarks prontos para enviar às marcas."
+          >
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-lg border border-white/40 bg-white px-4 py-3 shadow-sm">
+                  <p className="text-sm font-semibold text-slate-900">Insights Prioritários</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Impacto estimado, confiança e próximos passos guiados pela IA.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-white/40 bg-white px-4 py-3 shadow-sm">
+                  <p className="text-sm font-semibold text-slate-900">Roteiros & Calendário</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Formatos, ganchos e melhores horários para manter o plano no ritmo.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-white/40 bg-white px-4 py-3 shadow-sm">
+                  <p className="text-sm font-semibold text-slate-900">Provas & Oportunidades</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Benchmarks do seu nicho, peças de mídia kit e próximos pitches.
+                  </p>
+                </div>
               </div>
-              <div className="p-3 border border-gray-200 rounded-lg bg-white">
-                <div className="text-sm font-medium">Roteiros & Calendário</div>
-                <p className="text-xs text-gray-600 mt-1">Sugestões de scripts e melhores horários.</p>
+
+              <div className="rounded-2xl border border-white/60 bg-white/95 px-5 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.1)]">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-brand-purple">
+                  <span aria-hidden="true">👀</span> Peek do modo PRO
+                </div>
+                <p className="mt-3 text-sm font-semibold text-slate-900">
+                  Categorias que mais puxam crescimento nas últimas semanas
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2" aria-hidden="true">
+                  {["Lifestyle", "Tutoriais", "Bastidores"].map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm blur-[2px]"
+                    >
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+                <p className="sr-only">
+                  Prévia borrada das categorias de maior crescimento — disponível ao ativar o modo
+                  PRO.
+                </p>
+                <p className="mt-3 text-xs text-slate-600">
+                  Reels ↑ +22% com essas categorias. Ative 48h de trial para ver o porquê, dias ideais
+                  e formatos que destravam alcance.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-700">
+                    ⏳ 48h grátis
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
+                    Benchmarks por categoria
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
+                    Heatmap de horários
+                  </span>
+                </div>
               </div>
-              <div className="p-3 border border-gray-200 rounded-lg bg-white">
-                <div className="text-sm font-medium">Provas & Oportunidades</div>
-                <p className="text-xs text-gray-600 mt-1">Evidências, benchmarks e oportunidades comerciais.</p>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event('open-subscribe-modal' as any))}
+                  className="inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
+                >
+                  Ativar trial de 48h
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBilling(true)}
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+                >
+                  Ver planos completos
+                </button>
               </div>
+              <p className="text-[11px] text-slate-600">{PRO_PLAN_FLEXIBILITY_COPY}</p>
             </div>
-            <div className="mt-4 flex gap-3">
-              <button onClick={() => setShowBilling(true)} className="bg-black text-white px-3 py-2 rounded text-sm">Assinar Pro</button>
-              <button onClick={() => window.dispatchEvent(new Event('open-subscribe-modal' as any))} className="border px-3 py-2 rounded text-sm">Ver planos</button>
-            </div>
+
             <BillingSubscribeModal open={showBilling} onClose={() => setShowBilling(false)} />
           </Card>
         )}
@@ -454,7 +521,27 @@ export default function StrategicReportInline() {
             )}
 
             {!loading && !report && !error && (
-              <p className="text-sm text-gray-600">Relatório ainda não disponível.</p>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-blue-900">
+                <h3 className="text-base font-semibold">Estamos coletando seus dados recentes 📊</h3>
+                <p className="mt-1 text-sm text-blue-800">
+                  Em até 24h seu Relatório Estratégico estará pronto com métricas completas e oportunidades por
+                  categoria.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href="/dashboard/whatsapp"
+                    className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+                  >
+                    Avisar quando estiver pronto
+                  </Link>
+                  <Link
+                    href="/dashboard/instagram/faq"
+                    className="inline-flex items-center justify-center rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-white"
+                  >
+                    Entenda como os dados são coletados
+                  </Link>
+                </div>
+              </div>
             )}
 
             {error && (

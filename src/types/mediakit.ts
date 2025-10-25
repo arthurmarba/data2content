@@ -116,4 +116,20 @@ export interface MediaKitViewProps {
   compactPadding?: boolean;
   // URL público do mídia kit para uso no botão "Copiar link" quando renderizado no dashboard
   publicUrlForCopy?: string;
+  premiumAccess?: MediaKitPremiumAccessConfig;
+}
+
+export interface MediaKitPremiumAccessConfig {
+  canViewCategories: boolean;
+  // CTA / mensagem padrão (usado como fallback)
+  ctaLabel?: string;
+  subtitle?: string;
+  // Personalização por superfície
+  categoryCtaLabel?: string;
+  categorySubtitle?: string;
+  highlightCtaLabel?: string;
+  highlightSubtitle?: string;
+  onRequestUpgrade?: () => void;
+  trialState?: string | null;
+  visibilityMode?: 'lock' | 'hide';
 }
