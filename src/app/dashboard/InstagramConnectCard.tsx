@@ -4,6 +4,7 @@
 import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSession, signIn } from "next-auth/react";
+import { track } from "@/lib/track";
 import {
   FaFacebook,
   FaInstagram,
@@ -268,6 +269,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     setLinkError(null);
     setDisconnectError(null);
     setAccountSelectionError(null);
+    track("connect_instagram_clicked", { source: "instagram_connect_card" });
 
     try {
       logger.info("Chamando /api/auth/iniciar-vinculacao-fb");
@@ -349,6 +351,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
 
       if (response.ok && result.success) {
         logger.info("Conta IG conectada com sucesso via API. Atualizando sessão…");
+        track("connect_instagram_success", { source: "instagram_connect_card" });
         await update();
         setShowAccountSelectorModal(false);
         showToast("Conta Instagram conectada com sucesso!", "success");
@@ -607,6 +610,12 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                     {mainButtonIcon}
                     {mainButtonText}
                   </button>
+                  <div className="mt-2 max-w-xs text-center sm:text-right">
+                    <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 justify-center sm:justify-end">
+                      <FaLock className="h-3 w-3" aria-hidden />
+                      Só leitura • Não publicamos por você • Revogue quando quiser
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

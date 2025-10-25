@@ -19,11 +19,11 @@ O Grupo VIP (Plano PRO) oferece:
 - Acompanhamento do Mobi com calendários personalizados e checkpoints.
 - Alertas premium no WhatsApp para manter sua constância sem esforço.
 
-Comece testando agora:
+Comece testando agora (48 horas gratuitas, sem cartão):
 - Acessar o painel PRO: ${billingUrl}
 - Conectar o WhatsApp IA PRO: ${whatsappUrl}
 
-Ao ativar o PRO, você ainda recebe 7 dias de teste gratuito pelo Stripe. Aproveite para sentir a diferença das mentorias avançadas.
+Experimente todos os recursos PRO por 48 horas sem cobrança e veja como as mentorias avançadas impactam sua estratégia.
 
 Bons conteúdos!
 Equipe Data2Content`;
@@ -45,7 +45,7 @@ Equipe Data2Content`;
         Ativar WhatsApp IA PRO
       </a>
     </p>
-    <p style="font-size:13px;color:#555;">Ative o PRO e ganhe 7 dias grátis para testar todas as mentorias do Grupo VIP.</p>
+    <p style="font-size:13px;color:#555;">Experimente todos os recursos PRO por 48 horas gratuitas antes de decidir.</p>
     <p style="margin-top:16px;">Bons conteúdos!<br/>Equipe Data2Content</p>
   `;
 

@@ -8,7 +8,7 @@ const BILLING_URL = `${APP_BASE_URL}/dashboard/billing`;
 export function guestMigrationNotice(expiresAt: Date) {
   const date = expiresAt.toLocaleDateString('pt-BR');
   const subject = 'Seu acesso PRO gratuito terminou';
-  const ctaText = 'Ative o plano PRO e ganhe 7 dias gratuitos';
+  const ctaText = 'Ative o plano PRO e mantenha o acesso completo';
   const bodyText = [
     `Seu acesso PRO gratuito terminou em ${date}.`,
     'Que tal continuar com o seu estrategista de bolso e desbloquear todos os recursos novamente?',

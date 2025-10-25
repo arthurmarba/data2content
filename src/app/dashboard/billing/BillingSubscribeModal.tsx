@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Crown, Check, Sparkles, Shield, ArrowRight, Loader2 } from "lucide-react";
+import { X, Crown, Check, Sparkles, Shield, ArrowRight, Loader2, Lock } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 
 interface BillingSubscribeModalProps {
@@ -44,7 +44,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
   const [period, setPeriod] = useState<"monthly" | "annual">("annual"); // ✅ anual como padrão
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
   const dialogRef = useRef<HTMLDivElement>(null);
-  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
+  const { isLoading: billingStatusLoading, hasPremiumAccess, isTrialActive } = useBillingStatus();
 
   // Fecha com ESC
   useEffect(() => {
@@ -180,11 +180,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
     return Math.max(0, Math.round(pct * 100));
   }, [prices, currency]);
 
-  /**
-   * REDIRECIONA PARA STRIPE CHECKOUT
-   * 1) tenta /api/billing/checkout/trial  -> { url }
-   * 2) fallback /api/billing/subscribe    -> { checkoutUrl } ou { url }
-   */
+  /** Redireciona para o Stripe Checkout para concluir a assinatura. */
   const handleSubscribe = async () => {
     setError(null);
     setLoadingRedirect(true);
@@ -201,40 +197,16 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
         source: "modal",
       };
 
-      // 1) checkout com trial (principal)
-      let url: string | null = null;
-      let r1: Response | null = null;
-      try {
-        r1 = await fetch("/api/billing/checkout/trial", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch { /* segue pro fallback */ }
-
-      if (r1) {
-        const b1 = await r1.json().catch(() => ({}));
-        if (r1.status === 409) {
-          throw new Error(b1?.message || "Você já possui um plano ativo ou em teste.");
-        }
-        if (r1.ok) {
-          url = b1?.url || null;
-        }
+      const response = await fetch("/api/billing/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || body?.message || "Não foi possível iniciar o checkout.");
       }
-
-      // 2) fallback: rota de subscribe (também pode devolver uma checkout session)
-      if (!url) {
-        const r2 = await fetch("/api/billing/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (r2.ok) {
-          const b2 = await r2.json().catch(() => ({}));
-          url = b2?.checkoutUrl || b2?.url || null;
-        }
-      }
-
+      const url = body?.checkoutUrl || body?.url || null;
       if (!url) {
         throw new Error("Não foi possível iniciar o checkout. Tente novamente em instantes.");
       }
@@ -464,7 +436,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                 )}
 
                 <div className="mt-1 text-xs text-gray-600">
-                  7 dias grátis no começo. Cancele quando quiser.
+                  Explore tudo por 48 horas antes de decidir. Cancele quando quiser.
                 </div>
               </div>
             </div>
@@ -506,7 +478,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                   Assine sem risco
                 </div>
                 <p className="mt-1.5 text-xs text-gray-600">
-                  7 dias grátis. Cancelamento simples quando quiser.
+                  Você já testou o modo PRO por 48 horas. Na assinatura paid, mantenha o acesso e cancele a qualquer momento.
                 </p>
               </div>
             </div>
@@ -518,7 +490,12 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
               <button
                 type="button"
                 onClick={handleSubscribe}
-                disabled={loadingRedirect || hasPremiumAccess || billingStatusLoading}
+                disabled={
+                  loadingRedirect ||
+                  hasPremiumAccess ||
+                  isTrialActive ||
+                  billingStatusLoading
+                }
                 className="w-full inline-flex items-center justify-center rounded-md bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loadingRedirect ? (
@@ -528,7 +505,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                   </>
                 ) : (
                   <>
-                    Começar 7 dias grátis
+                    Assinar agora
                     <ArrowRight className="ml-1.5 h-4 w-4" />
                   </>
                 )}
@@ -543,7 +520,11 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                   arthur@data2content.ai
                 </a>
               </p>
-              {hasPremiumAccess && !billingStatusLoading && (
+              <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-gray-500">
+                <Lock className="h-3 w-3" aria-hidden />
+                Só leitura: conectamos para analisar, não publicamos por você e você pode revogar quando quiser.
+              </p>
+              {(hasPremiumAccess || isTrialActive) && !billingStatusLoading && (
                 <p className="mt-2 text-center text-xs text-gray-600">
                   Você já possui um plano ativo ou em período de teste.
                 </p>

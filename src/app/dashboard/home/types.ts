@@ -101,6 +101,15 @@ export interface HomeGoalsSummary {
   currentStreak?: number | null;
 }
 
+export interface HomeMicroInsight {
+  id?: string;
+  message: string;
+  contextLabel?: string | null;
+  impactLabel?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}
+
 export interface HomeSummaryResponse {
   nextPost?: NextPostCardData | null;
   consistency?: ConsistencyCardData | null;
@@ -111,4 +120,5 @@ export interface HomeSummaryResponse {
   whatsapp?: HomeWhatsAppSummary | null;
   community?: HomeCommunitySummary | null;
   goals?: HomeGoalsSummary | null;
+  microInsight?: HomeMicroInsight | null;
 }

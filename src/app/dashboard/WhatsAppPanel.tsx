@@ -1,9 +1,10 @@
 // /src/app/dashboard/WhatsAppPanel.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaWhatsapp, FaSpinner, FaCheckCircle, FaCopy } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import { track } from "@/lib/track";
 
 interface WhatsAppPanelProps {
   userId: string;
@@ -27,6 +28,21 @@ export default function WhatsAppPanel({
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const gatedViewTrackedRef = useRef(false);
+
+  useEffect(() => {
+    const lockedView = !canAccessFeatures || upsellOnly;
+    if (lockedView && !gatedViewTrackedRef.current) {
+      track("pro_feature_locked_viewed", {
+        feature: "whatsapp_panel",
+        reason: upsellOnly ? "upsell_only" : "no_premium_access",
+      });
+      gatedViewTrackedRef.current = true;
+    }
+    if (!lockedView) {
+      gatedViewTrackedRef.current = false;
+    }
+  }, [canAccessFeatures, upsellOnly]);
 
   useEffect(() => {
     if (!canAccessFeatures || upsellOnly) {

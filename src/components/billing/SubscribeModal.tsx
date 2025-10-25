@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PaymentStep from './PaymentStep';
 import { FaCheckCircle, FaLock, FaTimes } from 'react-icons/fa';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { track } from '@/lib/track';
 
 type Plan = 'monthly' | 'annual';
 type Cur = 'brl' | 'usd';
@@ -25,7 +26,12 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
-  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
+  const {
+    isLoading: billingStatusLoading,
+    hasPremiumAccess,
+    isTrialActive,
+    refetch: refetchBillingStatus,
+  } = useBillingStatus();
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -77,6 +83,10 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
       setError('Você já possui um plano ativo ou em teste.');
       return;
     }
+    if (isTrialActive) {
+      setError('Seu modo PRO já está ativo.');
+      return;
+    }
     setLoadingAction('trial');
     setError(null);
     setCodeError(null);
@@ -91,15 +101,17 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
         }),
       });
       const body = await res.json();
-      if (res.status === 409) {
-        throw new Error(body?.message || 'Você já possui uma assinatura ativa.');
-      }
-      if (!res.ok || !body?.url) {
-        if (body?.code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
-        if (body?.code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
+      if (!res.ok) {
+        const code = body?.code;
+        if (code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
+        if (code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
+        if (code === 'INSTAGRAM_REQUIRED') { setError(body?.message ?? 'Conecte seu Instagram para ativar o modo PRO.'); return; }
+        if (code === 'TRIAL_ALREADY_ACTIVE') { await refetchBillingStatus(); setError('Seu modo PRO já está ativo.'); return; }
+        if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') { setError(body?.message ?? 'O período de testes já foi utilizado nesta conta.'); return; }
         throw new Error(body?.error || body?.message || 'Falha ao iniciar teste gratuito');
       }
-      window.location.href = body.url;
+      track('trial_activated', { source: 'subscribe_modal' });
+      await refetchBillingStatus();
     } catch (e: any) {
       setError(e?.message || 'Erro inesperado ao iniciar teste gratuito.');
     } finally {
@@ -129,7 +141,8 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   }, [open, onClose]);
 
   const disabled = !!loadingAction;
-  const trialDisabled = disabled || !codeIsValid || hasPremiumAccess || billingStatusLoading;
+  const trialDisabled =
+    disabled || !codeIsValid || hasPremiumAccess || billingStatusLoading || isTrialActive;
 
   return (
     <div
@@ -223,12 +236,16 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button onClick={handleStartTrial} disabled={trialDisabled} className="w-full rounded-xl border border-gray-900 px-4 py-3 text-gray-900 hover:bg-gray-50 disabled:opacity-50" aria-busy={loadingAction === 'trial'}>
-                            {loadingAction === 'trial' ? 'Preparando…' : 'Teste gratuito (7 dias)'}
+                            {loadingAction === 'trial' ? 'Preparando…' : 'Teste gratuito (48h)'}
                         </button>
                         <button onClick={handleStart} disabled={disabled || !codeIsValid} className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50" aria-busy={loadingAction === 'subscribe'}>
                             {loadingAction === 'subscribe' ? 'Processando…' : 'Ativar meu Plano PRO'}
                         </button>
                     </div>
+                    <p className="mt-3 flex items-center justify-center gap-1 text-xs text-gray-500">
+                      <FaLock className="h-3 w-3" aria-hidden />
+                      Só leitura: não publicamos nada por você e você pode cancelar quando quiser.
+                    </p>
                   </>
                 )}
             </div>

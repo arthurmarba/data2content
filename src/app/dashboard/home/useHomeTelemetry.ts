@@ -6,7 +6,13 @@
 import React from "react";
 import { track } from "@/lib/track";
 
-export type HomeCardId = "next_post" | "consistency" | "mentorship" | "media_kit" | "community_metrics";
+export type HomeCardId =
+  | "next_post"
+  | "consistency"
+  | "mentorship"
+  | "media_kit"
+  | "community_metrics"
+  | "micro_insight";
 
 export function useHomeTelemetry() {
   const emit = React.useCallback((event: string, payload?: Record<string, unknown>) => {

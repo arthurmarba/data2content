@@ -34,6 +34,7 @@ import { cookies } from "next/headers";
 
 import { fetchAvailableInstagramAccounts } from "@/app/lib/instagram";
 import type { AvailableInstagramAccount as ServiceAvailableIgAccount } from "@/app/lib/instagram/types";
+import type { ProTrialState } from "@/types/billing";
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
@@ -67,6 +68,11 @@ declare module "next-auth" {
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
     stripePriceId?: string | null;
+
+    // Trial (PRO)
+    proTrialStatus?: ProTrialState | null;
+    proTrialActivatedAt?: Date | null;
+    proTrialExpiresAt?: Date | null;
 
     // Afiliados
     affiliateCode?: string | null;
@@ -104,6 +110,10 @@ declare module "next-auth" {
       stripeCustomerId?: string | null;
       stripeSubscriptionId?: string | null;
       stripePriceId?: string | null;
+      // Trial (PRO)
+      proTrialStatus?: ProTrialState | null;
+      proTrialActivatedAt?: string | null;
+      proTrialExpiresAt?: string | null;
 
       // Afiliados
       affiliateCode?: string | null;
@@ -170,6 +180,9 @@ declare module "next-auth/jwt" {
     planInterval?: string | null;
     planExpiresAt?: Date | string | null;
     cancelAtPeriodEnd?: boolean | null;
+    proTrialStatus?: ProTrialState | null;
+    proTrialActivatedAt?: Date | string | null;
+    proTrialExpiresAt?: Date | string | null;
     // Stripe IDs
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
@@ -261,6 +274,12 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
   if (cleanToken.planExpiresAt instanceof Date) {
     cleanToken.planExpiresAt = cleanToken.planExpiresAt.toISOString();
   }
+  if (cleanToken.proTrialActivatedAt instanceof Date) {
+    cleanToken.proTrialActivatedAt = cleanToken.proTrialActivatedAt.toISOString();
+  }
+  if (cleanToken.proTrialExpiresAt instanceof Date) {
+    cleanToken.proTrialExpiresAt = cleanToken.proTrialExpiresAt.toISOString();
+  }
 
   if (cleanToken.image && cleanToken.picture) delete cleanToken.picture;
   delete cleanToken.instagramSyncErrorMsg;
@@ -316,6 +335,12 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
     }
     if (typeof decodedPayload.planExpiresAt === "string") {
       decodedPayload.planExpiresAt = new Date(decodedPayload.planExpiresAt);
+    }
+    if (typeof decodedPayload.proTrialActivatedAt === "string") {
+      decodedPayload.proTrialActivatedAt = new Date(decodedPayload.proTrialActivatedAt);
+    }
+    if (typeof decodedPayload.proTrialExpiresAt === "string") {
+      decodedPayload.proTrialExpiresAt = new Date(decodedPayload.proTrialExpiresAt);
     }
 
     if ((decodedPayload as any).picture && !decodedPayload.image) {
@@ -398,6 +423,9 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           role: user.role,
           agency: user.agency ? user.agency.toString() : null,
+          proTrialStatus: user.proTrialStatus ?? null,
+          proTrialActivatedAt: user.proTrialActivatedAt ?? null,
+          proTrialExpiresAt: user.proTrialExpiresAt ?? null,
         } as NextAuthUserArg;
       },
     }),
@@ -698,6 +726,9 @@ export const authOptions: NextAuthOptions = {
           (authUserFromProvider as NextAuthUserArg).planInterval = dbUserRecord.planInterval;
           (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
           (authUserFromProvider as NextAuthUserArg).cancelAtPeriodEnd = (dbUserRecord as any).cancelAtPeriodEnd ?? null;
+          (authUserFromProvider as NextAuthUserArg).proTrialStatus = (dbUserRecord as any).proTrialStatus ?? null;
+          (authUserFromProvider as NextAuthUserArg).proTrialActivatedAt = (dbUserRecord as any).proTrialActivatedAt ?? null;
+          (authUserFromProvider as NextAuthUserArg).proTrialExpiresAt = (dbUserRecord as any).proTrialExpiresAt ?? null;
           // Stripe IDs
           (authUserFromProvider as any).stripeCustomerId = dbUserRecord.stripeCustomerId ?? null;
           (authUserFromProvider as any).stripeSubscriptionId = dbUserRecord.stripeSubscriptionId ?? null;
@@ -736,6 +767,9 @@ export const authOptions: NextAuthOptions = {
       if (typeof token.affiliateCode === "undefined") token.affiliateCode = null;
       if (typeof token.affiliateBalances === "undefined") token.affiliateBalances = {};
       if (typeof (token as any).cancelAtPeriodEnd === "undefined") (token as any).cancelAtPeriodEnd = null;
+      if (typeof token.proTrialStatus === "undefined") token.proTrialStatus = null;
+      if (typeof token.proTrialActivatedAt === "undefined") token.proTrialActivatedAt = null;
+      if (typeof token.proTrialExpiresAt === "undefined") token.proTrialExpiresAt = null;
 
       if ((trigger === "signIn" || trigger === "signUp") && userFromSignIn) {
         token.id = (userFromSignIn as any).id;
@@ -772,6 +806,9 @@ export const authOptions: NextAuthOptions = {
         (token as any).cancelAtPeriodEnd =
           (userFromSignIn as NextAuthUserArg).cancelAtPeriodEnd ??
           (isNonRenewing(rawStatus) ? true : null);
+        token.proTrialStatus = (userFromSignIn as any).proTrialStatus ?? null;
+        token.proTrialActivatedAt = (userFromSignIn as any).proTrialActivatedAt ?? null;
+        token.proTrialExpiresAt = (userFromSignIn as any).proTrialExpiresAt ?? null;
 
         // Stripe IDs
         (token as any).stripeCustomerId = (userFromSignIn as any).stripeCustomerId ?? null;
@@ -874,7 +911,7 @@ export const authOptions: NextAuthOptions = {
                 "name email image role agency provider providerAccountId facebookProviderAccountId " +
                   "isNewUserForOnboarding onboardingCompletedAt " +
                   "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount " +
-                  "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
+                  "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd proTrialStatus proTrialActivatedAt proTrialExpiresAt " +
                   "stripeCustomerId stripeSubscriptionId stripePriceId " +
                   "affiliateCode availableIgAccounts instagramAccessToken affiliateBalances " +
                   "paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
@@ -928,6 +965,12 @@ export const authOptions: NextAuthOptions = {
                 (dbUser as any).cancelAtPeriodEnd ??
                 (token as any).cancelAtPeriodEnd ??
                 (isNonRenewing(rawDbPlanStatus) ? true : null);
+              token.proTrialStatus =
+                (dbUser as any).proTrialStatus ?? token.proTrialStatus ?? null;
+              token.proTrialActivatedAt =
+                (dbUser as any).proTrialActivatedAt ?? token.proTrialActivatedAt ?? null;
+              token.proTrialExpiresAt =
+                (dbUser as any).proTrialExpiresAt ?? token.proTrialExpiresAt ?? null;
 
               // Stripe IDs
               (token as any).stripeCustomerId = dbUser.stripeCustomerId ?? (token as any).stripeCustomerId ?? null;
@@ -1033,6 +1076,13 @@ export const authOptions: NextAuthOptions = {
         session.user.stripeCustomerId = (token as any).stripeCustomerId ?? null;
         session.user.stripeSubscriptionId = (token as any).stripeSubscriptionId ?? null;
         session.user.stripePriceId = (token as any).stripePriceId ?? null;
+        session.user.proTrialStatus = token.proTrialStatus ?? null;
+        session.user.proTrialActivatedAt = token.proTrialActivatedAt
+          ? new Date(token.proTrialActivatedAt as any).toISOString()
+          : null;
+        session.user.proTrialExpiresAt = token.proTrialExpiresAt
+          ? new Date(token.proTrialExpiresAt as any).toISOString()
+          : null;
 
         // Agência
         (session.user as any).agencyId = token.agencyId ?? null;
@@ -1059,7 +1109,7 @@ export const authOptions: NextAuthOptions = {
           .select(
             "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
               "stripeCustomerId stripeSubscriptionId stripePriceId " +
-              "name role image"
+              "name role image proTrialStatus proTrialActivatedAt proTrialExpiresAt"
           )
           .lean<
             Pick<
@@ -1096,6 +1146,16 @@ export const authOptions: NextAuthOptions = {
           session.user.stripeCustomerId = (dbUserCheck as any).stripeCustomerId ?? session.user.stripeCustomerId ?? null;
           session.user.stripeSubscriptionId = (dbUserCheck as any).stripeSubscriptionId ?? session.user.stripeSubscriptionId ?? null;
           session.user.stripePriceId = (dbUserCheck as any).stripePriceId ?? session.user.stripePriceId ?? null;
+          session.user.proTrialStatus =
+            (dbUserCheck as any).proTrialStatus ?? session.user.proTrialStatus ?? null;
+          session.user.proTrialActivatedAt =
+            (dbUserCheck as any).proTrialActivatedAt instanceof Date
+              ? (dbUserCheck as any).proTrialActivatedAt.toISOString()
+              : session.user.proTrialActivatedAt ?? null;
+          session.user.proTrialExpiresAt =
+            (dbUserCheck as any).proTrialExpiresAt instanceof Date
+              ? (dbUserCheck as any).proTrialExpiresAt.toISOString()
+              : session.user.proTrialExpiresAt ?? null;
 
           if (dbUserCheck.name) session.user.name = dbUserCheck.name;
           if (dbUserCheck.role) session.user.role = dbUserCheck.role;

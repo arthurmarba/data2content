@@ -72,6 +72,20 @@ function safe<T = unknown>(v: T): T | undefined {
   return (v === undefined || v === null) ? undefined : v;
 }
 
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const asDate = new Date(value as any);
+  return Number.isNaN(asDate.getTime()) ? null : asDate;
+}
+
+function isProTrialActive(status: unknown, expiresAt: unknown): boolean {
+  if (typeof status !== 'string') return false;
+  if (status.trim().toLowerCase() !== 'active') return false;
+  const expires = toDate(expiresAt);
+  return Boolean(expires && expires.getTime() > Date.now());
+}
+
 function registerBlock(routePath?: string) {
   planGuardMetrics.blocked += 1;
   if (!routePath) return;
@@ -109,17 +123,28 @@ export async function ensurePlannerAccess(
 
   const sessionUser = session?.user as (Session['user'] & { role?: string; planStatus?: unknown }) | undefined;
   const sessionRole = typeof sessionUser?.role === 'string' ? sessionUser.role.toLowerCase() : undefined;
+  const sessionTrialActive = isProTrialActive(
+    (sessionUser as any)?.proTrialStatus,
+    (sessionUser as any)?.proTrialExpiresAt
+  );
 
   if (allowAdmin && sessionRole === 'admin') {
     const statusCandidate = planStatus ?? sessionUser?.planStatus;
     const normalizedStatus = normalizePlanStatus(statusCandidate);
-    const activeLike = isActiveLike(normalizedStatus) ? (normalizedStatus as ActiveLikeStatus) : null;
+    const activeLike = sessionTrialActive
+      ? 'trial'
+      : isActiveLike(normalizedStatus)
+      ? (normalizedStatus as ActiveLikeStatus)
+      : null;
     return { ok: true, normalizedStatus: activeLike, source: 'session' };
   }
 
   const statusCandidate = planStatus ?? sessionUser?.planStatus;
   const normalizedStatus = normalizePlanStatus(statusCandidate);
   if (!forceReload) {
+    if (sessionTrialActive) {
+      return { ok: true, normalizedStatus: 'trial', source: 'session' };
+    }
     const activeLike = isActiveLike(normalizedStatus) ? (normalizedStatus as ActiveLikeStatus) : null;
     return { ok: true, normalizedStatus: activeLike, source: 'session' };
   }
@@ -141,17 +166,26 @@ export async function ensurePlannerAccess(
   try {
     await connectToDatabase();
 
-    let dbUser: { planStatus?: string; role?: string } | null = null;
+    let dbUser: { planStatus?: string; role?: string; proTrialStatus?: string; proTrialExpiresAt?: Date | null } | null = null;
 
     if (resolvedUserId && mongoose.isValidObjectId(resolvedUserId)) {
-      dbUser = await DbUser.findById(resolvedUserId).select('planStatus role').lean();
+      dbUser = await DbUser.findById(resolvedUserId)
+        .select('planStatus role proTrialStatus proTrialExpiresAt')
+        .lean();
     } else if (resolvedEmail) {
-      dbUser = await DbUser.findOne({ email: resolvedEmail }).select('planStatus role').lean();
+      dbUser = await DbUser.findOne({ email: resolvedEmail })
+        .select('planStatus role proTrialStatus proTrialExpiresAt')
+        .lean();
     }
 
     const dbRole = typeof dbUser?.role === 'string' ? dbUser.role.toLowerCase() : undefined;
     if (allowAdmin && dbRole === 'admin') {
       return { ok: true, normalizedStatus: 'active', source: 'database' };
+    }
+
+    const dbTrialActive = isProTrialActive(dbUser?.proTrialStatus, dbUser?.proTrialExpiresAt);
+    if (dbTrialActive) {
+      return { ok: true, normalizedStatus: 'trial', source: 'database' };
     }
 
     const dbStatusNorm = normalizePlanStatus(dbUser?.planStatus);

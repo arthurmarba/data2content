@@ -11,6 +11,7 @@ import {
   type UserRole,
   type PlanStatus,
 } from '@/types/enums';
+import { PRO_TRIAL_STATES, type ProTrialState } from "@/types/billing";
 
 // --- INTERFACES ---
 export interface IPeakSharesDetails {
@@ -266,6 +267,11 @@ export interface IUser extends Document {
   lastSubscriptionEventId?: string | null;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
+  proTrialStatus?: ProTrialState;
+  proTrialActivatedAt?: Date | null;
+  proTrialExpiresAt?: Date | null;
+  proTrialConvertedAt?: Date | null;
+  proTrialDisabledAt?: Date | null;
 
   whatsappVerificationCode?: string | null;
   whatsappVerificationCodeExpiresAt?: Date | null; // <<< NOVO
@@ -502,6 +508,16 @@ const userSchema = new Schema<IUser>(
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     planExpiresAt: { type: Date, default: null },
     autoRenewConsentAt: { type: Date, default: null },
+    proTrialStatus: {
+      type: String,
+      enum: [...PRO_TRIAL_STATES],
+      default: "eligible",
+      index: true,
+    },
+    proTrialActivatedAt: { type: Date, default: null },
+    proTrialExpiresAt: { type: Date, default: null, index: true },
+    proTrialConvertedAt: { type: Date, default: null },
+    proTrialDisabledAt: { type: Date, default: null },
 
     whatsappVerificationCode: { type: String, default: null, index: true },
     whatsappVerificationCodeExpiresAt: { type: Date, default: null }, // <<< NOVO

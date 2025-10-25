@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import PaymentStep from '@/components/billing/PaymentStep';
+import { Lock } from 'lucide-react';
+import { track } from '@/lib/track';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 
 type Plan = 'monthly'|'annual';
@@ -20,7 +22,12 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
   const [clientSecret, setClientSecret] = useState<string|null>(null);
   const [error, setError] = useState<string|null>(null);
   const [codeError, setCodeError] = useState<string|null>(null);
-  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
+  const {
+    isLoading: billingStatusLoading,
+    hasPremiumAccess,
+    isTrialActive,
+    refetch: refetchBillingStatus,
+  } = useBillingStatus();
 
   const priceShown = plan === 'monthly' ? prices.monthly[currency] : prices.annual[currency];
 
@@ -65,7 +72,7 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
   }
 
   async function handleStartTrial() {
-    if (hasPremiumAccess) {
+    if (hasPremiumAccess || isTrialActive) {
       setError('Você já possui um plano ativo ou em teste.');
       return;
     }
@@ -79,15 +86,17 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         body: JSON.stringify({ plan, currency: currency.toUpperCase(), affiliateCode: affiliateCode.trim() || undefined })
       });
       const body = await res.json();
-      if (res.status === 409) {
-        throw new Error(body?.message || 'Você já possui um plano ativo ou em teste.');
-      }
-      if (!res.ok || !body?.url) {
-        if (body?.code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
-        if (body?.code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
+      if (!res.ok) {
+        const code = body?.code;
+        if (code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
+        if (code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
+        if (code === 'INSTAGRAM_REQUIRED') { setError(body?.message ?? 'Conecte seu Instagram para ativar o modo PRO.'); return; }
+        if (code === 'TRIAL_ALREADY_ACTIVE') { await refetchBillingStatus(); setError('Seu modo PRO já está ativo.'); return; }
+        if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') { setError(body?.message ?? 'O período de testes já foi utilizado nesta conta.'); return; }
         throw new Error(body?.error || body?.message || 'Falha ao iniciar teste gratuito');
       }
-      window.location.href = body.url;
+      track('trial_activated', { source: 'subscribe_inline' });
+      await refetchBillingStatus();
     } catch (e:any) {
       setError(e.message);
     } finally {
@@ -146,7 +155,7 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       </div>
 
       {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-      {hasPremiumAccess && !billingStatusLoading && (
+      {(hasPremiumAccess || isTrialActive) && !billingStatusLoading && (
         <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo ou em período de teste.</p>
       )}
 
@@ -155,10 +164,10 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             onClick={handleStartTrial}
-            disabled={loading || hasPremiumAccess || billingStatusLoading}
+            disabled={loading || hasPremiumAccess || isTrialActive || billingStatusLoading}
             className="w-full rounded-xl border border-gray-900 px-4 py-3 text-gray-900 hover:bg-gray-50 disabled:opacity-50"
           >
-            {loading ? 'Preparando…' : 'Teste gratuito (7 dias)'}
+            {loading ? 'Preparando…' : 'Teste gratuito (48h)'}
           </button>
           <button
             onClick={handleStart}
@@ -167,6 +176,10 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
           >
             {loading ? 'Processando…' : 'Assinar agora'}
           </button>
+          <p className="sm:col-span-2 mt-1 flex items-center justify-center gap-1 text-xs text-gray-500">
+            <Lock className="h-3 w-3" aria-hidden />
+            Só leitura: analisamos seu Instagram, não publicamos nada e você pode cancelar quando quiser.
+          </p>
         </div>
       )}
 

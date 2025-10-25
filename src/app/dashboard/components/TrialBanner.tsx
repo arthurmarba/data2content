@@ -191,7 +191,7 @@ function TrialExpiredBanner({ onSubscribe }: { onSubscribe: () => void }) {
         <div>
           <h2 className="text-base font-semibold">Seu modo PRO gratuito terminou</h2>
           <p className="mt-1 text-sm">
-            Continue com o estrategista pessoal, mantenha o Grupo VIP e ainda ganhe 7 dias extras ao ativar o plano PRO agora.
+            Continue com o estrategista pessoal, mantenha o Grupo VIP e libere alertas ilimitados assinando o plano PRO.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -199,7 +199,7 @@ function TrialExpiredBanner({ onSubscribe }: { onSubscribe: () => void }) {
             onClick={onSubscribe}
             className="inline-flex items-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-600"
           >
-            Ativar 7 dias grátis
+            Assinar plano PRO
           </button>
           <Link
             href="/dashboard/billing"
@@ -218,12 +218,13 @@ export default function TrialBanner() {
   const billingStatus = useBillingStatus({ auto: true });
   const { isLoading } = billingStatus;
 
+  const trial = billingStatus.trial;
   const expiresAt = useMemo(() => {
+    if (trial?.expiresAt instanceof Date) return trial.expiresAt;
     if (billingStatus.planExpiresAt instanceof Date) return billingStatus.planExpiresAt;
     if (session?.user?.planExpiresAt) return new Date(session.user.planExpiresAt);
     return null;
-  }, [billingStatus.planExpiresAt, session?.user?.planExpiresAt]);
-  const normalizedStatus = billingStatus.normalizedStatus;
+  }, [trial?.expiresAt, billingStatus.planExpiresAt, session?.user?.planExpiresAt]);
 
   const [remainingLabel, setRemainingLabel] = useState(() =>
     expiresAt ? formatRemaining(expiresAt.getTime() - Date.now()) : ""
@@ -239,19 +240,12 @@ export default function TrialBanner() {
     return () => clearInterval(id);
   }, [expiresAt]);
 
-  const isTrialActive = useMemo(() => {
-    if (!expiresAt) return false;
-    if (!normalizedStatus) return false;
-    const remaining = expiresAt.getTime() - Date.now();
-    return remaining > 0 && (normalizedStatus === "trial" || normalizedStatus === "trialing");
-  }, [expiresAt, normalizedStatus]);
-
   const showExpired = useMemo(() => {
-    if (!expiresAt) return false;
-    if (!normalizedStatus) return false;
-    const diff = Date.now() - expiresAt.getTime();
-    return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000 && normalizedStatus === "inactive";
-  }, [expiresAt, normalizedStatus]);
+    if (!trial || trial.state !== "expired") return false;
+    if (!trial.expiresAt) return true;
+    const diff = Date.now() - trial.expiresAt.getTime();
+    return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+  }, [trial]);
 
   const handleSubscribeClick = useCallback(() => {
     try {
@@ -263,7 +257,7 @@ export default function TrialBanner() {
 
   if (isLoading) return null;
 
-  if (isTrialActive && expiresAt) {
+  if (billingStatus.isTrialActive && expiresAt) {
     return <ActiveTrialBanner expiresAt={expiresAt} countdownLabel={remainingLabel} />;
   }
 

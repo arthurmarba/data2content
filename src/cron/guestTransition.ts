@@ -12,7 +12,7 @@ const APP_BASE_URL =
     'https://app.data2content.ai').replace(/\/$/, '');
 const TRIAL_CTA_URL = `${APP_BASE_URL}/dashboard/billing`;
 const TRIAL_WHATSAPP_MESSAGE =
-  'Seu acesso PRO gratuito terminou. Continue com seu estrategista de bolso ativando o plano PRO com 7 dias grátis: ' +
+  'Seu acesso PRO gratuito terminou. Continue com seu estrategista de bolso ativando o plano PRO agora mesmo: ' +
   TRIAL_CTA_URL;
 
 export async function handleGuestTransitions() {

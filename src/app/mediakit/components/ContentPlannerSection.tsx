@@ -9,6 +9,7 @@ import useBillingStatus from '@/app/hooks/useBillingStatus';
 import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal';
 import PlannerUpgradePanel from './PlannerUpgradePanel';
 import { normalizePlanStatus } from '@/utils/planStatus';
+import { track } from '@/lib/track';
 
 const PLANNER_CATEGORY_KEYS = ['format', 'proposal', 'context', 'tone', 'reference'] as const;
 const CATEGORY_STYLES: Record<string, string> = {
@@ -214,6 +215,7 @@ export const ContentPlannerList = ({
   const [showBillingModal, setShowBillingModal] = useState(false);
   const weekStartISO = useMemo(() => getWeekStartISO(), []);
   const initialSlotHandledRef = useRef(false);
+  const lockTrackedRef = useRef(false);
 
   const fallbackBilling = useBillingStatus({ auto: !publicMode && !billingStatus });
   const billing = billingStatus ?? fallbackBilling;
@@ -228,6 +230,20 @@ export const ContentPlannerList = ({
   const effectiveLockedReason = !hasPremiumAccess
     ? lockedReason ?? 'Ative ou renove a assinatura para liberar o Planner IA.'
     : lockedReason;
+
+  useEffect(() => {
+    if (showLockedState && !isBillingLoading) {
+      if (!lockTrackedRef.current) {
+        track('pro_feature_locked_viewed', {
+          feature: 'planner',
+          reason: effectiveLockedReason ?? null,
+        });
+        lockTrackedRef.current = true;
+      }
+    } else {
+      lockTrackedRef.current = false;
+    }
+  }, [showLockedState, isBillingLoading, effectiveLockedReason]);
 
   useEffect(() => {
     const effectiveLocked = locked || !hasPremiumAccess;

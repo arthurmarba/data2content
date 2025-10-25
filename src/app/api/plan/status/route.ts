@@ -6,13 +6,19 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import type Stripe from "stripe";
+import { getPlanAccessMeta } from "@/utils/planStatus";
+import type {
+  InstagramAccessInfo,
+  PlanStatusResponse,
+  ProTrialInfo,
+  ProTrialState,
+  UiPlanStatus,
+} from "@/types/billing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // UI PlanStatus aceito no front:
-type UiPlanStatus = "active" | "non_renewing" | "pending" | "inactive" | "expired";
-
 // ---------- Helpers de UI ----------
 function mapStripeToUiStatus(
   raw: string | null | undefined,
@@ -117,6 +123,188 @@ function isInactiveLike(v: unknown): boolean {
   );
 }
 
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const asDate = new Date(value as any);
+  return Number.isNaN(asDate.getTime()) ? null : asDate;
+}
+
+const PRO_TRIAL_STATE_SET: ReadonlySet<ProTrialState> = new Set<ProTrialState>([
+  "eligible",
+  "active",
+  "expired",
+  "converted",
+  "unavailable",
+]);
+
+function ensureProTrialState(value: unknown): ProTrialState {
+  if (typeof value !== "string") return "eligible";
+  const normalized = value.toLowerCase() as ProTrialState;
+  return PRO_TRIAL_STATE_SET.has(normalized) ? normalized : "eligible";
+}
+
+function deriveInstagramInfo(user: any): InstagramAccessInfo {
+  const connected = Boolean(user?.isInstagramConnected && user?.instagramAccountId);
+  const tokenExpiresAt = toDate(user?.instagramAccessTokenExpiresAt);
+  const lastAttempt = toDate(user?.lastInstagramSyncAttempt);
+  const lastSuccessfulSyncAt =
+    connected && user?.lastInstagramSyncSuccess && lastAttempt ? lastAttempt.toISOString() : null;
+  const hasSyncError = Boolean(user?.instagramSyncErrorCode || user?.instagramSyncErrorMsg);
+  const tokenExpired = tokenExpiresAt ? tokenExpiresAt.getTime() <= Date.now() : false;
+  const needsReconnect = Boolean(connected && (tokenExpired || hasSyncError));
+
+  return {
+    connected,
+    needsReconnect,
+    lastSuccessfulSyncAt,
+    accountId: user?.instagramAccountId ?? null,
+    username: user?.instagramUsername ?? user?.username ?? undefined,
+  };
+}
+
+type TrialComputation = {
+  info: ProTrialInfo;
+  updates: Record<string, any> | null;
+  expiresAtDate: Date | null;
+  activatedAtDate: Date | null;
+};
+
+function computeTrialInfo(user: any, opts: { planHasPremium: boolean }): TrialComputation {
+  const now = Date.now();
+  const rawStatus = ensureProTrialState((user as any)?.proTrialStatus);
+  let state: ProTrialState = rawStatus;
+  const activatedAtDate = toDate((user as any)?.proTrialActivatedAt);
+  const expiresAtDate = toDate((user as any)?.proTrialExpiresAt);
+  const convertedAtDate = toDate((user as any)?.proTrialConvertedAt);
+
+  const updates: Record<string, any> = {};
+
+  if (state === "active" && expiresAtDate && expiresAtDate.getTime() <= now) {
+    state = "expired";
+    if (rawStatus !== "expired") updates.proTrialStatus = "expired";
+  }
+
+  if (opts.planHasPremium && state !== "converted") {
+    state = "converted";
+    if (rawStatus !== "converted") updates.proTrialStatus = "converted";
+    if (!convertedAtDate) {
+      const stamp = new Date();
+      updates.proTrialConvertedAt = stamp;
+    }
+  }
+
+  const remainingMs =
+    state === "active" && expiresAtDate ? Math.max(expiresAtDate.getTime() - now, 0) : null;
+
+  const info: ProTrialInfo = {
+    state,
+    activatedAt: activatedAtDate ? activatedAtDate.toISOString() : null,
+    expiresAt: expiresAtDate ? expiresAtDate.toISOString() : null,
+    remainingMs,
+  };
+
+  return {
+    info,
+    updates: Object.keys(updates).length > 0 ? updates : null,
+    expiresAtDate,
+    activatedAtDate,
+  };
+}
+
+type BuildOptions = {
+  planStatus?: string | null;
+  uiStatus?: UiPlanStatus | null;
+  interval?: "month" | "year" | null;
+  priceId?: string | null;
+  planExpiresAt?: Date | null;
+  cancelAtPeriodEnd?: boolean;
+};
+
+function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
+  payload: PlanStatusResponse;
+  updates: Record<string, any> | null;
+} {
+  const intervalValue =
+    options.interval !== undefined ? options.interval : (user as any)?.planInterval ?? null;
+  const priceValue =
+    options.priceId !== undefined ? options.priceId : (user as any)?.stripePriceId ?? null;
+  const planStatusRaw =
+    options.planStatus !== undefined ? options.planStatus : (user as any)?.planStatus ?? null;
+  const cancelAtPeriodEnd =
+    options.cancelAtPeriodEnd !== undefined
+      ? options.cancelAtPeriodEnd
+      : Boolean((user as any)?.cancelAtPeriodEnd);
+  const planExpiresAtValue =
+    options.planExpiresAt !== undefined ? options.planExpiresAt : (user as any)?.planExpiresAt;
+  const planExpiresAtDate = toDate(planExpiresAtValue);
+
+  const planMeta = getPlanAccessMeta(planStatusRaw, cancelAtPeriodEnd);
+  const instagramInfo = deriveInstagramInfo(user);
+  const {
+    info: trialInfo,
+    updates,
+    expiresAtDate: trialExpiresAtDate,
+  } = computeTrialInfo(user, {
+    planHasPremium: planMeta.hasPremiumAccess,
+  });
+
+  const hasPremiumAccess = planMeta.hasPremiumAccess || trialInfo.state === "active";
+  const isGracePeriod = planMeta.isGracePeriod || false;
+
+  let uiStatus: UiPlanStatus | null =
+    options.uiStatus !== undefined
+      ? options.uiStatus ?? null
+      : mapStripeToUiStatus(planStatusRaw, cancelAtPeriodEnd);
+
+  const effectivePlanExpiresAtDate =
+    planExpiresAtDate ?? (trialInfo.state === "active" ? trialExpiresAtDate : null);
+
+  if (
+    uiStatus === "inactive" &&
+    effectivePlanExpiresAtDate &&
+    effectivePlanExpiresAtDate.getTime() < Date.now()
+  ) {
+    uiStatus = "expired";
+  }
+
+  const payload: PlanStatusResponse = {
+    ok: true,
+    status: uiStatus,
+    interval: intervalValue ?? null,
+    priceId: priceValue ?? null,
+    planExpiresAt: effectivePlanExpiresAtDate ? effectivePlanExpiresAtDate.toISOString() : null,
+    cancelAtPeriodEnd,
+    trial: trialInfo,
+    instagram: instagramInfo,
+    perks: {
+      hasBasicStrategicReport: instagramInfo.connected,
+      hasFullStrategicReport: hasPremiumAccess,
+      microInsightAvailable: instagramInfo.connected,
+      weeklyRaffleEligible: instagramInfo.connected,
+    },
+    extras: {
+      normalizedStatus: planMeta.normalizedStatus,
+      hasPremiumAccess,
+      isGracePeriod,
+    },
+  };
+
+  return { payload, updates };
+}
+
+async function respondWithPayload(user: any, options: BuildOptions = {}) {
+  const { payload, updates } = buildPlanStatusPayload(user, options);
+  if (updates) {
+    try {
+      await User.updateOne({ _id: (user as any)?._id }, { $set: updates });
+    } catch {
+      // ignora falha de persistência de atualização de trial
+    }
+  }
+  return NextResponse.json(payload);
+}
+
 export async function GET(req: Request) {
   const force = (() => {
     try {
@@ -136,24 +324,7 @@ export async function GET(req: Request) {
   const user = await User.findById(session.user.id).lean();
   if (!user) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
 
-  const respondFromDb = () => {
-    const ui = mapStripeToUiStatus((user as any).planStatus ?? null, (user as any).cancelAtPeriodEnd ?? false);
-
-    let status: UiPlanStatus | null = ui;
-    const expires = (user as any).planExpiresAt ? new Date((user as any).planExpiresAt) : null;
-    if (status === "inactive" && expires && expires.getTime() < Date.now()) {
-      status = "expired";
-    }
-
-    return NextResponse.json({
-      ok: true,
-      status,
-      interval: (user as any).planInterval ?? null,
-      priceId: (user as any).stripePriceId ?? null,
-      planExpiresAt: (user as any).planExpiresAt ?? null,
-      cancelAtPeriodEnd: !!(user as any).cancelAtPeriodEnd,
-    });
-  };
+  const respondFromDb = () => respondWithPayload(user);
 
   // Fast-path mais seguro: permite auto-healing quando DB está "inactive-like"
   const hasStripeCustomer = Boolean((user as any).stripeCustomerId);
@@ -250,12 +421,21 @@ export async function GET(req: Request) {
     // ignora falha de persistência
   }
 
-  return NextResponse.json({
-    ok: true,
-    status: uiStatus,
+  const userSnapshot = {
+    ...user,
+    planStatus: planStatusToPersist,
+    planInterval: n.planInterval ?? null,
+    stripePriceId: priceId,
+    planExpiresAt: planExpiresAt ?? null,
+    cancelAtPeriodEnd,
+  };
+
+  return respondWithPayload(userSnapshot, {
+    planStatus: planStatusToPersist,
     interval,
     priceId,
     planExpiresAt,
     cancelAtPeriodEnd,
+    uiStatus,
   });
 }

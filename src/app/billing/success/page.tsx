@@ -1,7 +1,7 @@
 // src/app/billing/success/page.tsx
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -33,26 +33,15 @@ export default function BillingSuccessPage() {
   // dependemos só do sid para a chave de "uma vez"
   }, [sid, update]);
 
-  const trialEndLabel = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    try {
-      return new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(d);
-    } catch {
-      return d.toLocaleDateString("pt-BR");
-    }
-  }, []);
-
   return (
     <div className="mx-auto max-w-xl p-6">
       <h1 className="mb-2 text-2xl font-semibold">Tudo certo!</h1>
       <p className="text-gray-700">
-        Seu <span className="font-medium">teste gratuito de 7 dias</span> foi iniciado. Você já tem acesso total ao produto.
+        Sua assinatura PRO foi ativada com sucesso. Você já tem acesso total a todos os recursos.
       </p>
       <p className="mt-2 text-gray-600">
-        A cobrança só será feita após o período de teste (estimado até{" "}
-        <span className="font-medium">{trialEndLabel}</span>). Você pode cancelar
-        a qualquer momento durante o teste nas configurações.
+        Precisa de algo? Você pode ajustar ou cancelar a assinatura a qualquer momento em{" "}
+        <span className="font-medium">Configurações &gt; Billing</span>.
       </p>
 
       {sid && (

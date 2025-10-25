@@ -71,6 +71,24 @@ type UserSnapshot = Pick<
 >;
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const WEEKDAY_NAMES_FULL = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+];
+const WEEKDAY_SENTENCE_LABELS = [
+  "aos Domingos",
+  "às Segundas",
+  "às Terças",
+  "às Quartas",
+  "às Quintas",
+  "às Sextas",
+  "aos Sábados",
+];
 
 function respondError(message: string, status = 500) {
   return NextResponse.json({ ok: false, error: message }, { status });
@@ -409,6 +427,166 @@ function buildMentorshipCalendarLink(event: {
     logger.warn("[home.summary] Failed to build mentorship ICS link", error);
     return null;
   }
+}
+
+function getTotalInteractions(stats: any): number | null {
+  if (!stats || typeof stats !== "object") return null;
+  const primary = Number((stats as any).total_interactions ?? (stats as any).engagement);
+  if (Number.isFinite(primary) && primary > 0) return primary;
+
+  const fields = ["likes", "comments", "shares", "saved", "replies"];
+  let sum = 0;
+  let hasValue = false;
+  for (const field of fields) {
+    const value = Number((stats as any)?.[field]);
+    if (Number.isFinite(value) && value > 0) {
+      sum += value;
+      hasValue = true;
+    }
+  }
+  if (hasValue && sum > 0) return sum;
+  return null;
+}
+
+function formatHourRange(startHour: number, windowSize = 3) {
+  const endHour = startHour + windowSize;
+  const format = (hour: number) => `${hour.toString().padStart(2, "0")}h`;
+  return `${format(startHour)} às ${endHour >= 24 ? "24h" : format(endHour)}`;
+}
+
+async function computeMicroInsight(userId: string) {
+  const uid = new Types.ObjectId(userId);
+  const now = new Date();
+  const start = new Date(now);
+  start.setUTCDate(start.getUTCDate() - 30);
+
+  const metrics = await MetricModel.find({
+    user: uid,
+    postDate: { $gte: start, $lte: now },
+  })
+    .select({ postDate: 1, stats: 1 })
+    .sort({ postDate: -1 })
+    .limit(200)
+    .lean()
+    .exec();
+
+  if (!metrics.length) return null;
+
+  const dayAggregates = Array.from({ length: 7 }, () => ({ sum: 0, count: 0 }));
+  const hourAggregates = new Map<number, { sum: number; count: number }>();
+
+  let totalSum = 0;
+  let totalCount = 0;
+
+  for (const metric of metrics) {
+    const interactions = getTotalInteractions((metric as any).stats);
+    if (!interactions || interactions <= 0) continue;
+
+    const postDate = metric.postDate instanceof Date ? metric.postDate : new Date(metric.postDate);
+    if (Number.isNaN(postDate.getTime())) continue;
+
+    const localDate = new Date(postDate.getTime() + getTimeZoneOffsetMs(postDate, PLANNER_TIMEZONE));
+    const day = localDate.getUTCDay();
+    const hour = localDate.getUTCHours();
+    const dayAggregate = dayAggregates[day];
+    if (!dayAggregate) continue;
+    dayAggregate.sum += interactions;
+    dayAggregate.count += 1;
+
+    const bucket = Math.floor(hour / 3) * 3;
+    const aggregate = hourAggregates.get(bucket) ?? { sum: 0, count: 0 };
+    aggregate.sum += interactions;
+    aggregate.count += 1;
+    hourAggregates.set(bucket, aggregate);
+
+    totalSum += interactions;
+    totalCount += 1;
+  }
+
+  if (totalCount < 5 || totalSum <= 0) return null;
+
+  const overallAverage = totalSum / totalCount;
+  if (!Number.isFinite(overallAverage) || overallAverage <= 0) return null;
+
+  const MIN_COUNT = 3;
+  const MIN_IMPROVEMENT = 0.1; // 10%
+
+  let bestDay: { index: number; improvement: number } | null = null;
+  dayAggregates.forEach((agg, index) => {
+    if (agg.count < MIN_COUNT) return;
+    const avg = agg.sum / agg.count;
+    if (!Number.isFinite(avg) || avg <= 0) return;
+    const improvement = (avg - overallAverage) / overallAverage;
+    if (improvement < MIN_IMPROVEMENT) return;
+    if (!bestDay || improvement > bestDay.improvement) {
+      bestDay = { index, improvement };
+    }
+  });
+
+  let bestHour: { bucket: number; improvement: number } | null = null;
+  for (const [bucket, agg] of hourAggregates.entries()) {
+    if (agg.count < MIN_COUNT) continue;
+    const avg = agg.sum / agg.count;
+    if (!Number.isFinite(avg) || avg <= 0) continue;
+    const improvement = (avg - overallAverage) / overallAverage;
+    if (improvement < MIN_IMPROVEMENT) continue;
+    if (!bestHour || improvement > bestHour.improvement) {
+      bestHour = { bucket, improvement };
+    }
+  }
+
+  if (!bestDay && !bestHour) return null;
+
+  const candidates: Array<{ type: "day" | "hour"; key: number; improvement: number }> = [];
+  if (bestDay !== null) {
+    const { index, improvement } = bestDay;
+    candidates.push({ type: "day", key: index, improvement });
+  }
+  if (bestHour !== null) {
+    const { bucket, improvement } = bestHour;
+    candidates.push({ type: "hour", key: bucket, improvement });
+  }
+  if (!candidates.length) return null;
+
+  const firstCandidate = candidates[0];
+  if (!firstCandidate) return null;
+
+  let selected = firstCandidate;
+  for (let i = 1; i < candidates.length; i += 1) {
+    const candidate = candidates[i];
+    if (!candidate) continue;
+    if (candidate.improvement > selected.improvement) {
+      selected = candidate;
+    }
+  }
+
+  const impactPercent = Math.round(selected.improvement * 100);
+  if (!Number.isFinite(impactPercent)) return null;
+
+  if (selected.type === "day") {
+    const dayIndex = selected.key;
+    const dayPhrase = WEEKDAY_SENTENCE_LABELS[dayIndex] ?? "nos melhores dias";
+    const dayName = WEEKDAY_NAMES_FULL[dayIndex] ?? "Dia";
+    return {
+      id: `day-${dayIndex}`,
+      message: `Postar ${dayPhrase} gerou +${impactPercent}% de interações nas últimas 4 semanas.`,
+      contextLabel: `Dia com melhor desempenho recente: ${dayName}.`,
+      impactLabel: `+${impactPercent}% interações`,
+      ctaLabel: "Ver slots no Planner",
+      ctaUrl: "/dashboard/planning?view=heatmap",
+    };
+  }
+
+  const bucketStart = selected.key;
+  const rangeLabel = formatHourRange(bucketStart, 3);
+  return {
+    id: `hour-${bucketStart}`,
+    message: `Entre ${rangeLabel}, suas publicações geraram +${impactPercent}% de interações nas últimas 4 semanas.`,
+    contextLabel: `Faixa horária com melhor média recente.`,
+    impactLabel: `+${impactPercent}% interações`,
+    ctaLabel: "Abrir Planner IA",
+    ctaUrl: "/dashboard/planning",
+  };
 }
 
 function computeNextMentorshipSlot(baseDate: Date) {
@@ -846,6 +1024,17 @@ export async function GET(request: Request) {
       },
       startUrl: WHATSAPP_TRIAL_URL,
     };
+
+    if (instagramConnected) {
+      try {
+        responsePayload.microInsight = await computeMicroInsight(userId);
+      } catch (error) {
+        logger.error("[home.summary] Failed to compute micro insight", error);
+        responsePayload.microInsight = null;
+      }
+    } else {
+      responsePayload.microInsight = null;
+    }
 
     const freeCommunityMember = Boolean(userSnapshot?.communityInspirationOptIn);
     const vipHasAccess = hasPremiumAccess;

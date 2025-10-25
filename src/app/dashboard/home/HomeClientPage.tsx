@@ -14,6 +14,7 @@ import {
   FaChevronDown,
   FaGem,
   FaLink,
+  FaLock,
   FaMagic,
   FaPenFancy,
   FaRegCalendarCheck,
@@ -292,7 +293,8 @@ export default function HomeClientPage() {
   const postsSoFar = summary?.consistency?.postsSoFar ?? 0;
   const weeklyProgressPercent = weeklyGoal > 0 ? Math.round((postsSoFar / weeklyGoal) * 100) : 0;
 
-  const isInstagramConnected = summary?.nextPost?.isInstagramConnected ?? false;
+  const isInstagramConnected =
+    summary?.nextPost?.isInstagramConnected ?? Boolean(session?.user?.instagramConnected);
   const hasMediaKit = summary?.mediaKit?.hasMediaKit ?? false;
   const communityFreeMember = summary?.community?.free?.isMember ?? false;
   const communityFreeInviteUrl = summary?.community?.free?.inviteUrl ?? "/dashboard/discover";
@@ -307,6 +309,10 @@ export default function HomeClientPage() {
   const planIsPro = summary?.plan?.isPro ?? false;
   const trialExpired =
     !whatsappTrialActive && whatsappTrialStarted && !whatsappTrialEligible && !planIsPro;
+  const hasPremiumAccessPlan = summary?.plan?.hasPremiumAccess ?? false;
+  const planTrialActive = summary?.plan?.trial?.active ?? false;
+  const isFreePlan = !(hasPremiumAccessPlan || planTrialActive);
+  const microInsight = summary?.microInsight ?? null;
 
   type HeroStage = "join_free" | "start_trial" | "use_trial" | "upgrade" | "join_vip" | "pro_engaged";
 
@@ -365,6 +371,25 @@ export default function HomeClientPage() {
     openWhatsAppChat();
   }, [openWhatsAppChat, trackWhatsappEvent, whatsappLinked]);
 
+  const handleMicroInsightAction = React.useCallback(() => {
+    if (!isInstagramConnected) {
+      trackCardAction("micro_insight", "connect_instagram");
+      handleNavigate("/dashboard/instagram");
+      return;
+    }
+    if (isFreePlan) {
+      trackCardAction("micro_insight", "start_trial");
+      openSubscribeModal();
+      return;
+    }
+    if (microInsight?.ctaUrl) {
+      trackCardAction("micro_insight", "open_cta");
+      handleNavigate(microInsight.ctaUrl);
+      return;
+    }
+    trackCardAction("micro_insight", "view_details");
+  }, [handleNavigate, isFreePlan, isInstagramConnected, microInsight?.ctaUrl, openSubscribeModal, trackCardAction]);
+
   const handleJoinVip = React.useCallback(() => {
     handleNavigate(communityVipInviteUrl);
   }, [communityVipInviteUrl, handleNavigate]);
@@ -396,7 +421,7 @@ export default function HomeClientPage() {
         calloutSubtitle:
           "Assine PRO para seguir recebendo categorias vencedoras, horário ideal e lembretes direto no WhatsApp.",
         primary: {
-          label: "Assinar PRO (+7 dias)",
+          label: "Assinar plano PRO",
           variant: "pro" as const,
           icon: <FaGem />,
           onClick: openSubscribeModal,
@@ -818,6 +843,38 @@ export default function HomeClientPage() {
     [isInstagramConnected, nextSlotLabel, postsSoFar, weeklyGoal, whatsappLinked]
   );
 
+  const microInsightCard = React.useMemo(() => {
+    if (!isInstagramConnected) {
+      return {
+        message:
+          "Conecte seu Instagram para receber, toda semana, um micro-insight com oportunidades reais de crescimento.",
+        contextLabel: null,
+        impactLabel: null,
+        ctaLabel: "Conectar Instagram",
+        variant: "primary" as const,
+      };
+    }
+    if (microInsight?.message) {
+      return {
+        message: microInsight.message,
+        contextLabel: microInsight.contextLabel ?? null,
+        impactLabel: microInsight.impactLabel ?? null,
+        ctaLabel: isFreePlan
+          ? "Ver por quê (48h grátis)"
+          : microInsight.ctaLabel ?? "Ver detalhes",
+        variant: isFreePlan ? ("primary" as const) : ("secondary" as const),
+      };
+    }
+    return {
+      message:
+        "Estamos analisando seus dados recentes para gerar o micro-insight da semana. Volte em breve.",
+      contextLabel: null,
+      impactLabel: null,
+      ctaLabel: isFreePlan ? "Liberar IA por 48h" : undefined,
+      variant: isFreePlan ? ("primary" as const) : ("secondary" as const),
+    };
+  }, [isFreePlan, isInstagramConnected, microInsight]);
+
 
   const shouldDisplayConnectBanner = showWhatsAppConnect && !whatsappLinked;
   const connectBanner = shouldDisplayConnectBanner ? (
@@ -828,11 +885,11 @@ export default function HomeClientPage() {
             <div className="space-y-1">
               <p className="font-semibold">Seu teste de 48h chegou ao fim.</p>
               <p className="text-xs text-amber-700">
-                Assine PRO, ganhe +7 dias grátis e continue recebendo roteiros e alertas no WhatsApp.
+                Ative o plano PRO e continue recebendo roteiros e alertas ilimitados no WhatsApp.
               </p>
             </div>
             <ActionButton
-              label="Assinar PRO (+7 dias)"
+              label="Assinar plano PRO"
               icon={<FaGem />}
               variant="pro"
               onClick={() => {
@@ -893,6 +950,14 @@ export default function HomeClientPage() {
                     <FaRobot className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
                 </p>
+                {isInstagramConnected ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <FaBullhorn className="h-3 w-3" aria-hidden />
+                    </span>
+                    Você está participando do sorteio semanal de análise.
+                  </span>
+                ) : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 {headerStats.map((stat) => (
@@ -1023,6 +1088,47 @@ export default function HomeClientPage() {
         </div>
       </section>
 
+      <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <FaMagic className="h-3.5 w-3.5 text-[#F6007B]" aria-hidden />
+              Micro-insight semanal
+            </div>
+            <p className="text-base leading-relaxed text-slate-900">
+              {microInsightCard.message}
+            </p>
+            {microInsightCard.impactLabel ? (
+              <p className="text-sm font-semibold text-emerald-600">
+                {microInsightCard.impactLabel}
+              </p>
+            ) : null}
+            {microInsightCard.contextLabel ? (
+              <p className="text-xs text-slate-500">{microInsightCard.contextLabel}</p>
+            ) : null}
+          </div>
+          {microInsightCard.ctaLabel ? (
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+              <button
+                type="button"
+                onClick={handleMicroInsightAction}
+                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                  microInsightCard.variant === "primary"
+                    ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/40"
+                    : "border border-slate-300 text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300"
+                }`}
+              >
+                {microInsightCard.ctaLabel}
+              </button>
+              <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                <FaLock className="h-3 w-3" aria-hidden />
+                Só leitura: a IA analisa, mas não publica por você.
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
       <section className="mt-12 space-y-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -1044,14 +1150,14 @@ export default function HomeClientPage() {
                 PRO
               </span>
               <p className="max-w-md text-sm text-amber-900">
-                Recursos exclusivos PRO. Ative a assinatura e ganhe +7 dias grátis para continuar usando a IA.
+                Recursos exclusivos PRO. Assine para manter a IA trabalhando por você sem interrupções.
               </p>
               <button
                 type="button"
                 onClick={openSubscribeModal}
                 className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700"
               >
-                Ativar PRO (+7 dias)
+                Ativar plano PRO
               </button>
             </div>
           ) : null}

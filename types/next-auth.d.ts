@@ -4,6 +4,7 @@ import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT as DefaultJWT } from "next-auth/jwt";
 import type { AvailableInstagramAccount } from '@/app/lib/instagramService';
 import type { UserRole, PlanStatus, AgencyPlanType } from '@/types/enums';
+import type { ProTrialState } from '@/types/billing';
 
 /**
  * Estende a interface Session com campos extras que o frontend consome.
@@ -31,6 +32,9 @@ declare module "next-auth" {
       stripeCustomerId?: string | null;
       stripeSubscriptionId?: string | null;
       stripePriceId?: string | null;
+      proTrialStatus?: ProTrialState | null;
+      proTrialActivatedAt?: string | null;
+      proTrialExpiresAt?: string | null;
 
       // Afiliados
       affiliateCode?: string;
@@ -81,6 +85,9 @@ declare module "next-auth" {
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
     stripePriceId?: string | null;
+    proTrialStatus?: ProTrialState | null;
+    proTrialActivatedAt?: Date | null;
+    proTrialExpiresAt?: Date | null;
 
     // Afiliados
     affiliateCode?: string | null;
@@ -129,6 +136,9 @@ declare module "next-auth/jwt" {
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
     stripePriceId?: string | null;
+    proTrialStatus?: ProTrialState | null;
+    proTrialActivatedAt?: Date | string | null;
+    proTrialExpiresAt?: Date | string | null;
 
     // Afiliados
     affiliateBalances?: Record<string, number>;

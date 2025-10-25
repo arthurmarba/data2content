@@ -3,9 +3,10 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence, MotionProps } from 'framer-motion';
-import { FaCheck } from 'react-icons/fa';
+import { FaCheck, FaLock } from 'react-icons/fa';
 import { useDebounce } from 'use-debounce';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { track } from '@/lib/track';
 
 function cn(...classes: (string | undefined | false)[]) {
   return classes.filter(Boolean).join(' ');
@@ -139,7 +140,12 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
 
   const sp = useSearchParams();
   const router = useRouter();
-  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
+  const {
+    isLoading: billingStatusLoading,
+    hasPremiumAccess,
+    isTrialActive,
+    refetch: refetchBillingStatus,
+  } = useBillingStatus();
 
   // Hidrata código salvo (localStorage/cookie)
   useEffect(() => {
@@ -312,6 +318,10 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       setError('Você já possui um plano ativo.');
       return;
     }
+    if (isTrialActive) {
+      setError('Seu modo PRO já está liberado.');
+      return;
+    }
     try {
       setTrialLoading(true);
       setError(null);
@@ -325,14 +335,26 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (res.status === 409) {
-        setError(json?.message || 'Você já possui uma assinatura ativa.');
+      if (!res.ok) {
+        const code = json?.code;
+        if (code === 'INSTAGRAM_REQUIRED') {
+          setError(json?.message || 'Conecte seu Instagram para iniciar o modo PRO.');
+          return;
+        }
+        if (code === 'TRIAL_ALREADY_ACTIVE') {
+          await refetchBillingStatus();
+          setError('Seu modo PRO já está ativo.');
+          return;
+        }
+        if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') {
+          setError(json?.message || 'O período de testes já foi utilizado nesta conta.');
+          return;
+        }
+        setError(json?.message || json?.error || 'Não foi possível iniciar o teste.');
         return;
       }
-      if (!res.ok || !json?.url) {
-        throw new Error(json?.error || 'Não foi possível iniciar o teste.');
-      }
-      window.location.href = json.url as string;
+      track('trial_activated', { source: 'plan_card_pro' });
+      await refetchBillingStatus();
     } catch (e: any) {
       setError(e?.message || 'Erro ao iniciar o teste.');
     } finally {
@@ -486,14 +508,25 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
 
       {error && <p className="mb-4 text-sm text-brand-red">{error}</p>}
 
+      <p className="mb-4 text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
+        <FaLock className="h-3 w-3" aria-hidden />
+        Acesso só leitura: não publicamos nada em seu perfil e você pode desconectar quando quiser.
+      </p>
+
       <div className="flex flex-col sm:flex-row gap-2">
         <button
           onClick={startTrialCheckout}
-          disabled={trialLoading || isPreviewLoading || hasPremiumAccess || billingStatusLoading}
+          disabled={
+            trialLoading ||
+            isPreviewLoading ||
+            hasPremiumAccess ||
+            billingStatusLoading ||
+            isTrialActive
+          }
           className="w-full rounded-lg border border-gray-300 px-4 py-2 sm:py-3 text-gray-900
                      hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {trialLoading ? 'Iniciando teste…' : 'Iniciar teste gratuito (7 dias)'}
+          {trialLoading ? 'Iniciando teste…' : 'Iniciar teste gratuito (48h)'}
         </button>
 
         <button
