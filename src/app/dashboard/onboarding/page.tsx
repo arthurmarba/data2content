@@ -86,6 +86,33 @@ export default function OnboardingPage() {
     return DEFAULT_COMMUNITY_COUNT;
   }, [session?.user]);
 
+  const heroHighlights = useMemo(
+    () => [
+      {
+        key: "community",
+        step: "Passo 1",
+        icon: <FaUsers className="h-5 w-5 text-rose-500" aria-hidden="true" />,
+        title: "Entre na comunidade",
+        description: `Converse com ${formatPtBrNumber(communityActiveCount)} criadores ativos nas mentorias e desafios semanais.`,
+      },
+      {
+        key: "instagram",
+        step: "Passo 2",
+        icon: <FaInstagram className="h-5 w-5 text-indigo-400" aria-hidden="true" />,
+        title: "Conecte o Instagram em modo leitura",
+        description: "Gere seu diagnóstico com horários, formatos e tendências personalizadas para o perfil.",
+      },
+      {
+        key: "whatsapp",
+        step: "Passo 3",
+        icon: <FaWhatsapp className="h-5 w-5 text-emerald-500" aria-hidden="true" />,
+        title: "Ative a IA no WhatsApp por 48h",
+        description: "Teste o Mobi grátis para validar conteúdos, legendas e receber alertas inteligentes.",
+      },
+    ],
+    [communityActiveCount]
+  );
+
   const steps = useMemo<StepItem[]>(() => {
     const communityState = communityStepDone ? "completed" : "current";
     const instagramState = instagramConnected ? "completed" : communityStepDone ? "current" : "pending";
@@ -217,18 +244,40 @@ export default function OnboardingPage() {
   }, [telemetry]);
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
-      <header className="text-center space-y-3">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">
-          Jornada guiada Data2Content
-        </p>
-        <h1 className="text-3xl font-semibold text-gray-900">Bem-vindo à Data2Content 👋</h1>
-        <p className="text-lg text-gray-600">
-          Você já pode entrar na comunidade, conectar seu Instagram e sentir o WOW do modo PRO.
-        </p>
-        <p className="text-sm text-gray-500">
-          Passos simples, sempre com foco no que libera mais valor primeiro.
-        </p>
+    <main className="mx-auto max-w-4xl px-4 py-8">
+      <header className="space-y-6">
+        <div className="space-y-3 text-center md:text-left">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-rose-500">
+            Fluxo guiado Data2Content
+          </p>
+          <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">
+            Avance em três etapas, no seu ritmo e com suporte.
+          </h1>
+          <p className="text-base text-slate-600 md:text-lg">
+            Comece pela comunidade, conecte o Instagram quando estiver pronto e termine ativando a IA do WhatsApp para
+            sentir o modo PRO.
+          </p>
+        </div>
+
+        <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+          {heroHighlights.map((item) => (
+            <li
+              key={item.key}
+              className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur"
+            >
+              <span className="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-rose-500">
+                {item.step}
+              </span>
+              <div className="mt-3 flex items-start gap-3">
+                <span className="mt-1">{item.icon}</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <p className="text-sm text-slate-600">{item.description}</p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </header>
 
       <div className="mt-8">
@@ -239,18 +288,18 @@ export default function OnboardingPage() {
         <section className="mt-10 grid gap-6 md:grid-cols-2">
           <article className="flex flex-col justify-between rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-white p-6 shadow-sm">
             <div className="space-y-4">
-              <span className="inline-flex items-center gap-2 text-sm font-semibold text-rose-600">
-                <FaUsers aria-hidden="true" /> Comunidade oficial
+              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-rose-500">
+                <FaUsers aria-hidden="true" /> Passo 1 • Comunidade
               </span>
               <h2 className="text-xl font-semibold text-slate-900">
-                Entre no círculo de criadores que compartilham resultados reais.
+                Comece pela comunidade oficial e avance com apoio real.
               </h2>
               <p className="text-sm text-slate-600">
-                Mentorias semanais, desafios guiados e bastidores das estratégias. O lugar para ganhar confiança e
-                pertencer antes de investir.
+                Mentorias ao vivo, desafios guiados e bastidores das estratégias ajudam você a ganhar confiança antes de
+                conectar qualquer ferramenta.
               </p>
               <p className="text-sm font-medium text-rose-500">
-                {`Mais de ${formatPtBrNumber(communityActiveCount)} criadores ativos esta semana.`}
+                {`Já são ${formatPtBrNumber(communityActiveCount)} criadores participando esta semana.`}
               </p>
             </div>
             <div className="mt-6 space-y-2">
@@ -269,15 +318,15 @@ export default function OnboardingPage() {
 
           <article className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-4">
-              <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <FaInstagram aria-hidden="true" /> Relatório estratégico gratuito
+              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                <FaInstagram aria-hidden="true" /> Passo 2 • Diagnóstico
               </span>
               <h2 className="text-xl font-semibold text-slate-900">
-                Receba seu diagnóstico com horários, formatos e tendências do perfil.
+                Conecte em modo leitura e receba o relatório personalizado.
               </h2>
               <p className="text-sm text-slate-600">
-                Conecte pelo Facebook (somente leitura). Em minutos você tem um relatório com métricas essenciais e
-                habilita o sorteio semanal.
+                Em poucos minutos você desbloqueia horários, formatos e tendências feitas para o seu perfil e habilita o
+                sorteio semanal.
               </p>
             </div>
             <div className="mt-6 space-y-3">
@@ -293,7 +342,7 @@ export default function OnboardingPage() {
                 className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                 type="button"
               >
-                Explorar plataforma primeiro
+                Explorar plataforma antes
               </button>
               <a
                 className="block text-center text-sm font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-800"
@@ -318,14 +367,15 @@ export default function OnboardingPage() {
           <div className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600">
-                  <FaInstagram aria-hidden="true" /> Instagram conectado!
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">
+                  <FaInstagram aria-hidden="true" /> Passo 2 concluído
                 </span>
                 <h2 className="mt-2 text-xl font-semibold text-slate-900">
-                  Seu Relatório estratégico básico já está pronto.
+                  Relatório pronto: explore seus dados personalizados.
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Veja os horários, contextos e formatos que mais entregam para o seu perfil.
+                  Veja horários, contextos e formatos que mais entregam para o seu perfil e escolha o próximo teste com
+                  base em dados reais.
                 </p>
               </div>
               <button
@@ -370,20 +420,21 @@ export default function OnboardingPage() {
           <aside className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-rose-600">
-                  <FaWhatsapp aria-hidden="true" /> Experimente o modo PRO por 48h
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-rose-600">
+                  <FaWhatsapp aria-hidden="true" /> Passo 3 • IA no WhatsApp
                 </span>
                 <p className="mt-2 text-sm text-rose-700">
-                  Ative o Mobi no WhatsApp sem cartão, receba alertas inteligentes e libere o planner IA completo.
+                  Ative o Mobi no WhatsApp sem cartão, receba alertas inteligentes e libere o planner IA completo com
+                  suporte humano caso precise.
                 </p>
-                <p className="mt-1 text-xs text-rose-500">Sem cartão. Cancela quando quiser.</p>
+                <p className="mt-1 text-xs text-rose-500">Faça o teste grátis por 48h e cancelamento a qualquer momento.</p>
               </div>
               <button
                 onClick={handleActivateTrial}
                 type="button"
                 className="inline-flex items-center justify-center rounded-lg bg-brand-red px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
               >
-                Ativar IA no WhatsApp
+                Ativar IA gratuita por 48h
               </button>
             </div>
           </aside>
@@ -398,6 +449,9 @@ export default function OnboardingPage() {
           />
         <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
           <div className="flex flex-col gap-3">
+            <p className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-rose-500">
+              Próximos passos
+            </p>
             <button
               onClick={handleCommunityAccess}
               className="w-full rounded-lg bg-brand-red px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
@@ -417,7 +471,7 @@ export default function OnboardingPage() {
               type="button"
               className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
             >
-              Explorar plataforma
+              Explorar primeiro
             </button>
             <p className="text-center text-xs text-slate-600">{INSTAGRAM_READ_ONLY_COPY}</p>
           </div>

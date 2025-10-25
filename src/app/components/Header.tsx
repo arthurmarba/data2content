@@ -34,20 +34,23 @@ interface SessionUser {
 
 function buildLayoutClasses(variant: HeaderVariant, condensed: boolean) {
   const base = [
-    "px-4",
+    "px-3",
     "sm:px-6",
     "flex",
+    "flex-wrap",
+    "gap-y-1.5",
+    "sm:flex-nowrap",
     "items-center",
     "justify-between",
-    "gap-3",
+    "gap-x-3",
     "w-full",
   ];
   if (variant === "compact" || condensed) {
-    base.push("py-2.5", "sm:py-3");
+    base.push("py-2", "sm:py-2.5");
   } else if (variant === "immersive") {
-    base.push("py-3.5", "sm:py-4");
+    base.push("py-2.5", "sm:py-3.5");
   } else {
-    base.push("py-3", "sm:py-4");
+    base.push("py-2.5", "sm:py-3");
   }
 
   return base.join(" ");
@@ -181,7 +184,7 @@ function HeaderCtaButton({ cta }: { cta: HeaderCta }) {
   if (!cta) return null;
 
   const content = (
-    <span className="inline-flex items-center gap-2 font-semibold text-sm sm:text-base">
+    <span className="inline-flex items-center gap-2 font-semibold text-xs sm:text-sm">
       {cta.icon}
       {cta.label}
     </span>
@@ -191,7 +194,7 @@ function HeaderCtaButton({ cta }: { cta: HeaderCta }) {
     return (
       <Link
         href={cta.href}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 sm:w-auto sm:px-4"
       >
         {content}
       </Link>
@@ -201,7 +204,7 @@ function HeaderCtaButton({ cta }: { cta: HeaderCta }) {
   return (
     <button
       onClick={cta.onClick}
-      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 sm:w-auto sm:px-4"
     >
       {content}
     </button>
@@ -349,7 +352,7 @@ export default function Header() {
       {/* -> CORREÇÃO: A classe pointer-events-auto foi removida deste container principal */}
       <div ref={innerRef} className={innerClasses}>
         {/* -> CORREÇÃO: E aplicada diretamente nos containers filhos que precisam ser clicáveis */}
-        <div className="flex items-center gap-3 min-w-0 pointer-events-auto">
+        <div className="order-1 flex flex-1 items-center gap-2 min-w-0 pointer-events-auto sm:order-1 sm:flex-none">
           {config.showSidebarToggle && (
             <button
               onClick={() => toggleSidebar()}
@@ -364,19 +367,25 @@ export default function Header() {
         </div>
 
         {titleBlock ? (
-          <div className="hidden flex-1 items-center justify-center px-3 sm:flex pointer-events-auto">
+          <div className="order-3 hidden w-full items-center justify-center px-3 pointer-events-auto sm:order-2 sm:flex sm:flex-1">
             {titleBlock}
           </div>
         ) : null}
 
-        <div className="flex shrink-0 items-center gap-2 min-h-[2.5rem] pointer-events-auto">
-          {config.extraContent}
-          {effectiveCta ? <HeaderCtaButton cta={effectiveCta} /> : null}
+        <div className="header-actions order-2 flex w-full flex-wrap items-center justify-end gap-1.5 min-h-[2.5rem] pointer-events-auto sm:order-3 sm:w-auto sm:flex-nowrap sm:gap-2">
+          {config.extraContent ? (
+            <div className="hidden sm:inline-flex sm:items-center">{config.extraContent}</div>
+          ) : null}
+          {effectiveCta ? (
+            <div className="w-full sm:w-auto">
+              <HeaderCtaButton cta={effectiveCta} />
+            </div>
+          ) : null}
           {config.showUserMenu && (
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen((prev) => !prev)}
-                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="h-9 w-9 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:h-10 sm:w-10"
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
                 aria-label="Abrir menu do usuário"

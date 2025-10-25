@@ -10,14 +10,10 @@ import toast from "react-hot-toast";
 import {
   FaBullhorn,
   FaCalendarAlt,
-  FaChalkboardTeacher,
   FaChevronDown,
-  FaCompass,
   FaGem,
   FaLink,
   FaMagic,
-  FaPenFancy,
-  FaRegCalendarCheck,
   FaRocket,
   FaRobot,
   FaShieldAlt,
@@ -27,10 +23,7 @@ import {
 } from "react-icons/fa";
 import { INSTAGRAM_READ_ONLY_COPY } from "@/app/constants/trustCopy";
 
-import MediaKitCard from "./components/cards/MediaKitCard";
-import CommunityMetricsCard from "./components/cards/CommunityMetricsCard";
 import ActionButton from "./components/ActionButton";
-import QuickActionCard from "./components/QuickActionCard";
 import type { CommunityMetricsCardData, HomeSummaryResponse } from "./types";
 import { useHomeTelemetry } from "./useHomeTelemetry";
 import WhatsAppConnectInline from "../WhatsAppConnectInline";
@@ -38,6 +31,7 @@ import { useHeaderSetup } from "../context/HeaderContext";
 
 type Period = CommunityMetricsCardData["period"];
 const DEFAULT_PERIOD: Period = "30d";
+const TRIAL_CTA_LABEL = "⚡ Ativar IA no WhatsApp (48h grátis)";
 
 type HeroAction = {
   key: string;
@@ -57,7 +51,7 @@ interface JourneyStep {
   status: StepStatus;
   actionLabel: string;
   action: () => void;
-  variant: "primary" | "secondary" | "ghost" | "vip";
+  variant: "primary" | "secondary" | "ghost" | "vip" | "whatsapp" | "pro";
   disabled?: boolean;
   metric?: string;
   helper?: string;
@@ -70,21 +64,12 @@ const STEP_STATUS_LABELS: Record<StepStatus, string> = {
   loading: "Carregando...",
 };
 
-const STEP_STATUS_CLASSES: Record<StepStatus, string> = {
-  done: "bg-emerald-100 text-emerald-700",
-  "in-progress": "bg-amber-100 text-amber-700",
-  todo: "bg-slate-100 text-slate-600",
-  loading: "bg-slate-100 text-slate-500",
-};
-
 const STEP_STATUS_ICONS: Record<StepStatus, string> = {
   done: "✅",
   "in-progress": "🟡",
   todo: "⚪",
   loading: "⏳",
 };
-
-const STEP_NUMBER_ICONS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣"];
 
 type MicroInsightCardState = {
   message: string;
@@ -94,25 +79,6 @@ type MicroInsightCardState = {
   variant: "primary" | "secondary";
   footnote?: string;
   teaser?: { label: string; blurred: boolean };
-};
-
-type QuickActionDefinition = {
-  key: string;
-  icon: React.ReactNode;
-  title: string;
-  highlight: React.ReactNode;
-  description: React.ReactNode;
-  footnote?: string;
-  tone: "default" | "muted";
-  primaryAction?: {
-    label: string;
-    onClick: () => void;
-    icon?: React.ReactNode;
-  };
-  secondaryAction?: {
-    label: string;
-    onClick: () => void;
-  };
 };
 
 const PERCENT_HIGHLIGHT_REGEX = /(\+?\d{1,3})%/;
@@ -127,16 +93,9 @@ function extractInsightHighlight(text?: string | null): string | null {
   return null;
 }
 
-function buildTrialCtaLabel(message?: string | null): string {
-  const normalized = message?.toLowerCase() ?? "";
-  if (normalized.includes("reels")) return "Entender meus Reels (48h grátis)";
-  if (normalized.includes("horário") || normalized.includes("horarios")) {
-    return "Ver horários por categoria (48h grátis)";
-  }
-  if (normalized.includes("categoria")) return "Ver categorias do meu perfil (48h grátis)";
-  return "Ver por quê (48h grátis)";
+function buildTrialCtaLabel(): string {
+  return TRIAL_CTA_LABEL;
 }
-
 function formatCountdownLabel(ms: number): string {
   if (ms <= 60_000) return "menos de 1m";
   const totalMinutes = Math.floor(ms / 60_000);
@@ -152,23 +111,13 @@ function formatCountdownLabel(ms: number): string {
 export default function HomeClientPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const {
-    trackCardAction,
-    trackCardPeriodChange,
-    trackHeroAction,
-    trackSurfaceView,
-    trackWhatsappEvent,
-  } = useHomeTelemetry();
+  const { trackCardAction, trackHeroAction, trackSurfaceView, trackWhatsappEvent } =
+    useHomeTelemetry();
 
   const [summary, setSummary] = React.useState<HomeSummaryResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [metricsLoading, setMetricsLoading] = React.useState(false);
   const [initialFetch, setInitialFetch] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [isChecklistOpen, setIsChecklistOpen] = React.useState(false);
   const [showWhatsAppConnect, setShowWhatsAppConnect] = React.useState(false);
-  const checklistId = React.useId();
-
   const appendQueryParam = React.useCallback((url: string, key: string, value: string) => {
     if (!value) return url;
     try {
@@ -219,11 +168,9 @@ export default function HomeClientPage() {
           ...data,
         }));
         setInitialFetch(true);
-        setError(null);
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err.message);
         toast.error(err.message);
       })
       .finally(() => {
@@ -234,38 +181,6 @@ export default function HomeClientPage() {
       cancelled = true;
     };
   }, [status, initialFetch, fetchSummary]);
-
-  const handleChangePeriod = React.useCallback(
-    (period: Period) => {
-      trackCardPeriodChange("community_metrics", period);
-
-      setMetricsLoading(true);
-      fetchSummary(period, "community")
-        .then((data) => {
-          setSummary((prev) => {
-            if (!prev) {
-              return {
-                communityMetrics: data.communityMetrics ?? {
-                  period,
-                  metrics: [],
-                },
-              } as HomeSummaryResponse;
-            }
-            return {
-              ...prev,
-              communityMetrics: data.communityMetrics ?? prev.communityMetrics,
-            };
-          });
-          setError(null);
-        })
-        .catch((err) => {
-          setError(err.message);
-          toast.error(err.message);
-        })
-        .finally(() => setMetricsLoading(false));
-    },
-    [fetchSummary, trackCardPeriodChange]
-  );
 
   const handleNavigate = React.useCallback(
     (href: string | null | undefined) => {
@@ -341,11 +256,6 @@ export default function HomeClientPage() {
     [trackCardAction, summary?.mediaKit?.shareUrl, handleNavigate]
   );
 
-  const handleViewCommunityInsights = React.useCallback(() => {
-    trackCardAction("community_metrics", "view_insights");
-    handleNavigate("/dashboard/discover");
-  }, [trackCardAction, handleNavigate]);
-
   const hasHydratedSummary = initialFetch && Boolean(summary);
   const isInitialLoading = loading && !initialFetch;
   const firstName = React.useMemo(() => {
@@ -375,6 +285,7 @@ export default function HomeClientPage() {
   const planIsPro = summary?.plan?.isPro ?? false;
   const trialExpired =
     !whatsappTrialActive && whatsappTrialStarted && !whatsappTrialEligible && !planIsPro;
+  const iaEngaged = whatsappLinked || whatsappTrialActive || whatsappTrialStarted || planIsPro;
   const hasPremiumAccessPlan = summary?.plan?.hasPremiumAccess ?? false;
   const planTrialActive = summary?.plan?.trial?.active ?? false;
   const planTrialEligible = summary?.plan?.trial?.eligible ?? false;
@@ -469,14 +380,6 @@ export default function HomeClientPage() {
     [handleNavigate, trackCardAction]
   );
 
-  const handleOpenPlannerDemo = React.useCallback(
-    (origin?: string) => {
-      trackCardAction("next_post", "open_demo", origin ? { origin } : undefined);
-      handleNavigate("/dashboard/planner/demo");
-    },
-    [handleNavigate, trackCardAction]
-  );
-
   const handleWelcomeConnect = React.useCallback(() => {
     trackHeroAction("welcome_modal_connect_instagram", { stage: heroStage });
     dismissWelcomeModal();
@@ -533,51 +436,7 @@ export default function HomeClientPage() {
     openWhatsAppChat();
   }, [openWhatsAppChat, trackWhatsappEvent, whatsappLinked]);
 
-  const headerCta = React.useMemo(() => {
-    if (!isInstagramConnected) {
-      return {
-        label: "Conectar Instagram",
-        onClick: handleHeaderConnectInstagram,
-      };
-    }
-
-    if (!planIsPro) {
-      if (planTrialActive) {
-        return {
-          label: "Assinar agora",
-          onClick: handleHeaderSubscribe,
-        };
-      }
-
-      if (planTrialEligible && !planTrialStarted) {
-        return {
-          label: "Liberar IA por 48h",
-          onClick: handleHeaderStartTrial,
-        };
-      }
-
-      return {
-        label: "Assinar plano PRO",
-        onClick: handleHeaderSubscribe,
-      };
-    }
-
-    return {
-      label: whatsappLinked ? "Abrir WhatsApp IA" : "Ativar WhatsApp IA",
-      onClick: whatsappLinked ? handleOpenWhatsApp : handleHeaderStartTrial,
-    };
-  }, [
-    handleHeaderConnectInstagram,
-    handleHeaderStartTrial,
-    handleHeaderSubscribe,
-    handleOpenWhatsApp,
-    isInstagramConnected,
-    planIsPro,
-    planTrialActive,
-    planTrialEligible,
-    planTrialStarted,
-    whatsappLinked,
-  ]);
+  const headerCta = React.useMemo(() => null, []);
 
   const headerPill = React.useMemo(() => {
     if (!isInstagramConnected) {
@@ -654,13 +513,34 @@ export default function HomeClientPage() {
     [headerCta, headerExtraContent]
   );
 
+  const microInsightCard = React.useMemo<MicroInsightCardState | null>(() => {
+    if (!microInsight?.message) return null;
+    const highlight =
+      extractInsightHighlight(microInsight.impactLabel) ??
+      extractInsightHighlight(microInsight.message);
+    const trialLabel = buildTrialCtaLabel();
+
+    return {
+      message: microInsight.message,
+      contextLabel: microInsight.contextLabel ?? null,
+      impactLabel: microInsight.impactLabel ?? null,
+      ctaLabel: isFreePlan ? trialLabel : microInsight.ctaLabel ?? "Ver detalhes",
+      variant: isFreePlan ? "primary" : "secondary",
+      footnote: isFreePlan
+        ? "48h grátis • Sem cartão • Cancele quando quiser."
+        : "Incluído no seu plano atual.",
+      teaser: highlight ? { label: highlight, blurred: isFreePlan } : undefined,
+    };
+  }, [isFreePlan, microInsight]);
+
   const handleMicroInsightAction = React.useCallback(() => {
+    if (!microInsightCard) return;
     const highlight =
       extractInsightHighlight(microInsight?.impactLabel) ??
       extractInsightHighlight(microInsight?.message) ??
       undefined;
     const hasHighlight = Boolean(highlight);
-    const trialLabel = buildTrialCtaLabel(microInsight?.message);
+    const trialLabel = buildTrialCtaLabel();
     const planLabel = isFreePlan ? "free" : planIsPro ? "pro" : "free";
     const ctaLabel = !isInstagramConnected
       ? "Conectar Instagram"
@@ -701,6 +581,7 @@ export default function HomeClientPage() {
     microInsight?.ctaUrl,
     microInsight?.impactLabel,
     microInsight?.message,
+    microInsightCard,
     openSubscribeModal,
     planIsPro,
     trackCardAction,
@@ -713,15 +594,13 @@ export default function HomeClientPage() {
   const whatsappBanner = React.useMemo(() => {
     const previewMessages = [
       "IA: Seu melhor horário ainda é às 19h.",
-      "IA: As categorias Lifestyle, Fitness e Maternidade continuam puxando engajamento.",
       "IA: Já são 4 dias sem publicar. Quer que eu monte 3 ideias e te lembre 30 min antes?",
     ];
     const base = {
       previewMessages,
       heading: "Mobi no WhatsApp",
       subheading: "Seu assistente de carreira com IA.",
-      description:
-        "Eu analiso seus posts, encontro oportunidades e envio alertas com os melhores horários.",
+      description: "Conexão segura em menos de 30s.",
       bullets: [
         { icon: "🧠", text: "Conteúdos diários nas categorias que puxam alcance" },
         { icon: "⏰", text: "Melhor dia e horário com base nos seus dados" },
@@ -770,7 +649,7 @@ export default function HomeClientPage() {
         calloutSubtitle:
           "Eu analiso seus posts, identifico oportunidades e te lembro dos horários certos.",
         primary: {
-          label: "Ativar IA no WhatsApp",
+          label: TRIAL_CTA_LABEL,
           variant: "whatsapp" as const,
           icon: <FaRocket />,
           className: "border-[#F6007B] bg-[#F6007B] hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/30",
@@ -799,13 +678,13 @@ export default function HomeClientPage() {
       };
     }
 
-      return {
-        ...base,
-        calloutTitle: "Ative a IA no WhatsApp.",
-        calloutSubtitle:
-          "Eu analiso seus posts, identifico oportunidades e te lembro dos horários certos.",
-        primary: {
-          label: "Ativar IA no WhatsApp",
+    return {
+      ...base,
+      calloutTitle: "Ative a IA no WhatsApp.",
+      calloutSubtitle:
+        "Eu analiso seus posts, identifico oportunidades e te lembro dos horários certos.",
+      primary: {
+        label: TRIAL_CTA_LABEL,
         variant: "whatsapp" as const,
         icon: <FaRocket />,
         className: "border-[#F6007B] bg-[#F6007B] hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/30",
@@ -829,15 +708,7 @@ export default function HomeClientPage() {
     whatsappTrialStarted,
   ]);
 
-  const communityMetricsItems = summary?.communityMetrics?.metrics ?? [];
-  const communitySpotlightHighlights = communityMetricsItems.slice(0, 2);
   const nextSlotLabel = summary?.nextPost?.slotLabel?.trim() ?? null;
-  const nextPostHooks = React.useMemo(() => {
-    const data = summary?.nextPost;
-    if (!data) return [] as string[];
-    return [data.primaryHook, ...(data.secondaryHooks ?? [])].filter(Boolean) as string[];
-  }, [summary?.nextPost]);
-
   React.useEffect(() => {
     if (!hasHydratedSummary) return;
     trackSurfaceView("home_hero", {
@@ -863,313 +734,117 @@ export default function HomeClientPage() {
     if (whatsappLinked && !previousWhatsappLinked.current) {
       trackWhatsappEvent("success", { origin: "home" });
       setShowWhatsAppConnect(false);
+      toast.success("✅ Conexão com WhatsApp concluída.");
     }
     previousWhatsappLinked.current = whatsappLinked;
   }, [trackWhatsappEvent, whatsappLinked]);
 
   const isCommunityMember = communityVipHasAccess ? communityVipMember : communityFreeMember;
 
-  const steps = React.useMemo<JourneyStep[]>(() => {
-    const plannerStatus: StepStatus = isInitialLoading
-      ? "loading"
-      : isInstagramConnected
-      ? "done"
-      : "todo";
-
-    const consistencyStatus: StepStatus = isInitialLoading
-      ? "loading"
-      : summary?.consistency
-      ? weeklyProgressPercent >= 100
-        ? "done"
-        : weeklyProgressPercent > 0
-        ? "in-progress"
-        : "todo"
-      : "todo";
-
-    const mediaKitStatus: StepStatus = isInitialLoading ? "loading" : hasMediaKit ? "done" : "todo";
-    const mentorshipStatus: StepStatus = isInitialLoading
-      ? "loading"
-      : communityVipHasAccess
-      ? communityVipMember
-        ? "done"
-        : "todo"
-      : communityFreeMember
-      ? "in-progress"
-      : "todo";
+  const progressItems = React.useMemo<JourneyStep[]>(() => {
+    const instagramStatus: StepStatus = isInstagramConnected ? "done" : "todo";
+    const iaActive = whatsappLinked || whatsappTrialActive;
+    const iaStatus: StepStatus = iaActive ? "done" : "todo";
+    const proStatus: StepStatus = planIsPro ? "done" : trialExpired ? "todo" : whatsappTrialActive ? "in-progress" : "todo";
+    const mentorshipStatus: StepStatus =
+      communityVipMember ? "done" : communityVipHasAccess || communityFreeMember ? "in-progress" : "todo";
 
     return [
       {
-        id: "planner",
-        title: "Conecte o Instagram com o Mobi",
-        description: "Assim eu leio seus posts recentes e já libero horários quentes pra você.",
-        icon: <FaRocket />,
-        status: plannerStatus,
-        actionLabel: isInstagramConnected ? "Abrir planner" : "Conectar agora",
-        action: () =>
-          handleNextPostAction(
-            isInstagramConnected ? "generate_script" : "connect_instagram",
-            "journey_step"
-          ),
-        variant: isInstagramConnected ? "ghost" : "secondary",
-        disabled: isInitialLoading,
-        metric: isInstagramConnected && summary?.nextPost?.slotLabel ? `Próximo horário: ${summary.nextPost.slotLabel}` : undefined,
-        helper: isInstagramConnected ? "Horários e ganchos já estão alinhados com seus últimos posts." : "Conexão segura em segundos — eu te guio no passo a passo.",
+        id: "progress-instagram",
+        title: "Instagram conectado",
+        description: isInstagramConnected
+          ? "Relatório gratuito gerado a cada semana."
+          : "Conecte em segundos e libere seu relatório.",
+        icon: <FaLink />,
+        status: instagramStatus,
+        actionLabel: isInstagramConnected ? "Conectado" : "Conectar Instagram",
+        action: handleHeaderConnectInstagram,
+        variant: "secondary",
+        disabled: isInstagramConnected,
       },
       {
-        id: "consistency",
-        title: "Planeje seus horários com a IA",
-        description: "Eu seguro a constância pra você: bloqueio os slots quentes e aviso antes de publicar.",
-        icon: <FaCalendarAlt />,
-        status: consistencyStatus,
-        actionLabel: "Planejar agora",
-        action: () => handleConsistencyAction("plan_week"),
-        variant: consistencyStatus === "done" ? "ghost" : "secondary",
-        disabled: isInitialLoading,
-        metric:
-          hasHydratedSummary && summary?.consistency
-            ? `${postsSoFar}/${weeklyGoal} posts (${Math.max(0, Math.min(weeklyProgressPercent, 999))}%)`
-            : undefined,
-        helper: "Meta ideal: 3 a 5 posts distribuídos ao longo da semana.",
+        id: "progress-ai",
+        title: "IA no WhatsApp",
+        description: iaActive
+          ? "Receba ideias e alertas direto no WhatsApp."
+          : "Ative a IA no WhatsApp por 48h e confirme seus melhores horários.",
+        icon: <FaWhatsapp />,
+        status: iaStatus,
+        actionLabel: iaActive ? "Ver alertas da IA" : "Ativar IA no WhatsApp (48h grátis)",
+        action: iaActive ? handleOpenWhatsApp : handleHeaderStartTrial,
+        variant: "whatsapp",
+        disabled: false,
       },
       {
-        id: "media-kit",
-        title: "Atualize o kit de mídia",
-        description: "Deixe os números vivos — marcas confiam em dados frescos e consistentes.",
-        icon: <FaBullhorn />,
-        status: mediaKitStatus,
-        actionLabel: hasMediaKit ? "Ver kit online" : "Criar kit",
-        action: () => handleMediaKitAction(hasMediaKit ? "open_brand_view" : "create_media_kit"),
-        variant: hasMediaKit ? "ghost" : "secondary",
-        disabled: isInitialLoading,
-        metric: hasMediaKit
-          ? summary?.mediaKit?.lastUpdatedLabel
-            ? `Atualizado ${summary.mediaKit.lastUpdatedLabel}`
-            : "Pronto para compartilhar"
-          : undefined,
-        helper: hasMediaKit
-          ? "Atualize se tiver mais de 30 dias. Eu aviso marcas com link novo."
-          : "Eu preparo seus principais destaques automaticamente.",
+        id: "progress-pro",
+        title: "Plano PRO",
+        description: planIsPro
+          ? "IA ilimitada e relatórios automáticos ativos."
+          : "Continue com IA ilimitada e suporte direto.",
+        icon: <FaGem />,
+        status: proStatus,
+        actionLabel: planIsPro ? "Ver painel PRO" : "Assinar PRO",
+        action: planIsPro ? () => handleNavigate("/dashboard") : handleHeaderSubscribe,
+        variant: "pro",
+        disabled: planIsPro,
       },
       {
-        id: "mentorship",
-        title: "Participe da mentoria comigo",
-        description: "Levo suas dúvidas pra sala ao vivo e te lembro quando estamos começando.",
-        icon: <FaChalkboardTeacher />,
+        id: "progress-community",
+        title: "Mentorias e comunidade",
+        description: communityVipMember
+          ? "Participando das mentorias semanais."
+          : "Entre para trocar resultados com outros criadores.",
+        icon: <FaUsers />,
         status: mentorshipStatus,
-        actionLabel: communityVipHasAccess
-          ? communityVipMember
-            ? "Quero lembrete"
-            : "Entrar no Grupo VIP"
-          : communityFreeMember
-          ? "Abrir comunidade"
-          : "Entrar na comunidade",
+        actionLabel: communityVipMember
+          ? "Mentoria ativa"
+          : communityVipHasAccess
+          ? "Entrar no grupo VIP"
+          : "Abrir comunidade",
         action: () => {
-          if (communityVipHasAccess) {
-            if (communityVipMember) {
-              handleMentorshipAction("whatsapp_reminder");
-            } else {
-              handleJoinVip();
-            }
-          } else {
-            handleJoinFreeCommunity("journey_step");
+          if (communityVipMember) {
+            handleMentorshipAction("whatsapp_reminder");
+            return;
           }
+          if (communityVipHasAccess) {
+            handleJoinVip();
+            return;
+          }
+          handleJoinFreeCommunity("progress");
         },
-        variant: communityVipHasAccess ? (communityVipMember ? "ghost" : "vip") : communityFreeMember ? "ghost" : "secondary",
-        disabled: isInitialLoading,
-        metric: summary?.mentorship?.nextSessionLabel,
-        helper: summary?.mentorship?.topic ?? "Mentorias semanais com especialistas e criadores PRO.",
+        variant: "secondary",
+        disabled: false,
       },
     ];
   }, [
-    hasMediaKit,
-    hasHydratedSummary,
-    handleConsistencyAction,
-    handleJoinFreeCommunity,
-    handleJoinVip,
-    handleMediaKitAction,
-    handleMentorshipAction,
-    handleNextPostAction,
-    isInstagramConnected,
     communityFreeMember,
     communityVipHasAccess,
     communityVipMember,
-    isInitialLoading,
-    postsSoFar,
-    summary,
-    weeklyGoal,
-    weeklyProgressPercent,
-  ]);
-
-  const totalSteps = steps.length;
-  const completedSteps = steps.filter((step) => step.status === "done").length;
-  const checklistProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
-
-  const quickActions = React.useMemo<QuickActionDefinition[]>(() => {
-    const bestSlot = isInstagramConnected ? nextSlotLabel || "Calculando..." : null;
-    const primaryHook = nextPostHooks[0] ?? null;
-    const hasGoal = weeklyGoal > 0;
-    const remainingPosts = Math.max(0, weeklyGoal - postsSoFar);
-    const shareUrl = summary?.mediaKit?.shareUrl ?? "";
-    const lastUpdatedLabel = summary?.mediaKit?.lastUpdatedLabel ?? null;
-    const shareUrlDisplay = shareUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
-
-    const communityStatLabel = communitySpotlightHighlights.length
-      ? communitySpotlightHighlights
-          .map((item) => `${item.label}: ${item.value}`)
-          .join(" · ")
-      : "Entre para acompanhar os desafios da semana.";
-
-    const plannerAction: QuickActionDefinition = {
-      key: "next_post",
-      icon: <FaPenFancy />,
-      title: "Próximo Post",
-      highlight: isInstagramConnected
-        ? (
-            <>
-              Melhor horário: <span className="font-mono">{bestSlot}</span>
-            </>
-          )
-        : "Conecte para destravar horários",
-      description: isInstagramConnected
-        ? primaryHook
-          ? `Gatilho do dia: ${primaryHook}`
-          : "Peça um roteiro e eu gero agora mesmo."
-        : "Integre o Instagram e eu monitoro seus horários fortes.",
-      footnote: isInstagramConnected
-        ? "Posso gerar o roteiro agora mesmo."
-        : "Conexão segura em 30 segundos.",
-      primaryAction: {
-        label: isInstagramConnected ? "Abrir planner" : "Conectar Instagram",
-        onClick: () =>
-          handleNextPostAction(
-            isInstagramConnected ? "generate_script" : "connect_instagram",
-            "quick_actions"
-          ),
-        icon: isInstagramConnected ? <FaMagic /> : <FaLink />,
-      },
-      tone: "default" as const,
-      secondaryAction: !isInstagramConnected
-        ? {
-            label: "Ver planner demo",
-            onClick: () => handleOpenPlannerDemo("quick_actions"),
-          }
-        : undefined,
-    };
-
-    const actions: QuickActionDefinition[] = [
-      plannerAction,
-      {
-        key: "consistency",
-        icon: <FaRegCalendarCheck />,
-        title: "Ritmo da Semana",
-        highlight: hasGoal
-          ? (
-              <>
-                Posts na semana: <span className="font-mono">{`${postsSoFar}/${weeklyGoal}`}</span>
-              </>
-            )
-          : "Defina a meta semanal",
-        description: hasGoal
-          ? remainingPosts > 0
-            ? `Faltam ${remainingPosts} ${remainingPosts === 1 ? "post" : "posts"} para bater a meta.`
-            : "Meta da semana batida!"
-          : "Escolha quantos posts quer fazer nesta semana.",
-        footnote: "Ritmo ideal: 3 a 5 posts por semana.",
-        primaryAction: {
-          label: "Planejar horários",
-          onClick: () => handleConsistencyAction("plan_week"),
-          icon: <FaCalendarAlt />,
-        },
-        tone: "muted" as const,
-      },
-      {
-        key: "media_kit",
-        icon: <FaBullhorn />,
-        title: "Kit de Mídia",
-        highlight: shareUrl ? (
-          <span className="font-mono text-sm">{shareUrlDisplay}</span>
-        ) : (
-          "Crie seu link em minutos"
-        ),
-        description: hasMediaKit
-          ? `Última atualização: ${lastUpdatedLabel ?? "atualize agora"}`
-          : "Transforme seus dados vivos em prova social.",
-        footnote: hasMediaKit
-          ? "Atualize com dados frescos antes de enviar para marcas."
-          : "Eu preparo os destaques automaticamente pra você.",
-        primaryAction: {
-          label: hasMediaKit ? "Abrir kit" : "Criar kit",
-          onClick: () =>
-            handleMediaKitAction(hasMediaKit ? "open_brand_view" : "create_media_kit"),
-          icon: <FaBullhorn />,
-        },
-        tone: "default" as const,
-      },
-      {
-        key: "community",
-        icon: <FaUsers />,
-        title: "Comunidade D2C",
-        highlight: communityStatLabel,
-        description: communityFreeMember
-          ? "Você já está dentro. Vamos aos desafios da semana?"
-          : "Entre pra trocar bastidores, ideias e resultados com outros criadores.",
-        footnote: communityVipHasAccess
-          ? "Mentorias VIP com lembrete direto no WhatsApp."
-          : "Acesso gratuito e leve, sem cartão.",
-        primaryAction: {
-          label: communityFreeMember ? "Abrir comunidade" : "Entrar na comunidade",
-          onClick: () => handleJoinFreeCommunity("quick_actions"),
-          icon: <FaUsers />,
-        },
-        tone: "muted" as const,
-      },
-    ];
-
-    if (!isInstagramConnected) {
-      actions.splice(1, 0, {
-        key: "discover",
-        icon: <FaCompass />,
-        title: "Explore ideias agora",
-        highlight: "Feed curado diário",
-        description: "Veja posts vencedores da comunidade mesmo sem conectar o Instagram.",
-        footnote: "Personalize a curadoria ao conectar seu perfil.",
-        primaryAction: {
-          label: "Abrir Discover",
-          onClick: () => handleOpenDiscover("quick_actions"),
-          icon: <FaCompass />,
-        },
-        secondaryAction: {
-          label: "Ver planner demo",
-          onClick: () => handleOpenPlannerDemo("quick_actions"),
-        },
-        tone: "muted" as const,
-      });
-    }
-
-    return actions;
-  }, [
-    communityFreeMember,
-    communitySpotlightHighlights,
-    communityVipHasAccess,
-    handleConsistencyAction,
+    handleHeaderConnectInstagram,
+    handleHeaderStartTrial,
+    handleHeaderSubscribe,
     handleJoinFreeCommunity,
-    handleMediaKitAction,
-    handleNextPostAction,
-    handleOpenDiscover,
-    handleOpenPlannerDemo,
-    hasMediaKit,
+    handleJoinVip,
+    handleMentorshipAction,
+    handleOpenWhatsApp,
     isInstagramConnected,
-    nextPostHooks,
-    nextSlotLabel,
-    postsSoFar,
-    summary?.mediaKit?.lastUpdatedLabel,
-    summary?.mediaKit?.shareUrl,
-    weeklyGoal,
+    planIsPro,
+    trialExpired,
+    whatsappLinked,
+    whatsappTrialActive,
   ]);
 
 
-  const headerStats = React.useMemo(
-    () => [
+  const showTrialMessageCard =
+    !planIsPro &&
+    (whatsappTrialActive || (!trialExpired && whatsappTrialStarted && whatsappTrialEligible));
+  const showProUpsellCard = !planIsPro && trialExpired;
+
+
+  const headerStats = React.useMemo(() => {
+    if (!iaEngaged) return [];
+    return [
       {
         key: "posts",
         label: "Posts planejados",
@@ -1179,9 +854,7 @@ export default function HomeClientPage() {
       {
         key: "best_slot",
         label: "Melhor horário hoje",
-        value: isInstagramConnected
-          ? nextSlotLabel || "Calculando..."
-          : "Conecte o Instagram",
+        value: isInstagramConnected ? nextSlotLabel || "Calculando..." : "Conecte o Instagram",
         helper: isInstagramConnected
           ? "Atualizado pelos seus últimos posts"
           : "Integre para destravar horários",
@@ -1194,10 +867,207 @@ export default function HomeClientPage() {
           ? "Peça uma ideia a qualquer momento"
           : "Conecte para receber lembretes",
       },
-    ],
-    [isInstagramConnected, nextSlotLabel, postsSoFar, weeklyGoal, whatsappLinked]
-  );
+    ];
+  }, [iaEngaged, isInstagramConnected, nextSlotLabel, postsSoFar, weeklyGoal, whatsappLinked]);
 
+  const heroMessaging = React.useMemo(() => {
+    if (!isInstagramConnected) {
+      return {
+        subtitle:
+          "Conecte seu Instagram e receba um relatório gratuito com horários e tendências personalizadas.",
+        helper: "Leitura somente leitura • Sorteio de análise ativado automaticamente.",
+        ctaLabel: "🔗 Conectar Instagram",
+        onClick: handleHeaderConnectInstagram,
+      };
+    }
+
+    if (!whatsappLinked && !whatsappTrialActive && !whatsappTrialStarted && whatsappTrialEligible) {
+      return {
+        subtitle: "Sua IA está quase pronta — ative no WhatsApp (48h grátis).",
+        helper: "Conexão segura, leva menos de 30s.",
+        ctaLabel: TRIAL_CTA_LABEL,
+        onClick: handleHeaderStartTrial,
+      };
+    }
+
+    if (!planIsPro) {
+      return {
+        subtitle: "Ative o modo PRO para manter a IA ligada sem limites.",
+        helper: null,
+        ctaLabel: "🚀 Assinar plano PRO",
+        onClick: handleHeaderSubscribe,
+      };
+    }
+
+    if (!communityFreeMember && !communityVipMember) {
+      return {
+        subtitle:
+          "Entre na comunidade para participar das mentorias semanais e trocar com outros criadores.",
+        helper: "Acesso imediato • Mentorias e desafios guiados.",
+        ctaLabel: "🌎 Entrar na comunidade",
+        onClick: () => handleJoinFreeCommunity("hero"),
+      };
+    }
+
+    if (planIsPro && !whatsappLinked) {
+      return {
+        subtitle: "Conecte o WhatsApp para seguir recebendo alertas inteligentes.",
+        helper: "Conexão segura em segundos.",
+        ctaLabel: "🤖 Conectar WhatsApp IA",
+        onClick: handleHeaderStartTrial,
+      };
+    }
+
+    if (planIsPro) {
+      return {
+        subtitle: "Continue acompanhando seus alertas e relatórios no painel PRO.",
+        helper: null,
+        ctaLabel: "📊 Abrir painel PRO",
+        onClick: () => handleNavigate("/dashboard"),
+      };
+    }
+    return {
+      subtitle: whatsappLinked
+        ? "Peça novas ideias no WhatsApp sempre que precisar."
+        : "Entre na comunidade para acompanhar os próximos desafios.",
+      helper: null,
+      ctaLabel: whatsappLinked ? "📱 Abrir WhatsApp IA" : "🌎 Ver comunidade",
+      onClick: whatsappLinked ? handleOpenWhatsApp : () => handleJoinFreeCommunity("hero"),
+    };
+  }, [
+    communityFreeMember,
+    communityVipMember,
+    handleHeaderConnectInstagram,
+    handleNavigate,
+    handleHeaderStartTrial,
+    handleHeaderSubscribe,
+    handleJoinFreeCommunity,
+    handleOpenWhatsApp,
+    isInstagramConnected,
+    planIsPro,
+    whatsappLinked,
+    whatsappTrialActive,
+    whatsappTrialEligible,
+    whatsappTrialStarted,
+  ]);
+
+  const heroFeedbackMessage = React.useMemo(() => {
+    if (!isInstagramConnected) return null;
+    if (whatsappLinked || whatsappTrialActive) {
+      return "🤖 IA no WhatsApp ativa — confira seus alertas e peça novas ideias quando quiser.";
+    }
+    return "✅ Instagram conectado! Mobi já está analisando seus últimos posts.";
+  }, [isInstagramConnected, whatsappLinked, whatsappTrialActive]);
+
+  const journeyStageInfo = React.useMemo(() => {
+    const total = progressItems.length;
+    if (!total) {
+      return { step: 1, total: 1, label: "Primeiros passos" };
+    }
+    const firstPendingIndex = progressItems.findIndex((item) => item.status !== "done");
+    if (firstPendingIndex === -1) {
+      return { step: total, total, label: "Experiência completa" };
+    }
+    return {
+      step: firstPendingIndex + 1,
+      total,
+      label: progressItems[firstPendingIndex]?.title ?? "Próximo passo",
+    };
+  }, [progressItems]);
+  const progressTotalCount = progressItems.length;
+  const progressCompletedCount = progressItems.filter((item) => item.status === "done").length;
+  const stageProgressPercent = progressTotalCount
+    ? Math.round((progressCompletedCount / progressTotalCount) * 100)
+    : 0;
+  const toolCards = React.useMemo(
+    () => {
+      const plannerMetric = !isInstagramConnected
+        ? "Conexão somente leitura em segundos."
+        : nextSlotLabel
+        ? `Próximo horário sugerido: ${nextSlotLabel}`
+        : weeklyGoal > 0
+        ? `Progresso da semana: ${Math.min(postsSoFar, weeklyGoal)}/${weeklyGoal} posts`
+        : "Defina uma meta semanal e eu gero os horários ideais.";
+      const plannerActionLabel = isInstagramConnected ? "Gerar horários com IA" : "Conectar Instagram";
+
+      const mediaKitLastUpdate = summary?.mediaKit?.lastUpdatedLabel
+        ? `Atualizado ${summary.mediaKit.lastUpdatedLabel}`
+        : "Atualize com dados recentes antes de enviar.";
+
+      const communityStatus = communityVipMember
+        ? "Mentorias VIP ativas."
+        : communityVipHasAccess
+        ? "Grupo VIP liberado para você."
+        : communityFreeMember
+        ? "Você já está na comunidade."
+        : "Acesso gratuito e leve.";
+
+      return [
+        {
+          key: "planner",
+          icon: <FaCalendarAlt aria-hidden="true" />,
+          title: "Planejar com IA",
+          description: isInstagramConnected
+            ? "Gere horários personalizados e receba roteiros prontos."
+            : "Conecte o Instagram e destrave horários com IA.",
+          status: plannerMetric,
+          actionLabel: plannerActionLabel,
+          onAction: () => {
+            if (!isInstagramConnected) {
+              handleNextPostAction("connect_instagram", "tool_card");
+              return;
+            }
+            handleConsistencyAction("plan_week");
+          },
+        },
+        {
+          key: "media_kit",
+          icon: <FaBullhorn aria-hidden="true" />,
+          title: "Kit de mídia",
+          description: hasMediaKit
+            ? "Mantenha seus números atualizados antes de enviar para marcas."
+            : "Gere um link com prova social automática em minutos.",
+          status: hasMediaKit ? mediaKitLastUpdate : "Pronto para criar seu primeiro kit.",
+          actionLabel: hasMediaKit ? "Abrir kit" : "Criar kit",
+          onAction: () =>
+            handleMediaKitAction(hasMediaKit ? "open_brand_view" : "create_media_kit"),
+        },
+        {
+          key: "community",
+          icon: <FaUsers aria-hidden="true" />,
+          title: "Comunidade",
+          description: communityFreeMember
+            ? "Participe dos desafios e mentorias semanais."
+            : "Entre para trocar bastidores com criadores Data2Content.",
+          status: communityStatus,
+          actionLabel: communityVipHasAccess && !communityVipMember ? "Entrar no grupo VIP" : communityFreeMember ? "Abrir comunidade" : "Entrar na comunidade",
+          onAction: () => {
+            if (communityVipHasAccess && !communityVipMember) {
+              handleJoinVip();
+              return;
+            }
+            handleJoinFreeCommunity("tool_card");
+          },
+        },
+      ];
+    },
+    [
+      communityFreeMember,
+      communityVipHasAccess,
+      communityVipMember,
+      handleConsistencyAction,
+      handleJoinFreeCommunity,
+      handleJoinVip,
+      handleMediaKitAction,
+      handleNextPostAction,
+      hasMediaKit,
+      isInstagramConnected,
+      nextSlotLabel,
+      postsSoFar,
+      summary?.mediaKit?.lastUpdatedLabel,
+      weeklyGoal,
+    ]
+  );
   const connectCardViewTracked = React.useRef(false);
   React.useEffect(() => {
     if (!isInstagramConnected && !connectCardViewTracked.current) {
@@ -1206,54 +1076,9 @@ export default function HomeClientPage() {
     }
   }, [isInstagramConnected, trackSurfaceView]);
 
-  const microInsightCard = React.useMemo<MicroInsightCardState>(() => {
-    if (!isInstagramConnected) {
-      return {
-        message:
-          "Conecte seu Instagram para liberar o Relatório semanal (grátis) e entrar no sorteio de análise desta sexta.",
-        contextLabel: null,
-        impactLabel: null,
-        ctaLabel: "Conectar Instagram",
-        variant: "primary",
-        footnote: INSTAGRAM_READ_ONLY_COPY,
-      };
-    }
-
-    if (microInsight?.message) {
-      const highlight =
-        extractInsightHighlight(microInsight.impactLabel) ??
-        extractInsightHighlight(microInsight.message);
-      const trialLabel = buildTrialCtaLabel(microInsight.message);
-
-      return {
-        message: microInsight.message,
-        contextLabel: microInsight.contextLabel ?? null,
-        impactLabel: microInsight.impactLabel ?? null,
-        ctaLabel: isFreePlan ? trialLabel : microInsight.ctaLabel ?? "Ver detalhes",
-        variant: isFreePlan ? "primary" : "secondary",
-        footnote: isFreePlan
-          ? "48h grátis • Sem cartão • Cancele quando quiser."
-          : "Incluído no seu plano atual.",
-        teaser: highlight ? { label: highlight, blurred: isFreePlan } : undefined,
-      };
-    }
-
-    return {
-      message:
-        "Estamos analisando seus dados recentes para gerar o micro-insight da semana. Volte em breve.",
-      contextLabel: null,
-      impactLabel: null,
-      ctaLabel: isFreePlan ? "Liberar IA por 48h" : undefined,
-      variant: isFreePlan ? "primary" : "secondary",
-      footnote: isFreePlan
-        ? "48h grátis • Sem cartão • Cancele quando quiser."
-        : "Atualizamos assim que os novos dados chegarem.",
-    };
-  }, [isFreePlan, isInstagramConnected, microInsight]);
-
   const microInsightViewTracked = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!microInsightCard.teaser) return;
+    if (!microInsightCard?.teaser) return;
     const keyBase =
       microInsight?.id ??
       microInsight?.message ??
@@ -1271,12 +1096,12 @@ export default function HomeClientPage() {
     });
     microInsightViewTracked.current = signature;
   }, [
+    microInsightCard,
     isFreePlan,
     isInstagramConnected,
     microInsight?.id,
     microInsight?.impactLabel,
     microInsight?.message,
-    microInsightCard.teaser,
     trackSurfaceView,
   ]);
 
@@ -1398,421 +1223,374 @@ export default function HomeClientPage() {
       {welcomeModal}
       <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
       {connectBanner}
-      <section className="rounded-3xl border border-[#E1DAFF] bg-[#F4F1FF] px-6 py-8 shadow-[0_24px_60px_rgba(92,61,196,0.18)]">
-        <div className="flex flex-col gap-8">
-          <div className="max-w-3xl">
-            <div className="space-y-5 rounded-3xl bg-gradient-to-br from-[#F9F7FF] to-white px-6 py-6 shadow-[0_2px_12px_rgba(15,23,42,0.06)]">
-              <div className="space-y-1">
-                <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-                  <span aria-hidden="true">👋</span> Oi,{" "}
-                  <span className="text-[#F6007B]">{firstName}</span>!
-                </h1>
-                <p className="flex items-center gap-2 text-sm text-slate-600 sm:text-base">
-                  <span>Mobi está acompanhando sua semana.</span>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
-                    <FaRobot className="h-3.5 w-3.5" aria-hidden="true" />
-                  </span>
+      <section className="rounded-3xl border border-slate-200 bg-white/95 px-6 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl space-y-4 text-center lg:text-left">
+            <div className="space-y-2">
+              <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500 lg:justify-start">
+                {`Etapa ${journeyStageInfo.step} de ${journeyStageInfo.total} · ${journeyStageInfo.label}`}
+              </span>
+              <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+                <span aria-hidden="true">👋</span> Oi,{" "}
+                <span className="text-[#F6007B]">{firstName}</span>!{" "}
+                <span className="text-slate-900">Sua carreira de criador com IA começa aqui.</span>
+              </h1>
+              <p className="text-base text-slate-600 sm:text-lg">{heroMessaging.subtitle}</p>
+              {heroFeedbackMessage ? (
+                <p className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 lg:justify-start">
+                  {heroFeedbackMessage}
                 </p>
-                {isInstagramConnected ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                      <FaBullhorn className="h-3 w-3" aria-hidden />
+              ) : null}
+            </div>
+            <div className="flex flex-col items-stretch justify-start gap-2 sm:inline-flex sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={heroMessaging.onClick}
+                className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2 sm:w-auto"
+              >
+                {heroMessaging.ctaLabel}
+              </button>
+              {heroMessaging.helper ? (
+                <span className="text-xs text-slate-500 sm:text-left">{heroMessaging.helper}</span>
+              ) : null}
+            </div>
+          </div>
+          {headerStats.length ? (
+            <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-lg">
+              {headerStats.map((stat) => (
+                <div
+                  key={stat.key}
+                  className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-4 text-left shadow-sm"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    {stat.label}
+                  </p>
+                  <p className="text-lg font-semibold text-slate-900">{stat.value}</p>
+                  {stat.helper ? (
+                    <p className="text-xs text-slate-500">{stat.helper}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+
+
+      <section className="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+              Etapa {journeyStageInfo.step} de {journeyStageInfo.total}
+            </p>
+            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+              Seu progresso na Data2Content
+            </h2>
+          </div>
+          <p className="text-sm font-semibold text-slate-500">{journeyStageInfo.label}</p>
+        </div>
+        <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full bg-[#F6007B] transition-[width]"
+            style={{ width: `${stageProgressPercent}%` }}
+          />
+        </div>
+        <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
+          <span>
+            {progressCompletedCount}/{progressTotalCount} etapas concluídas
+          </span>
+          <span>{stageProgressPercent}% da jornada</span>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {progressItems.map((item) => {
+            const statusEmoji = STEP_STATUS_ICONS[item.status];
+            const statusLabel = STEP_STATUS_LABELS[item.status];
+            const disabled = item.disabled || item.status === "loading";
+            return (
+              <button
+                key={`${item.id}-summary`}
+                type="button"
+                onClick={() => {
+                  if (disabled) return;
+                  item.action();
+                }}
+                disabled={disabled}
+                className={`flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2 ${
+                  disabled ? "cursor-not-allowed opacity-60" : "hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)]"
+                }`}
+              >
+                <span className="text-xl" aria-hidden="true">
+                  {statusEmoji}
+                </span>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    {statusLabel}
+                  </p>
+                  <p className="text-xs text-slate-500">{item.description}</p>
+                  <span
+                    className={`mt-1 inline-flex items-center gap-1 text-[11px] font-semibold ${
+                      disabled ? "text-slate-400" : "text-[#F6007B]"
+                    }`}
+                  >
+                    {item.actionLabel}
+                    {!disabled ? (
+                      <FaChevronDown className="-rotate-90" aria-hidden="true" />
+                    ) : null}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+
+      <section className="mt-6 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6 shadow-sm">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">IA no WhatsApp</h2>
+              <p className="text-sm text-slate-600">
+                {whatsappBanner.subheading} {whatsappBanner.description}
+              </p>
+            </div>
+            <ul className="space-y-2 text-sm text-slate-700">
+              {whatsappBanner.bullets.map((item) => (
+                <li key={item.text} className="flex items-start gap-2">
+                  <span aria-hidden="true">{item.icon}</span>
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="space-y-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm text-slate-600 shadow-sm">
+              <p className="flex items-center gap-2">
+                <span aria-hidden="true">💬</span>
+                Mobi envia alertas quando surge um pico de engajamento no seu perfil.
+              </p>
+              <p className="flex items-center gap-2">
+                <span aria-hidden="true">🕓</span>
+                Conexão segura em menos de 30 segundos.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
+              <p className="text-xs text-slate-600">{whatsappBanner.calloutSubtitle}</p>
+              <ActionButton
+                label={whatsappBanner.primary.label}
+                icon={whatsappBanner.primary.icon}
+                variant={whatsappBanner.primary.variant}
+                onClick={() => {
+                  trackHeroAction(whatsappBanner.primary.trackingKey, {
+                    stage: heroStage,
+                    whatsapp_linked: whatsappLinked,
+                    plan_is_pro: planIsPro,
+                    community_free_member: communityFreeMember,
+                    community_vip_member: communityVipMember,
+                  });
+                  whatsappBanner.primary.onClick();
+                }}
+                disabled={isInitialLoading}
+                className={[
+                  "w-full justify-center rounded-full px-6 py-3 text-sm font-semibold sm:w-auto",
+                  whatsappBanner.primary.className ?? null,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              />
+              {whatsappBanner.footnote ? (
+                <p className="text-xs text-slate-500">{whatsappBanner.footnote}</p>
+              ) : null}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_20px_55px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6007B]/10 text-[#F6007B]">
+                  <FaRobot className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Prévia do chat com a IA</p>
+                  <p className="text-xs text-slate-500">Veja como os alertas chegam pra você</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {whatsappBanner.previewMessages.slice(0, 3).map((message, index) => (
+                  <div key={message} className="flex items-start gap-2">
+                    <span aria-hidden="true" className="mt-1 text-[#F6007B]">
+                      🤖
                     </span>
-                    Você está participando do sorteio semanal de análise.
+                    <div
+                      className={`max-w-[240px] rounded-2xl px-4 py-2 text-[13px] leading-relaxed shadow-sm ${
+                        index % 2 === 0 ? "bg-white text-slate-700" : "bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      {message}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-start gap-2 text-slate-400">
+                  <span aria-hidden="true" className="mt-1 text-[#F6007B]">
+                    🤖
+                  </span>
+                  <div className="flex items-center gap-1 rounded-2xl bg-slate-50 px-4 py-2 text-[13px]">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:120ms]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:240ms]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <section className="mt-6 space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ferramentas do criador</h2>
+          <p className="text-sm text-slate-500">
+            Aja quando quiser: planner, kit de mídia e comunidade em um só lugar.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {toolCards.map((card) => (
+            <div
+              key={card.key}
+              className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B]">
+                  {card.icon}
+                </span>
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+                  <p className="text-sm text-slate-600">{card.description}</p>
+                </div>
+              </div>
+              <p className="text-xs font-semibold text-slate-500">{card.status}</p>
+              <button
+                type="button"
+                onClick={card.onAction}
+                className="inline-flex items-center justify-center rounded-full bg-[#F6007B] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+              >
+                {card.actionLabel}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+      {microInsightCard ? (
+        <section className="mt-8">
+          <div className="rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
+              <FaMagic className="h-3.5 w-3.5 text-[#F6007B]" aria-hidden />
+              Micro-insight da semana
+            </div>
+            <div className="mt-3 space-y-2">
+              <p className="text-base leading-relaxed text-slate-900">{microInsightCard.message}</p>
+              {microInsightCard.impactLabel ? (
+                <p className="text-sm font-semibold text-emerald-600">{microInsightCard.impactLabel}</p>
+              ) : null}
+              {microInsightCard.contextLabel ? (
+                <p className="text-xs text-slate-500">{microInsightCard.contextLabel}</p>
+              ) : null}
+              {microInsightCard.teaser ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                    Peek de valor
+                  </span>
+                  <span
+                    className={`rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm ${
+                      microInsightCard.teaser.blurred ? "filter blur-[2px]" : ""
+                    }`}
+                  >
+                    {microInsightCard.teaser.label}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+            {microInsightCard.ctaLabel || microInsightCard.footnote ? (
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                {microInsightCard.ctaLabel ? (
+                  <button
+                    type="button"
+                    onClick={handleMicroInsightAction}
+                    className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                      microInsightCard.variant === "primary"
+                        ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/40"
+                        : "border border-slate-300 text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300"
+                    }`}
+                  >
+                    {microInsightCard.ctaLabel}
+                  </button>
+                ) : null}
+                {microInsightCard.footnote ? (
+                  <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                    <FaShieldAlt className="h-3 w-3" aria-hidden />
+                    {microInsightCard.footnote}
                   </span>
                 ) : null}
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {headerStats.map((stat) => (
-                  <div
-                    key={stat.key}
-                    className="rounded-2xl border border-white/60 bg-white/90 px-4 py-3 shadow-sm"
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      {stat.label}
-                    </p>
-                    <p className="text-lg font-semibold text-slate-900">{stat.value}</p>
-                    {stat.helper ? (
-                      <p className="text-xs text-slate-500">{stat.helper}</p>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-              {!isInstagramConnected ? (
-                <div className="rounded-2xl border border-blue-100 bg-white/95 px-5 py-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-blue-500">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-blue-500">
-                      <FaLink className="h-3 w-3" aria-hidden />
-                    </span>
-                    Conecte para liberar
-                  </div>
-                  <p className="mt-2 text-base leading-relaxed text-slate-900">
-                    Conecte seu Instagram para receber seu Relatório gratuito e participar do sorteio de análise desta semana.
-                  </p>
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={() => handleNextPostAction("connect_instagram", "empty_state_card")}
-                      className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:w-auto"
-                    >
-                      Conectar Instagram
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleJoinFreeCommunity("empty_state_card")}
-                      className="inline-flex w-full items-center justify-center rounded-lg border border-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
-                    >
-                      Explorar comunidade primeiro
-                    </button>
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500">{INSTAGRAM_READ_ONLY_COPY}</p>
-                </div>
-              ) : null}
-            </div>
+            ) : null}
           </div>
+        </section>
+      ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,620px)_1fr] lg:items-start">
-            <div className="space-y-6">
-              <div className="w-full space-y-6 rounded-2xl border border-slate-100 bg-gradient-to-br from-[#FFF7FB] to-[#F9F9FF] px-8 py-6 text-left shadow-sm backdrop-blur-sm lg:px-10">
-                <div className="flex items-center gap-3">
-                  <span aria-hidden="true" className="text-2xl">
-                    🤖
-                  </span>
-                  <h2 className="text-xl font-semibold text-slate-900">{whatsappBanner.heading}</h2>
-                </div>
-
-                <p className="text-slate-600 leading-relaxed">
-                  {whatsappBanner.subheading} {whatsappBanner.description}
-                </p>
-
-                <ul className="space-y-1 text-sm text-slate-700">
-                  {whatsappBanner.bullets.map((item) => (
-                    <li key={item.text} className="flex items-start gap-2">
-                      <span aria-hidden="true" className="text-base leading-none">
-                        {item.icon}
-                      </span>
-                      <span>{item.text}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="space-y-4 pt-2">
-                  <div className="space-y-1.5">
-                    <h3 className="text-lg font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
-                    <p className="text-sm leading-relaxed text-slate-600">{whatsappBanner.calloutSubtitle}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <ActionButton
-                      label={whatsappBanner.primary.label}
-                      icon={whatsappBanner.primary.icon}
-                      variant={whatsappBanner.primary.variant}
-                      onClick={() => {
-                        trackHeroAction(whatsappBanner.primary.trackingKey, {
-                          stage: heroStage,
-                          whatsapp_linked: whatsappLinked,
-                          plan_is_pro: planIsPro,
-                          community_free_member: communityFreeMember,
-                          community_vip_member: communityVipMember,
-                        });
-                        whatsappBanner.primary.onClick();
-                      }}
-                      disabled={isInitialLoading}
-                      className={[
-                        "w-full px-6 py-3 text-base font-medium sm:w-auto",
-                        whatsappBanner.primary.className ?? null,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    />
-                    {whatsappBanner.footnote ? (
-                      <p className="text-xs text-slate-500">{whatsappBanner.footnote}</p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:mt-2">
-              <div className="rounded-3xl border border-white/70 bg-white/95 p-5 shadow-[0_20px_55px_rgba(15,23,42,0.15)] backdrop-blur-sm">
-                <div className="flex flex-col gap-5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
-                      <FaRobot className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">Mobi · IA da D2C</p>
-                      <p className="text-xs text-slate-500">Prévia do chat no WhatsApp</p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {whatsappBanner.previewMessages.map((message, index) => (
-                      <div key={message} className="flex items-start gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
-                          <FaRobot className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <div
-                          className={`max-w-[240px] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
-                            index % 2 === 0 ? "bg-white text-slate-700" : "bg-[#F7F7F7] text-slate-700"
-                          }`}
-                        >
-                          {message}
-                        </div>
-                      </div>
-                    ))}
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
-                        <FaRobot className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <div className="flex items-center gap-1 rounded-2xl bg-[#F7F7F7] px-4 py-2 text-[13px] text-slate-500">
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-brand-purple" />
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-brand-purple [animation-delay:150ms]" />
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-brand-purple [animation-delay:300ms]" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-brand-purple" />
-                    <span>IA conectada aos seus posts recentes.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <FaMagic className="h-3.5 w-3.5 text-[#F6007B]" aria-hidden />
-              Micro-insight semanal
-            </div>
-            <p className="text-base leading-relaxed text-slate-900">
-              {microInsightCard.message}
-            </p>
-            {microInsightCard.impactLabel ? (
-              <p className="text-sm font-semibold text-emerald-600">
-                {microInsightCard.impactLabel}
+      {showTrialMessageCard ? (
+        <section className="mt-10 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                Teste gratuito da IA em andamento
+              </h2>
+              <p className="text-sm text-slate-600">
+                Aproveite os próximos {planTrialCountdownLabel ?? "dois dias"} para planejar a semana, pedir ideias e
+                confirmar horários com a IA.
               </p>
-            ) : null}
-            {microInsightCard.contextLabel ? (
-              <p className="text-xs text-slate-500">{microInsightCard.contextLabel}</p>
-            ) : null}
-            {microInsightCard.teaser ? (
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                  Peek de valor
-                </span>
-                <span
-                  className={`rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm ${
-                    microInsightCard.teaser.blurred ? "filter blur-[2px]" : ""
-                  }`}
-                >
-                  {microInsightCard.teaser.label}
-                </span>
-              </div>
-            ) : null}
-          </div>
-          {microInsightCard.ctaLabel || microInsightCard.footnote ? (
-            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
-              {microInsightCard.ctaLabel ? (
-                <button
-                  type="button"
-                  onClick={handleMicroInsightAction}
-                  className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                    microInsightCard.variant === "primary"
-                      ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/40"
-                      : "border border-slate-300 text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300"
-                  }`}
-                >
-                  {microInsightCard.ctaLabel}
-                </button>
-              ) : null}
-              {microInsightCard.footnote ? (
-                <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                  <FaShieldAlt className="h-3 w-3" aria-hidden />
-                  {microInsightCard.footnote}
-                </span>
-              ) : null}
             </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="mt-12 space-y-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
-              <span aria-hidden="true">⚡</span>
-              Ações rápidas
-            </h2>
-            <p className="text-sm text-slate-500">
-              Escolha o próximo passo pra manter seu plano com a IA no ritmo certo.
-            </p>
-          </div>
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-        </header>
-
-        <div className="relative">
-          {trialExpired ? (
-            <div className="pointer-events-auto absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-3xl border border-amber-200 bg-white/90 px-6 py-6 text-center shadow-sm backdrop-blur-sm">
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
-                PRO
-              </span>
-              <p className="max-w-md text-sm text-amber-900">
-                Recursos exclusivos PRO. Assine para manter a IA trabalhando por você sem interrupções.
-              </p>
+            <div className="flex w-full flex-col gap-2 sm:max-w-xs">
               <button
                 type="button"
-                onClick={openSubscribeModal}
-                className="rounded-full bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700"
+                onClick={handleOpenWhatsApp}
+                className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
               >
-                Ativar plano PRO
+                Ver alertas da IA
               </button>
-            </div>
-          ) : null}
-
-          <div className={`grid gap-5 md:grid-cols-2 ${trialExpired ? "pointer-events-none opacity-30" : ""}`}>
-            {quickActions.map((action) => (
-              <QuickActionCard
-                key={action.key}
-                icon={action.icon}
-                title={action.title}
-                description={action.description}
-                highlight={action.highlight}
-                footnote={action.footnote}
-                primaryAction={action.primaryAction}
-                secondaryAction={action.secondaryAction}
-                tone={action.tone}
-                disabled={isInitialLoading}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-8">
-            <MediaKitCard
-              className="h-full border-[rgba(246,0,123,0.15)] bg-white shadow-[0_18px_48px_rgba(246,0,123,0.18)]"
-              data={summary?.mediaKit}
-              loading={loading}
-              onCopyLink={() => handleMediaKitAction("copy_link")}
-              onRefreshHighlights={() => handleMediaKitAction("refresh_highlights")}
-              onOpenForBrands={() => handleMediaKitAction("open_brand_view")}
-              onCreateMediaKit={() => handleMediaKitAction("create_media_kit")}
-            />
-          </div>
-          <div className="lg:col-span-4">
-            <CommunityMetricsCard
-              className="h-full border-transparent bg-[#FAFAFA] shadow-[0_18px_36px_rgba(15,23,42,0.1)]"
-              data={summary?.communityMetrics}
-              loading={loading || metricsLoading}
-              onChangePeriod={handleChangePeriod}
-              onViewInsights={handleViewCommunityInsights}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-10 rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
-        <button
-          type="button"
-          onClick={() => setIsChecklistOpen((prev) => !prev)}
-          className="flex w-full items-center justify-between gap-4 text-left"
-          aria-expanded={isChecklistOpen}
-          aria-controls={checklistId}
-        >
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Checklist da semana</h2>
-            <p className="text-sm text-slate-600 sm:text-base">
-              Quatro pilares para manter ritmo, provas e comunidade alinhados.
-            </p>
-          </div>
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
-            <FaChevronDown
-              className={`transition-transform duration-200 ${isChecklistOpen ? "rotate-180" : ""}`}
-            />
-          </span>
-        </button>
-
-        {totalSteps ? (
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-              <span>{completedSteps}/{totalSteps} concluídos</span>
-              <span>{checklistProgress}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-slate-200">
-              <div
-                className="h-full rounded-full bg-brand-purple transition-[width]"
-                style={{ width: `${checklistProgress}%` }}
-              />
+              <span className="text-center text-xs text-slate-500">
+                Mobi envia lembretes sempre que surge um pico de engajamento.
+              </span>
             </div>
           </div>
-        ) : null}
+        </section>
+      ) : null}
 
-        <ol
-          id={checklistId}
-          className={`mt-5 space-y-3 ${isChecklistOpen ? "" : "hidden"}`}
-          aria-hidden={!isChecklistOpen}
-        >
-          {steps.map((step, index) => {
-            const isDisabled = step.disabled || step.status === "loading";
-            const numberIcon = STEP_NUMBER_ICONS[index] ?? `${index + 1}.`;
-            const statusEmoji = STEP_STATUS_ICONS[step.status];
-            return (
-              <li
-                key={step.id}
-                role="button"
-                tabIndex={isDisabled ? -1 : 0}
-                aria-disabled={isDisabled}
-                onClick={() => {
-                  if (isDisabled) return;
-                  step.action();
-                }}
-                onKeyDown={(event) => {
-                  if (isDisabled) return;
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    step.action();
-                  }
-                }}
-                className={`group flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-2 md:flex-row md:items-center md:justify-between ${
-                  isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
-                }`}
+      {showProUpsellCard ? (
+        <section className="mt-10 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF1F8] via-white to-white px-6 py-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Gostou da IA?</h2>
+              <p className="text-sm text-slate-600">
+                Continue com relatórios automáticos, alertas ilimitados e suporte direto da equipe D2C.
+              </p>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:max-w-xs">
+              <button
+                type="button"
+                onClick={handleHeaderSubscribe}
+                className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
               >
-                <div className="flex items-start gap-3">
-                  <span className="text-xl">{numberIcon}</span>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-brand-purple/10 text-brand-purple">
-                    {step.icon}
-                  </span>
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-900">{step.title}</p>
-                      <span
-                        className={`inline-flex items-center gap-2 rounded-full px-2 py-0.5 text-xs font-semibold ${STEP_STATUS_CLASSES[step.status]}`}
-                      >
-                        <span aria-hidden="true">{statusEmoji}</span>
-                        {STEP_STATUS_LABELS[step.status]}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500">{step.description}</p>
-                    {step.metric ? <p className="text-xs font-semibold text-slate-600">{step.metric}</p> : null}
-                    {step.helper ? <p className="text-xs text-slate-500">{step.helper}</p> : null}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-3 text-sm font-semibold text-brand-purple">
-                  <span>{step.actionLabel}</span>
-                  <FaChevronDown
-                    className="rotate-[-90deg] text-brand-purple transition group-hover:translate-x-1"
-                    aria-hidden="true"
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      </section>
+                Assinar plano PRO
+              </button>
+              <span className="text-center text-xs text-slate-500">
+                Alertas ilimitados + relatórios semanais automáticos.
+              </span>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
     </div>
   </>
   );
