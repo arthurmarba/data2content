@@ -38,7 +38,7 @@ export default function PlanningPage() {
 
   const handleConnectInstagram = useCallback(() => {
     track('planner_gate_cta_click', { cta: 'connect_instagram' });
-    router.push('/dashboard/onboarding');
+    router.push('/dashboard/home?intent=instagram');
   }, [router]);
 
   const handleExploreCommunity = useCallback(() => {

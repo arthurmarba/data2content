@@ -35,7 +35,7 @@ interface SessionUser {
 
 function buildLayoutClasses(variant: HeaderVariant, condensed: boolean) {
   const base = [
-    "px-3",
+    "px-4",
     "sm:px-6",
     "flex",
     "flex-wrap",
@@ -45,13 +45,16 @@ function buildLayoutClasses(variant: HeaderVariant, condensed: boolean) {
     "justify-between",
     "gap-x-3",
     "w-full",
+    "min-h-[56px]",
   ];
-  if (variant === "compact" || condensed) {
-    base.push("py-2", "sm:py-2.5");
-  } else if (variant === "immersive") {
-    base.push("py-2.5", "sm:py-3.5");
+  if (variant === "immersive") {
+    base.push(condensed ? "py-2 sm:py-2.5" : "py-2.5 sm:py-3.5");
+  } else if (variant === "compact") {
+    base.push(condensed ? "py-1.5 sm:py-2" : "py-2 sm:py-2.5");
+  } else if (condensed) {
+    base.push("py-1.5", "sm:py-2", "h-12");
   } else {
-    base.push("py-2.5", "sm:py-3");
+    base.push("py-0", "h-14");
   }
 
   return base.join(" ");
@@ -91,8 +94,10 @@ function buildShellClasses(
   } else if (variant === "minimal") {
     base.push("bg-white", "border-b", "border-gray-100");
   } else {
-    base.push("bg-white", condensed ? "shadow" : "shadow-sm");
-    base.push(condensed ? "border-b border-gray-100" : "border-b border-transparent");
+    const shadowClass = condensed
+      ? "shadow-[0_3px_10px_rgba(15,23,42,0.08)]"
+      : "shadow-[0_1px_2px_rgba(0,0,0,0.03)]";
+    base.push("bg-white", "border-b", "border-gray-100", shadowClass);
   }
 
   return base.join(" ");
@@ -356,16 +361,18 @@ export default function Header() {
       {/* -> CORREÇÃO: A classe pointer-events-auto foi removida deste container principal */}
       <div ref={innerRef} className={innerClasses}>
         {/* -> CORREÇÃO: E aplicada diretamente nos containers filhos que precisam ser clicáveis */}
-        <div className="order-1 flex flex-1 items-center gap-2 min-w-0 pointer-events-auto sm:order-1 sm:flex-none">
+        <div className="order-1 flex items-center gap-3 min-w-0 pointer-events-auto sm:order-1 sm:flex-none">
           {config.showSidebarToggle && (
-            <button
+            <motion.button
               onClick={() => toggleSidebar()}
-              className="p-2 text-gray-700 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
+              whileTap={{ scale: 0.92 }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
               aria-label="Alternar menu lateral"
               title="Menu"
             >
-              <FaBars className="w-6 h-6" />
-            </button>
+              <FaBars className="h-5 w-5" />
+            </motion.button>
           )}
           {renderLogo}
         </div>
@@ -376,7 +383,7 @@ export default function Header() {
           </div>
         ) : null}
 
-        <div className="header-actions order-2 flex w-full flex-wrap items-center justify-end gap-1.5 min-h-[2.5rem] pointer-events-auto sm:order-3 sm:w-auto sm:flex-nowrap sm:gap-2">
+        <div className="header-actions order-2 ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5 pointer-events-auto sm:order-3 sm:w-auto sm:flex-none sm:flex-nowrap sm:gap-2">
           {config.extraContent ? (
             <div className="hidden sm:inline-flex sm:items-center">{config.extraContent}</div>
           ) : null}
@@ -389,7 +396,7 @@ export default function Header() {
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen((prev) => !prev)}
-                className="h-9 w-9 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:h-10 sm:w-10"
+                className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
                 aria-label="Abrir menu do usuário"

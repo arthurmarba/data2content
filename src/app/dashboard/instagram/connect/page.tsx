@@ -84,7 +84,7 @@ export default function InstagramPreConnectPage() {
           {loading ? "Abrindo Facebook…" : "Entendi, conectar com Facebook"}
         </button>
         <button
-          onClick={() => router.push("/dashboard/onboarding")}
+          onClick={() => router.push("/dashboard/home?intent=instagram")}
           className="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
         >
           Conectar depois

@@ -869,7 +869,10 @@ export const authOptions: NextAuthOptions = {
       }
       if (!ensureStringId(token.id)) {
         logger.warn(`${TAG_JWT} Persistindo token SEM id mesmo após fallbacks. Invalidando token.`);
-        return null;
+        delete (token as any).id;
+        delete (token as any).sub;
+        (token as any).invalidated = true;
+        return token;
       }
 
       if (token.id && Types.ObjectId.isValid(token.id)) {
@@ -1009,7 +1012,10 @@ export const authOptions: NextAuthOptions = {
               );
             } else {
               logger.warn(`${TAG_JWT} Utilizador ${token.id} não encontrado no DB. Invalidando token.`);
-              return null;
+              delete (token as any).id;
+              delete (token as any).sub;
+              (token as any).invalidated = true;
+              return token;
             }
           } catch (error) {
             logger.error(`${TAG_JWT} Erro ao enriquecer token ${token.id} do DB:`, error);
@@ -1018,7 +1024,10 @@ export const authOptions: NextAuthOptions = {
       } else {
         if (trigger !== "signIn" && trigger !== "signUp") {
           logger.warn(`${TAG_JWT} Token com ID inválido/ausente ('${(token as any).id}') fora do login/signup. Invalidando.`);
-          return null;
+          delete (token as any).id;
+          delete (token as any).sub;
+          (token as any).invalidated = true;
+          return token;
         }
       }
 
@@ -1034,11 +1043,13 @@ export const authOptions: NextAuthOptions = {
       const TAG_SESSION = "[NextAuth Session v2.3.0]";
       logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.Provider: ${token?.provider}, Token.planStatus: ${token?.planStatus}`);
 
+      const invalidateSession = () => null as unknown as Session;
+
       if (!token?.id || !Types.ObjectId.isValid(token.id)) {
         logger.error(
           `${TAG_SESSION} Token ID inválido/ausente ('${token?.id}') na sessão. Invalidando sessão.`
         );
-        return null;
+        return invalidateSession();
       }
 
       if (session.user) {
@@ -1166,7 +1177,7 @@ export const authOptions: NextAuthOptions = {
           logger.warn(
             `${TAG_SESSION} Utilizador ${token.id} não encontrado no DB. Invalidando sessão.`
           );
-          return null;
+          return invalidateSession();
         }
       } catch (error) {
         logger.error(`${TAG_SESSION} Erro ao revalidar sessão ${token.id}:`, error);

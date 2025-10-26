@@ -160,7 +160,7 @@ export default function InstagramConnectingPage() {
               Tentar novamente
             </button>
             <button
-              onClick={() => router.replace("/dashboard/onboarding")}
+              onClick={() => router.replace("/dashboard/home?intent=instagram")}
               className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
             >
               Voltar

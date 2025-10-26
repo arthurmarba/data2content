@@ -45,10 +45,9 @@ export default function ClientHooksWrapper() {
       const userPlanStatus = session.user?.planStatus;
 
       // Se o plano do usuário for 'inactive' e ele não estiver em uma das
-      // páginas permitidas (onboarding, billing, etc.)...
+      // páginas permitidas (instagram, billing, etc.)...
       if (
         userPlanStatus === 'inactive' &&
-        !pathname.startsWith('/dashboard/onboarding') &&
         !pathname.startsWith('/dashboard/instagram') &&
         !pathname.startsWith('/dashboard/billing') &&
         !pathname.startsWith('/auth/complete-signup')

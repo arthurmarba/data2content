@@ -363,10 +363,10 @@ export default function MediaKitSelfServePage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
-              onClick={() => router.push('/dashboard/onboarding')}
+              onClick={() => router.push('/dashboard/home?intent=instagram')}
               className="inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              Ir para o onboarding
+              Ver primeiros passos
             </button>
             <button
               onClick={handleCorrectInstagramLink}

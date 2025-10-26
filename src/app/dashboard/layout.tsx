@@ -32,7 +32,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isChatPage = pathname.startsWith("/dashboard/chat");
   const isMediaKitPage = pathname.startsWith("/dashboard/media-kit");
   const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing|discover|planning)/.test(pathname);
-  const isOnboardingFlow = /^\/dashboard\/(onboarding|instagram)/.test(pathname);
+  const isGuidedFlow = /^\/dashboard\/instagram/.test(pathname);
   const isPlannerDemo = pathname.startsWith("/dashboard/planning");
   const isDiscover = pathname.startsWith("/dashboard/discover");
 
@@ -42,19 +42,19 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const layoutHeaderConfig = useMemo<Partial<HeaderConfig> | undefined>(
     () => {
       if (hasPageOverride) return undefined;
-      const variant: HeaderVariant = isOnboardingFlow ? "minimal" : "default";
+      const variant: HeaderVariant = isGuidedFlow ? "minimal" : "default";
       return {
-        showSidebarToggle: !isOnboardingFlow,
-        showUserMenu: !isOnboardingFlow,
+        showSidebarToggle: !isGuidedFlow,
+        showUserMenu: !isGuidedFlow,
         sticky: true,
         variant,
         contentTopPadding: undefined,
       };
     },
-    [hasPageOverride, isOnboardingFlow]
+    [hasPageOverride, isGuidedFlow]
   );
 
-  useHeaderSetup(layoutHeaderConfig, [hasPageOverride, isOnboardingFlow]);
+  useHeaderSetup(layoutHeaderConfig, [hasPageOverride, isGuidedFlow]);
 
   // Fallback de --header-h apenas para páginas que NÃO usam o ChatHeader dinâmico
   useEffect(() => {
@@ -64,7 +64,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }, [isGeminiHeaderPage]);
 
   // deslocamento do main conforme sidebar no desktop
-  const mainOffset = isOnboardingFlow ? "" : isCollapsed ? "lg:ml-16" : "lg:ml-64";
+  const mainOffset = isGuidedFlow ? "" : isCollapsed ? "lg:ml-16" : "lg:ml-64";
 
   // Regras de scroll por rota
   const mainScrollClass = isMediaKitPage
@@ -102,13 +102,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* Sidebar (oculta no fluxo de onboarding/instagram) */}
-      {!isOnboardingFlow && (
+      {/* Sidebar (oculta enquanto o usuário está no fluxo de conexão do Instagram) */}
+      {!isGuidedFlow && (
         <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
       )}
 
       {/* Overlay escuro para mobile quando sidebar está aberta (acima do header, abaixo da sidebar) */}
-      {isOpen && !isOnboardingFlow && (
+      {isOpen && !isGuidedFlow && (
         <div
           onClick={() => toggleSidebar()}
           className="lg:hidden fixed inset-0 bg-black/40 z-50"

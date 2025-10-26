@@ -5,7 +5,7 @@
 
 import React from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import {
   FaBullhorn,
@@ -32,6 +32,7 @@ import { useHeaderSetup } from "../context/HeaderContext";
 type Period = CommunityMetricsCardData["period"];
 const DEFAULT_PERIOD: Period = "30d";
 const TRIAL_CTA_LABEL = "⚡ Ativar IA no WhatsApp (48h grátis)";
+const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
 
 type HeroAction = {
   key: string;
@@ -110,9 +111,27 @@ function formatCountdownLabel(ms: number): string {
 
 export default function HomeClientPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const { trackCardAction, trackHeroAction, trackSurfaceView, trackWhatsappEvent } =
     useHomeTelemetry();
+  const searchParams = useSearchParams();
+
+  const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
+  const onboardingCompletionRequested = React.useRef(false);
+  const isNewUser = Boolean(session?.user?.isNewUserForOnboarding);
+  const focusIntent = searchParams?.get("intent")?.toLowerCase() ?? null;
+
+  React.useEffect(() => {
+    if (!isNewUser) {
+      setShowWelcomeCard(false);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const dismissed = window.localStorage.getItem(HOME_WELCOME_STORAGE_KEY) === "1";
+    if (!dismissed) {
+      setShowWelcomeCard(true);
+    }
+  }, [isNewUser]);
 
   const [summary, setSummary] = React.useState<HomeSummaryResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -194,6 +213,20 @@ export default function HomeClientPage() {
     [router]
   );
 
+  const scrollToProgressSection = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const section = document.getElementById("home-progress-section");
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!focusIntent) return;
+    scrollToProgressSection();
+    trackSurfaceView("home_progress_focus", { intent: focusIntent });
+  }, [focusIntent, scrollToProgressSection, trackSurfaceView]);
+
   const handleNextPostAction = React.useCallback(
     (action: string, origin?: string) => {
       trackCardAction("next_post", action, origin ? { origin } : undefined);
@@ -207,7 +240,7 @@ export default function HomeClientPage() {
           handleNavigate(plannerUrlWithSlot);
           break;
         case "connect_instagram":
-          handleNavigate("/dashboard/onboarding");
+          handleNavigate("/dashboard/instagram/connect");
           break;
         default:
           break;
@@ -314,6 +347,24 @@ export default function HomeClientPage() {
     if (planIsPro && !communityVipMember) return "join_vip";
     return "pro_engaged";
   }, [communityFreeMember, communityVipMember, planIsPro, whatsappTrialActive, whatsappTrialEligible, whatsappTrialStarted]);
+
+  React.useEffect(() => {
+    if (!showWelcomeCard) return;
+    trackSurfaceView("home_welcome_card", { stage: heroStage });
+  }, [heroStage, showWelcomeCard, trackSurfaceView]);
+
+  const handleWelcomePrimary = React.useCallback(() => {
+    trackHeroAction("welcome_cta_first_steps", { stage: heroStage });
+    scrollToProgressSection();
+  }, [heroStage, scrollToProgressSection, trackHeroAction]);
+
+  const handleWelcomeDismiss = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(HOME_WELCOME_STORAGE_KEY, "1");
+    }
+    setShowWelcomeCard(false);
+    trackHeroAction("welcome_dismiss", { stage: heroStage });
+  }, [heroStage, trackHeroAction]);
 
   React.useEffect(() => {
     if (!planTrialActive || !planTrialExpiresAt) {
@@ -721,8 +772,8 @@ export default function HomeClientPage() {
         id: "progress-instagram",
         title: "Instagram conectado",
         description: isInstagramConnected
-          ? "Relatório gratuito gerado a cada semana."
-          : "Conecte em segundos e libere seu relatório.",
+          ? "Relatório gratuito renovado toda semana com horários e tendências personalizadas."
+          : "Conecte em poucos cliques para liberar diagnóstico com horários e formatos vencedores.",
         icon: <FaLink />,
         status: instagramStatus,
         actionLabel: isInstagramConnected ? "Conectado" : "Conectar Instagram",
@@ -734,8 +785,8 @@ export default function HomeClientPage() {
         id: "progress-ai",
         title: "IA no WhatsApp",
         description: iaActive
-          ? "Receba ideias e alertas direto no WhatsApp."
-          : "Ative a IA no WhatsApp por 48h e confirme seus melhores horários.",
+          ? "Receba roteiros, alertas de horários quentes e análises direto no WhatsApp."
+          : "Teste 48h de IA no WhatsApp para descobrir ideias, horários e alertas automáticos.",
         icon: <FaWhatsapp />,
         status: iaStatus,
         actionLabel: iaActive ? "Ver alertas da IA" : "Ativar IA no WhatsApp (48h grátis)",
@@ -747,8 +798,8 @@ export default function HomeClientPage() {
         id: "progress-pro",
         title: "Plano PRO",
         description: planIsPro
-          ? "IA ilimitada e relatórios automáticos ativos."
-          : "Continue com IA ilimitada e suporte direto.",
+          ? "IA ilimitada, alertas constantes e relatórios automáticos já estão ativos."
+          : "Assine para manter a IA ligada após o teste e receber suporte direto da equipe.",
         icon: <FaGem />,
         status: proStatus,
         actionLabel: planIsPro ? "Ver painel PRO" : "Assinar PRO",
@@ -760,8 +811,8 @@ export default function HomeClientPage() {
         id: "progress-community",
         title: "Mentorias e comunidade",
         description: communityVipMember
-          ? "Participando das mentorias semanais."
-          : "Entre para trocar resultados com outros criadores.",
+          ? "Participando das mentorias semanais e trocas com outros criadores."
+          : "Entre para destravar mentorias, desafios guiados e feedback de outros criadores.",
         icon: <FaUsers />,
         status: mentorshipStatus,
         actionLabel: communityVipMember
@@ -803,6 +854,58 @@ export default function HomeClientPage() {
     whatsappTrialActive,
   ]);
 
+  const firstPendingJourneyId = React.useMemo(() => {
+    const pending = progressItems.find((item) => item.status !== "done");
+    return pending?.id ?? null;
+  }, [progressItems]);
+
+  const highlightedJourneyId = React.useMemo(() => {
+    if (focusIntent) {
+      const intentMap: Record<string, string> = {
+        instagram: "progress-instagram",
+        community: "progress-community",
+        whatsapp: "progress-ai",
+        ia: "progress-ai",
+        plan: "progress-pro",
+        subscription: "progress-pro",
+      };
+      const mapped = intentMap[focusIntent];
+      if (mapped) return mapped;
+    }
+    if (isNewUser && firstPendingJourneyId) return firstPendingJourneyId;
+    return null;
+  }, [firstPendingJourneyId, focusIntent, isNewUser]);
+
+  const hasCompletedCoreSteps = React.useMemo(() => {
+    if (!isInstagramConnected) return false;
+    if (!iaEngaged) return false;
+    if (!isCommunityMember) return false;
+    return !isFreePlan;
+  }, [iaEngaged, isCommunityMember, isFreePlan, isInstagramConnected]);
+
+  React.useEffect(() => {
+    if (!isNewUser || !hasCompletedCoreSteps || onboardingCompletionRequested.current) return;
+    let cancelled = false;
+    onboardingCompletionRequested.current = true;
+    const complete = async () => {
+      try {
+        const response = await fetch("/api/user/complete-onboarding", { method: "POST" });
+        if (!response.ok) {
+          throw new Error(`failed_${response.status}`);
+        }
+        trackSurfaceView("home_onboarding_completed", { reason: "auto_progress" });
+        await update?.({ isNewUserForOnboarding: false }).catch(() => {});
+      } catch {
+        if (!cancelled) {
+          onboardingCompletionRequested.current = false;
+        }
+      }
+    };
+    void complete();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCompletedCoreSteps, isNewUser, trackSurfaceView, update]);
 
   const showTrialMessageCard =
     !planIsPro &&
@@ -947,6 +1050,12 @@ export default function HomeClientPage() {
   const stageProgressPercent = progressTotalCount
     ? Math.round((progressCompletedCount / progressTotalCount) * 100)
     : 0;
+  const progressHeading = isNewUser
+    ? "Bem-vindo! Veja o que você pode fazer primeiro 👇"
+    : "Seu progresso na Data2Content";
+  const progressDescription = isNewUser
+    ? "Conecte o Instagram, ative a IA no WhatsApp, participe da comunidade e escolha seu plano ideal."
+    : journeyStageInfo.label;
   const toolCards = React.useMemo(
     () => {
       const plannerMetric = !isInstagramConnected
@@ -1135,6 +1244,37 @@ export default function HomeClientPage() {
     <>
       <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
       {connectBanner}
+      {showWelcomeCard ? (
+        <div className="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50/95 px-5 py-5 text-emerald-900 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-600">
+                Bem-vindo à Data2Content
+              </p>
+              <p className="text-sm font-semibold">
+                Veja o que destrava seus diagnósticos: conecte o Instagram, ative a IA no WhatsApp,
+                entre na comunidade e escolha seu plano ideal.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={handleWelcomePrimary}
+                className="inline-flex items-center justify-center rounded-full bg-[#F6007B] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+              >
+                Ver primeiros passos
+              </button>
+              <button
+                type="button"
+                onClick={handleWelcomeDismiss}
+                className="inline-flex items-center justify-center rounded-full border border-emerald-200 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2"
+              >
+                Já entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <section className="rounded-3xl border border-slate-200 bg-white/95 px-6 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl space-y-4 text-center lg:text-left">
@@ -1143,9 +1283,18 @@ export default function HomeClientPage() {
                 {`Etapa ${journeyStageInfo.step} de ${journeyStageInfo.total} · ${journeyStageInfo.label}`}
               </span>
               <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-                <span aria-hidden="true">👋</span> Oi,{" "}
-                <span className="text-[#F6007B]">{firstName}</span>!{" "}
-                <span className="text-slate-900">Sua carreira de criador com IA começa aqui.</span>
+                <span aria-hidden="true">👋</span>{" "}
+                {isNewUser ? (
+                  <>
+                    Bem-vindo, <span className="text-[#F6007B]">{firstName}</span>!{" "}
+                    <span className="text-slate-900">Vamos dar os primeiros passos com IA.</span>
+                  </>
+                ) : (
+                  <>
+                    Oi, <span className="text-[#F6007B]">{firstName}</span>!{" "}
+                    <span className="text-slate-900">Sua carreira de criador com IA começa aqui.</span>
+                  </>
+                )}
               </h1>
               <p className="text-base text-slate-600 sm:text-lg">{heroMessaging.subtitle}</p>
               {heroFeedbackMessage ? (
@@ -1187,20 +1336,30 @@ export default function HomeClientPage() {
           ) : null}
         </div>
       </section>
-
-
-
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+      <section
+        id="home-progress-section"
+        className="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm"
+      >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
               Etapa {journeyStageInfo.step} de {journeyStageInfo.total}
             </p>
             <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
-              Seu progresso na Data2Content
+              {progressHeading}
             </h2>
+            {isNewUser ? (
+              <p className="mt-1 text-sm font-semibold text-slate-500">{progressDescription}</p>
+            ) : null}
           </div>
-          <p className="text-sm font-semibold text-slate-500">{journeyStageInfo.label}</p>
+          <div className="text-left text-sm font-semibold text-slate-500 sm:text-right">
+            <p>{journeyStageInfo.label}</p>
+            {isNewUser ? (
+              <p className="text-xs text-slate-400">
+                {progressCompletedCount}/{progressTotalCount} passos concluídos
+              </p>
+            ) : null}
+          </div>
         </div>
         <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
           <div
@@ -1219,6 +1378,16 @@ export default function HomeClientPage() {
             const statusEmoji = STEP_STATUS_ICONS[item.status];
             const statusLabel = STEP_STATUS_LABELS[item.status];
             const disabled = item.disabled || item.status === "loading";
+            const isHighlighted = highlightedJourneyId === item.id;
+            const cardClassName = [
+              "flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2",
+              isHighlighted
+                ? "border-[#F6007B]/50 bg-white shadow-[0_22px_48px_rgba(246,0,123,0.12)] ring-2 ring-[#F6007B]/20"
+                : "border-slate-100 bg-slate-50",
+              disabled
+                ? "cursor-not-allowed opacity-60"
+                : "hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)]",
+            ].join(" ");
             return (
               <button
                 key={`${item.id}-summary`}
@@ -1228,9 +1397,8 @@ export default function HomeClientPage() {
                   item.action();
                 }}
                 disabled={disabled}
-                className={`flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2 ${
-                  disabled ? "cursor-not-allowed opacity-60" : "hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)]"
-                }`}
+                className={cardClassName}
+                data-highlight={isHighlighted ? "true" : undefined}
               >
                 <span className="text-xl" aria-hidden="true">
                   {statusEmoji}
