@@ -10,7 +10,7 @@ export default function DiscoverHeaderConfigurator() {
       showUserMenu: true,
       sticky: true,
       contentTopPadding: 8,
-      title: undefined,
+      title: "Discover",
       subtitle: undefined,
       condensedOnScroll: false,
     },

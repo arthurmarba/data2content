@@ -2,31 +2,36 @@
 
 import React from "react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
-import SubscribeCtaBanner from "@/app/mediakit/components/SubscribeCtaBanner";
 import WhatsAppConnectInline from "@/app/dashboard/WhatsAppConnectInline";
+import { Sparkles } from "lucide-react";
 
 /**
- * Mantém CTAs auxiliares na Discover sem bloquear a experiência.
- * Usuários sem plano veem um lembrete de upgrade, mas continuam com o acesso completo.
+ * Mensagem complementar exibida ao fim da página.
+ * Mobile já conta com a barra de ações fixa, então evitamos duplicar CTA.
  */
 export default function DiscoverBillingGate() {
-  const { hasPremiumAccess, isLoading, nextAction } = useBillingStatus();
+  const { hasPremiumAccess, isLoading } = useBillingStatus();
 
-  // Evita flicker inicial: não renderiza nada até primeira leitura
-  if (isLoading && hasPremiumAccess) return null;
+  if (isLoading) return null;
 
-  return (
-    <div className="mb-4 space-y-3">
-      {!hasPremiumAccess && (
-        <SubscribeCtaBanner
-          title="Experimente todo o potencial da IA"
-          description="Seu plano pode ser reativado a qualquer momento, mas você já pode explorar a Comunidade normalmente."
-          primaryLabel={nextAction === "reactivate" ? "Reativar plano" : "Ativar plano"}
-          secondaryLabel="Ver planos"
-          isSubscribed={false}
-        />
-      )}
-      {hasPremiumAccess && <WhatsAppConnectInline />}
-    </div>
-  );
+  if (!hasPremiumAccess) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600 shadow-sm sm:px-6">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 rounded-full bg-brand-magenta/10 p-2 text-brand-magenta">
+            <Sparkles className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-slate-900">Ative a IA quando estiver pronto</p>
+            <p>
+              O botão “Ativar IA 48h grátis” no topo libera horários quentes, formatos vencedores e benchmarks
+              personalizados para o seu nicho. Explore as ideias e decida quando avançar.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <WhatsAppConnectInline />;
 }

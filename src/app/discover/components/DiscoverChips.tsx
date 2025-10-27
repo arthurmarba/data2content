@@ -23,6 +23,11 @@ type SelectedFilters = Record<CategoryId, string[]>;
 type ViewState = "master" | CategoryId;
 type SearchParamsLike = Pick<URLSearchParams, "get" | "toString">;
 
+type DiscoverChipsProps = {
+  defaultView?: ViewState;
+  onViewChange?: (view: ViewState) => void;
+};
+
 const MASTER_ORDER: CategoryId[] = [
   "format",
   "proposal",
@@ -101,7 +106,7 @@ const buildSelectedFromParams = (params: SearchParamsLike): SelectedFilters => {
   return state;
 };
 
-export default function DiscoverChips() {
+export default function DiscoverChips({ defaultView = "master", onViewChange }: DiscoverChipsProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -109,11 +114,19 @@ export default function DiscoverChips() {
   const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>(
     () => buildSelectedFromParams(params)
   );
-  const [currentView, setCurrentView] = useState<ViewState>("master");
+  const [currentView, setCurrentView] = useState<ViewState>(defaultView);
 
   useEffect(() => {
     setSelectedFilters(buildSelectedFromParams(params));
   }, [params]);
+
+  useEffect(() => {
+    setCurrentView(defaultView);
+  }, [defaultView]);
+
+  useEffect(() => {
+    onViewChange?.(currentView);
+  }, [currentView, onViewChange]);
 
   const hasSelections = MASTER_ORDER.some(
     (key) => selectedFilters[key].length > 0

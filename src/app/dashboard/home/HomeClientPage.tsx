@@ -305,11 +305,17 @@ export default function HomeClientPage() {
   const isInstagramConnected =
     summary?.nextPost?.isInstagramConnected ?? Boolean(session?.user?.instagramConnected);
   const hasMediaKit = summary?.mediaKit?.hasMediaKit ?? false;
+  const defaultCommunityFreeUrl =
+    process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/dashboard/discover";
+  const defaultCommunityVipUrl =
+    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? defaultCommunityFreeUrl;
   const communityFreeMember = summary?.community?.free?.isMember ?? false;
-  const communityFreeInviteUrl = summary?.community?.free?.inviteUrl ?? "/dashboard/discover";
+  const communityFreeInviteUrl =
+    summary?.community?.free?.inviteUrl ?? defaultCommunityFreeUrl;
   const communityVipHasAccess = summary?.community?.vip?.hasAccess ?? false;
   const communityVipMember = summary?.community?.vip?.isMember ?? false;
-  const communityVipInviteUrl = summary?.community?.vip?.inviteUrl ?? "/dashboard/whatsapp";
+  const communityVipInviteUrl =
+    summary?.community?.vip?.inviteUrl ?? defaultCommunityVipUrl;
   const whatsappLinked = summary?.whatsapp?.linked ?? false;
   const whatsappTrialActive = summary?.whatsapp?.trial?.active ?? false;
   const whatsappTrialEligible = summary?.whatsapp?.trial?.eligible ?? false;
@@ -426,13 +432,25 @@ export default function HomeClientPage() {
     [communityFreeInviteUrl, communityVipInviteUrl, handleNavigate, summary?.mentorship, trackCardAction]
   );
 
+  const isSubscriberPlan = hasPremiumAccessPlan || planIsPro || communityVipHasAccess;
+
   const handleJoinFreeCommunity = React.useCallback(
     (origin?: unknown) => {
       const originLabel = typeof origin === "string" ? origin : "default";
       trackCardAction("connect_prompt", "explore_community", { origin: originLabel });
-      handleNavigate(communityFreeInviteUrl);
+      const targetUrl =
+        isSubscriberPlan && communityVipInviteUrl
+          ? communityVipInviteUrl
+          : communityFreeInviteUrl;
+      handleNavigate(targetUrl);
     },
-    [communityFreeInviteUrl, handleNavigate, trackCardAction]
+    [
+      communityFreeInviteUrl,
+      communityVipInviteUrl,
+      handleNavigate,
+      isSubscriberPlan,
+      trackCardAction,
+    ]
   );
 
   const whatsappBotNumber = React.useMemo(() => {
@@ -1117,14 +1135,14 @@ export default function HomeClientPage() {
             ? "Participe dos desafios e mentorias semanais."
             : "Entre para trocar bastidores com criadores Data2Content.",
           status: communityStatus,
-          actionLabel: communityVipHasAccess && !communityVipMember ? "Entrar no grupo VIP" : communityFreeMember ? "Abrir comunidade" : "Entrar na comunidade",
-          onAction: () => {
-            if (communityVipHasAccess && !communityVipMember) {
-              handleJoinVip();
-              return;
-            }
-            handleJoinFreeCommunity("tool_card");
-          },
+          actionLabel: isSubscriberPlan
+            ? communityVipMember
+              ? "Abrir comunidade VIP"
+              : "Entrar na comunidade VIP"
+            : communityFreeMember
+            ? "Abrir comunidade"
+            : "Entrar na comunidade",
+          onAction: () => handleJoinFreeCommunity("tool_card"),
         },
       ];
     },
@@ -1134,11 +1152,11 @@ export default function HomeClientPage() {
       communityVipMember,
       handleConsistencyAction,
       handleJoinFreeCommunity,
-      handleJoinVip,
       handleMediaKitAction,
       handleNextPostAction,
       hasMediaKit,
       isInstagramConnected,
+      isSubscriberPlan,
       nextSlotLabel,
       postsSoFar,
       summary?.mediaKit?.lastUpdatedLabel,

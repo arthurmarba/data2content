@@ -28,7 +28,14 @@ type PostCard = {
 
 type Section = { key: string; title: string; items: PostCard[] };
 
-export default function DiscoverRails({ sections, exp }: { sections: Section[]; exp?: string }) {
+const CTA_LABEL_OVERRIDES: Record<string, string> = {
+  trending: "Explorar virais agora",
+  top_saved: "Ver ideias muito salvas",
+  top_comments: "Ver ideias com muitos comentários",
+  top_shares: "Ver ideias muito compartilhadas",
+};
+
+export default function DiscoverRails({ sections, exp, primaryKey }: { sections: Section[]; exp?: string; primaryKey?: string | null }) {
   const searchParams = useSearchParams();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<PostCard[] | null>(null);
@@ -190,52 +197,59 @@ export default function DiscoverRails({ sections, exp }: { sections: Section[]; 
   }
 
   return (
-    <div className="space-y-8">
-      {ordered.map((s) => (
-        <section key={s.key} aria-label={s.title} className="w-full">
-          <div className="flex items-baseline justify-between mb-2">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">{TITLE_OVERRIDES[s.key] || s.title}</h2>
-              {DESCRIPTIONS[s.key] && (
-                <p className="text-xs text-gray-500 mt-0.5">{DESCRIPTIONS[s.key]}</p>
-              )}
+    <div className="space-y-6">
+      {ordered.map((s, index) => {
+        const title = TITLE_OVERRIDES[s.key] || s.title;
+        const description = DESCRIPTIONS[s.key];
+        const isPrimary = s.key === primaryKey;
+        const useAltBackground = index % 2 === 1;
+        const containerClass = isPrimary
+          ? "border border-transparent bg-transparent"
+          : useAltBackground
+          ? "border border-slate-200 bg-slate-50/80 shadow-sm"
+          : "border border-slate-200 bg-white shadow-sm";
+        const gradientClass = useAltBackground ? "from-slate-50/80" : "from-white";
+        const ctaLabel = CTA_LABEL_OVERRIDES[s.key] || "Ver coleção completa";
+        return (
+          <section key={s.key} aria-label={title} className="w-full">
+            <div
+              className={`rounded-3xl px-4 py-5 sm:px-6 sm:py-6 ${containerClass}`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                <button
+                  type="button"
+                  onClick={() => handleExpand(s.key)}
+                  className="inline-flex items-center gap-2 self-start rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-brand-magenta/40 hover:text-brand-magenta focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+                >
+                  {ctaLabel}
+                  <span aria-hidden>→</span>
+                </button>
+              </div>
+              {description && <p className="mt-1 text-xs text-gray-500 sm:text-sm">{description}</p>}
+              <div className="group relative mt-4 -mx-1 overflow-x-auto hide-scrollbar">
+                <div className={`pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r ${gradientClass} to-transparent`} />
+                <div className={`pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l ${gradientClass} to-transparent`} />
+                <div className="rail-scroll px-1 flex flex-nowrap gap-3 snap-x snap-mandatory scroll-px-2">
+                  {(s.items || []).map((it, idx) => (
+                    <DiscoverCard
+                      key={it.id}
+                      item={it as any}
+                      trackContext={{ shelf_key: s.key, rank: idx + 1, exp }}
+                      variant="rail"
+                    />
+                  ))}
+                  {(s.items || []).length === 0 && (
+                    <div className="px-2 py-6 text-sm text-gray-500">
+                      Nenhum resultado para esta seção. Dica: remova 1 filtro ou experimente outra guia.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => handleExpand(s.key)}
-                className="inline-flex items-center gap-1 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-brand-magenta/40 hover:text-brand-magenta focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
-              >
-                Ver mais
-                <span aria-hidden>→</span>
-              </button>
-            </div>
-          </div>
-          <div className="group relative -mx-2 overflow-x-auto hide-scrollbar">
-            {/* Setas removidas conforme solicitado */}
-
-            {/* Edge fades */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white to-transparent" />
-
-            <div className="rail-scroll px-2 flex flex-nowrap gap-3 snap-x snap-mandatory scroll-px-2">
-              {(s.items || []).map((it, idx) => (
-                <DiscoverCard
-                  key={it.id}
-                  item={it as any}
-                  trackContext={{ shelf_key: s.key, rank: idx + 1, exp }}
-                  variant="rail"
-                  // snap each card
-                  // container enforces snap, card just needs snap alignment
-                />
-              ))}
-              {(s.items || []).length === 0 && (
-                <div className="px-2 py-6 text-sm text-gray-500">Nenhum resultado para esta seção. Dica: remova 1 filtro ou experimente outra guia.</div>
-              )}
-            </div>
-          </div>
-        </section>
-      ))}
+          </section>
+        );
+      })}
       <style jsx global>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

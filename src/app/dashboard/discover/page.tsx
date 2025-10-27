@@ -1,15 +1,15 @@
 // src/app/dashboard/discover/page.tsx
 import React from 'react';
 import { headers } from 'next/headers';
-import Link from 'next/link';
-// Grid é a única visualização
 import NextDynamic from 'next/dynamic';
 const DiscoverViewTracker = NextDynamic(() => import('../../discover/components/DiscoverViewTracker'), { ssr: false });
-const DiscoverChips = NextDynamic(() => import('../../discover/components/DiscoverChips'), { ssr: false });
-const DiscoverGrid = NextDynamic(() => import('../../discover/components/DiscoverGrid'), { ssr: false });
-const DiscoverRails = NextDynamic(() => import('../../discover/components/DiscoverRails'), { ssr: false });
 const DiscoverBillingGate = NextDynamic(() => import('./DiscoverBillingGate'), { ssr: false });
 const DiscoverHeaderConfigurator = NextDynamic(() => import('./DiscoverHeaderConfigurator'), { ssr: false });
+const DiscoverActionBar = NextDynamic(() => import('./DiscoverActionBar'), { ssr: false });
+const FeaturedIdeasSection = NextDynamic(() => import('./FeaturedIdeasSection'), { ssr: false });
+const DiscoverExplorerSection = NextDynamic(() => import('./DiscoverExplorerSection'), { ssr: false });
+const DiscoverInsightsSection = NextDynamic(() => import('./DiscoverInsightsSection'), { ssr: false });
+import DiscoverHeader from './DiscoverHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,58 +111,113 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
     'Horários quentes',
     'Recomendados para você',
   ]);
-  const visibleSections = (sections || []).filter(
-    (s) => !blockedTitles.has((s.title || '').trim())
-  );
+  const visibleSections = (sections || []).filter((s) => !blockedTitles.has((s.title || '').trim()));
+
+  const primaryCandidateKeys = ['user_suggested', 'personalized', 'recommended'];
+  const featuredSection =
+    visibleSections.find((section) => primaryCandidateKeys.includes(section.key)) || visibleSections[0] || null;
+  const secondarySections = featuredSection
+    ? visibleSections.filter((section) => section.key !== featuredSection.key)
+    : visibleSections;
+  const totalIdeas = visibleSections.reduce((acc, section) => acc + (section.items?.length ?? 0), 0);
+  const featuredIdeas = featuredSection?.items?.length ?? 0;
+  const exploredLabel = totalIdeas > 0 ? Math.min(totalIdeas, 48) : 0;
+
+  const flattenedItems = visibleSections.flatMap((section) => section.items || []);
+  const viewValues = flattenedItems
+    .map((item) => item.stats?.views)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0);
+  const interactionValues = flattenedItems
+    .map((item) => item.stats?.total_interactions)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0);
+
+  const avgViews = viewValues.length ? viewValues.reduce((sum, curr) => sum + curr, 0) / viewValues.length : null;
+  const avgInteractions = interactionValues.length
+    ? interactionValues.reduce((sum, curr) => sum + curr, 0) / interactionValues.length
+    : null;
+
+  const hourBuckets = new Map<string, number>();
+  for (const item of flattenedItems) {
+    if (!item.postDate) continue;
+    const date = new Date(item.postDate);
+    if (Number.isNaN(date.getTime())) continue;
+    const hour = date.getHours();
+    const bucketLabel =
+      hour >= 6 && hour < 12
+        ? 'Manhã (6h-11h)'
+        : hour >= 12 && hour < 18
+        ? 'Tarde (12h-17h)'
+        : hour >= 18 && hour < 24
+        ? 'Noite (18h-23h)'
+        : 'Madrugada (0h-5h)';
+    hourBuckets.set(bucketLabel, (hourBuckets.get(bucketLabel) || 0) + 1);
+  }
+
+  let topHourLabel: string | null = null;
+  for (const [label, count] of hourBuckets) {
+    if (!topHourLabel || (hourBuckets.get(topHourLabel) || 0) < count) {
+      topHourLabel = label;
+    }
+  }
+  const heatmapBuckets = Array.from(hourBuckets.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
 
   return (
     <main className="w-full max-w-none pb-10">
       <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 
-      <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-        {/* Teaser de Afiliados removido; agora há uma página dedicada em /dashboard/afiliados */}
+      <div className="max-w-[820px] lg:max-w-7xl mx-auto space-y-8 px-3 sm:px-4 lg:px-6 pt-6 sm:pt-6">
+        <DiscoverHeader allowedPersonalized={allowedPersonalized} featuredCount={featuredIdeas} />
 
-        {/* Gate reativo de assinatura/WhatsApp (client-side) */}
-        <DiscoverBillingGate />
+        <DiscoverActionBar allowedPersonalized={allowedPersonalized} />
 
-        {/* Filtros por categoria */}
-        {/* Cabeçalho e orientação */}
-        <div className="mb-3 space-y-2">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Descubra novas ideias</h1>
-          <p className="text-sm text-slate-600 sm:text-base">
-            Este espaço mostra o que outros criadores estão publicando agora. Explore à vontade mesmo sem conectar
-            seu Instagram — e libere sugestões personalizadas quando estiver pronto.
-          </p>
-          {!allowedPersonalized ? (
-            <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-rose-800">Conecte seu Instagram para personalizar a curadoria</p>
-                <p className="text-xs text-rose-700">
-                  Assim o Mobi ranqueia horários, formatos e concorrentes diretos com base nos seus dados reais.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/instagram/connect"
-                className="inline-flex items-center justify-center rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
-              >
-                Conectar Instagram
-              </Link>
+        {featuredSection?.items?.length ? (
+          <FeaturedIdeasSection items={featuredSection.items} totalItems={featuredIdeas} />
+        ) : null}
+
+        <DiscoverExplorerSection sections={secondarySections} primaryKey={featuredSection?.key} />
+
+        <DiscoverInsightsSection
+          avgViews={avgViews}
+          avgInteractions={avgInteractions}
+          totalPosts={flattenedItems.length}
+          topHourLabel={topHourLabel}
+          heatmapBuckets={heatmapBuckets}
+        />
+
+        <section className="rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Próximos passos</p>
+              <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                Planeje e troque ideias com quem está no mesmo ritmo
+              </h3>
+              <p className="text-sm text-slate-600">
+                Você explorou {exploredLabel || "várias"} ideias hoje. Salve as melhores e valide com a comunidade.
+              </p>
             </div>
-          ) : null}
-        </div>
-        <div className="mb-6 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Filtrar por categoria</p>
-          <DiscoverChips />
-        </div>
-
-        {/* Conteúdo: modo Experiências sempre com prateleiras (rails) */}
-        <section aria-label="Coleções" className="mt-1">
-          <DiscoverRails sections={visibleSections} />
-          {visibleSections.length === 0 && (
-            <p className="text-gray-500 mt-6">Nenhuma coleção encontrada por enquanto.</p>
-          )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <a
+                href="/dashboard/planner/demo"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              >
+                Salvar ideias no Planner
+              </a>
+              <a
+                href="https://chat.whatsapp.com/BAeBQZ8zuhQJOxXXJJaTnH"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+              >
+                Entrar na comunidade
+              </a>
+            </div>
+          </div>
         </section>
+
+        <DiscoverBillingGate />
       </div>
     </main>
   );
