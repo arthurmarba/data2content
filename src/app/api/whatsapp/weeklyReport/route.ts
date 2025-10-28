@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
       planStatus: { $in: ACTIVE_LIKE },
       whatsappVerified: true,
       whatsappPhone: { $exists: true, $nin: [null, ""] },
+      whatsappTrialActive: { $ne: true },
     }).lean();
     logger.info(
       `${functionName} Usuários elegíveis (active-like + verificado) encontrados: ${users.length}`

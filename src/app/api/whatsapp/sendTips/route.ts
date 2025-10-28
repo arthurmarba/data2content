@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
     planStatus: { $in: ACTIVE_LIKE },
     whatsappPhone: { $exists: true, $ne: null },
     whatsappVerified: true,
+    whatsappTrialActive: { $ne: true },
   }).lean();
 
   if (!users.length) {

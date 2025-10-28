@@ -91,8 +91,11 @@ export async function POST(request: NextRequest) {
     const activeUsers = await User.find({
         planStatus: { $in: activeLikeStatuses },
         whatsappPhone: { $ne: null, $exists: true }, // Garante que o campo existe e não é null
-        whatsappVerified: true // Garante que o número foi verificado
-    }).select('_id name').lean(); // Seleciona apenas o ID e nome
+        whatsappVerified: true, // Garante que o número foi verificado
+        whatsappTrialActive: { $ne: true }, // Evita criadores no trial de 48h
+    })
+      .select('_id name')
+      .lean(); // Seleciona apenas o ID e nome
 
     logger.info(`${TAG} Encontrados ${activeUsers.length} usuários com plano ativo-like e WhatsApp verificado para receber dicas.`);
 
