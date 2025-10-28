@@ -611,11 +611,29 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             return NextResponse.json({ success: true, message: "User not found." }, { status: 200 });
         }
 
-        if (userForRadar.whatsappTrialActive) {
+        const trialExpiresRaw = userForRadar.whatsappTrialExpiresAt;
+        const trialExpiresDate =
+            trialExpiresRaw instanceof Date
+                ? trialExpiresRaw
+                : trialExpiresRaw
+                ? new Date(trialExpiresRaw)
+                : null;
+        const trialExpiresAt =
+            trialExpiresDate && !Number.isNaN(trialExpiresDate.getTime()) ? trialExpiresDate : null;
+        const trialExpiresIso = trialExpiresAt ? trialExpiresAt.toISOString() : 'null';
+        const trialWindowActive =
+            Boolean(userForRadar.whatsappTrialActive) &&
+            Boolean(trialExpiresAt && trialExpiresAt.getTime() > Date.now());
+
+        if (userForRadar.whatsappTrialActive && !trialWindowActive) {
             logger.info(
-                `${handlerTAG} Usuário está no trial de 48h (whatsappTrialActive=true). Pulando envio proativo.`
+                `${handlerTAG} Trial de WhatsApp expirado (expiresAt=${trialExpiresIso}). Pulando envio proativo.`
             );
-            return NextResponse.json({ trial: true, skipped: true }, { status: 200 });
+            return NextResponse.json({ trial: true, skipped: true, expired: true }, { status: 200 });
+        }
+
+        if (trialWindowActive) {
+            logger.info(`${handlerTAG} Trial ativo detectado até ${trialExpiresIso}. Prosseguindo envio proativo.`);
         }
 
         // 🚫 Plano inativo não recebe mensagens proativas
