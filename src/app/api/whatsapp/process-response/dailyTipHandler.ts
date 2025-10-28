@@ -611,9 +611,32 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             return NextResponse.json({ success: true, message: "User not found." }, { status: 200 });
         }
 
-        // 🚫 Plano inativo não recebe mensagens proativas
-        if (!isActiveLike(userForRadar.planStatus)) {
-            logger.warn(`${handlerTAG} Plano do usuário é ${userForRadar.planStatus}. Pulando envio proativo do Radar.`);
+        const trialExpiresRaw = userForRadar.whatsappTrialExpiresAt;
+        const trialExpiresAt =
+            trialExpiresRaw instanceof Date
+                ? trialExpiresRaw
+                : trialExpiresRaw
+                ? new Date(trialExpiresRaw)
+                : null;
+        const trialExpired = Boolean(trialExpiresAt && trialExpiresAt.getTime() <= Date.now());
+        const trialActiveWindow = Boolean(userForRadar.whatsappTrialActive && !trialExpired);
+
+        if (trialExpired) {
+            logger.info(
+                `${handlerTAG} Trial de 48h expirado em ${trialExpiresAt?.toISOString()}. Bloqueando envio proativo.`
+            );
+        }
+
+        // 🚫 Plano inativo (sem trial válido) não recebe mensagens proativas
+        const planStatusRaw = userForRadar.planStatus;
+        const planStatusString = typeof planStatusRaw === 'string' ? planStatusRaw.toLowerCase() : '';
+        const planIsTrialLike = planStatusString.includes('trial');
+        const planEligible = isActiveLike(planStatusRaw) && !(planIsTrialLike && trialExpired);
+
+        if (!planEligible && !trialActiveWindow) {
+            logger.warn(
+                `${handlerTAG} Plano do usuário é ${userForRadar.planStatus} (trial válido: ${trialActiveWindow}). Pulando envio proativo do Radar.`
+            );
             return NextResponse.json({ plan_inactive: true, skipped: true }, { status: 200 });
         }
 

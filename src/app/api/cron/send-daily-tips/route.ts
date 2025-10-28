@@ -88,11 +88,25 @@ export async function POST(request: NextRequest) {
         'trialing',
     ].filter(isActiveLike);
 
+    const now = new Date();
     const activeUsers = await User.find({
         planStatus: { $in: activeLikeStatuses },
         whatsappPhone: { $ne: null, $exists: true }, // Garante que o campo existe e não é null
-        whatsappVerified: true // Garante que o número foi verificado
-    }).select('_id name').lean(); // Seleciona apenas o ID e nome
+        whatsappVerified: true, // Garante que o número foi verificado
+        $or: [
+            { whatsappTrialActive: { $ne: true } },
+            {
+                whatsappTrialActive: true,
+                $or: [
+                    { whatsappTrialExpiresAt: { $exists: false } },
+                    { whatsappTrialExpiresAt: null },
+                    { whatsappTrialExpiresAt: { $gt: now } },
+                ],
+            },
+        ],
+    })
+      .select('_id name')
+      .lean(); // Seleciona apenas o ID e nome
 
     logger.info(`${TAG} Encontrados ${activeUsers.length} usuários com plano ativo-like e WhatsApp verificado para receber dicas.`);
 

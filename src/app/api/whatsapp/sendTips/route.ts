@@ -80,10 +80,22 @@ export async function POST(request: NextRequest) {
     "trial",
     "trialing",
   ].filter(isActiveLike);
+  const now = new Date();
   const users = await User.find({
     planStatus: { $in: ACTIVE_LIKE },
     whatsappPhone: { $exists: true, $ne: null },
     whatsappVerified: true,
+    $or: [
+      { whatsappTrialActive: { $ne: true } },
+      {
+        whatsappTrialActive: true,
+        $or: [
+          { whatsappTrialExpiresAt: { $exists: false } },
+          { whatsappTrialExpiresAt: null },
+          { whatsappTrialExpiresAt: { $gt: now } },
+        ],
+      },
+    ],
   }).lean();
 
   if (!users.length) {

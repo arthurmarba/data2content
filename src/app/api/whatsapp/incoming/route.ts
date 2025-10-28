@@ -320,7 +320,22 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
   const activeLikeUser = isActiveLikeNormalized(rawStatusUser);
   logger.debug(`${postTag} planStatus do usuário raw="${rawStatusUser}" normalized="${normStatusUser}" activeLike=${activeLikeUser}`);
 
-  if (!activeLikeUser) {
+  const trialExpiresRaw = user.whatsappTrialExpiresAt;
+  const trialExpiresAt =
+    trialExpiresRaw instanceof Date
+      ? trialExpiresRaw
+      : trialExpiresRaw
+      ? new Date(trialExpiresRaw)
+      : null;
+  const trialExpired = Boolean(trialExpiresAt && trialExpiresAt.getTime() <= Date.now());
+  const trialActiveWindow = Boolean(user.whatsappTrialActive && !trialExpired);
+
+  let effectiveActiveLike = activeLikeUser;
+  if (trialExpired && typeof normStatusUser === 'string' && normStatusUser.includes('trial')) {
+    effectiveActiveLike = false;
+  }
+
+  if (!effectiveActiveLike && !trialActiveWindow) {
     try {
       await sendWhatsAppMessage(
         fromPhone,
@@ -330,6 +345,12 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
       logger.error(`${postTag} Falha ao enviar mensagem de plano inativo:`, sendError);
     }
     return NextResponse.json({ plan_inactive: true }, { status: 200 });
+  }
+
+  if (trialExpired && user.whatsappTrialActive) {
+    logger.warn(
+      `${postTag} Trial marcado como ativo, mas expirado em ${trialExpiresAt?.toISOString()} para ${uid}. Aguardando desativação pelo cron.`,
+    );
   }
 
   // Interrupção / estado de diálogo

@@ -101,10 +101,22 @@ export async function POST(request: NextRequest) {
       "trialing",
     ].filter(isActiveLike);
     logger.debug(`${functionName} Buscando usuários elegíveis...`);
+    const referenceDate = new Date();
     const users = await User.find({
       planStatus: { $in: ACTIVE_LIKE },
       whatsappVerified: true,
       whatsappPhone: { $exists: true, $nin: [null, ""] },
+      $or: [
+        { whatsappTrialActive: { $ne: true } },
+        {
+          whatsappTrialActive: true,
+          $or: [
+            { whatsappTrialExpiresAt: { $exists: false } },
+            { whatsappTrialExpiresAt: null },
+            { whatsappTrialExpiresAt: { $gt: referenceDate } },
+          ],
+        },
+      ],
     }).lean();
     logger.info(
       `${functionName} Usuários elegíveis (active-like + verificado) encontrados: ${users.length}`
