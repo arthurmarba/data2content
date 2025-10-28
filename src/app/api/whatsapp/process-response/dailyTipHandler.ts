@@ -611,6 +611,13 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             return NextResponse.json({ success: true, message: "User not found." }, { status: 200 });
         }
 
+        if (userForRadar.whatsappTrialActive) {
+            logger.info(
+                `${handlerTAG} Usuário está no trial de 48h (whatsappTrialActive=true). Pulando envio proativo.`
+            );
+            return NextResponse.json({ trial: true, skipped: true }, { status: 200 });
+        }
+
         // 🚫 Plano inativo não recebe mensagens proativas
         if (!isActiveLike(userForRadar.planStatus)) {
             logger.warn(`${handlerTAG} Plano do usuário é ${userForRadar.planStatus}. Pulando envio proativo do Radar.`);
