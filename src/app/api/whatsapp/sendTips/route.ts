@@ -74,6 +74,16 @@ export async function POST(request: NextRequest) {
   await connectToDatabase();
 
   // ✅ Considera active-like e exige número verificado
+  const now = new Date();
+  const trialWindowFilter = {
+    $or: [
+      { whatsappTrialActive: { $ne: true } },
+      {
+        whatsappTrialActive: true,
+        whatsappTrialExpiresAt: { $gt: now },
+      },
+    ],
+  } as const;
   const ACTIVE_LIKE: ActiveLikeStatus[] = [
     "active",
     "non_renewing",
@@ -84,7 +94,7 @@ export async function POST(request: NextRequest) {
     planStatus: { $in: ACTIVE_LIKE },
     whatsappPhone: { $exists: true, $ne: null },
     whatsappVerified: true,
-    whatsappTrialActive: { $ne: true },
+    ...trialWindowFilter,
   }).lean();
 
   if (!users.length) {

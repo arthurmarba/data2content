@@ -94,6 +94,16 @@ export async function POST(request: NextRequest) {
     logger.debug(`${functionName} Conectado ao MongoDB.`);
 
     // 2) Usuários elegíveis: active-like + whatsapp verificado
+    const now = new Date();
+    const trialWindowFilter = {
+      $or: [
+        { whatsappTrialActive: { $ne: true } },
+        {
+          whatsappTrialActive: true,
+          whatsappTrialExpiresAt: { $gt: now },
+        },
+      ],
+    } as const;
     const ACTIVE_LIKE: ActiveLikeStatus[] = [
       "active",
       "non_renewing",
@@ -105,7 +115,7 @@ export async function POST(request: NextRequest) {
       planStatus: { $in: ACTIVE_LIKE },
       whatsappVerified: true,
       whatsappPhone: { $exists: true, $nin: [null, ""] },
-      whatsappTrialActive: { $ne: true },
+      ...trialWindowFilter,
     }).lean();
     logger.info(
       `${functionName} Usuários elegíveis (active-like + verificado) encontrados: ${users.length}`
@@ -118,7 +128,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 3) Período dos últimos 7 dias
-    const now = new Date();
     const fromDate = subDays(now, 7);
     fromDate.setHours(0, 0, 0, 0);
     logger.debug(

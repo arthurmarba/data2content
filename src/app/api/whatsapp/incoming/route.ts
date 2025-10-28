@@ -27,6 +27,11 @@ import { IUser } from '@/app/models/User';
 import User from '@/app/models/User';
 import * as stateService from '@/app/lib/stateService';
 
+const WHATSAPP_TRIAL_UPSELL_URL =
+  process.env.NEXT_PUBLIC_PRO_UPGRADE_URL ||
+  process.env.WHATSAPP_TRIAL_UPSELL_URL ||
+  'https://app.data2content.co/dashboard/billing/checkout';
+
 /* ──────────────────────────────────────────────────────────────────
    Normalização e checagem de plano
    ────────────────────────────────────────────────────────────────── */
@@ -312,6 +317,31 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
       return NextResponse.json({ user_not_found_message_sent: true }, { status: 200 });
     }
     return NextResponse.json({ error: 'Failed to lookup user' }, { status: 500 });
+  }
+
+  const trialExpiresRaw = user.whatsappTrialExpiresAt;
+  const trialExpiresDate =
+    trialExpiresRaw instanceof Date ? trialExpiresRaw : trialExpiresRaw ? new Date(trialExpiresRaw) : null;
+  const trialExpiresAt = trialExpiresDate && !Number.isNaN(trialExpiresDate.getTime()) ? trialExpiresDate : null;
+  const trialExpiresIso = trialExpiresAt ? trialExpiresAt.toISOString() : 'null';
+  const trialWindowActive =
+    Boolean(user.whatsappTrialActive) && Boolean(trialExpiresAt && trialExpiresAt.getTime() > Date.now());
+
+  if (user.whatsappTrialActive && !trialWindowActive) {
+    const message =
+      `Seu teste gratuito de 48h com a estrategista terminou. ` +
+      `Ative o plano PRO para continuar recebendo alertas personalizados: ${WHATSAPP_TRIAL_UPSELL_URL}`;
+    logger.info(`${postTag} Trial expirado para ${uid} (expiresAt=${trialExpiresIso}). Notificando e encerrando atendimento.`);
+    try {
+      await sendWhatsAppMessage(fromPhone, message);
+    } catch (sendError) {
+      logger.error(`${postTag} Falha ao enviar mensagem de trial expirado:`, sendError);
+    }
+    return NextResponse.json({ trial_expired: true }, { status: 200 });
+  }
+
+  if (trialWindowActive) {
+    logger.debug(`${postTag} Usuário ${uid} em trial ativo até ${trialExpiresIso}.`);
   }
 
   // Bloqueio para plano não-ativo (normalizado)

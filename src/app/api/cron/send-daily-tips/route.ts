@@ -88,11 +88,22 @@ export async function POST(request: NextRequest) {
         'trialing',
     ].filter(isActiveLike);
 
+    const now = new Date();
+    const trialWindowFilter = {
+        $or: [
+            { whatsappTrialActive: { $ne: true } },
+            {
+                whatsappTrialActive: true,
+                whatsappTrialExpiresAt: { $gt: now },
+            },
+        ],
+    } as const;
+
     const activeUsers = await User.find({
         planStatus: { $in: activeLikeStatuses },
         whatsappPhone: { $ne: null, $exists: true }, // Garante que o campo existe e não é null
         whatsappVerified: true, // Garante que o número foi verificado
-        whatsappTrialActive: { $ne: true }, // Evita criadores no trial de 48h
+        ...trialWindowFilter,
     })
       .select('_id name')
       .lean(); // Seleciona apenas o ID e nome
