@@ -66,7 +66,7 @@ type CacheEntry = {
 
 let cacheEntry: CacheEntry | null = null;
 
-type Last30AggregateResult = {
+type AggregateSummary = {
   _id: null;
   postCount: number;
   totalReach: number;
@@ -171,15 +171,24 @@ async function buildCommunityMetrics(params: {
       postsLast30Days: 0,
       newMembersLast7Days,
       reachLast30Days: 0,
+      reachAllTime: 0,
       viewsLast30Days: 0,
+      viewsAllTime: 0,
       followersGainedLast30Days: 0,
+      followersGainedAllTime: 0,
       interactionsLast30Days: 0,
+      interactionsAllTime: 0,
     };
   }
 
-  const [totalPostsAnalyzed, last30Aggregation, followerGrowthAggregation] = await Promise.all([
+  const [
+    totalPostsAnalyzed,
+    last30Aggregation,
+    followerGrowthAggregation,
+    lifetimeAggregation,
+  ] = await Promise.all([
     MetricModel.countDocuments({ user: { $in: activeCreatorIds } }).exec(),
-    MetricModel.aggregate<Last30AggregateResult>([
+    MetricModel.aggregate<AggregateSummary>([
       {
         $match: {
           user: { $in: activeCreatorIds },
@@ -264,18 +273,57 @@ async function buildCommunityMetrics(params: {
         },
       },
     ]).exec(),
+    MetricModel.aggregate<AggregateSummary>([
+      {
+        $match: {
+          user: { $in: activeCreatorIds },
+        },
+      },
+      {
+        $project: {
+          reach: { $ifNull: ['$stats.reach', 0] },
+          videoViews: { $ifNull: ['$stats.video_views', 0] },
+          views: { $ifNull: ['$stats.views', 0] },
+          follows: { $ifNull: ['$stats.follows', 0] },
+          interactions: { $ifNull: ['$stats.total_interactions', 0] },
+        },
+      },
+      {
+        $addFields: {
+          computedViews: {
+            $cond: [
+              { $gt: ['$videoViews', 0] },
+              '$videoViews',
+              '$views',
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          postCount: { $sum: 1 },
+          totalReach: { $sum: '$reach' },
+          totalViews: { $sum: '$computedViews' },
+          totalFollows: { $sum: '$follows' },
+          totalInteractions: { $sum: '$interactions' },
+        },
+      },
+    ]).exec(),
   ]);
 
-  const summary = last30Aggregation[0] ?? {
-    _id: null,
-    postCount: 0,
-    totalReach: 0,
-    totalViews: 0,
-    totalFollows: 0,
-    totalInteractions: 0,
-  };
+  const summarize = (entry?: AggregateSummary | null) => ({
+    postCount: Number(entry?.postCount ?? 0),
+    totalReach: Number(entry?.totalReach ?? 0),
+    totalViews: Number(entry?.totalViews ?? 0),
+    totalFollows: Number(entry?.totalFollows ?? 0),
+    totalInteractions: Number(entry?.totalInteractions ?? 0),
+  });
+
+  const last30Summary = summarize(last30Aggregation[0]);
+  const lifetimeSummary = summarize(lifetimeAggregation[0]);
   const followerGainsFromInsights = followerGrowthAggregation[0]?.totalDelta;
-  const followersFromMetrics = Number(summary.totalFollows ?? 0);
+  const followersFromMetrics = last30Summary.totalFollows;
   const followersFromInsights =
     typeof followerGainsFromInsights === 'number' && followerGainsFromInsights > 0
       ? Number(followerGainsFromInsights)
@@ -285,12 +333,16 @@ async function buildCommunityMetrics(params: {
     activeCreators,
     combinedFollowers,
     totalPostsAnalyzed,
-    postsLast30Days: Number(summary.postCount ?? 0),
+    postsLast30Days: last30Summary.postCount,
     newMembersLast7Days,
-    reachLast30Days: Number(summary.totalReach ?? 0),
-    viewsLast30Days: Number(summary.totalViews ?? 0),
+    reachLast30Days: last30Summary.totalReach,
+    reachAllTime: lifetimeSummary.totalReach,
+    viewsLast30Days: last30Summary.totalViews,
+    viewsAllTime: lifetimeSummary.totalViews,
     followersGainedLast30Days: followersFromInsights ?? followersFromMetrics,
-    interactionsLast30Days: Number(summary.totalInteractions ?? 0),
+    followersGainedAllTime: lifetimeSummary.totalFollows,
+    interactionsLast30Days: last30Summary.totalInteractions,
+    interactionsAllTime: lifetimeSummary.totalInteractions,
   };
 }
 

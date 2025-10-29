@@ -5,9 +5,13 @@ export interface LandingCommunityMetrics {
   postsLast30Days: number;
   newMembersLast7Days: number;
   viewsLast30Days: number;
+  viewsAllTime: number;
   reachLast30Days: number;
+  reachAllTime: number;
   followersGainedLast30Days: number;
+  followersGainedAllTime: number;
   interactionsLast30Days: number;
+  interactionsAllTime: number;
 }
 
 export interface LandingNextMentorship {

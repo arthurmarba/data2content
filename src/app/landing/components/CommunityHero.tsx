@@ -27,7 +27,8 @@ const STAT_EMOJIS: Record<QuickStatId, string> = {
 type QuickStat = {
   id: QuickStatId;
   label: string;
-  rawValue: number | null;
+  last30Value: number | null;
+  totalValue: number | null;
   prefix?: string;
   formatter: (value: number) => string;
   descriptionHighlight: string;
@@ -222,7 +223,12 @@ const proCommunityContent: readonly CommunitySection[] = [
 ];
 
 export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, nextMentorship }) => {
-  const postsSample = metrics?.postsLast30Days ? formatPlainNumber(metrics.postsLast30Days) : null;
+  const postsLast30Sample = metrics?.postsLast30Days
+    ? formatPlainNumber(metrics.postsLast30Days)
+    : null;
+  const postsTotalSample = metrics?.totalPostsAnalyzed
+    ? formatPlainNumber(metrics.totalPostsAnalyzed)
+    : null;
 
   const mentorshipBadgeText = React.useMemo(() => {
     const weekday = formatWeekdayFromIso(nextMentorship?.isoDate);
@@ -247,7 +253,8 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
       {
         id: "followers" as const,
         label: "Seguidores conquistados",
-        rawValue: metrics?.followersGainedLast30Days ?? null,
+        last30Value: metrics?.followersGainedLast30Days ?? null,
+        totalValue: metrics?.followersGainedAllTime ?? null,
         prefix: "+",
         formatter: (value: number) => formatCompactNumber(value),
         descriptionHighlight: "Crescimento somado",
@@ -256,7 +263,8 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
       {
         id: "views" as const,
         label: "Visualizações geradas",
-        rawValue: metrics?.viewsLast30Days ?? null,
+        last30Value: metrics?.viewsLast30Days ?? null,
+        totalValue: metrics?.viewsAllTime ?? null,
         formatter: (value: number) => formatCompactNumber(value),
         descriptionHighlight: "Base de dados hidratada diariamente",
         descriptionTail: " para orientar decisões.",
@@ -264,7 +272,8 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
       {
         id: "reach" as const,
         label: "Alcance somado",
-        rawValue: metrics?.reachLast30Days ?? null,
+        last30Value: metrics?.reachLast30Days ?? null,
+        totalValue: metrics?.reachAllTime ?? null,
         formatter: (value: number) => formatCompactNumber(value),
         descriptionHighlight: "Conteúdos da comunidade",
         descriptionTail: " chegando a novos públicos com frequência.",
@@ -272,13 +281,18 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
       {
         id: "interactions" as const,
         label: "Interações registradas",
-        rawValue: metrics?.interactionsLast30Days ?? null,
+        last30Value: metrics?.interactionsLast30Days ?? null,
+        totalValue: metrics?.interactionsAllTime ?? null,
         formatter: (value: number) => formatCompactNumber(value),
-        descriptionHighlight: postsSample ? `${postsSample} conteúdos` : "Conteúdos",
+        descriptionHighlight: postsTotalSample
+          ? `${postsTotalSample} conteúdos`
+          : postsLast30Sample
+          ? `${postsLast30Sample} conteúdos recentes`
+          : "Conteúdos",
         descriptionTail: " analisados para gerar referências práticas.",
       },
     ],
-    [metrics, postsSample],
+    [metrics, postsLast30Sample, postsTotalSample],
   );
 
   return (
@@ -322,6 +336,12 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
               <p className="mt-3 text-sm text-[#555555]">
                 O que a comunidade já conquistou junto — pessoas reais crescendo com apoio da IA da Data2Content.
               </p>
+              {postsTotalSample && (
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#999999]">
+                  Base histórica:
+                  <span className="ml-1 text-[#1A1A1A]">{postsTotalSample} conteúdos analisados</span>
+                </p>
+              )}
               <div className="mt-6 grid gap-4 sm:grid-cols-2 sm:gap-6 sm:[&>div:nth-child(odd)]:border-r sm:[&>div:nth-child(odd)]:border-[#EAEAEA] sm:[&>div:nth-child(odd)]:pr-6 sm:[&>div:nth-child(even)]:pl-6">
                 {quickStats.map((stat) => (
                   <div
@@ -338,7 +358,7 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
                     </div>
                     <p className="text-3xl font-semibold tracking-tight text-[#F6007B]">
                       <CountUpNumber
-                        value={stat.rawValue}
+                        value={stat.last30Value}
                         prefix={stat.prefix}
                         formatter={stat.formatter}
                       />
@@ -346,6 +366,19 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
                     <p className="text-[0.82rem] text-[#666666]">
                       <strong className="font-semibold text-[#1A1A1A]">{stat.descriptionHighlight}</strong>
                       {stat.descriptionTail}
+                    </p>
+                    <p className="text-[0.75rem] text-[#888888]">
+                      <span className="font-semibold uppercase tracking-[0.16em] text-[#999999]">
+                        Histórico total
+                      </span>
+                      {": "}
+                      <span className="font-semibold text-[#1A1A1A]">
+                        <CountUpNumber
+                          value={stat.totalValue}
+                          prefix={stat.prefix}
+                          formatter={stat.formatter}
+                        />
+                      </span>
                     </p>
                   </div>
                 ))}
