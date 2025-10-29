@@ -23,9 +23,13 @@ const FALLBACK_METRICS = {
   postsLast30Days: 1_200,
   newMembersLast7Days: 37,
   viewsLast30Days: 1_900_000,
+  viewsAllTime: 45_000_000,
   reachLast30Days: 2_500_000,
+  reachAllTime: 64_000_000,
   followersGainedLast30Days: 18_500,
+  followersGainedAllTime: 320_000,
   interactionsLast30Days: 820_000,
+  interactionsAllTime: 14_500_000,
 };
 
 function computeNextMentorshipSlot(): { isoDate: string; display: string } {
