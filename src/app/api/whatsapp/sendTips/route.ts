@@ -4,11 +4,11 @@ import { guardPremiumRequest }        from "@/app/lib/planGuard";
 import { getServerSession }           from "next-auth/next";
 import { authOptions }                from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase }          from "@/app/lib/mongoose";
-import User                           from "@/app/models/User";
+import User, { type IUser }          from "@/app/models/User";
 import { DailyMetric, IDailyMetric }  from "@/app/models/DailyMetric";
 import { callOpenAIForTips }          from "@/app/lib/aiService";
 import { sendWhatsAppMessage }        from "@/app/lib/whatsappService";
-import { Model, Types }               from "mongoose";
+import { Model, Types, type FilterQuery } from "mongoose";
 import { isActiveLike, type ActiveLikeStatus } from "@/app/lib/isActiveLike";
 
 /* ────────────────────────────────────────────────────────── *
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   // ✅ Considera active-like e exige número verificado
   const now = new Date();
-  const trialWindowFilter = {
+  const trialWindowFilter: FilterQuery<IUser> = {
     $or: [
       { whatsappTrialActive: { $ne: true } },
       {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         whatsappTrialExpiresAt: { $gt: now },
       },
     ],
-  } as const;
+  };
   const ACTIVE_LIKE: ActiveLikeStatus[] = [
     "active",
     "non_renewing",

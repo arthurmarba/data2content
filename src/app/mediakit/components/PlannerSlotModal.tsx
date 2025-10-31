@@ -54,31 +54,67 @@ export interface PlannerSlotModalProps {
   upgradeMessage?: string;
 }
 
-const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ className = '', ...props }) => (
-  <button {...props} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${className}`} />
+const GradientPillButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
+  className = '',
+  children,
+  disabled,
+  ...props
+}) => (
+  <button
+    {...props}
+    disabled={disabled}
+    className={`inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:from-[#c92d60] hover:to-[#5a1877] ${
+      disabled ? 'cursor-not-allowed opacity-60 hover:from-[#D62E5E] hover:to-[#6E1F93]' : ''
+    } ${className}`}
+  >
+    {children}
+  </button>
 );
 
-// Badge de status no header
-const StatusBadge: React.FC<{ status?: PlannerSlotData['status']; isExperiment?: boolean }> = ({ status, isExperiment }) => {
-  const st = status || (isExperiment ? 'test' : 'planned');
-  const styles: Record<string, string> = {
-    planned: 'bg-green-50 text-green-700 border-green-200',
-    drafted: 'bg-blue-50 text-blue-700 border-blue-200',
-    test: 'bg-yellow-50 text-yellow-800 border-yellow-200',
-    posted: 'bg-gray-100 text-gray-600 border-gray-200',
-  };
-  const labels: Record<string, string> = {
-    planned: 'Sugestão',
-    drafted: 'Rascunho',
-    test: 'Teste',
-    posted: 'Publicado',
-  };
+const OutlinePillButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
+  className = '',
+  children,
+  disabled,
+  ...props
+}) => (
+  <button
+    {...props}
+    disabled={disabled}
+    className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#6E1F93] px-4 py-2 text-xs font-semibold text-[#6E1F93] transition hover:bg-[#F3F0FF] ${
+      disabled ? 'cursor-not-allowed border-[#D5C8F5] text-[#B7A4E8] hover:bg-transparent' : ''
+    } ${className}`}
+  >
+    {children}
+  </button>
+);
+
+const MetricChip: React.FC<{ icon?: string; label: string; tone?: 'default' | 'highlight' | 'warning' }> = ({
+  icon,
+  label,
+  tone = 'default',
+}) => {
+  const styles =
+    tone === 'highlight'
+      ? 'bg-[#FFF2F6] text-[#D62E5E] border-[#FBD8E2]'
+      : tone === 'warning'
+        ? 'bg-[#FFF7E6] text-[#B9730F] border-[#F5D8A0]'
+        : 'bg-white text-[#4B4B55] border-[#E6E6EB]';
   return (
-    <span className={`text-[11px] px-2 py-0.5 rounded-full border ${styles[st] || styles.planned}`}>
-      {labels[st] || 'Sugestão'}
+    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${styles}`}>
+      {icon && <span aria-hidden>{icon}</span>}
+      {label}
     </span>
   );
 };
+
+const FORMAT_OPTIONS = [
+  { id: 'reel', label: 'Reel' },
+  { id: 'photo', label: 'Foto' },
+  { id: 'carousel', label: 'Carrossel' },
+  { id: 'story', label: 'Story' },
+  { id: 'live', label: 'Live' },
+  { id: 'long_video', label: 'Vídeo Longo' },
+] as const;
 
 export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   open,
@@ -110,6 +146,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const [strategy, setStrategy] = useState<'default'|'strong_hook'|'more_humor'|'practical_imperative'>('default');
   const triedAutoGenRef = useRef(false);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [aiVersionId, setAiVersionId] = useState<string | null>(null);
 
   // tema derivado (fallback para primeiro item de themes se não houver themeKeyword)
@@ -125,7 +162,6 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   // 🔸 estado do tema editável
   const [themeKw, setThemeKw] = useState<string>('');
   const [themesLocal, setThemesLocal] = useState<string[]>([]);
-  const [sampleCaptions, setSampleCaptions] = useState<string[]>([]);
   const [beats, setBeats] = useState<string[]>([]);
   const [recordingTimeSec, setRecordingTimeSec] = useState<number | undefined>(undefined);
   const [signalsUsed, setSignalsUsed] = useState<Array<{ title: string; url?: string; source?: string }>>([]);
@@ -138,6 +174,11 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const [communityError, setCommunityError] = useState<string | null>(null);
   const [communityPosts, setCommunityPosts] = useState<Array<{ id: string; caption: string; views: number; date: string; coverUrl?: string|null; postLink?: string|null; reason?: string[] }>>([]);
   const [communityExpanded, setCommunityExpanded] = useState<boolean>(false);
+  const [showTechnical, setShowTechnical] = useState<boolean>(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showScriptPanel, setShowScriptPanel] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingScript, setIsEditingScript] = useState(false);
 
   useEffect(() => {
     if (!open || !slot) return;
@@ -152,6 +193,9 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     setBeats([]);
     setRecordingTimeSec(typeof slot.recordingTimeSec === 'number' ? slot.recordingTimeSec : undefined);
     triedAutoGenRef.current = false;
+    setShowScriptPanel(false);
+    setIsEditingTitle(false);
+    setIsEditingScript(false);
   }, [open, slot, derivedTheme]);
 
   // Focus inicial no botão fechar para acessibilidade
@@ -159,6 +203,23 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     if (open) {
       setTimeout(() => closeBtnRef.current?.focus(), 0);
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const node = scrollAreaRef.current;
+    if (!node) return;
+    const handleScroll = () => {
+      const max = node.scrollHeight - node.clientHeight;
+      if (max <= 0) {
+        setScrollProgress(0);
+        return;
+      }
+      setScrollProgress(Math.min(100, Math.max(0, (node.scrollTop / max) * 100)));
+    };
+    handleScroll();
+    node.addEventListener('scroll', handleScroll, { passive: true });
+    return () => node.removeEventListener('scroll', handleScroll);
   }, [open]);
 
   // Lock scroll do body quando o modal está aberto
@@ -189,6 +250,33 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   }, [slot]);
 
   const effectiveTheme = (themeKw || derivedTheme || '').trim();
+  const contextLabels = useMemo(() => idsToLabels(slot?.categories?.context, 'context'), [slot?.categories?.context]);
+  const proposalLabels = useMemo(() => idsToLabels(slot?.categories?.proposal, 'proposal'), [slot?.categories?.proposal]);
+  const referenceLabels = useMemo(() => idsToLabels(slot?.categories?.reference, 'reference'), [slot?.categories?.reference]);
+  const toneLabel = useMemo(
+    () => (slot?.categories?.tone ? getCategoryById(slot.categories.tone, 'tone')?.label || slot.categories.tone : null),
+    [slot?.categories?.tone]
+  );
+  const formatLabel = useMemo(() => {
+    const map: Record<string, string> = {
+      reel: 'Reel',
+      photo: 'Foto',
+      carousel: 'Carrossel',
+      story: 'Story',
+      live: 'Live',
+      long_video: 'Vídeo Longo',
+    };
+    return map[format] || map.reel;
+  }, [format]);
+  const contextSummary = useMemo(() => (contextLabels.length ? contextLabels.slice(0, 2).join(' • ') : 'Livre'), [contextLabels]);
+  const proposalSummary = useMemo(
+    () => (proposalLabels.length ? proposalLabels.slice(0, 2).join(' • ') : 'Em aberto'),
+    [proposalLabels]
+  );
+  const referenceSummary = useMemo(
+    () => (referenceLabels.length ? referenceLabels.slice(0, 2).join(' • ') : 'Sem referência definida'),
+    [referenceLabels]
+  );
 
   const handleRegenerateThemes = async () => {
     if (!slot) return;
@@ -209,8 +297,6 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
       const data = await res.json();
       const arr: string[] = Array.isArray(data?.themes) ? data.themes : [];
       setThemesLocal(arr);
-      const caps: string[] = Array.isArray(data?.captions) ? data.captions : [];
-      setSampleCaptions(caps);
       if (!themeKw && typeof data?.keyword === 'string' && data.keyword.trim()) {
         setThemeKw(String(data.keyword).trim());
       }
@@ -265,6 +351,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
       if (newSlot && typeof newSlot.recordingTimeSec === 'number') {
         setRecordingTimeSec(newSlot.recordingTimeSec);
       }
+      setShowScriptPanel(true);
+      setIsEditingScript(false);
     } catch (err: any) {
       setError(err?.message || 'Erro inesperado');
     } finally {
@@ -415,21 +503,28 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     }
   };
 
+  const statusDetails = useMemo(() => {
+    const st = slot?.status || (slot?.isExperiment ? 'test' : 'planned');
+    switch (st) {
+      case 'test':
+        return { label: 'Em teste', tone: 'highlight' as const, icon: '🧪' };
+      case 'posted':
+        return { label: 'Publicado', tone: 'default' as const, icon: '✅' };
+      case 'drafted':
+        return { label: 'Rascunho', tone: 'default' as const, icon: '✏️' };
+      default:
+        return { label: 'Sugestão ativa', tone: 'default' as const, icon: '✨' };
+    }
+  }, [slot?.status, slot?.isExperiment]);
+
   if (!open || !slot) return null;
 
   const isTest = slot.status === 'test' || !!slot.isExperiment;
   const p50 = slot.expectedMetrics?.viewsP50;
   const p90 = slot.expectedMetrics?.viewsP90;
-
-  const viewsTooltip =
-    typeof p50 === 'number' || typeof p90 === 'number'
-      ? [
-          typeof p50 === 'number' ? `Views esperadas (P50): ${p50.toLocaleString('pt-BR')}` : null,
-          typeof p90 === 'number' ? `Alta prob. (P90): ${p90.toLocaleString('pt-BR')}` : null,
-        ]
-          .filter(Boolean)
-          .join(' • ')
-      : undefined;
+  const p50Compact = formatCompact(p50);
+  const p90Compact = formatCompact(p90);
+  const sharesCompact = formatCompact(slot.expectedMetrics?.sharesP50);
 
   const dialogLabelId = 'planner-slot-modal-title';
   const dialogDescId = 'planner-slot-modal-desc';
@@ -443,260 +538,529 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         >
           {/* HEADER sticky */}
           <div
-            className="sticky top-0 z-10 bg-white border-b"
+            className="sticky top-0 z-10 border-b border-[#E6E6EB] bg-[#FAFAFB]"
             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px))' }}
           >
-            <div className="flex items-center justify-between px-4 py-3 gap-3">
-              <div className="min-w-0">
-                <h3 id={dialogLabelId} className="text-base sm:text-lg font-bold text-gray-800 truncate">
-                  {headerText}
-                </h3>
-              <div className="mt-1 flex items-center gap-2 flex-wrap">
-                <StatusBadge status={slot.status} isExperiment={slot.isExperiment} />
-                {slot.rationale && slot.rationale.length > 0 && (
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full border ${
-                    confidence === 'Alta' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                    confidence === 'Média' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                    'bg-gray-50 text-gray-600 border-gray-200'
-                  }`} title="Confiança estimada pela quantidade de evidência no histórico">
-                    Evidência: {confidence}
-                  </span>
-                )}
-                {(beats && beats.length > 0) && (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200" title="Estimativa com base na duração e nº de etapas">
-                    Esforço: {effort}
-                  </span>
-                )}
-              </div>
-              {/* Segmented de formato */}
-              <div className="mt-2 flex flex-wrap gap-1" aria-label="Selecionar formato">
-                {[
-                  { id: 'reel', label: 'Reel' },
-                  { id: 'photo', label: 'Foto' },
-                  { id: 'carousel', label: 'Carrossel' },
-                  { id: 'story', label: 'Story' },
-                  { id: 'live', label: 'Live' },
-                  { id: 'long_video', label: 'Vídeo Longo' },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    disabled={readOnly}
-                    onClick={() => setFormat(opt.id)}
-                    className={
-                      `px-2 py-1 rounded-full text-xs border transition ${
-                        format === opt.id
-                          ? 'bg-pink-600 text-white border-pink-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`
-                    }
-                    aria-pressed={format === opt.id}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
               <button
                 ref={closeBtnRef}
-                className="shrink-0 text-2xl leading-none px-2 text-gray-500 hover:text-gray-800"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E6E6EB] text-lg text-[#4B4B55] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
                 onClick={onClose}
                 aria-label="Fechar"
               >
-                ×
+                ←
               </button>
+              <div className="flex min-w-0 flex-1 flex-col items-center text-center gap-1">
+                <span className="text-sm font-semibold text-[#1C1C1E] truncate">
+                  {effectiveTheme || 'Pauta IA em destaque'}
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6E1F93]">
+                  {headerText}
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold text-[#6E1F93]">
+                  {p50Compact && (
+                    <span className="inline-flex items-center gap-1">
+                      <span aria-hidden>🔥</span>
+                      {p50Compact} views
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-[#8F90A0]">•</span>
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>{statusDetails.icon}</span>
+                    {statusDetails.label}
+                  </span>
+                </div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#D62E5E] to-[#6E1F93] text-lg text-white shadow">
+                🤖
+              </div>
+            </div>
+            <div className="px-4 pb-3 sm:px-6">
+              <div className="flex flex-wrap justify-center gap-2 text-[11px] text-[#4B4B55]">
+                {p90Compact && (
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>🚀</span>
+                    {p90Compact} views (P90)
+                  </span>
+                )}
+                {sharesCompact && (
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>🔁</span>
+                    {sharesCompact} compartilhamentos
+                  </span>
+                )}
+                {(slot.rationale && slot.rationale.length > 0) && (
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>📊</span>
+                    Evidência {confidence}
+                  </span>
+                )}
+                {(beats && beats.length > 0) && (
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>🎬</span>
+                    Esforço {effort}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="h-1 w-full bg-[#F0F1F5]">
+              <div
+                className="h-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] transition-[width]"
+                style={{ width: `${scrollProgress}%` }}
+              />
             </div>
           </div>
 
           {/* SCROLL AREA */}
-          <div id={dialogDescId} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-            {/* Tema e layout em duas colunas */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              {(() => {
-                const effective = (themeKw || derivedTheme || '').trim();
-                return effective ? (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200" title="Tema-chave: palavra mais recorrente das legendas (editável abaixo)">
-                    Tema: {effective}
-                  </span>
-                ) : null;
-              })()}
-            </div>
-
-            <div className="grid grid-cols-1 gap-5">
-              {/* Métricas esperadas no topo */}
-              <div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                  <div
-                    className="bg-gray-50 rounded-md p-3"
-                    title={typeof p50 === 'number' ? `Estimativa de views (P50): ${p50.toLocaleString('pt-BR')}` : undefined}
-                  >
-                    <div className="text-gray-500">Views esperadas (P50)</div>
-                    <div className="font-semibold">{p50?.toLocaleString('pt-BR') ?? '—'}</div>
+          <div id={dialogDescId} ref={scrollAreaRef} className="flex-1 overflow-y-auto bg-[#FAFAFB]">
+            <div className="px-4 py-5 sm:px-6 sm:py-6 space-y-6">
+              <section className="rounded-3xl border border-[#FBE2E9] bg-white p-5 shadow-sm space-y-5">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#D62E5E]">
+                      💡 Pauta sugerida
+                    </span>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-[#6E1F93]"
+                        onClick={() => setIsEditingTitle((prev) => !prev)}
+                      >
+                        {isEditingTitle ? 'Concluir' : 'Editar título'}
+                      </button>
+                    )}
                   </div>
-                  <div
-                    className="bg-gray-50 rounded-md p-3"
-                    title={typeof p90 === 'number' ? `Views (P90): ${p90.toLocaleString('pt-BR')}` : undefined}
-                  >
-                    <div className="text-gray-500">Views (P90)</div>
-                    <div className="font-semibold">{p90?.toLocaleString('pt-BR') ?? '—'}</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-md p-3">
-                    <div className="text-gray-500">Compartilhamentos (P50)</div>
-                    <div className="font-semibold">{slot.expectedMetrics?.sharesP50?.toLocaleString('pt-BR') ?? '—'}</div>
-                  </div>
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  <span title="P50 = mediana; P90 = valor alto provável. Estimativas em views, com base no histórico recente.">O que é P50/P90?</span>
-                </div>
-              </div>
-              {/* Coluna Esquerda: Resumo */}
-              <div>
-                {/* Legenda de categorias */}
-                <div className="text-[11px] text-gray-500 mb-1">
-                  Legenda:
-                  <span className="ml-2 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400"></span> Contexto</span>
-                  <span className="ml-3 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> Proposta</span>
-                  <span className="ml-3 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-400"></span> Tom</span>
-                  <span className="ml-3 inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Referência</span>
-                </div>
-                {/* Chips por categoria */}
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <div className="text-xs font-semibold text-gray-600 mb-1">Contexto</div>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      {idsToLabels(slot.categories?.context, 'context').slice(0, 6).map((c, i) => (
-                        <span key={`ctx-${i}`} className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{c}</span>
-                      ))}
-                      {(() => {
-                        const total = slot.categories?.context?.length || 0;
-                        const extra = Math.max(0, total - 6);
-                        return extra > 0 ? (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">+{extra}</span>
-                        ) : null;
-                      })()}
-                      {(!slot.categories?.context || slot.categories.context.length === 0) && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">—</span>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-gray-600 mb-1">Proposta</div>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      {idsToLabels(slot.categories?.proposal, 'proposal').slice(0, 6).map((p, i) => (
-                        <span key={`pr-${i}`} className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{p}</span>
-                      ))}
-                      {(() => {
-                        const total = slot.categories?.proposal?.length || 0;
-                        const extra = Math.max(0, total - 6);
-                        return extra > 0 ? (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">+{extra}</span>
-                        ) : null;
-                      })()}
-                      {(!slot.categories?.proposal || slot.categories.proposal.length === 0) && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">—</span>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-gray-600 mb-1">Tom</div>
-                    <div className="flex flex-wrap gap-2">
-                      {slot.categories?.tone ? (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-                          {getCategoryById(slot.categories.tone, 'tone')?.label || slot.categories.tone}
-                        </span>
-                      ) : (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">—</span>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-gray-600 mb-1">Referência</div>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      {idsToLabels(slot.categories?.reference, 'reference').slice(0, 6).map((r, i) => (
-                        <span key={`rf-${i}`} className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{r}</span>
-                      ))}
-                      {(() => {
-                        const total = slot.categories?.reference?.length || 0;
-                        const extra = Math.max(0, total - 6);
-                        return extra > 0 ? (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">+{extra}</span>
-                        ) : null;
-                      })()}
-                      {(!slot.categories?.reference || slot.categories.reference.length === 0) && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">—</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Título e Descrição (para roteiros) */}
-                <div className="mt-4 grid grid-cols-1 gap-3">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-semibold text-gray-700" htmlFor="title">Título</label>
-                      <button type="button" className="text-xs text-gray-600 hover:text-gray-800" onClick={() => navigator.clipboard?.writeText(title || '')} disabled={!title}>Copiar</button>
-                    </div>
+                  {isEditingTitle && !readOnly ? (
                     <input
                       id="title"
                       type="text"
-                      className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
-                      placeholder="Ex.: 3 truques para ..."
+                      className="w-full rounded-xl border border-[#E6E6EB] bg-white px-3 py-2 text-sm shadow-inner focus:border-[#D62E5E] focus:outline-none focus:ring-2 focus:ring-[#FAD9E2]"
+                      placeholder="Ex.: 3 truques para..."
                       value={title}
-                      disabled={readOnly}
                       onChange={(e) => setTitle(e.target.value)}
                     />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-semibold text-gray-700" htmlFor="desc">Roteiro curto</label>
-                      <button type="button" className="text-xs text-gray-600 hover:text-gray-800" onClick={() => navigator.clipboard?.writeText(description || '')} disabled={!description}>Copiar</button>
-                    </div>
-                    <textarea
-                      id="desc"
-                      className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 min-h-[120px]"
-                      placeholder="Estrutura de fala, ganchos e CTA..."
-                      value={description}
-                      disabled={readOnly}
-                      onChange={(e) => setDescription(e.target.value)}
-                    />
-                  </div>
-                </div>
+                  ) : (
+                    <h3 id={dialogLabelId} className="text-[16px] font-semibold text-[#1C1C1E] leading-relaxed">
+                      {title || effectiveTheme || 'Ajuste o título da pauta com a sua voz'}
+                    </h3>
+                  )}
 
-                {/* Controles de geração (sem Meta) */}
-                {(!readOnly || showGenerateCta) && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <label className="inline-flex items-center gap-1 text-xs text-gray-700" title="Quando ligado, a IA pode usar sinais externos (notícias/tópicos) para criar gancho.">
-                      <input
-                        type="checkbox"
-                        className="accent-pink-600"
-                        checked={useSignals}
-                        onChange={(e) => setUseSignals(e.target.checked)}
-                        disabled={loading || readOnly}
-                      />
-                      Usar sinais externos
-                    </label>
-                    <div className="inline-flex rounded-md overflow-hidden border ml-2">
-                      {[
-                        { id: 'default', label: 'Padrão' },
-                        { id: 'strong_hook', label: 'Gancho forte' },
-                        { id: 'more_humor', label: 'Mais humor' },
-                        { id: 'practical_imperative', label: 'Mais prático' },
-                      ].map((opt) => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          className={`px-3 py-1.5 text-xs ${strategy === (opt.id as any) ? 'bg-pink-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'} ${opt.id === 'default' ? '' : 'border-l'} border-gray-200`}
-                          onClick={() => setStrategy(opt.id as any)}
-                          aria-pressed={strategy === (opt.id as any)}
-                          disabled={loading || readOnly}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+                  <div className="flex flex-wrap gap-2 text-[13px] font-semibold text-[#6E1F93]">
+                    {p50Compact && (
+                      <span className="inline-flex items-center gap-1">
+                        <span aria-hidden>🔥</span>
+                        {p50Compact} views
+                      </span>
+                    )}
+                    {statusDetails && (
+                      <span className="inline-flex items-center gap-1">
+                        <span aria-hidden>{statusDetails.icon}</span>
+                        {statusDetails.label}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 text-[13px] text-[#4B4B55]">
+                    <div>🎬 {formatLabel}</div>
+                    <div>💬 {contextSummary}</div>
+                    <div>🏷️ {proposalSummary}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                    <OutlinePillButton
+                      type="button"
+                      onClick={() => title && navigator.clipboard?.writeText(title)}
+                      disabled={!title}
+                    >
+                      Copiar título
+                    </OutlinePillButton>
+                    {!readOnly && (
+                      <OutlinePillButton
+                        type="button"
+                        onClick={handleRegenerateThemes}
+                        disabled={loading}
+                      >
+                        🔄 Outras ideias
+                      </OutlinePillButton>
+                    )}
+                  </div>
+
+                  {(themesLocal || []).length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-[#6E1F93]">Outras ideias do Mobi</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(themesLocal || []).slice(0, 3).map((t, i) => (
+                          <button
+                            key={`theme-${i}`}
+                            type="button"
+                            onClick={() => {
+                              setTitle(t);
+                              setIsEditingTitle(false);
+                            }}
+                            className="rounded-full border border-[#FBD8E2] bg-[#FFF7FB] px-3 py-1 text-xs font-semibold text-[#D62E5E] transition hover:bg-[#FDF1F6]"
+                            title="Usar este tema como título"
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <Button
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-[#E6E6EB] bg-white p-5 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-[#1C1C1E]">
+                      <span aria-hidden>📈</span> Conteúdos que inspiram
+                    </p>
+                    <p className="text-xs text-[#5A5A67]">
+                      Posts reais que performaram em temas parecidos para você adaptar com a sua voz.
+                    </p>
+                  </div>
+                  <OutlinePillButton
+                    type="button"
+                    onClick={fetchInspirations}
+                    disabled={inspLoading}
+                    className="whitespace-nowrap"
+                    aria-label={inspLoading ? 'Carregando inspirações' : 'Atualizar inspirações'}
+                  >
+                    {inspLoading ? 'Carregando…' : <span aria-hidden>🔄</span>}
+                  </OutlinePillButton>
+                </div>
+                {inspError && <div className="text-xs text-red-600">{inspError}</div>}
+                {(inspLoading && !inspPosts.length) && (
+                  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
+                    {[...Array(3)].map((_, i) => (
+                      <div
+                        key={`insp-skel-${i}`}
+                        className="min-w-[220px] rounded-2xl border border-[#EFE7FA] bg-[#F7F4FF] p-4 shadow-inner animate-pulse"
+                      >
+                        <div className="h-32 w-full rounded-xl bg-[#E8E0FB]" />
+                        <div className="mt-3 space-y-2">
+                          <div className="h-3 rounded bg-[#E0D5FF]" />
+                          <div className="h-3 w-2/3 rounded bg-[#E0D5FF]" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {inspPosts.length > 0 && (
+                  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin snap-x snap-mandatory">
+                    {(inspExpanded ? inspPosts : inspPosts.slice(0, 6)).map((p) => {
+                      const viewsLabel = formatCompact(p.views) || p.views.toLocaleString('pt-BR');
+                      const isHighMatch = p.views >= 750000;
+                      return (
+                        <a
+                          key={`insp-${p.id}`}
+                          href={p.postLink || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="snap-start min-w-[240px] max-w-[260px] overflow-hidden rounded-3xl border border-[#EFE7FA] bg-white shadow-sm transition hover:-translate-y-[1px] hover:shadow-md"
+                        >
+                          <div className="relative aspect-[4/3] w-full">
+                            {p.thumbnailUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={toProxyUrl(p.thumbnailUrl)} alt="Conteúdo de inspiração" className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-[#F3F0FF] text-xs text-[#6E1F93]">
+                                sem imagem
+                              </div>
+                            )}
+                            <span
+                              className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[10px] font-semibold text-white ${
+                                isHighMatch ? 'bg-[#D62E5E]' : 'bg-[#6E1F93]'
+                              }`}
+                            >
+                              🏆 {isHighMatch ? 'Match alto' : 'Match da IA'}
+                            </span>
+                          </div>
+                          <div className="space-y-2 p-3">
+                            <p className="line-clamp-2 text-sm font-semibold text-[#1C1C1E]" title={p.caption}>
+                              {p.caption || 'Legenda não disponível'}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-[#4B4B55]">
+                              <span className="font-semibold text-[#1C1C1E]">{viewsLabel} views</span>
+                              <span>{new Date(p.date).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+                {!inspLoading && !inspPosts.length && !inspError && (
+                  <div className="text-xs text-[#8F90A0]">Sem conteúdos suficientes para este horário.</div>
+                )}
+                {inspPosts.length > 6 && (
+                  <div className="pt-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setInspExpanded((v) => !v)}
+                      className="inline-flex items-center gap-2 rounded-full border border-[#E6E6EB] px-4 py-1.5 text-xs font-semibold text-[#4B4B55] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    >
+                      {inspExpanded ? 'Ver menos' : `Ver todos (${inspPosts.length})`}
+                    </button>
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-3xl border border-[#E4E4EA] bg-[#F9F9FB] p-5 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-[#1C1C1E]">
+                      <span aria-hidden>🤝</span> Inspirações da comunidade
+                    </p>
+                    <p className="text-xs text-[#5A5A67]">Creators que performaram bem em categorias parecidas.</p>
+                  </div>
+                  <OutlinePillButton
+                    type="button"
+                    onClick={fetchCommunityInspirations}
+                    disabled={communityLoading}
+                    className="whitespace-nowrap border-[#AFAFD5] text-[#4B4B55]"
+                    aria-label={communityLoading ? 'Carregando inspirações da comunidade' : 'Atualizar inspirações da comunidade'}
+                  >
+                    {communityLoading ? 'Carregando…' : <span aria-hidden>🔄</span>}
+                  </OutlinePillButton>
+                </div>
+                {communityError && <div className="text-xs text-red-600">{communityError}</div>}
+                {(communityLoading && !communityPosts.length) && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={`comm-skel-${i}`} className="flex animate-pulse items-center gap-3 rounded-2xl bg-white p-3">
+                        <div className="h-16 w-16 rounded-2xl bg-[#E4E4EA]" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 rounded bg-[#D8D8E5]" />
+                          <div className="h-3 w-2/3 rounded bg-[#D8D8E5]" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {communityPosts.length > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(communityExpanded ? communityPosts : communityPosts.slice(0, 4)).map((p) => {
+                      const viewsLabel = formatCompact(p.views) || p.views.toLocaleString('pt-BR');
+                      return (
+                        <a
+                          key={`c-insp-${p.id}`}
+                          href={p.postLink || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-3 border-b border-[#E4E4EA] pb-3 transition hover:text-[#6E1F93]"
+                        >
+                          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E4E4EA]">
+                            {p.coverUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={toProxyUrl(p.coverUrl)} alt="Post da comunidade" className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-xs text-[#8F90A0]">sem imagem</span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="line-clamp-1 text-sm font-semibold text-[#1C1C1E]" title={p.caption}>
+                              {p.caption || 'Post sem legenda'}
+                            </p>
+                            <p className="text-xs font-semibold text-[#1C1C1E]">{viewsLabel} views</p>
+                            {p.reason && p.reason.length > 0 && (
+                              <p className="text-[11px] text-[#5A5A67]" title={`Match: ${p.reason.join(', ')}`}>
+                                Match: {p.reason.slice(0, 2).join(', ')}
+                              </p>
+                            )}
+                            <p className="text-[11px] text-[#8F90A0]">{new Date(p.date).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+                {!communityLoading && !communityPosts.length && !communityError && (
+                      <div className="text-xs text-[#8F90A0]">Sem recomendações da comunidade no momento.</div>
+                )}
+                {communityPosts.length > 4 && (
+                  <div className="pt-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setCommunityExpanded((v) => !v)}
+                      className="inline-flex items-center gap-2 rounded-full border border-[#E6E6EB] px-4 py-1.5 text-xs font-semibold text-[#4B4B55] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    >
+                      {communityExpanded ? 'Ver menos' : `Ver todos (${communityPosts.length})`}
+                    </button>
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-[#E6E6EB] bg-white p-4 shadow-sm">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-2 text-sm font-semibold text-[#1C1C1E]"
+                  onClick={() => setShowTechnical((v) => !v)}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <span aria-hidden>📊</span>
+                    {showTechnical ? 'Ocultar dados da IA' : 'Ver dados da IA'}
+                  </span>
+                  <span className="text-lg text-[#6E1F93]">{showTechnical ? '−' : '+'}</span>
+                </button>
+                {showTechnical && (
+                  <div className="mt-4 space-y-4 text-xs text-[#4B4B55]">
+                    <div className="flex flex-wrap gap-2">
+                      {p50Compact && <MetricChip icon="🔥" label={`${p50Compact} views (P50)`} tone="highlight" />}
+                      {p90Compact && <MetricChip icon="🚀" label={`${p90Compact} views (P90)`} />}
+                      {sharesCompact && <MetricChip icon="🔁" label={`${sharesCompact} compartilhamentos (P50)`} />}
+                    </div>
+                    {testHypothesis && (
+                      <div className="rounded-xl border border-[#F5D8A0] bg-[#FFF7E6] p-3 space-y-1 text-[#8B5E1A]">
+                        <div className="text-xs font-semibold text-[#B9730F]">Hipótese do teste</div>
+                        <p>{testHypothesis.hypo}</p>
+                        <p><strong>Critério de sucesso:</strong> {testHypothesis.crit}</p>
+                      </div>
+                    )}
+                    {(altStrongBlocks && altStrongBlocks.length > 0) && (
+                      <div>
+                        <div className="text-xs font-semibold text-[#1C1C1E]">Outros horários quentes</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {altStrongBlocks.map((h, i) => (
+                            <MetricChip
+                              key={`alt-${i}`}
+                              icon="⏱️"
+                              label={`${blockLabel(h.blockStartHour)} • ${(h.score * 100).toFixed(0)}%`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {signalsUsed.length > 0 && (
+                      <div>
+                        <div className="text-xs font-semibold text-[#1C1C1E]">Sinais usados pela IA</div>
+                        <ul className="mt-2 list-disc space-y-1 pl-5">
+                          {signalsUsed.map((sig, idx) => (
+                            <li key={`sig-${idx}`}>
+                              {sig.title || 'Sinal externo'}
+                              {sig.source && <span className="text-[#8F90A0]"> • {sig.source}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(beats && beats.length > 0) && (
+                      <div>
+                        <div className="text-xs font-semibold text-[#1C1C1E]">Plano de cena sugerido</div>
+                        <ol className="mt-2 list-decimal space-y-1 pl-5">
+                          {beats.map((b, i) => (
+                            <li key={`beat-${i}`} className="text-[#4B4B55]" title={b}>
+                              {b}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    {typeof recordingTimeSec === 'number' && (
+                      <div className="text-[#4B4B55]">
+                        ⏱️ Tempo estimado de gravação: {Math.round(recordingTimeSec / 60)} min
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+
+          {showScriptPanel && (
+            <div className="absolute inset-0 z-[120] flex flex-col">
+              <button
+                type="button"
+                className="flex-1 bg-black/30"
+                onClick={() => {
+                  setShowScriptPanel(false);
+                  setIsEditingScript(false);
+                }}
+                aria-label="Fechar painel de roteiro"
+              />
+              <div className="max-h-[70vh] overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6E1F93]">✍️ Roteiro da IA</p>
+                    <p className="text-sm text-[#5A5A67]">Rascunho pronto para você adaptar com a sua voz.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xl text-[#8F90A0] hover:text-[#1C1C1E]"
+                    onClick={() => {
+                      setShowScriptPanel(false);
+                      setIsEditingScript(false);
+                    }}
+                    aria-label="Fechar roteiro"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {isEditingScript ? (
+                    <textarea
+                      className="min-h-[180px] w-full rounded-xl border border-[#E6E6EB] bg-white px-3 py-2 text-sm leading-relaxed text-[#1C1C1E] focus:border-[#6E1F93] focus:outline-none focus:ring-2 focus:ring-[#D1C4F6]"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Personalize o roteiro com a sua voz..."
+                    />
+                  ) : (
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-[#1C1C1E]">
+                      {description
+                        ? description
+                        : 'Gere o roteiro para ver o rascunho da IA com ganchos, desenvolvimento e CTA.'}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <OutlinePillButton
+                    type="button"
+                    onClick={() => description && navigator.clipboard?.writeText(description)}
+                    disabled={!description}
+                  >
+                    Copiar roteiro
+                  </OutlinePillButton>
+                  {!readOnly && (
+                    <OutlinePillButton
+                      type="button"
+                      onClick={() => setIsEditingScript((prev) => !prev)}
+                    >
+                      {isEditingScript ? 'Concluir edição' : 'Editar roteiro'}
+                    </OutlinePillButton>
+                  )}
+                  <OutlinePillButton
+                    type="button"
+                    onClick={() => handleGenerate(strategy)}
+                    disabled={loading || readOnly || !slot || !canGenerate}
+                  >
+                    {loading ? 'Gerando…' : 'Regerar com IA'}
+                  </OutlinePillButton>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FOOTER sticky */}
+          <div
+            className="sticky bottom-0 z-10 bg-white border-t"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
+          >
+            <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              {error && <div className="text-xs text-red-600">{error}</div>}
+              <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row">
+                {readOnly ? (
+                  <button
+                    type="button"
+                    className="w-full rounded-full border border-[#D1D2D9] bg-white px-5 py-2 text-sm font-semibold text-[#4B4B55] transition hover:bg-[#F4F4F6]"
+                    onClick={onClose}
+                  >
+                    Fechar
+                  </button>
+                ) : (
+                  <>
+                    <GradientPillButton
+                      type="button"
                       disabled={loading || !slot || !canGenerate}
-                      className="border text-gray-700 hover:bg-gray-50"
                       onClick={() => {
                         if (!slot || !canGenerate) {
                           if (!canGenerate && upgradeMessage) setError(upgradeMessage);
@@ -705,238 +1069,18 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                         }
                         handleGenerate(strategy);
                       }}
+                      className="w-full px-6 py-2 text-sm sm:w-auto"
                     >
                       {loading ? 'Gerando…' : 'Gerar roteiro'}
-                    </Button>
-                    {!canGenerate && upgradeMessage && (
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
-                        <span>{upgradeMessage}</span>
-                        {onUpgradeRequest && (
-                          <button
-                            type="button"
-                            onClick={onUpgradeRequest}
-                            className="text-xs font-semibold text-pink-600 hover:text-pink-700"
-                          >
-                            Assinar
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Temas de conteúdo (sugestões) */}
-                <div className="mt-3">
-                  <div className="flex items-center justify-end mb-2">
-                    {!readOnly && (
-                      <Button
-                        className="border text-gray-700 hover:bg-gray-50"
-                        onClick={handleRegenerateThemes}
-                        disabled={loading}
-                      >
-                        {loading ? 'Gerando…' : 'Regenerar pautas'}
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {(themesLocal || []).slice(0, 6).map((t, i) => (
-                      <button
-                        key={`theme-${i}`}
-                        type="button"
-                        onClick={() => setTitle(t)}
-                        className="w-full text-left border rounded-md px-3 py-2 text-sm hover:bg-rose-50"
-                        title="Usar este tema como título"
-                      >
-                        {t}
-                      </button>
-                    ))}
-                    {(!themesLocal || themesLocal.length === 0) && (
-                      <div className="text-xs text-gray-500">Sem sugestões para este horário.</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 🔸 Tema-chave (editável) */}
-                <div className="space-y-1 mt-4">
-                  <label className="text-sm font-semibold text-gray-700" htmlFor="themeKeyword">Tema (1 palavra)</label>
-                  <input
-                    id="themeKeyword"
-                    type="text"
-                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-                    placeholder="ex.: comida"
-                    value={themeKw}
-                    disabled={readOnly}
-                    onChange={(e) => setThemeKw(e.target.value)}
-                  />
-                  <p className="text-[11px] text-gray-500">
-                    Essa palavra aparece no card e orienta o gancho do roteiro. Se vazio, usamos o tema sugerido automaticamente.
-                  </p>
-                </div>
-
-                
-
-                {/* Por que sugerimos? — removido conforme solicitação */}
-
-                {/* Conteúdos que inspiraram */}
-                <div className="mt-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-700">Conteúdos que inspiraram</div>
-                    <Button className="border text-gray-700 hover:bg-gray-50" onClick={fetchInspirations} disabled={inspLoading}>
-                      {inspLoading ? 'Carregando…' : (inspPosts.length ? 'Atualizar' : 'Ver conteúdos')}
-                    </Button>
-                  </div>
-                  {inspError && <div className="text-[11px] text-red-600 mt-1">{inspError}</div>}
-                  {(inspLoading && !inspPosts.length) && (
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={`insp-skel-${i}`} className="h-36 bg-gray-100 rounded-md animate-pulse" />
-                      ))}
-                    </div>
-                  )}
-                  {inspPosts.length > 0 && (
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {(inspExpanded ? inspPosts : inspPosts.slice(0,3)).map((p) => (
-                        <a key={`insp-${p.id}`} href={p.postLink || '#'} target="_blank" rel="noreferrer"
-                           className="block border rounded-md overflow-hidden hover:shadow-sm bg-white">
-                          {p.thumbnailUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={toProxyUrl(p.thumbnailUrl)} alt="thumb" className="w-full h-28 object-cover" />
-                          ) : (
-                            <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">sem imagem</div>
-                          )}
-                          <div className="p-2">
-                            <div className="text-[11px] text-gray-600 line-clamp-2" title={p.caption}>{p.caption}</div>
-                            <div className="mt-1 text-[10px] text-gray-500">{new Date(p.date).toLocaleDateString('pt-BR')} • {p.views.toLocaleString('pt-BR')} views</div>
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                  {inspPosts.length > 3 && (
-                    <div className="mt-2">
-                      <Button className="border text-gray-700 hover:bg-gray-50" onClick={() => setInspExpanded(v => !v)}>
-                        {inspExpanded ? 'Ver menos' : `Ver todos (${inspPosts.length})`}
-                      </Button>
-                    </div>
-                  )}
-                  {!inspLoading && !inspPosts.length && !inspError && (
-                    <div className="text-[11px] text-gray-500 mt-1">Sem conteúdos suficientes para este horário.</div>
-                  )}
-                </div>
-
-                {/* Outros horários fortes */}
-                {(altStrongBlocks && altStrongBlocks.length > 0) && (
-                  <div className="mt-3">
-                    <div className="text-sm font-semibold text-gray-700">Outros horários fortes hoje</div>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {altStrongBlocks.map((h, i) => (
-                        <span key={`alt-${i}`} className="text-[11px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200" title={`Score relativo: ${(h.score * 100).toFixed(0)}%`}>
-                          {blockLabel(h.blockStartHour)} • {(h.score * 100).toFixed(0)}%
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Hipótese e critério (apenas teste) */}
-                {testHypothesis && (
-                  <div className="mt-3 bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-900">
-                    <div><b>Hipótese do teste:</b> {testHypothesis.hypo}</div>
-                    <div><b>Critério de sucesso:</b> {testHypothesis.crit}</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Coluna Direita: Roteiro e geração (ajustada: meta removida e campos movidos acima) */}
-              <div>
-
-                {/* Plano de cena (opcional) */}
-                {(beats && beats.length > 0) && (
-                  <div className="mt-3">
-                    <div className="text-sm font-semibold text-gray-700 mb-1">Plano de cena</div>
-                    <ol className="list-decimal ml-5 text-xs text-gray-700 space-y-1">
-                      {beats.map((b, i) => (
-                        <li key={`beat-${i}`} className="truncate" title={b}>{b}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                {/* Inspiração da comunidade */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-700">Inspiração da comunidade</div>
-                    <Button className="border text-gray-700 hover:bg-gray-50" onClick={fetchCommunityInspirations} disabled={communityLoading}>
-                      {communityLoading ? 'Carregando…' : (communityPosts.length ? 'Atualizar' : 'Ver conteúdos da comunidade')}
-                    </Button>
-                  </div>
-                  {communityError && <div className="text-[11px] text-red-600 mt-1">{communityError}</div>}
-                  {(communityLoading && !communityPosts.length) && (
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={`comm-skel-${i}`} className="h-36 bg-gray-100 rounded-md animate-pulse" />
-                      ))}
-                    </div>
-                  )}
-                  {communityPosts.length > 0 && (
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {(communityExpanded ? communityPosts : communityPosts.slice(0, 3)).map((p) => (
-                        <a key={`c-insp-${p.id}`} href={p.postLink || '#'} target="_blank" rel="noreferrer"
-                           className="block border rounded-md overflow-hidden hover:shadow-sm bg-white">
-                          {p.coverUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={toProxyUrl(p.coverUrl)} alt="thumb" className="w-full h-28 object-cover" />
-                          ) : (
-                            <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">sem imagem</div>
-                          )}
-                          <div className="p-2">
-                            <div className="text-[11px] text-gray-600 line-clamp-2" title={p.caption}>{p.caption}</div>
-                            <div className="mt-1 text-[10px] text-gray-500">{new Date(p.date).toLocaleDateString('pt-BR')} • {p.views.toLocaleString('pt-BR')} views</div>
-                            {p.reason && p.reason.length > 0 && (
-                              <div className="mt-1 text-[10px] text-gray-500 truncate" title={`Por que sugerimos: ${p.reason.join(', ')}`}>
-                                Por que: {p.reason.slice(0, 2).join(', ')}
-                              </div>
-                            )}
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                  {communityPosts.length > 3 && (
-                    <div className="mt-2">
-                      <Button className="border text-gray-700 hover:bg-gray-50" onClick={() => setCommunityExpanded(v => !v)}>
-                        {communityExpanded ? 'Ver menos' : `Ver todos (${communityPosts.length})`}
-                      </Button>
-                    </div>
-                  )}
-                  {!communityLoading && !communityPosts.length && !communityError && (
-                    <div className="text-[11px] text-gray-500 mt-1">Sem recomendações da comunidade no momento.</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* FOOTER sticky */}
-          <div
-            className="sticky bottom-0 z-10 bg-white border-t"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px))' }}
-          >
-            <div className="px-4 py-3 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              {error && <div className="text-xs text-red-600">{error}</div>}
-              <div className="w-full sm:w-auto sm:ml-auto flex flex-col sm:flex-row gap-2">
-                {readOnly ? (
-                  <Button className="w-full border text-gray-700 hover:bg-gray-50" onClick={onClose}>Fechar</Button>
-                ) : (
-                  <>
-                    <Button
-                      disabled={loading}
-                      className="w-full sm:w-auto bg-pink-600 text-white hover:bg-pink-700"
+                    </GradientPillButton>
+                    <button
+                      type="button"
                       onClick={handleSave}
+                      disabled={loading}
+                      className="w-full rounded-full border border-[#6E1F93] bg-white px-5 py-2 text-sm font-semibold text-[#6E1F93] transition hover:bg-[#F3F0FF] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                     >
                       Salvar
-                    </Button>
-                    <Button className="w-full sm:w-auto border text-gray-700 hover:bg-gray-50" onClick={onClose}>Fechar</Button>
+                    </button>
                   </>
                 )}
               </div>

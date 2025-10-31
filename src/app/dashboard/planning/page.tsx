@@ -124,7 +124,7 @@ export default function PlanningPage() {
         <ContentPlannerSection
           userId={userId}
           publicMode={false}
-          description="Explore as recomendações personalizadas do Planner IA para organizar seus conteúdos da semana, acompanhar os melhores horários de publicação e receber sugestões geradas automaticamente com base na sua performance recente."
+          description="Sua agenda inteligente com horários sugeridos pela IA do Mobi."
           initialSlotId={initialSlotId}
           onInitialSlotConsumed={() => {
             if (initialSlotId) {

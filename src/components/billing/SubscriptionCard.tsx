@@ -1,11 +1,9 @@
 // src/components/billing/SubscriptionCard.tsx
 import { useState } from 'react';
 import { useSubscription } from '@/hooks/billing/useSubscription';
-import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import CancelSubscriptionModal from './CancelSubscriptionModal';
 import ReactivateBanner from './ReactivateBanner';
-import EmptyState from '@/components/ui/EmptyState';
 import SkeletonRow from '@/components/ui/SkeletonRow';
 import ErrorState from '@/components/ui/ErrorState';
 
@@ -53,15 +51,46 @@ function formatDatePTBR(d: Date | null): string {
 
 export default function SubscriptionCard() {
   const { subscription, error, isLoading } = useSubscription();
-  const { update: updateSession } = useSession();
   const [showModal, setShowModal] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [reactivating, setReactivating] = useState(false);
-  const [isPortalLoading, setIsPortalLoading] = useState(false);
+
+  const scrollToChangePlan = () => {
+    const target = document.getElementById('change-plan');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   if (isLoading) return <SkeletonRow />;
   if (error) return <ErrorState message="Erro ao carregar assinatura." />;
-  if (!subscription) return <EmptyState text="Você ainda não tem assinatura" />;
+
+  if (!subscription) {
+    return (
+      <div className="rounded-[12px] border border-dashed border-[#D8D8DE] bg-[#FCFCFD] p-4 sm:p-5 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[15px] font-semibold text-[#1E1E1E]">
+            <span role="img" aria-label="cadeado">
+              🔒
+            </span>
+            Status da assinatura
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-[6px] bg-[#F3F3F5] px-3 py-1 text-[12px] font-medium text-[#888]">
+            Sem assinatura
+          </span>
+        </div>
+        <p className="mt-3 text-[14px] leading-relaxed text-[#555]">
+          Você ainda não possui uma assinatura ativa. Escolha um plano para desbloquear todos os recursos da plataforma.
+        </p>
+        <button
+          onClick={scrollToChangePlan}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
+        >
+          Mudar de plano
+        </button>
+      </div>
+    );
+  }
 
   const statusRaw = String(subscription.status || '').toLowerCase();
   const isTrialing = statusRaw === 'trialing';
@@ -105,25 +134,16 @@ export default function SubscriptionCard() {
       }`.trim()
     : '—';
 
-  async function openPortal(returnUrl?: string) {
-    setIsPortalLoading(true);
-    try {
-      const res = await fetch('/api/billing/portal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(returnUrl ? { returnUrl } : {}),
-      });
-      const json = await res.json();
-      if (res.ok && json?.url) {
-        window.location.href = json.url;
-      } else {
-        throw new Error(json?.error || 'Não foi possível obter a URL do portal.');
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Não foi possível abrir o portal. Tente novamente.');
-      setIsPortalLoading(false);
+  const statusTheme = (() => {
+    if (showReactivate) return { bg: 'bg-[#FFF2F4]', text: 'text-[#B3264E]' };
+    if (isTrialing) return { bg: 'bg-[#F4F8FF]', text: 'text-[#2053B4]' };
+    if (statusRaw === 'active') return { bg: 'bg-[#E8F8F1]', text: 'text-[#0E7B50]' };
+    if (statusRaw === 'past_due' || statusRaw === 'incomplete' || statusRaw === 'unpaid') {
+      return { bg: 'bg-[#FFF2F0]', text: 'text-[#B4232D]' };
     }
-  }
+    if (statusRaw === 'non_renewing') return { bg: 'bg-[#FFF7E6]', text: 'text-[#A15E0C]' };
+    return { bg: 'bg-[#F3F3F5]', text: 'text-[#555]' };
+  })();
 
   // Cancelar (agendar no fim do ciclo; no trial vira "não renovar ao final do teste")
   async function cancel() {
@@ -155,79 +175,89 @@ export default function SubscriptionCard() {
   }
 
   return (
-    <div className="rounded-xl border p-3 sm:p-4 bg-white">
-      <h3 className="mb-1.5 sm:mb-2 text-base sm:text-lg font-semibold">
-        Plano {subscription.planName}
-      </h3>
+    <div className="rounded-[12px] border border-[#ECECF0] bg-[#FCFCFD] p-4 sm:p-5 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="text-[22px]" aria-hidden>
+            🪙
+          </span>
+          <div>
+            <p className="text-[15px] font-semibold text-[#1E1E1E]">Plano {subscription.planName}</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-[#666]">
+              Acompanhe detalhes da sua assinatura e mantenha seus dados de cobrança atualizados.
+            </p>
+          </div>
+        </div>
+        <span
+          className={`inline-flex items-center rounded-[6px] px-3 py-1 text-[12px] font-semibold ${statusTheme.bg} ${statusTheme.text}`}
+        >
+          {statusLabel}
+        </span>
+      </div>
 
       {showReactivate && (
-        <ReactivateBanner onClick={reactivate} disabled={reactivating} />
-      )}
-
-      <div className="mb-1.5 sm:mb-2 text-sm text-gray-700">
-        Status: <span className="font-medium">{statusLabel}</span>
-      </div>
-
-      {/* Informações de ciclo */}
-      {isTrialing ? (
-        <div className="mb-1.5 sm:mb-2 text-sm text-gray-700">
-          {/* Preferimos mostrar “cobrança em …”. Usa nextInvoiceDate; se não vier, cai para trialEnd. */}
-          Teste gratuito — cobrança em {nextInvoiceDateLabel || trialEndLabel || '—'}{' '}
-          <span className="text-gray-500">(nenhuma cobrança até lá)</span>
+        <div className="mt-4">
+          <ReactivateBanner onClick={reactivate} disabled={reactivating} />
         </div>
-      ) : (
-        !subscription.cancelAtPeriodEnd &&
-        amount &&
-        nextInvoiceDateLabel &&
-        nextInvoiceDateLabel !== '—' && (
-          <div className="mb-1.5 sm:mb-2 text-sm text-gray-700">
-            Próxima cobrança: {amount} em {nextInvoiceDateLabel}
-          </div>
-        )
       )}
 
-      <div className="mb-3 sm:mb-4 text-sm text-gray-700">
-        Método de pagamento: {pmLabel}
+      <div className="mt-4 grid gap-3 text-[14px] leading-relaxed text-[#555]">
+        {isTrialing ? (
+          <p>
+            Teste gratuito — cobrança em{' '}
+            <span className="font-medium text-[#1E1E1E]">
+              {nextInvoiceDateLabel || trialEndLabel || '—'}
+            </span>{' '}
+            <span className="text-[#888]">(nenhuma cobrança até lá)</span>
+          </p>
+        ) : (
+          !subscription.cancelAtPeriodEnd &&
+          amount &&
+          nextInvoiceDateLabel &&
+          nextInvoiceDateLabel !== '—' && (
+            <p>
+              Próxima cobrança de{' '}
+              <span className="font-semibold text-[#1E1E1E]">{amount}</span> em{' '}
+              <span className="font-medium text-[#1E1E1E]">{nextInvoiceDateLabel}</span>.
+            </p>
+          )
+        )}
+
+        <p>
+          Método de pagamento:{' '}
+          <span className="font-medium text-[#1E1E1E]">{pmLabel}</span>
+        </p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {!showReactivate && (
-          <button
-            onClick={() => setShowModal(true)}
-            className="rounded bg-red-600 px-3 sm:px-4 py-1.5 sm:py-2 text-white text-sm hover:bg-red-700 disabled:opacity-50 transition-colors"
-            disabled={canceling}
-          >
-            {canceling ? 'Cancelando...' : isTrialing ? 'Não renovar após o teste' : 'Cancelar renovação'}
-          </button>
-        )}
+      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col gap-3 sm:flex-row">
+          {!showReactivate && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="w-full min-h-[44px] rounded-[8px] border border-[#E6E6EB] px-4 py-2.5 text-[14px] font-semibold text-[#D62E5E] transition hover:border-[#D62E5E] hover:bg-[#FFF1F5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={canceling}
+            >
+              {canceling ? 'Cancelando...' : isTrialing ? 'Não renovar após o teste' : 'Cancelar renovação'}
+            </button>
+          )}
 
-        {showReactivate && (
-          <button
-            onClick={reactivate}
-            className="rounded bg-blue-600 px-3 sm:px-4 py-1.5 sm:py-2 text-white text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            disabled={reactivating}
-          >
-            {reactivating ? 'Reativando...' : 'Reativar assinatura'}
-          </button>
-        )}
+          {showReactivate && (
+            <button
+              onClick={reactivate}
+              className="w-full min-h-[44px] rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={reactivating}
+            >
+              {reactivating ? 'Reativando...' : 'Reativar assinatura'}
+            </button>
+          )}
+        </div>
 
-        {/* Portal (se quiser reativar, remova os comentários) */}
-        {/*
         <button
-          onClick={() => openPortal()}
-          className="rounded border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
-          disabled={isPortalLoading}
+          onClick={scrollToChangePlan}
+          className="w-full min-h-[44px] rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E] sm:w-auto"
         >
-          {isPortalLoading ? 'Abrindo...' : 'Atualizar pagamento'}
+          Mudar de plano
         </button>
-        <button
-          onClick={() => openPortal()}
-          className="rounded border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
-          disabled={isPortalLoading}
-        >
-          {isPortalLoading ? 'Abrindo...' : 'Ver faturas/recibos'}
-        </button>
-        */}
       </div>
 
       <CancelSubscriptionModal

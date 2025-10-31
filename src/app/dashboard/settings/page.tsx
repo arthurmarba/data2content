@@ -7,21 +7,21 @@ import DeleteAccountSection from "./DeleteAccountSection";
 
 export default function SettingsPage() {
   return (
-    <div className="w-full">
+    <div className="w-full min-h-screen bg-[#FAFAFB]">
       {/* Container central: respeita header fixo e safe-area no iOS */}
-      <div className="mx-auto w-full max-w-[800px] px-4 pt-header pb-safe">
+      <div className="mx-auto w-full max-w-[800px] px-4 sm:px-6 pt-header pb-safe">
         {/* Espaçamento vertical mobile-first */}
-        <div className="space-y-6 sm:space-y-10">
+        <div className="space-y-7 sm:space-y-10">
           {/* Seção 1: Cabeçalho da Página */}
           <section>
             <h1
               id="subscription-management-title"
-              className="text-2xl sm:text-3xl font-bold text-brand-dark"
+              className="text-[20px] sm:text-[22px] font-bold text-[#1E1E1E] mb-1"
               style={{ scrollMarginTop: "var(--header-h, 4rem)" }}
             >
               Configurações da Conta
             </h1>
-            <p className="mt-2 text-sm sm:text-base text-gray-600">
+            <p className="text-[13px] leading-relaxed text-[#666]">
               Gerencie seu plano, cobrança e dados da conta em um só lugar.
             </p>
           </section>
@@ -30,12 +30,18 @@ export default function SettingsPage() {
           <section
             id="subscription-management"
             aria-labelledby="settings-subscription-title"
-            className="bg-white p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200"
+            className="bg-white rounded-[12px] p-4 sm:p-6 shadow-[0_2px_6px_rgba(0,0,0,0.04)]"
           >
-            <h2 id="settings-subscription-title" className="text-lg sm:text-xl font-semibold text-brand-dark">
+            <h2
+              id="settings-subscription-title"
+              className="flex items-center gap-2 border-l-[3px] border-[#D62E5E] pl-2 text-[16px] font-semibold text-[#1E1E1E] mb-3"
+            >
+              <span role="img" aria-label="status">
+                🪙
+              </span>
               Minha Assinatura
             </h2>
-            <p className="text-sm text-gray-500 mt-1 mb-4 sm:mb-6">
+            <p className="text-[14px] leading-relaxed text-[#555] mb-4 sm:mb-5">
               Visualize o status do seu plano, cancele a renovação ou reative sua assinatura.
             </p>
             {/* Proteção contra overflow horizontal em mobile */}
@@ -48,12 +54,18 @@ export default function SettingsPage() {
           <section
             id="change-plan"
             aria-labelledby="settings-change-plan-title"
-            className="bg-white p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200"
+            className="bg-white rounded-[12px] p-4 sm:p-6 shadow-[0_2px_6px_rgba(0,0,0,0.04)]"
           >
-            <h2 id="settings-change-plan-title" className="text-lg sm:text-xl font-semibold text-brand-dark">
+            <h2
+              id="settings-change-plan-title"
+              className="flex items-center gap-2 border-l-[3px] border-[#D62E5E] pl-2 text-[16px] font-semibold text-[#1E1E1E] mb-3"
+            >
+              <span role="img" aria-label="trocar plano">
+                🔄
+              </span>
               Mudar de Plano
             </h2>
-            <p className="text-sm text-gray-500 mt-1 mb-4 sm:mb-6">
+            <p className="text-[14px] leading-relaxed text-[#555] mb-4 sm:mb-5">
               Faça upgrade ou downgrade do seu plano a qualquer momento.
             </p>
             {/* Proteção contra overflow horizontal em mobile */}
@@ -66,12 +78,18 @@ export default function SettingsPage() {
           <section
             id="delete-account-section"
             aria-labelledby="settings-danger-zone-title"
-            className="bg-red-50 p-4 sm:p-6 rounded-xl shadow-lg border border-red-200"
+            className="rounded-[12px] bg-[#FFF6F7] p-4 sm:p-6 shadow-[0_2px_6px_rgba(214,46,94,0.15)] border border-[#FDD9E0]"
           >
-            <h2 id="settings-danger-zone-title" className="text-lg sm:text-xl font-semibold text-red-700">
+            <h2
+              id="settings-danger-zone-title"
+              className="flex items-center gap-2 border-l-[3px] border-[#D62E5E] pl-2 text-[16px] font-semibold text-[#A72B3C] mb-3"
+            >
+              <span role="img" aria-label="alerta">
+                🚨
+              </span>
               Zona de Perigo
             </h2>
-            <p className="text-sm text-red-600 mt-1 mb-4 sm:mb-6">
+            <p className="text-[14px] leading-relaxed text-[#A72B3C] mb-4 sm:mb-5">
               A exclusão da sua conta é uma ação permanente e resultará na perda de todos os seus dados.
             </p>
             <DeleteAccountSection />

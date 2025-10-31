@@ -186,12 +186,15 @@ export default function DeleteAccountSection() {
   };
 
   return (
-    <section id="delete-account" className="space-y-4 pt-4 border-t">
-      <h2 className="text-xl font-semibold text-red-700">Excluir conta</h2>
+    <section id="delete-account" className="space-y-4">
+      <h3 className="flex items-center gap-2 text-[15px] font-semibold text-[#A72B3C]">
+        <span aria-hidden>🗑️</span>
+        Excluir conta
+      </h3>
 
       {/* Informação quando a renovação já está agendada */}
       {isScheduledForCancellation && (
-        <p className="text-sm text-green-800 bg-green-50 p-3 rounded-md">
+        <p className="rounded-[10px] bg-[#E9F8EF] p-3 text-[13px] leading-relaxed text-[#2F6B3F]">
           Sua assinatura está com <b>cancelamento agendado</b>
           {expiresAtLabel ? (
             <>
@@ -207,16 +210,17 @@ export default function DeleteAccountSection() {
 
       {/* Bloqueio quando ainda está ativa e não agendada para encerrar */}
       {isDeletionBlocked && (
-        <p className="text-sm text-yellow-800 bg-yellow-50 p-3 rounded-md">
+        <p className="rounded-[10px] bg-[#FFF7E6] p-3 text-[13px] leading-relaxed text-[#9A5B0D]">
           Você possui uma assinatura ativa. Para excluir sua conta, primeiro cancele a renovação
           automática na seção de gerenciamento de planos.
         </p>
       )}
 
       <button
-        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-[8px] border border-[#D62E5E] bg-white px-4 py-2.5 text-[14px] font-semibold text-[#D62E5E] transition hover:bg-[#FFE7EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
         onClick={handleClick}
       >
+        <span aria-hidden>🗑️</span>
         Excluir minha conta
       </button>
 
@@ -231,23 +235,26 @@ export default function DeleteAccountSection() {
             onClick={() => setShowBlocked(false)}
           >
             <motion.div
-              className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6"
+              className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold mb-2">Ação necessária</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <h3 className="mb-2 text-[16px] font-semibold text-[#1E1E1E]">Ação necessária</h3>
+              <p className="mb-4 text-[14px] leading-relaxed text-[#555]">
                 Para excluir sua conta, primeiro cancele sua assinatura na seção de gerenciamento de
                 planos.
               </p>
               <div className="flex justify-end gap-2">
-                <button className="px-3 py-1 text-sm" onClick={() => setShowBlocked(false)}>
+                <button
+                  className="rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-[#555]"
+                  onClick={() => setShowBlocked(false)}
+                >
                   Entendi
                 </button>
                 <button
-                  className="px-3 py-1 text-sm bg-gray-800 text-white rounded hover:bg-gray-900"
+                  className="rounded-[6px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition hover:opacity-95"
                   onClick={scrollToManage}
                 >
                   Gerenciar assinatura
@@ -269,17 +276,17 @@ export default function DeleteAccountSection() {
             onClick={() => setShowConfirm(false)}
           >
             <motion.div
-              className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6"
+              className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold mb-2">Tem certeza?</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <h3 className="mb-2 text-[16px] font-semibold text-[#1E1E1E]">Tem certeza?</h3>
+              <p className="mb-4 text-[14px] leading-relaxed text-[#555]">
                 Esta ação é permanente e não pode ser desfeita. Para confirmar, digite{" "}
                 <strong>EXCLUIR</strong> no campo abaixo.
               </p>
 
               {Object.keys(affiliateBalances).length > 0 && (
-                <div className="mb-4 text-sm text-yellow-800 bg-yellow-50 p-2 rounded">
+                <div className="mb-4 rounded-[8px] bg-[#FFF7E6] p-2 text-[13px] leading-relaxed text-[#9A5B0D]">
                   {Object.entries(affiliateBalances).map(([cur, val]) => (
                     <div key={cur}>
                       Aviso: Você tem um saldo de afiliado de {val} em {cur}. Considere resgatá-lo
@@ -293,18 +300,21 @@ export default function DeleteAccountSection() {
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder='Digite "EXCLUIR"'
-                className="w-full border p-2 mb-4 rounded-md"
+                className="mb-4 w-full rounded-[8px] border border-[#E6E6EB] bg-white px-3 py-2 text-[14px] text-[#1E1E1E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
               />
               <div className="flex justify-end gap-2">
-                <button className="px-3 py-1 text-sm" onClick={() => setShowConfirm(false)}>
+                <button
+                  className="rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-[#555]"
+                  onClick={() => setShowConfirm(false)}
+                >
                   Cancelar
                 </button>
                 <button
-                  className="px-3 py-1 text-sm bg-red-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-[6px] border border-[#D62E5E] bg-[#D62E5E] px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={confirmText !== "EXCLUIR" || isDeleting}
                   onClick={handleDelete}
                 >
-                  {isDeleting ? "Excluindo..." : "Excluir permanently"}
+                  {isDeleting ? "Excluindo..." : "Excluir permanentemente"}
                 </button>
               </div>
             </motion.div>

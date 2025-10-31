@@ -160,22 +160,22 @@ export default function ChangePlanCard() {
     const s = status.planStatus;
     const isNonRenew = s === "non_renewing" || status.cancelAtPeriodEnd;
     let text = "";
-    let cls = "bg-gray-100 text-gray-800";
+    let cls = "bg-[#F3F3F5] text-[#555]";
     if (isNonRenew) {
       text = "Agendado p/ encerrar";
-      cls = "bg-amber-100 text-amber-800";
+      cls = "bg-[#FFF5E9] text-[#9A5B0D]";
     } else if (s === "active" || s === "trialing") {
       text = s === "trialing" ? "Período de teste" : "Ativo";
-      cls = "bg-green-100 text-green-800";
+      cls = "bg-[#E8F8F1] text-[#0E7B50]";
     } else if (s === "past_due" || s === "incomplete" || s === "unpaid") {
       text = "Pagamento pendente";
-      cls = "bg-red-100 text-red-800";
+      cls = "bg-[#FFF2F0] text-[#B4232D]";
     } else if (s === "inactive" || s === "canceled" || s === "incomplete_expired") {
       text = "Inativo";
-      cls = "bg-gray-100 text-gray-800";
+      cls = "bg-[#F3F3F5] text-[#555]";
     }
     return (
-      <span className={`inline-block text-xs px-2 py-1 rounded ${cls}`}>
+      <span className={`inline-flex items-center rounded-[6px] px-3 py-1 text-[12px] font-semibold ${cls}`}>
         {text}
       </span>
     );
@@ -318,9 +318,9 @@ export default function ChangePlanCard() {
   }
 
   return (
-    <div className="border rounded p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Mudar de plano</h2>
+    <div className="space-y-4 rounded-[12px] border border-[#ECECF0] bg-[#FCFCFD] p-4 shadow-[0_2px_6px_rgba(0,0,0,0.04)] sm:space-y-5 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[15px] font-semibold text-[#1E1E1E]">Selecione o plano ideal</h2>
         <StatusBadge />
       </div>
 
@@ -346,39 +346,47 @@ export default function ChangePlanCard() {
         </div>
       )}
 
-      <div className="text-sm text-gray-600">
+      <div className="text-[14px] leading-relaxed text-[#555]">
         Plano atual: <strong>{currentPlanText}</strong>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div>
-          <div className="text-sm font-medium mb-1">Novo plano</div>
-          <div className="flex gap-2">
+          <div className="mb-2 text-[14px] font-semibold text-[#1E1E1E]">Novo plano</div>
+          <div className="flex gap-2 rounded-[8px] border border-[#E6E6EB] bg-[#F8F8FA] p-1">
             <button
               onClick={() => setNewPlan("monthly")}
-              className={`px-3 py-2 rounded border ${newPlan === "monthly" ? "bg-gray-100" : ""}`}
+              className={`inline-flex flex-1 items-center justify-center rounded-[6px] px-3 py-2 text-[14px] font-semibold transition ${
+                newPlan === "monthly"
+                  ? "bg-gradient-to-r from-[#D62E5E] to-[#9326A6] text-white shadow-sm"
+                  : "text-[#555]"
+              }`}
               disabled={loading || isPreviewing || trialLock || cancelLock}
             >
               Mensal
             </button>
             <button
               onClick={() => setNewPlan("annual")}
-              className={`px-3 py-2 rounded border ${newPlan === "annual" ? "bg-gray-100" : ""}`}
+              className={`inline-flex flex-1 items-center justify-center rounded-[6px] px-3 py-2 text-[14px] font-semibold transition ${
+                newPlan === "annual"
+                  ? "bg-gradient-to-r from-[#D62E5E] to-[#9326A6] text-white shadow-sm"
+                  : "text-[#555]"
+              }`}
               disabled={loading || isPreviewing || trialLock || cancelLock}
             >
               Anual
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-2 text-[12px] text-[#888]">
             Alterar para o plano anual pode gerar uma cobrança imediata pela diferença de valor.
           </p>
         </div>
 
         {hasSubscription ? (
           <div>
-            <div className="text-sm font-medium mb-1">Quando aplicar</div>
-            <div className="flex flex-wrap gap-2">
-              <label className="flex items-center gap-2 border rounded px-3 py-2 cursor-pointer">
+            <div className="mb-2 text-[14px] font-semibold text-[#1E1E1E]">Quando aplicar</div>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center justify-between gap-3 rounded-[10px] border border-[#E6E6EB] bg-white px-3 py-2.5 text-[14px] text-[#555] shadow-sm transition">
                 <input
                   type="radio"
                   name="when"
@@ -387,7 +395,9 @@ export default function ChangePlanCard() {
                   onChange={() => setWhen("now")}
                   disabled={loading || isPreviewing || trialLock || cancelLock}
                 />
-                <span>Agora (com ajuste de valor imediato)</span>
+                <span className="flex-1 leading-relaxed">
+                  Agora (com ajuste imediato se houver diferença de valor)
+                </span>
               </label>
               {/* Se quiser reativar agendamento no fim do ciclo, remova os comentários
               <label className="flex items-center gap-2 border rounded px-3 py-2 cursor-pointer">
@@ -404,20 +414,20 @@ export default function ChangePlanCard() {
             </div>
           </div>
         ) : (
-          <p className="text-sm text-gray-600">
+          <p className="text-[14px] leading-relaxed text-[#555]">
             Você ainda não tem uma assinatura ativa. Faça a assinatura primeiro para poder mudar de
             plano.
           </p>
         )}
       </div>
 
-      {err && <p className="text-sm text-red-600">{err}</p>}
-      {okMsg && <p className="text-sm text-green-600">{okMsg}</p>}
+      {err && <p className="text-[13px] font-medium text-[#B4232D]">{err}</p>}
+      {okMsg && <p className="text-[13px] font-medium text-[#0E7B50]">{okMsg}</p>}
 
       <button
         onClick={handlePreviewAndConfirm}
         disabled={disabled}
-        className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
+        className="w-full min-h-[44px] rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isPreviewing ? "Calculando..." : "Aplicar mudança"}
       </button>

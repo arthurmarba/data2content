@@ -5,12 +5,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { guardPremiumRequest } from "@/app/lib/planGuard";
 import { connectDB, safeSendWhatsAppMessage } from "@/app/lib/helpers";
-import User from "@/app/models/User";
+import User, { type IUser } from "@/app/models/User";
 import Metric from "@/app/models/Metric";
 import { buildAggregatedReport, AggregatedReport } from "@/app/lib/reportHelpers";
 import { generateStrategicWeeklySummary } from "@/app/lib/consultantService";
 import { logger } from "@/app/lib/logger";
 import { subDays } from "date-fns";
+import type { FilterQuery } from "mongoose";
 import { MetricsNotFoundError, ReportAggregationError } from "@/app/lib/errors";
 import { isActiveLike, type ActiveLikeStatus } from "@/app/lib/isActiveLike";
 
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // 2) Usuários elegíveis: active-like + whatsapp verificado
     const now = new Date();
-    const trialWindowFilter = {
+    const trialWindowFilter: FilterQuery<IUser> = {
       $or: [
         { whatsappTrialActive: { $ne: true } },
         {
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
           whatsappTrialExpiresAt: { $gt: now },
         },
       ],
-    } as const;
+    };
     const ACTIVE_LIKE: ActiveLikeStatus[] = [
       "active",
       "non_renewing",

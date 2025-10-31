@@ -7,6 +7,7 @@ import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User, { IUser } from '@/app/models/User';
 import { isActiveLike, type ActiveLikeStatus } from '@/app/lib/isActiveLike';
+import type { FilterQuery } from 'mongoose';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Garante que a função execute dinamicamente a cada chamada
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     ].filter(isActiveLike);
 
     const now = new Date();
-    const trialWindowFilter = {
+    const trialWindowFilter: FilterQuery<IUser> = {
         $or: [
             { whatsappTrialActive: { $ne: true } },
             {
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
                 whatsappTrialExpiresAt: { $gt: now },
             },
         ],
-    } as const;
+    };
 
     const activeUsers = await User.find({
         planStatus: { $in: activeLikeStatuses },
