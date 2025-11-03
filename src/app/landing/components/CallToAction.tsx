@@ -15,12 +15,12 @@ export default function CallToAction() {
 
   return (
     <section className="snap-start bg-brand-dark text-white">
-      <Container padding="py-12 sm:py-20" className="text-left">
+      <Container padding="py-10 sm:py-16" className="text-left">
         <div className="max-w-3xl">
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
+          <h2 className="text-[2.25rem] font-semibold leading-tight text-white sm:text-[2.5rem] md:text-[2.75rem] lg:text-[3rem]">
             Pronto para transformar sua criação de conteúdo?
           </h2>
-          <p className="mt-4 text-lg md:text-xl text-gray-300 max-w-3xl leading-relaxed">
+          <p className="mt-4 max-w-3xl text-base leading-normal text-gray-300 md:text-lg">
             Pare de adivinhar e comece a crescer com estratégia. O Mobi está esperando por você.
           </p>
           <div className="mt-10">

@@ -30,6 +30,28 @@ export interface LandingCreatorHighlight {
   avgInteractionsPerPost: number;
   rank: number;
   consistencyScore?: number | null;
+  mediaKitSlug?: string | null;
+}
+
+export interface LandingCoverageSegment {
+  id: string;
+  label: string;
+  reach: number;
+  share: number;
+  interactions: number;
+  postCount: number;
+  avgInteractionsPerPost: number;
+  engagementRate?: number | null;
+}
+
+export interface LandingCoverageRegion {
+  code: string;
+  label: string;
+  region?: string | null;
+  followers: number;
+  share: number;
+  engagedFollowers?: number | null;
+  engagedShare?: number | null;
 }
 
 export interface LandingCategoryInsight {

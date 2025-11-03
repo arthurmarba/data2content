@@ -24,14 +24,16 @@ const STEPS = [
 ] as const;
 
 export const HowItWorksSection: React.FC = () => (
-  <section id="como-funciona" className="bg-white py-14 text-[#1A1A1A] md:py-20 lg:py-24 xl:py-28">
+  <section id="como-funciona" className="bg-white py-16 text-brand-dark md:py-20">
     <div className="container mx-auto px-6">
       <div className="max-w-3xl lg:max-w-4xl">
-        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#777777]">Como funciona</div>
-        <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl lg:text-[2.6rem]">
+        <div className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
+          Como funciona
+        </div>
+        <h2 className="mt-3 text-[2rem] font-semibold leading-tight md:text-[2.5rem]">
           Comece em minutos — sem cartão, sem burocracia.
         </h2>
-        <p className="mt-3 text-lg text-[#555555] lg:text-xl">
+        <p className="mt-3 text-base leading-relaxed text-brand-text-secondary md:text-lg">
           Login rápido, dados vivos para orientar sua estratégia e uma comunidade disponível para tirar dúvidas enquanto você executa.
         </p>
       </div>
@@ -55,9 +57,9 @@ export const HowItWorksSection: React.FC = () => (
                     />
                   ) : null}
                 </div>
-                <div className="mt-6 w-full rounded-3xl border border-[#EAEAEA] bg-white px-6 py-8 text-sm text-[#555555] shadow-[0_12px_32px_rgba(0,0,0,0.05)]">
-                  <h3 className="text-lg font-semibold text-[#1A1A1A]">{step.title}</h3>
-                  <p className="mt-3">
+                <div className="mt-6 w-full rounded-3xl border border-[#EAEAEA] bg-white px-6 py-8 text-sm leading-normal text-[#555555] shadow-[0_12px_32px_rgba(0,0,0,0.05)] md:text-base">
+                  <h3 className="text-xl font-semibold leading-snug text-[#1A1A1A] md:text-2xl">{step.title}</h3>
+                  <p className="mt-3 leading-normal">
                     <strong className="font-semibold text-[#1A1A1A]">{step.highlight}</strong>
                     {step.rest}
                   </p>
@@ -77,7 +79,7 @@ export const HowItWorksSection: React.FC = () => (
         >
           Entrar na comunidade gratuita
         </button>
-        <p className="text-xs text-[#777777] sm:text-sm">
+        <p className="text-sm text-[#777777] md:text-base">
           Login via Google. Nenhum cartão necessário. Conexão segura com a API oficial do Instagram.
         </p>
       </div>

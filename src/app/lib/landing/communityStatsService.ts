@@ -23,7 +23,12 @@ const DEFAULT_TTL_MS = Math.max(
 const RANK_WINDOW_DAYS = 21;
 const CATEGORY_LOOKBACK_DAYS = 30;
 const RECENT_ENTRIES_DAYS = 7;
-const TOP_CREATORS_LIMIT = 6;
+const DEFAULT_TOP_CREATORS_LIMIT = 15;
+const envTopCreatorsLimit = Number(process.env.LANDING_TOP_CREATORS_LIMIT);
+const TOP_CREATORS_LIMIT =
+  Number.isFinite(envTopCreatorsLimit) && envTopCreatorsLimit > 0
+    ? Math.floor(envTopCreatorsLimit)
+    : DEFAULT_TOP_CREATORS_LIMIT;
 const TOP_CATEGORIES_LIMIT = 4;
 
 type LeanCommunityUser = {
@@ -56,6 +61,7 @@ type RawCreatorAggregation = {
     username?: string | null;
     followers_count?: number | null;
     profile_picture_url?: string | null;
+    mediaKitSlug?: string | null;
   };
 };
 
@@ -117,7 +123,7 @@ async function buildCommunityStats(): Promise<LandingCommunityStatsResponse> {
     .lean<LeanCommunityUser[]>()
     .exec()) as LeanCommunityUser[];
 
-  const activeUsers = communityUsers.filter((user) => user.isInstagramConnected !== false);
+  const activeUsers = communityUsers.filter((user) => user.isInstagramConnected === true);
   const activeCreatorIds = activeUsers.map((user) => user._id);
 
   const metrics = await buildCommunityMetrics({
@@ -365,7 +371,7 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
     },
     { $match: { postCount: { $gt: 0 } } },
     { $sort: { totalInteractions: -1, postCount: -1 } },
-    { $limit: TOP_CREATORS_LIMIT * 2 },
+    { $limit: TOP_CREATORS_LIMIT * 3 },
     {
       $lookup: {
         from: 'users',
@@ -379,6 +385,7 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
               username: 1,
               followers_count: 1,
               profile_picture_url: 1,
+              mediaKitSlug: 1,
             },
           },
         ],
@@ -404,24 +411,61 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
   ];
 
   const rawResults = (await MetricModel.aggregate(pipeline).exec()) as RawCreatorAggregation[];
+  const limitedResults = rawResults.slice(0, TOP_CREATORS_LIMIT);
 
-  return rawResults.slice(0, TOP_CREATORS_LIMIT).map((item, index) => {
+  const missingAvatarUserIds = limitedResults
+    .filter((item) => !item.user?.profile_picture_url)
+    .map((item) => item.userId)
+    .filter((id): id is Types.ObjectId => Boolean(id));
+
+  let avatarByUserId: Record<string, string> = {};
+  if (missingAvatarUserIds.length) {
+    const insightAvatars = await AccountInsightModel.aggregate<{
+      _id: Types.ObjectId;
+      profilePicture?: string | null;
+    }>([
+      {
+        $match: {
+          user: { $in: missingAvatarUserIds },
+          'accountDetails.profile_picture_url': { $exists: true, $nin: [null, ''] },
+        },
+      },
+      { $sort: { recordedAt: -1 } },
+      {
+        $group: {
+          _id: '$user',
+          profilePicture: { $first: '$accountDetails.profile_picture_url' },
+        },
+      },
+    ]).exec();
+
+    avatarByUserId = Object.fromEntries(
+      insightAvatars
+        .filter((doc) => doc.profilePicture)
+        .map((doc) => [doc._id.toString(), doc.profilePicture as string]),
+    );
+  }
+
+  return limitedResults.map((item, index) => {
     const avgInteractions = Number(item.avgInteractionsPerPost ?? 0);
     const postCount = Number(item.postCount ?? 0);
     const totalInteractions = Number(item.totalInteractions ?? 0);
     const consistencyScore = postCount > 0 ? Number((postCount / RANK_WINDOW_DAYS).toFixed(2)) : null;
+    const userIdString = item.userId ? String(item.userId) : undefined;
+    const rawAvatar = item.user?.profile_picture_url ?? (userIdString ? avatarByUserId[userIdString] : null);
 
     return {
       id: String(item.userId),
       name: item.user?.name || item.user?.username || 'Criador',
       username: item.user?.username ?? null,
       followers: item.user?.followers_count ?? null,
-      avatarUrl: toProxyAvatar(item.user?.profile_picture_url ?? null),
+      avatarUrl: toProxyAvatar(rawAvatar ?? null),
       totalInteractions,
       postCount,
       avgInteractionsPerPost: avgInteractions,
       rank: index + 1,
       consistencyScore,
+      mediaKitSlug: item.user?.mediaKitSlug ?? null,
     };
   });
 }

@@ -31,37 +31,42 @@ const PlannerPreviewSection: React.FC = () => {
   }, []);
 
   return (
-    <section id="planner-preview" className="py-20 bg-white text-black">
+    <section id="planner-preview" className="border-t border-[#E6EAFB] bg-[#FDFDFD] py-16 text-brand-dark md:py-20">
       <div className="container mx-auto px-6">
         <div className="flex flex-col lg:flex-row gap-10 lg:gap-14 items-start">
           <div className="w-full lg:w-5/12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Planejamento Inteligente em Ação</h2>
-            <p className="text-lg text-gray-700 mb-6">
+            <div className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
+              Planner em ação
+            </div>
+            <h2 className="mt-3 text-[2rem] font-semibold leading-tight md:text-[2.5rem]">
+              Planejamento inteligente com IA, do tema à execução
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-brand-text-secondary md:text-lg">
               Veja como a IA transforma suas categorias em temas, pautas e roteiros, posicionando cada conteúdo no melhor dia e horário.
             </p>
-            <ul className="space-y-3 text-gray-700">
+            <ul className="mt-5 space-y-4 text-sm leading-normal text-brand-text-secondary md:text-base">
               <li className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-brand-purple" />
                 <div>
-                  <b>Tema e pautas:</b> cruzamos Proposta, Contexto, Tom e Referência para sugerir assuntos que combinam com seu estilo.
+                  <b className="font-semibold text-brand-dark">Tema e pautas:</b> cruzamos Proposta, Contexto, Tom e Referência para sugerir assuntos que combinam com seu estilo.
                 </div>
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-brand-magenta" />
                 <div>
-                  <b>Roteiro curto:</b> gancho, estrutura e CTA prontos para gravar, com variações de estratégia.
+                  <b className="font-semibold text-brand-dark">Roteiro curto:</b> gancho, estrutura e CTA prontos para gravar, com variações de estratégia.
                 </div>
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-brand-teal" />
                 <div>
-                  <b>Melhor horário:</b> usamos seu histórico para recomendar janelas de alta performance.
+                  <b className="font-semibold text-brand-dark">Melhor horário:</b> usamos seu histórico para recomendar janelas de alta performance.
                 </div>
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-brand-orange" />
                 <div>
-                  <b>Inspiração da comunidade:</b> referências recentes semelhantes ao seu tema para você se inspirar.
+                  <b className="font-semibold text-brand-dark">Inspiração da comunidade:</b> referências recentes semelhantes ao seu tema para você se inspirar.
                 </div>
               </li>
             </ul>

@@ -9,6 +9,7 @@ type CreatorGallerySectionProps = {
   creators: LandingCreatorHighlight[];
   loading?: boolean;
   onRequestMediaKit?: () => void;
+  maxVisible?: number;
 };
 
 const numberFormatter = new Intl.NumberFormat("pt-BR", {
@@ -16,14 +17,45 @@ const numberFormatter = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
 });
 
-const skeletonCards = new Array(4).fill(null);
+const DEFAULT_MAX_VISIBLE_CREATORS = 15;
 
 const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
   creators,
   loading = false,
   onRequestMediaKit,
+  maxVisible = DEFAULT_MAX_VISIBLE_CREATORS,
 }) => {
-  const visibleCreators = React.useMemo(() => creators.slice(0, 4), [creators]);
+  const [isMdUp, setIsMdUp] = React.useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : false,
+  );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const handleChange = () => setIsMdUp(mediaQuery.matches);
+    handleChange();
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  const skeletonCards = React.useMemo(
+    () => Array.from({ length: maxVisible }),
+    [maxVisible],
+  );
+
+  const effectiveMaxVisible = React.useMemo(() => {
+    if (isMdUp) return maxVisible;
+    return Math.min(maxVisible, 6);
+  }, [isMdUp, maxVisible]);
+
+  const visibleCreators = React.useMemo(
+    () => creators.slice(0, effectiveMaxVisible),
+    [creators, effectiveMaxVisible],
+  );
 
   const handleMediaKitClick = React.useCallback(
     (creator: LandingCreatorHighlight) => {
@@ -31,17 +63,40 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
         track("landing_creator_gallery_media_kit_click", {
           creatorId: creator.id,
           creatorRank: creator.rank,
+          mediaKitSlug: creator.mediaKitSlug ?? null,
         });
       } catch {}
+
+      if (creator.mediaKitSlug) {
+        const targetUrl = `/mediakit/${creator.mediaKitSlug}`;
+        if (typeof window !== "undefined") {
+          window.location.assign(targetUrl);
+        }
+        return;
+      }
+
       onRequestMediaKit?.();
     },
     [onRequestMediaKit]
   );
 
   return (
-    <section id="galeria" className="bg-[#F9F9FB] pb-10 pt-0 md:pb-14 md:pt-0.5">
+    <section id="galeria" className="bg-[#F9F9FB] py-[clamp(3.5rem,9vw,6rem)]">
       <div className="container mx-auto max-w-6xl px-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <header className="mb-8 max-w-3xl space-y-3 md:mb-10">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#D8E1F5] bg-white px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#2F3B5C]">
+            Comunidade em movimento
+          </span>
+          <h2 className="text-xl font-semibold text-brand-dark md:text-2xl">
+            Conheça criadores que compartilham resultados e bastidores.
+          </h2>
+          <p className="text-sm text-brand-text-secondary md:text-[0.95rem]">
+            Essa galeria destaca quem abriu os dashboards da Data2Content, publicou mídia kit e usa a plataforma
+            para provar valor em negociações com marcas.
+          </p>
+        </header>
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-5 lg:gap-6">
           {loading
             ? skeletonCards.map((_, index) => (
                 <div
@@ -63,14 +118,20 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
                 return (
                   <article
                     key={creator.id}
-                    className="group flex flex-col gap-2 rounded-xl border border-white/60 bg-white/90 p-3 shadow-[0_14px_32px_rgba(15,23,42,0.07)] transition-all duration-200 hover:-translate-y-1 hover:border-brand-magenta/25 hover:shadow-[0_22px_40px_rgba(15,23,42,0.1)]"
+                    className="group flex cursor-pointer flex-col gap-2 rounded-xl border border-white/60 bg-white/90 p-3 shadow-[0_14px_32px_rgba(15,23,42,0.07)] transition-all duration-200 hover:-translate-y-1 hover:border-brand-magenta/25 hover:shadow-[0_22px_40px_rgba(15,23,42,0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleMediaKitClick(creator)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleMediaKitClick(creator);
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#EEF2FF] px-3 py-1 text-xs font-semibold text-brand-dark/80">
-                        Creator
-                      </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF5E4] px-3 py-1 text-xs font-semibold text-[#C47A00]">
-                        Destaque
+                        Ranking #{creator.rank}
                       </span>
                     </div>
                     <div className="mt-3 aspect-square w-full overflow-hidden rounded-2xl bg-[#FDF2F8]">
@@ -107,9 +168,6 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
                           Alcance {numberFormatter.format(followers)}
                         </span>
                       ) : null}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#F7F8FB] px-2.5 py-1 font-medium text-brand-dark/85">
-                        Top #{creator.rank}
-                      </span>
                     </div>
                     <div className="mt-auto flex items-center justify-between">
                       <div className="flex flex-col text-xs text-brand-text-secondary">
@@ -120,7 +178,10 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleMediaKitClick(creator)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleMediaKitClick(creator);
+                        }}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#0B57D0] text-sm text-white shadow-[0_10px_24px_rgba(11,87,208,0.18)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[#094ab4]"
                         aria-label={`Ver mídia kit de ${creator.name}`}
                       >

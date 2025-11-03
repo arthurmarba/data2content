@@ -39,33 +39,36 @@ const VIP_BENEFITS = [
 ];
 
 export const CommunityBenefitsSection: React.FC = () => (
-  <section id="beneficios" className="bg-white py-20 text-gray-900">
+  <section id="beneficios" className="border-t border-[#E6EAFB] bg-white py-16 text-brand-dark md:py-20">
     <div className="container mx-auto px-6">
-      <div className="max-w-3xl">
-        <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">
+      <div className="max-w-3xl space-y-3">
+        <div className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
+          Comunidade + VIP
+        </div>
+        <h2 className="text-[2rem] font-semibold leading-tight md:text-[2.5rem]">
           A comunidade impulsionada pela IA — e o salto que o Grupo VIP oferece
         </h2>
-        <p className="mt-3 text-lg text-gray-600">
+        <p className="text-base leading-relaxed text-brand-text-secondary md:text-lg">
           A comunidade aberta usa a IA Mobi para direcionar sua rotina de criação. No Grupo VIP (Plano PRO), a mesma IA se
           une a mentorias estratégicas semanais para acelerar seus resultados com acompanhamento de perto.
         </p>
       </div>
 
       <div className="mt-10 grid gap-6 md:grid-cols-2">
-        <div className="flex flex-col gap-3 rounded-3xl border border-black/10 bg-gray-50 p-6 transition hover:border-brand-purple/40 hover:shadow-lg">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">
+        <div className="flex flex-col gap-4 rounded-3xl border border-black/10 bg-gray-50 p-6 transition hover:border-brand-purple/40 hover:shadow-lg">
+          <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
             Comunidade aberta (grátis)
           </p>
           {COMMUNITY_BENEFITS.map((benefit) => (
             <div key={benefit.title}>
-              <h3 className="text-xl font-semibold text-gray-900">{benefit.title}</h3>
-              <p className="mt-1 text-sm text-gray-600">{benefit.description}</p>
+              <h3 className="text-lg font-semibold leading-snug text-brand-dark md:text-xl">{benefit.title}</h3>
+              <p className="mt-1 text-sm leading-normal text-brand-text-secondary md:text-base">{benefit.description}</p>
             </div>
           ))}
         </div>
 
-        <div className="flex flex-col gap-3 rounded-3xl border border-brand-red/20 bg-gradient-to-br from-brand-pink/10 via-brand-purple/5 to-white p-6 shadow-sm transition hover:border-brand-red/40 hover:shadow-xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-purple">
+        <div className="flex flex-col gap-4 rounded-3xl border border-brand-red/20 bg-gradient-to-br from-brand-pink/10 via-brand-purple/5 to-white p-6 shadow-sm transition hover:border-brand-red/40 hover:shadow-xl">
+          <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-purple md:text-sm">
             Grupo VIP (Plano PRO)
           </p>
           {VIP_BENEFITS.map((benefit) => (
@@ -73,11 +76,11 @@ export const CommunityBenefitsSection: React.FC = () => (
               key={benefit.title}
               className="rounded-2xl border border-white/20 bg-white/60/20 p-4 backdrop-blur-sm"
             >
-              <h3 className="text-lg font-semibold text-brand-purple">{benefit.title}</h3>
-              <p className="mt-1 text-sm text-brand-purple/80">{benefit.description}</p>
+              <h3 className="text-lg font-semibold leading-snug text-brand-purple md:text-xl">{benefit.title}</h3>
+              <p className="mt-1 text-sm leading-normal text-brand-purple/80 md:text-base">{benefit.description}</p>
             </div>
           ))}
-          <div className="mt-2 text-xs text-brand-purple/70">
+          <div className="mt-2 text-sm text-brand-purple/70 md:text-base">
             *Disponível para assinantes PRO ou durante o trial. Inclui acesso prioritário às mentorias semanais e materiais de apoio exclusivos.
           </div>
         </div>

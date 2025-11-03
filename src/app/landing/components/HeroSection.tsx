@@ -36,13 +36,13 @@ export default function HeroSection() {
   const youtubeEmbedUrl = `https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?controls=1&rel=0&showinfo=0&modestbranding=1&loop=1&playlist=${YOUTUBE_VIDEO_ID}`;
 
   return (
-    <section className="relative bg-gray-100 text-center overflow-x-hidden pt-20 pb-24">
+    <section className="relative overflow-x-hidden bg-gray-100 py-20 text-center text-brand-dark md:py-24">
       <div className="w-full">
         <motion.div variants={heroVariants} initial="hidden" animate="visible" className="w-full">
           <div className="max-w-3xl mx-auto px-6 lg:px-8">
             <motion.h1
               variants={heroItemVariants}
-              className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
+              className="text-[2.5rem] font-semibold leading-tight tracking-tight sm:text-[3rem] md:text-[3.5rem] lg:text-[4rem]"
             >
               Milhares de posts virais do Instagram, decifrados pelo ChatGPT.
             </motion.h1>
@@ -64,7 +64,7 @@ export default function HeroSection() {
             */}
 
             {/* A margem superior foi aumentada de mt-8 para mt-12 para criar mais espaço */}
-            <motion.div variants={heroItemVariants} className="mt-12">
+            <motion.div variants={heroItemVariants} className="mt-10 md:mt-12">
               {/* O ícone do Google foi removido para testar o layout do texto */}
               <ButtonPrimary onClick={handleSignIn}>
                 Experimente Grátis

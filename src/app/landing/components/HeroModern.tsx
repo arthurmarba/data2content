@@ -60,10 +60,10 @@ const HighlightCard: React.FC<HighlightCardProps> = ({
   return (
     <article className="flex flex-col items-start justify-center rounded-3xl border border-[#E3E8F4] bg-white p-6 text-left shadow-[0_14px_38px_rgba(15,23,42,0.08)] transition-transform duration-200 hover:-translate-y-1">
       <div className="flex w-full flex-col gap-2">
-        <span className="text-4xl font-semibold text-brand-dark sm:text-[2.75rem] sm:leading-none lg:text-[3.25rem]">
+        <span className="text-3xl font-semibold leading-tight text-brand-dark md:text-[2.5rem] lg:text-[2.75rem]">
           {metricValue > 0 ? `${prefix}${formatted}` : "—"}
         </span>
-        <span className="break-words text-xs font-semibold uppercase tracking-[0.16em] text-brand-text-secondary sm:text-[0.7rem]">
+        <span className="break-words text-[0.75rem] font-semibold uppercase tracking-[0.16em] text-brand-text-secondary md:text-sm">
           {metricLabel}
         </span>
       </div>
@@ -101,13 +101,13 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
       <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white to-[#F6F8FB]" />
       <div className="relative container mx-auto flex w-full max-w-6xl flex-col gap-12">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center text-brand-dark">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E6F2] bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-brand-text-secondary">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E6F2] bg-white px-4 py-1 text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
             IA viva no mercado criativo
           </span>
-          <h1 className="max-w-[24ch] text-display-lg text-balance md:text-display-xl">
+          <h1 className="max-w-[24ch] text-[2.25rem] text-balance font-semibold leading-tight sm:text-[2.5rem] md:text-[3rem] lg:text-[3.5rem]">
             Feche mais campanhas. Valorize seu trabalho.
           </h1>
-          <p className="max-w-2xl text-base font-medium text-brand-text-secondary md:text-lg">
+          <p className="max-w-2xl text-base font-medium leading-normal text-brand-text-secondary md:mt-3 md:text-lg">
             A Data2Content usa IA para analisar suas métricas, precificar suas entregas e conectar você com marcas de forma estratégica.
           </p>
           <div className="flex w-full flex-col items-center gap-3 xs:flex-row xs:justify-center">
@@ -118,7 +118,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
               Sou Marca
             </ButtonPrimary>
           </div>
-          <p className="text-sm font-medium text-brand-text-secondary">
+          <p className="text-sm font-medium text-brand-text-secondary md:text-base">
             Crie seu mídia kit gratuitamente e comece a atrair oportunidades reais.
           </p>
         </div>

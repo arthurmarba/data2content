@@ -85,40 +85,43 @@ const CreatorCard: React.FC<CreatorCardProps> = ({
           </div>
         ) : (
           <div
-            className={`flex h-14 w-14 items-center justify-center rounded-full bg-[#F4F4F4] text-lg font-semibold text-[#1A1A1A] ${avatarWrapperClassName ?? ""}`}
+            className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-magenta/15 via-white to-brand-purple/10 text-lg font-semibold text-brand-magenta ${avatarWrapperClassName ?? ""}`}
           >
-            {getInitials(creator.name)}
+            D2C
           </div>
         )}
         <div>
-          <div className="text-sm font-semibold text-[#777777]">{displayRank}</div>
-          <div className="text-lg font-semibold text-[#1A1A1A]">{creator.name}</div>
+          <div className="text-[0.75rem] font-semibold uppercase tracking-[0.18em] text-brand-text-secondary md:text-sm">
+            {displayRank}
+          </div>
+          <div className="text-xl font-semibold leading-snug text-brand-dark md:text-2xl">{creator.name}</div>
           {creator.username ? (
-            <div className="text-sm text-[#777777]">@{creator.username}</div>
+            <div className="text-sm text-brand-text-secondary md:text-base">@{creator.username}</div>
           ) : null}
         </div>
       </div>
-      <dl className="space-y-2 text-sm text-[#555555]">
+      <dl className="space-y-3 text-sm text-brand-text-secondary md:text-base">
         <div className="flex justify-between">
-          <dt className="font-semibold text-[#1A1A1A]">Seguidores</dt>
-          <dd className="font-medium text-[#1A1A1A]">{displayFollowers}</dd>
+          <dt className="font-semibold text-brand-dark">Seguidores</dt>
+          <dd className="font-semibold text-brand-dark">{displayFollowers}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="font-semibold text-[#1A1A1A]">Conteúdos na janela</dt>
-          <dd className="font-medium text-[#1A1A1A]">{formatPlainNumber(creator.postCount)}</dd>
+          <dt className="font-semibold text-brand-dark">Conteúdos na janela</dt>
+          <dd className="font-semibold text-brand-dark">{formatPlainNumber(creator.postCount)}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="font-semibold text-[#1A1A1A]">Interações totais</dt>
-          <dd className="font-medium text-[#1A1A1A]">{formatCompactNumber(creator.totalInteractions)}</dd>
+          <dt className="font-semibold text-brand-dark">Interações totais</dt>
+          <dd className="font-semibold text-brand-dark">{formatCompactNumber(creator.totalInteractions)}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="font-semibold text-[#1A1A1A]">Média por conteúdo</dt>
-          <dd className="font-medium text-[#1A1A1A]">{formatCompactNumber(creator.avgInteractionsPerPost)}</dd>
+          <dt className="font-semibold text-brand-dark">Média por conteúdo</dt>
+          <dd className="font-semibold text-brand-dark">{formatCompactNumber(creator.avgInteractionsPerPost)}</dd>
         </div>
       </dl>
       {typeof creator.consistencyScore === "number" ? (
-        <p className="mt-4 text-xs text-[#777777]">
-          <strong className="font-semibold text-[#1A1A1A]">Consistência:</strong> {creator.consistencyScore.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} posts/dia na janela.
+        <p className="mt-4 text-sm text-brand-text-secondary">
+          <strong className="font-semibold text-brand-dark">Consistência:</strong>{" "}
+          {creator.consistencyScore.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} posts/dia na janela.
         </p>
       ) : null}
     </div>
@@ -161,24 +164,26 @@ export const TopCreatorsSection: React.FC<Props> = ({ creators }) => {
   ];
 
   return (
-    <section id="ranking" className="bg-white py-14 text-[#1A1A1A] md:py-20 lg:py-24 xl:py-28">
+    <section id="ranking" className="border-t border-[#E6EAFB] bg-[#FBFBFD] py-16 text-brand-dark md:py-20">
       <div className="container mx-auto px-6">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between lg:gap-10">
-          <div className="max-w-2xl lg:max-w-3xl space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#777777]">
+          <div className="max-w-2xl space-y-2 lg:max-w-3xl">
+            <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
               📈 Crescimento consistente. Resultados compartilhados.
             </p>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#777777]">Destaques da semana</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#1A1A1A] md:text-4xl lg:text-[2.6rem]">
+            <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
+              Destaques da semana
+            </p>
+            <h2 className="mt-3 text-[2rem] font-semibold leading-tight md:text-[2.5rem]">
               Quem está puxando o ritmo nesta semana
             </h2>
-            <p className="mt-3 text-lg text-[#555555] lg:text-xl">
+            <p className="mt-3 text-base leading-relaxed text-brand-text-secondary md:text-lg">
               A curadoria de resultados mais consistentes da comunidade. Cada destaque aqui abre bastidores e indicadores para o próximo criador evoluir.
             </p>
           </div>
           <a
             href="/dashboard"
-            className="inline-flex items-center gap-2 font-semibold text-[#F6007B] transition hover:text-[#d40068] lg:text-lg"
+            className="inline-flex items-center gap-2 text-base font-semibold text-[#F6007B] transition hover:text-[#d40068] md:text-lg"
           >
             Ver ranking completo (requer login)
             <span aria-hidden="true">→</span>
@@ -191,7 +196,7 @@ export const TopCreatorsSection: React.FC<Props> = ({ creators }) => {
           </div>
         ) : (
           <>
-            <div className="mt-10 grid gap-6 md:grid-cols-2 lg:mt-12 lg:grid-cols-3 lg:gap-7 xl:gap-9">
+            <div className="mt-10 grid gap-5 sm:gap-6 md:grid-cols-2 lg:mt-12 lg:grid-cols-3 lg:gap-7 xl:gap-9">
             {topThree.map((creator, index) => {
               const theme = medalThemes[index];
               const topCardClass = index === 0 ? "hover:[&_img]:brightness-110" : "hover:[&_img]:brightness-105";

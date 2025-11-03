@@ -36,13 +36,13 @@ const rows: Row[] = [
 
 export default function FeatureRowsSection() {
   return (
-    <section className="py-16 bg-white text-black">
+    <section className="border-t border-[#E6EAFB] bg-white py-16 text-brand-dark md:py-20">
       <div className="container mx-auto px-6">
         <div className="space-y-12">
           {rows.map((row, i) => {
             const isOdd = i % 2 === 1;
             return (
-              <div key={row.title} className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+              <div key={row.title} className="grid grid-cols-1 items-center gap-8 md:grid-cols-12">
                 {/* Imagem: esquerda (pares) / direita (ímpares em md+) */}
                 <div className={`md:col-span-5 ${isOdd ? 'md:order-2' : 'md:order-1'}`}>
                   <div className="relative w-full h-56 sm:h-64 md:h-72 lg:h-80 rounded-xl overflow-hidden ring-1 ring-black/10 bg-white shadow-md">
@@ -51,8 +51,12 @@ export default function FeatureRowsSection() {
                 </div>
                 {/* Texto: direita (pares) / esquerda (ímpares em md+) */}
                 <div className={`md:col-span-7 ${isOdd ? 'md:order-1' : 'md:order-2'}`}>
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">{row.title}</h3>
-                  <p className="text-gray-700 text-lg leading-relaxed">{row.text}</p>
+                  <h3 className="mb-2 text-xl font-semibold leading-snug text-brand-dark md:text-2xl">
+                    {row.title}
+                  </h3>
+                  <p className="text-base leading-normal text-brand-text-secondary md:text-lg">
+                    {row.text}
+                  </p>
                 </div>
               </div>
             );
