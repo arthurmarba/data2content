@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ButtonPrimary from './ButtonPrimary';
@@ -12,9 +12,10 @@ import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 
 interface LandingHeaderProps {
   showLoginButton?: boolean;
+  onCreatorCta?: () => void;
 }
 
-export default function LandingHeader({ showLoginButton = false }: LandingHeaderProps) {
+export default function LandingHeader({ showLoginButton = false, onCreatorCta }: LandingHeaderProps) {
   const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -33,7 +34,21 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
 
   const handleJoinCommunity = () => {
     track('landing_header_creator_cta_click');
-    window.location.assign('/signup');
+
+    if (onCreatorCta) {
+      onCreatorCta();
+      return;
+    }
+
+    const fallbackToLogin = () => window.location.assign('/login');
+
+    signIn('google', { callbackUrl: MAIN_DASHBOARD_ROUTE })
+      .then((result) => {
+        if (result?.error) {
+          fallbackToLogin();
+        }
+      })
+      .catch(fallbackToLogin);
   };
 
   const handleBrands = () => {

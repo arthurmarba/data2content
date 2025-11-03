@@ -3,8 +3,10 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { signIn } from "next-auth/react";
 import { track } from "@/lib/track";
 import type { LandingCommunityStatsResponse } from "@/types/landing";
+import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 
 import LandingHeader from "./landing/components/LandingHeader";
 import HeroModern from "./landing/components/HeroModern";
@@ -110,7 +112,18 @@ export default function LandingPageClient() {
     try {
       track("landing_creator_cta_click");
     } catch {}
-    window.location.assign("/signup");
+
+    const fallbackToLogin = () => window.location.assign("/login");
+
+    signIn("google", {
+      callbackUrl: MAIN_DASHBOARD_ROUTE,
+    })
+      .then((result) => {
+        if (result?.error) {
+          fallbackToLogin();
+        }
+      })
+      .catch(fallbackToLogin);
   }, []);
 
   const handleBrandsCta = React.useCallback(() => {
@@ -197,7 +210,7 @@ export default function LandingPageClient() {
       style={{ "--landing-header-extra": "0rem" } as React.CSSProperties}
     >
       <div ref={headerWrapRef}>
-        <LandingHeader showLoginButton />
+        <LandingHeader showLoginButton onCreatorCta={handleCreatorCta} />
       </div>
 
       <main
