@@ -9,7 +9,7 @@ type AuthoritySectionProps = {
 
 const AuthoritySection: React.FC<AuthoritySectionProps> = ({ onPrimaryCta, onBrandsCta }) => {
   return (
-    <section id="sobre" className="bg-[#0B1120] py-10 text-white md:py-16">
+    <section id="sobre" className="bg-[#0F172A] py-10 text-white md:py-16">
       <div className="container mx-auto max-w-5xl px-6">
         <div className="space-y-6 text-center">
           <p className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-white/70">

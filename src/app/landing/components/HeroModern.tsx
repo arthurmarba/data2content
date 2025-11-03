@@ -1,29 +1,98 @@
 "use client";
 
 import React from "react";
+import type { LandingCommunityMetrics } from "@/types/landing";
 import ButtonPrimary from "./ButtonPrimary";
 
 type HeroModernProps = {
   onCreatorCta: () => void;
   onBrandCta: () => void;
+  metrics?: LandingCommunityMetrics | null;
 };
 
-const highlightItems = [
-  {
-    title: "IA estratégica em linguagem humana",
-    description: "Receba diagnósticos acionáveis da Mobi no WhatsApp em minutos.",
-  },
-  {
-    title: "Mídia kit premium sem esforço manual",
-    description: "Sua vitrine sempre atualizada com métricas reais e copy profissional.",
-  },
-  {
-    title: "Match inteligente com marcas",
-    description: "Campanhas sugeridas conforme nicho, volume e consistência de entrega.",
-  },
-];
+const numberFormatter = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 
-const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta }) => {
+function easeOutCubic(x: number) {
+  return 1 - Math.pow(1 - x, 3);
+}
+
+function useCountUp(targetValue: number, duration = 1100) {
+  const [value, setValue] = React.useState(0);
+
+  React.useEffect(() => {
+    let frame: number;
+    const start = performance.now();
+    const animate = (timestamp: number) => {
+      const elapsed = timestamp - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutCubic(progress);
+      setValue(Math.round(targetValue * eased));
+      if (progress < 1) {
+        frame = requestAnimationFrame(animate);
+      }
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [targetValue, duration]);
+
+  return value;
+}
+
+type HighlightCardProps = {
+  metricValue: number;
+  metricLabel: string;
+  prefix?: string;
+  index: number;
+};
+
+const HighlightCard: React.FC<HighlightCardProps> = ({
+  metricValue,
+  metricLabel,
+  prefix = "+",
+  index,
+}) => {
+  const countedValue = useCountUp(metricValue, 900 + index * 120);
+  const formatted = numberFormatter.format(countedValue || 0);
+
+  return (
+    <article className="flex flex-col items-start justify-center rounded-3xl border border-[#E3E8F4] bg-white p-6 text-left shadow-[0_14px_38px_rgba(15,23,42,0.08)] transition-transform duration-200 hover:-translate-y-1">
+      <div className="flex w-full flex-col gap-2">
+        <span className="text-4xl font-semibold text-brand-dark sm:text-[2.75rem] sm:leading-none lg:text-[3.25rem]">
+          {metricValue > 0 ? `${prefix}${formatted}` : "—"}
+        </span>
+        <span className="break-words text-xs font-semibold uppercase tracking-[0.16em] text-brand-text-secondary sm:text-[0.7rem]">
+          {metricLabel}
+        </span>
+      </div>
+    </article>
+  );
+};
+
+const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metrics }) => {
+  const highlights = React.useMemo(
+    () => [
+      {
+        metricValue: metrics?.activeCreators ?? 0,
+        metricLabel: "criadores ativos",
+        prefix: "+",
+      },
+      {
+        metricValue: metrics?.reachLast30Days ?? 0,
+        metricLabel: "contas alcançadas",
+        prefix: "+",
+      },
+      {
+        metricValue: metrics?.combinedFollowers ?? 0,
+        metricLabel: "seguidores na comunidade",
+        prefix: "+",
+      },
+    ],
+    [metrics],
+  );
+
   return (
     <section
       id="inicio"
@@ -36,10 +105,10 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta }) => 
             IA viva no mercado criativo
           </span>
           <h1 className="max-w-[24ch] text-display-lg text-balance md:text-display-xl">
-            Feche mais campanhas com dados claros e um mídia kit inteligente.
+            Feche mais campanhas. Valorize seu trabalho.
           </h1>
           <p className="max-w-2xl text-base font-medium text-brand-text-secondary md:text-lg">
-            Conecte seu Instagram, receba diagnósticos da Mobi e apresente tudo em um mídia kit premium que marcas confiam.
+            A Data2Content usa IA para analisar suas métricas, precificar suas entregas e conectar você com marcas de forma estratégica.
           </p>
           <div className="flex w-full flex-col items-center gap-3 xs:flex-row xs:justify-center">
             <ButtonPrimary onClick={onCreatorCta} size="lg" variant="solid">
@@ -55,17 +124,8 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta }) => 
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {highlightItems.map((item) => (
-            <article
-              key={item.title}
-              className="rounded-3xl border border-[#E3E8F4] bg-white p-6 text-left shadow-[0_14px_38px_rgba(15,23,42,0.08)] transition-transform duration-200 hover:-translate-y-1"
-            >
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#F4F7FF] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-text-secondary">
-                Destaque
-              </span>
-              <h2 className="mt-4 text-lg font-semibold text-brand-dark">{item.title}</h2>
-              <p className="mt-2 text-sm text-brand-text-secondary">{item.description}</p>
-            </article>
+          {highlights.map((item, index) => (
+            <HighlightCard key={item.metricLabel} index={index} {...item} />
           ))}
         </div>
       </div>

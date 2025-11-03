@@ -9,8 +9,6 @@ import type { LandingCommunityStatsResponse } from "@/types/landing";
 import LandingHeader from "./landing/components/LandingHeader";
 import HeroModern from "./landing/components/HeroModern";
 import CreatorGallerySection from "./landing/components/CreatorGallerySection";
-import PlatformImpactSection from "./landing/components/PlatformImpactSection";
-import EcosystemModulesSection from "./landing/components/EcosystemModulesSection";
 import PlansComparisonSection from "./landing/components/PlansComparisonSection";
 import BrandsSection from "./landing/components/BrandsSection";
 import TestimonialSpotlight from "./landing/components/TestimonialSpotlight";
@@ -209,15 +207,16 @@ export default function LandingPageClient() {
             "calc(var(--landing-header-h, 4.5rem) + var(--landing-header-extra, 0px))",
         }}
       >
-        <HeroModern onCreatorCta={handleCreatorCta} onBrandCta={handleBrandsCta} />
+        <HeroModern
+          onCreatorCta={handleCreatorCta}
+          onBrandCta={handleBrandsCta}
+          metrics={metrics}
+        />
         <CreatorGallerySection
           creators={resolvedStats.ranking}
           loading={loadingStats}
-          lastUpdatedIso={resolvedStats.lastUpdatedIso}
           onRequestMediaKit={handleCreatorCta}
         />
-        <PlatformImpactSection metrics={metrics} />
-        <EcosystemModulesSection />
         <PlansComparisonSection onCreateAccount={handleCreatorCta} />
         <BrandsSection onCreateCampaign={handleBrandsCta} />
         <TestimonialSpotlight />
@@ -237,7 +236,10 @@ export default function LandingPageClient() {
         </section>
       </main>
 
-      <footer className="border-t border-transparent bg-brand-dark py-10 text-white">
+      {/* ======================================================================== */}
+      {/* INÍCIO DA ATUALIZAÇÃO DO RODAPÉ */}
+      {/* ======================================================================== */}
+      <footer className="border-t border-gray-200 bg-white py-10 text-brand-dark">
         <div className="container mx-auto flex max-w-5xl flex-col items-center gap-4 px-6 text-center md:flex-row md:justify-between md:text-left">
           <div className="flex items-center gap-3">
             <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white shadow-[0_14px_34px_rgba(231,75,111,0.2)]">
@@ -249,26 +251,29 @@ export default function LandingPageClient() {
                 priority
               />
             </div>
-            <span className="text-sm font-semibold tracking-[0.28em] text-white">
+            <span className="text-sm font-semibold tracking-[0.28em] text-brand-dark">
               DATA2CONTENT
             </span>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-4 text-sm text-white/70 md:justify-end">
-            <Link href="/politica-de-privacidade" className="transition-colors duration-200 hover:text-white">
+          <nav className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600 md:justify-end">
+            <Link href="/politica-de-privacidade" className="transition-colors duration-200 hover:text-brand-dark">
               Política de Privacidade
             </Link>
-            <Link href="/termos-e-condicoes" className="transition-colors duration-200 hover:text-white">
+            <Link href="/termos-e-condicoes" className="transition-colors duration-200 hover:text-brand-dark">
               Termos e Condições
             </Link>
-            <Link href="/afiliados" className="transition-colors duration-200 hover:text-white">
+            <Link href="/afiliados" className="transition-colors duration-200 hover:text-brand-dark">
               Programa de Afiliados
             </Link>
           </nav>
         </div>
-        <div className="mt-4 text-center text-xs text-white/60">
+        <div className="mt-4 text-center text-xs text-gray-500">
           © {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.
         </div>
       </footer>
+      {/* ======================================================================== */}
+      {/* FIM DA ATUALIZAÇÃO DO RODAPÉ */}
+      {/* ======================================================================== */}
 
       <MobileStickyCta
         label="Criar conta gratuita"

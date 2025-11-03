@@ -8,7 +8,6 @@ import type { LandingCreatorHighlight } from "@/types/landing";
 type CreatorGallerySectionProps = {
   creators: LandingCreatorHighlight[];
   loading?: boolean;
-  lastUpdatedIso?: string;
   onRequestMediaKit?: () => void;
 };
 
@@ -17,25 +16,13 @@ const numberFormatter = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
 });
 
-function formatDate(value?: string) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-  }).format(date);
-}
-
 const skeletonCards = new Array(4).fill(null);
 
 const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
   creators,
   loading = false,
-  lastUpdatedIso,
   onRequestMediaKit,
 }) => {
-  const formattedDate = React.useMemo(() => formatDate(lastUpdatedIso), [lastUpdatedIso]);
   const visibleCreators = React.useMemo(() => creators.slice(0, 4), [creators]);
 
   const handleMediaKitClick = React.useCallback(
@@ -52,28 +39,9 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
   );
 
   return (
-    <section id="galeria" className="bg-[#F9F9FB] py-14 md:py-20">
+    <section id="galeria" className="bg-[#F9F9FB] pb-10 pt-0 md:pb-14 md:pt-0.5">
       <div className="container mx-auto max-w-6xl px-6">
-        <div className="flex flex-col items-center gap-4 text-center md:flex-row md:items-end md:justify-between md:text-left">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-dark shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-              Criadores em destaque
-            </div>
-            <h2 className="text-3xl font-bold text-brand-dark md:text-4xl">
-              Conheça alguns dos criadores da Data2Content.
-            </h2>
-            <p className="max-w-2xl text-sm text-brand-text-secondary md:text-base">
-              Todos analisados, acompanhados e potencializados por IA.
-            </p>
-          </div>
-          {formattedDate ? (
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-brand-text-secondary">
-              Atualizado em {formattedDate}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {loading
             ? skeletonCards.map((_, index) => (
                 <div

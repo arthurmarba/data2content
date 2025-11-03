@@ -25,7 +25,7 @@ type FeatureRow = {
 
 const features: FeatureRow[] = [
   {
-    feature: "Criação de Mídia Kit público",
+    feature: "Criar e compartilhar o Mídia Kit",
     free: { status: "yes", label: "Sim" },
     pro: { status: "yes", label: "Sim" },
   },
@@ -35,67 +35,24 @@ const features: FeatureRow[] = [
     pro: { status: "yes", label: "Sim" },
   },
   {
-    feature: "Comunidade de criadores (WhatsApp)",
+    feature: "Comunidade gratuita de networking",
     free: { status: "yes", label: "Sim" },
     pro: { status: "yes", label: "Sim" },
   },
   {
-    feature: "Acesso ao Mobi (IA no WhatsApp)",
-    free: { status: "limited", label: "Limitado", note: "Alertas básicos" },
-    pro: {
-      status: "yes",
-      label: "Completo",
-      note: "Análises e relatórios detalhados",
-    },
-  },
-  {
-    feature: "Análises automáticas de conteúdo (IA)",
-    free: { status: "no", label: "Não disponível" },
-    pro: { status: "yes", label: "Incluído" },
-  },
-  {
-    feature: "Calculadora de Publi com IA",
+    feature: "Planejar e precificar com IA",
     free: { status: "no", label: "Não disponível" },
     pro: { status: "yes", label: "Sim" },
   },
   {
-    feature: "Reuniões estratégicas semanais",
-    free: { status: "no", label: "Não disponível" },
-    pro: { status: "yes", label: "Sim", note: "Grupo VIP PRO" },
-  },
-  {
-    feature: "Responder propostas dentro da plataforma",
+    feature: "Responder propostas pela plataforma",
     free: { status: "no", label: "Não disponível" },
     pro: { status: "yes", label: "Sim" },
   },
   {
-    feature: "Mentoria com especialistas",
+    feature: "Participar das reuniões estratégicas semanais (VIP PRO)",
     free: { status: "no", label: "Não disponível" },
     pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Histórico de campanhas e precificações anteriores",
-    free: { status: "no", label: "Não disponível" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Insights de tendências e marcas que buscam creators",
-    free: { status: "limited", label: "Limitado" },
-    pro: { status: "yes", label: "Completo" },
-  },
-  {
-    feature: "Suporte prioritário e atendimento personalizado",
-    free: { status: "no", label: "Não" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Selo “Creator PRO” no Mídia Kit público",
-    free: { status: "no", label: "Não" },
-    pro: {
-      status: "yes",
-      label: "Sim",
-      note: "Destaque visual automático",
-    },
   },
 ];
 
@@ -156,16 +113,16 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                     >
                       {item.feature}
                     </th>
-                    {[item.free, item.pro].map((cell, idx) => {
-                      const status = STATUS_MAP[cell.status];
-                      const isPro = idx === 1;
-                      return (
-                        <td
-                          key={`${item.feature}-${isPro ? "pro" : "free"}`}
-                          className={`px-6 py-5 text-center align-top md:px-8 ${
-                            isPro ? "bg-[#0F0C18] text-white/90" : "text-[#1F212B]"
-                          }`}
-                        >
+                {[item.free, item.pro].map((cell, idx) => {
+                  const status = STATUS_MAP[cell.status];
+                  const isPro = idx === 1;
+                  return (
+                    <td
+                      key={`${item.feature}-${isPro ? "pro" : "free"}`}
+                      className={`px-6 py-5 text-center align-top md:px-8 ${
+                        isPro ? "bg-gray-50 text-[#1F212B]" : "text-[#1F212B]" // Cor cinza claro para PRO
+                      }`}
+                    >
                           <div className="inline-flex flex-col items-center gap-2 text-sm md:text-base">
                             <span
                               aria-hidden="true"
@@ -178,9 +135,7 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                             </span>
                             {cell.note && (
                               <span
-                                className={`text-xs font-medium ${
-                                  isPro ? "text-white/70" : "text-[#55586A]"
-                                }`}
+                                className={`text-xs font-medium text-[#55586A]`} // Cor da nota escura
                               >
                                 {cell.note}
                               </span>
@@ -219,27 +174,34 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
               Sem cartão • Sem compromisso
             </p>
           </div>
-          <div className="rounded-2xl border border-[#FF1E56]/50 bg-gradient-to-br from-[#1A1422] via-[#0F0C18] to-[#07060B] p-6 text-center text-white shadow-[0_22px_62px_rgba(12,10,25,0.6)] md:text-left">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF8AAE]">
+
+          {/* ======================================================================== */}
+          {/* INÍCIO DA ATUALIZAÇÃO DO CARD PRO */}
+          {/* ======================================================================== */}
+          <div className="rounded-2xl border border-[#DADDE7] bg-gray-50 p-6 text-center shadow-[0_16px_44px_rgba(24,27,37,0.08)] md:text-left">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF5F8B]">
               Plano PRO ⭐
             </p>
-            <p className="mt-2 text-2xl font-semibold">
-              R$ 49,90 <span className="text-sm font-medium text-white/70">/ mês</span>
+            <p className="mt-2 text-2xl font-semibold text-[#171922]">
+              R$ 49,90 <span className="text-sm font-medium text-[#5C5F72]">/ mês</span>
             </p>
-            <p className="mt-1 text-sm font-medium text-white/70">ou R$ 350 / ano</p>
-            <p className="mt-3 font-light text-white/80">
+            <p className="mt-1 text-sm font-medium text-[#5C5F72]">ou R$ 350 / ano</p>
+            <p className="mt-3 font-light">
               Para fechar campanhas com estratégia, precificação inteligente e
               suporte humano + IA.
             </p>
             <ButtonPrimary
               onClick={onCreateAccount}
-              variant="ghost"
+              variant="solid"
               size="lg"
-              className="mt-5 w-full justify-center border border-white/20 bg-white/5 text-white hover:border-white/30 hover:bg-white/10 md:w-auto"
+              className="mt-5 w-full justify-center md:w-auto"
             >
               Quero ser PRO
             </ButtonPrimary>
           </div>
+          {/* ======================================================================== */}
+          {/* FIM DA ATUALIZAÇÃO DO CARD PRO */}
+          {/* ======================================================================== */}
         </div>
       </div>
     </section>
