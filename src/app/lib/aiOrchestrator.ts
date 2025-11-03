@@ -16,6 +16,7 @@
  */
 
 import OpenAI from 'openai';
+import * as Sentry from '@sentry/nextjs';
 import type {
     ChatCompletionMessageParam,
     ChatCompletionChunk,
@@ -37,6 +38,7 @@ import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformance
 import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
 import { DEFAULT_METRICS_FETCH_DAYS } from '@/app/lib/constants';
+import { formatCurrencySafely, normalizeCurrencyCode } from '@/utils/currency';
 
 
 // Configuração do cliente OpenAI e constantes
@@ -585,6 +587,521 @@ export async function getQuickAcknowledgementLLMResponse(
         logger.error(`${fnTag} Falha na chamada à API OpenAI para quebra-gelo. Error Name: ${error.name}, Message: ${error.message}. Full Error Object:`, error);
         return null;
     }
+}
+
+export interface PricingAnalysisInput {
+    calcResult: {
+        segment: string;
+        justo: number;
+        estrategico?: number;
+        premium?: number;
+        cpm?: number;
+        source?: 'seed' | 'dynamic';
+        avgReach?: number | null;
+    };
+    recentDeal?: {
+        value: number;
+        reach?: number | null;
+        createdAt?: string | null;
+        brandSegment?: string | null;
+    };
+    diff: number | null;
+}
+
+export async function generatePricingAnalysisInsight(input: PricingAnalysisInput): Promise<string> {
+    const fnTag = '[pricingAnalysisInsight v1.1.0]';
+
+    const { calcResult, recentDeal } = input;
+
+    const isSeed = calcResult.source === 'seed';
+    const segmentLabel = calcResult.segment || 'default';
+
+    const formatCurrency = (value: number, currency: string = 'BRL') => {
+        try {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency,
+                maximumFractionDigits: 2,
+            }).format(value);
+        } catch {
+            return value.toFixed(2);
+        }
+    };
+
+    const cpmValue =
+        typeof calcResult.cpm === 'number' && Number.isFinite(calcResult.cpm) && calcResult.cpm > 0
+            ? calcResult.cpm
+            : null;
+    const avgReachFromCalc =
+        typeof calcResult.avgReach === 'number' && Number.isFinite(calcResult.avgReach) && calcResult.avgReach > 0
+            ? calcResult.avgReach
+            : null;
+    const reachFromDeal =
+        typeof recentDeal?.reach === 'number' && Number.isFinite(recentDeal.reach) && recentDeal.reach > 0
+            ? recentDeal.reach
+            : null;
+    const reachForEstimate = avgReachFromCalc ?? reachFromDeal ?? null;
+    const estimatedValueRaw =
+        cpmValue !== null && reachForEstimate !== null ? (reachForEstimate / 1000) * cpmValue : null;
+    const estimatedValue =
+        estimatedValueRaw !== null && Number.isFinite(estimatedValueRaw) && estimatedValueRaw >= 200
+            ? estimatedValueRaw
+            : null;
+    const offeredBudget =
+        typeof recentDeal?.value === 'number' && Number.isFinite(recentDeal.value) && recentDeal.value > 0
+            ? recentDeal.value
+            : null;
+    const justoValid =
+        typeof calcResult.justo === 'number' &&
+        Number.isFinite(calcResult.justo) &&
+        calcResult.justo >= 200
+            ? calcResult.justo
+            : null;
+    const comparisonBase = estimatedValue ?? justoValid;
+    const diffPercent =
+        comparisonBase && offeredBudget ? ((offeredBudget - comparisonBase) / comparisonBase) * 100 : null;
+
+    const classifyDiff = (value: number | null) => {
+        if (value === null || !Number.isFinite(value)) return null;
+        if (value < -15) return 'below';
+        if (value > 15) return 'above';
+        return 'within';
+    };
+
+    const diffClassification = classifyDiff(diffPercent);
+    const diffText =
+        diffPercent !== null && Number.isFinite(diffPercent)
+            ? `${diffPercent >= 0 ? '+' : ''}${diffPercent.toFixed(1)}%`
+            : 'indefinido';
+
+    const contextLog = {
+        segment: segmentLabel,
+        cpm: cpmValue,
+        avgReach: reachForEstimate,
+        estimatedValue:
+            estimatedValue !== null ? Number(estimatedValue.toFixed(2)) : estimatedValueRaw ?? null,
+        comparisonValue: comparisonBase !== null ? Number(comparisonBase.toFixed(2)) : null,
+        offered: offeredBudget !== null ? Number(offeredBudget.toFixed(2)) : null,
+        diff: diffPercent !== null ? Number(diffPercent.toFixed(2)) : null,
+    };
+    logger.info(`[PRICING_CONTEXT] ${JSON.stringify(contextLog)}`);
+    Sentry.captureMessage(`[PRICING_CONTEXT] ${JSON.stringify(contextLog)}`, 'info');
+
+    if (isSeed) {
+        const seedMessage =
+            'Como ainda não há publis registradas no seu nicho, usei o CPM médio de mercado para gerar uma estimativa inicial. Esse valor será ajustado à medida que novos criadores registrarem campanhas.';
+        const logLine = `[PRICING_INSIGHT] ${segmentLabel}: seed benchmark → ${seedMessage}`;
+        logger.info(logLine);
+        Sentry.captureMessage(logLine, 'info');
+        return seedMessage;
+    }
+
+    const reachText =
+        reachForEstimate !== null ? Math.round(reachForEstimate).toLocaleString('pt-BR') : null;
+    const estimatedText = estimatedValue !== null ? formatCurrency(estimatedValue) : null;
+    const offeredText = offeredBudget !== null ? formatCurrency(offeredBudget) : 'sem registro';
+    const dealReachText =
+        typeof recentDeal?.reach === 'number' && recentDeal.reach > 0
+            ? `${Math.round(recentDeal.reach).toLocaleString('pt-BR')} pessoas`
+            : 'alcance não informado';
+
+    const contextSentences: string[] = [
+        'Esses valores representam o custo médio por mil visualizações (CPM) com base no seu nicho e desempenho médio.',
+    ];
+
+    if (cpmValue !== null) {
+        contextSentences.push(`Seu CPM médio é de ${formatCurrency(cpmValue)}.`);
+    }
+
+    if (reachText && estimatedText) {
+        contextSentences.push(
+            `Com seu alcance médio de ${reachText} visualizações, o valor justo estimado para uma entrega seria de ${estimatedText}.`
+        );
+    } else if (justoValid !== null) {
+        contextSentences.push(
+            `Sem um alcance médio disponível, considere o valor base sugerido pela calculadora: ${formatCurrency(justoValid)}.`
+        );
+    } else {
+        contextSentences.push(
+            'Ainda não temos alcance recente suficiente para estimar o valor total da campanha. Registre novas publis para calibrar melhor.'
+        );
+    }
+
+    if (offeredBudget !== null) {
+        const diffAbsText = diffPercent !== null ? `${Math.abs(diffPercent).toFixed(1)}%` : null;
+        let comparisonSentence: string;
+        if (diffClassification === 'below' && diffAbsText) {
+            comparisonSentence = `O orçamento oferecido pela marca (${formatCurrency(
+                offeredBudget
+            )}) está cerca de ${diffAbsText} abaixo do valor justo estimado.`;
+        } else if (diffClassification === 'above' && diffAbsText) {
+            comparisonSentence = `O orçamento oferecido pela marca (${formatCurrency(
+                offeredBudget
+            )}) está cerca de ${diffAbsText} acima do valor médio do mercado.`;
+        } else if (diffClassification === 'within' && diffAbsText) {
+            comparisonSentence = `O orçamento oferecido pela marca (${formatCurrency(
+                offeredBudget
+            )}) está dentro da faixa esperada (variação de ${diffAbsText}).`;
+        } else {
+            comparisonSentence = `O orçamento oferecido pela marca é de ${formatCurrency(offeredBudget)}.`;
+        }
+        contextSentences.push(comparisonSentence);
+    }
+
+    let recommendation: string | null = null;
+    if (comparisonBase !== null && offeredBudget !== null && diffClassification) {
+        const diffAbs = Math.abs(diffPercent ?? 0).toFixed(1);
+        const baseFormatted = formatCurrency(comparisonBase);
+        if (diffClassification === 'below') {
+            recommendation = `Para não desvalorizar sua entrega, recomendo contra-propor algo próximo de ${baseFormatted} — a oferta atual representa cerca de ${diffAbs}% abaixo do valor justo estimado.`;
+        } else if (diffClassification === 'above') {
+            recommendation = `A proposta vem ${diffAbs}% acima da média estimada (${baseFormatted}). Avalie aproveitar a margem negociando entregáveis extra ou consolidando um pacote premium.`;
+        } else {
+            recommendation = `A oferta da marca está alinhada ao valor estimado (${baseFormatted}). Vale reforçar diferenciais para manter a negociação nessa faixa.`;
+        }
+    } else if (comparisonBase !== null) {
+        const baseFormatted = formatCurrency(comparisonBase);
+        recommendation = `Use ${baseFormatted} como referência ao responder a marca — esse é o valor médio justo para sua entrega com base nas métricas recentes.`;
+    } else {
+        recommendation =
+            'Ainda precisamos de mais cálculos recentes ou alcance consistente para estimar um valor total. Registre novas publis para deixarmos essa referência mais precisa.';
+    }
+
+    const closingQuestion = 'Quer que eu te ajude a montar a contraproposta ideal?';
+
+    if (!isSeed) {
+        contextSentences.unshift('Agora seus valores refletem o comportamento real da comunidade Data2Content.');
+    }
+
+    const finalMessage = [contextSentences.join(' '), recommendation, closingQuestion]
+        .filter(Boolean)
+        .join('\n\n');
+
+    const logLine = `[PRICING_INSIGHT] ${segmentLabel} (dynamic): diff=${diffText} → ${finalMessage}`;
+    logger.info(logLine);
+    Sentry.captureMessage(logLine, 'info');
+
+    return finalMessage;
+}
+
+export interface ProposalAnalysisMessageInput {
+    brandName: string;
+    campaignTitle?: string;
+    campaignDescription?: string;
+    deliverables?: string[];
+    offeredBudget?: number;
+    currency?: string;
+    latestCalculation?: {
+        segment: string;
+        justo: number;
+        estrategico?: number | null;
+        premium?: number | null;
+        createdAt?: string | null;
+        metrics?: {
+            engagement?: number | null;
+            reach?: number | null;
+        };
+    };
+    historicalAverage?: number | null;
+    creatorName?: string;
+    creatorHandle?: string;
+}
+
+export interface ProposalAnalysisMessageOutput {
+    analysis: string;
+    replyDraft: string;
+}
+
+export async function generateProposalAnalysisMessage(
+    input: ProposalAnalysisMessageInput
+): Promise<ProposalAnalysisMessageOutput> {
+    const fnTag = '[proposalAnalysis v1.0.0]';
+
+    const {
+        brandName,
+        campaignTitle,
+        campaignDescription,
+        deliverables,
+        offeredBudget,
+        currency,
+        latestCalculation,
+        historicalAverage,
+        creatorName,
+        creatorHandle,
+    } = input;
+
+    const INTERNAL_CURRENCY = 'BRL';
+    const offerCurrency = normalizeCurrencyCode(currency) ?? INTERNAL_CURRENCY;
+
+    const formatOfferCurrency = (value: number | undefined | null): string | null => {
+        if (typeof value !== 'number' || Number.isNaN(value)) return null;
+        return formatCurrencySafely(value, offerCurrency);
+    };
+
+    const formatInternalCurrency = (value: number | undefined | null): string | null => {
+        if (typeof value !== 'number' || Number.isNaN(value)) return null;
+        return formatCurrencySafely(value, INTERNAL_CURRENCY);
+    };
+
+    const offeredBudgetValue = typeof offeredBudget === 'number' ? offeredBudget : undefined;
+    const justoValue = typeof latestCalculation?.justo === 'number' ? latestCalculation.justo : undefined;
+    const estrategicoValue =
+        typeof latestCalculation?.estrategico === 'number' ? latestCalculation.estrategico : undefined;
+    const premiumValue =
+        typeof latestCalculation?.premium === 'number' ? latestCalculation.premium : undefined;
+    const historicalAverageValue = typeof historicalAverage === 'number' ? historicalAverage : undefined;
+
+    const budgetFormatted = formatOfferCurrency(offeredBudgetValue);
+    const calculationFormatted = formatInternalCurrency(justoValue);
+    const estrategicoFormatted = formatInternalCurrency(estrategicoValue);
+    const premiumFormatted = formatInternalCurrency(premiumValue);
+    const historicalAvgFormatted = formatInternalCurrency(historicalAverageValue);
+
+    const engagementRate =
+        typeof latestCalculation?.metrics?.engagement === 'number'
+            ? latestCalculation.metrics.engagement
+            : null;
+    const avgReach =
+        typeof latestCalculation?.metrics?.reach === 'number' ? latestCalculation.metrics.reach : null;
+    const profileSegment = latestCalculation?.segment || null;
+
+    const formatList = (items: string[]): string => {
+        if (items.length === 0) return '';
+        if (items.length === 1) return items[0] ?? '';
+        if (items.length === 2) return `${items[0] ?? ''} e ${items[1] ?? ''}`.trim();
+        const leading = items.slice(0, -1).map((item) => item ?? '');
+        const last = items[items.length - 1] ?? '';
+        return `${leading.join(', ')} e ${last}`.trim();
+    };
+
+    const metricsParts: string[] = [];
+    if (typeof engagementRate === 'number') {
+        metricsParts.push(
+            `engajamento de ${engagementRate.toLocaleString('pt-BR', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+            })}%`
+        );
+    }
+    if (typeof avgReach === 'number' && avgReach > 0) {
+        metricsParts.push(`alcance médio de ${Math.round(avgReach).toLocaleString('pt-BR')} pessoas`);
+    }
+    const metricsSnippet = metricsParts.length > 0 ? metricsParts.join(' e ') : null;
+
+    const deliverablesList = Array.isArray(deliverables)
+        ? deliverables
+              .map((item) => (typeof item === 'string' ? item.trim() : ''))
+              .filter((item): item is string => item.length > 0)
+        : [];
+    const deliverablesText = deliverablesList.length > 0 ? formatList(deliverablesList) : null;
+
+    const normalizedSegment = profileSegment
+        ? profileSegment.toString().replace(/[_\-]+/g, ' ').trim().toLowerCase()
+        : null;
+
+    const cpmValues = [justoValue, estrategicoValue, premiumValue].filter(
+        (value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0
+    );
+
+    let faixaRange: string | null = null;
+    if (cpmValues.length > 0 && typeof avgReach === 'number' && avgReach > 0) {
+        const totals = cpmValues.map((cpm) => (cpm * avgReach) / 1000);
+        const minTotal = Math.min(...totals);
+        const maxTotal = Math.max(...totals);
+        if (minTotal === maxTotal) {
+            faixaRange = formatCurrencySafely(Math.round(minTotal), INTERNAL_CURRENCY);
+        } else {
+            const minRounded = Math.floor(minTotal / 100) * 100;
+            const maxRounded = Math.ceil(maxTotal / 100) * 100;
+            faixaRange = `${formatCurrencySafely(minRounded, INTERNAL_CURRENCY)} a ${formatCurrencySafely(maxRounded, INTERNAL_CURRENCY)}`;
+        }
+    } else if (calculationFormatted && historicalAvgFormatted && calculationFormatted !== historicalAvgFormatted) {
+        faixaRange = `${calculationFormatted} a ${historicalAvgFormatted}`;
+    } else {
+        faixaRange = calculationFormatted ?? historicalAvgFormatted ?? null;
+    }
+
+    const faixaRangeText = faixaRange
+        ? faixaRange.includes(' a ')
+            ? ` (entre ${faixaRange})`
+            : ` (${faixaRange})`
+        : '';
+
+    let suggestionTargetValue: number | null = null;
+    if (typeof justoValue === 'number') {
+        suggestionTargetValue =
+            typeof avgReach === 'number' && avgReach > 0
+                ? (justoValue * avgReach) / 1000
+                : justoValue;
+    }
+    const suggestionTargetRounded =
+        suggestionTargetValue !== null
+            ? Math.round(suggestionTargetValue / 100) * 100
+            : null;
+    const suggestionTargetFormatted =
+        suggestionTargetRounded !== null
+            ? formatCurrencySafely(suggestionTargetRounded, INTERNAL_CURRENCY)
+            : null;
+
+    const scenarioThreshold = 7.5;
+    let scenario: 'above' | 'within' | 'below' | 'unknown' = 'unknown';
+
+    if (
+        offerCurrency === INTERNAL_CURRENCY &&
+        typeof offeredBudgetValue === 'number' &&
+        typeof justoValue === 'number' &&
+        justoValue > 0
+    ) {
+        const diffPercent = ((offeredBudgetValue - justoValue) / justoValue) * 100;
+        if (diffPercent > scenarioThreshold) {
+            scenario = 'above';
+        } else if (diffPercent < -scenarioThreshold) {
+            scenario = 'below';
+        } else {
+            scenario = 'within';
+        }
+    } else if (
+        offerCurrency === INTERNAL_CURRENCY &&
+        typeof offeredBudgetValue === 'number' &&
+        typeof historicalAverageValue === 'number' &&
+        historicalAverageValue > 0
+    ) {
+        const diffPercent = ((offeredBudgetValue - historicalAverageValue) / historicalAverageValue) * 100;
+        if (diffPercent > scenarioThreshold) {
+            scenario = 'above';
+        } else if (diffPercent < -scenarioThreshold) {
+            scenario = 'below';
+        } else {
+            scenario = 'within';
+        }
+    }
+
+    const proposalSnippetParts = [`a proposta da ${brandName}`];
+    if (budgetFormatted) proposalSnippetParts.push(`de ${budgetFormatted}`);
+    if (deliverablesText) proposalSnippetParts.push(`para ${deliverablesText}`);
+    const proposalSnippet = proposalSnippetParts.join(' ');
+
+    const nicheSuffix = normalizedSegment ? ` de ${normalizedSegment}` : '';
+
+    let classificationSentence: string;
+    switch (scenario) {
+        case 'above':
+            classificationSentence = `${proposalSnippet} está acima da faixa de mercado do seu nicho${nicheSuffix}${faixaRangeText}.`;
+            break;
+        case 'within':
+            classificationSentence = `${proposalSnippet} está dentro da faixa de mercado do seu nicho${nicheSuffix}${faixaRangeText}.`;
+            break;
+        case 'below':
+            classificationSentence = `${proposalSnippet} ficou abaixo da faixa de mercado do seu nicho${nicheSuffix}${faixaRangeText}.`;
+            break;
+        default:
+            classificationSentence = `${proposalSnippet} foi avaliada com base nas referências mais recentes disponíveis para o seu perfil.`;
+            break;
+    }
+
+    const introSentence = metricsSnippet
+        ? `Com base no seu desempenho atual (${metricsSnippet}), `
+        : 'Com base no seu desempenho atual, ';
+
+    const diagnosisParagraph = `${introSentence}${classificationSentence}`;
+
+    let suggestionSentence: string;
+    switch (scenario) {
+        case 'above':
+            suggestionSentence =
+                'Essa valorização é positiva — mantenha o valor e proponha um extra (por exemplo, um stories adicional) para amplificar o retorno da marca.';
+            break;
+        case 'within':
+            suggestionSentence =
+                `O investimento está alinhado à faixa de mercado${faixaRangeText} — destaque seus resultados recentes e avance para fechar a campanha com segurança.`;
+            break;
+        case 'below':
+            suggestionSentence = suggestionTargetFormatted
+                ? `Sugiro reposicionar o valor em torno de ${suggestionTargetFormatted}, justificando com suas métricas e entregáveis.`
+                : faixaRange
+                ? `Sugiro reposicionar o valor para se aproximar da faixa de mercado ${faixaRange}, reforçando seu histórico e a qualidade das entregas.`
+                : 'Sugiro reposicionar o valor, reforçando seus indicadores principais e o escopo completo da entrega.';
+            break;
+        default:
+            suggestionSentence =
+                'Reforce seus resultados recentes e proponha um pacote que traduza o valor real da sua entrega.';
+            break;
+    }
+
+    const analysis = [
+        '🧩 Diagnóstico do Mobi',
+        diagnosisParagraph,
+        '',
+        '💡 Sugestão:',
+        suggestionSentence,
+        '',
+        'Quer que eu te ajude a estruturar a resposta?',
+    ].join('\n');
+
+    const metricsEmailSnippet = metricsSnippet ?? 'métricas recentes';
+    const deliverablesEmailSnippet = deliverablesText ? ` (${deliverablesText})` : '';
+    const valueEmailSnippet = budgetFormatted ? `o valor de ${budgetFormatted}` : 'o orçamento sugerido';
+    let scenarioEmailSentence: string;
+    let scenarioEmailSuggestion: string;
+    switch (scenario) {
+        case 'above':
+            scenarioEmailSentence = 'esse investimento é excelente para potencializar a campanha.';
+            scenarioEmailSuggestion =
+                'Para aproveitar essa margem, posso incluir um stories extra (ou reforço de bastidores) sem custo adicional.';
+            break;
+        case 'within':
+            scenarioEmailSentence = 'esse investimento está alinhado com o retorno que venho entregando.';
+            scenarioEmailSuggestion =
+                'Podemos seguir com esse valor e já alinhar roteiro e cronograma para iniciar.';
+            break;
+        case 'below':
+            scenarioEmailSentence = suggestionTargetFormatted
+                ? `esse investimento fica próximo do que costumo praticar, mas para esse pacote eu trabalho na faixa de ${suggestionTargetFormatted}, considerando minhas métricas.`
+                : 'prefiro ajustar levemente o investimento para equilibrar com o escopo e manter o padrão de entrega.';
+            scenarioEmailSuggestion = suggestionTargetFormatted
+                ? `Se quiserem o pacote completo, podemos alinhar por ${suggestionTargetFormatted}; assim garanto o resultado que vocês buscam. Caso prefiram manter o orçamento atual, posso adaptar o escopo mantendo consistência.`
+                : 'Se fizer sentido, posso sugerir um pequeno ajuste no investimento ou adaptar o escopo mantendo o impacto do plano.';
+            break;
+        default:
+            scenarioEmailSentence = 'esse investimento está alinhado com o que tenho trabalhado recentemente.';
+            scenarioEmailSuggestion =
+                'Fico à disposição para ajustar qualquer detalhe e seguir com a campanha.';
+            break;
+    }
+
+    const normalizedHandle =
+        creatorHandle && creatorHandle.trim().length > 0
+            ? creatorHandle.trim().startsWith('@')
+                ? creatorHandle.trim()
+                : `@${creatorHandle.trim()}`
+            : null;
+    const signatureLines = [
+        `— ${creatorName?.trim() || 'Seu nome'}`,
+        normalizedHandle ? `${normalizedHandle} | via Data2Content` : 'via Data2Content',
+    ];
+
+    const emailParagraphs: string[] = [];
+    emailParagraphs.push(`Oi, pessoal da ${brandName}! Tudo bem?`);
+    emailParagraphs.push(
+        campaignTitle
+            ? `Vi a proposta “${campaignTitle}”, com investimento de ${valueEmailSnippet}, e ela está super alinhada com o que meu público procura.`
+            : `Vi a proposta de ${valueEmailSnippet} e ela está super alinhada com o que meu público procura.`
+    );
+    emailParagraphs.push(
+        `${metricsSnippet ? `Pelas minhas métricas (${metricsEmailSnippet})` : 'Pelas minhas métricas recentes'}${
+            deliverablesText ? ` e pelo formato solicitado${deliverablesEmailSnippet}` : ''
+        }, ${scenarioEmailSentence}`
+    );
+    emailParagraphs.push(scenarioEmailSuggestion);
+    emailParagraphs.push('Obrigado pelo contato e parabéns pela iniciativa!');
+    emailParagraphs.push(signatureLines.join('\n'));
+
+    const replyDraft = emailParagraphs.join('\n\n').trim();
+
+    logger.info(`${fnTag} ${brandName}: analysis="${analysis.slice(0, 80)}..." reply="${replyDraft.slice(0, 80)}..."`);
+    Sentry.captureMessage(`${fnTag} ${brandName}`, 'info');
+
+    return { analysis, replyDraft };
 }
 
 

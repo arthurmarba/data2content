@@ -2,7 +2,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ComponentProps } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession, signIn } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,11 +16,80 @@ import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
 import type { MediaKitPremiumAccessConfig } from '@/types/mediakit';
 import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
+import AdDealForm from '../AdDealForm';
+import { useToast } from '@/app/components/ui/ToastA11yProvider';
 
 type Summary = any;
 type VideoListItem = any;
 type Kpis = any;
 type Demographics = any;
+
+type SavedCalculation = {
+  estrategico: number;
+  justo: number;
+  premium: number;
+  cpm: number;
+  params?: {
+    format?: string | null;
+    exclusivity?: string | null;
+    usageRights?: string | null;
+    complexity?: string | null;
+  };
+  metrics: {
+    reach: number;
+    engagement: number;
+    profileSegment: string;
+  };
+  avgTicket: number | null;
+  totalDeals: number;
+  calculationId: string;
+  explanation: string | null;
+  createdAt: string | null;
+};
+
+const FORMAT_LABELS: Record<string, string> = {
+  reels: 'Reels',
+  post: 'Post no feed',
+  stories: 'Stories',
+  pacote: 'Pacote multiformato',
+};
+
+const EXCLUSIVITY_LABELS: Record<string, string> = {
+  nenhuma: 'Sem exclusividade',
+  '7d': '7 dias',
+  '15d': '15 dias',
+  '30d': '30 dias',
+};
+
+const USAGE_LABELS: Record<string, string> = {
+  organico: 'Uso orgânico',
+  midiapaga: 'Mídia paga',
+  global: 'Uso global/perpétuo',
+};
+
+const COMPLEXITY_LABELS: Record<string, string> = {
+  simples: 'Produção simples',
+  roteiro: 'Com roteiro aprovado',
+  profissional: 'Produção profissional',
+};
+
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  maximumFractionDigits: 2,
+});
+const integerFormatter = new Intl.NumberFormat('pt-BR');
+const percentFormatter = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+const formatSegmentLabel = (segment?: string | null) => {
+  if (!segment) return 'Geral';
+  return segment
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 function SelfMediaKitContent({
   userId,
@@ -39,56 +110,129 @@ function SelfMediaKitContent({
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [demographics, setDemographics] = useState<Demographics | null>(null);
+  const [engagementTrend, setEngagementTrend] = useState<any | null>(null);
+  const [ownerProfile, setOwnerProfile] = useState<any | null>(null);
+  const [latestCalculation, setLatestCalculation] = useState<SavedCalculation | null>(null);
+  const [latestCalculationLoading, setLatestCalculationLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-    async function load() {
+    if (!userId) return;
+
+    let cancelled = false;
+
+    const safeFetch = async (input: RequestInfo | URL) => {
+      try {
+        const res = await fetch(input, { cache: 'no-store' });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (err) {
+        console.warn('[MediaKit] fetch falhou', input, err);
+        return null;
+      }
+    };
+
+    const loadCoreData = async () => {
       setLoading(true);
       setError(null);
 
-      const safeFetch = async (input: RequestInfo | URL) => {
-        try {
-          const res = await fetch(input, { cache: 'no-store' });
-          if (!res.ok) return null;
-          return await res.json();
-        } catch (err) {
-          console.warn('[MediaKit] fetch falhou', input, err);
-          return null;
-        }
-      };
-
-      const [summaryData, videosPayload, kpisData, demographicsData] = await Promise.all([
+      const [summaryData, videosPayload, kpisData, demographicsData, engagementTrendData, ownerProfileData] = await Promise.all([
         safeFetch(`/api/v1/users/${userId}/highlights/performance-summary`),
         safeFetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`),
         safeFetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`),
         safeFetch(`/api/demographics/${userId}`),
+        safeFetch(`/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`),
+        safeFetch(`/api/mediakit/self/user`),
       ]);
 
-      if (!mounted) return;
+      if (cancelled) return;
 
       const videosList = Array.isArray(videosPayload?.posts) ? videosPayload.posts : [];
 
       setSummary(summaryData);
-      setVideos(videosList.map((video: any) => ({
-        ...video,
-        format: video.format ? [video.format] : [],
-        proposal: video.proposal ? [video.proposal] : [],
-        context: video.context ? [video.context] : [],
-        tone: video.tone ? [video.tone] : [],
-        references: video.references ? [video.references] : [],
-      })));
+      setVideos(
+        videosList.map((video: any) => ({
+          ...video,
+          format: video.format ? [video.format] : [],
+          proposal: video.proposal ? [video.proposal] : [],
+          context: video.context ? [video.context] : [],
+          tone: video.tone ? [video.tone] : [],
+          references: video.references ? [video.references] : [],
+        }))
+      );
       setKpis(kpisData);
       setDemographics(demographicsData);
+      setEngagementTrend(engagementTrendData);
+      setOwnerProfile(ownerProfileData?.user ?? null);
 
-      if (!summaryData && videosList.length === 0 && !kpisData && !demographicsData) {
+      if (!summaryData && videosList.length === 0 && !kpisData && !demographicsData && !engagementTrendData) {
         setError('Não foi possível carregar dados recentes do Mídia Kit. Tente novamente em instantes.');
       }
 
       setLoading(false);
-    }
-    if (userId) load();
-    return () => { mounted = false; };
+    };
+
+    const loadLatestCalculation = async () => {
+      setLatestCalculationLoading(true);
+      try {
+        const response = await fetch('/api/calculator/latest', { cache: 'no-store' });
+        if (cancelled) return;
+        if (response.ok) {
+          const payload = (await response.json()) as SavedCalculation;
+          setLatestCalculation(payload);
+        } else if (response.status === 404) {
+          setLatestCalculation(null);
+        } else {
+          console.warn('[MediaKit] Falha ao buscar cálculo mais recente:', response.status);
+          setLatestCalculation(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('[MediaKit] Erro ao carregar cálculo mais recente', error);
+          setLatestCalculation(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLatestCalculationLoading(false);
+        }
+      }
+    };
+
+    loadCoreData();
+    loadLatestCalculation();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
+
+  const user = useMemo(() => {
+    const profile = ownerProfile ?? {};
+    const picture =
+      profile.profile_picture_url ||
+      profile?.instagram?.profile_picture_url ||
+      fallbackImage ||
+      undefined;
+
+    return {
+      _id: profile._id || userId,
+      name: profile.name ?? fallbackName ?? 'Criador',
+      username: profile.username ?? profile.instagramUsername ?? undefined,
+      handle: profile.handle ?? undefined,
+      email: fallbackEmail ?? profile.email ?? undefined,
+      profile_picture_url: picture,
+      biography: profile.biography ?? undefined,
+      headline: profile.headline ?? undefined,
+      mission: profile.mission ?? undefined,
+      valueProp: profile.valueProp ?? undefined,
+      title: profile.title ?? undefined,
+      occupation: profile.occupation ?? undefined,
+      city: profile.city ?? undefined,
+      state: profile.state ?? undefined,
+      country: profile.country ?? undefined,
+      instagramUsername: profile.instagramUsername ?? undefined,
+      instagram: profile.instagram ?? undefined,
+    } as any;
+  }, [ownerProfile, userId, fallbackName, fallbackEmail, fallbackImage]);
 
   if (loading) {
     return (
@@ -114,13 +258,6 @@ function SelfMediaKitContent({
     );
   }
 
-  const user = {
-    _id: userId,
-    name: fallbackName || 'Criador',
-    email: fallbackEmail || undefined,
-    profile_picture_url: fallbackImage || undefined,
-  } as any;
-
   return (
     <MediaKitView
       user={user}
@@ -128,6 +265,7 @@ function SelfMediaKitContent({
       videos={videos}
       kpis={kpis}
       demographics={demographics}
+      engagementTrend={engagementTrend}
       showSharedBanner={false}
       showOwnerCtas={true}
       compactPadding={compactPadding}
@@ -141,10 +279,23 @@ export default function MediaKitSelfServePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const sp = useSearchParams();
+  const { toast } = useToast();
+  const fromCalc = sp.get("fromCalc");
+  const [calcPrefill, setCalcPrefill] = useState<SavedCalculation | null>(null);
+  const [calcPrefillLoading, setCalcPrefillLoading] = useState(false);
+  const [latestCalculation, setLatestCalculation] = useState<SavedCalculation | null>(null);
+  const [latestCalculationLoading, setLatestCalculationLoading] = useState(true);
   
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const showAdDealToast = useCallback(
+    (message: string, type: 'info' | 'warning' | 'success' | 'error' = 'info') => {
+      toast({ title: message, variant: type });
+    },
+    [toast]
+  );
   
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const fetchedOnce = useRef(false);
@@ -210,6 +361,140 @@ export default function MediaKitSelfServePage() {
     }
     setShowWhatsAppModal(true);
   }, [hasPremiumAccess]);
+
+  useEffect(() => {
+    if (calcPrefill) {
+      setLatestCalculation(calcPrefill);
+      setLatestCalculationLoading(false);
+    }
+  }, [calcPrefill]);
+
+  useEffect(() => {
+    if (!fromCalc) return;
+    let cancelled = false;
+
+    const applyCalculation = async () => {
+      setCalcPrefillLoading(true);
+      try {
+        const response = await fetch(`/api/calculator/${fromCalc}`, { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!response.ok) {
+          throw new Error((payload as any)?.error || 'Não foi possível carregar o cálculo.');
+        }
+        setCalcPrefill(payload as SavedCalculation);
+        showAdDealToast('Valores importados da Calculadora.', 'success');
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Falha ao recuperar o cálculo.';
+          showAdDealToast(message, 'error');
+          setCalcPrefill(null);
+        }
+      } finally {
+        if (cancelled) return;
+        setCalcPrefillLoading(false);
+        if (typeof window !== 'undefined') {
+          const current = new URLSearchParams(sp.toString());
+          if (current.has('fromCalc')) {
+            current.delete('fromCalc');
+            const nextUrl = `${window.location.pathname}${current.toString() ? `?${current.toString()}` : ''}`;
+            router.replace(nextUrl, { scroll: false });
+          }
+        }
+      }
+    };
+
+    applyCalculation();
+    return () => {
+      cancelled = true;
+    };
+  }, [fromCalc, router, showAdDealToast, sp]);
+
+  const adDealInitialData = useMemo<ComponentProps<typeof AdDealForm>['initialData']>(() => {
+    if (!calcPrefill) return undefined;
+    const compensationValue = Number.isFinite(calcPrefill.justo) ? calcPrefill.justo.toFixed(2) : '0.00';
+
+    const summaryParts: string[] = [];
+    if (calcPrefill.params?.format) {
+      const format = calcPrefill.params.format ?? '';
+      summaryParts.push(`Formato: ${FORMAT_LABELS[format] ?? format}`);
+    }
+    if (calcPrefill.params?.exclusivity) {
+      const exclusivity = calcPrefill.params.exclusivity ?? '';
+      summaryParts.push(`Exclusividade: ${EXCLUSIVITY_LABELS[exclusivity] ?? exclusivity}`);
+    }
+    if (calcPrefill.params?.usageRights) {
+      const rights = calcPrefill.params.usageRights ?? '';
+      summaryParts.push(`Uso de imagem: ${USAGE_LABELS[rights] ?? rights}`);
+    }
+    if (calcPrefill.params?.complexity) {
+      const complexity = calcPrefill.params.complexity ?? '';
+      summaryParts.push(`Complexidade: ${COMPLEXITY_LABELS[complexity] ?? complexity}`);
+    }
+    const reachValue = calcPrefill.metrics?.reach;
+    if (typeof reachValue === 'number' && Number.isFinite(reachValue)) {
+      summaryParts.push(`Alcance médio: ${integerFormatter.format(Math.round(reachValue))} pessoas`);
+    }
+    const engagementValue = calcPrefill.metrics?.engagement;
+    if (typeof engagementValue === 'number' && Number.isFinite(engagementValue)) {
+      summaryParts.push(`Engajamento médio: ${percentFormatter.format(engagementValue)}%`);
+    }
+    const avgTicketValue = calcPrefill.avgTicket;
+    if (typeof avgTicketValue === 'number' && Number.isFinite(avgTicketValue) && avgTicketValue > 0) {
+      summaryParts.push(`Ticket médio recente: ${currencyFormatter.format(avgTicketValue)}`);
+    }
+
+    const explanation = calcPrefill.explanation?.trim();
+    const notes = [explanation, summaryParts.join(' | ')].filter(Boolean).join('\n');
+
+    return {
+      compensationType: 'Valor Fixo' as const,
+      compensationValue,
+      compensationCurrency: 'BRL',
+      notes,
+    };
+  }, [calcPrefill]);
+
+  const calcPrefillSummary = useMemo(() => {
+    if (!calcPrefill) return [] as string[];
+    const items: string[] = [];
+    if (calcPrefill.params?.format) {
+      const format = calcPrefill.params.format ?? '';
+      items.push(`Formato: ${FORMAT_LABELS[format] ?? format}`);
+    }
+    if (calcPrefill.params?.exclusivity) {
+      const exclusivity = calcPrefill.params.exclusivity ?? '';
+      items.push(`Exclusividade: ${EXCLUSIVITY_LABELS[exclusivity] ?? exclusivity}`);
+    }
+    if (calcPrefill.params?.usageRights) {
+      const rights = calcPrefill.params.usageRights ?? '';
+      items.push(`Uso de imagem: ${USAGE_LABELS[rights] ?? rights}`);
+    }
+    if (calcPrefill.params?.complexity) {
+      const complexity = calcPrefill.params.complexity ?? '';
+      items.push(`Complexidade: ${COMPLEXITY_LABELS[complexity] ?? complexity}`);
+    }
+    const reachSummary = calcPrefill.metrics?.reach;
+    if (typeof reachSummary === 'number' && Number.isFinite(reachSummary)) {
+      items.push(`Alcance médio considerado: ${integerFormatter.format(Math.round(reachSummary))} pessoas`);
+    }
+    const engagementSummary = calcPrefill.metrics?.engagement;
+    if (typeof engagementSummary === 'number' && Number.isFinite(engagementSummary)) {
+      items.push(`Engajamento médio: ${percentFormatter.format(engagementSummary)}%`);
+    }
+    const avgTicketSummary = calcPrefill.avgTicket;
+    if (typeof avgTicketSummary === 'number' && Number.isFinite(avgTicketSummary) && avgTicketSummary > 0) {
+      items.push(`Ticket médio recente: ${currencyFormatter.format(avgTicketSummary)}`);
+    }
+    return items;
+  }, [calcPrefill]);
+
+  const calcPrefillDateLabel = useMemo(() => {
+    if (!calcPrefill?.createdAt) return null;
+    const parsed = new Date(calcPrefill.createdAt);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  }, [calcPrefill]);
 
   useHeaderSetup(
     {
@@ -396,6 +681,113 @@ export default function MediaKitSelfServePage() {
           compactPadding
           premiumAccess={premiumAccessConfig}
         />
+      </section>
+
+      <section className="w-full bg-gray-50 pb-12" aria-label="Registro de publis">
+        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold text-gray-900">Registre suas publis</h2>
+            <p className="text-sm text-gray-600">
+              Centralize os acordos fechados com marcas e acompanhe como os valores evoluem no seu MediaKit.
+            </p>
+          </div>
+
+          {calcPrefillLoading && (
+            <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm text-pink-700">
+              Aplicando valores sugeridos pela Calculadora...
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Faixa de Preço Sugerida 💰</h3>
+            {latestCalculationLoading ? (
+              <p className="text-sm text-gray-500">Carregando faixa de preço sugerida…</p>
+            ) : latestCalculation ? (
+              <div className="space-y-3">
+                <p className="text-base text-gray-900">
+                  Valor justo sugerido:&nbsp;
+                  <strong className="text-pink-600">{currencyFormatter.format(latestCalculation.justo)}</strong>
+                </p>
+                <p className="text-sm text-gray-600">
+                  Baseado em dados do segmento {formatSegmentLabel(latestCalculation.metrics?.profileSegment)}.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard/calculator")}
+                  className="inline-flex items-center justify-center rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
+                >
+                  Refazer cálculo
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Nenhum cálculo recente.&nbsp;
+                <Link href="/dashboard/calculator" className="font-semibold text-pink-600 hover:underline">
+                  Calcular agora
+                </Link>
+              </p>
+            )}
+          </div>
+
+          {calcPrefill && !calcPrefillLoading && (
+            <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-4 text-sm text-pink-900 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">Valores importados da Calculadora</p>
+                {calcPrefillDateLabel && (
+                  <span className="text-xs font-medium text-pink-700/80">
+                    Calculado em {calcPrefillDateLabel}
+                  </span>
+                )}
+              </div>
+              <p>
+                Faixa justa sugerida:&nbsp;
+                <span className="font-semibold">{currencyFormatter.format(calcPrefill.justo)}</span>
+                &nbsp;• Nicho: {formatSegmentLabel(calcPrefill.metrics?.profileSegment)}
+              </p>
+              {calcPrefillSummary.length > 0 && (
+                <ul className="list-disc pl-5 space-y-1">
+                  {calcPrefillSummary.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            {calcPrefill && !calcPrefillLoading ? (
+              session?.user?.id ? (
+                <AdDealForm
+                  userId={(session.user as any).id as string}
+                  canAccessFeatures={hasPremiumAccess}
+                  onActionRedirect={() => setShowBillingModal(true)}
+                  showToast={showAdDealToast}
+                  onDealAdded={() => showAdDealToast('Parceria registrada com sucesso!', 'success')}
+                  initialData={adDealInitialData}
+                />
+              ) : (
+                <p className="text-sm text-gray-600">Carregando formulário…</p>
+              )
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Gere um cálculo na&nbsp;
+                  <Link href="/dashboard/calculator" className="font-semibold text-pink-600 hover:underline">
+                    Calculadora de Publi
+                  </Link>{" "}
+                  e envie para o Media Kit para registrar uma nova publi.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard/calculator")}
+                  className="inline-flex items-center justify-center rounded-full border border-pink-200 bg-white px-4 py-2 text-sm font-semibold text-pink-600 shadow-sm transition hover:border-pink-400 hover:bg-pink-50"
+                >
+                  Abrir Calculadora de Publi
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       <BillingSubscribeModal open={showBillingModal} onClose={closeBillingModal} />

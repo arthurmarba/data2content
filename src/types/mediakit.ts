@@ -43,6 +43,19 @@ export interface VideoListItem {
   stats?: VideoStats;
 }
 
+export interface EngagementTrendPoint {
+  date: string;
+  reach: number | null;
+  totalInteractions: number | null;
+}
+
+export interface EngagementTrendData {
+  chartData: EngagementTrendPoint[];
+  insightSummary?: string;
+  averageReach?: number;
+  averageInteractions?: number;
+}
+
 // --- Resumo de performance (cards de destaque) ---
 export interface PerformanceSummary {
   topPerformingFormat?: { name: string; metricName: string; valueFormatted: string } | null;
@@ -107,6 +120,7 @@ export interface MediaKitViewProps {
   videos: VideoListItem[];
   kpis: KpiComparison | null;
   demographics: DemographicsData | null;
+  engagementTrend?: EngagementTrendData | null;
   // Exibe o banner institucional apenas em contexto de compartilhamento público
   showSharedBanner?: boolean;
   showOwnerCtas?: boolean;
@@ -116,6 +130,7 @@ export interface MediaKitViewProps {
   compactPadding?: boolean;
   // URL público do mídia kit para uso no botão "Copiar link" quando renderizado no dashboard
   publicUrlForCopy?: string;
+  mediaKitSlug?: string;
   premiumAccess?: MediaKitPremiumAccessConfig;
 }
 

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { FaHome, FaCompass, FaCalendarAlt, FaAddressCard, FaCreditCard, FaUsers } from "react-icons/fa";
+import { DollarSign, Inbox } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 interface SidebarNavProps {
@@ -34,6 +35,8 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       { href: "/dashboard/home", label: "Início", icon: <FaHome />, section: "primary", exact: true },
       { href: "/dashboard/discover", label: "Descoberta", icon: <FaCompass />, section: "primary" },
       { href: "/dashboard/media-kit", label: "Mídia Kit", icon: <FaAddressCard />, section: "primary" },
+      { href: "/dashboard/proposals", label: "Propostas Recebidas", icon: <Inbox className="h-5 w-5" />, section: "primary" },
+      { href: "/dashboard/calculator", label: "Calculadora de Publi", icon: <DollarSign className="h-5 w-5" />, section: "primary" },
       { href: "/dashboard/planning", label: "Planejamento", icon: <FaCalendarAlt />, section: "primary" },
       { href: "/dashboard/afiliados", label: "Indique e Ganhe", icon: <FaUsers />, section: "secondary" },
       { href: "/dashboard/settings", label: "Gerir Assinatura", icon: <FaCreditCard />, section: "secondary" },

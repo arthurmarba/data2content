@@ -1,7 +1,7 @@
 /* src/app/layout.tsx */
 
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
@@ -17,10 +17,11 @@ import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 import GoogleAnalytics from "./GoogleAnalytics";
 import CookieConsent from "./components/CookieConsent";
 
-const inter = Inter({
+const poppins = Poppins({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://data2content.ai";
@@ -41,7 +42,7 @@ export default async function RootLayout({
   const serializableSession = session ? JSON.parse(JSON.stringify(session)) : null;
 
   return (
-    <html lang="pt-BR" className={`${inter.variable} h-full`}>
+    <html lang="pt-BR" className={`${poppins.variable} h-full`}>
       <head>
         {/* viewport-fit=cover para habilitar env(safe-area-inset-*) no iOS */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -79,7 +80,7 @@ export default async function RootLayout({
       </head>
       <body
         className={`
-          ${inter.className}
+          ${poppins.className}
           antialiased
           flex
           flex-col

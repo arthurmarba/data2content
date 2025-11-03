@@ -179,6 +179,9 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const [showScriptPanel, setShowScriptPanel] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingScript, setIsEditingScript] = useState(false);
+  const [isMounted, setIsMounted] = useState(open);
+  const [isVisible, setIsVisible] = useState(open);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
     if (!open || !slot) return;
@@ -197,6 +200,39 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     setIsEditingTitle(false);
     setIsEditingScript(false);
   }, [open, slot, derivedTheme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setPrefersReducedMotion(media.matches);
+    update();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setIsMounted(true);
+      const raf = requestAnimationFrame(() => setIsVisible(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setIsVisible(false);
+    return undefined;
+  }, [open]);
+
+  useEffect(() => {
+    if (open || !isMounted) return;
+    if (typeof window === 'undefined') {
+      setIsMounted(false);
+      return;
+    }
+    const timeout = window.setTimeout(() => setIsMounted(false), prefersReducedMotion ? 0 : 220);
+    return () => window.clearTimeout(timeout);
+  }, [open, isMounted, prefersReducedMotion]);
 
   // Focus inicial no botão fechar para acessibilidade
   useEffect(() => {
@@ -517,7 +553,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     }
   }, [slot?.status, slot?.isExperiment]);
 
-  if (!open || !slot) return null;
+  if ((!open && !isMounted) || !slot) return null;
 
   const isTest = slot.status === 'test' || !!slot.isExperiment;
   const p50 = slot.expectedMetrics?.viewsP50;
@@ -530,86 +566,98 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const dialogDescId = 'planner-slot-modal-desc';
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50" role="dialog" aria-modal="true" aria-labelledby={dialogLabelId} aria-describedby={dialogDescId}>
-      {/* Container responsivo: sheet full-screen no mobile, card central no desktop */}
-      <div className="absolute inset-x-0 bottom-0 top-0 sm:inset-0 sm:flex sm:items-center sm:justify-center">
+    <div className="fixed inset-0 z-[500] flex items-stretch justify-center overflow-hidden">
+      <div
+        className={`absolute inset-0 z-0 bg-slate-950/80 backdrop-blur-sm ${prefersReducedMotion ? '' : 'transition-opacity duration-200 ease-out'} ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        aria-hidden="true"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={dialogLabelId}
+        aria-describedby={dialogDescId}
+        className={`relative z-10 flex min-h-[100svh] w-full max-w-full flex-col bg-white shadow-2xl ${prefersReducedMotion ? '' : 'transition-all duration-200 ease-out'} ${
+          isVisible
+            ? 'opacity-100 translate-y-0 sm:scale-100'
+            : prefersReducedMotion
+              ? 'opacity-0 translate-y-0'
+              : 'opacity-0 translate-y-6 sm:scale-[0.98]'
+        }`}
+      >
+        {/* HEADER sticky */}
         <div
-          className="relative w-full h-[100svh] sm:h-auto sm:max-h-[85vh] sm:w-[min(680px,92vw)] bg-white sm:rounded-xl shadow-2xl flex flex-col"
+          className="sticky top-0 z-10 border-b border-[#E6E6EB] bg-[#FAFAFB]"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px))' }}
         >
-          {/* HEADER sticky */}
-          <div
-            className="sticky top-0 z-10 border-b border-[#E6E6EB] bg-[#FAFAFB]"
-            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px))' }}
-          >
-            <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
-              <button
-                ref={closeBtnRef}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E6E6EB] text-lg text-[#4B4B55] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
-                onClick={onClose}
-                aria-label="Fechar"
-              >
-                ←
-              </button>
-              <div className="flex min-w-0 flex-1 flex-col items-center text-center gap-1">
-                <span className="text-sm font-semibold text-[#1C1C1E] truncate">
-                  {effectiveTheme || 'Pauta IA em destaque'}
-                </span>
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6E1F93]">
-                  {headerText}
-                </span>
-                <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold text-[#6E1F93]">
-                  {p50Compact && (
-                    <span className="inline-flex items-center gap-1">
-                      <span aria-hidden>🔥</span>
-                      {p50Compact} views
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 text-[#8F90A0]">•</span>
+          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <button
+              ref={closeBtnRef}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E6E6EB] text-lg text-[#4B4B55] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+              onClick={onClose}
+              aria-label="Fechar"
+            >
+              ←
+            </button>
+            <div className="flex min-w-0 flex-1 flex-col items-center text-center gap-1">
+              <span className="text-sm font-semibold text-[#1C1C1E] truncate">
+                {effectiveTheme || 'Pauta IA em destaque'}
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6E1F93]">
+                {headerText}
+              </span>
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold text-[#6E1F93]">
+                {p50Compact && (
                   <span className="inline-flex items-center gap-1">
-                    <span aria-hidden>{statusDetails.icon}</span>
-                    {statusDetails.label}
+                    <span aria-hidden>🔥</span>
+                    {p50Compact} views
                   </span>
-                </div>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#D62E5E] to-[#6E1F93] text-lg text-white shadow">
-                🤖
+                )}
+                <span className="inline-flex items-center gap-1 text-[#8F90A0]">•</span>
+                <span className="inline-flex items-center gap-1">
+                  <span aria-hidden>{statusDetails.icon}</span>
+                  {statusDetails.label}
+                </span>
               </div>
             </div>
-            <div className="px-4 pb-3 sm:px-6">
-              <div className="flex flex-wrap justify-center gap-2 text-[11px] text-[#4B4B55]">
-                {p90Compact && (
-                  <span className="inline-flex items-center gap-1">
-                    <span aria-hidden>🚀</span>
-                    {p90Compact} views (P90)
-                  </span>
-                )}
-                {sharesCompact && (
-                  <span className="inline-flex items-center gap-1">
-                    <span aria-hidden>🔁</span>
-                    {sharesCompact} compartilhamentos
-                  </span>
-                )}
-                {(slot.rationale && slot.rationale.length > 0) && (
-                  <span className="inline-flex items-center gap-1">
-                    <span aria-hidden>📊</span>
-                    Evidência {confidence}
-                  </span>
-                )}
-                {(beats && beats.length > 0) && (
-                  <span className="inline-flex items-center gap-1">
-                    <span aria-hidden>🎬</span>
-                    Esforço {effort}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="h-1 w-full bg-[#F0F1F5]">
-              <div
-                className="h-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] transition-[width]"
-                style={{ width: `${scrollProgress}%` }}
-              />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#D62E5E] to-[#6E1F93] text-lg text-white shadow">
+              🤖
             </div>
           </div>
+          <div className="px-4 pb-3 sm:px-6">
+            <div className="flex flex-wrap justify-center gap-2 text-[11px] text-[#4B4B55]">
+              {p90Compact && (
+                <span className="inline-flex items-center gap-1">
+                  <span aria-hidden>🚀</span>
+                  {p90Compact} views (P90)
+                </span>
+              )}
+              {sharesCompact && (
+                <span className="inline-flex items-center gap-1">
+                  <span aria-hidden>🔁</span>
+                  {sharesCompact} compartilhamentos
+                </span>
+              )}
+              {(slot.rationale && slot.rationale.length > 0) && (
+                <span className="inline-flex items-center gap-1">
+                  <span aria-hidden>📊</span>
+                  Evidência {confidence}
+                </span>
+              )}
+              {(beats && beats.length > 0) && (
+                <span className="inline-flex items-center gap-1">
+                  <span aria-hidden>🎬</span>
+                  Esforço {effort}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="h-1 w-full bg-[#F0F1F5]">
+            <div
+              className="h-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] transition-[width]"
+              style={{ width: `${scrollProgress}%` }}
+            />
+          </div>
+        </div>
 
           {/* SCROLL AREA */}
           <div id={dialogDescId} ref={scrollAreaRef} className="flex-1 overflow-y-auto bg-[#FAFAFB]">
@@ -1086,7 +1134,6 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
               </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

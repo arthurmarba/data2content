@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, ChangeEvent, FormEvent, FocusEvent, MouseEvent } from 'react';
+import React, { useState, ChangeEvent, FormEvent, FocusEvent, MouseEvent, useEffect, useMemo } from 'react';
 import { FaPaperPlane, FaSpinner, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,6 +26,7 @@ interface AdDealFormProps {
     onActionRedirect: () => void;
     showToast: (message: string, type?: 'info' | 'warning' | 'success' | 'error') => void;
     onDealAdded?: () => void;
+    initialData?: Partial<AdDealFormData>;
 }
 
 const AdDealForm: React.FC<AdDealFormProps> = ({
@@ -33,27 +34,35 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
   canAccessFeatures,
   onActionRedirect,
   showToast,
-  onDealAdded
+  onDealAdded,
+  initialData
 }) => {
-  const initialState: AdDealFormData = {
-    brandName: '',
-    brandSegment: '',
-    dealDate: new Date().toISOString().split('T')[0] ?? '',
-    campaignStartDate: '',
-    campaignEndDate: '',
-    deliverables: '',
-    platform: 'Instagram',
-    compensationType: '',
-    compensationValue: '',
-    compensationCurrency: 'BRL',
-    productValue: '',
-    notes: '',
-    relatedPostId: '',
-  };
+  const baseState = useMemo<AdDealFormData>(() => {
+    const defaultDate = new Date().toISOString().split('T')[0] ?? '';
+    return {
+      brandName: initialData?.brandName ?? '',
+      brandSegment: initialData?.brandSegment ?? '',
+      dealDate: initialData?.dealDate ?? defaultDate,
+      campaignStartDate: initialData?.campaignStartDate ?? '',
+      campaignEndDate: initialData?.campaignEndDate ?? '',
+      deliverables: initialData?.deliverables ?? '',
+      platform: (initialData?.platform as AdDealFormData['platform']) ?? 'Instagram',
+      compensationType: initialData?.compensationType ?? '',
+      compensationValue: initialData?.compensationValue ?? '',
+      compensationCurrency: initialData?.compensationCurrency ?? 'BRL',
+      productValue: initialData?.productValue ?? '',
+      notes: initialData?.notes ?? '',
+      relatedPostId: initialData?.relatedPostId ?? '',
+    };
+  }, [initialData]);
 
-  const [formData, setFormData] = useState<AdDealFormData>(initialState);
+  const [formData, setFormData] = useState<AdDealFormData>(baseState);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    setFormData(baseState);
+  }, [baseState]);
 
   const handleBlockedInteraction = (event?: React.SyntheticEvent): boolean => {
     if (!canAccessFeatures) {
@@ -121,7 +130,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
         throw new Error(errorMsg);
       }
       setSubmitStatus({ type: 'success', message: 'Parceria registada com sucesso!' });
-      setFormData(initialState);
+      setFormData(baseState);
       if (onDealAdded) onDealAdded();
       setTimeout(() => setSubmitStatus(null), 4000);
     } catch (error) {

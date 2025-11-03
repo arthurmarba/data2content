@@ -40,6 +40,7 @@ describe('MediaKitView ownership visibility', () => {
     videos: [],
     kpis: null,
     demographics: null,
+    engagementTrend: null,
   } as any;
 
   afterEach(() => {

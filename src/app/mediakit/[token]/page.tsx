@@ -177,6 +177,21 @@ async function fetchDemographics(baseUrl: string, userId: string): Promise<Demog
   }
 }
 
+async function fetchEngagementTrend(baseUrl: string, userId: string) {
+  try {
+    const url = `${baseUrl}/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) {
+      console.error(`[MediaKitPage] Falha ao buscar engagement trend: ${res.status}`);
+      return null;
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('[MediaKitPage] Erro de rede ao buscar engagement trend:', error);
+    return null;
+  }
+}
+
 // --- COMPONENTE DE PÁGINA (SERVER COMPONENT) ---
 
 export default async function MediaKitPage(
@@ -204,11 +219,12 @@ export default async function MediaKitPage(
   const host = reqHeaders.get('host') || 'localhost:3000';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
 
-  let [summary, videos, kpis, demographics] = await Promise.all([
+  let [summary, videos, kpis, demographics, engagementTrend] = await Promise.all([
     fetchSummary(baseUrl, (user as any)._id.toString()),
     fetchTopPosts(baseUrl, (user as any)._id.toString()), // ALTERADO
     fetchKpis(baseUrl, (user as any)._id.toString()),
     fetchDemographics(baseUrl, (user as any)._id.toString()),
+    fetchEngagementTrend(baseUrl, (user as any)._id.toString()),
   ]);
 
   let compatibleVideos = (videos || []).map((video: any) => ({
@@ -253,8 +269,10 @@ export default async function MediaKitPage(
           videos={compatibleVideos}
           kpis={kpis}
           demographics={demographics}
+          engagementTrend={engagementTrend}
           showSharedBanner={!isOwner}
           showOwnerCtas={false}
+          mediaKitSlug={params.token}
           premiumAccess={premiumAccessConfig}
         />
   );

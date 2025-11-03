@@ -69,3 +69,30 @@ export async function checkRateLimit(
     return { allowed: true, remaining: limit }; // Permite a passagem em caso de erro
   }
 }
+
+interface RateLimiterOptions {
+  windowMs: number;
+  max: number;
+  keyPrefix?: string;
+}
+
+interface RateLimiter {
+  check: (identifier: string) => Promise<void>;
+}
+
+export default function rateLimit(options: RateLimiterOptions): RateLimiter {
+  const { windowMs, max, keyPrefix = 'rate_limit' } = options;
+  const windowSeconds = Math.max(1, Math.floor(windowMs / 1000));
+
+  return {
+    async check(identifier: string) {
+      const key = `${keyPrefix}:${identifier}`;
+      const result = await checkRateLimit(key, max, windowSeconds);
+      if (!result.allowed) {
+        const error = new Error('Too many requests');
+        (error as Error & { status?: number }).status = 429;
+        throw error;
+      }
+    },
+  };
+}

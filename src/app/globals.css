@@ -15,6 +15,18 @@
   /* Safe areas (iOS) — usadas para evitar conteúdo sob o notch/home bar */
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
+
+  /* Tokens responsivos */
+  --space-fluid-1: clamp(1rem, 3vw, 1.75rem);
+  --space-fluid-2: clamp(1.5rem, 4vw, 2.5rem);
+  --space-fluid-3: clamp(2rem, 6vw, 3.5rem);
+  --space-fluid-4: clamp(2.5rem, 8vw, 4.5rem);
+
+  --radius-2xl: 1.375rem;
+  --radius-3xl: 1.75rem;
+
+  --container-xs: 480px;
+  --container-sm: 640px;
 }
 
 /* Altura baseada em 100svh para evitar jumps no mobile */
@@ -132,7 +144,7 @@ a {
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background-color: rgba(231, 59, 124, 0.7);
+  background-color: rgba(231, 75, 111, 0.75);
   animation: typing-indicator-bounce 1.1s ease-in-out infinite;
 }
 
@@ -142,6 +154,61 @@ a {
 
 .typing-indicator span:nth-child(3) {
   animation-delay: 0.24s;
+}
+
+@layer base {
+  html {
+    font-feature-settings: "ss01" on, "ss02" on, "kern" on;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    color: #1c1c1e;
+    background-color: #ffffff;
+  }
+}
+
+@layer utilities {
+  .safe-area-pb {
+    padding-bottom: calc(var(--sab, 0px) + 1rem);
+  }
+
+  .safe-area-pb-sm {
+    padding-bottom: calc(var(--sab, 0px) + 0.75rem);
+  }
+
+  .safe-area-py {
+    padding-top: calc(var(--sat, 0px) + 0.75rem);
+    padding-bottom: calc(var(--sab, 0px) + 0.75rem);
+  }
+
+  .section-padding {
+    padding-top: var(--space-fluid-3);
+    padding-bottom: var(--space-fluid-3);
+  }
+
+.section-padding-lg {
+  padding-top: var(--space-fluid-4);
+  padding-bottom: var(--space-fluid-4);
+}
+}
+
+.sticky-cta-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 999;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  box-shadow: 0 -12px 40px rgba(18, 7, 31, 0.12);
+}
+
+.sticky-cta-bar.sticky-cta-bar--hidden {
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
 }
 
 @keyframes pulseSoft {

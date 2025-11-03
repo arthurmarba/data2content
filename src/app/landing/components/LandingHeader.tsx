@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signIn } from 'next-auth/react';
-import { useEffect, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
@@ -18,27 +18,38 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
   const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const ctaButtonRef = useRef<HTMLButtonElement>(null);
 
   const navLinks = [
-    { href: '#como-funciona', label: 'Como funciona' },
-    { href: '#ranking', label: 'Ranking' },
-    { href: '#categorias', label: 'Insights' },
-    { href: '#beneficios', label: 'Benefícios' },
+    { href: '#galeria', label: 'Criadores' },
+    { href: '#impacto', label: 'Impacto' },
+    { href: '#ecossistema', label: 'Ecossistema' },
+    { href: '#planos', label: 'Planos' },
+    { href: '#marcas', label: 'Marcas' },
   ];
 
   const handleJoinCommunity = () => {
-    track('cta_join_community_click');
-    signIn('google', { callbackUrl: MAIN_DASHBOARD_ROUTE });
+    track('landing_header_creator_cta_click');
+    window.location.assign('/signup');
+  };
+
+  const handleBrands = () => {
+    track('landing_header_brand_cta_click');
+    window.location.assign('/campaigns/new?utm_source=landing&utm_medium=header&utm_campaign=multi_creator');
   };
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    const handleScroll = () => setIsScrolled(window.scrollY > 24);
     window.addEventListener('scroll', handleScroll);
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
   }, []);
 
   useEffect(() => {
@@ -55,11 +66,19 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
 
   return (
     <header
-      className={`fixed top-0 z-50 w-full transition-all ${
-        isScrolled ? 'bg-white/95 shadow-lg backdrop-blur-md' : 'bg-white/75 backdrop-blur'
-      }`}
+      className={[
+        'fixed top-0 z-50 w-full border-b transition-all duration-300 ease-out backdrop-blur',
+        isScrolled ? 'border-[#E4E8F3] bg-white/95 shadow-[0_4px_24px_rgba(15,23,42,0.08)]' : 'border-transparent bg-white/75',
+      ].join(' ')}
+      style={
+        isMounted
+          ? ({
+              '--landing-header-extra': isScrolled ? '0px' : '8px',
+            } as CSSProperties)
+          : undefined
+      }
     >
-      <Container className="relative flex h-20 items-center justify-between">
+      <Container className="relative flex h-16 items-center justify-between transition-all duration-300 ease-out md:h-[4.5rem]">
         <Link href="/" className="group flex items-center gap-2 text-2xl font-bold text-brand-dark">
           <div className="relative h-8 w-8 overflow-hidden">
             <Image
@@ -78,31 +97,32 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
               <a
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-gray-600 transition-colors hover:text-brand-magenta"
+                className="text-sm font-medium text-brand-text-secondary transition-colors hover:text-brand-dark"
               >
                 {link.label}
               </a>
             ))}
+            <button
+              type="button"
+              onClick={handleBrands}
+              className="text-sm font-semibold text-brand-dark/70 transition-colors hover:text-brand-dark"
+            >
+              Sou marca
+            </button>
             {session ? (
-              <ButtonPrimary
-                href={MAIN_DASHBOARD_ROUTE}
-                className="px-4 py-2 text-sm"
-              >
+              <ButtonPrimary href={MAIN_DASHBOARD_ROUTE} size="sm" variant="outline" className="shadow-none">
                 Ir para o painel
               </ButtonPrimary>
             ) : (
-              <ButtonPrimary
-                onClick={handleJoinCommunity}
-                className="px-4 py-2 text-sm"
-              >
-                Entrar na comunidade gratuita
+              <ButtonPrimary onClick={handleJoinCommunity} size="sm" variant="solid">
+                Criar conta gratuita
               </ButtonPrimary>
             )}
           </nav>
 
           <button
             ref={menuButtonRef}
-            className="p-2 text-gray-600 md:hidden"
+            className="p-2 text-brand-dark md:hidden"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Menu"
             aria-controls="mobile-menu"
@@ -116,19 +136,28 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
           </button>
         </div>
         {isMenuOpen && (
-          <div className="absolute top-20 right-0 w-full rounded-md bg-white shadow-lg md:hidden">
+          <div className="absolute top-20 right-0 w-full rounded-2xl border border-[#E7EBF6] bg-white/95 shadow-[0_18px_38px_rgba(15,23,42,0.12)] md:hidden">
             <nav id="mobile-menu" className="flex flex-col p-2">
               {navLinks.map((link, index) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  className="rounded-xl px-4 py-3 text-sm font-medium text-brand-dark/80 hover:bg-brand-light"
                   onClick={() => setIsMenuOpen(false)}
                   ref={!session && index === 0 ? firstLinkRef : undefined}
                 >
                   {link.label}
                 </a>
               ))}
+              <button
+                onClick={() => {
+                  handleBrands();
+                  setIsMenuOpen(false);
+                }}
+                className="mt-1 rounded-xl px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light"
+              >
+                Sou marca
+              </button>
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
@@ -138,10 +167,10 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                     handleJoinCommunity();
                   }
                 }}
-                className="mt-1 rounded-md px-4 py-2 text-left text-sm font-semibold text-brand-magenta hover:bg-gray-100"
+                className="mt-1 rounded-xl px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light"
                 ref={session ? ctaButtonRef : undefined}
               >
-                {session ? 'Ir para o painel' : 'Entrar na comunidade gratuita'}
+                {session ? 'Ir para o painel' : 'Criar conta gratuita'}
               </button>
             </nav>
           </div>

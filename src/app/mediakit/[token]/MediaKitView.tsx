@@ -1,29 +1,28 @@
 // src/app/mediakit/[token]/MediaKitView.tsx
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback, useId } from 'react';
 import {
-  Lightbulb,
   TrendingUp,
   TrendingDown,
   Sparkles,
   CalendarDays,
   Users,
+  MapPin,
   Heart,
   Eye,
   MessageSquare,
   Share2,
   Bookmark,
   Calendar,
-  Trophy,
   Mail,
   ArrowUpRight,
   ArrowDownRight,
   X,
   Lock,
+  Send,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import VideosTable from '@/app/admin/creator-dashboard/components/VideosTable';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
@@ -40,59 +39,6 @@ import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 /**
  * UTILS & CONSTANTS
  */
-
-/**
- * MultiItemCarousel — carrossel horizontal com drag (mobile-first)
- */
-const MultiItemCarousel = ({ children }: { children: React.ReactNode }) => {
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const innerRef = useRef<HTMLDivElement | null>(null);
-  const [constraint, setConstraint] = useState(0);
-
-  const calculateConstraints = useCallback(() => {
-    const wrapW = wrapRef.current?.getBoundingClientRect().width ?? 0;
-    const innerW = innerRef.current?.scrollWidth ?? 0;
-    const max = Math.max(0, innerW - wrapW);
-    setConstraint((prev) => (prev === max ? prev : max));
-  }, []);
-
-  const childCount = React.Children.count(children);
-
-  useEffect(() => {
-    calculateConstraints();
-  }, [childCount, calculateConstraints]);
-
-  useEffect(() => {
-    const handle = () => calculateConstraints();
-    window.addEventListener('resize', handle);
-    const timer = setTimeout(handle, 150);
-    return () => {
-      window.removeEventListener('resize', handle);
-      clearTimeout(timer);
-    };
-  }, [calculateConstraints]);
-
-  return (
-    <div className="relative -mx-6 sm:-mx-8 px-6 sm:px-8" ref={wrapRef}>
-      <motion.div className="overflow-hidden cursor-grab" whileTap={{ cursor: 'grabbing' }}>
-        <motion.div
-          ref={innerRef}
-          className="flex gap-4"
-          drag="x"
-          dragConstraints={{ right: 0, left: -constraint }}
-          dragElastic={0.05}
-        >
-          {React.Children.map(children, (child, i) => (
-            <div key={i} className="flex-shrink-0 w-[60%] sm:w-[45%] md:w-[33%] lg:w-1/4">
-              {child}
-            </div>
-          ))}
-        </motion.div>
-      </motion.div>
-      <div className="absolute top-0 right-0 bottom-0 w-16 bg-gradient-to-l from-white pointer-events-none" />
-    </div>
-  );
-};
 
 // Extrai bio de vários caminhos comuns
 function extractIgBio(obj: any): string | null {
@@ -113,44 +59,64 @@ function extractIgBio(obj: any): string | null {
   return null;
 }
 
+const AFFILIATE_LANDING_PATH = '/';
+
+const resolveAppOrigin = () => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, '');
+  }
+  const fallback = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  return fallback ? fallback.replace(/\/$/, '') : '';
+};
+
+const buildAffiliateSignupLink = ({
+  affiliateCode,
+  mediaKitSlug,
+  affiliateHandle,
+}: {
+  affiliateCode: string;
+  mediaKitSlug?: string | null;
+  affiliateHandle?: string | null;
+}) => {
+  const origin = resolveAppOrigin();
+  if (!origin) return null;
+  try {
+    const url = new URL(`${origin}${AFFILIATE_LANDING_PATH}`);
+    url.searchParams.set('aff', affiliateCode);
+    url.searchParams.set('utm_source', 'mediakit');
+    url.searchParams.set('utm_medium', 'affiliate_cta');
+    url.searchParams.set('utm_campaign', mediaKitSlug || 'public');
+    url.searchParams.set('origin_affiliate', affiliateCode);
+    if (mediaKitSlug) url.searchParams.set('origin_slug', mediaKitSlug);
+    if (affiliateHandle) url.searchParams.set('origin_handle', affiliateHandle);
+    return url.toString();
+  } catch {
+    return null;
+  }
+};
+
+const COMPARISON_TO_TIME_PERIOD = {
+  month_vs_previous: 'last_30_days',
+  last_7d_vs_previous_7d: 'last_7_days',
+  last_30d_vs_previous_30d: 'last_30_days',
+  last_60d_vs_previous_60d: 'last_60_days',
+  last_90d_vs_previous_90d: 'last_90_days',
+} as const;
+
+type ComparisonPeriodKey = keyof typeof COMPARISON_TO_TIME_PERIOD;
+type TrendPeriod = (typeof COMPARISON_TO_TIME_PERIOD)[ComparisonPeriodKey];
+const DEFAULT_COMPARISON_PERIOD: ComparisonPeriodKey = 'last_30d_vs_previous_30d';
+
+const normalizeComparisonPeriod = (period?: string): ComparisonPeriodKey => {
+  if (period && period in COMPARISON_TO_TIME_PERIOD) {
+    return period as ComparisonPeriodKey;
+  }
+  return DEFAULT_COMPARISON_PERIOD;
+};
+
 /**
  * COMPONENTES: Destaques / Rankings
  */
-interface HighlightItem {
-  name: string;
-  metricName: string;
-  valueFormatted: string;
-  postsCount?: number;
-}
-interface HighlightCardProps {
-  title: string;
-  highlight: HighlightItem | null;
-  icon: React.ReactNode;
-  bgColorClass: string;
-  textColorClass: string;
-}
-
-const HighlightCard = ({ title, highlight, icon, bgColorClass, textColorClass }: HighlightCardProps) => {
-  if (!highlight) return null;
-  return (
-    <div className={`p-4 rounded-lg h-full flex flex-col ${bgColorClass}`}>
-      <h4 className={`text-sm font-semibold mb-2 flex items-center ${textColorClass}`}>
-        {icon}
-        <span className="ml-2">{title}</span>
-      </h4>
-      <div className="flex-grow">
-        <p className="text-lg sm:text-xl font-bold text-gray-800 break-words">{highlight.name}</p>
-        <p className="text-xs text-gray-500 mt-1">
-          {highlight.metricName}: {highlight.valueFormatted}
-        </p>
-      </div>
-      {highlight.postsCount && (
-        <p className="text-xs text-gray-500 mt-2">{highlight.postsCount} posts na amostra</p>
-      )}
-    </div>
-  );
-};
-
 const PerformanceHighlightsCarousel = ({ userId }: { userId: string }) => {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -177,11 +143,11 @@ const PerformanceHighlightsCarousel = ({ userId }: { userId: string }) => {
 
   if (loading) {
     return (
-      <MultiItemCarousel>
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="w-full h-48 bg-gray-200 rounded-lg animate-pulse" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[...Array(4)].map((_, index) => (
+          <div key={index} className="h-28 rounded-2xl bg-gray-100 animate-pulse" />
         ))}
-      </MultiItemCarousel>
+      </div>
     );
   }
   if (!summary) return <p className="text-gray-500">Não foi possível carregar os destaques.</p>;
@@ -189,74 +155,91 @@ const PerformanceHighlightsCarousel = ({ userId }: { userId: string }) => {
   const getPortugueseWeekdayName = (dow0to6: number): string =>
     ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][((dow0to6 % 7) + 7) % 7] || '';
 
-  const cards = [
-    <HighlightCard
-      key="best-format"
-      title="Melhor Formato"
-      highlight={summary.topPerformingFormat}
-      icon={<TrendingUp size={18} />}
-      bgColorClass="bg-green-50"
-      textColorClass="text-green-600"
-    />,
-    <HighlightCard
-      key="main-context"
-      title="Contexto Principal"
-      highlight={summary.topPerformingContext}
-      icon={<Sparkles size={18} />}
-      bgColorClass="bg-blue-50"
-      textColorClass="text-blue-600"
-    />,
-    <HighlightCard
-      key="worst-format"
-      title="Menor Performance (Formato)"
-      highlight={summary.lowPerformingFormat}
-      icon={<TrendingDown size={18} />}
-      bgColorClass="bg-red-50"
-      textColorClass="text-red-600"
-    />,
-    <HighlightCard
-      key="best-proposal"
-      title="Melhor Proposta"
-      highlight={summary.topPerformingProposal}
-      icon={<Sparkles size={18} />}
-      bgColorClass="bg-purple-50"
-      textColorClass="text-purple-600"
-    />,
-    <HighlightCard
-      key="best-tone"
-      title="Melhor Tom"
-      highlight={summary.topPerformingTone}
-      icon={<Sparkles size={18} />}
-      bgColorClass="bg-amber-50"
-      textColorClass="text-amber-600"
-    />,
-    <HighlightCard
-      key="best-ref"
-      title="Melhor Referência"
-      highlight={summary.topPerformingReference}
-      icon={<Sparkles size={18} />}
-      bgColorClass="bg-teal-50"
-      textColorClass="text-teal-600"
-    />,
-    <HighlightCard
-      key="best-day"
-      title="Melhor Dia"
-      highlight={
-        summary.bestDay
-          ? {
-              name: `🗓️ ${getPortugueseWeekdayName(summary.bestDay.dayOfWeek)}`,
-              metricName: 'Interações (média)',
-              valueFormatted: summary.bestDay.average?.toFixed?.(1) ?? '—',
-            }
-          : null
-      }
-      icon={<CalendarDays size={18} />}
-      bgColorClass="bg-indigo-50"
-      textColorClass="text-indigo-600"
-    />,
-  ].filter(Boolean) as React.ReactNode[];
+  const highlightItems = [
+    {
+      key: 'format',
+      title: 'Melhor formato',
+      icon: <TrendingUp className="h-4 w-4" />,
+      data: summary.topPerformingFormat,
+    },
+    {
+      key: 'context',
+      title: 'Contexto vencedor',
+      icon: <Sparkles className="h-4 w-4" />,
+      data: summary.topPerformingContext,
+    },
+    {
+      key: 'proposal',
+      title: 'Proposta em alta',
+      icon: <Sparkles className="h-4 w-4" />,
+      data: summary.topPerformingProposal,
+    },
+    {
+      key: 'tone',
+      title: 'Tom que engaja',
+      icon: <MessageSquare className="h-4 w-4" />,
+      data: summary.topPerformingTone,
+    },
+    {
+      key: 'reference',
+      title: 'Referência que inspira',
+      icon: <Sparkles className="h-4 w-4" />,
+      data: summary.topPerformingReference,
+    },
+    {
+      key: 'day',
+      title: 'Dia mais quente',
+      icon: <CalendarDays className="h-4 w-4" />,
+      data: summary.bestDay
+        ? {
+            name: getPortugueseWeekdayName(summary.bestDay.dayOfWeek),
+            metricName: 'Interações médias',
+            valueFormatted: summary.bestDay.average?.toFixed?.(1) ?? '—',
+          }
+        : null,
+    },
+  ].filter((item) => item.data);
 
-  return <MultiItemCarousel>{cards}</MultiItemCarousel>;
+  const narrative =
+    summary?.headline ||
+    summary?.insightSummary?.topHighlight ||
+    (summary?.topPerformingFormat?.name && summary?.topPerformingContext?.name
+      ? `Conteúdos em ${summary.topPerformingFormat.name} com foco em ${summary.topPerformingContext.name} lideram as interações recentes.`
+      : null);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        {highlightItems.map((item, index) => {
+          const isAccent = index === 0;
+          return (
+            <div
+              key={item.key}
+              className={`flex min-w-[140px] flex-1 basis-[45%] items-start gap-2 rounded-xl p-3 ${
+                isAccent ? 'bg-gradient-to-br from-[#FFE1EA] via-white to-[#FFF8FA]' : 'bg-[#FAFAFB]'
+              }`}
+            >
+              <span className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full ${isAccent ? 'bg-white text-[#D62E5E]' : 'bg-white text-[#6E1F93]'}`}>
+                {item.icon}
+              </span>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{item.title}</p>
+                <p className="text-sm font-bold text-[#1C1C1E] leading-tight">{item.data.name}</p>
+                <p className="text-xs text-gray-500">
+                  {item.data.metricName}: {item.data.valueFormatted}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {narrative ? (
+        <p className="rounded-xl bg-white p-4 text-center text-sm font-medium text-[#6E1F93] shadow-sm">
+          {narrative}
+        </p>
+      ) : null}
+    </div>
+  );
 };
 
 const LockedCategoriesPeek = () => {
@@ -304,6 +287,258 @@ const LockedHighlightsPeek = () => {
         </div>
       ))}
     </div>
+  );
+};
+
+interface ProposalFormState {
+  brandName: string;
+  contactEmail: string;
+  contactWhatsapp: string;
+  campaignTitle: string;
+  campaignDescription: string;
+  deliverables: string;
+  budget: string;
+  currency: string;
+}
+
+type PublicProposalFormProps = {
+  mediaKitSlug?: string;
+  onSubmitSuccess?: () => void;
+  onSubmitError?: (error: Error) => void;
+};
+
+const PublicProposalForm = ({ mediaKitSlug, onSubmitSuccess, onSubmitError }: PublicProposalFormProps) => {
+  const formId = useId();
+  const [form, setForm] = useState<ProposalFormState>({
+    brandName: '',
+    contactEmail: '',
+    contactWhatsapp: '',
+    campaignTitle: '',
+    campaignDescription: '',
+    deliverables: '',
+    budget: '',
+    currency: 'BRL',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!mediaKitSlug) return null;
+
+  const handleChange =
+    (field: keyof ProposalFormState) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      let value = event.target.value;
+      if (field === 'currency') {
+        value = value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+      }
+      setForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+  const resetForm = () => {
+    setForm({
+      brandName: '',
+      contactEmail: '',
+      contactWhatsapp: '',
+      campaignTitle: '',
+      campaignDescription: '',
+      deliverables: '',
+      budget: '',
+      currency: 'BRL',
+    });
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+    track('media_kit_proposal_submission_started', {
+      slug: mediaKitSlug ?? null,
+    });
+
+    setSubmitting(true);
+    setSuccess(false);
+    setError(null);
+
+    const deliverables = form.deliverables
+      .split(/\r?\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const payload: Record<string, unknown> = {
+      brandName: form.brandName.trim(),
+      contactEmail: form.contactEmail.trim(),
+      campaignTitle: form.campaignTitle.trim(),
+    };
+
+    if (form.contactWhatsapp.trim()) payload.contactWhatsapp = form.contactWhatsapp.trim();
+    if (form.campaignDescription.trim()) payload.campaignDescription = form.campaignDescription.trim();
+    if (deliverables.length) payload.deliverables = deliverables;
+    if (form.budget.trim()) payload.budget = form.budget.trim();
+    if (form.currency.trim()) payload.currency = form.currency.trim().toUpperCase();
+
+    try {
+      const response = await fetch(`/api/mediakit/${mediaKitSlug}/proposals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.error || 'Não foi possível enviar sua proposta agora.');
+      }
+      setSuccess(true);
+      resetForm();
+      track('media_kit_proposal_submitted', {
+        slug: mediaKitSlug ?? null,
+        hasBudget: Boolean(payload.budget),
+        hasWhatsapp: Boolean(payload.contactWhatsapp),
+        deliverablesCount: Array.isArray(payload.deliverables) ? payload.deliverables.length : 0,
+      });
+      onSubmitSuccess?.();
+    } catch (err: any) {
+      setError(err?.message || 'Erro inesperado. Tente novamente mais tarde.');
+      const normalizedError = err instanceof Error ? err : new Error(err?.message || 'submission_failed');
+      track('media_kit_proposal_submit_failed', {
+        slug: mediaKitSlug ?? null,
+        message: normalizedError.message,
+      });
+      onSubmitError?.(normalizedError);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor={`${formId}-brand`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Nome da marca*
+          </label>
+          <input
+            id={`${formId}-brand`}
+            required
+            value={form.brandName}
+            onChange={handleChange('brandName')}
+            placeholder="Ex.: Natura"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+          />
+        </div>
+        <div>
+          <label htmlFor={`${formId}-email`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            E-mail comercial*
+          </label>
+          <input
+            id={`${formId}-email`}
+            type="email"
+            required
+            value={form.contactEmail}
+            onChange={handleChange('contactEmail')}
+            placeholder="nome@empresa.com"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+          />
+        </div>
+        <div>
+          <label htmlFor={`${formId}-whatsapp`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            WhatsApp (opcional)
+          </label>
+          <input
+            id={`${formId}-whatsapp`}
+            value={form.contactWhatsapp}
+            onChange={handleChange('contactWhatsapp')}
+            placeholder="+55 11 90000-0000"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+          />
+        </div>
+        <div>
+          <label htmlFor={`${formId}-budget`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Orçamento disponível
+          </label>
+          <div className="mt-1 flex rounded-xl border border-gray-200 shadow-sm focus-within:border-pink-500 focus-within:ring-1 focus-within:ring-pink-500">
+            <input
+              id={`${formId}-budget`}
+              value={form.budget}
+              onChange={handleChange('budget')}
+              placeholder="Ex.: 5000"
+              className="w-full rounded-l-xl border-r border-gray-200 px-4 py-2 text-sm text-gray-800 focus:outline-none"
+            />
+            <input
+              value={form.currency}
+              onChange={handleChange('currency')}
+              className="w-20 rounded-r-xl bg-gray-50 px-3 py-2 text-center text-sm font-semibold uppercase text-gray-600 focus:outline-none"
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-400">Informe números; moeda padrão BRL.</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor={`${formId}-title`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Título da campanha*
+          </label>
+          <input
+            id={`${formId}-title`}
+            required
+            value={form.campaignTitle}
+            onChange={handleChange('campaignTitle')}
+            placeholder="Ex.: Lançamento coleção verão"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+          />
+        </div>
+        <div>
+          <label htmlFor={`${formId}-deliverables`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Entregáveis desejados
+          </label>
+          <textarea
+            id={`${formId}-deliverables`}
+            value={form.deliverables}
+            onChange={handleChange('deliverables')}
+            placeholder="Stories, Reels, UGC..."
+            rows={3}
+            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+          />
+          <p className="mt-1 text-xs text-gray-400">Separe por vírgulas ou quebra de linha.</p>
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor={`${formId}-description`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          Descrição / briefing
+        </label>
+        <textarea
+          id={`${formId}-description`}
+          value={form.campaignDescription}
+          onChange={handleChange('campaignDescription')}
+          placeholder="Compartilhe objetivos, público e principais mensagens da campanha."
+          rows={4}
+          className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+        />
+      </div>
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          Proposta enviada! O criador vai entrar em contato em breve.
+        </div>
+      ) : null}
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#c12652] disabled:cursor-not-allowed disabled:bg-[#d28aa2]"
+      >
+        {submitting ? 'Enviando...' : 'Enviar proposta'}
+        <Send className="h-4 w-4" />
+      </button>
+      <p className="text-xs text-gray-400">
+        Ao enviar, você concorda em ser contatado pelo criador. Guardamos seu IP para evitar spam.
+      </p>
+    </form>
   );
 };
 
@@ -361,16 +596,84 @@ const LockedPremiumSection = ({
   );
 };
 
-interface SectionCardProps {
-  title: string;
-  children: React.ReactNode;
-}
-const SectionCard = ({ title, children }: SectionCardProps) => (
-  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 h-full">
-    <h4 className="text-sm font-semibold text-gray-800 mb-2">{title}</h4>
-    {children}
-  </div>
-);
+type StickyCtaBarProps = {
+  visible: boolean;
+  onProposalClick: () => void;
+  onAffiliateClick: () => void;
+  affiliateLink: string | null;
+  affiliateAvailable: boolean;
+  affiliateHandleLabel: string;
+};
+
+const StickyCtaBar = ({
+  visible,
+  onProposalClick,
+  onAffiliateClick,
+  affiliateLink,
+  affiliateAvailable,
+  affiliateHandleLabel,
+}: StickyCtaBarProps) => {
+  const baseButtonClasses =
+    'group flex w-full flex-col items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
+
+  return (
+    <div
+      className={`sticky-cta-bar ${visible ? '' : 'sticky-cta-bar--hidden'}`}
+      aria-hidden={!visible}
+    >
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 px-4 pb-4 pt-3 sm:flex-row sm:items-center sm:gap-3">
+        <button
+          type="button"
+          onClick={() => onProposalClick()}
+          className={`${baseButtonClasses} bg-[#1C4FD7] hover:bg-[#1a46c3] focus-visible:outline-[#1C4FD7]`}
+        >
+          <span className="flex items-center gap-2 text-base">
+            <span role="img" aria-hidden="true">
+              💼
+            </span>
+            Enviar proposta
+          </span>
+          <span className="mt-1 text-xs font-medium text-white/80">Receba resposta rápida do criador</span>
+        </button>
+
+        {affiliateAvailable && affiliateLink ? (
+          <a
+            href={affiliateLink}
+            onClick={() => onAffiliateClick()}
+            className={`${baseButtonClasses} bg-[#6E1F93] hover:bg-[#5a1a78] focus-visible:outline-[#6E1F93]`}
+            rel="noopener noreferrer"
+          >
+            <span className="flex items-center gap-2 text-base">
+              <span role="img" aria-hidden="true">
+                🚀
+              </span>
+              Criar meu Mídia Kit
+            </span>
+            <span className="mt-1 text-xs font-medium text-white/80">
+              Comece agora com seu link afiliado
+            </span>
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className={`${baseButtonClasses} cursor-not-allowed bg-gray-200 text-gray-500 shadow-none`}
+          >
+            <span className="flex items-center gap-2 text-base">
+              <span role="img" aria-hidden="true">
+                🚀
+              </span>
+              Criar meu Mídia Kit
+            </span>
+            <span className="mt-1 text-xs font-medium text-gray-500/80">
+              Link disponível em breve para {affiliateHandleLabel}
+            </span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 interface RankItem {
   category: string;
@@ -405,11 +708,13 @@ const idToLabel = (id: string | number, type: CategoryKey) => {
 };
 
 const MetricList = ({ items, type }: MetricListProps) => (
-  <ul className="space-y-1 text-sm">
+  <ul className="space-y-1 text-sm text-gray-600">
     {items.map((it, idx) => (
-      <li key={`${it.category}-${idx}`} className="flex justify-between">
-        <span className="truncate pr-2" title={String(it.category)}>{idToLabel(it.category, type)}</span>
-        <span className="tabular-nums text-gray-700">{new Intl.NumberFormat('pt-BR').format(it.value)}</span>
+      <li key={`${it.category}-${idx}`} className="flex justify-between border-b border-gray-100 pb-1 last:border-b-0">
+        <span className="truncate pr-2 font-medium text-gray-700" title={String(it.category)}>
+          {idToLabel(it.category, type)}
+        </span>
+        <span className="tabular-nums text-gray-500">{new Intl.NumberFormat('pt-BR').format(it.value)}</span>
       </li>
     ))}
   </ul>
@@ -418,6 +723,7 @@ const MetricList = ({ items, type }: MetricListProps) => (
 const CategoryRankingsCarousel = ({ userId }: { userId: string }) => {
   const [rankings, setRankings] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const fetchAllRankings = async () => {
@@ -454,59 +760,101 @@ const CategoryRankingsCarousel = ({ userId }: { userId: string }) => {
 
   if (loading) {
     return (
-      <MultiItemCarousel>
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="w-full h-64 bg-gray-200 rounded-lg animate-pulse" />
+      <div className="space-y-3">
+        {[...Array(2)].map((_, index) => (
+          <div key={index} className="h-24 rounded-2xl bg-gray-100 animate-pulse" />
         ))}
-      </MultiItemCarousel>
+      </div>
     );
   }
   if (!Object.keys(rankings).length)
     return <p className="text-gray-500">Não foi possível carregar os rankings.</p>;
 
-  const cards = [
-    <SectionCard key="format-posts" title="Formato: Mais Publicados">
-      <MetricList items={rankings.fp} type="format" />
-    </SectionCard>,
-    <SectionCard key="format-avg" title="Formato: Maior Média de Interações">
-      <MetricList items={rankings.fa} type="format" />
-    </SectionCard>,
-    <SectionCard key="proposal-posts" title="Proposta: Mais Publicados">
-      <MetricList items={rankings.pp} type="proposal" />
-    </SectionCard>,
-    <SectionCard key="proposal-avg" title="Proposta: Maior Média de Interações">
-      <MetricList items={rankings.pa} type="proposal" />
-    </SectionCard>,
-    <SectionCard key="context-posts" title="Contexto: Mais Publicados">
-      <MetricList items={rankings.cp} type="context" />
-    </SectionCard>,
-    <SectionCard key="context-avg" title="Contexto: Maior Média de Interações">
-      <MetricList items={rankings.ca} type="context" />
-    </SectionCard>,
+  const summaryRows = [
+    rankings.fa?.[0]
+      ? `Formato destaque: ${idToLabel(rankings.fa[0].category, 'format')}`
+      : null,
+    rankings.pa?.[0]
+      ? `Proposta forte: ${idToLabel(rankings.pa[0].category, 'proposal')}`
+      : null,
+    rankings.ca?.[0]
+      ? `Contexto de impacto: ${idToLabel(rankings.ca[0].category, 'context')}`
+      : null,
+  ].filter(Boolean) as string[];
+
+  const detailSections = [
+    {
+      key: 'formats',
+      title: 'Formatos',
+      items: [
+        { label: 'Mais publicados', data: rankings.fp, type: 'format' as const },
+        { label: 'Maior média de interações', data: rankings.fa, type: 'format' as const },
+      ],
+    },
+    {
+      key: 'proposals',
+      title: 'Propostas',
+      items: [
+        { label: 'Mais publicadas', data: rankings.pp, type: 'proposal' as const },
+        { label: 'Maior média de interações', data: rankings.pa, type: 'proposal' as const },
+      ],
+    },
+    {
+      key: 'contexts',
+      title: 'Contextos',
+      items: [
+        { label: 'Mais recorrentes', data: rankings.cp, type: 'context' as const },
+        { label: 'Maior média de interações', data: rankings.ca, type: 'context' as const },
+      ],
+    },
   ];
-  return <MultiItemCarousel>{cards}</MultiItemCarousel>;
+
+  return (
+    <div className="space-y-4">
+      {summaryRows.length > 0 ? (
+        <div className="space-y-2 text-sm text-gray-700">
+          {summaryRows.map((text) => (
+            <p key={text}>{text}</p>
+          ))}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="flex w-full items-center justify-between rounded-2xl border border-[#EAEAEA] bg-[#FAFAFB] px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-[#D62E5E]"
+        onClick={() => setExpanded((prev) => !prev)}
+      >
+        <span>Ver comparativos detalhados</span>
+        <ArrowDownRight className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+      {expanded ? (
+        <div className="space-y-5 rounded-2xl border border-[#EAEAEA] bg-white p-4">
+          {detailSections.map((section) => (
+            <div key={section.key} className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-800">{section.title}</h4>
+              {section.items.map(
+                (block) =>
+                  Array.isArray(block.data) && block.data.length > 0 ? (
+                    <div key={`${section.key}-${block.label}`} className="rounded-xl bg-[#FAFAFB] p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{block.label}</p>
+                      <MetricList items={block.data.slice(0, 5)} type={block.type} />
+                    </div>
+                  ) : null
+              )}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 };
 
 /**
  * MISC UI
  */
-interface KeyMetricProps {
-  icon: React.ReactNode;
-  value: string | number | null | undefined;
-  label: string;
-}
-const KeyMetric = ({ icon, value, label }: KeyMetricProps) => (
-  <div className="flex flex-col items-center text-center p-2">
-    <div className="text-pink-500">{icon}</div>
-    <p className="mt-1 text-xl font-bold text-gray-900">{String(value ?? '—')}</p>
-    <p className="text-xs text-gray-500 mt-1">{label}</p>
-  </div>
-);
-
 interface TrendIndicatorProps {
   value: number | null | undefined;
 }
-const TrendIndicator = ({ value }: TrendIndicatorProps) => {
+const TrendIndicator = ({ value, showValue = true }: TrendIndicatorProps & { showValue?: boolean }) => {
   if (value === null || value === undefined) return null;
   const isPositive = value >= 0;
   const colorClass = isPositive ? 'text-green-600' : 'text-red-600';
@@ -516,21 +864,70 @@ const TrendIndicator = ({ value }: TrendIndicatorProps) => {
     : 'Variação muito alta';
   const shown = Number.isFinite(value) ? `${Math.abs(value).toFixed(1)}%` : '∞';
   return (
-    <span className="inline-flex items-center gap-1 ml-2 text-xs font-semibold" title={titleText}>
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-semibold ${showValue ? 'ml-2' : ''}`}
+      title={titleText}
+    >
       <Icon className={colorClass} size={14} />
-      <span className={colorClass}>{shown}</span>
+      {showValue ? <span className={colorClass}>{shown}</span> : null}
     </span>
   );
 };
 
-interface KpiValueProps {
-  value: number | null | undefined;
-  type: 'number' | 'percent';
-}
-const KpiValue = ({ value, type }: KpiValueProps) => {
-  if (value === null || value === undefined) return <>N/A</>;
-  if (type === 'percent') return <>{value.toFixed(2)}%</>;
-  return <>{value > 0 ? `+${value.toLocaleString('pt-BR')}` : value.toLocaleString('pt-BR')}</>;
+const tagStyleMap: Record<
+  'format' | 'context' | 'proposal' | 'tone',
+  { bgClass: string; textClass: string; labelPrefix: string }
+> = {
+  format: { bgClass: 'bg-[#EEF2FF]', textClass: 'text-[#3C4B9B]', labelPrefix: 'Formato' },
+  context: { bgClass: 'bg-[#FFF5E6]', textClass: 'text-[#C9721A]', labelPrefix: 'Contexto' },
+  proposal: { bgClass: 'bg-[#FEE9F1]', textClass: 'text-[#B83268]', labelPrefix: 'Proposta' },
+  tone: { bgClass: 'bg-[#E8FBF1]', textClass: 'text-[#2F8E5B]', labelPrefix: 'Tom' },
+};
+
+const SparklineChart = ({ values, color = '#D62E5E' }: { values: number[]; color?: string }) => {
+  const gradientId = useId();
+  if (!values || values.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-[11px] font-medium text-gray-400">
+        Sem dados recentes
+      </div>
+    );
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const normalized = values.map((value, index) => {
+    const x = values.length > 1 ? (index / (values.length - 1)) * 100 : 50;
+    const y = 90 - ((value - min) / range) * 70;
+    return { x, y, value };
+  });
+  const firstPoint = normalized[0]!;
+  const lastPoint = normalized[normalized.length - 1]!;
+  const linePath = normalized.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x},${point.y}`).join(' ');
+  const areaPath = `${linePath} L ${lastPoint.x},90 L ${firstPoint.x},90 Z`;
+
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradientId})`} />
+      <path d={linePath} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {normalized.map((point, idx) => (
+        <circle
+          key={idx}
+          cx={point.x}
+          cy={point.y}
+          r={idx === normalized.length - 1 ? 1.8 : 1.2}
+          fill={color}
+          opacity={idx === normalized.length - 1 ? 1 : 0.7}
+        />
+      ))}
+    </svg>
+  );
 };
 
 const genderLabelMap: { [key: string]: string } = { f: 'Feminino', m: 'Masculino', u: 'Desconhecido' };
@@ -549,6 +946,25 @@ const generateDemographicSummary = (demographics: any) => {
     { f: 'feminino', m: 'masculino', u: 'desconhecido' } as { [key: string]: string }
   )[topGenderEntry[0].toLowerCase()] || topGenderEntry[0];
   return `Mais popular entre o público ${dominantGender}, ${topAgeEntry[0]} anos, em ${topLocation}.`;
+};
+
+const formatDateLabel = (value: string | Date | null | undefined) => {
+  if (!value) return null;
+  const dateObj = typeof value === 'string' ? new Date(value) : value;
+  if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(dateObj);
+};
+
+const truncateCaption = (caption?: string | null, maxLength = 120) => {
+  if (!caption) return null;
+  const clean = caption.trim();
+  if (!clean.length) return null;
+  if (clean.length <= maxLength) return clean;
+  return `${clean.slice(0, maxLength - 1).trim()}…`;
 };
 
 const Skeleton = ({ className = '' }: { className?: string }) => (
@@ -583,18 +999,22 @@ export default function MediaKitView({
   videos,
   kpis: initialKpis,
   demographics,
+  engagementTrend,
   showSharedBanner = false,
   showOwnerCtas = false,
   belowAffiliateSlot,
   compactPadding = false,
   publicUrlForCopy,
+  mediaKitSlug,
   premiumAccess,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5, ease: 'easeOut' } }),
   } as const;
-  const PERIOD_OPTIONS = useMemo(
+  const comparisonToTimePeriod = COMPARISON_TO_TIME_PERIOD;
+  const normalizedInitialComparisonPeriod = normalizeComparisonPeriod(initialKpis?.comparisonPeriod);
+  const PERIOD_OPTIONS = useMemo<Array<{ value: ComparisonPeriodKey; label: string }>>(
     () => [
       { value: 'last_7d_vs_previous_7d', label: 'Últimos 7 dias' },
       { value: 'last_30d_vs_previous_30d', label: 'Últimos 30 dias' },
@@ -603,8 +1023,8 @@ export default function MediaKitView({
     ],
     []
   );
-  const [comparisonPeriod, setComparisonPeriod] = useState(
-    initialKpis?.comparisonPeriod || 'last_30d_vs_previous_30d'
+  const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriodKey>(
+    normalizedInitialComparisonPeriod
   );
   const [kpiData, setKpiData] = useState(initialKpis as any);
   const [kpiError, setKpiError] = useState<string | null>(null);
@@ -612,6 +1032,10 @@ export default function MediaKitView({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const { data: session } = useSession();
   const billingStatus = useBillingStatus({ auto: showOwnerCtas });
+  const stickyStartRef = useRef<HTMLDivElement | null>(null);
+  const stickyEndRef = useRef<HTMLDivElement | null>(null);
+  const [hasPassedStickyStart, setHasPassedStickyStart] = useState(false);
+  const [isStickyEndVisible, setIsStickyEndVisible] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -638,12 +1062,214 @@ export default function MediaKitView({
     fetchData();
   }, [comparisonPeriod, user?._id]);
 
-  const cardStyle = 'bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-pink-500';
+  const selectedPeriodLabel = useMemo(() => {
+    const option = PERIOD_OPTIONS.find((item) => item.value === comparisonPeriod);
+    return option?.label ?? 'Últimos 30 dias';
+  }, [PERIOD_OPTIONS, comparisonPeriod]);
+
+  const cardStyle = 'bg-white rounded-3xl border border-[#EAEAEA] shadow-sm p-5 sm:p-6';
+  const containerClass = compactPadding
+    ? 'max-w-4xl mx-auto px-4 py-6'
+    : 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10';
+  const sectionsWrapperClass = 'flex flex-col gap-4 sm:gap-3 lg:gap-2';
   const compactNumberFormat = (num: number | null | undefined) =>
     num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
+  const formatQuickStatValue = (value: number | null | undefined, type: 'number' | 'percent') => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '—';
+    if (type === 'percent') {
+      const precision = Math.abs(value) >= 10 ? 0 : 1;
+      return `${value.toFixed(precision)}%`;
+    }
+    return compactNumberFormat(value);
+  };
+  const formatMetricValue = (value: number | null | undefined) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '—';
+    return value.toLocaleString('pt-BR');
+  };
+  const displayKpis = kpiData as any;
+  const initialTrendPeriod =
+    comparisonToTimePeriod[normalizedInitialComparisonPeriod] ?? 'last_30_days';
+  const [engagementTrendState, setEngagementTrendState] = useState(engagementTrend);
+  const [currentTrendPeriod, setCurrentTrendPeriod] = useState<TrendPeriod>(initialTrendPeriod);
+
+  useEffect(() => {
+    const targetPeriod = comparisonToTimePeriod[comparisonPeriod] ?? initialTrendPeriod;
+    if (!user?._id || targetPeriod === currentTrendPeriod) return;
+
+    let cancelled = false;
+    async function fetchTrend() {
+      try {
+        const res = await fetch(
+          `/api/v1/users/${user._id}/trends/reach-engagement?timePeriod=${targetPeriod}&granularity=daily`,
+          { cache: 'no-store' }
+        );
+        if (!res.ok) {
+          console.error('Failed to fetch engagement trend', res.status);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) {
+          setEngagementTrendState(data);
+          setCurrentTrendPeriod(targetPeriod);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar engagement trend', error);
+      }
+    }
+
+    fetchTrend();
+    return () => {
+      cancelled = true;
+    };
+  }, [comparisonPeriod, user?._id, currentTrendPeriod, initialTrendPeriod, comparisonToTimePeriod]);
+
   const demographicSummary = useMemo(() => generateDemographicSummary(demographics), [demographics]);
+  const engagementSparklineData = useMemo(() => {
+    if (!engagementTrendState?.chartData) return [] as { date: string; rate: number }[];
+    const sanitized = engagementTrendState.chartData
+      .map((point) => {
+        const reachRaw = point?.reach;
+        const interactionsRaw = point?.totalInteractions;
+        const reach = typeof reachRaw === 'number' ? reachRaw : Number(reachRaw ?? 0);
+        const interactions = typeof interactionsRaw === 'number' ? interactionsRaw : Number(interactionsRaw ?? 0);
+        if (!Number.isFinite(reach) || reach <= 0) return null;
+        const safeInteractions = Number.isFinite(interactions) ? interactions : 0;
+        const rate = (safeInteractions / reach) * 100;
+        if (!Number.isFinite(rate)) return null;
+        return { date: point.date, rate: Math.max(rate, 0) };
+      })
+      .filter((item): item is { date: string; rate: number } => Boolean(item));
+    const maxPoints = 30;
+    return sanitized.length > maxPoints ? sanitized.slice(-maxPoints) : sanitized;
+  }, [engagementTrendState]);
+  const engagementSparklineValues = useMemo(
+    () => engagementSparklineData.map((point) => point.rate),
+    [engagementSparklineData]
+  );
+  const engagementTrendNarrative = useMemo(() => {
+    if (engagementTrendState?.insightSummary) return engagementTrendState.insightSummary;
+    const periodLabelLower = selectedPeriodLabel.toLocaleLowerCase('pt-BR');
+    if (engagementSparklineData.length === 0) {
+      return displayKpis?.insightSummary?.engagementRate ?? `${selectedPeriodLabel} via Data2Content AI.`;
+    }
+    const firstPoint = engagementSparklineData[0];
+    const lastPoint = engagementSparklineData[engagementSparklineData.length - 1];
+    if (!firstPoint || !lastPoint) {
+      return displayKpis?.insightSummary?.engagementRate ?? `${selectedPeriodLabel} via Data2Content AI.`;
+    }
+    const first = firstPoint.rate;
+    const last = lastPoint.rate;
+    const avg =
+      engagementSparklineData.reduce((sum, point) => sum + point.rate, 0) / engagementSparklineData.length;
+    const diff = last - first;
+    if (Math.abs(diff) < 0.15) {
+      return `A taxa de engajamento manteve-se estável (${avg.toFixed(1)}% de média) nos ${periodLabelLower}.`;
+    }
+    return `A taxa de engajamento ${diff > 0 ? 'subiu' : 'caiu'} ${Math.abs(diff).toFixed(
+      1
+    )} p.p. nos ${periodLabelLower} (média de ${avg.toFixed(1)}%).`;
+  }, [
+    engagementTrendState?.insightSummary,
+    engagementSparklineData,
+    displayKpis?.insightSummary?.engagementRate,
+    selectedPeriodLabel,
+  ]);
+  const engagementRateValue = displayKpis?.engagementRate?.currentValue ?? null;
+  const engagementRateDisplay = formatQuickStatValue(engagementRateValue, 'percent');
+  const engagementRateColor = engagementRateValue !== null ? 'text-[#D62E5E]' : 'text-gray-400';
+  const followerCountDisplay =
+    typeof user.followers_count === 'number' ? user.followers_count.toLocaleString('pt-BR') : '—';
+  const followersCountRaw = (user as any)?.followers_count;
+  const followersDisplay = useMemo(() => {
+    if (typeof followersCountRaw !== 'number' || !Number.isFinite(followersCountRaw) || followersCountRaw <= 0) {
+      return null;
+    }
+    return followersCountRaw.toLocaleString('pt-BR');
+  }, [followersCountRaw]);
+  const engagementRateHeroDisplay = useMemo(() => {
+    if (typeof engagementRateValue !== 'number' || !Number.isFinite(engagementRateValue)) return null;
+    const precision = Math.abs(engagementRateValue) >= 10 ? 0 : 1;
+    return `${engagementRateValue.toFixed(precision)}%`;
+  }, [engagementRateValue]);
+  const avgReachValue =
+    displayKpis?.avgReachPerPost?.currentValue ??
+    displayKpis?.avgViewsPerPost?.currentValue ??
+    null;
+  const avgReachDisplay = useMemo(() => {
+    if (typeof avgReachValue !== 'number' || !Number.isFinite(avgReachValue) || avgReachValue < 0) return null;
+    return new Intl.NumberFormat('pt-BR', {
+      notation: 'compact',
+      maximumFractionDigits: avgReachValue >= 1000 ? 1 : 0,
+    }).format(avgReachValue);
+  }, [avgReachValue]);
+  const heroMetrics = useMemo(
+    () =>
+      [
+        followersDisplay
+          ? {
+              key: 'followers',
+              icon: <Users className="h-4 w-4" />,
+              label: 'Seguidores',
+              value: followersDisplay,
+            }
+          : null,
+        engagementRateHeroDisplay
+          ? {
+              key: 'engagement',
+              icon: <Heart className="h-4 w-4" />,
+              label: 'Engajamento médio',
+              value: engagementRateHeroDisplay,
+            }
+          : null,
+        avgReachDisplay
+          ? {
+              key: 'reach',
+              icon: <Eye className="h-4 w-4" />,
+              label: 'Alcance por post',
+              value: avgReachDisplay,
+            }
+          : null,
+      ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; label: string; value: string }>,
+    [avgReachDisplay, engagementRateHeroDisplay, followersDisplay]
+  );
 
   const isPublicView = !showOwnerCtas;
+  useEffect(() => {
+    if (!isPublicView) {
+      setHasPassedStickyStart(false);
+      return;
+    }
+    const target = stickyStartRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        setHasPassedStickyStart(!entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '-40% 0px 0px 0px' }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [isPublicView]);
+
+  useEffect(() => {
+    if (!isPublicView) {
+      setIsStickyEndVisible(false);
+      return;
+    }
+    const target = stickyEndRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        setIsStickyEndVisible(entry.isIntersecting);
+      },
+      { threshold: 0 }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [isPublicView]);
+
   const baseVisibilityMode = premiumAccess?.visibilityMode ?? 'lock';
   const visibilityMode = isPublicView ? 'hide' : baseVisibilityMode;
   const canViewPremiumSections = premiumAccess?.canViewCategories ?? true;
@@ -668,6 +1294,7 @@ export default function MediaKitView({
       : "Ative o modo PRO para destravar os principais insights sobre formatos, contextos e horários.";
   const lockedViewTrackedRef = useRef(false);
   const topPostsLockedViewTrackedRef = useRef(false);
+  const topPostsScrollRef = useRef<HTMLDivElement | null>(null);
 
   // ✅ Bio com a mesma regra do componente antigo + fallbacks
   const bioText = useMemo(() => {
@@ -675,6 +1302,28 @@ export default function MediaKitView({
     const directSummary = typeof (summary as any)?.biography === 'string' ? (summary as any).biography.trim() : '';
     return directUser || directSummary || extractIgBio(user) || extractIgBio(summary) || '';
   }, [user, summary]);
+  const heroBio = useMemo(() => {
+    if (!bioText) return null;
+    const normalized = bioText.replace(/\s+/g, ' ').trim();
+    if (!normalized) return null;
+    return normalized.length > 180 ? `${normalized.slice(0, 177).trim()}…` : normalized;
+  }, [bioText]);
+  const heroTagline = useMemo(() => {
+    const candidates = [
+      (user as any)?.headline,
+      (user as any)?.mission,
+      (user as any)?.valueProp,
+      (user as any)?.title,
+      (user as any)?.occupation,
+    ];
+    const found = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
+    if (!found) return null;
+    const cleaned = found.trim().replace(/^["“]+|["”]+$/g, '');
+    if (heroBio && cleaned.toLowerCase() === heroBio.toLowerCase()) {
+      return null;
+    }
+    return cleaned.length > 120 ? `${cleaned.slice(0, 117).trim()}…` : cleaned;
+  }, [heroBio, user]);
 
   const demographicBreakdowns = useMemo(() => {
     if (!demographics?.follower_demographics) return null as any;
@@ -692,6 +1341,60 @@ export default function MediaKitView({
       location: calculatePercentages(city), // lista completa; exibimos top 3 no card
     };
   }, [demographics]);
+  const topGenderBreakdown = useMemo(
+    () => (demographicBreakdowns?.gender ? demographicBreakdowns.gender.slice(0, 3) : []),
+    [demographicBreakdowns]
+  );
+  const topAgeBreakdown = useMemo(
+    () => (demographicBreakdowns?.age ? demographicBreakdowns.age.slice(0, 3) : []),
+    [demographicBreakdowns]
+  );
+  const topLocationBreakdown = useMemo(
+    () => (demographicBreakdowns?.location ? demographicBreakdowns.location.slice(0, 3) : []),
+    [demographicBreakdowns]
+  );
+  const demographicHighlights = useMemo(() => {
+    const entries: Array<{ key: string; icon: React.ReactNode; title: string; value: string }> = [];
+    if (topGenderBreakdown[0]) {
+      const label = genderLabelMap[topGenderBreakdown[0].label.toLowerCase()] || topGenderBreakdown[0].label;
+      entries.push({
+        key: 'gender-primary',
+        icon: <Users className="h-4 w-4 text-[#D62E5E]" />,
+        title: label,
+        value: `${Math.round(topGenderBreakdown[0].percentage)}% do público`,
+      });
+    }
+    if (topGenderBreakdown[1]) {
+      const label = genderLabelMap[topGenderBreakdown[1].label.toLowerCase()] || topGenderBreakdown[1].label;
+      entries.push({
+        key: 'gender-secondary',
+        icon: <Users className="h-4 w-4 text-[#6E1F93]" />,
+        title: label,
+        value: `${Math.round(topGenderBreakdown[1].percentage)}%`,
+      });
+    }
+    if (topLocationBreakdown[0]) {
+      const second = topLocationBreakdown[1]?.label;
+      const locationLabel = second
+        ? `${topLocationBreakdown[0].label} & ${second}`
+        : topLocationBreakdown[0].label;
+      entries.push({
+        key: 'location',
+        icon: <MapPin className="h-4 w-4 text-[#D62E5E]" />,
+        title: locationLabel,
+        value: `${Math.round(topLocationBreakdown[0].percentage)}% do público`,
+      });
+    }
+    if (topAgeBreakdown[0]) {
+      entries.push({
+        key: 'age',
+        icon: <CalendarDays className="h-4 w-4 text-[#6E1F93]" />,
+        title: topAgeBreakdown[0].label,
+        value: `${Math.round(topAgeBreakdown[0].percentage)}% dos seguidores`,
+      });
+    }
+    return entries;
+  }, [topAgeBreakdown, topGenderBreakdown, topLocationBreakdown]);
 
   const videosWithCorrectStats = useMemo(() => {
     if (!Array.isArray(videos)) return [] as VideoListItem[];
@@ -710,8 +1413,144 @@ export default function MediaKitView({
       return newVideo;
     });
   }, [videos]);
+  const [hasCopiedLink, setHasCopiedLink] = useState(false);
+  const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heroDescriptor = useMemo(() => {
+    const candidates = [
+      (user as any)?.headline,
+      (user as any)?.title,
+      (user as any)?.occupation,
+      (user as any)?.profession,
+      (user as any)?.category,
+      (user as any)?.bioTitle,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length) {
+        return candidate.trim();
+      }
+    }
+    return '';
+  }, [user]);
+  const heroLocationLabel = useMemo(() => {
+    const locationParts = [
+      (user as any)?.city,
+      (user as any)?.state,
+      (user as any)?.country,
+    ].filter((part) => typeof part === 'string' && part.trim().length) as string[];
+    return locationParts.length ? locationParts.join(', ') : '';
+  }, [user]);
+  const contactEmail = useMemo(() => {
+    const email = (user as any)?.email;
+    if (typeof email === 'string' && email.includes('@')) return email;
+    return null;
+  }, [user]);
+  const handleShareClick = useCallback(async () => {
+    const shareUrl = publicUrlForCopy || (typeof window !== 'undefined' ? window.location.href : '');
+    if (!shareUrl || typeof navigator === 'undefined') return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: user?.name ? `Media Kit de ${user.name}` : 'Media Kit',
+          url: shareUrl,
+        });
+        return;
+      }
+    } catch {
+      // fallback to clipboard copy
+    }
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setHasCopiedLink(true);
+        if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
+        copyFeedbackTimeout.current = setTimeout(() => setHasCopiedLink(false), 2000);
+      } catch {
+        // ignore clipboard errors silently
+      }
+    }
+  }, [publicUrlForCopy, user?.name]);
+  useEffect(
+    () => () => {
+      if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
+    },
+    []
+  );
+  const isTopPostsLocked = !canViewCategories && visibilityMode === 'lock';
+  const quickStats = useMemo(
+    () => [
+      {
+        key: 'reach',
+        label: 'Alcance médio',
+        icon: <Eye className="h-5 w-5" />,
+        value: displayKpis?.avgReachPerPost?.currentValue ?? displayKpis?.avgViewsPerPost?.currentValue ?? null,
+        change: displayKpis?.avgReachPerPost?.percentageChange ?? displayKpis?.avgViewsPerPost?.percentageChange ?? null,
+        type: 'number' as const,
+        detail: 'por post',
+      },
+      {
+        key: 'engagement',
+        label: 'Taxa de engajamento',
+        icon: <Heart className="h-5 w-5" />,
+        value: displayKpis?.engagementRate?.currentValue ?? null,
+        change: displayKpis?.engagementRate?.percentageChange ?? null,
+        type: 'percent' as const,
+        detail: 'média do período',
+      },
+      {
+        key: 'frequency',
+        label: 'Posts semanais',
+        icon: <CalendarDays className="h-5 w-5" />,
+        value: displayKpis?.postingFrequency?.currentValue ?? null,
+        change: displayKpis?.postingFrequency?.percentageChange ?? null,
+        type: 'number' as const,
+        detail: 'ritmo de publicação',
+      },
+      {
+        key: 'followers',
+        label: 'Crescimento',
+        icon: <Users className="h-5 w-5" />,
+        value: displayKpis?.followerGrowth?.currentValue ?? null,
+        change: displayKpis?.followerGrowth?.percentageChange ?? null,
+        type: 'number' as const,
+        detail: 'seguidores',
+      },
+    ],
+    [displayKpis]
+  );
+  const topPostsIntro = useMemo(() => {
+    if (isTopPostsLocked) {
+      return 'Prévia dos posts mais recentes. Ative o modo PRO para destravar a análise completa.';
+    }
+    if (!canViewCategories && visibilityMode === 'hide') {
+      return 'Os posts com melhor desempenho aparecem, mas as categorias detalhadas estão ocultas nesta visualização.';
+    }
+    return 'Os posts que mais engajaram no período, com métricas prontas para apresentar.';
+  }, [isTopPostsLocked, canViewCategories, visibilityMode]);
+  const topPostsForCarousel = useMemo(() => {
+    if (!Array.isArray(videosWithCorrectStats)) return [];
+    const maxItems = Math.min(5, videosWithCorrectStats.length);
+    return videosWithCorrectStats.slice(0, maxItems);
+  }, [videosWithCorrectStats]);
+  const visibleTopPosts = useMemo(
+    () => (isTopPostsLocked ? topPostsForCarousel.slice(0, 3) : topPostsForCarousel),
+    [isTopPostsLocked, topPostsForCarousel]
+  );
+  const handleTopPostsWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    const container = topPostsScrollRef.current;
+    if (!container) return;
+    if (container.scrollWidth <= container.clientWidth) return;
 
-  const displayKpis = kpiData as any;
+    const dominantDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (dominantDelta === 0) return;
+
+    const previousScrollLeft = container.scrollLeft;
+    container.scrollLeft += dominantDelta;
+    const scrolled = container.scrollLeft !== previousScrollLeft;
+
+    if (scrolled && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+    }
+  }, []);
 
   useEffect(() => {
     if (showOwnerCtas && shouldLockPremiumSections && !lockedViewTrackedRef.current) {
@@ -732,8 +1571,51 @@ export default function MediaKitView({
       topPostsLockedViewTrackedRef.current = false;
     }
   }, [showOwnerCtas, canViewCategories, visibilityMode]);
-
   // Dono do Mídia Kit: considera o planStatus da sessão para esconder o CTA de assinatura
+  const affiliateCode = useMemo(() => {
+    const raw = (user as any)?.affiliateCode;
+    return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
+  }, [user]);
+  const affiliateHandle = useMemo(() => {
+    const candidates = [
+      (user as any)?.username,
+      (user as any)?.instagramUsername,
+      (user as any)?.instagram?.username,
+      (user as any)?.handle,
+    ];
+    const firstValid = candidates.find((value) => typeof value === 'string' && value.trim().length > 0);
+    return firstValid ? firstValid.trim() : null;
+  }, [user]);
+  const affiliateHandleLabel = useMemo(() => {
+    if (!affiliateHandle) return '@criador';
+    return affiliateHandle.startsWith('@') ? affiliateHandle : `@${affiliateHandle}`;
+  }, [affiliateHandle]);
+  const affiliateLink = useMemo(() => {
+    if (!affiliateCode) return null;
+    return buildAffiliateSignupLink({
+      affiliateCode,
+      mediaKitSlug,
+      affiliateHandle,
+    });
+  }, [affiliateCode, affiliateHandle, mediaKitSlug]);
+  const multiCampaignLink = useMemo(() => {
+    const params = new URLSearchParams({
+      utm_source: 'mediakit',
+      utm_medium: 'multi_campaign_cta',
+      utm_campaign: mediaKitSlug || 'public',
+    });
+    if (affiliateHandle) params.set('origin_handle', affiliateHandle);
+    if (mediaKitSlug) params.set('origin_slug', mediaKitSlug);
+    if (affiliateCode) params.set('origin_affiliate', affiliateCode);
+    return `/campaigns/new?${params.toString()}`;
+  }, [affiliateCode, affiliateHandle, mediaKitSlug]);
+  const handleMultiCampaignCtaClick = useCallback(() => {
+    track('media_kit_multi_campaign_cta_clicked', {
+      slug: mediaKitSlug ?? null,
+      handle: affiliateHandle ?? null,
+      affiliateCode: affiliateCode ?? null,
+    });
+  }, [affiliateCode, affiliateHandle, mediaKitSlug]);
   const isSubscribed = useMemo(() => {
     if (billingStatus.hasPremiumAccess) return true;
     return isPlanActiveLike((session?.user as any)?.planStatus);
@@ -758,291 +1640,637 @@ export default function MediaKitView({
     track('media_kit_top_posts_trial_cta_clicked', { surface: 'media_kit_top_posts' });
     premiumAccess?.onRequestUpgrade?.();
   }, [premiumAccess]);
+  const [isProposalDrawerOpen, setProposalDrawerOpen] = useState(false);
+  const proposalDrawerTitleId = useId();
+  const openProposalDrawer = useCallback(() => {
+    setProposalDrawerOpen(true);
+    track('media_kit_proposal_cta_opened', {
+      slug: mediaKitSlug ?? null,
+      handle: affiliateHandle ?? null,
+    });
+  }, [affiliateHandle, mediaKitSlug]);
+  const closeProposalDrawer = useCallback(() => {
+    setProposalDrawerOpen(false);
+    track('media_kit_proposal_drawer_closed', {
+      slug: mediaKitSlug ?? null,
+    });
+  }, [mediaKitSlug]);
+  const handleProposalSuccess = useCallback(() => {
+    // Mantém o drawer aberto para exibir a mensagem de sucesso na própria UI.
+  }, []);
+  useEffect(() => {
+    if (!isProposalDrawerOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeProposalDrawer();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [closeProposalDrawer, isProposalDrawerOpen]);
+  const stickyEligible = Boolean(isPublicView && mediaKitSlug) && !isCitiesModalOpen && selectedPostId === null;
+  const stickyVisible = stickyEligible && hasPassedStickyStart && !isStickyEndVisible && !isProposalDrawerOpen;
+  const mainContainerClass = `${containerClass} ${stickyVisible ? 'pb-28 sm:pb-36' : ''}`;
+  const handleStickyProposalClick = useCallback(() => {
+    track('media_kit_proposal_sticky_clicked', {
+      slug: mediaKitSlug ?? null,
+      handle: affiliateHandle ?? null,
+    });
+    openProposalDrawer();
+  }, [affiliateHandle, mediaKitSlug, openProposalDrawer]);
+  const handleStickyAffiliateClick = useCallback(() => {
+    if (!affiliateLink) return;
+    track('media_kit_affiliate_sticky_clicked', {
+      slug: mediaKitSlug ?? null,
+      handle: affiliateHandle ?? null,
+      affiliateCode,
+    });
+  }, [affiliateCode, affiliateHandle, affiliateLink, mediaKitSlug]);
 
   return (
     <GlobalTimePeriodProvider>
-      <div className="bg-white min-h-screen font-sans">
-        <div className={compactPadding ? "max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-2 sm:pt-3 lg:pt-4 pb-8" : "max-w-7xl mx-auto p-4 sm:p-6 lg:p-8"}>
-          {isOwner && (
-            <>
-              <SubscribeCtaBanner isSubscribed={isSubscribed} className="mt-6 sm:mt-8 lg:mt-12" />
-            </>
-          )}
+      <div className="bg-[#FAFAFB] min-h-screen font-sans text-gray-900">
+        <div className={mainContainerClass}>
+          <div className={sectionsWrapperClass}>
+            <motion.section
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              custom={0}
+              className="relative overflow-hidden rounded-3xl border border-[#E6E2F3] bg-gradient-to-b from-[#F9F9FB] via-white to-white px-6 py-6 text-[#1C1C1E] shadow-md sm:px-8 sm:py-8"
+            >
+              <button
+                type="button"
+                onClick={handleShareClick}
+                className="absolute right-5 top-5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-[#6E1F93] shadow-sm transition hover:bg-white"
+                aria-label="Compartilhar mídia kit"
+              >
+                <Share2 className="h-5 w-5" />
+              </button>
+              {hasCopiedLink && (
+                <span className="absolute right-20 top-5 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#6E1F93] shadow-sm">
+                  Link copiado!
+                </span>
+              )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
-            <aside className="lg:col-span-1 space-y-8 lg:sticky lg:top-8 self-start">
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0} className={cardStyle}>
-                <div className="flex flex-col items-center text-center gap-4">
-                  <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={96} />
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-800">{user.name}</h1>
-                    {user.username && <p className="text-gray-500 text-lg">@{user.username}</p>}
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+                  <div className="rounded-full border-2 border-white bg-white p-1 shadow-md">
+                    <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={128} />
+                  </div>
+                  <div className="space-y-3 text-center sm:text-left">
+                    <div className="space-y-1">
+                      <h1 className="text-2xl font-bold sm:text-3xl">{user.name || 'Criador'}</h1>
+                      <div className="flex flex-col items-center gap-1 text-sm text-gray-500 sm:flex-row sm:items-center sm:gap-2">
+                        {user.username ? <span>@{user.username}</span> : null}
+                        <span className={`${user.username ? 'hidden sm:inline' : 'hidden'} text-gray-300`}>•</span>
+                        <span className="font-semibold text-[#6E1F93]">Parceiro Data2Content</span>
+                      </div>
+                      <p className="text-xs text-gray-500 sm:text-sm">Análises e campanhas com IA.</p>
+                      {heroDescriptor ? (
+                        <p className="text-xs text-gray-400 sm:text-sm">{heroDescriptor}</p>
+                      ) : null}
+                      {heroLocationLabel ? (
+                        <p className="text-xs text-gray-400 sm:text-sm">{heroLocationLabel}</p>
+                      ) : null}
+                    </div>
+                    {heroBio ? (
+                      <p className="text-sm leading-relaxed text-gray-600">{heroBio}</p>
+                    ) : null}
+                    {heroTagline ? (
+                      <p className="text-sm italic text-[#4A3C65]">
+                        “{heroTagline}”
+                      </p>
+                    ) : null}
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-4 flex items-center justify-center gap-3">
-                  {user?.email && (
-                    <a href={`mailto:${user.email}`} className="bg-black text-white text-sm px-3 py-2 rounded-md">
-                      Fale comigo
-                    </a>
-                  )}
+              {heroMetrics.length ? (
+                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {heroMetrics.map((metric) => (
+                    <div
+                      key={metric.key}
+                      className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6E1F93]/10 text-[#6E1F93]">
+                        {metric.icon}
+                      </span>
+                      <div className="text-left">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{metric.label}</p>
+                        <p className="text-sm font-semibold text-[#1C1C1E]">{metric.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </motion.section>
+
+            {showOwnerCtas && publicUrlForCopy ? (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.05}
+                className={`${cardStyle} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}
+              >
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
+                    Link do mídia kit
+                  </p>
+                  <p className="mt-1 break-all text-sm text-gray-700">{publicUrlForCopy}</p>
+                </div>
+                <div className="flex sm:flex-col sm:items-end gap-2">
                   <button
-                    className="border text-sm px-3 py-2 rounded-md"
-                    onClick={() => navigator.clipboard.writeText(publicUrlForCopy || window.location.href)}
+                    type="button"
+                    onClick={handleShareClick}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#6E1F93]/10 px-4 py-2 text-xs font-semibold text-[#5a1a78] transition hover:bg-[#6E1F93]/15"
                   >
                     Copiar link
                   </button>
+                  <span className="text-xs text-gray-500 sm:text-right">
+                    Compartilhe este link com marcas e parceiros.
+                  </span>
                 </div>
+              </motion.section>
+            ) : null}
 
-                {/* ✅ BIO DO INSTAGRAM — mesma lógica do arquivo antigo + fallbacks */}
-                {bioText && (
-                  <p className="text-gray-600 mt-5 text-center whitespace-pre-line font-light max-w-[60ch] mx-auto leading-relaxed">
-                    {bioText}
-                  </p>
-                )}
+            {isPublicView ? (
+              <div ref={stickyStartRef} className="h-px w-full" aria-hidden="true" />
+            ) : null}
+
+            {isOwner && (
+              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.1}>
+                <SubscribeCtaBanner
+                  isSubscribed={isSubscribed}
+                  className="rounded-3xl border border-[#EAEAEA] bg-white shadow-sm"
+                />
               </motion.div>
+            )}
 
-              {demographics && demographicBreakdowns && (
-                <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={1} className={cardStyle}>
-                  <h2 className="text-xl font-bold text-gray-800 mb-4">Demografia do Público</h2>
-                  <div className="mb-6 p-3 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
-                    <Lightbulb className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                    <span>{demographicSummary}</span>
+            {demographics && demographicBreakdowns && (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.2}
+                className={`${cardStyle} space-y-5`}
+              >
+                <div className="space-y-2 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Quem é o público</p>
+                  <h2 className="text-2xl font-bold text-gray-900">Audiência & demografia</h2>
+                  <p className="text-sm leading-relaxed text-gray-600">{demographicSummary}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {demographicHighlights.map((item) => (
+                    <div key={item.key} className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#FAFAFB]">
+                        {item.icon}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#1C1C1E]">{item.title}</p>
+                        <p className="text-xs text-gray-500">{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {topLocationBreakdown.length > 0 ? (
+                  <div className="rounded-xl border border-[#EAEAEA] bg-[#FAFAFB] p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <MapPin className="h-4 w-4 text-[#D62E5E]" />
+                      Principais cidades
+                    </div>
+                    <ul className="mt-3 space-y-2 text-xs text-gray-600">
+                      {topLocationBreakdown.map((item: { label: string; percentage: number }) => (
+                        <li key={item.label} className="flex items-center justify-between">
+                          <span className="font-medium text-gray-700">{item.label}</span>
+                          <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {demographicBreakdowns.location.length > 3 ? (
+                      <button
+                        type="button"
+                        className="mt-3 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+                        onClick={() => setCitiesModalOpen(true)}
+                      >
+                        Ver mais cidades ▸
+                      </button>
+                    ) : null}
                   </div>
-                  <div className="space-y-5">
-                    {demographicBreakdowns.gender.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Gênero</h3>
-                        <div className="space-y-1">
-                          {demographicBreakdowns.gender.map((item: any) => (
-                            <div key={item.label} className="flex items-center justify-between text-xs py-0.5">
-                              <span className="text-gray-600">{genderLabelMap[item.label.toLowerCase()] || item.label}</span>
-                              <div className="flex items-center gap-2 w-2/3">
-                                <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
-                                  <div
-                                    className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500"
-                                    style={{ width: `${item.percentage}%` }}
-                                  />
-                                </div>
-                                <span className="font-semibold text-gray-800">{item.percentage.toFixed(1)}%</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {demographicBreakdowns.age.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Faixas Etárias</h3>
-                        <div className="space-y-1">
-                          {demographicBreakdowns.age.map((item: any) => (
-                            <div key={item.label} className="flex items-center justify-between text-xs py-0.5">
-                              <span className="text-gray-600">{item.label}</span>
-                              <div className="flex items-center gap-2 w-2/3">
-                                <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
-                                  <div
-                                    className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500"
-                                    style={{ width: `${item.percentage}%` }}
-                                  />
-                                </div>
-                                <span className="font-semibold text-gray-800">{item.percentage.toFixed(1)}%</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {demographicBreakdowns.location.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-sm font-semibold text-gray-700">Cidades</h3>
-                          {demographicBreakdowns.location.length > 3 && (
-                            <button
-                              type="button"
-                              className="text-xs text-pink-600 hover:text-pink-700"
-                              onClick={() => setCitiesModalOpen(true)}
-                            >
-                              Ver mais
-                            </button>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          {demographicBreakdowns.location.slice(0,3).map((item: any) => (
-                            <div key={item.label} className="flex items-center justify-between text-xs py-0.5">
-                              <span className="text-gray-600">{item.label}</span>
-                              <div className="flex items-center gap-2 w-2/3">
-                                <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
-                                  <div
-                                    className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500"
-                                    style={{ width: `${item.percentage}%` }}
-                                  />
-                                </div>
-                                <span className="font-semibold text-gray-800">{item.percentage.toFixed(1)}%</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
+                ) : null}
+              </motion.section>
+            )}
 
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2} className={cardStyle}>
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">Performance</h2>
-                  <select
-                    className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-pink-500 focus:border-pink-500"
-                    value={comparisonPeriod}
-                    onChange={(e) => setComparisonPeriod(e.target.value)}
-                    disabled={isLoading}
+            <motion.section
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              custom={0.3}
+              className={`${cardStyle} space-y-6`}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Como ele performa</p>
+                  <h2 className="text-2xl font-bold text-gray-900">Performance geral</h2>
+                  <p className="text-sm text-gray-600">
+                    Resumo dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')}.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="comparisonPeriod"
+                    className="text-xs font-semibold uppercase tracking-wide text-gray-500"
                   >
-                    {PERIOD_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                    Período
+                  </label>
+                  <select
+                    id="comparisonPeriod"
+                    value={comparisonPeriod}
+                    onChange={(event) => setComparisonPeriod(normalizeComparisonPeriod(event.target.value))}
+                    className="rounded-full border border-[#EAEAEA] bg-[#FAFAFB] px-4 py-2 text-xs font-semibold text-gray-700 focus:border-[#6E1F93] focus:outline-none"
+                  >
+                    {PERIOD_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
                 </div>
-                {kpiError && (
-                  <div className="mb-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2">
-                    {kpiData ? 'Mostrando últimos dados válidos. ' : ''}
-                    {kpiError}
-                  </div>
-                )}
-                {isLoading ? (
-                  <div className="space-y-4">
-                    <MetricSkeletonRow />
-                    <div className="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-11/12" />
-                      <Skeleton className="h-4 w-10/12" />
-                      <Skeleton className="h-4 w-9/12" />
-                    </div>
-                  </div>
-                ) : !displayKpis ? (
-                  <div className="flex flex-col justify-center items-center h-64 text-center text-gray-600">
-                    <p className="text-sm">Conecte seu Instagram para ver seus KPIs aqui.</p>
-                    <div className="mt-5 w-full max-w-md">
-                      <MetricSkeletonRow />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="transition-opacity duration-300">
-                    <div className="mb-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Números-Chave</h3>
-                      <div className="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 p-2 rounded-lg">
-                        <KeyMetric icon={<Users size={18} />} value={compactNumberFormat(displayKpis?.avgReachPerPost?.currentValue)} label="Alcance Médio" />
-                        <KeyMetric icon={<Heart size={18} />} value={`${displayKpis?.engagementRate?.currentValue?.toFixed?.(2) ?? '0'}%`} label="Taxa de Engaj." />
-                        <KeyMetric icon={<Calendar size={18} />} value={`${displayKpis?.postingFrequency?.currentValue?.toFixed?.(1) ?? '0'}`} label="Posts/Semana" />
-                      </div>
-                      <div className="mt-1 text-[11px] text-gray-500">
-                        Cálculo da taxa: interações totais ÷ alcance total no período.
-                      </div>
-                    </div>
+              </div>
 
-                    <div className="mb-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Médias Detalhadas por Post</h3>
-                      <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="space-y-1">
-                          <AverageMetricRow icon={<Eye className="w-4 h-4" />} label="Visualizações" value={displayKpis?.avgViewsPerPost?.currentValue} />
-                          <AverageMetricRow icon={<Heart className="w-4 h-4" />} label="Curtidas" value={displayKpis?.avgLikesPerPost?.currentValue} />
-                          <AverageMetricRow icon={<MessageSquare className="w-4 h-4" />} label="Comentários" value={displayKpis?.avgCommentsPerPost?.currentValue} />
-                          <AverageMetricRow icon={<Share2 className="w-4 h-4" />} label="Compartilhamentos" value={displayKpis?.avgSharesPerPost?.currentValue} />
-                          <AverageMetricRow icon={<Bookmark className="w-4 h-4" />} label="Salvos" value={displayKpis?.avgSavesPerPost?.currentValue} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {displayKpis?.followerGrowth && (
-                      <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
-                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                          {user.followers_count !== undefined && (
-                            <p className="text-2xl font-bold text-gray-900 mt-1">{user.followers_count.toLocaleString('pt-BR')}</p>
-                          )}
-                          <p className="text-xs text-gray-500">Seguidores totais</p>
-                          <p className="text-sm text-gray-700 mt-3 flex items-center">
-                            <KpiValue value={displayKpis.followerGrowth?.currentValue} type="number" />
-                            <TrendIndicator value={displayKpis.followerGrowth?.percentageChange} />
-                            <span className="ml-1 text-gray-500">no período</span>
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            </aside>
-
-            <main className="lg:col-span-2 space-y-8">
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.5} className={cardStyle}>
-                <div className="flex items-center gap-3 mb-6">
-                  <Trophy className="w-6 h-6 text-pink-500" />
-                  <h2 className="text-2xl font-bold text-gray-800">Top Posts em Performance</h2>
+              {kpiError && (
+                <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {kpiError}
                 </div>
+              )}
 
-                {videosWithCorrectStats.length === 0 ? (
-                  <div>
-                    <p className="text-gray-600 mb-6 font-light">
-                      Conecte seu Instagram para ver seus posts com melhor desempenho aqui.
-                    </p>
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
+              {isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-32 w-full rounded-2xl" />
+                  <MetricSkeletonRow />
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl bg-[#FAFAFB] p-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {quickStats.map((metric) => (
+                        <div key={metric.key} className="rounded-xl bg-white p-4 text-center shadow-sm">
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#FFE7EC] text-[#D62E5E]">
+                            {metric.icon}
+                          </div>
+                          <span className="mt-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            {metric.label}
+                          </span>
+                          <p className="mt-1 text-xl font-semibold text-[#D62E5E]">
+                            {formatQuickStatValue(metric.value, metric.type)}
+                          </p>
+                          <div className="mt-1 flex items-center justify-center">
+                            <TrendIndicator value={metric.change} showValue={false} />
+                          </div>
+                          <p className="mt-1 text-xs text-gray-400">{metric.detail}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <p className="text-gray-600 mb-4 font-light">
-                      {canViewCategories ? (
-                        <>
-                          Uma amostra do conteúdo de maior impacto{' '}
-                          <span className="font-medium text-gray-700">— clique em um post para ver a análise detalhada.</span>
-                        </>
-                      ) : visibilityMode === 'lock' ? (
-                        <>Veja os posts que mais performaram e ative o modo PRO para entender as categorias, desbloquear a análise detalhada e descobrir o que impulsiona esses resultados.</>
-                      ) : (
-                        <>Veja os posts que mais performaram. Este criador utiliza o plano gratuito, portanto categorias detalhadas e análise completa não estão disponíveis nesta visualização.</>
-                      )}
-                    </p>
-                    {!canViewCategories && visibilityMode === 'lock' && (
-                      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                        <button
-                          type="button"
-                          onClick={handleTopPostsCtaClick}
-                          className="inline-flex items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
-                        >
-                          Descobrir o que mais faz meus posts crescerem (Ativar trial 48h)
-                        </button>
-                        {categorySubtitle ? (
-                          <p className="text-xs text-gray-500 sm:text-right">{categorySubtitle}</p>
-                        ) : null}
-                      </div>
-                    )}
-                    <VideosTable
-                      videos={videosWithCorrectStats}
-                      readOnly
-                      onRowClick={canViewCategories ? setSelectedPostId : undefined}
-                      followersCount={user?.followers_count ?? (user as any)?.followersCount ?? 0}
-                      showStrategyTags={visibilityMode === 'hide' ? true : canViewCategories}
-                      strategyMode={visibilityMode}
-                    />
-                  </>
-                )}
-              </motion.div>
-            </main>
-          </div>
 
-          <div className="mt-8 space-y-8 lg:mt-10 lg:space-y-10">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-[#EAEAEA] bg-white p-4 shadow-sm">
+                      <h3 className="text-sm font-semibold text-gray-800">Médias por post</h3>
+                      <div className="mt-3 space-y-2">
+                        <AverageMetricRow
+                          icon={<Eye className="h-4 w-4 text-[#6E1F93]" />}
+                          label="Visualizações"
+                          value={displayKpis?.avgViewsPerPost?.currentValue}
+                        />
+                        <AverageMetricRow
+                          icon={<Heart className="h-4 w-4 text-[#6E1F93]" />}
+                          label="Curtidas"
+                          value={displayKpis?.avgLikesPerPost?.currentValue}
+                        />
+                        <AverageMetricRow
+                          icon={<MessageSquare className="h-4 w-4 text-[#6E1F93]" />}
+                          label="Comentários"
+                          value={displayKpis?.avgCommentsPerPost?.currentValue}
+                        />
+                        <AverageMetricRow
+                          icon={<Share2 className="h-4 w-4 text-[#6E1F93]" />}
+                          label="Compartilhamentos"
+                          value={displayKpis?.avgSharesPerPost?.currentValue}
+                        />
+                        <AverageMetricRow
+                          icon={<Bookmark className="h-4 w-4 text-[#6E1F93]" />}
+                          label="Salvos"
+                          value={displayKpis?.avgSavesPerPost?.currentValue}
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-[#EAEAEA] bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-800">Taxa de engajamento</h3>
+                          <div className="mt-2 flex items-baseline gap-2">
+                            <span className={`text-3xl font-bold ${engagementRateColor}`}>
+                              {engagementRateDisplay}
+                            </span>
+                            <TrendIndicator value={displayKpis?.engagementRate?.percentageChange ?? null} />
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-[#FFF1F4] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#D62E5E]">
+                          {selectedPeriodLabel}
+                        </span>
+                      </div>
+                      <div className="mt-4 h-[70px] w-full overflow-hidden rounded-xl bg-[#FAFAFB]">
+                        <SparklineChart values={engagementSparklineValues} />
+                      </div>
+                      <p className="mt-3 text-xs text-gray-500">
+                        {engagementTrendNarrative}
+                      </p>
+                      <div className="mt-4 rounded-xl bg-[#FAFAFB] p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Base atual</p>
+                        <p className="mt-1 text-sm font-semibold text-[#1C1C1E]">{followerCountDisplay}</p>
+                        <p className="text-[11px] text-gray-400">Seguidores totais no Instagram</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <p className="text-xs text-gray-500">
+                Média dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')} via Data2Content AI.
+              </p>
+            </motion.section>
+
+            <motion.section
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              custom={0.4}
+              className={`${cardStyle} space-y-5`}
+            >
+              <div className="space-y-2 text-left">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
+                  Conteúdo real em destaque
+                </p>
+                <h2 className="text-2xl font-bold text-gray-900">Top posts</h2>
+                <p className="text-sm text-gray-600">{topPostsIntro}</p>
+              </div>
+
+              {videosWithCorrectStats.length === 0 ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-64 w-full rounded-3xl" />
+                  <Skeleton className="h-64 w-full rounded-3xl" />
+                </div>
+              ) : (
+                <div className="relative">
+                  <p className="mb-3 text-xs font-medium text-gray-500">
+                    Os conteúdos abaixo tiveram desempenho acima da média — ótimos para apresentar em propostas comerciais.
+                  </p>
+                  <div
+                    ref={topPostsScrollRef}
+                    onWheel={handleTopPostsWheel}
+                    className={`flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pr-6 sm:pr-8 lg:pr-12 ${
+                      isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''
+                    }`}
+                  >
+                    {visibleTopPosts.map((video, index) => {
+                      const captionPreview = truncateCaption(video.caption, 140) ?? 'Conteúdo em destaque';
+                      const dateLabel = formatDateLabel(video.postDate);
+                      const formatLabel = Array.isArray(video.format) ? video.format[0] : undefined;
+                      const contextLabel = Array.isArray(video.context) ? video.context[0] : undefined;
+                      const proposalLabel = Array.isArray(video.proposal) ? video.proposal[0] : undefined;
+                      const toneLabel = Array.isArray(video.tone) ? video.tone[0] : undefined;
+                      const formattedViews = formatMetricValue(
+                        (video.stats?.views ?? (video.stats as any)?.reach ?? null) as number | null | undefined
+                      );
+                      const formattedLikes = formatMetricValue((video.stats as any)?.likes ?? (video.stats as any)?.like_count);
+                      const formattedComments = formatMetricValue(video.stats?.comments);
+                      const formattedShares = formatMetricValue((video.stats as any)?.shares ?? (video.stats as any)?.share_count);
+                      const formattedSaves = formatMetricValue(video.stats?.saves);
+                      const tagMeta = [
+                        formatLabel ? { type: 'format' as const, value: formatLabel } : null,
+                        contextLabel ? { type: 'context' as const, value: contextLabel } : null,
+                        proposalLabel ? { type: 'proposal' as const, value: proposalLabel } : null,
+                        toneLabel ? { type: 'tone' as const, value: toneLabel } : null,
+                      ].filter(
+                        (item): item is { type: 'format' | 'context' | 'proposal' | 'tone'; value: string } => Boolean(item)
+                      );
+                      type MetricItem = {
+                        key: string;
+                        main: string;
+                        secondary: string;
+                        arrangement: 'prefix' | 'postfix';
+                        mainClass: string;
+                        secondaryClass: string;
+                      };
+                      const metrics = [
+                        formattedViews !== '—'
+                          ? {
+                              key: 'views',
+                              main: formattedViews,
+                              secondary: 'visualizações',
+                              arrangement: 'postfix',
+                              mainClass: 'text-base font-semibold text-[#D62E5E]',
+                              secondaryClass: 'text-[12px] text-[#777777]',
+                            }
+                          : null,
+                        formattedLikes !== '—'
+                          ? {
+                              key: 'likes',
+                              main: formattedLikes,
+                              secondary: 'curtidas',
+                              arrangement: 'postfix',
+                              mainClass: 'text-sm font-semibold text-[#555555]',
+                              secondaryClass: 'text-[12px] text-[#777777]',
+                            }
+                          : null,
+                        formattedComments !== '—'
+                          ? {
+                              key: 'comments',
+                              main: formattedComments,
+                              secondary: 'comentários',
+                              arrangement: 'postfix',
+                              mainClass: 'text-sm font-semibold text-[#555555]',
+                              secondaryClass: 'text-[12px] text-[#777777]',
+                            }
+                          : null,
+                        formattedShares !== '—'
+                          ? {
+                              key: 'shares',
+                              main: formattedShares,
+                              secondary: 'compartilhamentos',
+                              arrangement: 'postfix',
+                              mainClass: 'text-sm font-semibold text-[#555555]',
+                              secondaryClass: 'text-[12px] text-[#777777]',
+                            }
+                          : null,
+                        formattedSaves !== '—'
+                          ? {
+                              key: 'saves',
+                              main: formattedSaves,
+                              secondary: 'salvos',
+                              arrangement: 'postfix',
+                              mainClass: 'text-sm font-semibold text-[#555555]',
+                              secondaryClass: 'text-[12px] text-[#777777]',
+                            }
+                          : null,
+                        dateLabel
+                          ? {
+                              key: 'date',
+                              main: dateLabel,
+                              secondary: 'Publicado em',
+                              arrangement: 'prefix',
+                              mainClass: 'text-xs font-medium text-[#999999]',
+                              secondaryClass: 'text-[12px] text-[#999999]',
+                            }
+                          : null,
+                      ].filter(Boolean) as MetricItem[];
+
+                      const isClickable = canViewCategories && !isTopPostsLocked;
+                      return (
+                        <article
+                          key={video._id}
+                          className={`relative flex w-[82%] flex-none snap-start flex-col overflow-hidden rounded-2xl border border-[#EAEAEA] bg-white p-4 shadow-sm transition hover:shadow-md sm:w-[60%] md:w-[50%] lg:w-[360px] xl:w-[400px] 2xl:w-[440px] ${
+                            isClickable ? 'cursor-pointer' : ''
+                          }`}
+                          role={isClickable ? 'button' : undefined}
+                          tabIndex={isClickable ? 0 : undefined}
+                          onClick={isClickable ? () => setSelectedPostId(video._id) : undefined}
+                          onKeyDown={
+                            isClickable
+                              ? (event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setSelectedPostId(video._id);
+                                  }
+                                }
+                              : undefined
+                          }
+                        >
+                          <div className="aspect-[1/1] w-full overflow-hidden rounded-lg bg-[#F4F4F6]">
+                            {video.thumbnailUrl ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={video.thumbnailUrl}
+                                alt={captionPreview}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
+                                Sem prévia disponível
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-4 flex flex-1 flex-col gap-3 text-left">
+                            {index === 0 && !isTopPostsLocked ? (
+                              <span className="inline-block rounded-md bg-[#D62E5E] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                Top 1
+                              </span>
+                            ) : null}
+                            <p className="text-sm font-semibold text-[#1C1C1E] leading-snug line-clamp-2">{captionPreview}</p>
+                            {tagMeta.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {tagMeta.map(({ type, value }) => {
+                                  const styles = tagStyleMap[type];
+                                  return (
+                                    <span
+                                      key={`${video._id}-${type}-${value}`}
+                                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles.bgClass} ${styles.textClass}`}
+                                    >
+                                      {styles.labelPrefix}: {value}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+                            {metrics.length > 0 ? (
+                              <div className="flex flex-col gap-2">
+                                {metrics.map(({ key, main, secondary, arrangement, mainClass, secondaryClass }) => (
+                                  <div key={`${video._id}-${key}`} className="flex flex-wrap items-baseline gap-1">
+                                    {arrangement === 'prefix' ? (
+                                      <>
+                                        <span className={secondaryClass}>{secondary}</span>
+                                        <span className={mainClass}>{main}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className={mainClass}>{main}</span>
+                                        <span className={secondaryClass}>{secondary}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                            {video.permalink && (
+                              <div className="mt-auto pt-5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium text-gray-500">Detalhes completos</span>
+                                  <a
+                                    href={video.permalink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-sm font-semibold text-[#D62E5E] transition hover:underline"
+                                  >
+                                    Ver post
+                                    <ArrowUpRight className="h-4 w-4" />
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  {isTopPostsLocked && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-white/90 px-6 text-center">
+                      <Lock className="h-6 w-6 text-[#6E1F93]" />
+                      <p className="mt-3 text-sm text-gray-700">
+                        Veja o porquê desses posts performarem melhor destravando o modo PRO.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleTopPostsCtaClick}
+                        className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c12652]"
+                      >
+                        {categoryCtaLabel}
+                      </button>
+                      {categorySubtitle && <p className="mt-2 text-xs text-gray-500">{categorySubtitle}</p>}
+                    </div>
+                  )}
+                  {!isTopPostsLocked && visibleTopPosts.length > 1 ? (
+                    <div className="mt-3 flex justify-center gap-2">
+                      {visibleTopPosts.map((video, index) => (
+                        <span
+                          key={`dot-${video._id}`}
+                          className={`h-1.5 w-5 rounded-full ${index === 0 ? 'bg-[#D62E5E]' : 'bg-gray-300'}`}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </motion.section>
+
             {user?._id && !shouldHidePremiumSections && (
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.7} className={cardStyle}>
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.5}
+                className={`${cardStyle} space-y-5`}
+              >
                 {canViewPremiumSections ? (
                   <>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Destaques de Performance</h2>
-                    <p className="text-gray-500 text-sm mb-6">Arraste para ver os principais insights e conquistas.</p>
+                    <div className="space-y-2 text-left">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
+                        Insights que reforçam o valor
+                      </p>
+                      <h2 className="text-2xl font-bold text-gray-900">Destaques & insights</h2>
+                      <p className="text-sm text-gray-600">Arraste para descobrir os pontos fortes recentes.</p>
+                    </div>
                     <PerformanceHighlightsCarousel userId={String(user._id)} />
                   </>
                 ) : shouldLockPremiumSections ? (
@@ -1055,49 +2283,28 @@ export default function MediaKitView({
                     peek={<LockedHighlightsPeek />}
                   />
                 ) : null}
-              </motion.div>
-            )}
-
-            {/* Modal de Cidades */}
-            {isCitiesModalOpen && (
-              <div className="fixed inset-0 z-[200] bg-black/50" role="dialog" aria-modal="true" aria-labelledby="cities-modal-title">
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <div className="w-full max-w-md bg-white rounded-lg shadow-2xl border border-gray-200 max-h-[80vh] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b">
-                      <h3 id="cities-modal-title" className="text-sm font-semibold text-gray-800">Todas as cidades</h3>
-                      <button className="p-1 text-gray-500 hover:text-gray-800" aria-label="Fechar" onClick={() => setCitiesModalOpen(false)}>
-                        <X size={18} />
-                      </button>
-                    </div>
-                    <div className="p-4 overflow-y-auto max-h-[70vh]">
-                      <div className="space-y-2">
-                        {demographicBreakdowns.location.map((item: any) => (
-                          <div key={item.label} className="flex items-center justify-between text-xs py-0.5">
-                            <span className="text-gray-600">{item.label}</span>
-                            <div className="flex items-center gap-2 w-2/3">
-                              <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
-                                <div className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500" style={{ width: `${item.percentage}%` }} />
-                              </div>
-                              <span className="font-semibold text-gray-800">{item.percentage.toFixed(1)}%</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="px-4 py-3 border-t flex justify-end">
-                      <button className="px-3 py-1.5 text-sm border rounded-md text-gray-700 hover:bg-gray-50" onClick={() => setCitiesModalOpen(false)}>Fechar</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              </motion.section>
             )}
 
             {user?._id && !shouldHidePremiumSections && (
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.8} className={cardStyle}>
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.6}
+                className={`${cardStyle} space-y-5`}
+              >
                 {canViewPremiumSections ? (
                   <>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Rankings por Categorias</h2>
-                    <p className="text-gray-500 text-sm mb-6">Veja a posição do criador em diferentes nichos.</p>
+                    <div className="space-y-2 text-left">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
+                        Comparativos rápidos
+                      </p>
+                      <h2 className="text-2xl font-bold text-gray-900">Rankings por categoria</h2>
+                      <p className="text-sm text-gray-600">
+                        Veja onde o criador se destaca em formatos, propostas e contextos.
+                      </p>
+                    </div>
                     <CategoryRankingsCarousel userId={String(user._id)} />
                   </>
                 ) : shouldLockPremiumSections ? (
@@ -1111,31 +2318,248 @@ export default function MediaKitView({
                     peek={<LockedCategoriesPeek />}
                   />
                 ) : null}
-              </motion.div>
+              </motion.section>
             )}
 
-          </div>
-
-          {showSharedBanner && (
-            <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2}>
-              <div className="mt-12 bg-gray-800 text-white text-center p-8 lg:p-12 rounded-xl shadow-2xl">
-                <Mail className="w-10 h-10 mx-auto mb-4 text-pink-500" />
-                <h3 className="text-3xl lg:text-4xl font-bold mb-3">
-                  Inteligência Criativa: A Fórmula da Alta Performance.
+            {showSharedBanner && (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.9}
+                className="rounded-3xl bg-gradient-to-br from-[#6E1F93] via-[#9446B0] to-[#D62E5E] px-6 py-10 text-center text-white shadow-lg"
+              >
+                <Mail className="mx-auto h-10 w-10" />
+                <h3 className="mt-4 text-3xl font-bold sm:text-4xl">
+                  Inteligência criativa para marcas que querem resultado.
                 </h3>
-                <p className="mb-8 text-gray-300 max-w-2xl mx-auto font-light">
-                  Nós decodificamos o DNA da audiência de cada criador...
+                <p className="mt-3 text-sm text-white/80 sm:text-base">
+                  Nós decodificamos o DNA da audiência de cada criador para construir campanhas que convertem.
                 </p>
                 <a
                   href="mailto:arthur@data2content.ai?subject=Desenho de Campanha Inteligente"
-                  className="inline-block bg-pink-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-pink-600"
+                  className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-8 py-3 text-sm font-semibold text-[#6E1F93] shadow-sm transition hover:bg-white/90"
                 >
-                  Desenhar Campanha Inteligente
+                  Desenhar campanha inteligente
                 </a>
-              </div>
-            </motion.div>
-          )}
+              </motion.section>
+            )}
+
+            {isPublicView && mediaKitSlug ? (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.85}
+                className={`${cardStyle} space-y-5`}
+              >
+                <div className="space-y-2 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
+                    Marcas
+                  </p>
+                  <h2 className="text-2xl font-bold text-gray-900">Envie sua proposta</h2>
+                  <p className="text-sm text-gray-600">
+                    Preencha o briefing e fale direto com o criador. Você recebe resposta por e-mail ou WhatsApp.
+                  </p>
+                </div>
+                <div className="space-y-4 rounded-2xl border border-[#E8DAFF] bg-white p-6 shadow-sm">
+                  <ul className="space-y-3 text-sm text-gray-600">
+                    <li className="flex items-start gap-2">
+                      <Send className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
+                      <span>Formulário inteligente com briefing completo para acelerar o retorno do criador.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Mail className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
+                      <span>O criador recebe sua proposta em tempo real por e-mail e pela plataforma.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Calendar className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
+                      <span>Combine entregas, orçamento e cronograma em um único lugar.</span>
+                    </li>
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={openProposalDrawer}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#c12652]"
+                  >
+                    💼 Enviar proposta para {affiliateHandleLabel}
+                  </button>
+                  <p className="text-xs text-gray-500">
+                    Precisa de ajuda? Nossa equipe acompanha todas as propostas para garantir o melhor match.
+                  </p>
+                </div>
+              </motion.section>
+            ) : null}
+
+            {isPublicView ? <div ref={stickyEndRef} className="h-px w-full" aria-hidden="true" /> : null}
+
+            {isPublicView ? (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.9}
+                className={`${cardStyle} space-y-4 bg-gradient-to-br from-[#F9F7FF] via-white to-[#FFF9F0]`}
+              >
+                <div className="flex flex-col gap-3 text-left sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
+                      Campanhas inteligentes
+                    </p>
+                    <h2 className="text-2xl font-bold text-gray-900">Planeje com vários criadores</h2>
+                    <p className="text-sm text-gray-600">
+                      Preencha um briefing único e deixe nossa IA indicar os melhores perfis para a sua campanha.
+                    </p>
+                  </div>
+                  <Sparkles className="hidden h-10 w-10 text-[#D62E5E] sm:block" />
+                </div>
+                <div className="rounded-2xl border border-[#F0D9FF] bg-white/80 p-6 shadow-sm backdrop-blur">
+                  <ul className="space-y-3 text-sm text-gray-600">
+                    <li className="flex items-start gap-2">
+                      <Users className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
+                      <span>Combine criadores de moda, beleza, tech e mais em uma única estratégia.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Calendar className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
+                      <span>Defina orçamento total, prazos e entregáveis para campanhas completas.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Sparkles className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
+                      <span>Match automático com os criadores mais aderentes às suas metas.</span>
+                    </li>
+                  </ul>
+                  <a
+                    href={multiCampaignLink}
+                    onClick={handleMultiCampaignCtaClick}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#6E1F93] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#5a1a78]"
+                  >
+                    🎯 Criar campanha com vários criadores
+                  </a>
+                  <p className="mt-3 text-xs text-gray-500">
+                    Deixe nossa IA encontrar os perfis ideais pra sua marca. Você recebe uma confirmação por e-mail.
+                  </p>
+                </div>
+              </motion.section>
+            ) : null}
+
+            <footer className="mt-10 rounded-3xl border border-[#EAEAEA] bg-white px-6 py-6 text-center shadow-sm">
+              <p className="text-sm font-semibold text-[#1C1C1E]">
+                Dados e análise por <span className="text-[#D62E5E]">Data2Content AI</span>
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Atualizado automaticamente via Instagram API e inteligência proprietária.
+              </p>
+              {contactEmail ? (
+                <a
+                  href={`mailto:${contactEmail}`}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-5 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
+                >
+                  Contatar para parceria
+                </a>
+              ) : null}
+            </footer>
+          </div>
         </div>
+
+        <StickyCtaBar
+          visible={stickyVisible}
+          onProposalClick={handleStickyProposalClick}
+          onAffiliateClick={handleStickyAffiliateClick}
+          affiliateLink={affiliateLink}
+          affiliateAvailable={Boolean(affiliateLink)}
+          affiliateHandleLabel={affiliateHandleLabel}
+        />
+
+        {isProposalDrawerOpen ? (
+          <div
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={proposalDrawerTitleId}
+          >
+            <div
+              className="absolute inset-0"
+              onClick={closeProposalDrawer}
+              aria-hidden="true"
+            />
+            <div className="relative z-[201] w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+              <div className="flex items-start justify-between border-b border-[#F0F0F5] px-6 py-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Propostas</p>
+                  <h3 id={proposalDrawerTitleId} className="text-xl font-bold text-[#1C1C1E]">
+                    💼 Enviar proposta para {affiliateHandleLabel}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeProposalDrawer}
+                  className="rounded-full p-2 text-gray-400 transition hover:text-gray-600"
+                  aria-label="Fechar formulário de proposta"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="max-h-[80vh] overflow-y-auto px-6 py-6 sm:px-8">
+                <PublicProposalForm
+                  mediaKitSlug={mediaKitSlug}
+                  onSubmitSuccess={handleProposalSuccess}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {isCitiesModalOpen && demographicBreakdowns?.location && (
+          <div
+            className="fixed inset-0 z-[200] bg-black/40"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cities-modal-title"
+          >
+            <div className="absolute inset-0 flex items-center justify-center p-4">
+              <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
+                  <h3 id="cities-modal-title" className="text-sm font-semibold text-gray-800">
+                    Todas as cidades
+                  </h3>
+                  <button
+                    className="rounded-full p-1.5 text-gray-400 transition hover:text-gray-600"
+                    aria-label="Fechar"
+                    onClick={() => setCitiesModalOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                  <div className="space-y-3">
+                    {demographicBreakdowns.location.map((item: any) => (
+                      <div key={item.label} className="text-sm font-medium text-gray-700">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>{item.label}</span>
+                          <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
+                        </div>
+                        <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
+                          <div
+                            className="h-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93]"
+                            style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
+                  <button
+                    className="inline-flex items-center rounded-full border border-[#EAEAEA] px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    onClick={() => setCitiesModalOpen(false)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <PostDetailModal
           isOpen={selectedPostId !== null}

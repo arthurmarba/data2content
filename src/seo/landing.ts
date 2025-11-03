@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import faqItems from "@/data/faq";
 
 export const landingMetadata: Metadata = {
-  title: "data2content - Menos análise, mais criação.",
+  title: "Data2Content — Feche mais campanhas com IA",
   description:
-    "Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer.",
+    "Feche mais campanhas e valorize seu trabalho com a IA da Data2Content. Crie seu mídia kit gratuito e conecte-se a marcas.",
   alternates: { canonical: "https://data2content.ai/" },
   openGraph: {
-    title: "data2content - Menos análise, mais criação.",
+    title: "Data2Content — Feche mais campanhas com IA",
     description:
-      "Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer.",
+      "Feche mais campanhas e valorize seu trabalho com a IA da Data2Content. Crie seu mídia kit gratuito e conecte-se a marcas.",
     url: "https://data2content.ai",
     type: "website",
     images: [
@@ -44,7 +44,7 @@ export const landingProductJsonLd = {
   "@type": "SoftwareApplication",
   name: "data2content",
   description:
-    "Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer.",
+    "Feche mais campanhas e valorize seu trabalho com a IA da Data2Content. Crie seu mídia kit gratuito e conecte-se a marcas.",
   applicationCategory: "MarketingApplication",
   offers: {
     "@type": "Offer",

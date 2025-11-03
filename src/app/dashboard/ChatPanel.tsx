@@ -20,11 +20,109 @@ interface SessionUserWithId {
   email?: string | null;
   image?: string | null;
 }
+
+interface ChatCalculationContext {
+  calcId: string;
+  context?: string | null;
+  justo: number;
+  estrategico: number;
+  premium: number;
+  cpm: number;
+  cpmSource?: 'seed' | 'dynamic';
+  params?: {
+    format?: string | null;
+    exclusivity?: string | null;
+    usageRights?: string | null;
+    complexity?: string | null;
+  };
+  metrics?: {
+    reach?: number;
+    engagement?: number;
+    profileSegment?: string;
+  };
+  avgTicket?: number | null;
+  totalDeals?: number | null;
+  explanation?: string | null;
+  createdAt?: string | null;
+}
+
+type PricingAnalysisContext = {
+  calcId: string;
+  segment: string;
+  justo: number;
+  estrategico: number;
+  premium: number;
+  cpm: number;
+  cpmSource?: 'seed' | 'dynamic';
+  params?: ChatCalculationContext['params'];
+  metrics?: ChatCalculationContext['metrics'];
+  avgTicket?: number | null;
+  totalDeals?: number | null;
+  explanation?: string | null;
+  createdAt?: string | null;
+  recentDeal?: {
+    value: number;
+    reach: number | null;
+    brandSegment: string | null;
+    createdAt: string | null;
+  };
+  diff: number | null;
+};
+
+type PreloadedMessage = {
+  role: 'system' | 'assistant';
+  content: string;
+};
 interface Message {
   sender: "user" | "consultant";
   text: string;
   cta?: { label: string; action: 'connect_instagram' | 'go_to_billing' };
+  contextCalcId?: string;
 }
+
+const FORMAT_LABELS: Record<string, string> = {
+  reels: 'Reels',
+  post: 'Post no feed',
+  stories: 'Stories',
+  pacote: 'Pacote multiformato',
+};
+const EXCLUSIVITY_LABELS: Record<string, string> = {
+  nenhuma: 'Sem exclusividade',
+  '7d': '7 dias',
+  '15d': '15 dias',
+  '30d': '30 dias',
+};
+const USAGE_LABELS: Record<string, string> = {
+  organico: 'Uso orgânico',
+  midiapaga: 'Mídia paga',
+  global: 'Uso global/perpétuo',
+};
+const COMPLEXITY_LABELS: Record<string, string> = {
+  simples: 'Produção simples',
+  roteiro: 'Com roteiro aprovado',
+  profissional: 'Produção profissional',
+};
+
+const MOBI_PRICING_PROMPT =
+  'Você é o Mobi, consultor de precificação da Data2Content. Analise o cálculo acima e sugira recomendações.';
+
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  maximumFractionDigits: 2,
+});
+const integerFormatter = new Intl.NumberFormat('pt-BR');
+const percentFormatter = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+const formatSegmentLabel = (segment?: string | null) => {
+  if (!segment) return 'Geral';
+  return segment
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 /** Botões de sugestão minimalistas (mesma largura) */
 function PromptChip({ label, onClick }: { label: string; onClick: () => void }) {
@@ -242,7 +340,13 @@ function renderFormatted(text: string) {
 
 /* ---------- Componente principal ---------- */
 
-export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => void } = {}) {
+export default function ChatPanel({
+  onUpsellClick,
+  calculationContext,
+}: {
+  onUpsellClick?: () => void;
+  calculationContext?: ChatCalculationContext | null;
+} = {}) {
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -259,12 +363,16 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   const previousTargetRef = useRef<string | null>(null);
   const initializedTargetRef = useRef(false);
   const suggestionContainerRef = useRef<HTMLDivElement>(null);
+  const lastPricingCalcIdRef = useRef<string | null>(null);
+  const isAutoPricingRunningRef = useRef(false);
 
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [inlineAlert, setInlineAlert] = useState<string | null>(null);
   const autoScrollOnNext = useRef(false);
+  const [pricingAnalysisContext, setPricingAnalysisContext] = useState<PricingAnalysisContext | null>(null);
+  const [preloadedMessages, setPreloadedMessages] = useState<PreloadedMessage[]>([]);
 
   const userWithId = session?.user as SessionUserWithId | undefined;
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
@@ -435,6 +543,219 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
     return () => io.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!calculationContext) {
+      setPricingAnalysisContext(null);
+      setPreloadedMessages([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function prepareContext() {
+      const base = calculationContext;
+      if (!base) return;
+      let calcData = {
+        justo: base.justo,
+        estrategico: base.estrategico,
+        premium: base.premium,
+        cpm: base.cpm,
+        cpmSource: base.cpmSource ?? 'dynamic',
+        params: base.params,
+        metrics: base.metrics,
+        avgTicket: base.avgTicket ?? null,
+        totalDeals: base.totalDeals ?? null,
+        explanation: base.explanation ?? null,
+        createdAt: base.createdAt ?? null,
+      };
+
+      if (base.calcId) {
+        try {
+          const response = await fetch(`/api/calculator/${base.calcId}`, { cache: 'no-store' });
+          if (response.ok) {
+            const payload = await response.json();
+            calcData = {
+              justo: typeof payload?.justo === 'number' ? payload.justo : calcData.justo,
+              estrategico: typeof payload?.estrategico === 'number' ? payload.estrategico : calcData.estrategico,
+              premium: typeof payload?.premium === 'number' ? payload.premium : calcData.premium,
+              cpm: typeof payload?.cpm === 'number' ? payload.cpm : calcData.cpm,
+              cpmSource: (payload as any)?.cpmSource ?? calcData.cpmSource,
+              params: payload?.params ?? calcData.params,
+              metrics: payload?.metrics ?? calcData.metrics,
+              avgTicket: typeof payload?.avgTicket === 'number' ? payload.avgTicket : calcData.avgTicket,
+              totalDeals: typeof payload?.totalDeals === 'number' ? payload.totalDeals : calcData.totalDeals,
+              explanation: payload?.explanation ?? calcData.explanation,
+              createdAt: payload?.createdAt ?? calcData.createdAt,
+            };
+          }
+        } catch (error) {
+          console.error('[ChatPanel] Falha ao atualizar cálculo para contexto do chat.', error);
+        }
+      }
+
+      const segmentRaw = (calcData.metrics?.profileSegment ?? base.metrics?.profileSegment ?? 'default') || 'default';
+      const normalizedSegment = typeof segmentRaw === 'string' && segmentRaw.trim()
+        ? segmentRaw.trim().toLowerCase()
+        : 'default';
+
+      let recentDeal: PricingAnalysisContext['recentDeal'] | undefined;
+      if (normalizedSegment) {
+        try {
+          const response = await fetch(`/api/deals/recent?segment=${encodeURIComponent(normalizedSegment)}`, {
+            cache: 'no-store',
+          });
+          if (response.status === 200) {
+            const dealPayload = await response.json();
+            if (typeof dealPayload?.value === 'number') {
+              recentDeal = {
+                value: dealPayload.value,
+                reach: typeof dealPayload?.reach === 'number' ? dealPayload.reach : null,
+                brandSegment: dealPayload?.brandSegment ?? normalizedSegment,
+                createdAt: typeof dealPayload?.createdAt === 'string' ? dealPayload.createdAt : null,
+              };
+            }
+          }
+        } catch (error) {
+          console.error('[ChatPanel] Falha ao buscar deal recente para comparação.', error);
+        }
+      }
+
+      if (cancelled) return;
+
+      const justo = calcData.justo;
+      const estrategico = calcData.estrategico;
+      const premium = calcData.premium;
+      const cpm = calcData.cpm;
+
+      let diff: number | null = null;
+      if (recentDeal && typeof justo === 'number' && Number.isFinite(justo) && justo > 0) {
+        diff = ((recentDeal.value - justo) / justo) * 100;
+      }
+
+      const segmentLabel = formatSegmentLabel(segmentRaw);
+      const diffText = diff !== null ? `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%` : 'n/d';
+
+      const comparisonLine = recentDeal
+        ? `Cálculo: ${currencyFormatter.format(justo)} no nicho ${segmentLabel} — Deal mais recente: ${currencyFormatter.format(recentDeal.value)} (diferença ${diffText}).`
+        : `Cálculo: ${currencyFormatter.format(justo)} no nicho ${segmentLabel}. Ainda não encontramos deals recentes para comparar.`;
+
+      const seedWarningLine =
+        calcData.cpmSource === 'seed'
+          ? '⚠️ Este valor é baseado em um CPM médio inicial de mercado. Ele será refinado com dados reais de publis.'
+          : null;
+      const explanationLine = (calcData.explanation ?? '').trim() || null;
+
+      const summaryParts: string[] = [];
+      if (calcData.params?.format) {
+        const label = FORMAT_LABELS[calcData.params.format] ?? calcData.params.format;
+        summaryParts.push(`Formato: ${label}`);
+      }
+      if (calcData.params?.exclusivity) {
+        const label = EXCLUSIVITY_LABELS[calcData.params.exclusivity] ?? calcData.params.exclusivity;
+        summaryParts.push(`Exclusividade: ${label}`);
+      }
+      if (calcData.params?.usageRights) {
+        const label = USAGE_LABELS[calcData.params.usageRights] ?? calcData.params.usageRights;
+        summaryParts.push(`Uso de imagem: ${label}`);
+      }
+      if (calcData.params?.complexity) {
+        const label = COMPLEXITY_LABELS[calcData.params.complexity] ?? calcData.params.complexity;
+        summaryParts.push(`Complexidade: ${label}`);
+      }
+      if (typeof calcData.avgTicket === 'number' && Number.isFinite(calcData.avgTicket) && calcData.avgTicket > 0) {
+        summaryParts.push(`Ticket médio recente: ${currencyFormatter.format(calcData.avgTicket)}`);
+      }
+      if (typeof calcData.totalDeals === 'number' && calcData.totalDeals > 0) {
+        summaryParts.push(`Publis analisadas: ${calcData.totalDeals}`);
+      }
+      const summaryLine = summaryParts.length ? summaryParts.join(' • ') : null;
+
+      const metricsParts: string[] = [];
+      const reachValue = calcData.metrics?.reach;
+      if (typeof reachValue === 'number' && Number.isFinite(reachValue) && reachValue > 0) {
+        metricsParts.push(`Alcance ${integerFormatter.format(Math.round(reachValue))}`);
+      }
+      const engagementValue = calcData.metrics?.engagement;
+      if (typeof engagementValue === 'number' && Number.isFinite(engagementValue)) {
+        metricsParts.push(`Engajamento ${percentFormatter.format(engagementValue)}%`);
+      }
+      if (recentDeal?.reach && recentDeal.reach > 0) {
+        metricsParts.push(`Deal recente: alcance ${integerFormatter.format(Math.round(recentDeal.reach))}`);
+      }
+      const metricsLine = metricsParts.length ? `Métricas consideradas: ${metricsParts.join(' • ')}` : null;
+
+      let createdAtLine: string | null = null;
+      if (calcData.createdAt) {
+        const parsed = new Date(calcData.createdAt);
+        if (!Number.isNaN(parsed.getTime())) {
+          createdAtLine = `Cálculo gerado em ${parsed.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.`;
+        }
+      }
+      const dealLine =
+        recentDeal?.createdAt && recentDeal.value
+          ? `Deal fechado em ${new Date(recentDeal.createdAt).toLocaleString('pt-BR', {
+              dateStyle: 'short',
+              timeStyle: 'short',
+            })}.`
+          : null;
+
+      const closingLine = base.context === 'publi-calculator'
+        ? 'Vou preparar uma análise comparativa automática para você.'
+        : 'Posso comparar com publis similares ou ajustar a proposta, é só me dizer!';
+
+      const lines = seedWarningLine ? [seedWarningLine, comparisonLine] : [comparisonLine];
+      if (explanationLine) lines.push(explanationLine);
+      if (summaryLine) lines.push(summaryLine);
+      if (metricsLine) lines.push(metricsLine);
+      if (createdAtLine) lines.push(createdAtLine);
+      if (dealLine) lines.push(dealLine);
+      lines.push(closingLine);
+
+      const text = lines.join('\n\n');
+
+      setPricingAnalysisContext({
+        calcId: base.calcId,
+        segment: normalizedSegment,
+        justo,
+        estrategico,
+        premium,
+        cpm,
+        cpmSource: calcData.cpmSource,
+        params: calcData.params,
+        metrics: calcData.metrics,
+        avgTicket: calcData.avgTicket,
+        totalDeals: calcData.totalDeals,
+        explanation: calcData.explanation,
+        createdAt: calcData.createdAt,
+        recentDeal,
+        diff,
+      });
+
+      setPreloadedMessages([
+        { role: 'system', content: MOBI_PRICING_PROMPT },
+        { role: 'assistant', content: text },
+      ]);
+
+      if (base.context === 'publi-calculator' && recentDeal) {
+        const logLine = `[PRICING_DIFF] ${normalizedSegment}: ${justo} vs ${recentDeal.value} (${diffText})`;
+        console.info(logLine);
+      }
+
+      setMessages((prev) => {
+        if (prev.some((msg) => msg.contextCalcId === base.calcId)) {
+          return prev;
+        }
+        autoScrollOnNext.current = true;
+        return [...prev, { sender: 'consultant', text, contextCalcId: base.calcId }];
+      });
+    }
+
+    prepareContext();
+    return () => {
+      cancelled = true;
+    };
+  }, [calculationContext]);
+
   // autoscroll
   useEffect(() => {
     if (autoScrollOnNext.current || isAtBottom) {
@@ -453,6 +774,52 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!calculationContext) return;
+    if (calculationContext.context !== 'publi-calculator') return;
+    if (!pricingAnalysisContext) return;
+    if (!preloadedMessages.length) return;
+    if (pricingAnalysisContext.calcId !== calculationContext.calcId) return;
+    if (lastPricingCalcIdRef.current === pricingAnalysisContext.calcId) return;
+    if (isAutoPricingRunningRef.current) return;
+
+    let cancelled = false;
+    isAutoPricingRunningRef.current = true;
+
+    const runAutoAnalysis = async () => {
+      try {
+        const response = await fetch('/api/ai/pricing-analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ calcId: pricingAnalysisContext.calcId }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data?.message) {
+          throw new Error(data?.error || 'Falha ao gerar análise automática.');
+        }
+        if (cancelled) return;
+        lastPricingCalcIdRef.current = pricingAnalysisContext.calcId;
+        autoScrollOnNext.current = true;
+        setMessages((prev) => [...prev, { sender: 'consultant', text: String(data.message) }]);
+      } catch (error) {
+        console.error('[ChatPanel] Falha ao gerar insight automático de precificação.', error);
+        if (!cancelled) {
+          setInlineAlert('Não consegui gerar a análise automática agora. Você pode pedir uma comparação manualmente.');
+        }
+      } finally {
+        if (!cancelled) {
+          lastPricingCalcIdRef.current = pricingAnalysisContext.calcId;
+        }
+        isAutoPricingRunningRef.current = false;
+      }
+    };
+
+    runAutoAnalysis();
+    return () => {
+      cancelled = true;
+    };
+  }, [calculationContext, preloadedMessages, pricingAnalysisContext]);
 
   const handleSend = async () => {
     setInlineAlert(null);
@@ -899,4 +1266,5 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
       </AnimatePresence>
     </div>
   );
+
 }
