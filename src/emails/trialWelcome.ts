@@ -12,8 +12,8 @@ export function trialWelcomeEmail({
   const greeting = name ? `Olá, ${name}!` : "Olá!";
 
   const subject = "Você ganhou 48h de acesso PRO — aproveite agora";
-  const ctaUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai"}/dashboard/media-kit`;
-  const whatsappUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai"}/dashboard/whatsapp`;
+  const ctaUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai"}/media-kit`;
+  const whatsappUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai"}/planning/whatsapp`;
 
   const intro = `${greeting}\n\nVocê acabou de liberar o Modo PRO da Data2Content por 48 horas. Durante esse período, além da comunidade aberta, você também tem acesso completo ao <Grupo VIP> — mentorias estratégicas semanais, salas reservadas e alertas premium no WhatsApp.`;
 

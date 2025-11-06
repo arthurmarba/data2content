@@ -91,6 +91,28 @@ function sanitizeString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function normalizeReferenceLinks(input: unknown): string[] {
+  if (!input) return [];
+  const values: string[] = [];
+
+  if (Array.isArray(input)) {
+    for (const item of input) {
+      if (typeof item === 'string') {
+        const trimmed = item.trim();
+        if (trimmed) values.push(trimmed);
+      }
+    }
+  } else if (typeof input === 'string') {
+    input
+      .split(/\r?\n/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => values.push(part));
+  }
+
+  return values;
+}
+
 export async function POST(request: NextRequest) {
   await connectToDatabase();
 
@@ -127,6 +149,27 @@ export async function POST(request: NextRequest) {
   const rawCurrency = sanitizeString(payload?.currency);
   const currency = normalizeCurrencyCode(rawCurrency) ?? 'BRL';
   const segments = normalizeSegments(payload?.segments);
+  const referenceLinks = normalizeReferenceLinks(payload?.referenceLinks);
+  if (referenceLinks.length > 3) {
+    return NextResponse.json({ error: 'Use no máximo 3 links de referência.' }, { status: 422 });
+  }
+  const hasInvalidLink = referenceLinks.some((link) => {
+    if (link.length > 300) {
+      return true;
+    }
+    try {
+      const url = new URL(link);
+      return url.protocol !== 'http:' && url.protocol !== 'https:';
+    } catch {
+      return true;
+    }
+  });
+  if (hasInvalidLink) {
+    return NextResponse.json(
+      { error: 'Informe links válidos começando com http:// ou https:// (máx. 300 caracteres).' },
+      { status: 422 }
+    );
+  }
   const source = sanitizeString(payload?.source) ?? (payload?.originSlug ? 'mediaKit' : 'direct');
   const originAffiliate = sanitizeString(payload?.originAffiliate);
   const originHandle = sanitizeString(payload?.originHandle);
@@ -145,6 +188,7 @@ export async function POST(request: NextRequest) {
       currency,
       description,
       segments,
+      referenceLinks,
       source,
       originAffiliate,
       originCreatorHandle: originHandle,
@@ -164,6 +208,7 @@ export async function POST(request: NextRequest) {
       source,
       originSlug,
       utmSource,
+      referenceLinksCount: referenceLinks.length,
     };
     logger.info('[CAMPAIGN_PUBLIC] Briefing recebido', logPayload);
     Sentry.captureMessage(`[CAMPAIGN_PUBLIC] ${campaign._id}`, 'info');
@@ -176,6 +221,7 @@ export async function POST(request: NextRequest) {
         segments,
         description,
         originHandle,
+        referenceLinks,
       });
     } catch (emailError) {
       logger.error('[CAMPAIGN_PUBLIC] Falha ao enviar confirmação de briefing', emailError);

@@ -92,7 +92,7 @@ export default function SaveToPlannerButton({ item }: Props) {
       <div className="flex items-center gap-2">
         <span className="text-[11px] px-2 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">Salvo</span>
         <a
-          href="/dashboard/media-kit"
+          href="/media-kit"
           onClick={() => { try { track('discover_open_planner', { id: item.id }); } catch {} }}
           className="text-[11px] underline text-pink-600 hover:text-pink-700"
         >

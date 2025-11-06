@@ -23,11 +23,11 @@ const baseClasses =
 
 const variantClasses: Record<ButtonVariant, string> = {
   brand:
-    "bg-brand-magenta text-white shadow-[0_12px_28px_rgba(231,75,111,0.24)] hover:bg-brand-magenta-hover focus-visible:outline-brand-magenta",
+    "bg-brand-magenta text-white shadow-brand-magenta hover:bg-brand-magenta-dark focus-visible:outline-brand-magenta",
   solid:
-    "bg-[#0B57D0] text-white shadow-[0_12px_28px_rgba(11,87,208,0.24)] hover:bg-[#094ab4] focus-visible:outline-[#0B57D0]",
+    "bg-brand-blue text-white shadow-brand-blue hover:bg-brand-blue-dark focus-visible:outline-brand-blue",
   outline:
-    "border border-brand-dark/15 bg-white text-brand-dark hover:border-brand-dark/40 hover:bg-white/90 focus-visible:outline-brand-dark/40",
+    "border border-brand-dark/15 bg-neutral-0 text-brand-dark hover:border-brand-dark/40 hover:bg-neutral-0/90 focus-visible:outline-brand-dark/40",
   ghost:
     "bg-transparent text-brand-dark hover:bg-brand-light focus-visible:outline-brand-dark/25",
 };

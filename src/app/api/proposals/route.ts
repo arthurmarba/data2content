@@ -15,6 +15,7 @@ const serializeProposal = (proposal: any) => ({
   campaignTitle: proposal.campaignTitle,
   campaignDescription: proposal.campaignDescription ?? null,
   deliverables: proposal.deliverables ?? [],
+  referenceLinks: proposal.referenceLinks ?? [],
   budget: typeof proposal.budget === 'number' ? proposal.budget : null,
   currency: proposal.currency ?? 'BRL',
   status: proposal.status,

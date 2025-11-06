@@ -4,6 +4,7 @@ import { useState } from 'react';
 import PaymentStep from '@/components/billing/PaymentStep';
 import { Lock } from 'lucide-react';
 import { track } from '@/lib/track';
+import { useSession } from 'next-auth/react';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 
 type Plan = 'monthly'|'annual';
@@ -15,6 +16,8 @@ interface PricesShape {
 }
 
 export default function SubscribeInline({ prices }: { prices: PricesShape }) {
+  const { data: session } = useSession();
+  const creatorId = session?.user?.id ?? null;
   const [plan, setPlan] = useState<Plan>('monthly');
   const [currency, setCurrency] = useState<Cur>('brl');
   const [affiliateCode, setAffiliateCode] = useState('');
@@ -55,6 +58,16 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       }
 
       if (!res.ok) throw new Error(body?.error || body?.message || 'Falha ao iniciar assinatura');
+      const planLabel = plan === 'annual' ? 'anual' : 'mensal';
+      const eventCurrency = currency.toUpperCase();
+      const planValue = typeof priceShown === 'number' ? priceShown : null;
+      track('subscription_started', {
+        creator_id: creatorId,
+        plan: planLabel,
+        currency: eventCurrency,
+        value: planValue,
+      });
+
       if (body?.checkoutUrl) {
         window.location.href = body.checkoutUrl;
         return;
@@ -95,7 +108,13 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') { setError(body?.message ?? 'O período de testes já foi utilizado nesta conta.'); return; }
         throw new Error(body?.error || body?.message || 'Falha ao iniciar teste gratuito');
       }
-      track('trial_activated', { source: 'subscribe_inline' });
+      const planLabel = plan === 'annual' ? 'anual' : 'mensal';
+      track('subscription_started', {
+        creator_id: creatorId,
+        plan: planLabel,
+        currency: currency.toUpperCase(),
+        value: 0,
+      });
       await refetchBillingStatus();
     } catch (e:any) {
       setError(e.message);

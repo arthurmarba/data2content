@@ -810,6 +810,8 @@ export interface ProposalAnalysisMessageInput {
 export interface ProposalAnalysisMessageOutput {
     analysis: string;
     replyDraft: string;
+    suggestionType: 'aceitar' | 'ajustar' | 'aceitar_com_extra';
+    suggestedValue: number | null;
 }
 
 export async function generateProposalAnalysisMessage(
@@ -1006,14 +1008,17 @@ export async function generateProposalAnalysisMessage(
     const diagnosisParagraph = `${introSentence}${classificationSentence}`;
 
     let suggestionSentence: string;
+    let suggestionType: 'aceitar' | 'ajustar' | 'aceitar_com_extra';
     switch (scenario) {
         case 'above':
             suggestionSentence =
                 'Essa valorização é positiva — mantenha o valor e proponha um extra (por exemplo, um stories adicional) para amplificar o retorno da marca.';
+            suggestionType = 'aceitar_com_extra';
             break;
         case 'within':
             suggestionSentence =
                 `O investimento está alinhado à faixa de mercado${faixaRangeText} — destaque seus resultados recentes e avance para fechar a campanha com segurança.`;
+            suggestionType = 'aceitar';
             break;
         case 'below':
             suggestionSentence = suggestionTargetFormatted
@@ -1021,10 +1026,12 @@ export async function generateProposalAnalysisMessage(
                 : faixaRange
                 ? `Sugiro reposicionar o valor para se aproximar da faixa de mercado ${faixaRange}, reforçando seu histórico e a qualidade das entregas.`
                 : 'Sugiro reposicionar o valor, reforçando seus indicadores principais e o escopo completo da entrega.';
+            suggestionType = 'ajustar';
             break;
         default:
             suggestionSentence =
                 'Reforce seus resultados recentes e proponha um pacote que traduza o valor real da sua entrega.';
+            suggestionType = 'ajustar';
             break;
     }
 
@@ -1098,10 +1105,22 @@ export async function generateProposalAnalysisMessage(
 
     const replyDraft = emailParagraphs.join('\n\n').trim();
 
+    const normalizedSuggestedValue =
+        suggestionTargetRounded !== null
+            ? suggestionTargetRounded
+            : typeof offeredBudgetValue === 'number'
+            ? offeredBudgetValue
+            : null;
+
     logger.info(`${fnTag} ${brandName}: analysis="${analysis.slice(0, 80)}..." reply="${replyDraft.slice(0, 80)}..."`);
     Sentry.captureMessage(`${fnTag} ${brandName}`, 'info');
 
-    return { analysis, replyDraft };
+    return {
+        analysis,
+        replyDraft,
+        suggestionType,
+        suggestedValue: normalizedSuggestedValue,
+    };
 }
 
 

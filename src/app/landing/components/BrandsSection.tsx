@@ -8,24 +8,102 @@ type BrandsSectionProps = {
 };
 
 type BrandBenefit = {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   description: string;
+  accent: "magenta" | "blue" | "violet";
 };
+
+const gradientMap: Record<BrandBenefit["accent"], string> = {
+  magenta: "from-brand-magenta-bright via-brand-peach to-brand-blue",
+  blue: "from-brand-blue via-brand-blue-light to-brand-violet",
+  violet: "from-brand-violet via-brand-violet-light to-brand-magenta-bright",
+};
+
+const IconBadge: React.FC<{ accent: BrandBenefit["accent"]; children: React.ReactNode }> = ({
+  accent,
+  children,
+}) => (
+  <span
+    aria-hidden="true"
+      className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${gradientMap[accent]} text-white shadow-glass-md transition-transform duration-300 group-hover:-translate-y-0.5`}
+  >
+    {children}
+  </span>
+);
+
+const EyeIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+    <path
+      d="M2.036 12.322a1.012 1.012 0 0 1 0-.644C3.423 7.51 7.36 4.5 12 4.5s8.577 3.01 9.964 7.178c.07.202.07.422 0 .644C20.577 16.49 16.64 19.5 12 19.5S3.423 16.49 2.036 12.322z"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const SparkIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+    <path
+      d="M12 3.5v3m0 11v3m6.364-10.864-2.121 2.121M7.757 16.243l-2.121 2.121m0-13.728 2.12 2.12m8.486 8.486 2.12 2.121M3.5 12h3m11 0h3"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 8.75a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5z"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const ChartIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+    <path
+      d="M5 19V9.5M12 19V5M19 19v-7.5"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M4 19h16"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+    />
+  </svg>
+);
 
 const benefits: BrandBenefit[] = [
   {
-    icon: "👁️",
+    icon: <EyeIcon />,
+    accent: "magenta",
     title: "Visão em tempo real",
     description: "Acompanhe dados de alcance e performance antes de enviar propostas.",
   },
   {
-    icon: "🧠",
+    icon: <SparkIcon />,
+    accent: "blue",
     title: "IA de afinidade",
     description: "Receba recomendações automáticas de criadores com base em dados.",
   },
   {
-    icon: "📈",
+    icon: <ChartIcon />,
+    accent: "violet",
     title: "Comparativo inteligente",
     description: "Avalie custo e resultado estimado com segurança.",
   },
@@ -33,30 +111,30 @@ const benefits: BrandBenefit[] = [
 
 const BrandsSection: React.FC<BrandsSectionProps> = ({ onCreateCampaign }) => {
   return (
-    <section id="marcas" className="relative overflow-hidden bg-white py-16 text-brand-dark md:py-20">
-      <div className="container mx-auto max-w-5xl px-6 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E4EC] bg-white px-4 py-1 text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
+    <section
+      id="marcas"
+      className="relative overflow-hidden bg-landing-brand py-[clamp(4rem,8vw,5.5rem)] text-brand-dark"
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/75 to-brand-glass-200" />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-brand-glass-200 via-white/70 to-transparent" />
+      <div className="relative container mx-auto max-w-5xl px-6 text-center">
+        <span className="inline-flex items-center gap-2 rounded-full border border-brand-chip-border bg-neutral-0/80 px-4 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent-slate-600 md:text-sm">
           Para marcas
         </span>
-        <h2 className="mt-6 text-[2rem] font-semibold leading-tight md:text-[2.5rem]">
+        <h2 className="mt-6 text-[clamp(1.95rem,4vw,2.5rem)] font-semibold leading-tight">
           Encontre os criadores ideais para sua próxima campanha.
         </h2>
         <p className="mt-4 text-base leading-relaxed text-brand-text-secondary md:text-lg">
           A mesma IA que orienta os creators ajuda marcas a planejar com precisão. Compare audiência, engajamento e custo antes mesmo de enviar sua proposta.
         </p>
 
-        <div className="mt-16 grid gap-6 text-left sm:grid-cols-2 lg:grid-cols-3">
-          {benefits.map(({ icon, title, description }) => (
+        <div className="mt-14 grid gap-6 text-left sm:grid-cols-2 lg:grid-cols-3">
+          {benefits.map(({ icon, title, description, accent }) => (
             <article
               key={title}
-              className="group flex flex-col gap-4 rounded-[28px] border border-[#E7E9F1] bg-white p-8 shadow-[0_28px_60px_rgba(19,22,31,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FF1E56]/35 hover:shadow-[0_32px_80px_rgba(255,30,86,0.12)]"
+              className="group flex flex-col gap-5 rounded-[28px] border border-white/40 bg-neutral-0/70 p-8 shadow-glass-lg backdrop-blur-glass transition-all duration-300 hover:-translate-y-1 hover:border-white/70 hover:shadow-glass-xl"
             >
-              <span
-                aria-hidden="true"
-                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 text-2xl text-brand-magenta shadow-[0_18px_40px_rgba(255,30,86,0.08)] backdrop-blur-sm"
-              >
-                {icon}
-              </span>
+              <IconBadge accent={accent}>{icon}</IconBadge>
               <h3 className="text-lg font-semibold leading-snug text-brand-dark md:text-xl">{title}</h3>
               <p className="text-sm leading-normal text-brand-text-secondary md:text-base">{description}</p>
             </article>
@@ -70,9 +148,10 @@ const BrandsSection: React.FC<BrandsSectionProps> = ({ onCreateCampaign }) => {
         <ButtonPrimary
           onClick={onCreateCampaign}
           size="lg"
-          className="mt-8 px-10"
+          className="mt-10 inline-flex items-center gap-2 px-10"
         >
-          Criar campanha com IA →
+          <span>Criar campanha com IA</span>
+          <span aria-hidden="true" className="text-xl leading-none">→</span>
         </ButtonPrimary>
       </div>
     </section>

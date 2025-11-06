@@ -15,6 +15,23 @@ export type HomeCardId =
   | "micro_insight"
   | "connect_prompt";
 
+export type DashboardCtaTarget =
+  | "connect_ig"
+  | "create_media_kit"
+  | "open_proposals"
+  | "analyze_with_ai"
+  | "copy_kit_link"
+  | "view_as_brand"
+  | "edit_kit"
+  | "activate_pro";
+
+export type DashboardCtaSurface =
+  | "flow_checklist"
+  | "proposals_block"
+  | "media_kit_block"
+  | "upsell_block"
+  | "other";
+
 export function useHomeTelemetry() {
   const emit = React.useCallback((event: string, payload?: Record<string, unknown>) => {
     try {
@@ -59,11 +76,19 @@ export function useHomeTelemetry() {
     [emit]
   );
 
+  const trackDashboardCta = React.useCallback(
+    (target: DashboardCtaTarget, extra?: Record<string, unknown>) => {
+      emit("dashboard_cta_clicked", { target, ...extra });
+    },
+    [emit]
+  );
+
   return {
     trackCardAction,
     trackCardPeriodChange,
     trackHeroAction,
     trackSurfaceView,
     trackWhatsappEvent,
+    trackDashboardCta,
   };
 }

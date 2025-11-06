@@ -200,6 +200,12 @@ export const ContentPlannerList = ({
   const handleCreateSlot = useCallback(
     (dayOfWeek: number, blockStartHour: number) => {
       if (!canEdit) return;
+      track("planner_plan_generated", {
+        creator_id: userId,
+        day_of_week: dayOfWeek,
+        block_start_hour: blockStartHour,
+        source: "calendar_quick_generate",
+      });
       const stub: PlannerUISlot = {
         dayOfWeek,
         blockStartHour,
@@ -212,7 +218,7 @@ export const ContentPlannerList = ({
       } as PlannerUISlot;
       openModal(stub);
     },
-    [canEdit, openModal]
+    [canEdit, openModal, userId]
   );
 
   if (!publicMode && isBillingLoading && (locked || !hasPremiumAccess)) {
@@ -232,7 +238,11 @@ export const ContentPlannerList = ({
           onSubscribe={() => setShowBillingModal(true)}
           billingHref="/dashboard/billing"
         />
-        <BillingSubscribeModal open={showBillingModal} onClose={() => setShowBillingModal(false)} />
+        <BillingSubscribeModal
+          open={showBillingModal}
+          onClose={() => setShowBillingModal(false)}
+          context="planning"
+        />
       </>
     );
   }
@@ -254,7 +264,11 @@ export const ContentPlannerList = ({
         onCreateSlot={handleCreateSlot}
         showBillingModal={
           !publicMode ? (
-            <BillingSubscribeModal open={showBillingModal} onClose={() => setShowBillingModal(false)} />
+            <BillingSubscribeModal
+              open={showBillingModal}
+              onClose={() => setShowBillingModal(false)}
+              context="planning"
+            />
           ) : null
         }
       />
@@ -348,6 +362,7 @@ export function ContentPlannerSection({
           <BillingSubscribeModal
             open={showBillingModal}
             onClose={() => setShowBillingModal(false)}
+            context="planning"
           />
         </section>
       );

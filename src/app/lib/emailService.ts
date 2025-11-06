@@ -3,6 +3,10 @@ import { logger } from '@/app/lib/logger';
 import { guestMigrationNotice } from '@/emails/guestMigrationNotice';
 import { instagramReconnectNotice } from '@/emails/instagramReconnectNotice';
 import { trialWelcomeEmail } from '@/emails/trialWelcome';
+import { proWelcomeEmail } from '@/emails/proWelcome';
+import { paymentFailureEmail } from '@/emails/paymentFailure';
+import { subscriptionCanceledEmail } from '@/emails/subscriptionCanceled';
+import { paymentReceiptEmail } from '@/emails/paymentReceipt';
 import { vipInviteEmail } from '@/emails/vipInvite';
 import { proposalReplyEmail, ProposalReplyEmailParams } from '@/emails/proposalReply';
 import { proposalReceivedEmail, ProposalReceivedEmailParams } from '@/emails/proposalReceivedEmail';
@@ -70,6 +74,96 @@ export async function sendTrialWelcomeEmail(
     logger.info(`[emailService] Email de boas-vindas do trial enviado para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar email de boas-vindas do trial', err);
+  }
+}
+
+export async function sendProWelcomeEmail(
+  to: string,
+  params: { name?: string | null; planInterval?: "month" | "year" | null }
+) {
+  const template = proWelcomeEmail(params);
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
+      to,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+    logger.info(`[emailService] Boas-vindas PRO enviada para ${to}`);
+  } catch (err) {
+    logger.error('[emailService] Falha ao enviar boas-vindas PRO', err);
+  }
+}
+
+export async function sendPaymentFailureEmail(
+  to: string,
+  params: {
+    name?: string | null;
+    amountDue: number;
+    currency: string;
+    hostedInvoiceUrl?: string | null;
+    retryAt?: Date | null;
+  }
+) {
+  const template = paymentFailureEmail(params);
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
+      to,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+    logger.info(`[emailService] E-mail de falha de pagamento enviado para ${to}`);
+  } catch (err) {
+    logger.error('[emailService] Falha ao enviar dunning email', err);
+  }
+}
+
+export async function sendSubscriptionCanceledEmail(
+  to: string,
+  params: { name?: string | null; endsAt?: Date | null }
+) {
+  const template = subscriptionCanceledEmail(params);
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
+      to,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+    logger.info(`[emailService] Confirmação de cancelamento enviada para ${to}`);
+  } catch (err) {
+    logger.error('[emailService] Falha ao enviar confirmação de cancelamento', err);
+  }
+}
+
+export async function sendPaymentReceiptEmail(
+  to: string,
+  params: {
+    name?: string | null;
+    amountPaid: number;
+    currency: string;
+    invoiceUrl?: string | null;
+    invoiceNumber?: string | null;
+    periodStart?: Date | null;
+    periodEnd?: Date | null;
+  }
+) {
+  const template = paymentReceiptEmail(params);
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
+      to,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+    logger.info(`[emailService] Recibo de pagamento enviado para ${to}`);
+  } catch (err) {
+    logger.error('[emailService] Falha ao enviar recibo de pagamento', err);
   }
 }
 

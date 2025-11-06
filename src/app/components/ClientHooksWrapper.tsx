@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { setAnalyticsUserProperties } from '@/lib/analytics/userProperties';
 
 const AGENCY_INVITE_KEY = 'agencyInviteCode';
 const AGENCY_INVITE_EXPIRATION_DAYS = 7;
@@ -15,6 +16,7 @@ export default function ClientHooksWrapper() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const analyticsSignatureRef = useRef<string | null>(null);
   // --- FIM DA CORREÇÃO ---
 
   useEffect(() => {
@@ -59,6 +61,68 @@ export default function ClientHooksWrapper() {
   }, [status, session, pathname, router]);
   */
   // --- FIM DA CORREÇÃO ---
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user?.id) return;
+    const signatureParts = [
+      session.user.id,
+      session.user.planStatus ?? 'unknown',
+      session.user.instagramConnected ? 'ig:1' : 'ig:0',
+    ];
+    const signature = signatureParts.join('|');
+    if (analyticsSignatureRef.current === signature) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/analytics/context', {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`analytics_context_fetch_failed_${res.status}`);
+        const body = await res.json();
+        if (!body?.ok || !body?.data || cancelled) return;
+        const {
+          plan,
+          country,
+          niche,
+          followersBand,
+          hasMediaKit,
+          instagramConnected,
+          isInternal,
+        } = body.data as {
+          plan?: string | null;
+          country?: string | null;
+          niche?: string | null;
+          followersBand?: string | null;
+          hasMediaKit?: boolean;
+          instagramConnected?: boolean;
+          isInternal?: boolean;
+        };
+        setAnalyticsUserProperties({
+          plan: plan ?? null,
+          country: country ?? null,
+          niche: niche ?? null,
+          followers_band: followersBand ?? null,
+          has_media_kit: hasMediaKit ?? false,
+          instagram_connected: instagramConnected ?? false,
+          is_internal: isInternal ?? false,
+        });
+        analyticsSignatureRef.current = signature;
+      } catch (error) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[ClientHooksWrapper] analytics context fetch failed', error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [status, session, session?.user?.id, session?.user?.planStatus, session?.user?.instagramConnected]);
 
 
   // Este componente não precisa renderizar nada visualmente,

@@ -8,6 +8,7 @@ import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
 import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie } from "react-icons/fa";
 import { track } from "@/lib/track";
+import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
 type CalculatorParams = {
   format: "post" | "reels" | "stories" | "pacote";
@@ -98,6 +99,8 @@ export default function CalculatorClient() {
   const canAccessFeatures = !billingStatus.isLoading && resolvedPlanAccess;
   const showLockedMessage = !billingStatus.isLoading && !resolvedPlanAccess;
   const lockTrackedRef = useRef(false);
+  const resumeHandledRef = useRef(false);
+  const submitButtonRef = useRef<HTMLButtonElement | null>(null);
   const upgradeMessage = "Descubra seu preço ideal com base nas suas métricas reais.";
   const upgradeSubtitle =
     "Tenha o Mobi como seu consultor pessoal e receba análises e precificações automáticas.";
@@ -123,6 +126,28 @@ export default function CalculatorClient() {
     }
   }, [showLockedMessage]);
 
+  useEffect(() => {
+    if (resumeHandledRef.current) return;
+    if (billingStatus.isLoading) return;
+    if (!canAccessFeatures) return;
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
+      if (!stored) return;
+      const data = JSON.parse(stored);
+      if (data?.context !== "calculator") return;
+      window.sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
+      resumeHandledRef.current = true;
+      submitButtonRef.current?.focus({ preventScroll: false });
+    } catch {
+      try {
+        window.sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [billingStatus.isLoading, canAccessFeatures]);
+
   const handleLockedAccess = (source: string = "cta") => {
     toast({
       variant: "info",
@@ -134,7 +159,16 @@ export default function CalculatorClient() {
       source,
     });
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("open-subscribe-modal"));
+      track("paywall_viewed", {
+        creator_id: null,
+        context: "calculator",
+        plan: billingStatus.normalizedStatus ?? (billingStatus.planStatus as string | null),
+      });
+      window.dispatchEvent(
+        new CustomEvent("open-subscribe-modal", {
+          detail: { context: "calculator", source, returnTo: "/dashboard/calculator" },
+        })
+      );
     }
   };
 
@@ -242,7 +276,7 @@ export default function CalculatorClient() {
 
   const handleAddToMediaKit = () => {
     if (!calculation) return;
-    router.push(`/dashboard/media-kit?fromCalc=${encodeURIComponent(calculation.calculationId)}`);
+    router.push(`/media-kit?fromCalc=${encodeURIComponent(calculation.calculationId)}`);
   };
 
   const handleOpenChat = () => {
@@ -421,6 +455,7 @@ export default function CalculatorClient() {
             type="submit"
             className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-200"
             disabled={disableInputs}
+            ref={submitButtonRef}
           >
             {isCalculating ? (
               <>

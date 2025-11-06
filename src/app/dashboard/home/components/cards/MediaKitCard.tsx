@@ -5,6 +5,7 @@
 
 import React from "react";
 import { FaIdBadge, FaCopy } from "react-icons/fa";
+import { emptyStates } from "@/constants/emptyStates";
 
 import CardShell from "../CardShell";
 import ActionButton from "../ActionButton";
@@ -88,11 +89,14 @@ export default function MediaKitCard({
 
   const emptyState = (
     <div className="space-y-3">
+      <p className="text-lg font-semibold text-slate-900">
+        {emptyStates.mediaKit.title}
+      </p>
       <p className="text-sm font-medium text-slate-600">
-        Gere seu kit vivo em um clique e transforme dados recentes em prova social.
+        {emptyStates.mediaKit.description}
       </p>
       <ActionButton
-        label="Criar kit agora"
+        label={emptyStates.mediaKit.ctaLabel}
         onClick={onCreateMediaKit}
         icon={<FaIdBadge />}
         className="px-4 py-2 text-sm"

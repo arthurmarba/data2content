@@ -2,12 +2,15 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Crown, Check, Sparkles, Shield, ArrowRight, Loader2, Lock } from "lucide-react";
+import { X, Crown, Check, Sparkles, Shield, ArrowRight, ArrowUpRight, Loader2, Lock } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
+import type { PaywallContext } from "@/types/paywall";
+import { track } from "@/lib/track";
 
 interface BillingSubscribeModalProps {
   open: boolean;
   onClose: () => void;
+  context?: PaywallContext;
 }
 
 type PricesShape = {
@@ -33,7 +36,47 @@ const FEATURES: string[] = [
   "Cresça engajamento, seguidores e receita com decisões guiadas por dados",
 ];
 
-export default function BillingSubscribeModal({ open, onClose }: BillingSubscribeModalProps) {
+type PaywallCopy = {
+  title: string;
+  subtitle: string;
+  bullets: string[];
+  ctaLabel: string;
+};
+
+const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
+  default: {
+    title: "Receba alertas e oportunidades diárias no seu WhatsApp",
+    subtitle: "Ative o PRO para transformar sua IA em um estrategista que planeja, analisa e negocia com você.",
+    bullets: FEATURES,
+    ctaLabel: "Ativar PRO",
+  },
+  reply_email: {
+    title: "Responder pela plataforma é PRO.",
+    subtitle: "Templates prontos, faixa justa automática e envio em 1 clique direto pela D2C.",
+    bullets: ["E-mail pronto com 1 clique", "Faixa justa automática pela IA"],
+    ctaLabel: "Ativar PRO",
+  },
+  ai_analysis: {
+    title: "Análise com IA é PRO.",
+    subtitle: "Descubra a faixa justa ideal e receba a recomendação do Mobi em segundos.",
+    bullets: ["Faixa justa baseada nas suas métricas", "Sugestão objetiva (aceitar/ajustar/extra)"],
+    ctaLabel: "Ativar PRO",
+  },
+  calculator: {
+    title: "Calculadora de Publi é PRO.",
+    subtitle: "Receba faixas de preço estratégicas, justas e premium geradas a partir das suas métricas reais.",
+    bullets: ["Faixa estratégica, justa e premium automáticas", "Multiplicadores calibrados pelo seu desempenho"],
+    ctaLabel: "Ativar PRO",
+  },
+  planning: {
+    title: "Planejamento com IA é PRO.",
+    subtitle: "Descubra o que postar com o planner da IA e receba alertas diários no WhatsApp.",
+    bullets: ["Planner com horários e formatos otimizados", "WhatsApp IA com alertas diários de oportunidades"],
+    ctaLabel: "Ativar PRO",
+  },
+};
+
+export default function BillingSubscribeModal({ open, onClose, context }: BillingSubscribeModalProps) {
   const [prices, setPrices] = useState<PricesShape | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,7 +87,17 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
   const [period, setPeriod] = useState<"monthly" | "annual">("annual"); // ✅ anual como padrão
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
   const dialogRef = useRef<HTMLDivElement>(null);
-  const { isLoading: billingStatusLoading, hasPremiumAccess, isTrialActive } = useBillingStatus();
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const trackedOpenRef = useRef(false);
+  const billingStatus = useBillingStatus();
+  const billingStatusLoading = Boolean(billingStatus.isLoading);
+  const hasPremiumAccess = Boolean(billingStatus.hasPremiumAccess);
+  const isTrialActive = Boolean(billingStatus.isTrialActive);
+  const effectiveContext = context ?? "default";
+  const paywallCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
+  const bulletItems = paywallCopy.bullets && paywallCopy.bullets.length > 0 ? paywallCopy.bullets : FEATURES;
+  const primaryCtaLabel = paywallCopy.ctaLabel || "Ativar PRO";
+  const isDefaultContext = effectiveContext === "default";
 
   // Fecha com ESC
   useEffect(() => {
@@ -74,6 +127,95 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
     } catch {
       /* no-op */
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      trackedOpenRef.current = false;
+      return;
+    }
+
+    if (effectiveContext === "default" && !trackedOpenRef.current) {
+      trackedOpenRef.current = true;
+      const normalizedPlan = billingStatus.normalizedStatus ?? null;
+      track("paywall_viewed", {
+        creator_id: null,
+        context: "other",
+        plan: normalizedPlan,
+      });
+    }
+  }, [open, effectiveContext, billingStatus.normalizedStatus]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusableSelectors = [
+      'button:not([disabled]):not([tabindex="-1"])',
+      'a[href]:not([tabindex="-1"])',
+      'input:not([disabled]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
+    ];
+
+    const isElementVisible = (element: HTMLElement) => {
+      const style = window.getComputedStyle(element);
+      if (style.visibility === "hidden" || style.display === "none") return false;
+      if (style.position === "fixed") return true;
+      return element.offsetParent !== null;
+    };
+
+    const getFocusable = () =>
+      dialogRef.current
+        ? Array.from(dialogRef.current.querySelectorAll<HTMLElement>(focusableSelectors.join(","))).filter((el) => {
+            if (el.hasAttribute("disabled") || el.getAttribute("aria-hidden") === "true") return false;
+            return isElementVisible(el);
+          })
+        : [];
+
+    const focusInitial = () => {
+      const autoElement =
+        dialogRef.current?.querySelector<HTMLElement>("[data-autofocus='true']") ?? getFocusable()[0] ?? dialogRef.current;
+      autoElement?.focus({ preventScroll: true });
+    };
+
+    const raf = window.requestAnimationFrame(focusInitial);
+
+    const handleTabTrap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) {
+        event.preventDefault();
+        dialogRef.current?.focus({ preventScroll: true });
+        return;
+      }
+      const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+      if (event.shiftKey) {
+        const prevIndex = currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1;
+        focusable[prevIndex]?.focus({ preventScroll: true });
+      } else {
+        const nextIndex = currentIndex === focusable.length - 1 ? 0 : currentIndex + 1;
+        focusable[nextIndex]?.focus({ preventScroll: true });
+      }
+      event.preventDefault();
+    };
+
+    document.addEventListener("keydown", handleTabTrap, true);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      document.removeEventListener("keydown", handleTabTrap, true);
+      const previous = previousFocusRef.current;
+      if (previous && typeof previous.focus === "function") {
+        previous.focus({ preventScroll: true });
+      }
+      previousFocusRef.current = null;
+    };
   }, [open]);
 
   const parsePrices = (items: APIRawPrice[] | undefined | null): PricesShape => {
@@ -182,6 +324,12 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
 
   /** Redireciona para o Stripe Checkout para concluir a assinatura. */
   const handleSubscribe = async () => {
+    track("dashboard_cta_clicked", {
+      creator_id: null,
+      target: "activate_pro",
+      surface: "upsell_block",
+      context: effectiveContext === "default" ? "paywall" : effectiveContext,
+    });
     setError(null);
     setLoadingRedirect(true);
     try {
@@ -235,6 +383,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
         <div
           ref={dialogRef}
           className="w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          tabIndex={-1}
         >
           {/* Header sticky */}
           <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200">
@@ -249,6 +398,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                 className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                 onClick={onClose}
                 aria-label="Fechar"
+                data-autofocus="true"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -285,7 +435,11 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
         aria-labelledby="billing-error-title"
         onClick={handleOverlay}
       >
-        <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+        <div
+          ref={dialogRef}
+          className="w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          tabIndex={-1}
+        >
           {/* Header sticky com X sempre visível */}
           <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200">
             <div className="flex items-center justify-between px-5 sm:px-6 py-4">
@@ -296,6 +450,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                 className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                 onClick={onClose}
                 aria-label="Fechar"
+                data-autofocus="true"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -341,6 +496,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
         <div
           ref={dialogRef}
           className="w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          tabIndex={-1}
         >
           {/* Header sticky: X sempre visível */}
           <div className="sticky top-0 z-10 bg-white/95 backdrop-blur">
@@ -352,17 +508,15 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                 </div>
                 <div className="flex-1">
                   <h2 id="subscribe-modal-title" className="text-lg sm:text-xl font-bold text-gray-900">
-                    Tenha seu estrategista de conteúdo no WhatsApp
+                    {paywallCopy.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-700">
-                    A IA conectada ao seu Instagram interpreta sua performance, planeja conteúdos e envia
-                    <strong> alertas diários no WhatsApp</strong> com o que postar e por quê.
-                  </p>
+                  <p className="mt-1 text-sm text-gray-700">{paywallCopy.subtitle}</p>
                 </div>
                 <button
                   onClick={onClose}
                   aria-label="Fechar"
                   className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  data-autofocus="true"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -449,8 +603,10 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                 </div>
               )}
 
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {FEATURES.map((feat) => (
+              <ul
+                className={`grid grid-cols-1 ${bulletItems.length > 2 ? "sm:grid-cols-2" : ""} gap-2.5`}
+              >
+                {bulletItems.map((feat) => (
                   <li key={feat} className="flex items-start gap-2 text-sm">
                     <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-200">
                       <Check className="h-3.5 w-3.5 text-emerald-600" />
@@ -460,27 +616,31 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                 ))}
               </ul>
 
-              <div className="mt-3 rounded-lg border border-gray-200 p-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                  <Sparkles className="w-4 h-4 text-pink-500" />
-                  Para vender e para crescer
-                </div>
-                <p className="mt-1.5 text-xs text-gray-600">
-                  Com o <strong>relatório gratuito</strong> você se apresenta melhor às marcas. Com o{" "}
-                  <strong>Relatório Avançado + IA estrategista</strong>, você aumenta engajamento, ganha mais seguidores e
-                  fatura mais.
-                </p>
-              </div>
+              {isDefaultContext ? (
+                <>
+                  <div className="mt-3 rounded-lg border border-gray-200 p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                      <Sparkles className="w-4 h-4 text-pink-500" />
+                      Para vender e para crescer
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-600">
+                      Com o <strong>relatório gratuito</strong> você se apresenta melhor às marcas. Com o{" "}
+                      <strong>Relatório Avançado + IA estrategista</strong>, você aumenta engajamento, ganha mais seguidores e
+                      fatura mais.
+                    </p>
+                  </div>
 
-              <div className="mt-3 mb-2 rounded-lg border border-gray-200 p-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                  <Shield className="w-4 h-4 text-indigo-500" />
-                  Assine sem risco
-                </div>
-                <p className="mt-1.5 text-xs text-gray-600">
-                  Você já testou o modo PRO por 48 horas. Na assinatura paid, mantenha o acesso e cancele a qualquer momento.
-                </p>
-              </div>
+                  <div className="mt-3 mb-2 rounded-lg border border-gray-200 p-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                      <Shield className="w-4 h-4 text-indigo-500" />
+                      Assine sem risco
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-600">
+                      Você já testou o modo PRO por 48 horas. Na assinatura paid, mantenha o acesso e cancele a qualquer momento.
+                    </p>
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -505,10 +665,26 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                   </>
                 ) : (
                   <>
-                    Assinar agora
+                    {primaryCtaLabel}
                     <ArrowRight className="ml-1.5 h-4 w-4" />
                   </>
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                    track("dashboard_cta_clicked", {
+                      creator_id: null,
+                      target: "activate_pro",
+                      surface: "upsell_block",
+                      context: "learn_more",
+                    });
+                  window.open("/pro", "_blank", "noopener,noreferrer");
+                }}
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+              >
+                Conhecer o PRO
+                <ArrowUpRight className="h-3.5 w-3.5" />
               </button>
 
               <p className="mt-3 text-center text-[11px] text-gray-500">

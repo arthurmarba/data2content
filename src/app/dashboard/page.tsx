@@ -1,11 +1,13 @@
 // src/app/dashboard/page.tsx
-import { redirect } from 'next/navigation';
-import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
+import React from "react";
+import HomeClientPage from "./home/HomeClientPage";
 
-export default function DashboardLegacyRedirect() {
-  const flag = process.env.DISCOVER_AS_DEFAULT;
-  if (typeof flag === 'string' && flag.trim() === '0') {
-    redirect('/dashboard/chat');
-  }
-  redirect(MAIN_DASHBOARD_ROUTE);
+export const dynamic = "force-dynamic";
+
+export default function DashboardHomePage() {
+  return (
+    <main className="w-full">
+      <HomeClientPage />
+    </main>
+  );
 }

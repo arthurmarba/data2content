@@ -35,6 +35,8 @@ import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
 import { track } from '@/lib/track';
 import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
+import { useUtmAttribution } from '@/hooks/useUtmAttribution';
+import type { UtmContext } from '@/lib/analytics/utm';
 
 /**
  * UTILS & CONSTANTS
@@ -305,9 +307,15 @@ type PublicProposalFormProps = {
   mediaKitSlug?: string;
   onSubmitSuccess?: () => void;
   onSubmitError?: (error: Error) => void;
+  utmContext?: UtmContext | null;
 };
 
-const PublicProposalForm = ({ mediaKitSlug, onSubmitSuccess, onSubmitError }: PublicProposalFormProps) => {
+const PublicProposalForm = ({
+  mediaKitSlug,
+  onSubmitSuccess,
+  onSubmitError,
+  utmContext,
+}: PublicProposalFormProps) => {
   const formId = useId();
   const [form, setForm] = useState<ProposalFormState>({
     brandName: '',
@@ -322,6 +330,11 @@ const PublicProposalForm = ({ mediaKitSlug, onSubmitSuccess, onSubmitError }: Pu
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [utmSnapshot, setUtmSnapshot] = useState<UtmContext | null>(utmContext ?? null);
+
+  useEffect(() => {
+    setUtmSnapshot(utmContext ?? null);
+  }, [utmContext]);
 
   if (!mediaKitSlug) return null;
 
@@ -351,9 +364,6 @@ const PublicProposalForm = ({ mediaKitSlug, onSubmitSuccess, onSubmitError }: Pu
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting) return;
-    track('media_kit_proposal_submission_started', {
-      slug: mediaKitSlug ?? null,
-    });
 
     setSubmitting(true);
     setSuccess(false);
@@ -376,31 +386,71 @@ const PublicProposalForm = ({ mediaKitSlug, onSubmitSuccess, onSubmitError }: Pu
     if (form.budget.trim()) payload.budget = form.budget.trim();
     if (form.currency.trim()) payload.currency = form.currency.trim().toUpperCase();
 
+    const utmPayload = utmSnapshot;
+    if (utmPayload?.utm_source) payload.utmSource = utmPayload.utm_source;
+    if (utmPayload?.utm_medium) payload.utmMedium = utmPayload.utm_medium;
+    if (utmPayload?.utm_campaign) payload.utmCampaign = utmPayload.utm_campaign;
+    if (utmPayload?.utm_term) payload.utmTerm = utmPayload.utm_term;
+    if (utmPayload?.utm_content) payload.utmContent = utmPayload.utm_content;
+    if (utmPayload?.referrer) payload.referrer = utmPayload.referrer;
+    if (utmPayload?.first_touch_at) payload.utmFirstTouchAt = utmPayload.first_touch_at;
+    if (utmPayload?.last_touch_at) payload.utmLastTouchAt = utmPayload.last_touch_at;
+    if (!payload.referrer && typeof document !== 'undefined' && document.referrer) {
+      payload.referrer = document.referrer;
+    }
+
     try {
       const response = await fetch(`/api/mediakit/${mediaKitSlug}/proposals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
         throw new Error(body?.error || 'Não foi possível enviar sua proposta agora.');
       }
+      const result = body?.data ?? {};
+      const creatorId = typeof result?.creatorId === 'string' ? result.creatorId : null;
+      const proposalId = typeof result?.proposalId === 'string' ? result.proposalId : null;
+      const deliverablesCount =
+        typeof result?.deliverablesCount === 'number'
+          ? result.deliverablesCount
+          : Array.isArray(payload.deliverables)
+          ? payload.deliverables.length
+          : 0;
+      const responseBudget = typeof result?.budget === 'number' ? result.budget : null;
+
       setSuccess(true);
       resetForm();
-      track('media_kit_proposal_submitted', {
-        slug: mediaKitSlug ?? null,
-        hasBudget: Boolean(payload.budget),
-        hasWhatsapp: Boolean(payload.contactWhatsapp),
-        deliverablesCount: Array.isArray(payload.deliverables) ? payload.deliverables.length : 0,
+      track('proposal_submitted', {
+        creator_id: creatorId,
+        proposal_id: proposalId,
+        budget: typeof responseBudget === 'number' ? Math.round(responseBudget) : null,
+        deliverables_count: deliverablesCount,
+        timeline_days: result?.timelineDays ?? null,
+        utm_source: utmPayload?.utm_source ?? null,
+        utm_medium: utmPayload?.utm_medium ?? null,
+        utm_campaign: utmPayload?.utm_campaign ?? null,
+        utm_content: utmPayload?.utm_content ?? null,
+        utm_term: utmPayload?.utm_term ?? null,
+      });
+      track('proposal_received', {
+        creator_id: creatorId,
+        proposal_id: proposalId,
+        source: 'media_kit',
       });
       onSubmitSuccess?.();
     } catch (err: any) {
       setError(err?.message || 'Erro inesperado. Tente novamente mais tarde.');
       const normalizedError = err instanceof Error ? err : new Error(err?.message || 'submission_failed');
-      track('media_kit_proposal_submit_failed', {
-        slug: mediaKitSlug ?? null,
+      track('proposal_submission_failed', {
+        creator_id: null,
+        proposal_id: null,
         message: normalizedError.message,
+        media_kit_id: mediaKitSlug ?? null,
+        utm_source: utmPayload?.utm_source ?? null,
+        utm_medium: utmPayload?.utm_medium ?? null,
+        utm_campaign: utmPayload?.utm_campaign ?? null,
       });
       onSubmitError?.(normalizedError);
     } finally {
@@ -1036,6 +1086,8 @@ export default function MediaKitView({
   const stickyEndRef = useRef<HTMLDivElement | null>(null);
   const [hasPassedStickyStart, setHasPassedStickyStart] = useState(false);
   const [isStickyEndVisible, setIsStickyEndVisible] = useState(false);
+  const { utm } = useUtmAttribution({ captureReferrer: true });
+  const hasTrackedViewRef = useRef(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -1431,6 +1483,29 @@ export default function MediaKitView({
     }
     return '';
   }, [user]);
+
+  useEffect(() => {
+    if (hasTrackedViewRef.current) return;
+    const creatorId = (user as any)?._id ? String((user as any)._id) : null;
+    const mediaKitId =
+      typeof mediaKitSlug === 'string' && mediaKitSlug.length > 0
+        ? mediaKitSlug
+        : (user as any)?.mediaKitSlug ?? null;
+    if (!creatorId || !mediaKitId) return;
+    hasTrackedViewRef.current = true;
+    const browserReferrer =
+      typeof document !== 'undefined' && document.referrer ? document.referrer : null;
+    track('media_kit_viewed', {
+      creator_id: creatorId,
+      media_kit_id: mediaKitId,
+      referrer: utm.referrer ?? browserReferrer,
+      utm_source: utm.utm_source ?? null,
+      utm_medium: utm.utm_medium ?? null,
+      utm_campaign: utm.utm_campaign ?? null,
+      utm_content: utm.utm_content ?? null,
+      utm_term: utm.utm_term ?? null,
+    });
+  }, [mediaKitSlug, user, utm]);
   const heroLocationLabel = useMemo(() => {
     const locationParts = [
       (user as any)?.city,
@@ -1447,12 +1522,24 @@ export default function MediaKitView({
   const handleShareClick = useCallback(async () => {
     const shareUrl = publicUrlForCopy || (typeof window !== 'undefined' ? window.location.href : '');
     if (!shareUrl || typeof navigator === 'undefined') return;
+    const creatorId = (user as any)?._id ? String((user as any)._id) : null;
+    const mediaKitId =
+      typeof mediaKitSlug === 'string' && mediaKitSlug.length > 0
+        ? mediaKitSlug
+        : (user as any)?.mediaKitSlug ?? null;
     try {
       if (navigator.share) {
         await navigator.share({
           title: user?.name ? `Media Kit de ${user.name}` : 'Media Kit',
           url: shareUrl,
         });
+        if (creatorId && mediaKitId) {
+          track('copy_media_kit_link', {
+            creator_id: creatorId,
+            media_kit_id: mediaKitId,
+            origin: 'web_share',
+          });
+        }
         return;
       }
     } catch {
@@ -1464,11 +1551,18 @@ export default function MediaKitView({
         setHasCopiedLink(true);
         if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
         copyFeedbackTimeout.current = setTimeout(() => setHasCopiedLink(false), 2000);
+        if (creatorId && mediaKitId) {
+          track('copy_media_kit_link', {
+            creator_id: creatorId,
+            media_kit_id: mediaKitId,
+            origin: 'clipboard',
+          });
+        }
       } catch {
         // ignore clipboard errors silently
       }
     }
-  }, [publicUrlForCopy, user?.name]);
+  }, [mediaKitSlug, publicUrlForCopy, user]);
   useEffect(
     () => () => {
       if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
@@ -2503,6 +2597,7 @@ export default function MediaKitView({
                 <PublicProposalForm
                   mediaKitSlug={mediaKitSlug}
                   onSubmitSuccess={handleProposalSuccess}
+                  utmContext={utm}
                 />
               </div>
             </div>

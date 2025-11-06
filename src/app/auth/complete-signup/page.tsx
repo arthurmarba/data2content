@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import FullPageLoader from "@/app/components/auth/FullPageLoader";
 
-const DESTINATION = "/dashboard/media-kit";
+const DESTINATION = "/media-kit";
 
 export default function CompleteSignupPage() {
   const router = useRouter();

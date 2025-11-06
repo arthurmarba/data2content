@@ -7,6 +7,7 @@ import { FaCheck, FaLock } from 'react-icons/fa';
 import { useDebounce } from 'use-debounce';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { track } from '@/lib/track';
+import { useSession } from 'next-auth/react';
 
 function cn(...classes: (string | undefined | false)[]) {
   return classes.filter(Boolean).join(' ');
@@ -120,6 +121,8 @@ function setReferralCookie(code?: string) {
 }
 
 export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...props }: PlanCardProProps) {
+  const { data: session } = useSession();
+  const creatorId = session?.user?.id ?? null;
   const [currency, setCurrency] = useState<Currency>(defaultCurrency);
   const [plan, setPlan] = useState<Plan>('monthly');
 
@@ -353,7 +356,15 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         setError(json?.message || json?.error || 'Não foi possível iniciar o teste.');
         return;
       }
-      track('trial_activated', { source: 'plan_card_pro' });
+      const planLabel = plan === 'annual' ? 'anual' : 'mensal';
+      const totalValue = typeof preview?.total === 'number' ? preview.total : null;
+      const eventCurrency = typeof displayCurrency === 'string' ? displayCurrency : currency;
+      track('subscription_started', {
+        creator_id: creatorId,
+        plan: planLabel,
+        currency: eventCurrency,
+        value: totalValue,
+      });
       await refetchBillingStatus();
     } catch (e: any) {
       setError(e?.message || 'Erro ao iniciar o teste.');

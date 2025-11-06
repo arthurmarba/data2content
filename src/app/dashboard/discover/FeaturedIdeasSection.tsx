@@ -199,7 +199,7 @@ export default function FeaturedIdeasSection({ items, totalItems }: FeaturedIdea
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
           <span>Dados atualizados em tempo real com sinais da IA.</span>
           <Link
-            href="/dashboard/planner/demo"
+            href="/planning/demo"
             className="inline-flex items-center gap-1 text-xs font-semibold text-brand-magenta hover:text-brand-red"
           >
             Ver benchmarking completo

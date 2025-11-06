@@ -11,7 +11,7 @@ type DiscoverHeaderProps = {
   featuredCount?: number;
 };
 
-const PROOF_TEXT = "Você está acessando uma curadoria personalizada pela IA do Mobi.";
+const PROOF_TEXT = "Use como referência para seus próximos conteúdos. Isso valoriza seu Mídia Kit.";
 
 export default function DiscoverHeader({ allowedPersonalized, featuredCount }: DiscoverHeaderProps) {
   const { instagram, hasPremiumAccess, isTrialActive, trialRemainingMs, trial } = useBillingStatus();

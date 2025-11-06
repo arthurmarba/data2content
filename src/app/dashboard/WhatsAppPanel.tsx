@@ -38,12 +38,17 @@ export default function WhatsAppPanel({
         feature: "whatsapp_panel",
         reason: upsellOnly ? "upsell_only" : "no_premium_access",
       });
+      track("paywall_viewed", {
+        creator_id: userId,
+        context: "whatsapp_ai",
+        plan: canAccessFeatures ? "pro" : "free",
+      });
       gatedViewTrackedRef.current = true;
     }
     if (!lockedView) {
       gatedViewTrackedRef.current = false;
     }
-  }, [canAccessFeatures, upsellOnly]);
+  }, [canAccessFeatures, upsellOnly, userId]);
 
   useEffect(() => {
     if (!canAccessFeatures || upsellOnly) {
@@ -141,7 +146,7 @@ export default function WhatsAppPanel({
           <div>
             <h3 className="text-lg font-semibold text-slate-900">WhatsApp IA PRO</h3>
             <p className="text-sm text-slate-600">
-              Alertas inteligentes, micro-insights semanais e mentorias direto no seu WhatsApp.
+              Diagnósticos e ideias no seu WhatsApp (sem disparar lembretes automáticos).
             </p>
           </div>
         </div>
@@ -151,10 +156,10 @@ export default function WhatsAppPanel({
             O que a IA faz por você
           </p>
           <ul className="mt-2 space-y-2 text-sm text-slate-700">
-            <li>• Alertas proativos sempre que o engajamento mudar.</li>
-            <li>• Resumo semanal com prioridades e oportunidades.</li>
-            <li>• Prompts rápidos para tirar dúvidas ou gerar ideias.</li>
-            <li>• Integração direta aos dados do seu Instagram conectado.</li>
+            <li>• Diagnósticos sobre o desempenho mais recente do seu Instagram.</li>
+            <li>• Ideias e prompts gerados pelo Mobi quando você precisar.</li>
+            <li>• Insights conectados aos seus dados (leitura segura, sem disparos automáticos).</li>
+            <li>• Histórico da conversa para consultar antes de negociar com marcas.</li>
           </ul>
         </div>
 
@@ -177,7 +182,7 @@ export default function WhatsAppPanel({
             Prévia borrada das mensagens que você recebe no WhatsApp IA PRO; disponível com o trial de 48h.
           </p>
           <p className="mt-3 text-xs text-slate-500">
-            Ative 48h grátis para ver os alertas completos, puxar insights sob demanda e receber o resumo semanal sem bloqueios.
+            Ative 48h grátis para ver diagnósticos completos e puxar insights sob demanda sempre que precisar.
           </p>
         </div>
 
@@ -247,11 +252,14 @@ export default function WhatsAppPanel({
         <div className="flex items-center gap-3">
           <FaWhatsapp className="w-10 h-10 text-green-500" />
           <div>
-            <h3 className="font-semibold text-lg text-gray-800">Whatsapp IA</h3>
+            <h3 className="font-semibold text-lg text-gray-800">WhatsApp IA PRO</h3>
             <p className="text-sm text-gray-500 mt-1">
+              Diagnósticos e ideias no seu WhatsApp (sem disparar lembretes automáticos).
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
               {isLinked
-                ? "Conectado! Clique no botão para conversar."
-                : "Conecte seu WhatsApp para falar com o Mobi."}
+                ? "Conectado! Clique no botão para conversar com o Mobi."
+                : "Conecte seu WhatsApp para falar com o Mobi quando quiser."}
             </p>
           </div>
         </div>

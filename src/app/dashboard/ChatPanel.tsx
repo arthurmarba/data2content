@@ -1243,7 +1243,10 @@ export default function ChatPanel({
 
                 {instagramConnected && (
                   <button
-                    onClick={() => { router.push('/dashboard/media-kit'); setIsToolsOpen(false); }}
+                    onClick={() => {
+                      router.push('/media-kit');
+                      setIsToolsOpen(false);
+                    }}
                     className="flex items-center gap-4 w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 transition-colors"
                   >
                     <FaExternalLinkAlt className="text-gray-600 text-lg" />

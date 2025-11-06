@@ -529,7 +529,7 @@ export default function StrategicReportInline() {
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link
-                    href="/dashboard/whatsapp"
+                    href="/planning/whatsapp"
                     className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
                   >
                     Avisar quando estiver pronto

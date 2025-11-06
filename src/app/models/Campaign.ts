@@ -10,6 +10,7 @@ export interface ICampaign extends Document {
   currency?: string | null;
   description?: string | null;
   segments?: string[];
+  referenceLinks?: string[];
   source?: string | null;
   originAffiliate?: string | null;
   originCreatorHandle?: string | null;
@@ -33,6 +34,7 @@ const CampaignSchema = new Schema<ICampaign>(
     currency: { type: String, default: 'BRL' },
     description: { type: String, default: null },
     segments: { type: [String], default: [] },
+    referenceLinks: { type: [String], default: [] },
     source: { type: String, default: 'direct' },
     originAffiliate: { type: String, default: null },
     originCreatorHandle: { type: String, default: null },

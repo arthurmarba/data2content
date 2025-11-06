@@ -9,6 +9,8 @@ import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
 import { track } from '@/lib/track';
 import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
+import { useUtmAttribution } from '@/hooks/useUtmAttribution';
+import type { UtmContext } from '@/lib/analytics/utm';
 
 interface LandingHeaderProps {
   showLoginButton?: boolean;
@@ -23,6 +25,7 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const ctaButtonRef = useRef<HTMLButtonElement>(null);
+  const { appendUtm, utm } = useUtmAttribution();
 
   const navLinks = [
     { href: '#galeria', label: 'Criadores' },
@@ -53,7 +56,14 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
 
   const handleBrands = () => {
     track('landing_header_brand_cta_click');
-    window.location.assign('/campaigns/new?utm_source=landing&utm_medium=header&utm_campaign=multi_creator');
+    const overrides: Partial<UtmContext> = {
+      utm_content: 'landing_header_brand_button',
+    };
+    if (!utm.utm_source) overrides.utm_source = 'landing';
+    if (!utm.utm_medium) overrides.utm_medium = 'header_cta';
+    if (!utm.utm_campaign) overrides.utm_campaign = 'multi_creator';
+    const destination = appendUtm('/campaigns/new', overrides) || '/campaigns/new';
+    window.location.assign(destination);
   };
 
   useEffect(() => {

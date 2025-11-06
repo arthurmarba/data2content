@@ -245,7 +245,7 @@ export default function PlannerDemoPage() {
   }, [router]);
 
   const handleOpenDiscover = useCallback(() => {
-    router.push("/dashboard/discover");
+    router.push("/planning/discover");
   }, [router]);
 
   return (

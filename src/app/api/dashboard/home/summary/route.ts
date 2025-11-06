@@ -9,6 +9,13 @@ import PlannerPlanModel from "@/app/models/PlannerPlan";
 import MetricModel from "@/app/models/Metric";
 import UserModel, { type IUser } from "@/app/models/User";
 import AudienceDemographicSnapshotModel from "@/app/models/demographics/AudienceDemographicSnapshot";
+import BrandProposalModel, { type BrandProposalStatus } from "@/app/models/BrandProposal";
+import MediaKitAccessLogModel from "@/app/models/MediaKitAccessLog";
+import type {
+  DashboardFlowChecklist,
+  DashboardProposalsSummary,
+  DashboardChecklistStep,
+} from "@/app/dashboard/home/types";
 import { recommendWeeklySlots } from "@/app/lib/planner/recommender";
 import { PLANNER_TIMEZONE } from "@/app/lib/planner/constants";
 import getBlockSampleCaptions from "@/utils/getBlockSampleCaptions";
@@ -37,9 +44,241 @@ const communityTotalsCache = new Map<
   { expires: number; data: { current: any; previous: any } }
 >();
 
-const FREE_COMMUNITY_URL = process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL || "/dashboard/discover";
-const VIP_COMMUNITY_URL = process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL || "/dashboard/whatsapp";
-const WHATSAPP_TRIAL_URL = process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_URL || "/dashboard/whatsapp";
+const PENDING_PROPOSAL_STATUSES: BrandProposalStatus[] = ["novo", "visto"];
+const RESPONDED_PROPOSAL_STATUSES: BrandProposalStatus[] = ["respondido", "aceito"];
+
+type DashboardProposalsComputation = DashboardProposalsSummary & {
+  proposalsViaMediaKit: number;
+};
+
+interface BuildFlowChecklistParams {
+  instagramConnected: boolean;
+  hasMediaKit: boolean;
+  proposals: DashboardProposalsComputation | null;
+  hasProAccess: boolean;
+}
+
+function buildFlowChecklist({
+  instagramConnected,
+  hasMediaKit,
+  proposals,
+  hasProAccess,
+}: BuildFlowChecklistParams): DashboardFlowChecklist {
+  const totalProposals = proposals?.totalCount ?? 0;
+  const newProposals = proposals?.newCount ?? 0;
+  const pendingProposals = proposals?.pendingCount ?? 0;
+  const respondedProposals = proposals?.respondedCount ?? 0;
+
+  const steps: DashboardChecklistStep[] = [];
+
+  const connectStatus = instagramConnected ? "done" : "todo";
+  steps.push({
+    id: "connect_ig",
+    title: "Conectar Instagram",
+    status: connectStatus,
+    actionLabel: "Conectar Instagram",
+    actionHref: "/dashboard/instagram/connect",
+    completedLabel: instagramConnected ? "Ver automações" : undefined,
+    completedHref: instagramConnected ? "/dashboard/chat" : undefined,
+    helper: instagramConnected
+      ? null
+      : "Conecte o Instagram para atualizar métricas e liberar automações.",
+    trackEvent: "connect_ig",
+  });
+
+  const mediaKitStatus = hasMediaKit ? "done" : connectStatus === "done" ? "in_progress" : "todo";
+  steps.push({
+    id: "create_media_kit",
+    title: "Criar Mídia Kit",
+    status: mediaKitStatus,
+    actionLabel: "Criar Mídia Kit",
+    actionHref: "/dashboard/media-kit",
+    completedLabel: hasMediaKit ? "Ver Mídia Kit" : undefined,
+    completedHref: hasMediaKit ? "/dashboard/media-kit" : undefined,
+    helper: hasMediaKit
+      ? null
+      : "Crie o seu kit para marcas conhecerem seu trabalho em 2 minutos.",
+    trackEvent: "create_media_kit",
+  });
+
+  const receiveStatus =
+    totalProposals === 0 ? "todo" : newProposals > 0 ? "in_progress" : "done";
+  steps.push({
+    id: "receive_proposals",
+    title: "Receber Propostas",
+    status: receiveStatus,
+    actionLabel: "Abrir Propostas",
+    actionHref: "/dashboard/proposals",
+    completedLabel: totalProposals > 0 ? "Ir para Campanhas" : undefined,
+    completedHref: totalProposals > 0 ? "/dashboard/proposals" : undefined,
+    helper:
+      totalProposals > 0
+        ? null
+        : "Coloque o link do Mídia Kit na bio para começar a receber propostas.",
+    badgeCount: newProposals > 0 ? newProposals : null,
+    trackEvent: "open_proposals",
+  });
+
+  const respondStatus =
+    pendingProposals > 0
+      ? "in_progress"
+      : respondedProposals > 0
+      ? "done"
+      : totalProposals > 0
+      ? "todo"
+      : "todo";
+
+  const respondActionLabel = hasProAccess ? "Analisar com IA" : "Responder agora";
+
+  steps.push({
+    id: "respond_with_ai",
+    title: "Responder com IA",
+    status: respondStatus,
+    actionLabel: respondActionLabel,
+    actionHref: "/dashboard/proposals?status=novo",
+    completedLabel:
+      respondedProposals > 0 && pendingProposals === 0 ? "Ir para Campanhas" : undefined,
+    completedHref:
+      respondedProposals > 0 && pendingProposals === 0 ? "/dashboard/proposals" : undefined,
+    helper:
+      pendingProposals > 0
+        ? "Você tem respostas pendentes. Resolva em minutos com a IA."
+        : respondedProposals > 0
+        ? "Todas as propostas foram respondidas. Continue revisando sua caixa de entrada."
+        : totalProposals === 0
+        ? "Assim que chegar uma proposta, responda com IA para ganhar tempo."
+        : "Dispare respostas inteligentes e negocie sem sair da plataforma.",
+    badgeCount: pendingProposals > 0 ? pendingProposals : null,
+    trackEvent: "analyze_with_ai",
+  });
+
+  const firstPendingStep = steps.find((step) => step.status !== "done")?.id ?? null;
+
+  return {
+    steps,
+    firstPendingStepId: firstPendingStep,
+    summary: {
+      instagramConnected,
+      hasMediaKit,
+      totalProposals,
+      newProposals,
+      pendingProposals,
+      respondedProposals,
+      hasProPlan: hasProAccess,
+    },
+  };
+}
+async function computeDashboardProposalsSummary(
+  userId: string,
+  mediaKitSlug: string | null
+): Promise<DashboardProposalsComputation> {
+  const userObjectId = new Types.ObjectId(userId);
+
+  const statusBreakdownPromise = BrandProposalModel.aggregate<{
+    _id: BrandProposalStatus;
+    count: number;
+  }>([
+    { $match: { userId: userObjectId } },
+    {
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 },
+      },
+    },
+  ]).exec();
+
+  const acceptedByCurrencyPromise = BrandProposalModel.aggregate<{
+    _id: string | null;
+    totalBudget: number;
+    latestUpdatedAt: Date | null;
+  }>([
+    {
+      $match: {
+        userId: userObjectId,
+        status: "aceito" as BrandProposalStatus,
+        budget: { $gt: 0 },
+      },
+    },
+    {
+      $group: {
+        _id: "$currency",
+        totalBudget: { $sum: "$budget" },
+        latestUpdatedAt: { $max: "$updatedAt" },
+      },
+    },
+    { $sort: { totalBudget: -1 } },
+  ]).exec();
+
+  const latestPendingPromise = BrandProposalModel.findOne({
+    userId: userObjectId,
+    status: { $in: PENDING_PROPOSAL_STATUSES },
+  })
+    .sort({ createdAt: -1 })
+    .select({ _id: 1, status: 1 })
+    .lean()
+    .exec();
+
+  const proposalsViaMediaKitPromise = mediaKitSlug
+    ? BrandProposalModel.countDocuments({
+        userId: userObjectId,
+        mediaKitSlug,
+      }).exec()
+    : Promise.resolve(0);
+
+  const [statusBreakdown, acceptedByCurrency, latestPending, proposalsViaMediaKit] = await Promise.all([
+    statusBreakdownPromise,
+    acceptedByCurrencyPromise,
+    latestPendingPromise,
+    proposalsViaMediaKitPromise,
+  ]);
+
+  const counts: Partial<Record<BrandProposalStatus, number>> = {};
+  for (const entry of statusBreakdown) {
+    counts[entry._id] = entry.count ?? 0;
+  }
+
+  const totalCount = statusBreakdown.reduce((acc, entry) => acc + (entry.count ?? 0), 0);
+  const newCount = counts.novo ?? 0;
+  const pendingCount = PENDING_PROPOSAL_STATUSES.reduce(
+    (acc, status) => acc + (counts[status] ?? 0),
+    0
+  );
+  const respondedCount = RESPONDED_PROPOSAL_STATUSES.reduce(
+    (acc, status) => acc + (counts[status] ?? 0),
+    0
+  );
+  const acceptedCount = counts.aceito ?? 0;
+
+  const topAccepted = acceptedByCurrency?.[0];
+  const acceptedEstimate = topAccepted
+    ? {
+        currency: topAccepted._id ?? null,
+        totalBudget: topAccepted.totalBudget ?? 0,
+        lastClosedAt: topAccepted.latestUpdatedAt
+          ? topAccepted.latestUpdatedAt.toISOString()
+          : null,
+      }
+    : null;
+
+  return {
+    totalCount,
+    newCount,
+    pendingCount,
+    respondedCount,
+    acceptedCount,
+    acceptedEstimate,
+    latestPendingProposalId: latestPending?._id ? latestPending._id.toString() : null,
+    latestPendingStatus: (latestPending?.status as BrandProposalStatus | null) ?? null,
+    proposalsViaMediaKit,
+  };
+}
+
+const FREE_COMMUNITY_URL =
+  process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL || "/planning/discover";
+const VIP_COMMUNITY_URL =
+  process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL || "/planning/whatsapp";
+const WHATSAPP_TRIAL_URL =
+  process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_URL || "/planning/whatsapp";
 const WHATSAPP_TRIAL_ENABLED =
   String(
     process.env.WHATSAPP_TRIAL_ENABLED ??
@@ -62,6 +301,9 @@ type UserSnapshot = Pick<
   | "whatsappTrialExpiresAt"
   | "whatsappTrialLastReminderAt"
   | "whatsappTrialLastNotificationAt"
+  | "instagramAccountId"
+  | "mediaKitSlug"
+  | "mediaKitToken"
   | "planStatus"
   | "planExpiresAt"
   | "planInterval"
@@ -255,7 +497,7 @@ async function computeNextPostCard(userId: string, periodDays = 90) {
     primaryHook,
     secondaryHooks: hooks.slice(0, 3),
     expectedLiftPercent: liftPercent,
-    plannerUrl: "/dashboard/planning",
+    plannerUrl: "/planning/planner",
     plannerSlotId: slot?.slotId ?? null,
     isInstagramConnected: true,
   };
@@ -330,8 +572,8 @@ async function computeConsistencyCard(userId: string) {
     postsSoFar: postsLast7,
     projectedPosts: projected,
     overpostingWarning,
-    plannerUrl: "/dashboard/planning",
-    hotSlotsUrl: "/dashboard/planning?view=heatmap",
+    plannerUrl: "/planning/planner",
+    hotSlotsUrl: "/planning/planner?view=heatmap",
   };
 }
 
@@ -573,7 +815,7 @@ async function computeMicroInsight(userId: string) {
       contextLabel: `Dia com melhor desempenho recente: ${dayName}.`,
       impactLabel: `+${impactPercent}% interações`,
       ctaLabel: "Ver slots no Planner",
-      ctaUrl: "/dashboard/planning?view=heatmap",
+      ctaUrl: "/planning/planner?view=heatmap",
     };
   }
 
@@ -585,7 +827,7 @@ async function computeMicroInsight(userId: string) {
     contextLabel: `Faixa horária com melhor média recente.`,
     impactLabel: `+${impactPercent}% interações`,
     ctaLabel: "Abrir Planner IA",
-    ctaUrl: "/dashboard/planning",
+    ctaUrl: "/planning/planner",
   };
 }
 
@@ -609,17 +851,27 @@ function computeNextMentorshipSlot(baseDate: Date) {
   };
 }
 
-async function computeMediaKitCard(userId: string, appBaseUrl: string | null) {
-  const user = await UserModel.findById(userId)
-    .select({
-      mediaKitToken: 1,
-      mediaKitSlug: 1,
-    })
-    .lean()
-    .exec();
+async function computeMediaKitCard(
+  userId: string,
+  appBaseUrl: string | null,
+  userSnapshot?: Pick<IUser, "mediaKitToken" | "mediaKitSlug"> | null,
+  options?: { proposalsViaMediaKit?: number }
+) {
+  let token = userSnapshot?.mediaKitToken ?? null;
+  let slug = userSnapshot?.mediaKitSlug ?? null;
 
-  const token = user?.mediaKitToken ?? null;
-  const slug = user?.mediaKitSlug ?? null;
+  if (!token && !slug) {
+    const user = await UserModel.findById(userId)
+      .select({
+        mediaKitToken: 1,
+        mediaKitSlug: 1,
+      })
+      .lean()
+      .exec();
+    token = user?.mediaKitToken ?? null;
+    slug = user?.mediaKitSlug ?? null;
+  }
+
   const hasMediaKit = Boolean(token || slug);
 
   const sharePath = token ? `/mediakit/${token}` : slug ? `/mediakit/${slug}` : null;
@@ -691,11 +943,32 @@ async function computeMediaKitCard(userId: string, appBaseUrl: string | null) {
     ? formatDistanceToNow(lastUpdated, { addSuffix: true, locale: ptBR })
     : null;
 
+  let viewsLast7Days = 0;
+  if (hasMediaKit) {
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 6);
+    sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+    viewsLast7Days = await MediaKitAccessLogModel.countDocuments({
+      user: new Types.ObjectId(userId),
+      timestamp: { $gte: sevenDaysAgo },
+    }).exec();
+  }
+
+  let proposalsViaMediaKit = options?.proposalsViaMediaKit ?? null;
+  if (proposalsViaMediaKit === null && slug) {
+    proposalsViaMediaKit = await BrandProposalModel.countDocuments({
+      userId: new Types.ObjectId(userId),
+      mediaKitSlug: slug,
+    }).exec();
+  }
+
   return {
     shareUrl,
     highlights,
     lastUpdatedLabel,
     hasMediaKit,
+    viewsLast7Days,
+    proposalsViaMediaKit: proposalsViaMediaKit ?? 0,
   };
 }
 
@@ -870,7 +1143,7 @@ export async function GET(request: Request) {
   const responsePayload: Record<string, unknown> = {};
   let userSnapshot: UserSnapshot | null = null;
 
-  if (scope === "all") {
+  if (scope === "all" || scope === "proposals") {
     try {
       userSnapshot = (await UserModel.findById(userId)
         .select({
@@ -885,6 +1158,9 @@ export async function GET(request: Request) {
           whatsappTrialExpiresAt: 1,
           whatsappTrialLastReminderAt: 1,
           whatsappTrialLastNotificationAt: 1,
+          instagramAccountId: 1,
+          mediaKitSlug: 1,
+          mediaKitToken: 1,
           planStatus: 1,
           planExpiresAt: 1,
           planInterval: 1,
@@ -900,7 +1176,9 @@ export async function GET(request: Request) {
   }
 
   if (scope === "all") {
-    const instagramConnected = Boolean((session.user as any)?.instagramConnected);
+    const instagramConnected = Boolean(
+      (session.user as any)?.instagramConnected ?? userSnapshot?.instagramAccountId
+    );
     try {
       responsePayload.nextPost = instagramConnected ? await computeNextPostCard(userId) : { isInstagramConnected: false };
     } catch (error) {
@@ -1025,6 +1303,43 @@ export async function GET(request: Request) {
       startUrl: WHATSAPP_TRIAL_URL,
     };
 
+    let proposalsSummary: DashboardProposalsComputation | null = null;
+    try {
+      proposalsSummary = await computeDashboardProposalsSummary(userId, userSnapshot?.mediaKitSlug ?? null);
+      responsePayload.proposalsSummary = proposalsSummary;
+    } catch (error) {
+      logger.error("[home.summary] Failed to compute proposals summary", error);
+      responsePayload.proposalsSummary = null;
+    }
+
+    let mediaKitCard: Awaited<ReturnType<typeof computeMediaKitCard>> | null = null;
+    try {
+      mediaKitCard = await computeMediaKitCard(userId, appBaseUrl, userSnapshot, {
+        proposalsViaMediaKit: proposalsSummary?.proposalsViaMediaKit,
+      });
+      responsePayload.mediaKit = mediaKitCard;
+    } catch (error) {
+      logger.error("[home.summary] Failed to compute media kit card", error);
+      responsePayload.mediaKit = {
+        hasMediaKit: false,
+        highlights: [],
+        viewsLast7Days: 0,
+        proposalsViaMediaKit: 0,
+      };
+    }
+
+    try {
+      responsePayload.flowChecklist = buildFlowChecklist({
+        instagramConnected,
+        hasMediaKit: Boolean(mediaKitCard?.hasMediaKit),
+        proposals: proposalsSummary,
+        hasProAccess: hasPremiumAccess,
+      });
+    } catch (error) {
+      logger.error("[home.summary] Failed to compose flow checklist", error);
+      responsePayload.flowChecklist = null;
+    }
+
     if (instagramConnected) {
       try {
         responsePayload.microInsight = await computeMicroInsight(userId);
@@ -1098,26 +1413,79 @@ export async function GET(request: Request) {
       responsePayload.mentorship = null;
     }
 
+  }
+
+  if (scope === "proposals") {
+    const instagramConnected = Boolean(
+      (session.user as any)?.instagramConnected ?? userSnapshot?.instagramAccountId
+    );
+
+    let proposalsSummary: DashboardProposalsComputation | null = null;
     try {
-      responsePayload.mediaKit = await computeMediaKitCard(userId, appBaseUrl);
+      proposalsSummary = await computeDashboardProposalsSummary(
+        userId,
+        userSnapshot?.mediaKitSlug ?? null
+      );
+      responsePayload.proposalsSummary = proposalsSummary;
     } catch (error) {
-      logger.error("[home.summary] Failed to compute media kit card", error);
+      logger.error("[home.summary] Failed to compute proposals summary (scope=proposals)", error);
+      responsePayload.proposalsSummary = null;
+    }
+
+    let mediaKitCard: Awaited<ReturnType<typeof computeMediaKitCard>> | null = null;
+    try {
+      mediaKitCard = await computeMediaKitCard(userId, appBaseUrl, userSnapshot, {
+        proposalsViaMediaKit: proposalsSummary?.proposalsViaMediaKit,
+      });
+      responsePayload.mediaKit = mediaKitCard;
+    } catch (error) {
+      logger.error("[home.summary] Failed to compute media kit card (scope=proposals)", error);
       responsePayload.mediaKit = {
         hasMediaKit: false,
         highlights: [],
+        viewsLast7Days: 0,
+        proposalsViaMediaKit: 0,
       };
     }
+
+    const planStatus = userSnapshot?.planStatus ?? null;
+    const cancelAtPeriodEnd = Boolean(userSnapshot?.cancelAtPeriodEnd);
+    const accessMeta = getPlanAccessMeta(planStatus, cancelAtPeriodEnd);
+    const hasPremiumAccess = accessMeta.hasPremiumAccess;
+
+    try {
+      responsePayload.flowChecklist = buildFlowChecklist({
+        instagramConnected,
+        hasMediaKit: Boolean(mediaKitCard?.hasMediaKit),
+        proposals: proposalsSummary,
+        hasProAccess: hasPremiumAccess,
+      });
+    } catch (error) {
+      logger.error("[home.summary] Failed to compose flow checklist (scope=proposals)", error);
+      responsePayload.flowChecklist = null;
+    }
+
+    return NextResponse.json({
+      ok: true,
+      data: responsePayload,
+    });
   }
 
-  try {
-    const communityTotals = await aggregateCommunity(period);
-    responsePayload.communityMetrics = buildCommunityMetrics(period, communityTotals.current, communityTotals.previous);
-  } catch (error) {
-    logger.error("[home.summary] Failed to compute community metrics", error);
-    responsePayload.communityMetrics = {
-      period,
-      metrics: [],
-    };
+  if (scope === "all" || scope === "community") {
+    try {
+      const communityTotals = await aggregateCommunity(period);
+      responsePayload.communityMetrics = buildCommunityMetrics(
+        period,
+        communityTotals.current,
+        communityTotals.previous
+      );
+    } catch (error) {
+      logger.error("[home.summary] Failed to compute community metrics", error);
+      responsePayload.communityMetrics = {
+        period,
+        metrics: [],
+      };
+    }
   }
 
   return NextResponse.json({

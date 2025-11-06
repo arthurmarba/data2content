@@ -34,13 +34,13 @@ const CHECKLIST_ITEMS: Array<{
     key: "viewMediaKit",
     label: "Veja seu Mídia Kit automático",
     description: "Descubra os dados que a IA já organizou para você.",
-    action: (router) => router.push("/dashboard/media-kit"),
+    action: (router) => router.push("/media-kit"),
   },
   {
     key: "connectWhatsApp",
     label: "Ative o estrategista no WhatsApp",
     description: "Receba alertas e ideias em tempo real pelo seu número.",
-    action: (router) => router.push("/dashboard/whatsapp"),
+    action: (router) => router.push("/planning/whatsapp"),
   },
 ];
 
@@ -161,19 +161,19 @@ function ActiveTrialBanner({
 
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/dashboard/media-kit"
+            href="/media-kit"
             className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-purple shadow hover:bg-white/90"
           >
             Abrir relatório completo
           </Link>
           <Link
-            href="/dashboard/whatsapp"
+            href="/planning/whatsapp"
             className="inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
           >
             Falar com o Mobi no WhatsApp
           </Link>
           <Link
-            href="/dashboard/planner"
+            href="/planning/planner"
             className="inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20"
           >
             Usar planner IA

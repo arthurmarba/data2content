@@ -19,7 +19,8 @@ type PlanStatus =
   | "unpaid"
   | "canceled"
   | "inactive"
-  | "non_renewing";
+  | "non_renewing"
+  | "expired";
 
 // Normaliza valores legados vindos do DB (ex.: "trial" -> "trialing")
 function normalizePlanStatusValue(v: unknown): PlanStatus | null {
@@ -51,10 +52,21 @@ export async function GET() {
     const rawDb = normalizePlanStatusValue((user as any).planStatus);
     const cancelAtPeriodEnd = Boolean((user as any).cancelAtPeriodEnd);
 
-    // Para a UI: quando há cancelamento agendado, mostramos "non_renewing"
-    const uiStatus: PlanStatus = cancelAtPeriodEnd ? "non_renewing" : (rawDb ?? "inactive");
-
     const expiresAt = (user as any).planExpiresAt ?? null;
+    const expiresAtDate =
+      typeof expiresAt === "string" || expiresAt instanceof Date ? new Date(expiresAt) : null;
+    const trialExpired =
+      (rawDb === "trialing") &&
+      expiresAtDate instanceof Date &&
+      !Number.isNaN(expiresAtDate.getTime()) &&
+      expiresAtDate.getTime() <= Date.now();
+
+    // Para a UI: quando há cancelamento agendado, mostramos "non_renewing"
+    const uiStatus: PlanStatus = cancelAtPeriodEnd
+      ? "non_renewing"
+      : trialExpired
+      ? "expired"
+      : rawDb ?? "inactive";
 
     // Só mostrar intervalo quando a assinatura "existe" (evita exibir Mensal pra inativo)
     const showIntervalStatuses: ReadonlySet<PlanStatus> = new Set([
@@ -88,7 +100,7 @@ export async function GET() {
         ? lastPaymentErrorObj
         : lastPaymentErrorObj?.statusDetail ?? null;
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         ok: true,
         planStatus: uiStatus, // <- status para UI
@@ -104,6 +116,24 @@ export async function GET() {
       },
       { headers: cacheHeader }
     );
+
+    if (trialExpired) {
+      try {
+        await User.updateOne(
+          { _id: (user as any)?._id },
+          {
+            $set: {
+              planStatus: "expired",
+              cancelAtPeriodEnd: false,
+            },
+          }
+        );
+      } catch {
+        /* ignore persist failure */
+      }
+    }
+
+    return response;
   } catch (err) {
     console.error("[billing/status] error:", err);
     return NextResponse.json(

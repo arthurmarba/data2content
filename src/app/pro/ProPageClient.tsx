@@ -1,0 +1,562 @@
+"use client";
+
+import { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
+import { Check, Sparkles, Shield, Mail, Calculator, Calendar, ArrowRight, ArrowUpRight } from "lucide-react";
+import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { track } from "@/lib/track";
+
+type PricesShape = {
+  monthly: { brl: number; usd: number };
+  annual: { brl: number; usd: number };
+};
+
+type APIRawPrice = {
+  plan?: string | null;
+  currency?: string | null;
+  unitAmount?: number | null;
+};
+
+type ProPageClientProps = {
+  creatorId: string | null;
+  initialPlanStatus: {
+    normalizedStatus: string | null;
+    hasProAccess: boolean;
+    isTrialActive: boolean;
+  };
+};
+
+const HERO_COPY = {
+  title: "Feche campanhas com IA na negociação.",
+  subtitle: "E-mail pronto com 1 clique. Faixa justa automática. Planejamento PRO.",
+};
+
+const BENEFITS = [
+  {
+    title: "Negociação com IA",
+    description: "Receba a faixa justa ideal, com recomendações para aceitar, ajustar ou pedir extra.",
+    icon: <Sparkles className="h-5 w-5 text-brand-magenta" />,
+  },
+  {
+    title: "E-mail pronto em 1 clique",
+    description: "Templates profissionais com variáveis dinâmicas da proposta e três tons diferentes.",
+    icon: <Mail className="h-5 w-5 text-brand-magenta" />,
+  },
+  {
+    title: "Calculadora dinâmica",
+    description: "Valores estratégicos, justos e premium calculados a partir das suas métricas reais.",
+    icon: <Calculator className="h-5 w-5 text-brand-magenta" />,
+  },
+  {
+    title: "Planejamento PRO",
+    description: "Descoberta de tendências, planner com IA e alertas no WhatsApp para executar com foco.",
+    icon: <Calendar className="h-5 w-5 text-brand-magenta" />,
+  },
+];
+
+const COMPARISON = [
+  { feature: "Receber propostas e visualizar detalhes", free: true, pro: true },
+  { feature: "Responder com IA e enviar pela plataforma", free: false, pro: true },
+  { feature: "Calculadora dinâmica baseada nas suas métricas", free: false, pro: true },
+  { feature: "Planejamento PRO (Descoberta/Planner/WhatsApp IA)", free: false, pro: true },
+];
+
+const FAQS = [
+  {
+    question: "Posso cancelar quando quiser?",
+    answer:
+      "Sim. Você controla a assinatura dentro do app, sem multas. Se cancelar, mantém o acesso até o fim do ciclo contratado.",
+  },
+  {
+    question: "O que a IA considera na faixa justa?",
+    answer:
+      "Além das suas métricas, usamos setor, formato, engajamento recente e histórico de campanhas para sugerir valores coerentes.",
+  },
+  {
+    question: "Como funciona o reply-to do e-mail?",
+    answer:
+      "A marca recebe o e-mail com seu endereço como reply-to. Assim, qualquer resposta cai direto na sua caixa de entrada.",
+  },
+  {
+    question: "Como são feitas as cobranças?",
+    answer:
+      "Você escolhe mensal ou anual. As cobranças são feitas pelo Stripe com nota fiscal emitida e recibos enviados por e-mail.",
+  },
+];
+
+const SOCIAL_PROOF = {
+  quote:
+    "Fechei minha primeira campanha direto pela plataforma. A IA sugeriu valores e o e-mail seguiu pronto — bastou ajustar a saudação.",
+  author: "Carla Mendes",
+  role: "@carlamkt · Criadora PRO",
+};
+
+function parsePrices(items: APIRawPrice[] | undefined | null): PricesShape {
+  const byPlan: PricesShape = {
+    monthly: { brl: 0, usd: 0 },
+    annual: { brl: 0, usd: 0 },
+  };
+
+  const list = Array.isArray(items) ? items : [];
+  for (const item of list) {
+    const plan = String(item?.plan ?? "").toLowerCase();
+    const currency = String(item?.currency ?? "").toLowerCase();
+    const value =
+      typeof item?.unitAmount === "number" ? Math.max(item.unitAmount / 100, 0) : 0;
+
+    if ((plan === "monthly" || plan === "annual") && (currency === "brl" || currency === "usd")) {
+      (byPlan[plan] as any)[currency] = value;
+    }
+  }
+  return byPlan;
+}
+
+function formatCurrency(value: number, currency: "brl" | "usd") {
+  return new Intl.NumberFormat(currency === "brl" ? "pt-BR" : "en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    maximumFractionDigits: 2,
+  }).format(value || 0);
+}
+
+const CTA_SURFACE: "flow_checklist" | "proposals_block" | "media_kit_block" | "upsell_block" | "other" = "other";
+
+export default function ProPageClient({
+  creatorId,
+  initialPlanStatus,
+}: ProPageClientProps) {
+  const billingStatus = useBillingStatus();
+  const [showModal, setShowModal] = useState(false);
+  const [period, setPeriod] = useState<"annual" | "monthly">("annual");
+  const [currency, setCurrency] = useState<"brl" | "usd">("brl");
+  const [prices, setPrices] = useState<PricesShape | null>(null);
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [pricesError, setPricesError] = useState<string | null>(null);
+
+  const normalizedStatus = billingStatus.normalizedStatus ?? initialPlanStatus.normalizedStatus ?? null;
+  const hasProAccess = Boolean(billingStatus.hasPremiumAccess ?? initialPlanStatus.hasProAccess);
+  const isTrialActive = Boolean(billingStatus.isTrialActive ?? initialPlanStatus.isTrialActive);
+
+  useEffect(() => {
+    track("pro_page_viewed", {
+      creator_id: creatorId ?? null,
+      plan: normalizedStatus ?? null,
+    });
+  }, [creatorId, normalizedStatus]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      setPricesLoading(true);
+      setPricesError(null);
+      try {
+        const res = await fetch("/api/billing/prices", { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error || data?.message || "Falha ao buscar preços.");
+        }
+        if (!isMounted) return;
+        setPrices(parsePrices(data?.prices));
+      } catch (error: any) {
+        if (!isMounted) return;
+        setPricesError(error?.message || "Não foi possível carregar os valores.");
+        setPrices(null);
+      } finally {
+        if (isMounted) setPricesLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (hasProAccess) {
+      setShowModal(false);
+    }
+  }, [hasProAccess]);
+
+  const activePrice = useMemo(() => {
+    if (!prices) return 0;
+    return prices[period][currency];
+  }, [prices, period, currency]);
+
+  const monthlyEquivalent = useMemo(() => {
+    if (!prices) return 0;
+    const annual = prices.annual[currency];
+    return annual ? annual / 12 : 0;
+  }, [prices, currency]);
+
+  const savingsPct = useMemo(() => {
+    if (!prices) return 0;
+    const monthly = prices.monthly[currency];
+    const annual = prices.annual[currency];
+    if (!monthly || !annual) return 0;
+    const monthlyEq = annual / 12;
+    return Math.max(0, Math.round((1 - monthlyEq / monthly) * 100));
+  }, [prices, currency]);
+
+  const handleOpenModal = useCallback(
+    (origin: string) => {
+      track("dashboard_cta_clicked", {
+        creator_id: creatorId ?? null,
+        target: "activate_pro",
+        surface: CTA_SURFACE,
+        context: origin,
+      });
+      setShowModal(true);
+    },
+    [creatorId]
+  );
+
+  const handlePeriodToggle = useCallback(
+    (nextPeriod: "annual" | "monthly") => {
+      setPeriod(nextPeriod);
+      track("pro_pricing_toggled", {
+        creator_id: creatorId ?? null,
+        plan: nextPeriod,
+        currency,
+      });
+    },
+    [creatorId, currency]
+  );
+
+  const handleCurrencyToggle = useCallback(
+    (nextCurrency: "brl" | "usd") => {
+      setCurrency(nextCurrency);
+      track("pro_pricing_toggled", {
+        creator_id: creatorId ?? null,
+        plan: period,
+        currency: nextCurrency,
+      });
+    },
+    [creatorId, period]
+  );
+
+  return (
+    <>
+      <div className="sticky top-[var(--header-h,4rem)] z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <span className="text-sm font-semibold text-slate-700">
+            {hasProAccess ? "Plano PRO ativo" : "Desbloqueie o PRO para fechar campanhas com IA"}
+          </span>
+          {hasProAccess ? (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/campaigns"
+                className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+              >
+                Analisar com IA
+              </Link>
+              <Link
+                href="/planning/planner"
+                className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Ir ao Planejamento
+              </Link>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleOpenModal("sticky")}
+              className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+            >
+              Ativar PRO
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-16">
+        <section className="space-y-6 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-pink-600">
+            <Sparkles className="h-4 w-4" /> Plano PRO
+          </div>
+          <h1 className="text-4xl font-bold text-slate-900 sm:text-5xl">{HERO_COPY.title}</h1>
+          <p className="mx-auto max-w-2xl text-lg text-slate-600">{HERO_COPY.subtitle}</p>
+          {!hasProAccess && (
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => handleOpenModal("hero")}
+                className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-pink-600/40 transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+              >
+                Ativar PRO
+                <ArrowRight className="h-5 w-5" />
+              </button>
+              <Link
+                href="#faq"
+                className="text-sm font-semibold text-pink-700 underline-offset-4 hover:underline"
+              >
+                Tirar dúvidas
+              </Link>
+            </div>
+          )}
+          {hasProAccess && (
+            <div className="mx-auto max-w-xl rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900 shadow-sm">
+              <p className="font-semibold">Você é PRO ✅</p>
+              <p className="mt-1 text-emerald-800">
+                Explore as propostas com IA e mantenha seu planejamento atualizado para aproveitar
+                cada campanha com segurança.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="grid gap-5 md:grid-cols-2">
+          {BENEFITS.map((benefit) => (
+            <article
+              key={benefit.title}
+              className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-pink-50">
+                {benefit.icon}
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900">{benefit.title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{benefit.description}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="space-y-8">
+          <header>
+            <h2 className="text-2xl font-bold text-slate-900">Compare Free vs PRO</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Sem pegadinhas: veja o que é liberado em cada plano.
+            </p>
+          </header>
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Recurso</th>
+                  <th className="px-4 py-3 font-semibold text-center">Free</th>
+                  <th className="px-4 py-3 font-semibold text-center text-pink-600">PRO</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {COMPARISON.map((row) => (
+                  <tr key={row.feature}>
+                    <td className="px-4 py-4 text-sm font-semibold text-slate-800">{row.feature}</td>
+                    <td className="px-4 py-4 text-center">
+                      {row.free ? (
+                        <Check className="mx-auto h-5 w-5 text-emerald-600" />
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {row.pro ? (
+                        <Check className="mx-auto h-5 w-5 text-pink-600" />
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="grid gap-8 md:grid-cols-5 md:items-center" id="pricing">
+          <div className="md:col-span-2 space-y-3">
+            <h2 className="text-2xl font-bold text-slate-900">Escolha como quer assinar</h2>
+            <p className="text-sm text-slate-600">
+              Transparência total: você decide mensal ou anual, com economia para quem fica mais
+              tempo.
+            </p>
+            {pricesError && (
+              <p className="text-sm font-semibold text-red-600">{pricesError}</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handlePeriodToggle("monthly")}
+                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
+                  period === "monthly"
+                    ? "border-pink-500 bg-pink-50 text-pink-700"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                }`}
+              >
+                Plano mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePeriodToggle("annual")}
+                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
+                  period === "annual"
+                    ? "border-pink-500 bg-pink-50 text-pink-700"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                }`}
+              >
+                Plano anual {savingsPct > 0 && <span className="text-xs text-emerald-600">–{savingsPct}%</span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCurrencyToggle("brl")}
+                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
+                  currency === "brl"
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                }`}
+              >
+                BRL
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCurrencyToggle("usd")}
+                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
+                  currency === "usd"
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                }`}
+              >
+                USD
+              </button>
+            </div>
+          </div>
+          <div className="md:col-span-3">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              {pricesLoading ? (
+                <div className="animate-pulse space-y-4">
+                  <div className="h-10 w-40 rounded-lg bg-slate-100" />
+                  <div className="h-6 w-64 rounded bg-slate-100" />
+                  <div className="h-6 w-52 rounded bg-slate-100" />
+                </div>
+              ) : prices ? (
+                <div className="space-y-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-slate-900">
+                      {formatCurrency(activePrice, currency)}
+                    </span>
+                    <span className="text-sm text-slate-600">
+                      /{period === "annual" ? "ano" : "mês"}
+                    </span>
+                  </div>
+                  {period === "annual" && (
+                    <p className="text-sm text-slate-500">
+                      Equivale a <strong>{formatCurrency(monthlyEquivalent, currency)}</strong> por
+                      mês.
+                    </p>
+                  )}
+                  <ul className="space-y-2 text-sm text-slate-600">
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      Teste gratuito de 48h com tudo liberado.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      Cancelamento simples direto no app.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      Nota fiscal e recibos automáticos por e-mail.
+                    </li>
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  Não foi possível carregar os valores agora. Tente novamente mais tarde.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 rounded-3xl border border-slate-200 bg-slate-50 p-8 shadow-inner md:grid-cols-5">
+          <div className="md:col-span-3 space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-pink-600">
+              Prova social
+            </p>
+            <blockquote className="text-lg italic text-slate-800">
+              “{SOCIAL_PROOF.quote}”
+            </blockquote>
+            <cite className="block text-sm font-semibold text-slate-600">
+              {SOCIAL_PROOF.author}
+              <span className="block text-xs font-medium text-slate-400">{SOCIAL_PROOF.role}</span>
+            </cite>
+          </div>
+          <div className="md:col-span-2 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Precisa ver na prática?</p>
+            <p className="text-sm text-slate-500">
+              Entre na central de propostas e teste a análise com IA agora mesmo.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/campaigns"
+                className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Abrir Campanhas
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/planning"
+                className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+              >
+                Ver Planejamento
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" className="space-y-6">
+          <header>
+            <h2 className="text-2xl font-bold text-slate-900">Perguntas frequentes</h2>
+            <p className="text-sm text-slate-600">
+              Se ainda ficou alguma dúvida, fale com a gente pelo chat ou WhatsApp.
+            </p>
+          </header>
+          <div className="space-y-4">
+            {FAQS.map((faq) => (
+              <details
+                key={faq.question}
+                className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-3 text-left text-base font-semibold text-slate-800 marker:hidden">
+                  {faq.question}
+                  <span className="text-sm text-pink-600 transition group-open:rotate-45">+</span>
+                </summary>
+                <p className="mt-3 text-sm text-slate-600">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {!hasProAccess && (
+          <section className="rounded-3xl border border-pink-200 bg-gradient-to-br from-pink-50 via-white to-pink-100 p-8 text-center shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900">
+              Pronto para responder com IA e fechar sua próxima campanha?
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Ative o PRO para liberar análise, e-mail, calculadora e planejamento em um só clique.
+            </p>
+            <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => handleOpenModal("bottom")}
+                className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-pink-600/40 transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+              >
+                Ativar PRO
+                <ArrowRight className="h-5 w-5" />
+              </button>
+              <a
+                href="mailto:arthur@data2content.ai"
+                className="text-sm font-semibold text-pink-700 underline-offset-4 hover:underline"
+              >
+                Falar com vendas
+              </a>
+            </div>
+          </section>
+        )}
+      </main>
+
+      <BillingSubscribeModal open={showModal} onClose={() => setShowModal(false)} context="default" />
+    </>
+  );
+}

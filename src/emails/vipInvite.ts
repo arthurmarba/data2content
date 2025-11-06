@@ -6,7 +6,7 @@ export function vipInviteEmail({
   const greeting = name ? `Olá, ${name}!` : "Olá!";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai";
   const billingUrl = `${appUrl}/dashboard/billing`;
-  const whatsappUrl = `${appUrl}/dashboard/whatsapp`;
+  const whatsappUrl = `${appUrl}/planning/whatsapp`;
 
   const subject = "Conheça o Grupo VIP de mentorias estratégicas";
 

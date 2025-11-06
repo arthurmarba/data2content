@@ -4,6 +4,8 @@
 import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { track } from "@/lib/track";
+import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
 export default function BillingSuccessPage() {
   const sp = useSearchParams();
@@ -24,14 +26,43 @@ export default function BillingSuccessPage() {
         // Se você confirmar o checkout pelo client, descomente:
         // if (sid) await fetch(`/api/stripe/confirm?session_id=${sid}`, { method: "POST" });
 
-        await update(); // atualiza planStatus/stripe* no token uma única vez
+        const updatedSession = await update(); // atualiza planStatus/stripe* no token uma única vez
+        const user = updatedSession?.user;
+        if (user?.id) {
+          const interval = user.planInterval === "year" ? "anual" : "mensal";
+          track("subscription_activated", {
+            creator_id: user.id,
+            plan: interval,
+            currency: null,
+            value: null,
+          });
+        }
+        const stored = sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
+        if (stored) {
+          try {
+            const data = JSON.parse(stored);
+            const returnTo =
+              typeof data?.returnTo === "string" && data.returnTo.startsWith("/")
+                ? data.returnTo
+                : null;
+            sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
+            if (returnTo) {
+              const current = `${window.location.pathname}${window.location.search || ""}`;
+              if (current !== returnTo) {
+                router.push(returnTo);
+              }
+            }
+          } catch {
+            sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
+          }
+        }
         // Não precisa chamar router.refresh() aqui. Ao navegar, o server já refaz o fetch.
       } catch {
         // ignora erros; não bloqueia a tela
       }
     })();
   // dependemos só do sid para a chave de "uma vez"
-  }, [sid, update]);
+  }, [sid, update, router]);
 
   return (
     <div className="mx-auto max-w-xl p-6">

@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { track } from "@/lib/track";
+import { useUtmAttribution } from "@/hooks/useUtmAttribution";
+import type { UtmContext } from "@/lib/analytics/utm";
 import type {
   LandingCommunityStatsResponse,
   LandingCoverageRegion,
@@ -342,8 +344,7 @@ const FALLBACK_COVERAGE_REGIONS: LandingCoverageRegion[] = [
   },
 ];
 
-const BRAND_CAMPAIGN_URL =
-  "/campaigns/new?utm_source=landing&utm_medium=hero_cta&utm_campaign=multi_creator";
+const BRAND_CAMPAIGN_PATH = "/campaigns/new";
 
 function computeNextMentorshipSlot(): { isoDate: string; display: string } {
   const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -383,6 +384,7 @@ export default function LandingPageClient() {
     React.useState<LandingCoverageRegion[] | null>(null);
   const [loadingCoverage, setLoadingCoverage] = React.useState(true);
   const fallbackStats = React.useMemo(buildFallbackStats, []);
+  const { appendUtm, utm } = useUtmAttribution();
 
   const handleCreatorCta = React.useCallback(() => {
     try {
@@ -443,8 +445,13 @@ export default function LandingPageClient() {
     try {
       track("landing_brand_cta_click");
     } catch {}
-    window.location.assign(BRAND_CAMPAIGN_URL);
-  }, []);
+    const overrides: Partial<UtmContext> = { utm_content: "landing_hero_button" };
+    if (!utm.utm_source) overrides.utm_source = "landing";
+    if (!utm.utm_medium) overrides.utm_medium = "hero_cta";
+    if (!utm.utm_campaign) overrides.utm_campaign = "multi_creator";
+    const destination = appendUtm(BRAND_CAMPAIGN_PATH, overrides) ?? BRAND_CAMPAIGN_PATH;
+    window.location.assign(destination);
+  }, [appendUtm, utm]);
 
   React.useEffect(() => {
     let cancelled = false;

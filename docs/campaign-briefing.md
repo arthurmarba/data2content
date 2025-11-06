@@ -5,7 +5,7 @@ Este documento sintetiza o fluxo recém-lançado para captação de campanhas co
 ## 1. Escopo entregue
 - CTA destacado no Mídia Kit (`🎯 Criar campanha com vários criadores`) levando ao formulário `/campaigns/new`.
 - Página pública com formulário inteligente (marca, e-mail, telefone, orçamento, briefing, segmentos).
-- Persistência em `Campaign` (status inicial `pending`, rastreio de fonte, UTMs, handle/slug do mídia kit e affiliate code quando disponível).
+- Persistência em `Campaign` (status inicial `pending`, rastreio de fonte, UTMs, handle/slug do mídia kit, affiliate code quando disponível e links de referência).
 - Endpoint `POST /api/campaigns/new` com rate limit diário (5/IP), normalização de orçamento/segmentos e logging `[CAMPAIGN_PUBLIC]`.
 - E-mail imediato para a marca via template `campaignBriefConfirmation` com resumo do briefing.
 
@@ -18,6 +18,7 @@ Este documento sintetiza o fluxo recém-lançado para captação de campanhas co
 | `budget` / `currency` | formulário | orçamento parseado (`BRL` padrão) |
 | `description` | formulário | briefing completo (obrigatório) |
 | `segments` | checkboxes + campo livre | array normalizado/sem duplicatas |
+| `referenceLinks` | textarea links | até 3 URLs http(s), acesso público |
 | `source` | calculado | `mediaKit`, `affiliate` ou `direct` |
 | `originAffiliate` | query | `origin_affiliate` quando presente |
 | `originCreatorHandle` | query | `origin_handle` (handle do criador) |
@@ -33,7 +34,7 @@ Este documento sintetiza o fluxo recém-lançado para captação de campanhas co
 2. **Rate limit**  
    - Repetir 5 envios com o mesmo IP → 429 na tentativa seguinte.
 3. **E-mail**  
-   - Confirmar recebimento de “Recebemos seu briefing de campanha ✨” com segments + briefing.
+   - Confirmar recebimento de “Recebemos seu briefing de campanha ✨” com segmentos + links (quando enviados) + briefing.
 4. **UTMs**  
    - Chamar CTA via mídia kit → conferir `utm_*`, `origin_handle` e `origin_slug` persistidos.
 

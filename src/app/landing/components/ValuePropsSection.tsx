@@ -45,7 +45,7 @@ const ValuePropsSection: React.FC<ValuePropsSectionProps> = ({ onCta }) => {
     <section id="por-que" className="bg-brand-light pb-10 pt-10 md:pb-16 md:pt-14">
       <div className="container mx-auto max-w-5xl px-6">
         <div className="mb-8 text-center">
-          <p className="inline-flex items-center gap-2 rounded-full bg-[#FFE9EE] px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-magenta">
+          <p className="inline-flex items-center gap-2 rounded-full bg-brand-rose-10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-magenta">
             Ecossistema Data2Content
           </p>
           <h2 className="mt-5 text-2xl font-extrabold text-brand-dark md:text-[2.05rem]">
@@ -57,9 +57,9 @@ const ValuePropsSection: React.FC<ValuePropsSectionProps> = ({ onCta }) => {
           {valueCards.map((card) => (
             <article
               key={card.id}
-                className="mr-4 min-w-[78%] snap-center rounded-3xl border border-[#EFEFEF] bg-white p-5 shadow-[0_20px_55px_rgba(28,28,30,0.08)] transition last:mr-0 md:mr-0 md:min-w-0 md:snap-none"
+              className="mr-4 min-w-[78%] snap-center rounded-3xl border border-neutral-200 bg-neutral-0 p-5 shadow-glass-lg transition last:mr-0 md:mr-0 md:min-w-0 md:snap-none"
             >
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF0F6] text-2xl">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-magenta-soft text-2xl">
                 {card.icon}
               </span>
               <h3 className="mt-4 text-lg font-semibold text-brand-dark">{card.title}</h3>
@@ -77,7 +77,7 @@ const ValuePropsSection: React.FC<ValuePropsSectionProps> = ({ onCta }) => {
           <button
             type="button"
             onClick={onCta}
-            className="inline-flex items-center justify-center gap-3 rounded-lg bg-brand-magenta px-8 py-4 text-base font-semibold text-white shadow-[0_18px_32px_rgba(231,75,111,0.25)] transition-colors duration-200 hover:bg-brand-magenta-hover"
+            className="inline-flex items-center justify-center gap-3 rounded-lg bg-brand-magenta px-8 py-4 text-base font-semibold text-white shadow-brand-magenta transition-colors duration-200 hover:bg-brand-magenta-dark"
           >
             Ativar minha IA gratuita →
           </button>

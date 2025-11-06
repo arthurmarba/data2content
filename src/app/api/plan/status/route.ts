@@ -6,7 +6,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import type Stripe from "stripe";
-import { getPlanAccessMeta } from "@/utils/planStatus";
+import { getPlanAccessMeta, normalizePlanStatus } from "@/utils/planStatus";
 import type {
   InstagramAccessInfo,
   PlanStatusResponse,
@@ -239,26 +239,42 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
     options.planExpiresAt !== undefined ? options.planExpiresAt : (user as any)?.planExpiresAt;
   const planExpiresAtDate = toDate(planExpiresAtValue);
 
-  const planMeta = getPlanAccessMeta(planStatusRaw, cancelAtPeriodEnd);
-  const instagramInfo = deriveInstagramInfo(user);
-  const {
-    info: trialInfo,
-    updates,
-    expiresAtDate: trialExpiresAtDate,
-  } = computeTrialInfo(user, {
-    planHasPremium: planMeta.hasPremiumAccess,
-  });
+  let normalizedStatus = normalizePlanStatus(planStatusRaw);
 
+  const instagramInfo = deriveInstagramInfo(user);
+  const trialComputation = computeTrialInfo(user, {
+    planHasPremium: getPlanAccessMeta(normalizedStatus, cancelAtPeriodEnd).hasPremiumAccess,
+  });
+  const trialInfo = trialComputation.info;
+  let updates = trialComputation.updates ? { ...trialComputation.updates } : null;
+  const trialExpiresAtDate = trialComputation.expiresAtDate;
+
+  const effectivePlanExpiresAtDateInput =
+    planExpiresAtDate ?? (trialInfo.state === "active" ? trialExpiresAtDate : null);
+  const effectivePlanExpiresAtDate =
+    effectivePlanExpiresAtDateInput && !Number.isNaN(effectivePlanExpiresAtDateInput.getTime())
+      ? effectivePlanExpiresAtDateInput
+      : null;
+
+  const trialExpired =
+    (normalizedStatus === "trial" || normalizedStatus === "trialing") &&
+    effectivePlanExpiresAtDate &&
+    effectivePlanExpiresAtDate.getTime() <= Date.now();
+
+  if (trialExpired) {
+    normalizedStatus = "expired";
+    if (!updates) updates = {};
+    updates.planStatus = "expired";
+  }
+
+  const planMeta = getPlanAccessMeta(normalizedStatus, cancelAtPeriodEnd);
   const hasPremiumAccess = planMeta.hasPremiumAccess || trialInfo.state === "active";
   const isGracePeriod = planMeta.isGracePeriod || false;
 
   let uiStatus: UiPlanStatus | null =
     options.uiStatus !== undefined
       ? options.uiStatus ?? null
-      : mapStripeToUiStatus(planStatusRaw, cancelAtPeriodEnd);
-
-  const effectivePlanExpiresAtDate =
-    planExpiresAtDate ?? (trialInfo.state === "active" ? trialExpiresAtDate : null);
+      : mapStripeToUiStatus(normalizedStatus, cancelAtPeriodEnd);
 
   if (
     uiStatus === "inactive" &&

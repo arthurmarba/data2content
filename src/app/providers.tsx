@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { useEffect } from "react";
 import Cookies from "js-cookie";
+import { FeatureFlagProvider } from "@/app/context/FeatureFlagsContext";
 
 // --- INÍCIO DA CORREÇÃO ---
 // A definição da interface que estava faltando foi adicionada de volta.
@@ -45,7 +46,7 @@ export function Providers({ children, session }: ProvidersProps) {
       refetchOnWindowFocus
       basePath="/api/auth"
     >
-      {children}
+      <FeatureFlagProvider>{children}</FeatureFlagProvider>
     </SessionProvider>
   );
 }

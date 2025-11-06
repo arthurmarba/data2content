@@ -79,6 +79,25 @@ function parseBudget(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+const sanitizeOptionalString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+};
+
+const sanitizeDate = (value: unknown): Date | undefined => {
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    if (Number.isFinite(date.getTime())) {
+      return date;
+    }
+  }
+  return undefined;
+};
+
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
   const token = params.token?.trim();
   if (!token) {
@@ -132,6 +151,14 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   const deliverables = normalizeDeliverables(payload.deliverables);
   const budget = parseBudget(payload.budget);
   const currency = normalizeCurrencyCode(payload.currency) ?? 'BRL';
+  const utmSource = sanitizeOptionalString(payload.utmSource ?? payload.utm_source);
+  const utmMedium = sanitizeOptionalString(payload.utmMedium ?? payload.utm_medium);
+  const utmCampaign = sanitizeOptionalString(payload.utmCampaign ?? payload.utm_campaign);
+  const utmTerm = sanitizeOptionalString(payload.utmTerm ?? payload.utm_term);
+  const utmContent = sanitizeOptionalString(payload.utmContent ?? payload.utm_content);
+  const referrer = sanitizeOptionalString(payload.referrer ?? payload.utmReferrer ?? payload.utm_referrer);
+  const utmFirstTouchAt = sanitizeDate(payload.utmFirstTouchAt ?? payload.utm_first_touch_at);
+  const utmLastTouchAt = sanitizeDate(payload.utmLastTouchAt ?? payload.utm_last_touch_at) ?? utmFirstTouchAt;
 
   try {
     const proposal = await BrandProposal.create({
@@ -147,6 +174,14 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       currency,
       originIp: ip,
       userAgent: request.headers.get('user-agent') ?? undefined,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmTerm,
+      utmContent,
+      utmReferrer: referrer,
+      utmFirstTouchAt,
+      utmLastTouchAt,
     });
 
     const logPayload = {
@@ -157,6 +192,12 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       currency,
       campaignTitle,
       originIp: ip,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmTerm,
+      utmContent,
+      referrer,
     };
 
     logger.info('[PROPOSAL_PUBLIC] Proposta recebida', logPayload);
@@ -205,7 +246,33 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       });
     }
 
-    return NextResponse.json({ ok: true }, { status: 201 });
+    const deliverablesCount = Array.isArray(proposal.deliverables) ? proposal.deliverables.length : 0;
+
+    return NextResponse.json(
+      {
+        ok: true,
+        data: {
+          proposalId: proposal._id.toString(),
+          creatorId: creator._id.toString(),
+          mediaKitSlug: creator.mediaKitSlug ?? null,
+          budget: typeof proposal.budget === 'number' ? proposal.budget : null,
+          currency: proposal.currency ?? 'BRL',
+          deliverablesCount,
+          timelineDays: null,
+          utm: {
+            source: utmSource ?? null,
+            medium: utmMedium ?? null,
+            campaign: utmCampaign ?? null,
+            term: utmTerm ?? null,
+            content: utmContent ?? null,
+            referrer: referrer ?? null,
+            firstTouchAt: utmFirstTouchAt ?? null,
+            lastTouchAt: utmLastTouchAt ?? null,
+          },
+        },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     logger.error('[PROPOSAL_PUBLIC] Falha ao salvar proposta', error);
     Sentry.captureException(error);

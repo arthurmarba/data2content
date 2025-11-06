@@ -4,6 +4,7 @@ export interface CampaignBriefConfirmationParams {
   segments?: string[];
   description?: string | null;
   originHandle?: string | null;
+  referenceLinks?: string[];
 }
 
 function buildSegmentsList(segments?: string[]): string {
@@ -17,7 +18,7 @@ function buildSegmentsList(segments?: string[]): string {
 }
 
 export function campaignBriefConfirmation(params: CampaignBriefConfirmationParams) {
-  const { brandName, budgetText, segments = [], description, originHandle } = params;
+  const { brandName, budgetText, segments = [], description, originHandle, referenceLinks = [] } = params;
 
   const segmentsText = buildSegmentsList(segments);
   const normalizedDescription = description?.trim();
@@ -27,6 +28,11 @@ export function campaignBriefConfirmation(params: CampaignBriefConfirmationParam
         ? originHandle.trim()
         : `@${originHandle.trim()}`
       : null;
+  const sanitizedLinks = Array.isArray(referenceLinks)
+    ? referenceLinks
+        .map((link) => link?.trim())
+        .filter((link): link is string => Boolean(link))
+    : [];
 
   const textLines = [
     `Oi ${brandName},`,
@@ -43,6 +49,12 @@ export function campaignBriefConfirmation(params: CampaignBriefConfirmationParam
   ];
   if (referencedHandle) {
     textLines.push(`- Mídia Kit de origem: ${referencedHandle}`);
+  }
+  if (sanitizedLinks.length > 0) {
+    textLines.push(`- Links de referência:`);
+    sanitizedLinks.forEach((link) => {
+      textLines.push(`  • ${link}`);
+    });
   }
   if (normalizedDescription) {
     textLines.push('', 'Briefing:');
@@ -66,6 +78,16 @@ export function campaignBriefConfirmation(params: CampaignBriefConfirmationParam
           <li><strong>Marca:</strong> ${brandName}</li>
           <li><strong>Orçamento:</strong> ${budgetText ?? '—'}</li>
           <li><strong>Segmentos:</strong> ${segmentsText || '—'}</li>
+          ${
+            sanitizedLinks.length
+              ? `<li><strong>Links de referência:</strong> ${sanitizedLinks
+                  .map(
+                    (link) =>
+                      `<a href="${link}" style="color:#6E1F93;text-decoration:none;" target="_blank" rel="noopener noreferrer">${link}</a>`
+                  )
+                  .join(', ')}</li>`
+              : ''
+          }
           ${referencedHandle ? `<li><strong>Mídia Kit de origem:</strong> ${referencedHandle}</li>` : ''}
         </ul>
       </div>

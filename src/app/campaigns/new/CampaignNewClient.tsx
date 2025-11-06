@@ -39,6 +39,7 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
   const [description, setDescription] = useState('');
   const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   const [customSegments, setCustomSegments] = useState('');
+  const [referenceLinksInput, setReferenceLinksInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -90,6 +91,7 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
     setDescription('');
     setSelectedSegments([]);
     setCustomSegments('');
+    setReferenceLinksInput('');
     setSuccess(true);
   }, []);
 
@@ -102,6 +104,32 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
       setErrorMessage(null);
       setSuccess(false);
 
+      const referenceLinks = referenceLinksInput
+        .split('\n')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (referenceLinks.length > 3) {
+        setErrorMessage('Use no máximo 3 links de referência.');
+        setSubmitting(false);
+        return;
+      }
+
+      const hasInvalidLink = referenceLinks.some((link) => {
+        try {
+          const url = new URL(link);
+          return !(url.protocol === 'http:' || url.protocol === 'https:') || link.length > 300;
+        } catch {
+          return true;
+        }
+      });
+
+      if (hasInvalidLink) {
+        setErrorMessage('Informe links válidos começando com http:// ou https:// (máx. 300 caracteres).');
+        setSubmitting(false);
+        return;
+      }
+
       const payload = {
         brandName: brandName.trim(),
         contactEmail: contactEmail.trim().toLowerCase(),
@@ -110,6 +138,7 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
         currency,
         description: description.trim(),
         segments: normalizedSegments,
+        referenceLinks,
         source: computedSource,
         originHandle: initialContext.originHandle ?? undefined,
         originSlug: initialContext.originSlug ?? undefined,
@@ -136,6 +165,7 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
           originSlug: initialContext.originSlug,
           segments: normalizedSegments.length,
           hasBudget: Boolean(payload.budget),
+          referenceLinksCount: referenceLinks.length,
         });
         resetForm();
       } catch (error: any) {
@@ -161,6 +191,7 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
       initialContext.originHandle,
       initialContext.originSlug,
       normalizedSegments,
+      referenceLinksInput,
       resetForm,
       submitting,
       utmCampaign,
@@ -314,6 +345,20 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
               className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 shadow-sm focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]"
             />
           </div>
+          <div className="space-y-2">
+            <label htmlFor="referenceLinks" className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+              Links de referência (opcional)
+            </label>
+            <textarea
+              id="referenceLinks"
+              value={referenceLinksInput}
+              onChange={(event) => setReferenceLinksInput(event.target.value)}
+              rows={3}
+              placeholder="Cole até 3 links, um por linha"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 shadow-sm focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]"
+            />
+            <p className="text-xs text-gray-400">Garanta acesso público aos links.</p>
+          </div>
 
           {errorMessage ? (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -322,7 +367,7 @@ export default function CampaignNewClient({ initialContext }: CampaignNewClientP
           ) : null}
           {success ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-              Briefing enviado com sucesso! Em breve nossa equipe entra em contato com o plano recomendado.
+              Brief recebido! Você receberá as propostas por e-mail.
             </div>
           ) : null}
 

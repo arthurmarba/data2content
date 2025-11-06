@@ -240,7 +240,10 @@ function PlanTeaserContent() {
         ) : null}
       </div>
 
-      <h2 className="mb-3 text-center text-2xl font-semibold">Plano Data2Content</h2>
+      <h2 className="mb-2 text-center text-2xl font-semibold">Plano Data2Content</h2>
+      <p className="mb-5 text-center text-sm text-gray-600">
+        Responda e-mails dentro da D2C, com IA sugerindo o valor ideal e templates prontos.
+      </p>
 
       {/* Alternadores */}
       <div className="mb-5 flex items-center justify-center gap-2">

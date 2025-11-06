@@ -108,7 +108,7 @@ export default function ConsistencyCard({ data, loading, onPlanWeek, onViewHotSl
         variant="primary"
         onClick={onPlanWeek}
         icon={<FaCalendarCheck />}
-        href={data?.plannerUrl ?? "/dashboard/planning"}
+        href={data?.plannerUrl ?? "/planning/planner"}
       />
     </div>
   );

@@ -57,12 +57,12 @@ export default function CoverageHighlights({
   const totalFollowers = regions.reduce((sum, region) => sum + (region.followers ?? 0), 0);
 
   return (
-    <section className="relative overflow-hidden bg-[#F9FAFD] pb-[clamp(3rem,8vw,5rem)] pt-[clamp(2.5rem,7vw,4.5rem)]">
+    <section className="relative overflow-hidden bg-neutral-50 pb-[clamp(3rem,8vw,5rem)] pt-[clamp(2.5rem,7vw,4.5rem)]">
       <style>{shimmerKeyframes}</style>
-      <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(11,87,208,0.12)_0%,rgba(11,87,208,0)_55%)]" />
+      <div className="absolute inset-0 bg-landing-data" />
       <div className="relative container mx-auto flex w-full max-w-6xl flex-col gap-8 px-5 md:px-6">
         <header className="max-w-3xl space-y-3">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#D8E1F5] bg-white px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#2F3B5C]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-chip-border bg-neutral-0 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-accent-slate-600">
             Cobertura ativa
           </span>
           <h2 className="text-xl font-semibold text-brand-dark md:text-2xl">
@@ -74,27 +74,27 @@ export default function CoverageHighlights({
           </p>
         </header>
 
-        <div className="rounded-2xl border border-white/60 bg-white/95 p-4 shadow-[0_14px_36px_rgba(15,23,42,0.1)]">
+        <div className="rounded-2xl border border-white/60 bg-neutral-0/95 p-4 shadow-glass-md backdrop-blur-sm">
           <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-            <div className="flex items-center gap-3 rounded-full bg-[#F0F4FF] px-3 py-1">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0B57D0]">
+            <div className="flex items-center gap-3 rounded-full bg-accent-blue-soft px-3 py-1">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-blue">
                 Nichos
               </span>
-              <span className="text-[0.7rem] text-[#214072]">
+              <span className="text-[0.7rem] text-accent-blue-ink">
                 Alcance total {formatNumber(totalReach)}
               </span>
             </div>
-            <div className="flex items-center gap-2 rounded-full bg-[#F7F1FF] px-3 py-1">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6C2DB5]">
+            <div className="flex items-center gap-2 rounded-full bg-accent-violet-soft px-3 py-1">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-violet">
                 Estados
               </span>
-              <span className="text-[0.7rem] text-[#453068]">
+              <span className="text-[0.7rem] text-accent-violet-ink">
                 Seguidores {formatNumber(totalFollowers)}
               </span>
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 rounded-full bg-[#F4F7FB] p-1 text-xs font-semibold text-[#32456A]">
+          <div className="mt-4 flex items-center gap-2 rounded-full bg-brand-glass-200 p-1 text-xs font-semibold text-accent-slate-600">
             <button
               type="button"
               onClick={() => setActiveTab("segments")}
@@ -133,16 +133,16 @@ export default function CoverageHighlights({
                     return (
                       <article
                         key={segment.id ?? `segment-${index}`}
-                        className="group flex flex-col gap-2 rounded-2xl border border-[#E6EEFF] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(15,23,42,0.12)]"
+                        className="group flex flex-col gap-2 rounded-2xl border border-accent-indigo-border bg-neutral-0 p-4 shadow-glass-md transition hover:-translate-y-1 hover:shadow-glass-lg"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <span
-                            className="truncate text-sm font-semibold text-brand-dark group-hover:text-brand-primary"
+                            className="truncate text-sm font-semibold text-brand-dark group-hover:text-brand-blue"
                             title={segment.label}
                           >
                             {segment.label}
                           </span>
-                          <span className="rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[0.7rem] font-semibold text-[#0B57D0]">
+                          <span className="rounded-full bg-accent-indigo-soft px-2 py-0.5 text-[0.7rem] font-semibold text-brand-blue">
                             {formatPercent(segment.share)}
                           </span>
                         </div>
@@ -152,9 +152,9 @@ export default function CoverageHighlights({
                             alcance
                           </span>
                         </div>
-                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#E6EEFF]">
+                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-accent-indigo-border/70">
                           <span
-                            className="absolute inset-0 rounded-full bg-gradient-to-r from-[#0B57D0] to-[#2C7BFF]"
+                            className="absolute inset-0 rounded-full bg-gradient-to-r from-brand-blue to-accent-blue-bright"
                             style={{ width: `${sharePercent}%` }}
                           />
                         </div>
@@ -192,7 +192,7 @@ export default function CoverageHighlights({
                     return (
                       <article
                         key={`${region.code}-${index}`}
-                        className="flex flex-col gap-2 rounded-2xl border border-[#E6EEFF] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(15,23,42,0.12)]"
+                        className="flex flex-col gap-2 rounded-2xl border border-accent-indigo-border bg-neutral-0 p-4 shadow-glass-md transition hover:-translate-y-1 hover:shadow-glass-lg"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex min-w-0 flex-col">
@@ -215,9 +215,9 @@ export default function CoverageHighlights({
                             </span>
                           </div>
                         </div>
-                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#F2E9FF]">
+                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-accent-violet-ghost">
                           <span
-                            className="absolute inset-0 rounded-full bg-gradient-to-r from-[#6C2DB5] to-[#9346EB]"
+                            className="absolute inset-0 rounded-full bg-gradient-to-r from-brand-violet to-accent-violet-bright"
                             style={{ width: `${sharePercent}%` }}
                           />
                         </div>

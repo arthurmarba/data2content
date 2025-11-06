@@ -58,7 +58,7 @@ const HighlightCard: React.FC<HighlightCardProps> = ({
   const formatted = numberFormatter.format(countedValue || 0);
 
   return (
-    <article className="flex flex-col items-start justify-center rounded-3xl border border-[#E3E8F4] bg-white p-6 text-left shadow-[0_14px_38px_rgba(15,23,42,0.08)] transition-transform duration-200 hover:-translate-y-1">
+    <article className="flex flex-col items-start justify-center rounded-3xl border border-brand-glass-border bg-neutral-0 p-6 text-left shadow-glass-md transition-transform duration-200 hover:-translate-y-1">
       <div className="flex w-full flex-col gap-2">
         <span className="text-3xl font-semibold leading-tight text-brand-dark md:text-[2.5rem] lg:text-[2.75rem]">
           {metricValue > 0 ? `${prefix}${formatted}` : "—"}
@@ -96,12 +96,12 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
   return (
     <section
       id="inicio"
-      className="relative overflow-hidden bg-[radial-gradient(140%_120%_at_50%_-20%,rgba(231,75,111,0.12)_0%,rgba(231,75,111,0)_68%)] px-5 pb-[var(--space-fluid-4)] pt-[calc(var(--space-fluid-3)+var(--sat,0px)+var(--landing-header-h,4.5rem))]"
+      className="relative overflow-hidden bg-landing-hero px-5 pb-[var(--space-fluid-4)] pt-[calc(var(--space-fluid-3)+var(--sat,0px)+var(--landing-header-h,4.5rem))]"
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white to-[#F6F8FB]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white to-brand-glass-100" />
       <div className="relative container mx-auto flex w-full max-w-6xl flex-col gap-12">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center text-brand-dark">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E6F2] bg-white px-4 py-1 text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-chip-border bg-neutral-0 px-4 py-1 text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
             IA viva no mercado criativo
           </span>
           <h1 className="max-w-[24ch] text-[2.25rem] text-balance font-semibold leading-tight sm:text-[2.5rem] md:text-[3rem] lg:text-[3.5rem]">

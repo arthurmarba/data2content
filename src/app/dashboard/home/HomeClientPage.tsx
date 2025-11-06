@@ -22,10 +22,13 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { INSTAGRAM_READ_ONLY_COPY } from "@/app/constants/trustCopy";
+import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 
 import ActionButton from "./components/ActionButton";
 import type { CommunityMetricsCardData, HomeSummaryResponse } from "./types";
 import { useHomeTelemetry } from "./useHomeTelemetry";
+import type { DashboardCtaTarget, DashboardCtaSurface } from "./useHomeTelemetry";
+import MinimalDashboard from "./minimal/MinimalDashboard";
 import WhatsAppConnectInline from "../WhatsAppConnectInline";
 import { useHeaderSetup } from "../context/HeaderContext";
 
@@ -112,31 +115,31 @@ function formatCountdownLabel(ms: number): string {
 export default function HomeClientPage() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
-  const { trackCardAction, trackHeroAction, trackSurfaceView, trackWhatsappEvent } =
-    useHomeTelemetry();
+  const {
+    trackCardAction,
+    trackHeroAction,
+    trackSurfaceView,
+    trackWhatsappEvent,
+    trackDashboardCta,
+  } = useHomeTelemetry();
   const searchParams = useSearchParams();
 
   const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
   const onboardingCompletionRequested = React.useRef(false);
   const isNewUser = Boolean(session?.user?.isNewUserForOnboarding);
   const focusIntent = searchParams?.get("intent")?.toLowerCase() ?? null;
-
-  React.useEffect(() => {
-    if (!isNewUser) {
-      setShowWelcomeCard(false);
-      return;
-    }
-    if (typeof window === "undefined") return;
-    const dismissed = window.localStorage.getItem(HOME_WELCOME_STORAGE_KEY) === "1";
-    if (!dismissed) {
-      setShowWelcomeCard(true);
-    }
-  }, [isNewUser]);
+  const sessionUserId = session?.user?.id ?? null;
 
   const [summary, setSummary] = React.useState<HomeSummaryResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [initialFetch, setInitialFetch] = React.useState(false);
   const [showWhatsAppConnect, setShowWhatsAppConnect] = React.useState(false);
+  const communityFlag = useFeatureFlag("modules.community_on_home", true);
+  const planningFlag = useFeatureFlag("planning.group_locked", false);
+  const dashboardMinimalFlag = useFeatureFlag("nav.dashboard_minimal", false);
+  const communityOnHome = communityFlag.enabled;
+  const planningGroupLocked = planningFlag.enabled;
+  const dashboardMinimal = dashboardMinimalFlag.enabled;
   const appendQueryParam = React.useCallback((url: string, key: string, value: string) => {
     if (!value) return url;
     try {
@@ -151,10 +154,11 @@ export default function HomeClientPage() {
   }, []);
 
   const fetchSummary = React.useCallback(
-    async (period: Period, scope: "all" | "community" = "all") => {
+    async (period: Period, scope: "all" | "community" | "proposals" = "all") => {
       const params = new URLSearchParams();
       params.set("period", period);
       if (scope === "community") params.set("scope", "community");
+      if (scope === "proposals") params.set("scope", "proposals");
 
       const res = await fetch(`/api/dashboard/home/summary?${params.toString()}`, {
         cache: "no-store",
@@ -173,6 +177,48 @@ export default function HomeClientPage() {
     },
     []
   );
+
+  const refreshProposalsSummary = React.useCallback(
+    async (options?: { silent?: boolean }) => {
+      try {
+        const data = await fetchSummary(DEFAULT_PERIOD, "proposals");
+        setSummary((prev) => ({
+          ...(prev ?? ({} as HomeSummaryResponse)),
+          ...data,
+        }));
+      } catch (error: any) {
+        if (!options?.silent) {
+          const message = error?.message || "Não foi possível atualizar suas propostas.";
+          toast.error(message);
+        }
+        throw error;
+      }
+    },
+    [fetchSummary]
+  );
+
+  const trackMinimalCta = React.useCallback(
+    (target: DashboardCtaTarget, surface: DashboardCtaSurface, extra?: Record<string, unknown>) => {
+      trackDashboardCta(target, { creator_id: sessionUserId ?? null, surface, ...extra });
+    },
+    [sessionUserId, trackDashboardCta]
+  );
+
+  React.useEffect(() => {
+    if (dashboardMinimal) {
+      setShowWelcomeCard(false);
+      return;
+    }
+    if (!isNewUser) {
+      setShowWelcomeCard(false);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const dismissed = window.localStorage.getItem(HOME_WELCOME_STORAGE_KEY) === "1";
+    if (!dismissed) {
+      setShowWelcomeCard(true);
+    }
+  }, [dashboardMinimal, isNewUser]);
 
   React.useEffect(() => {
     if (status !== "authenticated" || initialFetch) return;
@@ -222,15 +268,16 @@ export default function HomeClientPage() {
   }, []);
 
   React.useEffect(() => {
+    if (dashboardMinimal) return;
     if (!focusIntent) return;
     scrollToProgressSection();
     trackSurfaceView("home_progress_focus", { intent: focusIntent });
-  }, [focusIntent, scrollToProgressSection, trackSurfaceView]);
+  }, [dashboardMinimal, focusIntent, scrollToProgressSection, trackSurfaceView]);
 
   const handleNextPostAction = React.useCallback(
     (action: string, origin?: string) => {
       trackCardAction("next_post", action, origin ? { origin } : undefined);
-      const plannerUrl = summary?.nextPost?.plannerUrl ?? "/dashboard/planning";
+      const plannerUrl = summary?.nextPost?.plannerUrl ?? "/planning/planner";
       const slotId = summary?.nextPost?.plannerSlotId ?? null;
       const plannerUrlWithSlot = slotId ? appendQueryParam(plannerUrl, "slotId", slotId) : plannerUrl;
       switch (action) {
@@ -253,9 +300,9 @@ export default function HomeClientPage() {
     (action: string) => {
       trackCardAction("consistency", action);
       if (action === "plan_week") {
-        handleNavigate(summary?.consistency?.plannerUrl ?? "/dashboard/planning");
+        handleNavigate(summary?.consistency?.plannerUrl ?? "/planning/planner");
       } else if (action === "view_hot_slots") {
-        handleNavigate(summary?.consistency?.hotSlotsUrl ?? "/dashboard/planning?view=heatmap");
+        handleNavigate(summary?.consistency?.hotSlotsUrl ?? "/planning/planner?view=heatmap");
       }
     },
     [trackCardAction, summary?.consistency, handleNavigate]
@@ -274,13 +321,13 @@ export default function HomeClientPage() {
           }
           break;
         case "refresh_highlights":
-          handleNavigate("/dashboard/media-kit?refresh=1");
+          handleNavigate("/media-kit?refresh=1");
           break;
         case "open_brand_view":
           handleNavigate(summary?.mediaKit?.shareUrl);
           break;
         case "create_media_kit":
-          handleNavigate("/dashboard/media-kit");
+          handleNavigate("/media-kit");
           break;
         default:
           break;
@@ -306,7 +353,7 @@ export default function HomeClientPage() {
     summary?.nextPost?.isInstagramConnected ?? Boolean(session?.user?.instagramConnected);
   const hasMediaKit = summary?.mediaKit?.hasMediaKit ?? false;
   const defaultCommunityFreeUrl =
-    process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/dashboard/discover";
+    process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/planning/discover";
   const defaultCommunityVipUrl =
     process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? defaultCommunityFreeUrl;
   const communityFreeMember = summary?.community?.free?.isMember ?? false;
@@ -355,9 +402,10 @@ export default function HomeClientPage() {
   }, [communityFreeMember, communityVipMember, planIsPro, whatsappTrialActive, whatsappTrialEligible, whatsappTrialStarted]);
 
   React.useEffect(() => {
+    if (dashboardMinimal) return;
     if (!showWelcomeCard) return;
     trackSurfaceView("home_welcome_card", { stage: heroStage });
-  }, [heroStage, showWelcomeCard, trackSurfaceView]);
+  }, [dashboardMinimal, heroStage, showWelcomeCard, trackSurfaceView]);
 
   const handleWelcomePrimary = React.useCallback(() => {
     trackHeroAction("welcome_cta_first_steps", { stage: heroStage });
@@ -373,6 +421,7 @@ export default function HomeClientPage() {
   }, [heroStage, trackHeroAction]);
 
   React.useEffect(() => {
+    if (dashboardMinimal) return;
     if (!planTrialActive || !planTrialExpiresAt) {
       setPlanTrialCountdownLabel(null);
       return;
@@ -384,7 +433,7 @@ export default function HomeClientPage() {
     update();
     const id = window.setInterval(update, 60_000);
     return () => window.clearInterval(id);
-  }, [planTrialActive, planTrialExpiresAt]);
+  }, [dashboardMinimal, planTrialActive, planTrialExpiresAt]);
 
   const openSubscribeModal = React.useCallback(() => {
     if (typeof window !== "undefined") {
@@ -411,7 +460,7 @@ export default function HomeClientPage() {
   const handleOpenDiscover = React.useCallback(
     (origin?: string) => {
       trackCardAction("connect_prompt", "open_discover", origin ? { origin } : undefined);
-      handleNavigate("/dashboard/discover");
+      handleNavigate("/planning/discover");
     },
     [handleNavigate, trackCardAction]
   );
@@ -538,15 +587,27 @@ export default function HomeClientPage() {
     );
   }, [headerPill]);
 
-  useHeaderSetup(
-    React.useMemo(
-      () => ({
-        cta: headerCta ?? null,
-        extraContent: headerExtraContent ?? null,
-      }),
-      [headerCta, headerExtraContent]
-    ),
-    [headerCta, headerExtraContent]
+  const headerSetupConfig = React.useMemo( () => {
+    if (dashboardMinimal) {
+      return {
+        cta: null,
+        extraContent: null,
+      };
+    }
+    return {
+      cta: headerCta ?? null,
+      extraContent: headerExtraContent ?? null,
+    };
+  }, [dashboardMinimal, headerCta, headerExtraContent]);
+
+  useHeaderSetup(headerSetupConfig, [dashboardMinimal, headerCta, headerExtraContent]);
+
+  const handleTriggerPaywall = React.useCallback(
+    (reason: "analyze_with_ai" | "activate_pro") => {
+      void reason; // mantemos assinatura para contexto futuro
+      openSubscribeModal();
+    },
+    [openSubscribeModal]
   );
 
   const microInsightCard = React.useMemo<MicroInsightCardState | null>(() => {
@@ -746,6 +807,7 @@ export default function HomeClientPage() {
 
   const nextSlotLabel = summary?.nextPost?.slotLabel?.trim() ?? null;
   React.useEffect(() => {
+    if (dashboardMinimal) return;
     if (!hasHydratedSummary) return;
     trackSurfaceView("home_hero", {
       stage: heroStage,
@@ -757,6 +819,7 @@ export default function HomeClientPage() {
   }, [
     communityFreeMember,
     communityVipMember,
+    dashboardMinimal,
     hasHydratedSummary,
     heroStage,
     planIsPro,
@@ -767,13 +830,14 @@ export default function HomeClientPage() {
   const previousWhatsappLinked = React.useRef(whatsappLinked);
 
   React.useEffect(() => {
+    if (dashboardMinimal) return;
     if (whatsappLinked && !previousWhatsappLinked.current) {
       trackWhatsappEvent("success", { origin: "home" });
       setShowWhatsAppConnect(false);
       toast.success("✅ Conexão com WhatsApp concluída.");
     }
     previousWhatsappLinked.current = whatsappLinked;
-  }, [trackWhatsappEvent, whatsappLinked]);
+  }, [dashboardMinimal, trackWhatsappEvent, whatsappLinked]);
 
   const isCommunityMember = communityVipHasAccess ? communityVipMember : communityFreeMember;
 
@@ -902,6 +966,7 @@ export default function HomeClientPage() {
   }, [iaEngaged, isCommunityMember, isFreePlan, isInstagramConnected]);
 
   React.useEffect(() => {
+    if (dashboardMinimal) return;
     if (!isNewUser || !hasCompletedCoreSteps || onboardingCompletionRequested.current) return;
     let cancelled = false;
     onboardingCompletionRequested.current = true;
@@ -923,7 +988,7 @@ export default function HomeClientPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasCompletedCoreSteps, isNewUser, trackSurfaceView, update]);
+  }, [dashboardMinimal, hasCompletedCoreSteps, isNewUser, trackSurfaceView, update]);
 
   const showTrialMessageCard =
     !planIsPro &&
@@ -1074,95 +1139,108 @@ export default function HomeClientPage() {
   const progressDescription = isNewUser
     ? "Conecte o Instagram, ative a IA no WhatsApp, participe da comunidade e escolha seu plano ideal."
     : journeyStageInfo.label;
-  const toolCards = React.useMemo(
-    () => {
-      const plannerMetric = !isInstagramConnected
-        ? "Conexão somente leitura em segundos."
-        : nextSlotLabel
-        ? `Próximo horário sugerido: ${nextSlotLabel}`
-        : weeklyGoal > 0
-        ? `Progresso da semana: ${Math.min(postsSoFar, weeklyGoal)}/${weeklyGoal} posts`
-        : "Defina uma meta semanal e eu gero os horários ideais.";
-      const plannerActionLabel = isInstagramConnected ? "Gerar horários com IA" : "Conectar Instagram";
+  const toolCards = React.useMemo(() => {
+    const plannerMetric = !isInstagramConnected
+      ? "Conexão somente leitura em segundos."
+      : nextSlotLabel
+      ? `Próximo horário sugerido: ${nextSlotLabel}`
+      : weeklyGoal > 0
+      ? `Progresso da semana: ${Math.min(postsSoFar, weeklyGoal)}/${weeklyGoal} posts`
+      : "Defina uma meta semanal e eu gero os horários ideais.";
+    const plannerActionLabel = isInstagramConnected ? "Gerar horários com IA" : "Conectar Instagram";
+    const plannerLocked = planningGroupLocked && !(hasPremiumAccessPlan || planTrialActive);
 
-      const mediaKitLastUpdate = summary?.mediaKit?.lastUpdatedLabel
-        ? `Atualizado ${summary.mediaKit.lastUpdatedLabel}`
-        : "Atualize com dados recentes antes de enviar.";
+    const mediaKitLastUpdate = summary?.mediaKit?.lastUpdatedLabel
+      ? `Atualizado ${summary.mediaKit.lastUpdatedLabel}`
+      : "Atualize com dados recentes antes de enviar.";
 
-      const communityStatus = communityVipMember
-        ? "Mentorias VIP ativas."
-        : communityVipHasAccess
-        ? "Grupo VIP liberado para você."
-        : communityFreeMember
-        ? "Você já está na comunidade."
-        : "Acesso gratuito e leve.";
+    const communityStatus = communityVipMember
+      ? "Mentorias VIP ativas."
+      : communityVipHasAccess
+      ? "Grupo VIP liberado para você."
+      : communityFreeMember
+      ? "Você já está na comunidade."
+      : "Acesso gratuito e leve.";
 
-      return [
-        {
-          key: "planner",
-          icon: <FaCalendarAlt aria-hidden="true" />,
-          title: "Planejar com IA",
-          description: isInstagramConnected
-            ? "Gere horários personalizados e receba roteiros prontos."
-            : "Conecte o Instagram e destrave horários com IA.",
-          status: plannerMetric,
-          actionLabel: plannerActionLabel,
-          onAction: () => {
-            if (!isInstagramConnected) {
-              handleNextPostAction("connect_instagram", "tool_card");
-              return;
-            }
-            handleConsistencyAction("plan_week");
-          },
+    const cards = [
+      {
+        key: "planner",
+        icon: <FaCalendarAlt aria-hidden="true" />,
+        title: plannerLocked ? "Planejamento (PRO)" : "Planejar com IA",
+        description: plannerLocked
+          ? "Assine o plano PRO para liberar horários automáticos e roteiros com IA."
+          : isInstagramConnected
+          ? "Gere horários personalizados e receba roteiros prontos."
+          : "Conecte o Instagram e destrave horários com IA.",
+        status: plannerLocked ? "Recurso exclusivo PRO" : plannerMetric,
+        actionLabel: plannerLocked ? "Assinar plano PRO" : plannerActionLabel,
+        onAction: () => {
+          if (plannerLocked) {
+            openSubscribeModal();
+            return;
+          }
+          if (!isInstagramConnected) {
+            handleNextPostAction("connect_instagram", "tool_card");
+            return;
+          }
+          handleConsistencyAction("plan_week");
         },
-        {
-          key: "media_kit",
-          icon: <FaBullhorn aria-hidden="true" />,
-          title: "Kit de mídia",
-          description: hasMediaKit
-            ? "Mantenha seus números atualizados antes de enviar para marcas."
-            : "Gere um link com prova social automática em minutos.",
-          status: hasMediaKit ? mediaKitLastUpdate : "Pronto para criar seu primeiro kit.",
-          actionLabel: hasMediaKit ? "Abrir kit" : "Criar kit",
-          onAction: () =>
-            handleMediaKitAction(hasMediaKit ? "open_brand_view" : "create_media_kit"),
-        },
-        {
-          key: "community",
-          icon: <FaUsers aria-hidden="true" />,
-          title: "Comunidade",
-          description: communityFreeMember
-            ? "Participe dos desafios e mentorias semanais."
-            : "Entre para trocar bastidores com criadores Data2Content.",
-          status: communityStatus,
-          actionLabel: isSubscriberPlan
-            ? communityVipMember
-              ? "Abrir comunidade VIP"
-              : "Entrar na comunidade VIP"
-            : communityFreeMember
-            ? "Abrir comunidade"
-            : "Entrar na comunidade",
-          onAction: () => handleJoinFreeCommunity("tool_card"),
-        },
-      ];
-    },
-    [
-      communityFreeMember,
-      communityVipHasAccess,
-      communityVipMember,
-      handleConsistencyAction,
-      handleJoinFreeCommunity,
-      handleMediaKitAction,
-      handleNextPostAction,
-      hasMediaKit,
-      isInstagramConnected,
-      isSubscriberPlan,
-      nextSlotLabel,
-      postsSoFar,
-      summary?.mediaKit?.lastUpdatedLabel,
-      weeklyGoal,
-    ]
-  );
+      },
+      {
+        key: "media_kit",
+        icon: <FaBullhorn aria-hidden="true" />,
+        title: "Kit de mídia",
+        description: hasMediaKit
+          ? "Mantenha seus números atualizados antes de enviar para marcas."
+          : "Gere um link com prova social automática em minutos.",
+        status: hasMediaKit ? mediaKitLastUpdate : "Pronto para criar seu primeiro kit.",
+        actionLabel: hasMediaKit ? "Abrir kit" : "Criar kit",
+        onAction: () => handleMediaKitAction(hasMediaKit ? "open_brand_view" : "create_media_kit"),
+      },
+    ];
+
+    if (communityOnHome) {
+      cards.push({
+        key: "community",
+        icon: <FaUsers aria-hidden="true" />,
+        title: "Comunidade",
+        description: communityFreeMember
+          ? "Participe dos desafios e mentorias semanais."
+          : "Entre para trocar bastidores com criadores Data2Content.",
+        status: communityStatus,
+        actionLabel: isSubscriberPlan
+          ? communityVipMember
+            ? "Abrir comunidade VIP"
+            : "Entrar na comunidade VIP"
+          : communityFreeMember
+          ? "Abrir comunidade"
+          : "Entrar na comunidade",
+        onAction: () => handleJoinFreeCommunity("tool_card"),
+      });
+    }
+
+    return cards;
+  }, [
+    communityFreeMember,
+    communityOnHome,
+    communityVipHasAccess,
+    communityVipMember,
+    handleConsistencyAction,
+    handleJoinFreeCommunity,
+    handleMediaKitAction,
+    handleNextPostAction,
+    hasMediaKit,
+    hasPremiumAccessPlan,
+    isInstagramConnected,
+    isSubscriberPlan,
+    nextSlotLabel,
+    openSubscribeModal,
+    planTrialActive,
+    planningGroupLocked,
+    postsSoFar,
+    summary?.mediaKit?.lastUpdatedLabel,
+    weeklyGoal,
+  ]);
   const connectCardViewTracked = React.useRef(false);
   React.useEffect(() => {
     if (!isInstagramConnected && !connectCardViewTracked.current) {
@@ -1253,10 +1331,27 @@ export default function HomeClientPage() {
   ) : null;
 
   React.useEffect(() => {
+    if (dashboardMinimal) return;
     if (shouldDisplayConnectBanner) {
       trackSurfaceView("home_whatsapp_connect", { origin: "home" });
     }
-  }, [shouldDisplayConnectBanner, trackSurfaceView]);
+  }, [dashboardMinimal, shouldDisplayConnectBanner, trackSurfaceView]);
+
+  if (dashboardMinimal) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+        <MinimalDashboard
+          summary={summary}
+          loading={loading}
+          onRefresh={refreshProposalsSummary}
+          onNavigate={handleNavigate}
+          onTriggerPaywall={handleTriggerPaywall}
+          trackCta={trackMinimalCta}
+          creatorId={sessionUserId}
+        />
+      </div>
+    );
+  }
 
   return (
     <>

@@ -579,7 +579,7 @@ export default function MediaKitSelfServePage() {
         setError('Falha ao preparar a vinculação com o Facebook. Tente novamente.');
         return;
       }
-      signIn('facebook', { callbackUrl: '/dashboard/media-kit?instagramLinked=true' });
+      signIn('facebook', { callbackUrl: '/media-kit?instagramLinked=true' });
     } catch (error) {
       console.error('Erro ao iniciar o signIn com o Facebook:', error);
       setError('Ocorreu um erro inesperado ao tentar conectar. Tente novamente.');
@@ -648,7 +648,7 @@ export default function MediaKitSelfServePage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
-              onClick={() => router.push('/dashboard/home?intent=instagram')}
+                  onClick={() => router.push('/dashboard?intent=instagram')}
               className="inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
               Ver primeiros passos

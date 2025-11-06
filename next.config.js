@@ -73,6 +73,53 @@ const nextConfig = {
       '/app/**/*': ['./src/app/lib/**/*.md'],
     },
   },
+
+  async redirects() {
+    return [
+      {
+        source: '/dashboard/proposals',
+        has: [{ type: 'query', key: 'view', value: 'sent' }],
+        destination: '/campaigns?tab=sent',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/proposals',
+        has: [{ type: 'query', key: 'view', value: 'ai' }],
+        destination: '/campaigns?tab=analysis',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/proposals',
+        destination: '/campaigns',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/home',
+        destination: '/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/media-kit',
+        destination: '/media-kit',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/afiliados',
+        destination: '/affiliates',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/settings',
+        destination: '/settings',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/billing',
+        destination: '/settings/billing',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 console.log('--- Configuração de images (ESM):', JSON.stringify(nextConfig.images, null, 2));

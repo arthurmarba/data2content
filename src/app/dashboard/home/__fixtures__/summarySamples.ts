@@ -33,7 +33,7 @@ export const summaryNewUser: HomeSummaryResponse = {
   },
   whatsapp: {
     linked: false,
-    startUrl: "/dashboard/whatsapp",
+    startUrl: "/planning/whatsapp",
     trial: {
       active: false,
       eligible: true,
@@ -44,7 +44,7 @@ export const summaryNewUser: HomeSummaryResponse = {
   community: {
     free: {
       isMember: false,
-      inviteUrl: "/dashboard/discover",
+      inviteUrl: "/planning/discover",
     },
     vip: {
       hasAccess: false,
@@ -80,7 +80,7 @@ export const summaryTrialActive: HomeSummaryResponse = {
   },
   whatsapp: {
     linked: true,
-    startUrl: "/dashboard/whatsapp",
+    startUrl: "/planning/whatsapp",
     trial: {
       active: true,
       eligible: false,
@@ -91,7 +91,7 @@ export const summaryTrialActive: HomeSummaryResponse = {
   community: {
     free: {
       isMember: true,
-      inviteUrl: "/dashboard/discover",
+      inviteUrl: "/planning/discover",
     },
     vip: {
       hasAccess: false,
@@ -126,7 +126,7 @@ export const summaryProMember: HomeSummaryResponse = {
   },
   whatsapp: {
     linked: true,
-    startUrl: "/dashboard/whatsapp",
+    startUrl: "/planning/whatsapp",
     trial: {
       active: false,
       eligible: false,
@@ -137,12 +137,12 @@ export const summaryProMember: HomeSummaryResponse = {
   community: {
     free: {
       isMember: true,
-      inviteUrl: "/dashboard/discover",
+      inviteUrl: "/planning/discover",
     },
     vip: {
       hasAccess: true,
       isMember: true,
-      inviteUrl: "/dashboard/whatsapp",
+      inviteUrl: "/planning/whatsapp",
     },
   },
 };

@@ -14,6 +14,12 @@ import {
 } from "./webhook-helpers";
 import { adjustBalance } from "@/server/affiliate/balance";
 import { processAffiliateRefund } from "@/server/affiliate/refund";
+import {
+  sendProWelcomeEmail,
+  sendPaymentFailureEmail,
+  sendSubscriptionCanceledEmail,
+  sendPaymentReceiptEmail,
+} from "@/app/lib/emailService";
 
 const HOLD_DAYS = Number(process.env.AFFILIATE_HOLD_DAYS ?? "7");
 const DEFAULT_RETRY_ATTEMPTS = 2;
@@ -471,6 +477,19 @@ export async function handleStripeEvent(event: Stripe.Event) {
       if (subId && isSubscriptionMismatch(user, subId, event)) return;
 
       const eventDate = eventCreatedDate(event) ?? new Date();
+      const userEmail = typeof user.email === "string" ? user.email : null;
+      const userName = typeof user.name === "string" ? user.name : null;
+      const amountPaidCents = typeof invoice.amount_paid === "number" ? invoice.amount_paid : 0;
+      const currency = (invoice.currency ?? "brl").toUpperCase();
+      const invoiceUrl = invoice.hosted_invoice_url || invoice.invoice_pdf || null;
+      const invoiceNumber =
+        typeof invoice.number === "string" ? invoice.number : invoice.id ?? null;
+      const billingReason = invoice.billing_reason ?? null;
+      const period = invoice.lines?.data?.[0]?.period;
+      const periodStart = period?.start ? new Date(period.start * 1000) : null;
+      const periodEnd = period?.end ? new Date(period.end * 1000) : null;
+      const shouldSendWelcome = amountPaidCents > 0 && billingReason === "subscription_create";
+      const shouldSendReceipt = amountPaidCents > 0;
 
       if (subId) {
         try {
@@ -491,10 +510,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
         } catch {
           // Fallback: se for fatura de $0 (subscription_create com trial),
           // NÃO devemos marcar como "active".
-          const period = invoice.lines?.data?.[0]?.period;
-          const amountPaid = typeof invoice.amount_paid === "number" ? invoice.amount_paid : 0;
-
-          (user as any).planStatus = toDbPlanStatus(amountPaid === 0 ? "trialing" : "active");
+          (user as any).planStatus = toDbPlanStatus(amountPaidCents === 0 ? "trialing" : "active");
           (user as any).stripeSubscriptionId = subId ?? (user as any).stripeSubscriptionId ?? null;
           (user as any).planInterval =
             coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
@@ -502,22 +518,19 @@ export async function handleStripeEvent(event: Stripe.Event) {
             ? new Date(period.end * 1000)
             : (user as any).planExpiresAt ?? null;
           (user as any).cancelAtPeriodEnd = false;
-          (user as any).currency = (invoice.currency ?? "brl").toUpperCase();
+          (user as any).currency = currency;
           (user as any).lastProcessedEventId = event.id;
           (user as any).lastSubscriptionEventId = event.id;
         }
       } else {
-        const period = invoice.lines?.data?.[0]?.period;
-        const amountPaid = typeof invoice.amount_paid === "number" ? invoice.amount_paid : 0;
-
-        (user as any).planStatus = toDbPlanStatus(amountPaid === 0 ? "trialing" : "active");
+        (user as any).planStatus = toDbPlanStatus(amountPaidCents === 0 ? "trialing" : "active");
         (user as any).planInterval =
           coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
         (user as any).planExpiresAt = period?.end
           ? new Date(period.end * 1000)
           : (user as any).planExpiresAt ?? null;
         (user as any).cancelAtPeriodEnd = false;
-        (user as any).currency = (invoice.currency ?? "brl").toUpperCase();
+        (user as any).currency = currency;
         (user as any).lastProcessedEventId = event.id;
       }
 
@@ -579,6 +592,43 @@ export async function handleStripeEvent(event: Stripe.Event) {
         () => user.save(),
         { context: buildEventMeta(user, event, { action: "user.save" }) }
       );
+
+      if (userEmail) {
+        const planInterval =
+          typeof user.planInterval === "string" ? user.planInterval : (user as any).planInterval;
+
+        if (shouldSendWelcome) {
+          try {
+            await sendProWelcomeEmail(userEmail, {
+              name: userName,
+              planInterval: planInterval === "year" || planInterval === "month" ? planInterval : undefined,
+            });
+          } catch (err) {
+            logger.error("stripe_send_pro_welcome_failed", {
+              ...buildEventMeta(user, event, { error: err instanceof Error ? err.message : String(err) }),
+            });
+          }
+        }
+
+        if (shouldSendReceipt) {
+          try {
+            await sendPaymentReceiptEmail(userEmail, {
+              name: userName,
+              amountPaid: amountPaidCents,
+              currency,
+              invoiceUrl,
+              invoiceNumber: invoiceNumber ?? undefined,
+              periodStart,
+              periodEnd,
+            });
+          } catch (err) {
+            logger.error("stripe_send_receipt_failed", {
+              ...buildEventMeta(user, event, { error: err instanceof Error ? err.message : String(err) }),
+            });
+          }
+        }
+      }
+
       return;
     }
 
@@ -597,6 +647,16 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
       const subId = getSubscriptionIdFromInvoice(invoice);
       if (subId && isSubscriptionMismatch(user, subId, event)) return;
+
+      const userEmail = typeof user.email === "string" ? user.email : null;
+      const userName = typeof user.name === "string" ? user.name : null;
+      const amountDueCents = typeof invoice.amount_due === "number" ? invoice.amount_due : 0;
+      const currency = (invoice.currency ?? "brl").toUpperCase();
+      const invoiceUrl = invoice.hosted_invoice_url || invoice.invoice_pdf || null;
+      const retryAt =
+        typeof invoice.next_payment_attempt === "number"
+          ? new Date(invoice.next_payment_attempt * 1000)
+          : null;
 
       const pmErr =
         invoice?.last_finalization_error?.message ||
@@ -631,6 +691,22 @@ export async function handleStripeEvent(event: Stripe.Event) {
         () => user.save(),
         { context: buildEventMeta(user, event, { action: "user.save" }) }
       );
+
+      if (userEmail) {
+        try {
+          await sendPaymentFailureEmail(userEmail, {
+            name: userName,
+            amountDue: amountDueCents,
+            currency,
+            hostedInvoiceUrl: invoiceUrl,
+            retryAt,
+          });
+        } catch (err) {
+          logger.error("stripe_send_payment_failed_email_error", {
+            ...buildEventMeta(user, event, { error: err instanceof Error ? err.message : String(err) }),
+          });
+        }
+      }
       return;
     }
 
@@ -909,6 +985,9 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
       if (!isNewEvent) return;
 
+      const userEmail = typeof user.email === "string" ? user.email : null;
+      const userName = typeof user.name === "string" ? user.name : null;
+
       if (isSubscriptionMismatch(user, sub.id, event, { requireMatch: true })) return;
 
       if (shouldIgnoreOutOfOrderEvent(user, event)) return;
@@ -933,6 +1012,25 @@ export async function handleStripeEvent(event: Stripe.Event) {
         () => user.save(),
         { context: buildEventMeta(user, event, { action: "user.save" }) }
       );
+
+      if (userEmail) {
+        const cancellationEndsAt =
+          user.planExpiresAt instanceof Date
+            ? user.planExpiresAt
+            : (user as any).planExpiresAt instanceof Date
+            ? (user as any).planExpiresAt
+            : null;
+        try {
+          await sendSubscriptionCanceledEmail(userEmail, {
+            name: userName,
+            endsAt: cancellationEndsAt ?? undefined,
+          });
+        } catch (err) {
+          logger.error("stripe_send_cancel_email_failed", {
+            ...buildEventMeta(user, event, { error: err instanceof Error ? err.message : String(err) }),
+          });
+        }
+      }
       return;
     }
 

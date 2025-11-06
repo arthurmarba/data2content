@@ -56,7 +56,7 @@ export default function InstagramConnectingPage() {
         }
 
         if (u.instagramConnected) {
-          router.replace("/dashboard/media-kit?instagramLinked=true");
+          router.replace("/media-kit?instagramLinked=true");
           return;
         }
 
@@ -74,7 +74,7 @@ export default function InstagramConnectingPage() {
             throw new Error(errData?.error || "Falha ao finalizar a conexão.");
           }
           await update();
-          router.replace("/dashboard/media-kit?instagramLinked=true");
+          router.replace("/media-kit?instagramLinked=true");
           return;
         }
 
@@ -160,7 +160,7 @@ export default function InstagramConnectingPage() {
               Tentar novamente
             </button>
             <button
-              onClick={() => router.replace("/dashboard/home?intent=instagram")}
+              onClick={() => router.replace("/dashboard?intent=instagram")}
               className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
             >
               Voltar

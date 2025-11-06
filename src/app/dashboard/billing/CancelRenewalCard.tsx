@@ -6,9 +6,10 @@ import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { track } from "@/lib/track";
 
 export default function CancelRenewalCard() {
-  const { update } = useSession();
+  const { data: session } = useSession();
   const { planStatus, planExpiresAt, refetch } = useBillingStatus();
   const { toast } = useToast();
 
@@ -35,6 +36,16 @@ export default function CancelRenewalCard() {
         title: "Renovação cancelada",
         description: "Atualizando o status da sua assinatura...",
       });
+
+      const planInterval = session?.user?.planInterval === "year" ? "anual" : "mensal";
+      if (session?.user?.id) {
+        track("subscription_canceled", {
+          creator_id: session.user.id,
+          plan: planInterval,
+          currency: null,
+          value: null,
+        });
+      }
 
       // Força a recarga da página para buscar a sessão e o status mais recentes.
       // Esta é a forma mais robusta de garantir a sincronia da UI.

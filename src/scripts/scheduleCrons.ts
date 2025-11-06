@@ -41,6 +41,13 @@ const CRONS = [
     method: 'POST',
     body: '[CPM_CLEANUP] Remover snapshots antigos',
   },
+  {
+    id: 'billing-expire-trials',
+    destination: 'https://data2content.ai/api/cron/expire-trials',
+    cron: '0 6 * * *',
+    method: 'POST',
+    body: '[BILLING_EXPIRE_TRIALS] Marcar trials expirados como inativos',
+  },
 ] as const;
 
 async function createCrons() {

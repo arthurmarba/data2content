@@ -14,11 +14,20 @@ export interface IBrandProposal extends Document {
   budget?: number;
   currency?: string;
   status: BrandProposalStatus;
+  referenceLinks?: string[];
   originIp?: string;
   userAgent?: string;
   lastResponseAt?: Date;
   lastResponseMessage?: string;
   upsellNotifiedAt?: Date;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  utmReferrer?: string;
+  utmFirstTouchAt?: Date;
+  utmLastTouchAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +74,10 @@ const BrandProposalSchema = new Schema<IBrandProposal>(
       type: [String],
       default: undefined,
     },
+    referenceLinks: {
+      type: [String],
+      default: undefined,
+    },
     budget: {
       type: Number,
     },
@@ -95,6 +108,36 @@ const BrandProposalSchema = new Schema<IBrandProposal>(
       trim: true,
     },
     upsellNotifiedAt: {
+      type: Date,
+    },
+    utmSource: {
+      type: String,
+      trim: true,
+    },
+    utmMedium: {
+      type: String,
+      trim: true,
+    },
+    utmCampaign: {
+      type: String,
+      trim: true,
+    },
+    utmTerm: {
+      type: String,
+      trim: true,
+    },
+    utmContent: {
+      type: String,
+      trim: true,
+    },
+    utmReferrer: {
+      type: String,
+      trim: true,
+    },
+    utmFirstTouchAt: {
+      type: Date,
+    },
+    utmLastTouchAt: {
       type: Date,
     },
   },

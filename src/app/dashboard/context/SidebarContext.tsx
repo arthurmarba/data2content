@@ -19,44 +19,50 @@ type SidebarCtx = {
 
 const Ctx = createContext<SidebarCtx | null>(null);
 const STORAGE_KEY = "sidebar:collapsed"; // persiste preferência
+const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
+
+const getInitialCollapsed = () => {
+  if (typeof window === "undefined") return true;
+  try {
+    const mq = window.matchMedia(DESKTOP_MEDIA_QUERY);
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (mq.matches) {
+      return stored !== null ? stored === "1" : false;
+    }
+    return true;
+  } catch {
+    return true;
+  }
+};
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  // Inicia FECHADO para evitar o flash de overlay no mobile.
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
-  const mqRef = useRef<MediaQueryList | null>(null);
-  const isDesktopRef = useRef<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(getInitialCollapsed);
+  const isDesktopRef = useRef<boolean>(
+    typeof window !== "undefined" ? window.matchMedia(DESKTOP_MEDIA_QUERY).matches : false
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const mq = window.matchMedia("(min-width: 1024px)"); // lg
-    mqRef.current = mq;
-    isDesktopRef.current = mq.matches;
-
-    // 1) Tenta restaurar preferência salva
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (mq.matches) {
-      // desktop: usa preferencia ou abre por padrão
-      setIsCollapsed(stored !== null ? stored === "1" : false);
-    } else {
-      // mobile sempre começa fechado para evitar flash
-      setIsCollapsed(true);
-    }
-
-    // 3) Reage à mudança de breakpoint:
-    // - Entrou no mobile  -> sempre fechado por padrão
-    // - Entrou no desktop -> usa preferido salvo (ou aberto por padrão)
-    const onChange = (e: MediaQueryListEvent) => {
-      if (e.matches) {
-        // desktop
-        isDesktopRef.current = true;
-        const saved = localStorage.getItem(STORAGE_KEY);
-        setIsCollapsed(saved !== null ? saved === "1" : false);
+    const mq = window.matchMedia(DESKTOP_MEDIA_QUERY);
+    const syncFromEnvironment = (matches: boolean) => {
+      isDesktopRef.current = matches;
+      if (matches) {
+        try {
+          const stored = window.localStorage.getItem(STORAGE_KEY);
+          setIsCollapsed(stored !== null ? stored === "1" : false);
+        } catch {
+          setIsCollapsed(false);
+        }
       } else {
-        // mobile
-        isDesktopRef.current = false;
         setIsCollapsed(true);
       }
+    };
+
+    syncFromEnvironment(mq.matches);
+
+    const onChange = (e: MediaQueryListEvent) => {
+      syncFromEnvironment(e.matches);
     };
     mq.addEventListener?.("change", onChange);
     return () => mq.removeEventListener?.("change", onChange);
@@ -66,7 +72,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setIsCollapsed(v);
     if (isDesktopRef.current) {
       try {
-        localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
+        window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
       } catch {
         /* ignore */
       }
@@ -74,14 +80,16 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleSidebar = useCallback((next?: boolean) => {
-    setIsCollapsed(prev => {
-      const v = typeof next === "boolean" ? next : !prev;
+    setIsCollapsed((prev) => {
+      const resolved = typeof next === "boolean" ? next : !prev;
       if (isDesktopRef.current) {
         try {
-          localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
-        } catch {/* ignore */}
+          window.localStorage.setItem(STORAGE_KEY, resolved ? "1" : "0");
+        } catch {
+          /* ignore */
+        }
       }
-      return v;
+      return resolved;
     });
   }, []);
 

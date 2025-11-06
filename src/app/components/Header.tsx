@@ -25,6 +25,8 @@ import {
 } from "../dashboard/context/HeaderContext";
 import { useHeaderVisibility } from "@/hooks/useHeaderVisibility";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
+import { navigationLabels } from "@/constants/navigationLabels";
+import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 
 interface SessionUser {
   id?: string;
@@ -220,6 +222,9 @@ function HeaderCtaButton({ cta }: { cta: HeaderCta }) {
 export default function Header() {
   const { data: session } = useSession();
   const user = session?.user as SessionUser | undefined;
+  const rawSessionUser = session?.user as (SessionUser & { planStatus?: string | null }) | undefined;
+  const normalizedPlanStatus = normalizePlanStatus(rawSessionUser?.planStatus);
+  const planActive = isPlanActiveLike(normalizedPlanStatus);
   const { config } = useHeaderConfig();
   const { toggleSidebar } = useSidebar();
   const pathname = usePathname();
@@ -294,37 +299,71 @@ export default function Header() {
     window.dispatchEvent(new Event("open-subscribe-modal"));
   }, []);
 
+  const planningBreadcrumb = useMemo(() => {
+    const entries = [
+      { path: "/planning", label: navigationLabels.planningPlanner.menu },
+      { path: "/planning/planner", label: navigationLabels.planningPlanner.menu },
+      { path: "/planning/discover", label: navigationLabels.planningDiscover.menu },
+    ];
+    const match = entries.find(
+      (entry) => pathname === entry.path || pathname.startsWith(`${entry.path}/`)
+    );
+    if (match) {
+      return `${navigationLabels.planning.menu} ▸ ${match.label}`;
+    }
+    return null;
+  }, [pathname]);
+
   const effectiveCta = useMemo<HeaderCta | null>(() => {
-    const isHomePage = pathname === "/dashboard/home";
+    const isHomePage = pathname === "/dashboard";
     if (isHomePage) return null;
     if (config.cta) return config.cta;
+    if (planActive) return null;
     if (config.variant === "default") {
       return {
-        label: "WhatsApp PRO",
+        label: "Ativar PRO",
         icon: <FaWhatsapp className="w-5 h-5" />,
         onClick: handleOpenSubscribeModal,
       };
     }
     return null;
-  }, [config, handleOpenSubscribeModal, pathname]);
+  }, [config, handleOpenSubscribeModal, pathname, planActive]);
+
+  const effectiveTitleValue = config.title ?? planningBreadcrumb ?? null;
+  const effectiveSubtitleValue = config.subtitle ?? null;
+
+  const defaultProBadge = useMemo(() => {
+    if (!planActive) return null;
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold leading-none text-emerald-700"
+        title="Plano PRO ativo"
+      >
+        <span aria-hidden="true">✅</span>
+        <span className="truncate">PRO ativo</span>
+      </span>
+    );
+  }, [planActive]);
+
+  const effectiveExtraContent = config.extraContent ?? defaultProBadge;
 
   const titleBlock = useMemo(() => {
-    if (!config.title && !config.subtitle) return null;
+    if (!effectiveTitleValue && !effectiveSubtitleValue) return null;
     return (
       <div className="flex flex-col min-w-0 text-center">
-        {config.title && (
+        {effectiveTitleValue && (
           <span className="text-sm font-medium text-gray-500 truncate">
-            {config.title}
+            {effectiveTitleValue}
           </span>
         )}
-        {config.subtitle && (
+        {effectiveSubtitleValue && (
           <span className="text-xs text-gray-400 truncate">
-            {config.subtitle}
+            {effectiveSubtitleValue}
           </span>
         )}
       </div>
     );
-  }, [config.subtitle, config.title]);
+  }, [effectiveSubtitleValue, effectiveTitleValue]);
 
   const renderLogo = (
     <Link
@@ -384,8 +423,8 @@ export default function Header() {
         ) : null}
 
         <div className="header-actions order-2 ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5 pointer-events-auto sm:order-3 sm:w-auto sm:flex-none sm:flex-nowrap sm:gap-2">
-          {config.extraContent ? (
-            <div className="hidden sm:inline-flex sm:items-center">{config.extraContent}</div>
+          {effectiveExtraContent ? (
+            <div className="hidden sm:inline-flex sm:items-center">{effectiveExtraContent}</div>
           ) : null}
           {effectiveCta ? (
             <div className="w-full sm:w-auto">
