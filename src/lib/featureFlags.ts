@@ -4,9 +4,15 @@ export const FEATURE_FLAG_KEYS = [
   'planning.group_locked',
   'modules.community_on_home',
   'paywall.modal_enabled',
+  'home.tutorial_minimal',
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
+
+const ANALYTICS_ENV = (process.env.NEXT_PUBLIC_ANALYTICS_ENV || process.env.NODE_ENV || 'development')
+  .toLowerCase()
+  .trim();
+const IS_STAGING_LIKE = ANALYTICS_ENV === 'development' || ANALYTICS_ENV === 'staging' || ANALYTICS_ENV === 'test';
 
 export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   'nav.dashboard_minimal': false,
@@ -14,6 +20,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   'planning.group_locked': false,
   'modules.community_on_home': true,
   'paywall.modal_enabled': true,
+  'home.tutorial_minimal': IS_STAGING_LIKE,
 };
 
 export const parseFeatureFlags = <T extends string>(

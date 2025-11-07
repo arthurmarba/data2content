@@ -149,6 +149,34 @@ export interface HomeCommunitySummary {
   };
 }
 
+export type JourneyStepId =
+  | "connect_instagram"
+  | "create_media_kit"
+  | "publish_media_kit_link"
+  | "activate_pro";
+
+export type JourneyStepStatus = "done" | "in_progress" | "todo";
+
+export interface JourneyStepState {
+  id: JourneyStepId;
+  title: string;
+  description: string;
+  status: JourneyStepStatus;
+  helper?: string | null;
+}
+
+export interface HomeJourneyProgress {
+  headline: string;
+  subcopy: string;
+  progressLabel: string;
+  progressPercent: number;
+  completedCount: number;
+  totalSteps: number;
+  highlightMessage: string | null;
+  steps: JourneyStepState[];
+  nextStepId: JourneyStepId | null;
+}
+
 export interface HomeGoalsSummary {
   weeklyPostsTarget?: number | null;
   currentStreak?: number | null;
@@ -176,4 +204,5 @@ export interface HomeSummaryResponse {
   microInsight?: HomeMicroInsight | null;
   flowChecklist?: DashboardFlowChecklist | null;
   proposalsSummary?: DashboardProposalsSummary | null;
+  journeyProgress?: HomeJourneyProgress | null;
 }

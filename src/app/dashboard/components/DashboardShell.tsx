@@ -92,7 +92,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<PaywallEventDetail> | undefined)?.detail;
-      const allowed: PaywallContext[] = ["default", "reply_email", "ai_analysis", "calculator", "planning"];
+      const allowed: PaywallContext[] = [
+        "default",
+        "reply_email",
+        "ai_analysis",
+        "calculator",
+        "planning",
+        "whatsapp",
+      ];
       const ctxCandidate = detail?.context ?? "default";
       const ctx = (allowed.includes(ctxCandidate as PaywallContext)
         ? ctxCandidate

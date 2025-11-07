@@ -1,10 +1,15 @@
 // src/app/dashboard/home/page.tsx
-// Server component responsável por renderizar a Home do dashboard.
+// Server component responsável por renderizar a Home (mesma experiência de /dashboard).
 
-import { redirect } from "next/navigation";
+import React from "react";
+import HomeClientPage from "./HomeClientPage";
 
 export const dynamic = "force-dynamic";
 
-export default function LegacyDashboardHomePage() {
-  redirect("/dashboard");
+export default function DashboardHomeEntryPoint() {
+  return (
+    <main className="w-full">
+      <HomeClientPage />
+    </main>
+  );
 }

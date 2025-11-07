@@ -15,6 +15,9 @@ import type {
   DashboardFlowChecklist,
   DashboardProposalsSummary,
   DashboardChecklistStep,
+  HomeJourneyProgress,
+  JourneyStepId,
+  JourneyStepState,
 } from "@/app/dashboard/home/types";
 import { recommendWeeklySlots } from "@/app/lib/planner/recommender";
 import { PLANNER_TIMEZONE } from "@/app/lib/planner/constants";
@@ -166,6 +169,115 @@ function buildFlowChecklist({
       respondedProposals,
       hasProPlan: hasProAccess,
     },
+  };
+}
+
+const JOURNEY_STEPS_ORDER: JourneyStepId[] = [
+  "connect_instagram",
+  "create_media_kit",
+  "publish_media_kit_link",
+  "activate_pro",
+];
+
+const JOURNEY_STEP_COPY: Record<JourneyStepId, { title: string; description: string; helper?: string }> = {
+  connect_instagram: {
+    title: "Conecte IG",
+    description: "Libere diagnósticos automáticos.",
+  },
+  create_media_kit: {
+    title: "Gere o kit",
+    description: "Transforme seu perfil na vitrine oficial.",
+  },
+  publish_media_kit_link: {
+    title: "Publique o link",
+    description: "Coloque o kit na bio para receber propostas.",
+    helper: "Contamos acessos reais ao kit para marcar como concluído.",
+  },
+  activate_pro: {
+    title: "Ative PRO",
+    description: "Desbloqueie IA ilimitada e WhatsApp.",
+  },
+};
+
+interface BuildJourneyProgressParams {
+  instagramConnected: boolean;
+  hasMediaKit: boolean;
+  mediaKitSignals?: {
+    viewsLast7Days?: number;
+    proposalsViaMediaKit?: number;
+  } | null;
+  hasProAccess: boolean;
+}
+
+function buildJourneyProgress({
+  instagramConnected,
+  hasMediaKit,
+  mediaKitSignals,
+  hasProAccess,
+}: BuildJourneyProgressParams): HomeJourneyProgress {
+  const linkSignal = hasMediaKit && Boolean((mediaKitSignals?.viewsLast7Days ?? 0) > 0 || (mediaKitSignals?.proposalsViaMediaKit ?? 0) > 0);
+
+  const completionMap: Record<JourneyStepId, boolean> = {
+    connect_instagram: instagramConnected,
+    create_media_kit: hasMediaKit,
+    publish_media_kit_link: linkSignal,
+    activate_pro: hasProAccess,
+  };
+
+  let pendingAssigned = false;
+  const steps: JourneyStepState[] = JOURNEY_STEPS_ORDER.map((id) => {
+    const base = JOURNEY_STEP_COPY[id];
+    const completed = completionMap[id];
+    let status: JourneyStepState["status"];
+    if (completed) {
+      status = "done";
+    } else if (!pendingAssigned) {
+      status = "in_progress";
+      pendingAssigned = true;
+    } else {
+      status = "todo";
+    }
+    return {
+      id,
+      title: base.title,
+      description: base.description,
+      helper: base.helper,
+      status,
+    };
+  });
+
+  const completedCount = steps.filter((step) => step.status === "done").length;
+  const totalSteps = steps.length;
+  const firstPendingIndex = steps.findIndex((step) => step.status !== "done");
+  const progressPercent = Math.round((completedCount / totalSteps) * 100);
+  const currentStepIndex = firstPendingIndex === -1 ? totalSteps : Math.max(1, firstPendingIndex + 1);
+  const progressLabel = `${completedCount}/${totalSteps} etapas concluídas`;
+  const nextStepId = firstPendingIndex === -1 ? null : steps[firstPendingIndex]?.id ?? null;
+
+  let highlightMessage: string | null;
+  const pendingSteps = totalSteps - completedCount;
+  if (pendingSteps === 0) {
+    highlightMessage = "✨ PRO ativo — negocie campanhas com IA";
+  } else if (pendingSteps === 1) {
+    highlightMessage = "🚀 Falta 1 passo para liberar propostas com IA";
+  } else {
+    highlightMessage = "Você está a poucos passos de liberar propostas";
+  }
+
+  const subcopy = pendingSteps === 0 ? "Tudo pronto. Mantenha o kit atualizado e responda rápido." : "Complete os passos abaixo para liberar todo o potencial da IA.";
+
+  const headline = pendingSteps === 0 ? "Jornada concluída" : "Sua jornada na D2C";
+
+  return {
+    headline,
+    subcopy,
+    progressLabel,
+    progressPercent,
+    completedCount,
+    totalSteps,
+    highlightMessage,
+    steps,
+    nextStepId,
   };
 }
 async function computeDashboardProposalsSummary(
@@ -1340,6 +1452,21 @@ export async function GET(request: Request) {
       responsePayload.flowChecklist = null;
     }
 
+    try {
+      responsePayload.journeyProgress = buildJourneyProgress({
+        instagramConnected,
+        hasMediaKit: Boolean(mediaKitCard?.hasMediaKit),
+        mediaKitSignals: {
+          viewsLast7Days: mediaKitCard?.viewsLast7Days ?? 0,
+          proposalsViaMediaKit: mediaKitCard?.proposalsViaMediaKit ?? 0,
+        },
+        hasProAccess: hasPremiumAccess,
+      });
+    } catch (error) {
+      logger.error("[home.summary] Failed to compose journey progress", error);
+      responsePayload.journeyProgress = null;
+    }
+
     if (instagramConnected) {
       try {
         responsePayload.microInsight = await computeMicroInsight(userId);
@@ -1463,6 +1590,21 @@ export async function GET(request: Request) {
     } catch (error) {
       logger.error("[home.summary] Failed to compose flow checklist (scope=proposals)", error);
       responsePayload.flowChecklist = null;
+    }
+
+    try {
+      responsePayload.journeyProgress = buildJourneyProgress({
+        instagramConnected,
+        hasMediaKit: Boolean(mediaKitCard?.hasMediaKit),
+        mediaKitSignals: {
+          viewsLast7Days: mediaKitCard?.viewsLast7Days ?? 0,
+          proposalsViaMediaKit: mediaKitCard?.proposalsViaMediaKit ?? 0,
+        },
+        hasProAccess: hasPremiumAccess,
+      });
+    } catch (error) {
+      logger.error("[home.summary] Failed to compose journey progress (scope=proposals)", error);
+      responsePayload.journeyProgress = null;
     }
 
     return NextResponse.json({

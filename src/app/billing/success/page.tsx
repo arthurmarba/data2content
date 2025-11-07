@@ -28,19 +28,14 @@ export default function BillingSuccessPage() {
 
         const updatedSession = await update(); // atualiza planStatus/stripe* no token uma única vez
         const user = updatedSession?.user;
-        if (user?.id) {
-          const interval = user.planInterval === "year" ? "anual" : "mensal";
-          track("subscription_activated", {
-            creator_id: user.id,
-            plan: interval,
-            currency: null,
-            value: null,
-          });
-        }
+        let resolvedContext: string | null = null;
         const stored = sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
         if (stored) {
           try {
             const data = JSON.parse(stored);
+            if (typeof data?.context === "string") {
+              resolvedContext = data.context;
+            }
             const returnTo =
               typeof data?.returnTo === "string" && data.returnTo.startsWith("/")
                 ? data.returnTo
@@ -55,6 +50,21 @@ export default function BillingSuccessPage() {
           } catch {
             sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
           }
+        }
+
+        if (user?.id) {
+          const interval = user.planInterval === "year" ? "anual" : "mensal";
+          track("paywall_subscribed", {
+            creator_id: user.id,
+            plan: interval,
+            context: resolvedContext ?? "default",
+          });
+          track("subscription_activated", {
+            creator_id: user.id,
+            plan: interval,
+            currency: null,
+            value: null,
+          });
         }
         // Não precisa chamar router.refresh() aqui. Ao navegar, o server já refaz o fetch.
       } catch {

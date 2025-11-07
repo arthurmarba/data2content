@@ -5,6 +5,7 @@
 
 import React from "react";
 import { track } from "@/lib/track";
+import type { JourneyStepId } from "./types";
 
 export type HomeCardId =
   | "next_post"
@@ -83,6 +84,20 @@ export function useHomeTelemetry() {
     [emit]
   );
 
+  const trackTutorialStep = React.useCallback(
+    (stepId: JourneyStepId, action: string, extra?: Record<string, unknown>) => {
+      emit("tutorial_step_clicked", { step_id: stepId, action, ...extra });
+    },
+    [emit]
+  );
+
+  const trackHomeCard = React.useCallback(
+    (cardId: string, action: string, extra?: Record<string, unknown>) => {
+      emit("home_card_clicked", { card_id: cardId, action, ...extra });
+    },
+    [emit]
+  );
+
   return {
     trackCardAction,
     trackCardPeriodChange,
@@ -90,5 +105,7 @@ export function useHomeTelemetry() {
     trackSurfaceView,
     trackWhatsappEvent,
     trackDashboardCta,
+    trackTutorialStep,
+    trackHomeCard,
   };
 }

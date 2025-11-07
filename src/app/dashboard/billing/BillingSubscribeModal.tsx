@@ -74,6 +74,16 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     bullets: ["Planner com horários e formatos otimizados", "WhatsApp IA com alertas diários de oportunidades"],
     ctaLabel: "Ativar PRO",
   },
+  whatsapp: {
+    title: "Conecte a IA direto no WhatsApp.",
+    subtitle: "Alertas diários, diagnósticos e oportunidades chegando no app que você já usa.",
+    bullets: [
+      "Roteiros e ideias personalizadas todo dia",
+      "Diagnóstico automático do Instagram",
+      "Alertas sobre campanhas e valores justos",
+    ],
+    ctaLabel: "Ativar PRO",
+  },
 };
 
 export default function BillingSubscribeModal({ open, onClose, context }: BillingSubscribeModalProps) {
@@ -135,12 +145,28 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       return;
     }
 
-    if (effectiveContext === "default" && !trackedOpenRef.current) {
+    if (!trackedOpenRef.current) {
       trackedOpenRef.current = true;
       const normalizedPlan = billingStatus.normalizedStatus ?? null;
+      const telemetryContext: "other" | "planner" | "planning" | "discover" | "whatsapp_ai" | "reply_email" | "ai_analysis" | "calculator" | null = (() => {
+        switch (effectiveContext) {
+          case "planning":
+            return "planning";
+          case "calculator":
+            return "calculator";
+          case "whatsapp":
+            return "whatsapp_ai";
+          case "reply_email":
+            return "reply_email";
+          case "ai_analysis":
+            return "ai_analysis";
+          default:
+            return "other";
+        }
+      })();
       track("paywall_viewed", {
         creator_id: null,
-        context: "other",
+        context: telemetryContext,
         plan: normalizedPlan,
       });
     }

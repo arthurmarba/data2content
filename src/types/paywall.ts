@@ -3,7 +3,8 @@ export type PaywallContext =
   | "reply_email"
   | "ai_analysis"
   | "calculator"
-  | "planning";
+  | "planning"
+  | "whatsapp";
 
 export type PaywallEventDetail = {
   context?: PaywallContext | null;
