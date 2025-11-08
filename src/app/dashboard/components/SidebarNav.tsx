@@ -52,7 +52,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     () => ({
       showLabels,
       alignClass: showLabels ? "justify-start" : "justify-center",
-      itemPadding: showLabels ? "px-4 py-3" : "py-2.5",
+      itemPadding: showLabels ? "px-4 py-2.5" : "py-2",
       itemGap: showLabels ? "gap-4" : "gap-0",
       itemTextSize: showLabels ? "text-[15px]" : "text-[13px]",
       iconSize: "h-10 w-10",

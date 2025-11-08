@@ -1,6 +1,6 @@
 import React from "react";
 import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard } from "react-icons/fa";
-import { Sparkles, Compass as CompassIcon, Calculator, Megaphone, Crown } from "lucide-react";
+import { Compass as CompassIcon, Calculator, Megaphone, Crown } from "lucide-react";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
 import type {
@@ -67,37 +67,22 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
     description: navigationLabels.planning.tooltip,
     items: [
       {
-        type: "group",
-        key: "planning",
-        label: navigationLabels.planning.menu,
-        tooltip: navigationLabels.planning.tooltip,
-        icon: <Sparkles className="h-5 w-5 text-brand-purple" />,
-        autoExpandPaths: ["/planning", "/planning/planner", "/planning/discover"],
-        statePersistence: {
-          key: "nav:planning:collapsed",
-          defaultCollapsed: true,
-        },
+        type: "item",
+        key: "planning.calendar",
+        label: navigationLabels.planningPlanner.menu,
+        tooltip: navigationLabels.planningPlanner.tooltip,
+        href: "/planning/planner",
+        icon: <FaCalendarAlt className="h-5 w-5" />,
         paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
-        children: [
-          {
-            type: "item",
-            key: "planning.calendar",
-            label: navigationLabels.planningPlanner.menu,
-            tooltip: navigationLabels.planningPlanner.tooltip,
-            href: "/planning/planner",
-            icon: <FaCalendarAlt className="h-5 w-5" />,
-            paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
-          },
-          {
-            type: "item",
-            key: "planning.discover",
-            label: navigationLabels.planningDiscover.menu,
-            tooltip: navigationLabels.planningDiscover.tooltip,
-            href: "/planning/discover",
-            icon: <CompassIcon className="h-5 w-5" />,
-            paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
-          },
-        ],
+      },
+      {
+        type: "item",
+        key: "planning.discover",
+        label: navigationLabels.planningDiscover.menu,
+        tooltip: navigationLabels.planningDiscover.tooltip,
+        href: "/planning/discover",
+        icon: <CompassIcon className="h-5 w-5" />,
+        paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
       },
     ],
   },
@@ -107,35 +92,22 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
     description: "Campanhas, calculadora e afiliados",
     items: [
       {
-        type: "group",
-        key: "campaigns",
-        label: "Publicidade",
-        tooltip: "Campanhas e calculadora",
-        icon: <Megaphone className="h-5 w-5 text-brand-purple" />,
-        autoExpandPaths: ["/campaigns", "/dashboard/calculator"],
-        statePersistence: {
-          key: "nav:campaigns:collapsed",
-          defaultCollapsed: false,
-        },
-        children: [
-          {
-            type: "item",
-            key: "campaigns.overview",
-            label: navigationLabels.campaigns.menu,
-            tooltip: navigationLabels.campaigns.tooltip,
-            href: "/campaigns",
-            icon: <Megaphone className="h-5 w-5" />,
-          },
-          {
-            type: "item",
-            key: "campaigns.calculator",
-            label: "Calculadora",
-            href: "/dashboard/calculator",
-            icon: <Calculator className="h-5 w-5" />,
-            tooltip: "Preço justo a partir das suas métricas",
-            paywallResolver: ({ hasPremiumAccess }) => (!hasPremiumAccess ? "calculator" : undefined),
-          },
-        ],
+        type: "item",
+        key: "campaigns.overview",
+        label: navigationLabels.campaigns.menu,
+        tooltip: navigationLabels.campaigns.tooltip,
+        href: "/campaigns",
+        icon: <Megaphone className="h-5 w-5" />,
+      },
+      {
+        type: "item",
+        key: "campaigns.calculator",
+        label: "Calculadora",
+        href: "/dashboard/calculator",
+        icon: <Calculator className="h-5 w-5" />,
+        tooltip: "Preço justo a partir das suas métricas",
+        hideLockBadge: true,
+        paywallResolver: ({ hasPremiumAccess }) => (!hasPremiumAccess ? "calculator" : undefined),
       },
       {
         type: "item",
@@ -145,6 +117,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         href: "/affiliates",
         icon: <FaUsers />,
         hideInMinimal: true,
+        hideActiveIndicator: true,
       },
     ],
   },

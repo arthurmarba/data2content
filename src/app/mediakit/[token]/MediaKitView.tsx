@@ -1121,8 +1121,8 @@ export default function MediaKitView({
 
   const cardStyle = 'bg-white rounded-3xl border border-[#EAEAEA] shadow-sm p-5 sm:p-6';
   const containerClass = compactPadding
-    ? 'max-w-4xl mx-auto px-4 py-6'
-    : 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10';
+    ? 'mx-auto w-full max-w-5xl px-4 py-6'
+    : 'mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8';
   const sectionsWrapperClass = 'flex flex-col gap-4 sm:gap-3 lg:gap-2';
   const compactNumberFormat = (num: number | null | undefined) =>
     num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';

@@ -5,6 +5,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import Redemption from '@/app/models/Redemption';
 import { stripe } from '@/app/lib/stripe';
+import type { Types } from 'mongoose';
 
 export const runtime = 'nodejs';
 
@@ -34,7 +35,10 @@ export async function POST(req: NextRequest) {
     }
 
     await connectToDatabase();
-    const user = await User.findById(session.user.id, 'affiliateBalances affiliateDebtByCurrency paymentInfo');
+    const user = await User.findById(
+      session.user.id,
+      'affiliateBalances affiliateDebtByCurrency paymentInfo commissionLog'
+    );
     if (!user) {
       return NextResponse.json({ ok: false, code: 'server_error', message: 'Usuário não encontrado.' }, { status: 500 });
     }
@@ -81,12 +85,54 @@ export async function POST(req: NextRequest) {
       if (amount <= 0) {
         return NextResponse.json({ ok: false, code: 'no_funds', message: 'Sem saldo disponível.' }, { status: 400 });
       }
+      if (amount !== available) {
+        return NextResponse.json(
+          { ok: false, code: 'partial_not_supported', message: 'Saque parcial ainda não é suportado.' },
+          { status: 400 },
+        );
+      }
+
+      const entries = (user.commissionLog || [])
+        .filter(
+          (entry: any) =>
+            entry?.status === 'available' && String(entry.currency || '').toUpperCase() === cur,
+        )
+        .sort((a: any, b: any) => {
+          const getTime = (val: any) => {
+            const date = new Date(val || 0);
+            return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+          };
+          const ad = getTime(a.maturedAt || a.availableAt || a.createdAt);
+          const bd = getTime(b.maturedAt || b.availableAt || b.createdAt);
+          return ad - bd;
+        });
+
+      const payoutEntryIds: Types.ObjectId[] = [];
+      let accumulated = 0;
+      for (const entry of entries) {
+        const amountForEntry = Number(entry?.amountCents || 0);
+        if (!entry?._id || amountForEntry <= 0) continue;
+        payoutEntryIds.push(entry._id);
+        accumulated += amountForEntry;
+        if (accumulated >= amount) break;
+      }
+
+      if (payoutEntryIds.length === 0 || accumulated < amount) {
+        return NextResponse.json(
+          {
+            ok: false,
+            code: 'ledger_out_of_sync',
+            message: 'Não foi possível conciliar o saldo disponível. Tente novamente em instantes.',
+          },
+          { status: 409 },
+        );
+      }
 
       const redemption = await Redemption.create({
         userId: user._id,
         currency: cur,
         amountCents: amount,
-        status: 'processing',
+        status: 'requested',
         transferId: null,
       } as any);
 
@@ -116,6 +162,20 @@ export async function POST(req: NextRequest) {
         await Redemption.updateOne(
           { _id: redemption._id },
           { $set: { status: 'paid', transferId: transfer.id } },
+        );
+        const paidAt = new Date();
+        await User.updateOne(
+          { _id: user._id },
+          {
+            $set: {
+              'commissionLog.$[entry].status': 'paid',
+              'commissionLog.$[entry].paidAt': paidAt,
+              'commissionLog.$[entry].redeemId': redemption._id,
+              'commissionLog.$[entry].transferId': transfer.id,
+              'commissionLog.$[entry].updatedAt': paidAt,
+            },
+          },
+          { arrayFilters: [{ 'entry._id': { $in: payoutEntryIds } }] },
         );
 
         return NextResponse.json({ ok: true, transferId: transfer.id, redeemId: redemption._id.toString(), amountCents: amount, currency: cur });

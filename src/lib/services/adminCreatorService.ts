@@ -424,12 +424,11 @@ export async function updateRedemptionStatus(
 
   const { status, notes, transactionId } = payload;
 
-  // ✅ Apenas transições administráveis (não permitir voltar para 'requested')
-  type AdminNextStatus = 'processing' | 'paid' | 'rejected';
-  const allowedStatuses: AdminNextStatus[] = ['processing', 'paid', 'rejected'];
+  type AdminNextStatus = 'requested' | 'paid' | 'rejected';
+  const allowedStatuses: AdminNextStatus[] = ['requested', 'paid', 'rejected'];
   if (!allowedStatuses.includes(status as AdminNextStatus)) {
     logger.warn(`${TAG} Invalid status transition requested: ${String(status)}`);
-    throw new Error('Invalid status value. Allowed: processing | paid | rejected.');
+    throw new Error('Invalid status value. Allowed: requested | paid | rejected.');
   }
   const nextStatus = status as AdminNextStatus;
 
@@ -442,8 +441,7 @@ export async function updateRedemptionStatus(
       throw new Error('Redemption not found.');
     }
 
-    // Cast local para comparação com 'requested'
-    type FullRedemptionStatus = 'requested' | 'processing' | 'paid' | 'rejected';
+    type FullRedemptionStatus = 'requested' | 'paid' | 'rejected';
     const prevStatus = redemption.status as unknown as FullRedemptionStatus;
 
     // ⬇️ Tipagem expandida para incluir processedAt e transactionId opcionais

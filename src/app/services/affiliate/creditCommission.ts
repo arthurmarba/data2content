@@ -37,9 +37,10 @@ export async function creditAffiliateCommission(args: CreditArgs) {
       ? new Types.ObjectId(buyerUserId)
       : undefined;
 
+  const now = new Date();
   user.commissionLog ||= [];
   user.commissionLog.push({
-    type: 'adjustment',
+    type: 'commission',
     status: 'available',
     affiliateUserId: user._id,
     buyerUserId: buyerObjId,
@@ -47,6 +48,10 @@ export async function creditAffiliateCommission(args: CreditArgs) {
     amountCents,
     invoiceId: sourcePaymentId,
     note: description,
+    availableAt: now,
+    maturedAt: now,
+    createdAt: now,
+    updatedAt: now,
   } as any);
 
   // Garante que affiliateBalances seja um Map-like válido (cobre legado objeto plano)

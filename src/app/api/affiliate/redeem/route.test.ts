@@ -35,6 +35,10 @@ describe('POST /api/affiliate/redeem', () => {
       affiliateBalances: new Map([['BRL', 2000]]),
       affiliateDebtByCurrency: new Map(),
       paymentInfo: { stripeAccountId: 'acct1' },
+      commissionLog: [
+        { _id: 'entry1', status: 'available', currency: 'BRL', amountCents: 1000 },
+        { _id: 'entry2', status: 'available', currency: 'BRL', amountCents: 1000 },
+      ],
     });
     User.updateOne.mockResolvedValue({ modifiedCount: 1 });
     Redemption.create.mockImplementation(async (data: any) => ({ _id: 'red1', ...data }));
@@ -63,6 +67,7 @@ describe('POST /api/affiliate/redeem', () => {
       affiliateBalances: new Map([['BRL', 500]]),
       affiliateDebtByCurrency: new Map(),
       paymentInfo: { stripeAccountId: 'acct1' },
+      commissionLog: [{ _id: 'entry1', status: 'available', currency: 'BRL', amountCents: 500 }],
     });
     const res = await POST(mockRequest());
     const body = await res.json();
@@ -76,6 +81,7 @@ describe('POST /api/affiliate/redeem', () => {
       affiliateBalances: new Map([['BRL', 2000]]),
       affiliateDebtByCurrency: new Map([['BRL', 500]]),
       paymentInfo: { stripeAccountId: 'acct1' },
+      commissionLog: [{ _id: 'entry1', status: 'available', currency: 'BRL', amountCents: 2000 }],
     });
     const res = await POST(mockRequest());
     const body = await res.json();
@@ -102,4 +108,3 @@ describe('POST /api/affiliate/redeem', () => {
     expect(body.code).toBe('stripe_error');
   });
 });
-

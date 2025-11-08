@@ -4,7 +4,7 @@ export interface IRedemption extends Document {
   userId: Types.ObjectId;
   currency: string;           // 'brl' | 'usd' | ...
   amountCents: number;        // valor sacado (em cents) naquela moeda
-  status: 'processing' | 'paid' | 'rejected';
+  status: 'requested' | 'paid' | 'rejected';
   transferId?: string | null;
   reasonCode?: string | null;
   notes?: string;
@@ -14,7 +14,7 @@ const redemptionSchema = new Schema<IRedemption>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', index: true, required: true },
   currency: { type: String, required: true, lowercase: true, trim: true },
   amountCents: { type: Number, required: true, min: 1 },
-  status: { type: String, enum: ['processing','paid','rejected'], default: 'processing', index: true },
+  status: { type: String, enum: ['requested','paid','rejected'], default: 'requested', index: true },
   transferId: { type: String, index: true, default: null },
   reasonCode: { type: String, default: null },
   notes: { type: String, default: '' },

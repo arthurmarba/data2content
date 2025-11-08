@@ -2,8 +2,8 @@ import { User } from "@/server/db/models/User";
 import {
   AffiliateInvoiceIndex,
   AffiliateSubscriptionIndex,
-  AffiliateRefundProgress,
 } from "@/server/db/models/AffiliateIndexes";
+import AffiliateRefundProgress from "@/app/models/AffiliateRefundProgress";
 import type Stripe from "stripe";
 
 export async function findUserByCustomerId(customerId: string) {

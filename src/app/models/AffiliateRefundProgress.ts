@@ -1,4 +1,4 @@
-import { Schema, Types, model, models, Document } from 'mongoose';
+import mongoose, { Schema, Types, Document, Model } from 'mongoose';
 
 export interface IAffiliateRefundProgress extends Document {
   invoiceId: string;
@@ -22,4 +22,5 @@ affiliateRefundProgressSchema.index(
   { unique: true, name: 'uniq_refund_progress' }
 );
 
-export default models.AffiliateRefundProgress || model<IAffiliateRefundProgress>('AffiliateRefundProgress', affiliateRefundProgressSchema);
+export default (mongoose.models.AffiliateRefundProgress as Model<IAffiliateRefundProgress>) ||
+  mongoose.model<IAffiliateRefundProgress>('AffiliateRefundProgress', affiliateRefundProgressSchema);

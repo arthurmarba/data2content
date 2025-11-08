@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
   const redemptions = await Redemption.find(match).lean();
   const redemptionItems = redemptions
     .map((r: any) => {
-      if (r.status === 'processing') return null; // ignore
+      if (r.status === 'requested') return null; // ignore solicitações ainda em análise
       let status = r.status === 'paid' ? 'paid' : 'reversed';
       let reasonCode = r.reasonCode || null;
       if (r.status === 'rejected') {

@@ -12,6 +12,8 @@ export type SidebarChildNode = {
   exact?: boolean;
   tooltip?: string;
   hideInMinimal?: boolean;
+  hideLockBadge?: boolean;
+  hideActiveIndicator?: boolean;
   paywallContext?: PaywallContext;
 };
 

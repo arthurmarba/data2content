@@ -100,7 +100,7 @@ const SectionBlock = ({ section, index, tokens, pathname, userId, interaction }:
         </header>
       )}
 
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col gap-1">
         {section.items.map((item) =>
           item.type === "group" ? (
             <SidebarGroupItem
@@ -276,7 +276,7 @@ const SidebarGroupItem = ({
         }
       >
         {tokens.showLabels && (
-          <ul ref={childListRef} className="mt-1 flex flex-col gap-1">
+          <ul ref={childListRef} className="mt-0.5 flex flex-col gap-0.5">
             {group.children.map((child) => (
               <SidebarChildLink
                 key={child.key}
@@ -308,6 +308,8 @@ const SidebarLinkItem = ({
 }) => {
   const active = isRouteActive(pathname, item.href, item.exact);
   const locked = Boolean(item.paywallContext);
+  const hideLockBadge = Boolean(item.hideLockBadge);
+  const showActiveIndicator = active && !item.hideActiveIndicator;
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (locked && item.paywallContext) {
@@ -332,7 +334,7 @@ const SidebarLinkItem = ({
         }`}
         title={item.tooltip}
       >
-        {active && (
+        {showActiveIndicator && (
           <span
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-1/2 h-[60%] w-1 -translate-y-1/2 rounded-full bg-gradient-to-b from-brand-purple via-brand-magenta to-brand-orange"
@@ -350,7 +352,7 @@ const SidebarLinkItem = ({
           }`}
         >
           {item.icon}
-          {locked && !tokens.showLabels && (
+          {locked && !hideLockBadge && !tokens.showLabels && (
             <Lock className="absolute right-1 top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}
         </span>
@@ -361,7 +363,7 @@ const SidebarLinkItem = ({
               {item.label}
             </span>
             <span className="ml-auto flex items-center gap-2">
-              {locked && (
+              {locked && !hideLockBadge && (
                 <>
                   <ProBadge />
                   <Lock className="h-4 w-4 text-brand-magenta/70" aria-hidden="true" />
@@ -388,6 +390,8 @@ const SidebarChildLink = ({
 }) => {
   const active = isRouteActive(pathname, item.href, item.exact);
   const locked = Boolean(item.paywallContext);
+  const hideLockBadge = Boolean(item.hideLockBadge);
+  const showActiveIndicator = active && !item.hideActiveIndicator;
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (locked && item.paywallContext) {
@@ -412,7 +416,7 @@ const SidebarChildLink = ({
         }`}
         title={item.tooltip}
       >
-        {active && (
+        {showActiveIndicator && (
           <span
             aria-hidden="true"
             className="pointer-events-none absolute left-0 top-1/2 h-[60%] w-1 -translate-y-1/2 rounded-full bg-gradient-to-b from-brand-purple via-brand-magenta to-brand-orange"
@@ -424,7 +428,7 @@ const SidebarChildLink = ({
           className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/70 bg-white/90 text-[13px] text-slate-600 transition-colors duration-200 group-hover:border-brand-magenta/35 group-hover:text-brand-purple"
         >
           {item.icon}
-          {locked && (
+          {locked && !hideLockBadge && (
             <Lock className="absolute right-1 top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}
         </span>
@@ -433,7 +437,7 @@ const SidebarChildLink = ({
           {item.label}
         </span>
 
-        {locked && <ProBadge />}
+        {locked && !hideLockBadge && <ProBadge />}
       </Link>
     </li>
   );

@@ -1,8 +1,7 @@
 import os from 'node:os';
 import { connectMongo } from '@/server/db/connect';
-import { User } from '@/server/db/models/User';
-import { adjustBalance } from '@/server/affiliate/balance';
 import { CronLock } from '@/server/db/models/CronLock';
+import matureAffiliateCommissions from '@/cron/matureAffiliateCommissions';
 
 export const runtime = 'nodejs';
 
@@ -65,63 +64,21 @@ export async function POST(req: Request) {
     });
   }
 
-  const { limit = 100, maxItemsPerUser = 20, dryRun = false } = await safeJson(req);
+  const {
+    limit = 100,
+    maxItemsPerUser: rawMaxItemsPerUser = 20,
+    dryRun = false,
+  } = await safeJson(req);
 
-  const now = new Date();
-  const users = await User.find({
-    commissionLog: {
-      $elemMatch: { type: 'commission', status: 'pending', availableAt: { $lte: now } },
-    },
-  })
-    .select({ commissionLog: 1, affiliateBalances: 1 })
-    .limit(Math.max(1, Math.min(500, Number(limit))))
-    .lean(false);
+  const parsedMaxItems = Number(rawMaxItemsPerUser);
+  const safeMaxItems = Number.isFinite(parsedMaxItems) ? parsedMaxItems : 20;
+  const maxEntriesPerUser = Math.max(1, Math.min(100, safeMaxItems));
 
-  let maturedUsers = 0;
-  let maturedEntries = 0;
-
-  for (const u of users) {
-    let changed = false;
-    let countThisUser = 0;
-
-    for (const e of u.commissionLog ?? []) {
-      if (countThisUser >= maxItemsPerUser) break;
-
-      if (
-        e?.type === 'commission' &&
-        e.status === 'pending' &&
-        e.availableAt &&
-        e.availableAt <= now &&
-        typeof e.amountCents === 'number' &&
-        e.amountCents > 0
-      ) {
-        if (!dryRun) {
-          await adjustBalance(u as any, e.currency, e.amountCents);
-          e.status = 'available';
-          // ⬇️ Tip-safe: maturedAt pode não existir na interface gerada — setamos via `any`
-          (e as any).maturedAt = new Date();
-        }
-        changed = true;
-        maturedEntries++;
-        countThisUser++;
-      }
-    }
-
-    if (changed && !dryRun) {
-      // Garante persistência das mudanças no array de subdocs
-      // (em alguns setups o Mongoose já detecta; essa chamada é defensiva)
-      // @ts-ignore - nem todo tipo expõe markModified no TS
-      u.markModified?.('commissionLog');
-      await u.save();
-      maturedUsers++;
-    }
-  }
-
-  return Response.json({
-    ok: true,
+  const result = await matureAffiliateCommissions({
     dryRun,
-    processedUsers: users.length,
-    maturedUsers,
-    maturedEntries,
+    maxUsers: Math.max(1, Math.min(500, Number(limit))),
+    maxEntriesPerUser,
   });
+
+  return Response.json(result);
 }
