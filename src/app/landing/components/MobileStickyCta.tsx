@@ -71,17 +71,17 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
         className="pointer-events-auto bg-gradient-to-t from-white via-white/95 to-transparent px-4 pb-0 pt-4"
         style={{ paddingBottom }}
       >
-        <div className="mx-auto flex max-w-content-sm flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-4 text-center text-slate-900 shadow-[0_-28px_60px_rgba(15,23,42,0.15)] backdrop-blur-lg">
+        <div className="mx-auto flex max-w-content-sm flex-col gap-3 rounded-2xl border border-brand-glass bg-white/95 px-4 py-4 text-center text-brand-dark backdrop-blur-lg">
           <button
             type="button"
             onClick={onClick}
             aria-label={label}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-base font-semibold text-white shadow-[0_14px_32px_rgba(15,23,42,0.25)] transition-transform duration-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 active:scale-[0.99]"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-base font-semibold text-white transition-transform duration-200 hover:bg-brand-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary active:scale-[0.99]"
           >
             {label}
           </button>
           {description ? (
-            <p className="text-xs font-medium text-slate-500">
+            <p className="text-xs font-medium text-brand-text-secondary/80">
               {description}
             </p>
           ) : null}

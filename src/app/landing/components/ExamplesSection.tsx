@@ -7,8 +7,8 @@ import exampleScreenshots from '@/data/exampleScreenshots';
 
 export default function ExamplesSection() {
   return (
-    <section className="py-10 sm:py-14 bg-gray-50/70">
-      <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
+    <section className="landing-section landing-section--muted landing-section--compact-top">
+      <div className="landing-section__inner landing-section__inner--wide">
         <AnimatedSection>
           <SectionTitle>Conheça nossa IA</SectionTitle>
           <SectionSubtitle>

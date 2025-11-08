@@ -22,6 +22,12 @@ const config: Config = {
       },
       colors: {
         brand: {
+          primary: '#FF2C7E',
+          'primary-dark': '#E01163',
+          accent: '#246BFD',
+          'accent-dark': '#1A4EC3',
+          sun: '#FFB347',
+          'sun-dark': '#E6952E',
           magenta: '#E74B6F',
           'magenta-dark': '#D54465',
           'magenta-hover': '#D54465',
@@ -80,17 +86,17 @@ const config: Config = {
         grayLight: '#9CA3AF',
       },
       backgroundImage: {
-        'landing-hero': 'radial-gradient(140% 120% at 50% -20%, rgba(231, 75, 111, 0.12) 0%, rgba(231, 75, 111, 0) 68%)',
-        'landing-brand': 'radial-gradient(120% 140% at 50% -20%, rgba(255, 110, 169, 0.18) 0%, rgba(255, 110, 169, 0) 75%)',
+        'landing-hero': 'radial-gradient(140% 120% at 50% -20%, rgba(255, 44, 126, 0.14) 0%, rgba(255, 44, 126, 0) 68%)',
+        'landing-brand': 'radial-gradient(120% 140% at 50% -20%, rgba(255, 44, 126, 0.20) 0%, rgba(255, 44, 126, 0) 75%)',
         'landing-data': 'radial-gradient(120% 120% at 20% 0%, rgba(11, 87, 208, 0.12) 0%, rgba(11, 87, 208, 0) 55%)',
-        'landing-testimonial': 'radial-gradient(160% 120% at 30% 0%, rgba(255, 110, 169, 0.22) 0%, rgba(255, 110, 169, 0) 68%)',
+        'landing-testimonial': 'radial-gradient(160% 120% at 30% 0%, rgba(255, 44, 126, 0.24) 0%, rgba(255, 44, 126, 0) 68%)',
       },
       boxShadow: {
         'glass-md': '0 14px 36px rgba(12, 29, 56, 0.10)',
         'glass-lg': '0 26px 60px rgba(12, 29, 56, 0.12)',
         'glass-xl': '0 34px 80px rgba(12, 29, 56, 0.16)',
-        'brand-magenta': '0 18px 48px rgba(255, 95, 139, 0.22)',
-        'brand-blue': '0 12px 28px rgba(11, 87, 208, 0.24)',
+        'brand-magenta': '0 8px 24px rgba(255, 44, 126, 0.22)',
+        'brand-blue': '0 6px 18px rgba(11, 87, 208, 0.2)',
       },
       borderColor: {
         'brand-glass': '#E3E8F4',
@@ -98,7 +104,7 @@ const config: Config = {
       },
       ringColor: {
         brand: '#0B57D0',
-        magenta: '#E74B6F',
+        magenta: '#FF2C7E',
       },
       backdropBlur: {
         glass: '18px',

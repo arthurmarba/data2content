@@ -143,7 +143,7 @@ function LoginComponent() {
               onClick={handleGoogleSignIn}
               type="button"
               disabled={isLoading}
-              className="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-rose-500 px-4 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-rose-500 px-4 py-3 text-base font-semibold text-white transition hover:bg-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50"
             >
               <svg
                 className="h-5 w-5"
@@ -240,7 +240,7 @@ function LoginComponent() {
                   onClick={handleCredentialsSignIn}
                   type="button"
                   disabled={isLoading}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 disabled:opacity-50"
                 >
                   {isLoading ? "Entrando..." : "Entrar com e-mail e senha"}
                 </button>

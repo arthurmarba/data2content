@@ -28,8 +28,8 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
   const { appendUtm, utm } = useUtmAttribution();
 
   const navLinks = [
-    { href: '#galeria', label: 'Criadores' },
     { href: '#impacto', label: 'Impacto' },
+    { href: '#galeria', label: 'Criadores' },
     { href: '#ecossistema', label: 'Ecossistema' },
     { href: '#planos', label: 'Planos' },
     { href: '#marcas', label: 'Marcas' },
@@ -93,7 +93,9 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
     <header
       className={[
         'fixed top-0 z-50 w-full border-b transition-all duration-300 ease-out backdrop-blur',
-        isScrolled ? 'border-[#E4E8F3] bg-white/95 shadow-[0_4px_24px_rgba(15,23,42,0.08)]' : 'border-transparent bg-white/75',
+        isScrolled
+          ? 'border-[#E4E8F3] bg-white/95 shadow-[0_4px_24px_rgba(15,23,42,0.08)]'
+          : 'border-transparent bg-white/80',
       ].join(' ')}
       style={
         isMounted
@@ -122,24 +124,25 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
               <a
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-brand-text-secondary transition-colors hover:text-brand-dark"
+                className="text-sm font-medium text-brand-text-secondary/80 transition-colors hover:text-brand-dark"
               >
                 {link.label}
               </a>
             ))}
-            <button
-              type="button"
+            <ButtonPrimary
               onClick={handleBrands}
-              className="text-sm font-semibold text-brand-dark/70 transition-colors hover:text-brand-dark"
+              size="sm"
+              variant="outline"
+              className="shadow-none"
             >
               Sou marca
-            </button>
+            </ButtonPrimary>
             {session ? (
-              <ButtonPrimary href={MAIN_DASHBOARD_ROUTE} size="sm" variant="outline" className="shadow-none">
+              <ButtonPrimary href={MAIN_DASHBOARD_ROUTE} size="sm" variant="brand" className="shadow-none">
                 Ir para o painel
               </ButtonPrimary>
             ) : (
-              <ButtonPrimary onClick={handleJoinCommunity} size="sm" variant="solid">
+              <ButtonPrimary onClick={handleJoinCommunity} size="sm" variant="brand">
                 Criar conta gratuita
               </ButtonPrimary>
             )}
@@ -167,7 +170,7 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
                 <a
                   key={link.href}
                   href={link.href}
-                  className="rounded-xl px-4 py-3 text-sm font-medium text-brand-dark/80 hover:bg-brand-light"
+                  className="rounded-xl px-4 py-3 text-sm font-medium text-brand-text-secondary/90 hover:bg-brand-light"
                   onClick={() => setIsMenuOpen(false)}
                   ref={!session && index === 0 ? firstLinkRef : undefined}
                 >
@@ -179,7 +182,7 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
                   handleBrands();
                   setIsMenuOpen(false);
                 }}
-                className="mt-1 rounded-xl px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light"
+                className="mt-1 rounded-xl border border-brand-primary/40 px-4 py-3 text-left text-sm font-semibold text-brand-primary hover:bg-brand-primary/10"
               >
                 Sou marca
               </button>

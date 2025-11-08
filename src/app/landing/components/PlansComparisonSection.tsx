@@ -148,23 +148,22 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
   return (
     <section
       id="planos"
-      className="relative overflow-hidden border-t border-white/40 bg-landing-data py-16 text-brand-dark md:py-20"
+      className="landing-section landing-section--plain text-brand-dark"
     >
-      <div className="absolute inset-x-0 top-0 -z-10 h-1/2 bg-gradient-to-b from-white/85 via-white/70 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-neutral-100 via-white/70 to-transparent" />
-      <div className="relative container mx-auto max-w-6xl px-6">
+      <div className="landing-section__inner landing-section__inner--wide">
         <div className="text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-brand-chip-border bg-neutral-0/75 px-4 py-1 text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
-            Planos D2C
-          </span>
-          <h2 className="mt-6 text-[2rem] font-semibold leading-tight md:text-[2.5rem]">
+          <span className="landing-chip mx-auto md:text-sm">Planos D2C</span>
+          <h2 className="mt-6 text-display-lg text-brand-dark">
             Evolua no seu ritmo com o ecossistema D2C.
           </h2>
+          <p className="mt-4 text-body-md font-normal text-brand-text-secondary">
+            Estruture sua carreira com dados, orientação e propostas qualificadas em um só lugar.
+          </p>
         </div>
 
         <div className="mt-14 grid gap-6 md:hidden">
-          <div className="rounded-2xl border border-white/40 bg-neutral-0/70 p-5 shadow-glass-lg backdrop-blur-glass">
-            <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
+          <div className="rounded-3xl border border-brand-glass bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
+            <p className="text-eyebrow text-brand-text-secondary">
               O que o plano gratuito inclui
             </p>
             <ul className="mt-5 space-y-4 text-sm leading-normal text-brand-dark md:text-base">
@@ -184,22 +183,22 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                 );
               })}
             </ul>
-            <div className="mt-6 border-t border-white/40 pt-4 text-center md:text-left">
-              <p className="text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-brand-text-secondary">
+            <div className="mt-6 border-t border-neutral-200 pt-4 text-center md:text-left">
+              <p className="text-eyebrow text-brand-text-secondary">
                 Investimento
               </p>
               <p className="text-2xl font-semibold text-brand-dark">
                 {PLAN_PRICING.free.price}
                 <span className="text-sm font-medium text-brand-text-secondary"> {PLAN_PRICING.free.cadence}</span>
               </p>
-              <p className="text-[0.7rem] font-medium uppercase tracking-[0.25em] text-brand-text-secondary">
+              <p className="text-xs font-medium uppercase tracking-[0.25em] text-brand-text-secondary">
                 {PLAN_PRICING.free.note}
               </p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/40 bg-neutral-0/70 p-5 shadow-glass-lg backdrop-blur-glass">
-            <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-magenta-bright md:text-sm">
+          <div className="rounded-3xl border border-brand-glass bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
+            <p className="text-eyebrow text-brand-magenta-bright">
               Benefícios exclusivos do PRO ⭐
             </p>
             <ul className="mt-5 space-y-4 text-sm leading-normal text-brand-dark md:text-base">
@@ -219,8 +218,8 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                 );
               })}
             </ul>
-            <div className="mt-6 border-t border-white/40 pt-4 text-center md:text-left">
-              <p className="text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-brand-magenta-bright">
+            <div className="mt-6 border-t border-neutral-200 pt-4 text-center md:text-left">
+              <p className="text-eyebrow text-brand-magenta-bright">
                 Investimento
               </p>
               <p className="text-2xl font-semibold text-brand-dark">
@@ -232,10 +231,10 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
           </div>
         </div>
 
-        <div className="mt-16 hidden overflow-hidden rounded-[28px] border border-white/40 bg-neutral-0/70 shadow-glass-lg backdrop-blur-glass md:block">
+        <div className="mt-16 hidden overflow-hidden rounded-[32px] border border-brand-glass bg-white shadow-[0_12px_32px_rgba(15,23,42,0.08)] md:block">
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto divide-y divide-neutral-200 text-left">
-              <thead className="bg-white/75 text-sm font-semibold uppercase tracking-[0.2em] text-brand-text-secondary">
+              <thead className="bg-neutral-50 text-sm font-semibold uppercase tracking-[0.15em] text-brand-text-secondary/80">
                 <tr>
                   <th scope="col" className="px-6 py-5 md:px-8">
                     Recurso
@@ -243,12 +242,12 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                   <th scope="col" className="px-6 py-5 text-center md:px-8">
                     Gratuito
                   </th>
-                  <th scope="col" className="px-6 py-5 text-center text-brand-magenta-bright md:px-8">
-                    PRO ⭐ (pago)
+                  <th scope="col" className="px-6 py-5 text-center text-brand-dark md:px-8">
+                    Plano PRO
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/60 text-base text-brand-dark">
+              <tbody className="divide-y divide-neutral-100 text-base text-brand-dark">
                 {features.map((item) => (
                   <tr key={item.feature} className="bg-neutral-0/60">
                     <th
@@ -280,7 +279,7 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-white/80 text-brand-dark">
+              <tfoot className="bg-white/90 text-brand-dark">
                 <tr>
                   <th
                     scope="row"
@@ -289,7 +288,7 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                     Investimento mensal
                   </th>
                   <td className="px-6 py-5 text-center align-top text-base md:px-8">
-                    <div className="space-y-1">
+                    <div className="mx-auto flex max-w-xs flex-col gap-3">
                       <p className="text-2xl font-semibold">
                         {PLAN_PRICING.free.price}
                         <span className="text-sm font-medium text-brand-text-secondary">
@@ -300,6 +299,14 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                       <p className="text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-brand-text-secondary">
                         {PLAN_PRICING.free.note}
                       </p>
+                      <ButtonPrimary
+                        onClick={onCreateAccount}
+                        variant="brand"
+                        size="md"
+                        className="w-full justify-center"
+                      >
+                        Criar conta gratuita
+                      </ButtonPrimary>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-center align-top text-base text-brand-magenta-bright md:px-8">
@@ -320,31 +327,6 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
           </div>
         </div>
 
-        <div className="mt-10 rounded-2xl border border-white/40 bg-neutral-0/85 p-6 shadow-glass-md backdrop-blur-glass">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-brand-text-secondary">
-                {PLAN_PRICING.free.label}
-              </p>
-              <p className="text-2xl font-semibold text-brand-dark">
-                {PLAN_PRICING.free.price}
-                <span className="text-sm font-medium text-brand-text-secondary"> {PLAN_PRICING.free.cadence}</span>
-              </p>
-              <p className="text-sm text-brand-text-secondary">{PLAN_PRICING.free.description}</p>
-              <p className="text-[0.7rem] font-medium uppercase tracking-[0.25em] text-brand-text-secondary">
-                {PLAN_PRICING.free.note}
-              </p>
-            </div>
-            <ButtonPrimary
-              onClick={onCreateAccount}
-              variant="brand"
-              size="lg"
-              className="w-full justify-center md:w-auto"
-            >
-              Criar conta gratuita
-            </ButtonPrimary>
-          </div>
-        </div>
       </div>
     </section>
   );

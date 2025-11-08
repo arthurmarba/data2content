@@ -588,54 +588,64 @@ export default function LandingPageClient() {
           onRequestMediaKit={handleCreatorCta}
           maxVisible={CREATOR_GALLERY_LIMIT}
         />
+        <TestimonialSpotlight />
         <PlansComparisonSection onCreateAccount={handleCreatorCta} />
         <BrandsSection onCreateCampaign={handleBrandsCta} />
-        <TestimonialSpotlight />
       </main>
 
-      <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-surface-muted)] py-12 text-[var(--landing-text-muted)]">
-        <div className="container mx-auto flex max-w-5xl flex-col gap-10 px-6">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative h-12 w-12 overflow-hidden rounded-full border border-[var(--landing-border)] bg-white">
-                <Image
-                  src="/images/Colorido-Simbolo.png"
-                  alt="Data2Content"
-                  fill
-                  className="object-contain object-center saturate-0"
-                  priority
-                />
+      <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-surface-muted)] text-[var(--landing-text-muted)]">
+        <div className="landing-section__inner landing-section__inner--wide flex flex-col gap-10 py-12">
+          <div className="grid gap-8 md:grid-cols-3">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="relative h-11 w-11 overflow-hidden rounded-full border border-[var(--landing-border)] bg-white">
+                  <Image
+                    src="/images/Colorido-Simbolo.png"
+                    alt="Data2Content"
+                    fill
+                    className="object-contain object-center saturate-0"
+                    priority
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.35em]">Data2Content</p>
+                  <p className="text-sm">IA para criadores e marcas.</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[var(--landing-text-muted)]">
-                  Data2Content
-                </p>
-                <p className="text-sm text-[var(--landing-text-muted)]">Ferramentas objetivas para criadores.</p>
-              </div>
+              <p className="text-sm">
+                Insights confiáveis, mídia kit vivo e oportunidades reais em um único ecossistema.
+              </p>
             </div>
-            <div className="text-sm text-[var(--landing-text-muted)]">
-              <p className="font-semibold text-[var(--landing-accent)]">Contato direto</p>
+
+            <nav className="grid grid-cols-2 gap-3 text-sm md:grid-cols-1">
+              {FOOTER_LINKS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="transition-colors duration-200 hover:text-brand-primary"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="flex flex-col gap-3 text-sm">
+              <p className="text-eyebrow text-[var(--landing-text-muted)]">Contato direto</p>
               <Link
-                href="mailto:oi@data2content.com"
-                className="text-sm text-[var(--landing-accent)] underline-offset-4 hover:underline"
+                href="mailto:arthur@data2content.ai"
+                className="text-brand-primary underline-offset-4 hover:underline"
               >
-                oi@data2content.com
+                arthur@data2content.ai
               </Link>
+              <p className="text-xs">
+                Plataforma operada por Mobi Media Produtores de Conteúdo LTDA.
+              </p>
             </div>
           </div>
-          <nav className="grid gap-4 text-sm text-[var(--landing-text-muted)] sm:grid-cols-2 md:grid-cols-4">
-            {FOOTER_LINKS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="transition-colors duration-200 hover:text-[var(--landing-accent)]"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="text-xs text-[var(--landing-text-muted)]">
-            © {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.
+
+          <div className="flex flex-col gap-4 border-t border-[var(--landing-border)] pt-6 text-xs text-[var(--landing-text-muted)] md:flex-row md:items-center md:justify-between">
+            <span>© {new Date().getFullYear()} Data2Content. Todos os direitos reservados.</span>
+            <span>Construída do Brasil para o mercado criativo.</span>
           </div>
         </div>
       </footer>

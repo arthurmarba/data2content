@@ -3,7 +3,16 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Inbox, RefreshCcw, Send, MessageSquare, ClipboardCopy, Lock } from 'lucide-react';
+import {
+  Inbox,
+  RefreshCcw,
+  Send,
+  MessageSquare,
+  ClipboardCopy,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { track } from '@/lib/track';
@@ -100,6 +109,8 @@ const PIPELINE_STAGES: PipelineStageConfig[] = [
   },
 ];
 
+const PIPELINE_GAP_PX = 16;
+
 interface PipelineStageData extends PipelineStageConfig {
   items: ProposalListItem[];
   amount: number;
@@ -155,7 +166,12 @@ export default function ProposalsClient() {
   const analyzeButtonRef = useRef<HTMLButtonElement | null>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const sendReplyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const detailsSectionRef = useRef<HTMLElement | null>(null);
+  const detailsHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const pipelineCarouselRef = useRef<HTMLDivElement | null>(null);
+  const pendingScrollToDetailsRef = useRef(false);
   const aiUsedRef = useRef(false);
+  const [pipelinePage, setPipelinePage] = useState(0);
   const buildReturnTo = useCallback(
     (proposalId?: string | null) => {
       const targetId = proposalId ?? selectedProposal?.id ?? null;
@@ -707,6 +723,8 @@ export default function ProposalsClient() {
     ];
   }, [selectedProposal, deliverablesCount, lastActionDate]);
 
+  const totalPipelineStages = pipelineStagesData.length;
+
   const handleCopyMediaKitLink = useCallback(async () => {
     try {
       setIsCopyingMediaKitLink(true);
@@ -754,6 +772,41 @@ export default function ProposalsClient() {
       setIsCopyingMediaKitLink(false);
     }
   }, [toast]);
+
+  const handleShareMediaKitLink = useCallback(async () => {
+    if (!mediaKitUrl) {
+      toast({ variant: 'error', title: 'Link do mídia kit indisponível.' });
+      return;
+    }
+    if (navigator?.share) {
+      try {
+        await navigator.share({ url: mediaKitUrl });
+        return;
+      } catch (error) {
+        if ((error as DOMException)?.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(mediaKitUrl);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = mediaKitUrl;
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+      }
+      toast({ variant: 'info', title: 'Link copiado. Compartilhe em qualquer app.' });
+    } catch {
+      toast({ variant: 'error', title: 'Não foi possível compartilhar. Copie manualmente.' });
+    }
+  }, [mediaKitUrl, toast]);
 
   const noData = !isLoading && proposals.length === 0;
 
@@ -804,6 +857,85 @@ export default function ProposalsClient() {
     },
     [updateProposalStatus]
   );
+
+  const scrollPipeline = useCallback(
+    (direction: 'prev' | 'next') => {
+      const container = pipelineCarouselRef.current;
+      if (!container) return;
+      const child = container.firstElementChild as HTMLElement | null;
+      const childWidth = child ? child.offsetWidth : container.clientWidth * 0.9;
+      const scrollDistance = childWidth + PIPELINE_GAP_PX;
+      container.scrollBy({
+        left: direction === 'next' ? scrollDistance : -scrollDistance,
+        behavior: 'smooth',
+      });
+    },
+    []
+  );
+
+  const scrollPipelineTo = useCallback((index: number) => {
+    const container = pipelineCarouselRef.current;
+    if (!container) return;
+    const child = container.firstElementChild as HTMLElement | null;
+    const childWidth = child ? child.offsetWidth : container.clientWidth * 0.9;
+    const scrollDistance = index * (childWidth + PIPELINE_GAP_PX);
+    container.scrollTo({ left: scrollDistance, behavior: 'smooth' });
+  }, []);
+
+  const handleProposalSelect = useCallback(
+    (proposalId: string, enableAutoScroll = false) => {
+      setSelectedId(proposalId);
+      if (enableAutoScroll && typeof window !== 'undefined' && window.innerWidth < 768) {
+        pendingScrollToDetailsRef.current = true;
+      }
+    },
+    [setSelectedId]
+  );
+
+  useEffect(() => {
+    if (!pendingScrollToDetailsRef.current) return;
+    if (!selectedProposal || !selectedId || selectedProposal.id !== selectedId) return;
+    pendingScrollToDetailsRef.current = false;
+    if (typeof window === 'undefined') return;
+
+    window.requestAnimationFrame(() => {
+      detailsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.setTimeout(() => {
+        detailsHeadingRef.current?.focus({ preventScroll: true });
+      }, 300);
+    });
+  }, [selectedId, selectedProposal]);
+
+  useEffect(() => {
+    const container = pipelineCarouselRef.current;
+    if (!container || typeof window === 'undefined') return;
+
+    container.scrollLeft = 0;
+    setPipelinePage(0);
+
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    if (mediaQuery.matches) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const child = container.firstElementChild as HTMLElement | null;
+      if (!child) {
+        setPipelinePage(0);
+        return;
+      }
+      const step = child.offsetWidth + PIPELINE_GAP_PX;
+      if (step <= 0) return;
+      const rawIndex = Math.round(container.scrollLeft / step);
+      const maxIndex = Math.max(0, totalPipelineStages - 1);
+      const nextIndex = Math.min(Math.max(rawIndex, 0), maxIndex);
+      setPipelinePage((prev) => (prev === nextIndex ? prev : nextIndex));
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [totalPipelineStages]);
 
   return (
     <>
@@ -859,7 +991,7 @@ export default function ProposalsClient() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigator?.share?.({ url: mediaKitUrl }).catch(() => {})}
+                      onClick={handleShareMediaKitLink}
                       className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 sm:ml-2"
                     >
                       Compartilhar
@@ -885,11 +1017,11 @@ export default function ProposalsClient() {
               )}
             </section>
 
-            <section className="grid gap-4 sm:grid-cols-3">
+            <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
               {summaryCards.map((card) => (
                 <div
                   key={card.label}
-                  className={`rounded-2xl border border-gray-200 bg-white p-5 shadow-sm ${
+                  className={`min-w-[70%] snap-center rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:min-w-0 ${
                     card.highlight ? 'ring-2 ring-pink-100' : ''
                   }`}
                 >
@@ -902,18 +1034,41 @@ export default function ProposalsClient() {
             </section>
 
             <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Pipeline financeiro</h2>
               <p className="text-sm text-gray-500">
                 Distribuição minimalista por etapa para decidir onde focar.
               </p>
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Atualizado em tempo real
-            </span>
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Atualizado em tempo real
+              </span>
+              <div className="flex items-center gap-2 md:hidden">
+                <button
+                  type="button"
+                  onClick={() => scrollPipeline('prev')}
+                  className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
+                  aria-label="Visualizar etapa anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollPipeline('next')}
+                  className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
+                  aria-label="Visualizar próxima etapa"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div
+            ref={pipelineCarouselRef}
+            className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:pb-0 xl:grid-cols-4"
+          >
             {pipelineStagesData.map((stage) => (
               <div
                 key={stage.key}
@@ -931,7 +1086,9 @@ export default function ProposalsClient() {
                   setDragOverStage((prev) => (prev === stage.key ? null : prev));
                 }}
                 onDrop={(event) => handleDropOnStage(stage, event)}
-                className={`flex flex-col rounded-2xl border border-gray-200 bg-gradient-to-b ${stage.tone} p-4 transition ${
+                className={`flex min-w-[85%] snap-center flex-shrink-0 flex-col rounded-2xl border border-gray-200 bg-gradient-to-b ${
+                  stage.tone
+                } p-4 transition md:min-w-0 md:snap-start ${
                   dragOverStage === stage.key ? 'ring-2 ring-pink-200' : ''
                 }`}
                 role="list"
@@ -967,11 +1124,11 @@ export default function ProposalsClient() {
                         draggable
                         onDragStart={(event) => handleDragStart(event, proposal.id)}
                         onDragEnd={handleDragEnd}
-                        onClick={() => setSelectedId(proposal.id)}
+                        onClick={() => handleProposalSelect(proposal.id, true)}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            setSelectedId(proposal.id);
+                            handleProposalSelect(proposal.id, true);
                           }
                         }}
                         className={`w-full rounded-xl border bg-white px-4 py-3 text-left text-sm shadow-sm transition hover:-translate-y-0.5 hover:border-pink-200 hover:shadow ${
@@ -992,7 +1149,7 @@ export default function ProposalsClient() {
                           <span>{formatDate(proposal.createdAt)}</span>
                         </div>
                         <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 sm:hidden">
-                          <span>Arraste ou mova</span>
+                          <span>Mover estágio</span>
                           <select
                             className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-600"
                             value={stage.key}
@@ -1014,6 +1171,21 @@ export default function ProposalsClient() {
               </div>
             ))}
           </div>
+          {totalPipelineStages > 1 ? (
+            <div className="mt-3 flex items-center justify-center gap-2 md:hidden">
+              {pipelineStagesData.map((stage, index) => (
+                <button
+                  key={stage.key}
+                  type="button"
+                  onClick={() => scrollPipelineTo(index)}
+                  className={`h-2.5 w-2.5 rounded-full transition ${
+                    pipelinePage === index ? 'bg-pink-500' : 'bg-gray-300'
+                  }`}
+                  aria-label={`Ir para etapa ${stage.label}`}
+                />
+              ))}
+            </div>
+          ) : null}
         </section>
 
         {noData ? (
@@ -1086,13 +1258,19 @@ export default function ProposalsClient() {
 
 
         {selectedProposal ? (
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+          <section ref={detailsSectionRef} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="space-y-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Campanha</p>
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-semibold text-gray-900">{selectedProposal.campaignTitle}</h2>
+                    <h2
+                      ref={detailsHeadingRef}
+                      tabIndex={-1}
+                      className="text-2xl font-semibold text-gray-900 focus:outline-none"
+                    >
+                      {selectedProposal.campaignTitle}
+                    </h2>
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${STATUS_COLORS[selectedProposal.status]}`}
                     >

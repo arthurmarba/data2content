@@ -14,10 +14,10 @@ type BrandBenefit = {
   accent: "magenta" | "blue" | "violet";
 };
 
-const gradientMap: Record<BrandBenefit["accent"], string> = {
-  magenta: "from-brand-magenta-bright via-brand-peach to-brand-blue",
-  blue: "from-brand-blue via-brand-blue-light to-brand-violet",
-  violet: "from-brand-violet via-brand-violet-light to-brand-magenta-bright",
+const badgeTokens: Record<BrandBenefit["accent"], string> = {
+  magenta: "bg-brand-primary/12 text-brand-primary",
+  blue: "bg-brand-accent/12 text-brand-accent",
+  violet: "bg-brand-violet-light/25 text-brand-violet",
 };
 
 const IconBadge: React.FC<{ accent: BrandBenefit["accent"]; children: React.ReactNode }> = ({
@@ -26,7 +26,7 @@ const IconBadge: React.FC<{ accent: BrandBenefit["accent"]; children: React.Reac
 }) => (
   <span
     aria-hidden="true"
-      className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${gradientMap[accent]} text-white shadow-glass-md transition-transform duration-300 group-hover:-translate-y-0.5`}
+    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${badgeTokens[accent]} shadow-[0_4px_12px_rgba(15,23,42,0.1)] transition-transform duration-300 group-hover:-translate-y-0.5`}
   >
     {children}
   </span>
@@ -111,20 +111,13 @@ const benefits: BrandBenefit[] = [
 
 const BrandsSection: React.FC<BrandsSectionProps> = ({ onCreateCampaign }) => {
   return (
-    <section
-      id="marcas"
-      className="relative overflow-hidden bg-landing-brand py-[clamp(4rem,8vw,5.5rem)] text-brand-dark"
-    >
-      <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/75 to-brand-glass-200" />
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-brand-glass-200 via-white/70 to-transparent" />
-      <div className="relative container mx-auto max-w-5xl px-6 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-brand-chip-border bg-neutral-0/80 px-4 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-accent-slate-600 md:text-sm">
-          Para marcas
-        </span>
-        <h2 className="mt-6 text-[clamp(1.95rem,4vw,2.5rem)] font-semibold leading-tight">
+    <section id="marcas" className="landing-section landing-section--plain text-brand-dark">
+      <div className="landing-section__inner landing-section__inner--wide text-center">
+        <span className="landing-chip mx-auto md:text-sm">Para marcas</span>
+        <h2 className="mt-6 text-display-lg text-brand-dark">
           Encontre os criadores ideais para sua próxima campanha.
         </h2>
-        <p className="mt-4 text-base leading-relaxed text-brand-text-secondary md:text-lg">
+        <p className="mt-4 text-body-lg font-normal text-brand-text-secondary">
           A mesma IA que orienta os creators ajuda marcas a planejar com precisão. Compare audiência, engajamento e custo antes mesmo de enviar sua proposta.
         </p>
 
@@ -132,7 +125,7 @@ const BrandsSection: React.FC<BrandsSectionProps> = ({ onCreateCampaign }) => {
           {benefits.map(({ icon, title, description, accent }) => (
             <article
               key={title}
-              className="group flex flex-col gap-5 rounded-[28px] border border-white/40 bg-neutral-0/70 p-8 shadow-glass-lg backdrop-blur-glass transition-all duration-300 hover:-translate-y-1 hover:border-white/70 hover:shadow-glass-xl"
+              className="group flex flex-col gap-5 rounded-[28px] border border-brand-glass bg-white p-8 shadow-[0_8px_24px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1"
             >
               <IconBadge accent={accent}>{icon}</IconBadge>
               <h3 className="text-lg font-semibold leading-snug text-brand-dark md:text-xl">{title}</h3>
@@ -141,7 +134,7 @@ const BrandsSection: React.FC<BrandsSectionProps> = ({ onCreateCampaign }) => {
           ))}
         </div>
 
-        <p className="mt-16 text-base text-brand-text-secondary md:text-lg">
+        <p className="mt-16 text-body-md text-brand-text-secondary">
           Mais que dados — inteligência para cada decisão de marca.
         </p>
 
