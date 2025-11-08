@@ -103,12 +103,12 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     : "";
 
   const mobileClasses = isMobile
-    ? `fixed inset-y-0 left-0 z-[60] w-64 transform transition-opacity ${mobileVisibility}`
+    ? `fixed inset-y-0 left-0 z-[60] w-72 transform transition-opacity ${mobileVisibility}`
     : "";
 
   const desktopClasses = !isMobile
     ? `hidden lg:flex lg:flex-col lg:fixed lg:top-[var(--header-h,4rem)] lg:left-0 lg:h-[calc(100svh_-_var(--header-h,4rem))] lg:z-[200] lg:transform-none ${
-        isCollapsed ? "lg:w-16" : "lg:w-64"
+        isCollapsed ? "lg:w-16" : "lg:w-72"
       }`
     : "";
 

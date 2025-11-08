@@ -4,11 +4,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
 import PlannerSlotModal, { PlannerSlotData as PlannerSlotDataModal } from './PlannerSlotModal';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
-import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal';
 import PlannerUpgradePanel from './PlannerUpgradePanel';
 import { normalizePlanStatus } from '@/utils/planStatus';
 import { track } from '@/lib/track';
 import ContentPlannerCalendar from './ContentPlannerCalendar';
+import { openPaywallModal } from '@/utils/paywallModal';
 
 function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | null {
   if (!slot) return null;
@@ -74,7 +74,6 @@ export const ContentPlannerList = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<PlannerUISlot | null>(null);
   const [savingError, setSavingError] = useState<string | null>(null);
-  const [showBillingModal, setShowBillingModal] = useState(false);
   const weekStartISO = useMemo(() => getWeekStartISO(), []);
   const initialSlotHandledRef = useRef(false);
   const lockTrackedRef = useRef(false);
@@ -139,7 +138,7 @@ export const ContentPlannerList = ({
   const handleSave = useCallback(
     async (updated: PlannerSlotDataModal) => {
       if (!canEdit) {
-        setShowBillingModal(true);
+        openPaywallModal({ context: 'planning', source: 'planner_save_blocked' });
         const message =
           effectiveLockedReason || 'Este planejamento está temporariamente bloqueado.';
         setSavingError(message);
@@ -235,13 +234,8 @@ export const ContentPlannerList = ({
         <PlannerUpgradePanel
           status={normalizedPlanStatus}
           lockedReason={effectiveLockedReason}
-          onSubscribe={() => setShowBillingModal(true)}
+          onSubscribe={() => openPaywallModal({ context: 'planning', source: 'planner_locked_state' })}
           billingHref="/dashboard/billing"
-        />
-        <BillingSubscribeModal
-          open={showBillingModal}
-          onClose={() => setShowBillingModal(false)}
-          context="planning"
         />
       </>
     );
@@ -259,18 +253,9 @@ export const ContentPlannerList = ({
         locked={locked}
         lockedReason={effectiveLockedReason}
         isBillingLoading={isBillingLoading}
-        onRequestSubscribe={() => setShowBillingModal(true)}
+        onRequestSubscribe={() => openPaywallModal({ context: 'planning', source: 'planner_calendar_cta' })}
         onOpenSlot={openModal}
         onCreateSlot={handleCreateSlot}
-        showBillingModal={
-          !publicMode ? (
-            <BillingSubscribeModal
-              open={showBillingModal}
-              onClose={() => setShowBillingModal(false)}
-              context="planning"
-            />
-          ) : null
-        }
       />
 
       <PlannerSlotModal
@@ -283,7 +268,7 @@ export const ContentPlannerList = ({
         readOnly={publicMode || locked}
         canGenerate={canGenerate}
         showGenerateCta={false}
-        onUpgradeRequest={() => setShowBillingModal(true)}
+        onUpgradeRequest={() => openPaywallModal({ context: 'planning', source: 'planner_slot_modal' })}
         upgradeMessage="Finalize a configuração necessária para gerar roteiros com IA."
       />
     </>
@@ -313,7 +298,6 @@ export function ContentPlannerSection({
     planStatus: string | null | undefined;
     billingLoading: boolean;
   }>({ locked: false, lockedReason: null, planStatus: null, billingLoading: false });
-  const [showBillingModal, setShowBillingModal] = useState(false);
 
   const billing = useBillingStatus({ auto: !publicMode });
   const hasPremiumAccess = Boolean(billing?.hasPremiumAccess);
@@ -356,13 +340,8 @@ export function ContentPlannerSection({
           <PlannerUpgradePanel
             status={normalizedPlanStatus}
             lockedReason={upgradeReason}
-            onSubscribe={() => setShowBillingModal(true)}
+            onSubscribe={() => openPaywallModal({ context: 'planning', source: 'planner_section_locked' })}
             billingHref="/dashboard/billing"
-          />
-          <BillingSubscribeModal
-            open={showBillingModal}
-            onClose={() => setShowBillingModal(false)}
-            context="planning"
           />
         </section>
       );

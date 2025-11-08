@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import SidebarNav from "./SidebarNav";
 import Header from "../../components/Header";
-import BillingSubscribeModal from "../billing/BillingSubscribeModal";
 import InstagramReconnectBanner from "./InstagramReconnectBanner";
 import TrialBanner from "./TrialBanner";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
@@ -15,9 +14,6 @@ import {
   type HeaderConfig,
   type HeaderVariant,
 } from "../context/HeaderContext";
-import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
-import type { PaywallContext, PaywallEventDetail } from "@/types/paywall";
-import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
 type DashboardShellProps = {
   children: React.ReactNode;
@@ -38,8 +34,6 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const pathname = usePathname();
-  const router = useRouter();
-  const { enabled: paywallModalEnabled } = useFeatureFlag("paywall.modal_enabled", true);
   const { config: headerConfig } = useHeaderConfig();
 
   const matchPath = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
@@ -87,64 +81,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     ? "overflow-hidden"
     : "overflow-y-auto";
 
-  const [showBillingModal, setShowBillingModal] = useState(false);
-  const [paywallContext, setPaywallContext] = useState<PaywallContext>("default");
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<PaywallEventDetail> | undefined)?.detail;
-      const allowed: PaywallContext[] = [
-        "default",
-        "reply_email",
-        "ai_analysis",
-        "calculator",
-        "planning",
-        "whatsapp",
-      ];
-      const ctxCandidate = detail?.context ?? "default";
-      const ctx = (allowed.includes(ctxCandidate as PaywallContext)
-        ? ctxCandidate
-        : "default") as PaywallContext;
-      setPaywallContext(ctx);
-      if (typeof window !== "undefined") {
-        const rawReturn = typeof detail?.returnTo === "string" ? detail.returnTo : null;
-        const sanitizedReturn =
-          rawReturn && rawReturn.startsWith("/") && !rawReturn.startsWith("//") ? rawReturn : null;
-        const proposalId =
-          typeof detail?.proposalId === "string" && detail.proposalId.trim().length > 0
-            ? detail.proposalId.trim()
-            : null;
-        if (sanitizedReturn || proposalId) {
-          try {
-            window.sessionStorage.setItem(
-              PAYWALL_RETURN_STORAGE_KEY,
-              JSON.stringify({
-                context: ctx,
-                returnTo: sanitizedReturn,
-                proposalId,
-                ts: Date.now(),
-              })
-            );
-          } catch {
-            /* ignore storage failures */
-          }
-        }
-      }
-      if (paywallModalEnabled) {
-        setShowBillingModal(true);
-      } else {
-        router.push("/dashboard/billing");
-      }
-    };
-    window.addEventListener("open-subscribe-modal" as any, handler);
-    return () => window.removeEventListener("open-subscribe-modal" as any, handler);
-  }, [paywallModalEnabled, router]);
-
-  useEffect(() => {
-    if (!paywallModalEnabled && showBillingModal) {
-      setShowBillingModal(false);
-    }
-  }, [paywallModalEnabled, showBillingModal]);
-
   const wantsStickyHeader = headerConfig?.sticky !== false;
   const isMobileDocked = Boolean(headerConfig?.mobileDocked && wantsStickyHeader);
   const isStickyHeader = !isMediaKitPage && wantsStickyHeader && !isMobileDocked;
@@ -191,14 +127,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-
-      {paywallModalEnabled ? (
-        <BillingSubscribeModal
-          open={showBillingModal}
-          onClose={() => setShowBillingModal(false)}
-          context={paywallContext}
-        />
-      ) : null}
     </>
   );
 }

@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation';
 import { Inbox, RefreshCcw, Send, MessageSquare, ClipboardCopy, Lock } from 'lucide-react';
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
-import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal';
 import { track } from '@/lib/track';
 import { emptyStates } from '@/constants/emptyStates';
 import type { PaywallContext } from '@/types/paywall';
 import { PAYWALL_RETURN_STORAGE_KEY } from '@/types/paywall';
+import { openPaywallModal } from '@/utils/paywallModal';
 
 type ProposalStatus = 'novo' | 'visto' | 'respondido' | 'aceito' | 'rejeitado';
 
@@ -96,8 +96,6 @@ export default function ProposalsClient() {
   const [replyDraft, setReplyDraft] = useState<string>('');
   const [replySending, setReplySending] = useState(false);
   const [replyRegenerating, setReplyRegenerating] = useState(false);
-  const [showBillingModal, setShowBillingModal] = useState(false);
-  const [paywallContext, setPaywallContext] = useState<PaywallContext>('reply_email');
   const [isCopyingMediaKitLink, setIsCopyingMediaKitLink] = useState(false);
   const lockViewedRef = useRef(false);
   const notifiedProposalsRef = useRef<Set<string>>(new Set());
@@ -128,6 +126,8 @@ export default function ProposalsClient() {
     'Ative o PRO para enviar com IA em 1 clique e negociar com a faixa justa automática.';
   const tooltipAnalyzePro = 'Disponível no PRO: análise com IA e faixa justa automática.';
   const tooltipReplyPro = 'Disponível no PRO: responda em 1 clique com IA.';
+  const subscriberNotice =
+    'Assinantes PRO também recebem propostas de publicidade enviadas diretamente pela plataforma, além das que chegam quando você deixa o link do Mídia Kit na bio do Instagram.';
 
   const showUpgradeToast = useCallback(() => {
     toast({
@@ -170,9 +170,6 @@ export default function ProposalsClient() {
         plan: normalizedPlan,
       });
 
-      setPaywallContext(context);
-      setShowBillingModal(true);
-
       if (typeof window !== 'undefined') {
         const returnTo = options?.returnTo ?? null;
         const proposalId = options?.proposalId ?? null;
@@ -192,16 +189,14 @@ export default function ProposalsClient() {
             /* ignore storage errors */
           }
         }
-        try {
-          window.dispatchEvent(
-            new CustomEvent('open-subscribe-modal', {
-              detail: { context, source, returnTo, proposalId },
-            })
-          );
-        } catch {
-          /* noop */
-        }
       }
+
+      openPaywallModal({
+        context,
+        source,
+        returnTo: options?.returnTo ?? null,
+        proposalId: options?.proposalId ?? null,
+      });
     },
     [billingStatus.normalizedStatus, billingStatus.planStatus]
   );
@@ -605,6 +600,7 @@ export default function ProposalsClient() {
                 <p className="text-sm text-gray-600">
                   Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
                 </p>
+                <p className="text-xs font-semibold text-pink-600">{subscriberNotice}</p>
               </div>
               <button
                 type="button"
@@ -691,7 +687,6 @@ export default function ProposalsClient() {
             </section>
           </div>
         </div>
-        <BillingSubscribeModal open={showBillingModal} onClose={() => setShowBillingModal(false)} />
       </>
     );
   }
@@ -710,6 +705,7 @@ export default function ProposalsClient() {
             <p className="text-sm text-gray-600">
               Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
             </p>
+            <p className="text-xs font-semibold text-pink-600">{subscriberNotice}</p>
           </div>
           <button
             type="button"
@@ -1144,11 +1140,6 @@ export default function ProposalsClient() {
         </footer>
         </div>
       </div>
-      <BillingSubscribeModal
-        open={showBillingModal}
-        onClose={() => setShowBillingModal(false)}
-        context={paywallContext}
-      />
     </>
   );
 }

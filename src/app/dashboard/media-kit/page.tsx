@@ -7,13 +7,13 @@ import { useSession, signIn } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaWhatsapp, FaTimes } from 'react-icons/fa';
-import BillingSubscribeModal from '../billing/BillingSubscribeModal';
 import WhatsAppConnectInline from '../WhatsAppConnectInline';
 import { useHeaderSetup } from '../context/HeaderContext';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
 import type { MediaKitPremiumAccessConfig } from '@/types/mediakit';
 import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
+import { openPaywallModal } from '@/utils/paywallModal';
 
 type Summary = any;
 type VideoListItem = any;
@@ -364,8 +364,6 @@ export default function MediaKitSelfServePage() {
   // Gate: impedir acesso ao Mídia Kit antes de conectar Instagram
 
   // Lógica do Modal de Pagamento
-  const [showBillingModal, setShowBillingModal] = useState(false);
-  const closeBillingModal = () => setShowBillingModal(false);
   const communityModalShownRef = useRef(false);
   const showIgConnectSuccess = sp.get("instagramLinked") === "true";
   const processingIgLinkRef = useRef(false);
@@ -395,7 +393,9 @@ export default function MediaKitSelfServePage() {
     ? "Assinar e continuar de onde parei"
     : "Descobrir o que mais faz meu conteúdo crescer (Ativar trial 48h)";
   const highlightSubtitle = categoriesSubtitle;
-  const handleUpgrade = useCallback(() => setShowBillingModal(true), [setShowBillingModal]);
+  const handleUpgrade = useCallback(() => {
+    openPaywallModal({ context: 'planning', source: 'media_kit_upgrade' });
+  }, []);
   const premiumAccessConfig = useMemo<MediaKitPremiumAccessConfig>(
     () => ({
       canViewCategories,
@@ -417,7 +417,7 @@ export default function MediaKitSelfServePage() {
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const handleWhatsAppLink = useCallback(() => {
     if (!hasPremiumAccess) {
-      setShowBillingModal(true);
+      openPaywallModal({ context: 'whatsapp', source: 'media_kit_whatsapp' });
       return;
     }
     setShowWhatsAppModal(true);
@@ -439,12 +439,6 @@ export default function MediaKitSelfServePage() {
     },
     []
   );
-
-  useEffect(() => {
-    const handler = () => setShowBillingModal(true);
-    window.addEventListener("open-subscribe-modal" as any, handler);
-    return () => window.removeEventListener("open-subscribe-modal" as any, handler);
-  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(sp.toString());
@@ -609,9 +603,6 @@ export default function MediaKitSelfServePage() {
           premiumAccess={premiumAccessConfig}
         />
       </section>
-
-      <BillingSubscribeModal open={showBillingModal} onClose={closeBillingModal} />
-
       <AnimatePresence>
         {showCommunityModal && (
           <>

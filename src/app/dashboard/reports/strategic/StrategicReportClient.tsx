@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import useCachedFetch from '@/hooks/useCachedFetch';
 import PlanTeaser from '@/app/dashboard/components/PlanTeaser';
 import type { StrategicReport } from 'types/StrategicReport';
-import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal';
 import Tabs from '@/components/ui/Tabs';
 import Card from '@/components/ui/Card';
 import DeltaBadge from '@/components/ui/DeltaBadge';
@@ -12,6 +11,7 @@ import ConfidencePill from '@/components/ui/ConfidencePill';
 import Drawer from '@/components/ui/Drawer';
 import Heatmap from '@/components/ui/Heatmap';
 import EvidenceBadge from '@/components/ui/EvidenceBadge';
+import { openPaywallModal } from '@/utils/paywallModal';
 
 type ApiResponse = {
   status: 'ready' | 'building' | 'error';
@@ -40,7 +40,6 @@ export default function StrategicReportClient({ userId }: Props) {
 
   const [regenLoading, setRegenLoading] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
-  const [showBilling, setShowBilling] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'resumo' | 'oportunidades' | 'calendario' | 'roteiros' | 'inspiracoes'>('resumo');
   const [openHowTo, setOpenHowTo] = useState(false);
@@ -71,11 +70,15 @@ export default function StrategicReportClient({ userId }: Props) {
         <h2 className="text-xl font-semibold mb-2">Relatório Estratégico (Pro)</h2>
         <p className="text-sm text-gray-600 mb-4">Assine o plano Pro para desbloquear recomendações personalizadas e oportunidades.</p>
         <div className="flex gap-3 mb-4">
-          <button className="bg-black text-white px-3 py-2 rounded text-sm" onClick={() => setShowBilling(true)}>Assinar Pro</button>
+          <button
+            className="bg-black text-white px-3 py-2 rounded text-sm"
+            onClick={() => openPaywallModal({ context: 'planning', source: 'strategic_report_client' })}
+          >
+            Assinar Pro
+          </button>
           <button className="border px-3 py-2 rounded text-sm" onClick={() => refresh()}>Tentar novamente</button>
         </div>
         <PlanTeaser />
-        <BillingSubscribeModal open={showBilling} onClose={() => setShowBilling(false)} />
       </div>
     );
   }

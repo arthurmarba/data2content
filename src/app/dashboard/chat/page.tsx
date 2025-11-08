@@ -7,10 +7,10 @@ import { useSession } from "next-auth/react";
 
 import ChatPanel from "@/app/dashboard/ChatPanel";
 import InstagramConnectCard from "@/app/dashboard/InstagramConnectCard";
-import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
+import { openPaywallModal } from "@/utils/paywallModal";
 
 type ChatCalcContext = {
   calcId: string;
@@ -53,19 +53,9 @@ export default function ChatHomePage() {
     [billingStatus.hasPremiumAccess, planStatus]
   );
 
-  // Modal de assinatura (PRO)
-  const [showBillingModal, setShowBillingModal] = useState(false);
-  const openBillingModal = () => setShowBillingModal(true);
-  const closeBillingModal = () => setShowBillingModal(false);
   const openedAfterIgRef = useRef(false);
   const { toast } = useToast();
   const [calcContext, setCalcContext] = useState<ChatCalcContext | null>(null);
-
-  useEffect(() => {
-    const handler = () => setShowBillingModal(true);
-    window.addEventListener("open-subscribe-modal" as any, handler);
-    return () => window.removeEventListener("open-subscribe-modal" as any, handler);
-  }, []);
 
   // Limpa o parâmetro ?instagramLinked=true do URL após a primeira renderização
   useEffect(() => {
@@ -81,7 +71,7 @@ export default function ChatHomePage() {
   useEffect(() => {
     if (showIgConnect && instagramConnected && !isActiveLike && !openedAfterIgRef.current) {
       openedAfterIgRef.current = true;
-      setShowBillingModal(true);
+      openPaywallModal({ context: "calculator", source: "chat_instagram_link" });
     }
   }, [showIgConnect, instagramConnected, isActiveLike]);
 
@@ -177,11 +167,11 @@ export default function ChatHomePage() {
 
       {/* Chat ocupa todo o restante */}
       <div className="flex-1 w-full min-h-0">
-        <ChatPanel onUpsellClick={openBillingModal} calculationContext={calcContext} />
+        <ChatPanel
+          onUpsellClick={() => openPaywallModal({ context: "default", source: "chat_panel" })}
+          calculationContext={calcContext}
+        />
       </div>
-
-      {/* Modal de Assinatura (Checkout) */}
-      <BillingSubscribeModal open={showBillingModal} onClose={closeBillingModal} />
     </div>
   );
 }

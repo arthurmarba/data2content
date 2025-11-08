@@ -53,10 +53,15 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ctaLabel: "Ativar PRO",
   },
   reply_email: {
-    title: "Responder pela plataforma é PRO.",
-    subtitle: "Templates prontos, faixa justa automática e envio em 1 clique direto pela D2C.",
-    bullets: ["E-mail pronto com 1 clique", "Faixa justa automática pela IA"],
-    ctaLabel: "Ativar PRO",
+    title: "Responder e receber campanhas é PRO.",
+    subtitle:
+      "Receba propostas direto pela plataforma e responda com IA em 1 clique usando a faixa justa automática.",
+    bullets: [
+      "Campanhas enviadas pela D2C (sem exclusividade)",
+      "Diagnóstico do Mobi + faixa justa automática",
+      "Templates de resposta com IA e envio direto pela plataforma",
+    ],
+    ctaLabel: "Desbloquear IA",
   },
   ai_analysis: {
     title: "Análise com IA é PRO.",

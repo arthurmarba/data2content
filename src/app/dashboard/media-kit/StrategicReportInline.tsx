@@ -11,11 +11,11 @@ import EvidenceBadge from '@/components/ui/EvidenceBadge';
 import Drawer from '@/components/ui/Drawer';
 import QuickStatCard from '@/components/ui/QuickStatCard';
 import Heatmap from '@/components/ui/Heatmap';
-import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal';
 import type { StrategicReport } from 'types/StrategicReport';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
 import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
+import { openPaywallModal } from '@/utils/paywallModal';
 
 type ApiResponse = {
   status: 'ready' | 'building' | 'error';
@@ -35,7 +35,6 @@ export default function StrategicReportInline() {
   );
 
   const [periodDays, setPeriodDays] = useState<number>(30);
-  const [showBilling, setShowBilling] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
   const [openHowTo, setOpenHowTo] = useState(false);
@@ -161,14 +160,16 @@ export default function StrategicReportInline() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <button
                   type="button"
-                  onClick={() => window.dispatchEvent(new Event('open-subscribe-modal' as any))}
+                  onClick={() =>
+                    openPaywallModal({ context: 'planning', source: 'strategic_report_inline_trial' })
+                  }
                   className="inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
                 >
                   Ativar trial de 48h
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowBilling(true)}
+                  onClick={() => openPaywallModal({ context: 'planning', source: 'strategic_report_inline' })}
                   className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
                 >
                   Ver planos completos
@@ -176,8 +177,6 @@ export default function StrategicReportInline() {
               </div>
               <p className="text-[11px] text-slate-600">{PRO_PLAN_FLEXIBILITY_COPY}</p>
             </div>
-
-            <BillingSubscribeModal open={showBilling} onClose={() => setShowBilling(false)} />
           </Card>
         )}
 

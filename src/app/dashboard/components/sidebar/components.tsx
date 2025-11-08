@@ -407,7 +407,7 @@ const SidebarChildLink = ({
         href={item.href}
         prefetch={false}
         onClick={handleClick}
-        className={`group relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-[14px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${focusOffsetClass} ${
+        className={`group relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${focusOffsetClass} ${
           active ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
         }`}
         title={item.tooltip}
@@ -421,7 +421,7 @@ const SidebarChildLink = ({
 
         <span
           aria-hidden="true"
-          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/70 bg-white/90 text-[14px] text-slate-600 transition-colors duration-200 group-hover:border-brand-magenta/35 group-hover:text-brand-purple"
+          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/70 bg-white/90 text-[13px] text-slate-600 transition-colors duration-200 group-hover:border-brand-magenta/35 group-hover:text-brand-purple"
         >
           {item.icon}
           {locked && (

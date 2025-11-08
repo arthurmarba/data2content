@@ -14,9 +14,9 @@ import {
   Compass,
   MessageCircle,
 } from "lucide-react";
-import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { track } from "@/lib/track";
+import { openPaywallModal } from "@/utils/paywallModal";
 
 type PricesShape = {
   monthly: { brl: number; usd: number };
@@ -172,7 +172,6 @@ export default function ProPageClient({
   initialPlanStatus,
 }: ProPageClientProps) {
   const billingStatus = useBillingStatus();
-  const [showModal, setShowModal] = useState(false);
   const [period, setPeriod] = useState<"annual" | "monthly">("annual");
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
   const [prices, setPrices] = useState<PricesShape | null>(null);
@@ -218,12 +217,6 @@ export default function ProPageClient({
     };
   }, []);
 
-  useEffect(() => {
-    if (hasProAccess) {
-      setShowModal(false);
-    }
-  }, [hasProAccess]);
-
   const activePrice = useMemo(() => {
     if (!prices) return 0;
     return prices[period][currency];
@@ -252,7 +245,7 @@ export default function ProPageClient({
         surface: CTA_SURFACE,
         context: origin,
       });
-      setShowModal(true);
+      openPaywallModal({ context: "default", source: `pro_page_${origin}` });
     },
     [creatorId]
   );
@@ -600,7 +593,6 @@ export default function ProPageClient({
         )}
       </main>
 
-      <BillingSubscribeModal open={showModal} onClose={() => setShowModal(false)} context="default" />
     </>
   );
 }

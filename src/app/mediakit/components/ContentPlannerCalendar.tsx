@@ -178,7 +178,6 @@ export interface ContentPlannerCalendarProps {
   onRequestSubscribe?: () => void;
   onOpenSlot: (slot: PlannerUISlot) => void;
   onCreateSlot: (dayOfWeek: number, blockStartHour: number) => void;
-  showBillingModal?: React.ReactNode;
 }
 
 export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
@@ -194,7 +193,6 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   onRequestSubscribe,
   onOpenSlot,
   onCreateSlot,
-  showBillingModal,
 }) => {
   const slotsMap = useMemo(() => {
     const map = new Map<string, PlannerUISlot[]>();
@@ -410,7 +408,6 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         >
           Conferir planos
         </button>
-        {showBillingModal}
       </div>
     );
   }
@@ -570,7 +567,6 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         </div>
       )}
 
-      {showBillingModal}
     </div>
   );
 };
