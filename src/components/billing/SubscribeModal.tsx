@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import PaymentStep from './PaymentStep';
 import { FaCheckCircle, FaLock, FaTimes } from 'react-icons/fa';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
@@ -8,6 +9,70 @@ import { track } from '@/lib/track';
 
 type Plan = 'monthly' | 'annual';
 type Cur = 'brl' | 'usd';
+
+type ProFeatureItem = {
+  title: string;
+  description: string;
+  linkLabel?: string;
+  href?: string;
+};
+
+type ProFeatureSection = {
+  title: string;
+  items: ProFeatureItem[];
+};
+
+const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
+  {
+    title: 'IA para negociar com marcas',
+    items: [
+      {
+        title: 'Faixa justa + calculadora dinâmica',
+        description: 'Valores estratégicos e premium baseados nas suas métricas reais e contexto da campanha.',
+      },
+      {
+        title: 'Respostas prontas em 1 clique',
+        description: 'E-mails e mensagens profissionais com variáveis dinâmicas para acelerar o follow-up.',
+      },
+      {
+        title: 'Mentorias semanais do Grupo VIP',
+        description: 'Hotseats ao vivo combinando leituras da IA com especialistas humanos para ajustar sua estratégia.',
+      },
+    ],
+  },
+  {
+    title: 'Planejamento e descoberta desbloqueados',
+    items: [
+      {
+        title: 'Planejamento PRO',
+        description:
+          'Slots com IA, previsões de alcance e alertas no WhatsApp para executar com foco diariamente.',
+        linkLabel: 'Ver planner',
+        href: '/dashboard/planning',
+      },
+      {
+        title: 'Descoberta da Comunidade',
+        description:
+          'Biblioteca viva com benchmarks de creators, ideias e tendências exclusivas da base PRO.',
+        linkLabel: 'Explorar descoberta',
+        href: '/dashboard/discover',
+      },
+    ],
+  },
+  {
+    title: 'Alertas e relatórios proativos',
+    items: [
+      {
+        title: 'Estratégia no WhatsApp',
+        description: 'A IA monitora seu Instagram, identifica oportunidades e envia nudges personalizados.',
+      },
+      {
+        title: 'Relatórios semanais automáticos',
+        description: 'Entenda sua performance em 30 segundos, sem planilhas — tudo entregue direto no app.',
+      },
+    ],
+  },
+];
 
 interface Props {
   open: boolean;
@@ -177,20 +242,34 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
         
         <div className="bg-gray-50/70 px-6 py-5 border-y border-gray-200 overflow-y-auto flex-1 min-h-0"> {/* Área rolável principal no mobile */}
             <div className="grid grid-cols-1 gap-5">
-                <ul className="space-y-3 text-left text-gray-700 text-sm">
-                    <li className="flex items-start gap-3">
-                        <FaCheckCircle className="text-green-500 w-5 h-5 mt-0.5 flex-shrink-0" />
-                        <span><strong>Um Estrategista de Conteúdo no seu WhatsApp:</strong> Nossa IA se conecta ao seu Instagram, entende o que você posta e envia insights e alertas proativos para você crescer.</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                        <FaCheckCircle className="text-green-500 w-5 h-5 mt-0.5 flex-shrink-0" />
-                        <span><strong>Análise de Oportunidades:</strong> Descubra quais tipos de conteúdo geram mais parcerias para o seu perfil.</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                        <FaCheckCircle className="text-green-500 w-5 h-5 mt-0.5 flex-shrink-0" />
-                        <span><strong>Relatórios Semanais Automáticos:</strong> Entenda sua performance em 30 segundos, sem planilhas.</span>
-                    </li>
-                </ul>
+                <div className="space-y-5 text-left text-gray-700 text-sm">
+                  {PRO_FEATURE_SECTIONS.map((section) => (
+                    <div key={section.title} className="rounded-2xl border border-white/40 bg-white/70 p-4 shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">{section.title}</p>
+                      <ul className="mt-3 space-y-3">
+                        {section.items.map((item) => (
+                          <li key={item.title} className="flex items-start gap-3">
+                            <FaCheckCircle className="text-green-500 w-5 h-5 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p>
+                                <strong>{item.title}:</strong> {item.description}
+                              </p>
+                              {item.linkLabel && item.href ? (
+                                <Link
+                                  href={item.href}
+                                  className="mt-1 inline-flex items-center text-xs font-semibold text-pink-600 hover:text-pink-700"
+                                >
+                                  {item.linkLabel}
+                                  <span aria-hidden className="ml-1">↗</span>
+                                </Link>
+                              ) : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
 
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
                     <div className="inline-flex rounded-xl border border-gray-300 p-1 bg-white" role="group">

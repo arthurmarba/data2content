@@ -1,6 +1,6 @@
 import React from "react";
 import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard } from "react-icons/fa";
-import { Sparkles, Compass as CompassIcon, Calculator, Megaphone } from "lucide-react";
+import { Sparkles, Compass as CompassIcon, Calculator, Megaphone, Crown } from "lucide-react";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
 import type {
@@ -50,6 +50,14 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         tooltip: navigationLabels.mediaKit.tooltip,
         href: "/media-kit",
         icon: <FaAddressCard />,
+      },
+      {
+        type: "item",
+        key: "pro",
+        label: "Plano PRO",
+        tooltip: "Benefícios, preços e fluxos do PRO",
+        href: "/pro",
+        icon: <Crown className="h-5 w-5 text-brand-magenta" />,
       },
     ],
   },

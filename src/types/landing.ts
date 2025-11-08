@@ -72,5 +72,5 @@ export interface LandingCommunityStatsResponse {
   nextMentorship: LandingNextMentorship;
   ranking: LandingCreatorHighlight[];
   categories: LandingCategoryInsight[];
-  lastUpdatedIso: string;
+  lastUpdatedIso: string | null;
 }

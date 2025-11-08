@@ -104,6 +104,33 @@ const TUTORIAL_STEP_ICONS: Record<JourneyStepId, IconType> = {
   activate_pro: FaGem,
 };
 
+const JOURNEY_STEP_COPY: Record<
+  JourneyStepId,
+  { stepHelper: string; ctaLabel: string }
+> = {
+  connect_instagram: {
+    stepHelper: "Conecte seu IG via Facebook Login para liberar diagnósticos e benchmarks em tempo real.",
+    ctaLabel: "Vincular Instagram",
+  },
+  create_media_kit: {
+    stepHelper: "Complete o mídia kit com cases, métricas e contatos para impressionar novas marcas.",
+    ctaLabel: "Criar mídia kit",
+  },
+  publish_media_kit_link: {
+    stepHelper: "Adicione o link do kit na bio e em propostas para provar sua autoridade automaticamente.",
+    ctaLabel: "Copiar link do kit",
+  },
+  activate_pro: {
+    stepHelper: "Ative o plano PRO para receber propostas de publicidade, mentorias semanais e IA estrategista no WhatsApp.",
+    ctaLabel: "Ativar PRO agora",
+  },
+};
+
+const JOURNEY_DEFAULT_CTA = {
+  idleLabel: "Ver campanhas",
+  fallbackLabel: "Continuar jornada",
+};
+
 function extractInsightHighlight(text?: string | null): string | null {
   if (!text) return null;
   const percentMatch = text.match(PERCENT_HIGHLIGHT_REGEX);
@@ -1531,6 +1558,7 @@ export default function HomeClientPage() {
       const Icon = TUTORIAL_STEP_ICONS[step.id] ?? FaRocket;
       return {
         ...step,
+        helper: step.helper ?? JOURNEY_STEP_COPY[step.id]?.stepHelper ?? null,
         icon: <Icon className="h-5 w-5" aria-hidden />,
       } satisfies TutorialProgressStep;
     });
@@ -1539,10 +1567,8 @@ export default function HomeClientPage() {
   const nextJourneyStepId = journeyProgress?.nextStepId ?? null;
 
   const tutorialCtaLabel = React.useMemo(() => {
-    if (!nextJourneyStepId) return "Ver campanhas";
-    if (nextJourneyStepId === "activate_pro") return "Ativar PRO agora";
-    if (nextJourneyStepId === "publish_media_kit_link") return "Copiar link do kit";
-    return "Continuar jornada";
+    if (!nextJourneyStepId) return JOURNEY_DEFAULT_CTA.idleLabel;
+    return JOURNEY_STEP_COPY[nextJourneyStepId]?.ctaLabel ?? JOURNEY_DEFAULT_CTA.fallbackLabel;
   }, [nextJourneyStepId]);
 
   const handleContinueJourney = React.useCallback(() => {

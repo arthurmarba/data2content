@@ -2,7 +2,18 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { Check, Sparkles, Shield, Mail, Calculator, Calendar, ArrowRight, ArrowUpRight } from "lucide-react";
+import {
+  Check,
+  Sparkles,
+  Shield,
+  Mail,
+  Calculator,
+  Calendar,
+  ArrowRight,
+  ArrowUpRight,
+  Compass,
+  MessageCircle,
+} from "lucide-react";
 import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { track } from "@/lib/track";
@@ -28,30 +39,36 @@ type ProPageClientProps = {
 };
 
 const HERO_COPY = {
-  title: "Feche campanhas com IA na negociação.",
-  subtitle: "E-mail pronto com 1 clique. Faixa justa automática. Planejamento PRO.",
+  title: "Feche campanhas e planeje com a IA da D2C.",
+  subtitle: "Planner PRO, discovery da comunidade, mentorias VIP e oportunidades sem exclusividade em um só lugar.",
+  helper: "Conecte seu Instagram, libere o planner completo e receba propostas como um agenciado (sem contrato exclusivo).",
 };
 
 const BENEFITS = [
   {
     title: "Negociação com IA",
-    description: "Receba a faixa justa ideal, com recomendações para aceitar, ajustar ou pedir extra.",
+    description: "Faixa justa automática + recomendações para aceitar, ajustar ou pedir extra em cada proposta.",
     icon: <Sparkles className="h-5 w-5 text-brand-magenta" />,
   },
   {
-    title: "E-mail pronto em 1 clique",
-    description: "Templates profissionais com variáveis dinâmicas da proposta e três tons diferentes.",
+    title: "Campanhas sem exclusividade",
+    description: "Receba oportunidades de publicidade, responda com IA e conduza como um agenciado sem contrato.",
     icon: <Mail className="h-5 w-5 text-brand-magenta" />,
   },
   {
-    title: "Calculadora dinâmica",
-    description: "Valores estratégicos, justos e premium calculados a partir das suas métricas reais.",
+    title: "Calculadora + Diagnóstico",
+    description: "Valores estratégicos, justos e premium com base nas suas métricas e histórico em segundos.",
     icon: <Calculator className="h-5 w-5 text-brand-magenta" />,
   },
   {
     title: "Planejamento PRO",
-    description: "Descoberta de tendências, planner com IA e alertas no WhatsApp para executar com foco.",
+    description: "Descoberta da comunidade, slots com IA e alertas no WhatsApp para executar com foco.",
     icon: <Calendar className="h-5 w-5 text-brand-magenta" />,
+  },
+  {
+    title: "Mentorias + WhatsApp IA",
+    description: "Mentorias semanais do Grupo VIP e nudges diários personalizados direto no seu WhatsApp.",
+    icon: <MessageCircle className="h-5 w-5 text-brand-magenta" />,
   },
 ];
 
@@ -60,6 +77,8 @@ const COMPARISON = [
   { feature: "Responder com IA e enviar pela plataforma", free: false, pro: true },
   { feature: "Calculadora dinâmica baseada nas suas métricas", free: false, pro: true },
   { feature: "Planejamento PRO (Descoberta/Planner/WhatsApp IA)", free: false, pro: true },
+  { feature: "Mentorias semanais e nudges personalizados", free: false, pro: true },
+  { feature: "Oportunidades de campanha sem exclusividade", free: false, pro: true },
 ];
 
 const FAQS = [
@@ -85,12 +104,38 @@ const FAQS = [
   },
 ];
 
-const SOCIAL_PROOF = {
-  quote:
-    "Fechei minha primeira campanha direto pela plataforma. A IA sugeriu valores e o e-mail seguiu pronto — bastou ajustar a saudação.",
-  author: "Carla Mendes",
-  role: "@carlamkt · Criadora PRO",
-};
+const UNLOCKED_SURFACES = [
+  {
+    title: "Planejamento PRO",
+    description: "Slots com IA, previsões de alcance e alertas no WhatsApp para cada entrega.",
+    href: "/dashboard/planning",
+  },
+  {
+    title: "Descoberta da Comunidade",
+    description: "Biblioteca viva de benchmarks, ideias e referências exclusivas dos creators PRO.",
+    href: "/dashboard/discover",
+  },
+  {
+    title: "Inbox de oportunidades",
+    description: "Receba campanhas como um agenciado, responda com IA e mantenha sua autonomia.",
+    href: "/campaigns",
+  },
+];
+
+const FLOW_STEPS = [
+  {
+    title: "Descubra",
+    description: "A IA analisa sua conta, cruza com a base comunitária e aponta temas/formats quentes.",
+  },
+  {
+    title: "Planeje",
+    description: "Slots prontos no planner PRO, com previsões e alertas para manter a consistência.",
+  },
+  {
+    title: "Negocie",
+    description: "Receba campanhas sem exclusividade, use reply com IA e faixa justa para fechar rápido.",
+  },
+];
 
 function parsePrices(items: APIRawPrice[] | undefined | null): PricesShape {
   const byPlan: PricesShape = {
@@ -238,39 +283,6 @@ export default function ProPageClient({
 
   return (
     <>
-      <div className="sticky top-[var(--header-h,4rem)] z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <span className="text-sm font-semibold text-slate-700">
-            {hasProAccess ? "Plano PRO ativo" : "Desbloqueie o PRO para fechar campanhas com IA"}
-          </span>
-          {hasProAccess ? (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/campaigns"
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-              >
-                Analisar com IA
-              </Link>
-              <Link
-                href="/planning/planner"
-                className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800"
-              >
-                Ir ao Planejamento
-              </Link>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => handleOpenModal("sticky")}
-              className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
-            >
-              Ativar PRO
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-16">
         <section className="space-y-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-pink-600">
@@ -278,6 +290,7 @@ export default function ProPageClient({
           </div>
           <h1 className="text-4xl font-bold text-slate-900 sm:text-5xl">{HERO_COPY.title}</h1>
           <p className="mx-auto max-w-2xl text-lg text-slate-600">{HERO_COPY.subtitle}</p>
+          <p className="mx-auto max-w-3xl text-sm text-slate-500">{HERO_COPY.helper}</p>
           {!hasProAccess && (
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <button
@@ -307,6 +320,28 @@ export default function ProPageClient({
           )}
         </section>
 
+        <section className="grid gap-4 md:grid-cols-3">
+          {UNLOCKED_SURFACES.map((surface) => (
+            <article
+              key={surface.title}
+              className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm"
+            >
+              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-pink-50 text-pink-600">
+                <Compass className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-900">{surface.title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{surface.description}</p>
+              <Link
+                href={surface.href}
+                className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-pink-600 hover:text-pink-700"
+              >
+                Abrir agora
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </article>
+          ))}
+        </section>
+
         <section className="grid gap-5 md:grid-cols-2">
           {BENEFITS.map((benefit) => (
             <article
@@ -320,6 +355,25 @@ export default function ProPageClient({
               <p className="mt-2 text-sm text-slate-600">{benefit.description}</p>
             </article>
           ))}
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 shadow-inner">
+          <header className="mb-6 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-pink-600">Fluxo PRO</p>
+            <h2 className="text-2xl font-bold text-slate-900">Como a IA guia sua semana</h2>
+            <p className="text-sm text-slate-600">Descubra, planeje e responda como um agenciado — mantendo sua autonomia.</p>
+          </header>
+          <div className="grid gap-4 md:grid-cols-3">
+            {FLOW_STEPS.map((step, index) => (
+              <div key={step.title} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-pink-50 text-pink-600 font-semibold">
+                  {index + 1}
+                </div>
+                <h3 className="text-base font-semibold text-slate-900">{step.title}</h3>
+                <p className="mt-2 text-sm text-slate-600">{step.description}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="space-y-8">
@@ -468,39 +522,29 @@ export default function ProPageClient({
           </div>
         </section>
 
-        <section className="grid gap-6 rounded-3xl border border-slate-200 bg-slate-50 p-8 shadow-inner md:grid-cols-5">
-          <div className="md:col-span-3 space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-pink-600">
-              Prova social
-            </p>
-            <blockquote className="text-lg italic text-slate-800">
-              “{SOCIAL_PROOF.quote}”
-            </blockquote>
-            <cite className="block text-sm font-semibold text-slate-600">
-              {SOCIAL_PROOF.author}
-              <span className="block text-xs font-medium text-slate-400">{SOCIAL_PROOF.role}</span>
-            </cite>
-          </div>
-          <div className="md:col-span-2 space-y-2">
-            <p className="text-sm font-semibold text-slate-700">Precisa ver na prática?</p>
-            <p className="text-sm text-slate-500">
-              Entre na central de propostas e teste a análise com IA agora mesmo.
-            </p>
-            <div className="flex flex-col gap-2">
-              <Link
-                href="/campaigns"
-                className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Abrir Campanhas
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/planning"
-                className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-              >
-                Ver Planejamento
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
+        <section className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-inner">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Que telas eu libero com o PRO?</p>
+              <p className="text-sm text-slate-500">
+                Você ganha acesso completo ao planner com IA, à descoberta da comunidade e à caixa de oportunidades dentro da plataforma.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "Ver planner", href: "/dashboard/planning" },
+                { label: "Ver discovery", href: "/dashboard/discover" },
+                { label: "Campanhas", href: "/campaigns" },
+              ].map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                >
+                  {link.label}
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              ))}
             </div>
           </div>
         </section>

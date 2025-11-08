@@ -25,36 +25,14 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
   onRequestMediaKit,
   maxVisible = DEFAULT_MAX_VISIBLE_CREATORS,
 }) => {
-  const [isMdUp, setIsMdUp] = React.useState(() =>
-    typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : false,
-  );
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const mediaQuery = window.matchMedia("(min-width: 768px)");
-    const handleChange = () => setIsMdUp(mediaQuery.matches);
-    handleChange();
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleChange);
-      return () => mediaQuery.removeEventListener("change", handleChange);
-    }
-    mediaQuery.addListener(handleChange);
-    return () => mediaQuery.removeListener(handleChange);
-  }, []);
-
   const skeletonCards = React.useMemo(
     () => Array.from({ length: maxVisible }),
     [maxVisible],
   );
 
-  const effectiveMaxVisible = React.useMemo(() => {
-    if (isMdUp) return maxVisible;
-    return Math.min(maxVisible, 6);
-  }, [isMdUp, maxVisible]);
-
   const visibleCreators = React.useMemo(
-    () => creators.slice(0, effectiveMaxVisible),
-    [creators, effectiveMaxVisible],
+    () => creators.slice(0, maxVisible),
+    [creators, maxVisible],
   );
 
   const handleMediaKitClick = React.useCallback(

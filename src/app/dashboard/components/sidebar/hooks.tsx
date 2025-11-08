@@ -71,8 +71,15 @@ export const useMobileAutoClose = ({
   pathname: string;
   onToggle: () => void;
 }) => {
+  const lastPathnameRef = useRef(pathname);
+
   useEffect(() => {
-    if (isMobile && isOpen) onToggle();
+    const pathChanged = pathname !== lastPathnameRef.current;
+    lastPathnameRef.current = pathname;
+
+    if (isMobile && isOpen && pathChanged) {
+      onToggle();
+    }
   }, [isMobile, isOpen, onToggle, pathname]);
 };
 

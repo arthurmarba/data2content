@@ -1,8 +1,9 @@
 // src/app/dashboard/billing/BillingSubscribeModal.tsx
 "use client";
 
+import Link from "next/link";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Crown, Check, Sparkles, Shield, ArrowRight, ArrowUpRight, Loader2, Lock } from "lucide-react";
+import { X, Crown, Check, ArrowRight, ArrowUpRight, Loader2, Lock } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
@@ -32,6 +33,7 @@ const FEATURES: string[] = [
   "IA no WhatsApp conectada ao seu Instagram",
   "Planejamento automático por dia/horário com base na sua performance",
   "Alertas diários com táticas e prioridades do que postar",
+  "Receba oportunidades de campanha como um agenciado (sem exclusividade)",
   "Relatório Avançado: categorias, formatos, dias/horas e narrativas de maior engajamento",
   "Cresça engajamento, seguidores e receita com decisões guiadas por dados",
 ];
@@ -70,9 +72,15 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   },
   planning: {
     title: "Planejamento com IA é PRO.",
-    subtitle: "Descubra o que postar com o planner da IA e receba alertas diários no WhatsApp.",
-    bullets: ["Planner com horários e formatos otimizados", "WhatsApp IA com alertas diários de oportunidades"],
-    ctaLabel: "Ativar PRO",
+    subtitle: "Descubra o que postar com o planner da IA, libere a área de descobertas da comunidade e receba alertas diários no WhatsApp.",
+    bullets: [
+      "Planner com horários, formatos e previsões otimizadas",
+      "Descoberta da Comunidade com referências e benchmarks PRO",
+      "Mentorias semanais do Grupo VIP para ajustar sua estratégia",
+      "Receba oportunidades de campanha e trate como um agenciado sem exclusividade",
+      "WhatsApp IA com alertas diários de oportunidades",
+    ],
+    ctaLabel: "Desbloquear Planejamento PRO",
   },
   whatsapp: {
     title: "Conecte a IA direto no WhatsApp.",
@@ -86,6 +94,29 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   },
 };
 
+const FREE_VS_PRO_ROWS = [
+  {
+    feature: "Slots inteligentes + alertas personalizados",
+    free: false,
+    pro: true,
+  },
+  {
+    feature: "Biblioteca de referências (Descoberta)",
+    free: false,
+    pro: true,
+  },
+  {
+    feature: "Mentorias semanais e IA no WhatsApp",
+    free: false,
+    pro: true,
+  },
+  {
+    feature: "Responder propostas com IA + faixa justa",
+    free: false,
+    pro: true,
+  },
+];
+
 export default function BillingSubscribeModal({ open, onClose, context }: BillingSubscribeModalProps) {
   const [prices, setPrices] = useState<PricesShape | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +125,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const controllerRef = useRef<AbortController | null>(null);
 
   // UI state
-  const [period, setPeriod] = useState<"monthly" | "annual">("annual"); // ✅ anual como padrão
+  const [period, setPeriod] = useState<"monthly" | "annual">("monthly"); // padrão mensal para destacar valor inicial
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -642,31 +673,6 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                 ))}
               </ul>
 
-              {isDefaultContext ? (
-                <>
-                  <div className="mt-3 rounded-lg border border-gray-200 p-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                      <Sparkles className="w-4 h-4 text-pink-500" />
-                      Para vender e para crescer
-                    </div>
-                    <p className="mt-1.5 text-xs text-gray-600">
-                      Com o <strong>relatório gratuito</strong> você se apresenta melhor às marcas. Com o{" "}
-                      <strong>Relatório Avançado + IA estrategista</strong>, você aumenta engajamento, ganha mais seguidores e
-                      fatura mais.
-                    </p>
-                  </div>
-
-                  <div className="mt-3 mb-2 rounded-lg border border-gray-200 p-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
-                      <Shield className="w-4 h-4 text-indigo-500" />
-                      Assine sem risco
-                    </div>
-                    <p className="mt-1.5 text-xs text-gray-600">
-                      Você já testou o modo PRO por 48 horas. Na assinatura paid, mantenha o acesso e cancele a qualquer momento.
-                    </p>
-                  </div>
-                </>
-              ) : null}
             </div>
           </div>
 

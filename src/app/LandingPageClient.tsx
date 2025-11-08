@@ -345,23 +345,27 @@ const FALLBACK_COVERAGE_REGIONS: LandingCoverageRegion[] = [
 ];
 
 const BRAND_CAMPAIGN_PATH = "/campaigns/new";
+const BRT_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC-3
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function computeNextMentorshipSlot(): { isoDate: string; display: string } {
-  const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-  const now = new Date();
-  const target = 1; // Monday
-  const currentDay = now.getDay();
-  let delta = (target - currentDay + 7) % 7;
-  if (delta === 0 && now.getHours() >= 19) {
+  const nowUtc = Date.now();
+  const nowInBrt = new Date(nowUtc - BRT_OFFSET_MS);
+  const targetWeekday = 1; // Monday
+  const currentWeekday = nowInBrt.getUTCDay();
+  let delta = (targetWeekday - currentWeekday + 7) % 7;
+  if (delta === 0 && nowInBrt.getUTCHours() >= 19) {
     delta = 7;
   }
-  const next = new Date(now.getTime());
-  next.setDate(now.getDate() + delta);
-  next.setHours(19, 0, 0, 0);
-  return {
-    isoDate: next.toISOString(),
-    display: `${WEEKDAYS[next.getDay()]} • 19h (BRT)`,
-  };
+
+  const nextInBrt = new Date(nowInBrt.getTime());
+  nextInBrt.setUTCDate(nextInBrt.getUTCDate() + delta);
+  nextInBrt.setUTCHours(19, 0, 0, 0);
+
+  const isoDate = new Date(nextInBrt.getTime() + BRT_OFFSET_MS).toISOString();
+  const display = `${WEEKDAYS[nextInBrt.getUTCDay()]} • 19h (BRT)`;
+
+  return { isoDate, display };
 }
 
 function buildFallbackStats(): LandingCommunityStatsResponse {
@@ -370,7 +374,7 @@ function buildFallbackStats(): LandingCommunityStatsResponse {
     ranking: FALLBACK_RANKING,
     categories: [],
     nextMentorship: computeNextMentorshipSlot(),
-    lastUpdatedIso: new Date().toISOString(),
+    lastUpdatedIso: null,
   };
 }
 
