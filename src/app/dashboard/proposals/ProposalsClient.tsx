@@ -38,15 +38,6 @@ interface ProposalDetail extends ProposalListItem {
   updatedAt: string | null;
 }
 
-const STATUS_OPTIONS: { value: ProposalStatus | 'todos'; label: string }[] = [
-  { value: 'todos', label: 'Todas' },
-  { value: 'novo', label: 'Novas' },
-  { value: 'visto', label: 'Vistas' },
-  { value: 'respondido', label: 'Respondidas' },
-  { value: 'aceito', label: 'Aceitas' },
-  { value: 'rejeitado', label: 'Rejeitadas' },
-];
-
 const STATUS_LABELS: Record<ProposalStatus, string> = {
   novo: 'Nova',
   visto: 'Vista',
@@ -62,6 +53,59 @@ const STATUS_COLORS: Record<ProposalStatus, string> = {
   aceito: 'bg-emerald-100 text-emerald-700',
   rejeitado: 'bg-red-100 text-red-700',
 };
+
+type PipelineStageKey = 'incoming' | 'negotiation' | 'won' | 'lost';
+
+interface PipelineStageConfig {
+  key: PipelineStageKey;
+  label: string;
+  statuses: ProposalStatus[];
+  dropStatus: ProposalStatus;
+  tone: string;
+  emptyLabel: string;
+}
+
+const PIPELINE_STAGES: PipelineStageConfig[] = [
+  {
+    key: 'incoming',
+    label: 'Recebido',
+    statuses: ['novo', 'visto'],
+    dropStatus: 'novo',
+    tone: 'from-amber-50 via-white to-white',
+    emptyLabel: 'Ainda sem novas propostas.',
+  },
+  {
+    key: 'negotiation',
+    label: 'Negociação',
+    statuses: ['respondido'],
+    dropStatus: 'respondido',
+    tone: 'from-blue-50 via-white to-white',
+    emptyLabel: 'Sem negociações em andamento.',
+  },
+  {
+    key: 'won',
+    label: 'Fechado',
+    statuses: ['aceito'],
+    dropStatus: 'aceito',
+    tone: 'from-emerald-50 via-white to-white',
+    emptyLabel: 'Nenhuma campanha fechada por aqui.',
+  },
+  {
+    key: 'lost',
+    label: 'Perdido',
+    statuses: ['rejeitado'],
+    dropStatus: 'rejeitado',
+    tone: 'from-rose-50 via-white to-white',
+    emptyLabel: 'Zero recusas registradas.',
+  },
+];
+
+interface PipelineStageData extends PipelineStageConfig {
+  items: ProposalListItem[];
+  amount: number;
+  currency: string;
+  count: number;
+}
 
 const currencyFormatter = (currency: string) =>
   new Intl.NumberFormat('pt-BR', {
@@ -85,7 +129,6 @@ export default function ProposalsClient() {
   const router = useRouter();
   const { toast } = useToast();
   const billingStatus = useBillingStatus();
-  const [statusFilter, setStatusFilter] = useState<ProposalStatus | 'todos'>('todos');
   const [isLoading, setIsLoading] = useState(true);
   const [proposals, setProposals] = useState<ProposalListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -96,6 +139,8 @@ export default function ProposalsClient() {
   const [replyDraft, setReplyDraft] = useState<string>('');
   const [replySending, setReplySending] = useState(false);
   const [replyRegenerating, setReplyRegenerating] = useState(false);
+  const [draggedProposalId, setDraggedProposalId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<PipelineStageKey | null>(null);
   const [isCopyingMediaKitLink, setIsCopyingMediaKitLink] = useState(false);
   const lockViewedRef = useRef(false);
   const notifiedProposalsRef = useRef<Set<string>>(new Set());
@@ -125,7 +170,6 @@ export default function ProposalsClient() {
   const upgradeSubtitle =
     'Ative o PRO para enviar com IA em 1 clique e negociar com a faixa justa automática.';
   const tooltipAnalyzePro = 'Disponível no PRO: análise com IA e faixa justa automática.';
-  const tooltipReplyPro = 'Disponível no PRO: responda em 1 clique com IA.';
   const subscriberNotice =
     'Assinantes PRO também recebem propostas de publicidade enviadas diretamente pela plataforma, além das que chegam quando você deixa o link do Mídia Kit na bio do Instagram.';
 
@@ -201,11 +245,10 @@ export default function ProposalsClient() {
     [billingStatus.normalizedStatus, billingStatus.planStatus]
   );
 
-  const loadProposals = useCallback(async (status: ProposalStatus | 'todos') => {
+  const loadProposals = useCallback(async () => {
     setIsLoading(true);
     try {
-      const query = status !== 'todos' ? `?status=${status}` : '';
-      const response = await fetch(`/api/proposals${query}`, { cache: 'no-store' });
+      const response = await fetch(`/api/proposals`, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error('Não foi possível carregar as propostas.');
       }
@@ -234,8 +277,8 @@ export default function ProposalsClient() {
   }, [toast]);
 
   useEffect(() => {
-    loadProposals(statusFilter);
-  }, [loadProposals, statusFilter]);
+    loadProposals();
+  }, [loadProposals]);
 
   useEffect(() => {
     if (!hasProAccess && !isBillingLoading) {
@@ -524,18 +567,116 @@ export default function ProposalsClient() {
     }
   }, [buildReturnTo, canInteract, openPaywall, replyDraft, selectedProposal, showUpgradeToast, toast]);
 
-  const summaryCards = useMemo(() => {
-    const total = proposals.length;
-    const newCount = proposals.filter((item) => item.status === 'novo').length;
-    const accepted = proposals.filter((item) => item.status === 'aceito').length;
-    return [
-      { label: 'Total de propostas', value: total, highlight: false },
-      { label: 'Novas', value: newCount, highlight: newCount > 0 },
-      { label: 'Aceitas', value: accepted, highlight: false },
+  const { pipelineStagesData, summaryCards } = useMemo(() => {
+    const stageList: PipelineStageData[] = PIPELINE_STAGES.map((stage) => {
+      const items = proposals
+        .filter((proposal) => stage.statuses.includes(proposal.status))
+        .sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
+      const amount = items.reduce((sum, proposal) => sum + (proposal.budget ?? 0), 0);
+      const currency = items.find((proposal) => proposal.currency)?.currency ?? 'BRL';
+      return {
+        ...stage,
+        items,
+        amount,
+        currency,
+        count: items.length,
+      };
+    });
+
+    const collectCurrency = (items: ProposalListItem[]) =>
+      items.find((proposal) => proposal.currency)?.currency ?? 'BRL';
+
+    const openStages = stageList.filter((stage) => stage.key === 'incoming' || stage.key === 'negotiation');
+    const wonStage = stageList.find((stage) => stage.key === 'won');
+    const lostStage = stageList.find((stage) => stage.key === 'lost');
+
+    const openAmount = openStages.reduce((sum, stage) => sum + stage.amount, 0);
+    const wonAmount = wonStage?.amount ?? 0;
+    const lostAmount = lostStage?.amount ?? 0;
+
+    const summaryCards = [
+      {
+        label: 'Em aberto',
+        value: currencyFormatter(collectCurrency(openStages.flatMap((stage) => stage.items))).format(openAmount),
+        highlight: openAmount > 0,
+      },
+      {
+        label: 'Fechado',
+        value: currencyFormatter(collectCurrency(wonStage?.items ?? [])).format(wonAmount),
+        highlight: wonAmount > 0,
+      },
+      {
+        label: 'Perdido',
+        value: currencyFormatter(collectCurrency(lostStage?.items ?? [])).format(lostAmount),
+        highlight: lostAmount > 0,
+      },
     ];
+
+    return { pipelineStagesData: stageList, summaryCards };
   }, [proposals]);
 
-  const showEmptyState = !isLoading && proposals.length === 0;
+  const lastActionDate =
+    selectedProposal?.lastResponseAt ?? selectedProposal?.updatedAt ?? selectedProposal?.createdAt ?? null;
+  const deliverablesCount = selectedProposal?.deliverables?.length ?? 0;
+  const referenceLinksCount = selectedProposal?.referenceLinks?.length ?? 0;
+
+  const summaryTiles = useMemo(() => {
+    if (!selectedProposal) return [];
+    const budgetValue =
+      selectedProposal.budget != null
+        ? currencyFormatter(selectedProposal.currency).format(selectedProposal.budget)
+        : '—';
+    const budgetHelper =
+      selectedProposal.budget != null
+        ? `Atualizado em ${formatDate(selectedProposal.updatedAt)}`
+        : 'Sem orçamento informado';
+
+    const deliverableLabel =
+      deliverablesCount > 0 ? `${deliverablesCount} item${deliverablesCount > 1 ? 's' : ''}` : '—';
+    const deliverableHelper =
+      deliverablesCount > 0 ? 'Veja detalhes no briefing' : 'Aguardando escopo';
+
+    const contactHelper = selectedProposal.contactWhatsapp
+      ? `WhatsApp ${selectedProposal.contactWhatsapp}`
+      : 'Sem WhatsApp cadastrado';
+
+    const lastActionHelper = selectedProposal.lastResponseAt
+      ? 'Resposta enviada'
+      : selectedProposal.status === 'novo'
+      ? 'Ainda não visualizada'
+      : 'Aguardando ação';
+
+    return [
+      {
+        key: 'budget',
+        label: 'Orçamento indicado',
+        value: budgetValue,
+        helper: budgetHelper,
+      },
+      {
+        key: 'deliverables',
+        label: 'Entregáveis',
+        value: deliverableLabel,
+        helper: deliverableHelper,
+      },
+      {
+        key: 'contact',
+        label: 'Contato principal',
+        value: selectedProposal.contactEmail || '—',
+        helper: contactHelper,
+      },
+      {
+        key: 'last-action',
+        label: 'Última ação',
+        value: lastActionDate ? formatDate(lastActionDate) : '—',
+        helper: lastActionHelper,
+      },
+    ];
+  }, [selectedProposal, deliverablesCount, lastActionDate]);
 
   const handleCopyMediaKitLink = useCallback(async () => {
     try {
@@ -585,111 +726,55 @@ export default function ProposalsClient() {
     }
   }, [toast]);
 
-  if (showEmptyState) {
-    return (
-      <>
-        <div className="px-4 py-10 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-6xl space-y-8">
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-600">
-                  <Inbox className="h-4 w-4" />
-                  Campanhas
-                </div>
-                <h1 className="text-3xl font-bold text-gray-900">Central de propostas</h1>
-                <p className="text-sm text-gray-600">
-                  Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
-                </p>
-                <p className="text-xs font-semibold text-pink-600">{subscriberNotice}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => loadProposals(statusFilter)}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
-              >
-                <RefreshCcw className="h-4 w-4" />
-                Atualizar
-              </button>
-            </header>
+  const noData = !isLoading && proposals.length === 0;
 
-            <section className="grid gap-4 sm:grid-cols-3">
-              {summaryCards.map((card) => (
-                <div
-                  key={card.label}
-                  className={`rounded-2xl border border-gray-200 bg-white p-5 shadow-sm ${
-                    card.highlight ? 'ring-2 ring-pink-100' : ''
-                  }`}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {card.label}
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
-                </div>
-              ))}
-            </section>
+  const handleDragStart = useCallback(
+    (event: React.DragEvent<HTMLElement>, proposalId: string) => {
+      if (event.dataTransfer) {
+        event.dataTransfer.setData('text/plain', proposalId);
+        event.dataTransfer.effectAllowed = 'move';
+      }
+      setDraggedProposalId(proposalId);
+    },
+    []
+  );
 
-            {!canInteract && !isBillingLoading ? (
-              <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
-                      <span aria-hidden>🤖</span>
-                      Recurso exclusivo PRO
-                    </span>
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Responda e negocie direto pela plataforma
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o plano PRO.
-                    </p>
-                  </div>
-                  <div className="flex w-full flex-col sm:w-auto sm:items-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        showUpgradeToast();
-                        openPaywall('banner', 'reply_email', {
-                          returnTo: buildReturnTo(),
-                          proposalId: selectedProposal?.id ?? null,
-                        });
-                      }}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
-                    >
-                      Desbloquear IA
-                    </button>
-                    <p className="mt-2 text-xs text-gray-500 text-left sm:text-right max-w-xs">
-                      {upgradeSubtitle}
-                    </p>
-                  </div>
-                </div>
-              </section>
-            ) : null}
+  const handleDragEnd = useCallback(() => {
+    setDraggedProposalId(null);
+    setDragOverStage(null);
+  }, []);
 
-            <section className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
-              <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <Inbox className="h-4 w-4" />
-                  {emptyStates.campaigns.title}
-                </span>
-                <p className="text-sm text-slate-600">
-                  {emptyStates.campaigns.description}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopyMediaKitLink}
-                  disabled={isCopyingMediaKitLink}
-                  className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-400"
-                >
-                  <ClipboardCopy className="h-4 w-4" />
-                  {isCopyingMediaKitLink ? 'Copiando...' : emptyStates.campaigns.ctaLabel}
-                </button>
-              </div>
-            </section>
-          </div>
-        </div>
-      </>
-    );
-  }
+  const handleDropOnStage = useCallback(
+    async (stage: PipelineStageData, event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const dataId = event.dataTransfer?.getData('text/plain');
+      const proposalId = dataId || draggedProposalId;
+      if (!proposalId) return;
+      const targetStatus = stage.dropStatus;
+      const currentStatus = proposals.find((item) => item.id === proposalId)?.status;
+      if (currentStatus === targetStatus) {
+        setDraggedProposalId(null);
+        setDragOverStage(null);
+        return;
+      }
+      try {
+        await updateProposalStatus(proposalId, targetStatus);
+      } finally {
+        setDraggedProposalId(null);
+        setDragOverStage(null);
+      }
+    },
+    [draggedProposalId, proposals, updateProposalStatus]
+  );
+
+  const handleMoveViaSelect = useCallback(
+    (proposalId: string, stageKey: PipelineStageKey) => {
+      const targetStage = PIPELINE_STAGES.find((stage) => stage.key === stageKey);
+      if (!targetStage) return;
+      updateProposalStatus(proposalId, targetStage.dropStatus);
+    },
+    [updateProposalStatus]
+  );
 
   return (
     <>
@@ -709,7 +794,7 @@ export default function ProposalsClient() {
           </div>
           <button
             type="button"
-            onClick={() => loadProposals(statusFilter)}
+            onClick={loadProposals}
             className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
           >
             <RefreshCcw className="h-4 w-4" />
@@ -732,6 +817,142 @@ export default function ProposalsClient() {
             </div>
           ))}
         </section>
+
+        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Pipeline financeiro</h2>
+              <p className="text-sm text-gray-500">
+                Distribuição minimalista por etapa para decidir onde focar.
+              </p>
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Atualizado em tempo real
+            </span>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {pipelineStagesData.map((stage) => (
+              <div
+                key={stage.key}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (dragOverStage !== stage.key) {
+                    setDragOverStage(stage.key);
+                  }
+                }}
+                onDragLeave={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  if (nextTarget && event.currentTarget.contains(nextTarget)) {
+                    return;
+                  }
+                  setDragOverStage((prev) => (prev === stage.key ? null : prev));
+                }}
+                onDrop={(event) => handleDropOnStage(stage, event)}
+                className={`flex flex-col rounded-2xl border border-gray-200 bg-gradient-to-b ${stage.tone} p-4 transition ${
+                  dragOverStage === stage.key ? 'ring-2 ring-pink-200' : ''
+                }`}
+                role="list"
+                aria-labelledby={`stage-${stage.key}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p
+                      id={`stage-${stage.key}`}
+                      className="text-xs font-semibold uppercase tracking-wide text-gray-500"
+                    >
+                      {stage.label}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">
+                      {currencyFormatter(stage.currency).format(stage.amount)}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white/70 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                    {stage.count} {stage.count === 1 ? 'proposta' : 'propostas'}
+                  </span>
+                </div>
+                <div className="mt-4 space-y-3" role="presentation">
+                  {stage.items.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-gray-300 bg-white/60 px-4 py-5 text-xs text-gray-400">
+                      {stage.emptyLabel}
+                    </p>
+                  ) : (
+                    stage.items.map((proposal) => (
+                      <article
+                        key={proposal.id}
+                        role="button"
+                        tabIndex={0}
+                        draggable
+                        onDragStart={(event) => handleDragStart(event, proposal.id)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => setSelectedId(proposal.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedId(proposal.id);
+                          }
+                        }}
+                        className={`w-full rounded-xl border bg-white px-4 py-3 text-left text-sm shadow-sm transition hover:-translate-y-0.5 hover:border-pink-200 hover:shadow ${
+                          selectedId === proposal.id
+                            ? 'border-pink-300 ring-1 ring-pink-100'
+                            : 'border-transparent'
+                        }`}
+                        aria-grabbed={draggedProposalId === proposal.id}
+                      >
+                        <div className="font-semibold text-gray-900">{proposal.brandName}</div>
+                        <p className="text-xs text-gray-500">{proposal.campaignTitle}</p>
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                          <span className="font-semibold text-gray-700">
+                            {proposal.budget != null
+                              ? currencyFormatter(proposal.currency).format(proposal.budget)
+                              : '—'}
+                          </span>
+                          <span>{formatDate(proposal.createdAt)}</span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 sm:hidden">
+                          <span>Arraste ou mova</span>
+                          <select
+                            className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-600"
+                            value={stage.key}
+                            onChange={(event) =>
+                              handleMoveViaSelect(proposal.id, event.target.value as PipelineStageKey)
+                            }
+                          >
+                            {PIPELINE_STAGES.map((option) => (
+                              <option key={option.key} value={option.key}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {noData ? (
+          <section className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
+              <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <Inbox className="h-4 w-4" />
+                {emptyStates.campaigns.title}
+              </span>
+              <p className="text-sm text-slate-600">{emptyStates.campaigns.description}</p>
+              <button
+                type="button"
+                onClick={handleCopyMediaKitLink}
+                disabled={isCopyingMediaKitLink}
+                className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-400"
+              >
+                <ClipboardCopy className="h-4 w-4" />
+                {isCopyingMediaKitLink ? 'Copiando...' : emptyStates.campaigns.ctaLabel}
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         {!canInteract && !isBillingLoading ? (
           <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm">
@@ -770,115 +991,127 @@ export default function ProposalsClient() {
           </section>
         ) : null}
 
-        <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-700">Filtrar:</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as ProposalStatus | 'todos')}
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <span className="text-xs text-gray-500">
-              Mostrando {proposals.length} {proposals.length === 1 ? 'proposta' : 'propostas'}.
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  <th className="px-4 py-3">Marca</th>
-                  <th className="px-4 py-3">Campanha</th>
-                  <th className="px-4 py-3">Orçamento</th>
-                  <th className="px-4 py-3">Recebida em</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-500">
-                  Carregando propostas...
-                </td>
-              </tr>
-            ) : (
-              proposals.map((proposal) => {
-                    const budgetDisplay =
-                      proposal.budget != null
-                        ? currencyFormatter(proposal.currency).format(proposal.budget)
-                        : '—';
-                    return (
-                      <tr
-                        key={proposal.id}
-                        className={selectedId === proposal.id ? 'bg-pink-50/40' : ''}
-                      >
-                        <td className="px-4 py-3 font-semibold text-gray-900">{proposal.brandName}</td>
-                        <td className="px-4 py-3">{proposal.campaignTitle}</td>
-                        <td className="px-4 py-3">{budgetDisplay}</td>
-                        <td className="px-4 py-3">{formatDate(proposal.createdAt)}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${STATUS_COLORS[proposal.status]}`}
-                          >
-                            {STATUS_LABELS[proposal.status]}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedId(proposal.id)}
-                            className={
-                              canInteract
-                                ? 'inline-flex items-center gap-2 rounded-full border border-pink-200 px-3 py-1.5 text-xs font-semibold text-pink-600 transition hover:border-pink-400 hover:bg-pink-50'
-                                : 'inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:border-gray-300 hover:bg-gray-50'
-                            }
-                          >
-                            {!canInteract ? <Lock className="h-3.5 w-3.5" /> : null}
-                            {canInteract ? 'Ver detalhes' : 'Responder com IA (PRO)'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
 
         {selectedProposal ? (
           <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedProposal.campaignTitle}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {selectedProposal.brandName} • Recebida em {formatDate(selectedProposal.createdAt)}
-                </p>
+            <div className="space-y-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Campanha</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-semibold text-gray-900">{selectedProposal.campaignTitle}</h2>
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${STATUS_COLORS[selectedProposal.status]}`}
+                    >
+                      {STATUS_LABELS[selectedProposal.status]}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <span className="font-semibold text-gray-900">{selectedProposal.brandName}</span>
+                    <span aria-hidden="true">•</span>
+                    <span>Recebida em {formatDate(selectedProposal.createdAt)}</span>
+                    {lastActionDate ? (
+                      <>
+                        <span aria-hidden="true">•</span>
+                        <span>Última ação {formatDate(lastActionDate)}</span>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 sm:text-right">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Status</span>
+                  <select
+                    value={selectedProposal.status}
+                    onChange={(event) =>
+                      updateProposalStatus(selectedProposal.id, event.target.value as ProposalStatus)
+                    }
+                    className="min-w-[180px] rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                  >
+                    {(['novo', 'visto', 'respondido', 'aceito', 'rejeitado'] as ProposalStatus[]).map((status) => (
+                      <option key={status} value={status}>
+                        {STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <select
-                value={selectedProposal.status}
-                onChange={(event) =>
-                    updateProposalStatus(selectedProposal.id, event.target.value as ProposalStatus)
-                }
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
-            >
-                  {(['novo', 'visto', 'respondido', 'aceito', 'rejeitado'] as ProposalStatus[]).map((status) => (
-                    <option key={status} value={status}>
-                      {STATUS_LABELS[status]}
-                    </option>
+
+              {summaryTiles.length ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  {summaryTiles.map((tile) => (
+                    <div key={tile.key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{tile.label}</p>
+                      <p className="mt-1 text-xl font-semibold text-gray-900">{tile.value}</p>
+                      {tile.helper ? <p className="text-xs text-gray-500">{tile.helper}</p> : null}
+                    </div>
                   ))}
-            </select>
+                </div>
+              ) : null}
+
+              {selectedProposal.originIp ? (
+                <p className="text-xs text-gray-400">
+                  Origem: {selectedProposal.originIp}
+                  {selectedProposal.userAgent ? ` • ${selectedProposal.userAgent}` : ''}
+                </p>
+              ) : null}
+
+              <details className="rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-700" role="group">
+                <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-gray-900">
+                  Briefing e referências
+                  <span className="text-xs font-normal text-gray-400">
+                    {deliverablesCount ? `${deliverablesCount} entregável${deliverablesCount > 1 ? 's' : ''}` : 'Sem entregáveis'}
+                    {' · '}
+                    {referenceLinksCount
+                      ? `${referenceLinksCount} link${referenceLinksCount > 1 ? 's' : ''}`
+                      : 'Sem links'}
+                  </span>
+                </summary>
+                <div className="mt-3 space-y-4">
+                  <p className="whitespace-pre-line rounded-xl border border-gray-50 bg-gray-50 p-3 text-gray-700">
+                    {selectedProposal.campaignDescription || 'A marca não enviou briefing detalhado.'}
+                  </p>
+                  {selectedProposal.deliverables.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Entregáveis detalhados</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {selectedProposal.deliverables.map((item) => (
+                          <span
+                            key={item}
+                            className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-700"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {selectedProposal.referenceLinks.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Links de referência</p>
+                      <ul className="mt-2 space-y-2">
+                        {selectedProposal.referenceLinks.map((link) => (
+                          <li key={link}>
+                            <a
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-sm font-medium text-[#6E1F93] hover:underline"
+                            >
+                              {link}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Assistente IA</p>
+                  <p className="text-xs text-gray-500">Peça um diagnóstico rápido antes de responder.</p>
+                </div>
                 <button
                   ref={analyzeButtonRef}
                   type="button"
@@ -886,8 +1119,8 @@ export default function ProposalsClient() {
                   disabled={analysisLoading}
                   className={
                     !canInteract && !isBillingLoading
-                      ? 'inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-500 shadow-sm transition hover:border-gray-400 hover:bg-gray-50'
-                      : 'inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-500'
+                      ? 'mt-3 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-500 shadow-sm transition hover:border-gray-400 hover:bg-gray-50 sm:mt-0'
+                      : 'mt-3 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-500 sm:mt-0'
                   }
                   title={!canInteract && !isBillingLoading ? tooltipAnalyzePro : undefined}
                   aria-disabled={analysisLoading || !canInteract}
@@ -904,223 +1137,98 @@ export default function ProposalsClient() {
                     : 'Analisar com IA (PRO)'}
                 </button>
               </div>
-            </div>
 
-            {!canInteract && !isBillingLoading ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-pink-200 bg-pink-50 p-5 shadow-sm">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1 text-pink-900">
-                    <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-                      <Lock className="h-3.5 w-3.5" />
-                      PRO exclusivo
-                    </div>
-                    <h3 className="text-base font-semibold">Responder pela plataforma é PRO.</h3>
-                    <p className="text-sm text-pink-800">
-                      E-mail pronto com 1 clique e faixa justa sugerida pela IA, direto nesta tela.
-                    </p>
-                  </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openPaywall('detail_primary_cta', 'reply_email', {
-                            returnTo: buildReturnTo(selectedProposal.id),
-                            proposalId: selectedProposal.id,
-                          })
-                        }
-                        className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
-                        title={tooltipReplyPro}
-                      >
-                    Ativar PRO para responder agora
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <h3 className="text-sm font-semibold text-gray-800">Contato da marca</h3>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium text-gray-700">E-mail:</span> {selectedProposal.contactEmail}
-                </p>
-                {selectedProposal.contactWhatsapp ? (
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-700">WhatsApp:</span> {selectedProposal.contactWhatsapp}
-                  </p>
-                ) : null}
-                {selectedProposal.originIp ? (
-                  <p className="text-xs text-gray-400">
-                    IP: {selectedProposal.originIp} {selectedProposal.userAgent ? `• ${selectedProposal.userAgent}` : ''}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <h3 className="text-sm font-semibold text-gray-800">Oferta financeira</h3>
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium text-gray-700">Orçamento:</span>{' '}
-                  {selectedProposal.budget != null
-                    ? currencyFormatter(selectedProposal.currency).format(selectedProposal.budget)
-                    : 'Não informado'}
-                </p>
-                <p className="text-xs text-gray-400">
-                  Atualizado em {formatDate(selectedProposal.updatedAt)}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-800">Briefing enviado</h3>
-                <p className="mt-2 whitespace-pre-line rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-700 shadow-sm">
-                  {selectedProposal.campaignDescription || 'A marca não enviou briefing detalhado.'}
-                </p>
-              </div>
-              {selectedProposal.deliverables.length > 0 ? (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-800">Entregáveis desejados</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedProposal.deliverables.map((item) => (
-                      <span
-                        key={item}
-                        className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-700"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {selectedProposal.referenceLinks.length > 0 ? (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-800">Links de referência</h3>
-                  <ul className="mt-2 space-y-2">
-                    {selectedProposal.referenceLinks.map((link) => (
-                      <li key={link}>
-                        <a
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm font-medium text-[#6E1F93] hover:underline"
-                        >
-                          {link}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="mt-6 space-y-4">
               {analysisMessage && canInteract ? (
                 <div className="rounded-2xl border border-pink-200 bg-pink-50 p-5 text-sm text-pink-900 shadow-sm">
                   <div className="flex items-center gap-2">
                     <Send className="h-4 w-4" />
                     <span className="font-semibold">Diagnóstico do Mobi</span>
-                    <span className="inline-flex items-center rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pink-600">
-                      PRO
-                    </span>
                   </div>
                   <p className="mt-2 whitespace-pre-line leading-relaxed">{analysisMessage}</p>
                 </div>
               ) : null}
+
+              <div className="h-px w-full bg-gray-100" />
+
               {canInteract ? (
-                  <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                      <div
-                        className="flex items-center gap-2 text-sm font-semibold text-gray-800"
-                        title={tooltipReplyPro}
-                      >
-                        <MessageSquare className="h-4 w-4 text-pink-600" />
-                        Responder com IA
-                        <span className="inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pink-700">
-                          PRO
-                        </span>
-                      </div>
-                      {selectedProposal.lastResponseAt ? (
-                        <span className="text-xs text-gray-500">
-                          Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}
-                        </span>
-                      ) : null}
-                    </div>
-                  <textarea
-                    ref={replyTextareaRef}
-                    value={replyDraft}
-                    onChange={(event) => setReplyDraft(event.target.value)}
-                      rows={6}
-                      placeholder="Oi, pessoal da marca! Tudo bem? Vi a proposta e adorei a ideia da campanha..."
-                      className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100"
-                    />
-                    <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <p className="text-xs text-gray-400 leading-relaxed">
-                        O e-mail será enviado para {selectedProposal.contactEmail} com o cabeçalho Data2Content e um resumo da proposta (marca, campanha, orçamento e entregáveis).
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-semibold text-gray-900">Responder com IA</span>
+                      <p className="text-xs text-gray-400">
+                        Enviaremos para {selectedProposal.contactEmail} com cabeçalho Data2Content.
                       </p>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <button
-                          type="button"
-                          onClick={handleRefreshReply}
-                          disabled={replyRegenerating}
-                          className="inline-flex items-center gap-2 rounded-full border border-pink-200 px-4 py-2 text-sm font-semibold text-pink-600 shadow-sm transition hover:border-pink-400 hover:bg-pink-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
-                          title={!canInteract ? tooltipReplyPro : undefined}
-                          aria-disabled={replyRegenerating}
-                        >
-                          <RefreshCcw className="h-4 w-4" />
-                          {replyRegenerating ? 'Gerando...' : 'Gerar nova sugestão'}
-                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRefreshReply}
+                        disabled={replyRegenerating}
+                        className="inline-flex items-center gap-2 rounded-full border border-pink-200 px-3 py-1.5 text-xs font-semibold text-pink-600 transition hover:border-pink-400 hover:bg-pink-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                        {replyRegenerating ? 'Gerando...' : 'Nova sugestão'}
+                      </button>
                       <button
                         ref={sendReplyButtonRef}
                         type="button"
                         onClick={handleSendReply}
-                          disabled={replySending || !replyDraft.trim()}
-                          className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
-                          title={!canInteract ? tooltipReplyPro : undefined}
-                          aria-disabled={replySending || !replyDraft.trim()}
-                        >
-                          <Send className="h-4 w-4" />
-                          {replySending ? 'Enviando...' : 'Enviar resposta à marca'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-5 shadow-sm">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                        <Lock className="h-4 w-4 text-gray-500" />
-                        Responder com IA
-                        <span className="inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pink-700">
-                          PRO
-                        </span>
-                      </div>
-                      {selectedProposal.lastResponseAt ? (
-                        <span className="text-xs text-gray-500">
-                          Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-3 text-sm text-gray-600">
-                      Ative o PRO para liberar o texto sugerido pela IA e o envio direto para {selectedProposal.contactEmail}.
-                    </p>
-                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-xs text-gray-400 leading-relaxed">
-                        Inclui faixa justa automática e templates atualizados pelo Mobi.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openPaywall('reply_cta', 'reply_email', {
-                            returnTo: buildReturnTo(selectedProposal.id),
-                            proposalId: selectedProposal.id,
-                          })
-                        }
-                        className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
+                        disabled={replySending || !replyDraft.trim()}
+                        className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
                       >
-                        Responder com IA (PRO)
+                        <Send className="h-4 w-4" />
+                        {replySending ? 'Enviando...' : 'Enviar resposta'}
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
+                  <textarea
+                    ref={replyTextareaRef}
+                    value={replyDraft}
+                    onChange={(event) => setReplyDraft(event.target.value)}
+                    rows={5}
+                    placeholder="Oi, tudo bem? Recebi a proposta e posso te ajudar com…"
+                    className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100"
+                  />
+                  <div className="mt-2 flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+                    {selectedProposal.lastResponseAt ? (
+                      <span>Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}</span>
+                    ) : (
+                      <span>Pronto para enviar em 1 clique.</span>
+                    )}
+                    <span>{replyDraft.length} caracteres</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600 shadow-sm">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                      <Lock className="h-4 w-4 text-gray-500" />
+                      Responder com IA (PRO)
+                    </div>
+                    {selectedProposal.lastResponseAt ? (
+                      <span className="text-xs text-gray-500">
+                        Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Assine o PRO para liberar texto sugerido e envio direto para {selectedProposal.contactEmail}.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openPaywall('reply_cta', 'reply_email', {
+                        returnTo: buildReturnTo(selectedProposal.id),
+                        proposalId: selectedProposal.id,
+                      })
+                    }
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700"
+                  >
+                    Desbloquear resposta com IA
+                  </button>
+                </div>
+              )}
+            </div>
           </section>
         ) : detailLoading ? (
           <section className="rounded-3xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm">
