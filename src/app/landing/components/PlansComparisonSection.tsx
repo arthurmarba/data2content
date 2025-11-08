@@ -126,6 +126,24 @@ const PRO_PLAN_BENEFITS = features.filter(
   (row) => row.pro.status === "yes" && row.free.status !== "yes",
 );
 
+const PLAN_PRICING = {
+  free: {
+    label: "Plano Gratuito",
+    price: "R$ 0",
+    cadence: "/ mês",
+    note: "Sem cartão • Sem compromisso",
+    description: "Para entrar na comunidade e ganhar visibilidade com dados reais.",
+  },
+  pro: {
+    label: "Plano PRO ⭐",
+    price: "R$ 49,90",
+    cadence: "/ mês",
+    secondary: "ou R$ 350 / ano",
+    note: "Primeiro insight pago em minutos.",
+    description: "Para fechar campanhas com estratégia, precificação inteligente e suporte humano + IA.",
+  },
+};
+
 const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreateAccount }) => {
   return (
     <section
@@ -166,6 +184,18 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                 );
               })}
             </ul>
+            <div className="mt-6 border-t border-white/40 pt-4 text-center md:text-left">
+              <p className="text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-brand-text-secondary">
+                Investimento
+              </p>
+              <p className="text-2xl font-semibold text-brand-dark">
+                {PLAN_PRICING.free.price}
+                <span className="text-sm font-medium text-brand-text-secondary"> {PLAN_PRICING.free.cadence}</span>
+              </p>
+              <p className="text-[0.7rem] font-medium uppercase tracking-[0.25em] text-brand-text-secondary">
+                {PLAN_PRICING.free.note}
+              </p>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-white/40 bg-neutral-0/70 p-5 shadow-glass-lg backdrop-blur-glass">
@@ -189,6 +219,16 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                 );
               })}
             </ul>
+            <div className="mt-6 border-t border-white/40 pt-4 text-center md:text-left">
+              <p className="text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-brand-magenta-bright">
+                Investimento
+              </p>
+              <p className="text-2xl font-semibold text-brand-dark">
+                {PLAN_PRICING.pro.price}
+                <span className="text-sm font-medium text-brand-text-secondary"> {PLAN_PRICING.pro.cadence}</span>
+              </p>
+              <p className="text-sm font-medium text-brand-text-secondary">{PLAN_PRICING.pro.secondary}</p>
+            </div>
           </div>
         </div>
 
@@ -203,10 +243,7 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                   <th scope="col" className="px-6 py-5 text-center md:px-8">
                     Gratuito
                   </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-5 text-center text-brand-magenta-bright md:px-8"
-                  >
+                  <th scope="col" className="px-6 py-5 text-center text-brand-magenta-bright md:px-8">
                     PRO ⭐ (pago)
                   </th>
                 </tr>
@@ -243,61 +280,70 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="bg-white/80 text-brand-dark">
+                <tr>
+                  <th
+                    scope="row"
+                    className="px-6 py-5 text-base font-semibold leading-snug text-brand-dark md:px-8"
+                  >
+                    Investimento mensal
+                  </th>
+                  <td className="px-6 py-5 text-center align-top text-base md:px-8">
+                    <div className="space-y-1">
+                      <p className="text-2xl font-semibold">
+                        {PLAN_PRICING.free.price}
+                        <span className="text-sm font-medium text-brand-text-secondary">
+                          {" "}
+                          {PLAN_PRICING.free.cadence}
+                        </span>
+                      </p>
+                      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-brand-text-secondary">
+                        {PLAN_PRICING.free.note}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-center align-top text-base text-brand-magenta-bright md:px-8">
+                    <div className="space-y-1">
+                      <p className="text-2xl font-semibold text-brand-dark">
+                        {PLAN_PRICING.pro.price}
+                        <span className="text-sm font-medium text-brand-text-secondary">
+                          {" "}
+                          {PLAN_PRICING.pro.cadence}
+                        </span>
+                      </p>
+                      <p className="text-sm font-medium text-brand-text-secondary">{PLAN_PRICING.pro.secondary}</p>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/40 bg-neutral-0/75 p-6 text-center shadow-glass-md backdrop-blur-glass md:text-left">
-            <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
-              Plano Gratuito
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-brand-dark">
-              R$ 0 <span className="text-sm font-medium text-brand-text-secondary">/ mês</span>
-            </p>
-            <p className="mt-3 text-base leading-relaxed text-brand-text-secondary">
-              Para entrar na comunidade e ganhar visibilidade com dados reais.
-            </p>
+        <div className="mt-10 rounded-2xl border border-white/40 bg-neutral-0/85 p-6 shadow-glass-md backdrop-blur-glass">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-brand-text-secondary">
+                {PLAN_PRICING.free.label}
+              </p>
+              <p className="text-2xl font-semibold text-brand-dark">
+                {PLAN_PRICING.free.price}
+                <span className="text-sm font-medium text-brand-text-secondary"> {PLAN_PRICING.free.cadence}</span>
+              </p>
+              <p className="text-sm text-brand-text-secondary">{PLAN_PRICING.free.description}</p>
+              <p className="text-[0.7rem] font-medium uppercase tracking-[0.25em] text-brand-text-secondary">
+                {PLAN_PRICING.free.note}
+              </p>
+            </div>
             <ButtonPrimary
               onClick={onCreateAccount}
-              variant="solid"
+              variant="brand"
               size="lg"
-              className="mt-5 w-full justify-center md:w-auto"
+              className="w-full justify-center md:w-auto"
             >
               Criar conta gratuita
             </ButtonPrimary>
-            <p className="mt-3 text-[0.75rem] font-medium uppercase tracking-[0.2em] text-brand-text-secondary md:text-sm">
-              Sem cartão • Sem compromisso
-            </p>
           </div>
-
-          {/* ======================================================================== */}
-          {/* INÍCIO DA ATUALIZAÇÃO DO CARD PRO */}
-          {/* ======================================================================== */}
-          <div className="rounded-2xl border border-white/40 bg-neutral-0/80 p-6 text-center shadow-brand-magenta backdrop-blur-glass md:text-left">
-            <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-magenta-bright md:text-sm">
-              Plano PRO ⭐
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-brand-dark">
-              R$ 49,90 <span className="text-sm font-medium text-brand-text-secondary">/ mês</span>
-            </p>
-            <p className="mt-1 text-sm font-medium text-brand-text-secondary">ou R$ 350 / ano</p>
-            <p className="mt-3 text-base leading-relaxed text-brand-text-secondary">
-              Para fechar campanhas com estratégia, precificação inteligente e
-              suporte humano + IA.
-            </p>
-            <ButtonPrimary
-              onClick={onCreateAccount}
-              variant="solid"
-              size="lg"
-              className="mt-5 w-full justify-center md:w-auto"
-            >
-              Quero ser PRO
-            </ButtonPrimary>
-          </div>
-          {/* ======================================================================== */}
-          {/* FIM DA ATUALIZAÇÃO DO CARD PRO */}
-          {/* ======================================================================== */}
         </div>
       </div>
     </section>

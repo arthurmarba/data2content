@@ -15,7 +15,7 @@ const DEFAULT_SCROLL_OFFSET = 180;
 const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
   label,
   onClick,
-  description = "Sem cartão. Cancelamento a qualquer momento.",
+  description = "Conecte o Instagram e receba alertas em minutos.",
   hideUntilScroll = true,
   scrollOffset = DEFAULT_SCROLL_OFFSET,
 }) => {
@@ -71,17 +71,17 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
         className="pointer-events-auto bg-gradient-to-t from-white via-white/95 to-transparent px-4 pb-0 pt-4"
         style={{ paddingBottom }}
       >
-        <div className="mx-auto flex max-w-content-sm flex-col gap-2 rounded-3xl border border-[#E7E7E7] bg-white/95 px-4 py-3 text-center text-brand-dark shadow-[0_-18px_48px_rgba(231,75,111,0.18)] backdrop-blur-lg">
+        <div className="mx-auto flex max-w-content-sm flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-4 text-center text-slate-900 shadow-[0_-28px_60px_rgba(15,23,42,0.15)] backdrop-blur-lg">
           <button
             type="button"
             onClick={onClick}
             aria-label={label}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-magenta px-5 py-3 text-base font-semibold text-white shadow-[0_16px_32px_rgba(231,75,111,0.28)] transition-transform duration-200 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta hover:bg-brand-magenta-hover"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-base font-semibold text-white shadow-[0_14px_32px_rgba(15,23,42,0.25)] transition-transform duration-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 active:scale-[0.99]"
           >
             {label}
           </button>
           {description ? (
-            <p className="text-[0.7rem] font-medium uppercase tracking-[0.16em] text-brand-text-secondary">
+            <p className="text-xs font-medium text-slate-500">
               {description}
             </p>
           ) : null}

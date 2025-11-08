@@ -344,6 +344,13 @@ const FALLBACK_COVERAGE_REGIONS: LandingCoverageRegion[] = [
   },
 ];
 
+const FOOTER_LINKS = [
+  { label: "Política de Privacidade", href: "/politica-de-privacidade" },
+  { label: "Termos e Condições", href: "/termos-e-condicoes" },
+  { label: "Programa de Afiliados", href: "/afiliados" },
+  { label: "Central de suporte", href: "/dashboard/instagram/faq" },
+];
+
 const BRAND_CAMPAIGN_PATH = "/campaigns/new";
 const BRT_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC-3
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -584,64 +591,58 @@ export default function LandingPageClient() {
         <PlansComparisonSection onCreateAccount={handleCreatorCta} />
         <BrandsSection onCreateCampaign={handleBrandsCta} />
         <TestimonialSpotlight />
-        <section className="bg-gradient-to-r from-[#FCE9F1] via-white to-[#FCE9F1] py-12 text-brand-dark md:py-16">
-          <div className="container mx-auto flex max-w-4xl flex-col items-center gap-5 px-6 text-center">
-            <p className="text-lg font-semibold md:text-xl">
-              Crie sua conta gratuita, conecte o Instagram e receba o primeiro alerta estratégico da Mobi em minutos.
-            </p>
-            <button
-              type="button"
-              onClick={handleCreatorCta}
-              className="inline-flex items-center justify-center rounded-full bg-brand-magenta px-8 py-4 text-base font-semibold text-white shadow-[0_20px_48px_rgba(231,75,111,0.22)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-brand-magenta-hover"
-            >
-              Criar conta gratuita →
-            </button>
-          </div>
-        </section>
       </main>
 
-      {/* ======================================================================== */}
-      {/* INÍCIO DA ATUALIZAÇÃO DO RODAPÉ */}
-      {/* ======================================================================== */}
-      <footer className="border-t border-gray-200 bg-white py-10 text-brand-dark">
-        <div className="container mx-auto flex max-w-5xl flex-col items-center gap-4 px-6 text-center md:flex-row md:justify-between md:text-left">
-          <div className="flex items-center gap-3">
-            <div className="relative h-9 w-9 overflow-hidden rounded-full bg-white shadow-[0_14px_34px_rgba(231,75,111,0.2)]">
-              <Image
-                src="/images/Colorido-Simbolo.png"
-                alt="Data2Content"
-                fill
-                className="scale-[2.2] object-contain object-center"
-                priority
-              />
+      <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-surface-muted)] py-12 text-[var(--landing-text-muted)]">
+        <div className="container mx-auto flex max-w-5xl flex-col gap-10 px-6">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative h-12 w-12 overflow-hidden rounded-full border border-[var(--landing-border)] bg-white">
+                <Image
+                  src="/images/Colorido-Simbolo.png"
+                  alt="Data2Content"
+                  fill
+                  className="object-contain object-center saturate-0"
+                  priority
+                />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[var(--landing-text-muted)]">
+                  Data2Content
+                </p>
+                <p className="text-sm text-[var(--landing-text-muted)]">Ferramentas objetivas para criadores.</p>
+              </div>
             </div>
-            <span className="text-sm font-semibold tracking-[0.28em] text-brand-dark">
-              DATA2CONTENT
-            </span>
+            <div className="text-sm text-[var(--landing-text-muted)]">
+              <p className="font-semibold text-[var(--landing-accent)]">Contato direto</p>
+              <Link
+                href="mailto:oi@data2content.com"
+                className="text-sm text-[var(--landing-accent)] underline-offset-4 hover:underline"
+              >
+                oi@data2content.com
+              </Link>
+            </div>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600 md:justify-end">
-            <Link href="/politica-de-privacidade" className="transition-colors duration-200 hover:text-brand-dark">
-              Política de Privacidade
-            </Link>
-            <Link href="/termos-e-condicoes" className="transition-colors duration-200 hover:text-brand-dark">
-              Termos e Condições
-            </Link>
-            <Link href="/afiliados" className="transition-colors duration-200 hover:text-brand-dark">
-              Programa de Afiliados
-            </Link>
+          <nav className="grid gap-4 text-sm text-[var(--landing-text-muted)] sm:grid-cols-2 md:grid-cols-4">
+            {FOOTER_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="transition-colors duration-200 hover:text-[var(--landing-accent)]"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
-        </div>
-        <div className="mt-4 text-center text-xs text-gray-500">
-          © {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.
+          <div className="text-xs text-[var(--landing-text-muted)]">
+            © {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.
+          </div>
         </div>
       </footer>
-      {/* ======================================================================== */}
-      {/* FIM DA ATUALIZAÇÃO DO RODAPÉ */}
-      {/* ======================================================================== */}
 
       <MobileStickyCta
         label="Criar conta gratuita"
-        description="Crie seu mídia kit e atraia campanhas"
+        description="Conecte o Instagram e receba alertas."
         onClick={handleCreatorCta}
       />
     </div>

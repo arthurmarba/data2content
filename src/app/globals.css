@@ -27,6 +27,16 @@
 
   --container-xs: 480px;
   --container-sm: 640px;
+
+  /* Tokens minimalistas da landing */
+  --landing-surface: #ffffff;
+  --landing-surface-muted: #f8fafc;
+  --landing-border: #e5e7eb;
+  --landing-text: #0f172a;
+  --landing-text-muted: #475569;
+  --landing-accent: #111322;
+  --landing-accent-soft: #f03e7e;
+  --landing-shadow: 0 40px 80px rgba(15, 23, 42, 0.08);
 }
 
 /* Altura baseada em 100svh para evitar jumps no mobile */
