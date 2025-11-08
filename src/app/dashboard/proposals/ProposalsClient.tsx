@@ -142,6 +142,8 @@ export default function ProposalsClient() {
   const [draggedProposalId, setDraggedProposalId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStageKey | null>(null);
   const [isCopyingMediaKitLink, setIsCopyingMediaKitLink] = useState(false);
+  const [mediaKitUrl, setMediaKitUrl] = useState<string | null>(null);
+  const [isMediaKitLoading, setIsMediaKitLoading] = useState(true);
   const lockViewedRef = useRef(false);
   const notifiedProposalsRef = useRef<Set<string>>(new Set());
   const paywallResumeHandledRef = useRef(false);
@@ -170,9 +172,6 @@ export default function ProposalsClient() {
   const upgradeSubtitle =
     'Ative o PRO para enviar com IA em 1 clique e negociar com a faixa justa automática.';
   const tooltipAnalyzePro = 'Disponível no PRO: análise com IA e faixa justa automática.';
-  const subscriberNotice =
-    'Assinantes PRO também recebem propostas de publicidade enviadas diretamente pela plataforma, além das que chegam quando você deixa o link do Mídia Kit na bio do Instagram.';
-
   const showUpgradeToast = useCallback(() => {
     toast({
       variant: 'info',
@@ -279,6 +278,36 @@ export default function ProposalsClient() {
   useEffect(() => {
     loadProposals();
   }, [loadProposals]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchMediaKit() {
+      try {
+        setIsMediaKitLoading(true);
+        const response = await fetch('/api/users/media-kit-token', { cache: 'no-store' });
+        if (!response.ok) {
+          setMediaKitUrl(null);
+          return;
+        }
+        const payload = await response.json().catch(() => null);
+        if (!payload?.url && !payload?.publicUrl) {
+          setMediaKitUrl(null);
+          return;
+        }
+        if (!cancelled) {
+          setMediaKitUrl(payload.url ?? payload.publicUrl ?? null);
+        }
+      } catch {
+        if (!cancelled) setMediaKitUrl(null);
+      } finally {
+        if (!cancelled) setIsMediaKitLoading(false);
+      }
+    }
+    fetchMediaKit();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasProAccess && !isBillingLoading) {
@@ -780,45 +809,99 @@ export default function ProposalsClient() {
     <>
       <div className="px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-6xl space-y-8">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-600">
-              <Inbox className="h-4 w-4" />
-              Campanhas
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">Central de propostas</h1>
-            <p className="text-sm text-gray-600">
-              Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
-            </p>
-            <p className="text-xs font-semibold text-pink-600">{subscriberNotice}</p>
-          </div>
-          <button
-            type="button"
-            onClick={loadProposals}
-            className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+            <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-600">
+                  <Inbox className="h-4 w-4" />
+                  Campanhas
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900">Central de propostas</h1>
+                <p className="text-sm text-gray-600">
+                  Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
+                </p>
+                <p className="text-xs text-gray-500">
+                  Assinantes PRO também recebem propostas enviadas direto pela plataforma quando o link do mídia kit está na bio.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadProposals}
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
           >
             <RefreshCcw className="h-4 w-4" />
             Atualizar
-          </button>
-        </header>
+              </button>
+            </header>
 
-        <section className="grid gap-4 sm:grid-cols-3">
-          {summaryCards.map((card) => (
-            <div
-              key={card.label}
-              className={`rounded-2xl border border-gray-200 bg-white p-5 shadow-sm ${
-                card.highlight ? 'ring-2 ring-pink-100' : ''
-              }`}
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {card.label}
-              </p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
-            </div>
-          ))}
-        </section>
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              {isMediaKitLoading ? (
+                <div className="text-sm text-gray-500">Carregando link do mídia kit…</div>
+              ) : mediaKitUrl ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Link do seu mídia kit
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Coloque na bio do Instagram. Marcas enviam propostas por aqui.
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold text-gray-900">{mediaKitUrl}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={handleCopyMediaKitLink}
+                      disabled={isCopyingMediaKitLink}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
+                    >
+                      <ClipboardCopy className="h-4 w-4" />
+                      {isCopyingMediaKitLink ? 'Copiando…' : 'Copiar link'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigator?.share?.({ url: mediaKitUrl }).catch(() => {})}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 sm:ml-2"
+                    >
+                      Compartilhar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Conecte seu Instagram</p>
+                    <p className="text-xs text-gray-500">
+                      Gere o mídia kit para receber propostas diretamente pela bio.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/dashboard/media-kit')}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                  >
+                    Criar mídia kit
+                  </button>
+                </div>
+              )}
+            </section>
 
-        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+            <section className="grid gap-4 sm:grid-cols-3">
+              {summaryCards.map((card) => (
+                <div
+                  key={card.label}
+                  className={`rounded-2xl border border-gray-200 bg-white p-5 shadow-sm ${
+                    card.highlight ? 'ring-2 ring-pink-100' : ''
+                  }`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {card.label}
+                  </p>
+                  <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
+                </div>
+              ))}
+            </section>
+
+            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Pipeline financeiro</h2>
@@ -941,15 +1024,25 @@ export default function ProposalsClient() {
                 {emptyStates.campaigns.title}
               </span>
               <p className="text-sm text-slate-600">{emptyStates.campaigns.description}</p>
-              <button
-                type="button"
-                onClick={handleCopyMediaKitLink}
-                disabled={isCopyingMediaKitLink}
-                className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-400"
-              >
-                <ClipboardCopy className="h-4 w-4" />
-                {isCopyingMediaKitLink ? 'Copiando...' : emptyStates.campaigns.ctaLabel}
-              </button>
+                    {mediaKitUrl ? (
+                      <button
+                        type="button"
+                        onClick={handleCopyMediaKitLink}
+                        disabled={isCopyingMediaKitLink}
+                        className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-400"
+                      >
+                        <ClipboardCopy className="h-4 w-4" />
+                        {isCopyingMediaKitLink ? 'Copiando...' : emptyStates.campaigns.ctaLabel}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => router.push('/dashboard/media-kit')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+                      >
+                        Criar mídia kit
+                      </button>
+                    )}
             </div>
           </section>
         ) : null}
