@@ -38,8 +38,8 @@ Regras adicionais:
 
 ## Como ativar
 
-- Em ambientes não-prod (development/staging/test) a flag já vem ligada por padrão via fallback.
-- Para produção, use `PATCH /api/feature-flags` com `{ "key": "home.tutorial_minimal", "env": "production", "enabled": true }`.
+- A partir de agora a flag vem ligada por padrão em todos os ambientes (fallback em `DEFAULT_FEATURE_FLAGS`).
+- Se precisar desativar temporariamente, use `PATCH /api/feature-flags` passando `{ "key": "home.tutorial_minimal", "enabled": false }` (opcionalmente com `env` para um ambiente específico).
 
 ## Checklist de QA rápido
 

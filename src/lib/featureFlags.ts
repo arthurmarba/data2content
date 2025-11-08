@@ -9,18 +9,15 @@ export const FEATURE_FLAG_KEYS = [
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
 
-const ANALYTICS_ENV = (process.env.NEXT_PUBLIC_ANALYTICS_ENV || process.env.NODE_ENV || 'development')
-  .toLowerCase()
-  .trim();
-const IS_STAGING_LIKE = ANALYTICS_ENV === 'development' || ANALYTICS_ENV === 'staging' || ANALYTICS_ENV === 'test';
-
 export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   'nav.dashboard_minimal': false,
   'nav.campaigns_focus': false,
   'planning.group_locked': false,
   'modules.community_on_home': true,
   'paywall.modal_enabled': true,
-  'home.tutorial_minimal': IS_STAGING_LIKE,
+  // Mantemos a nova Home como padrão em todos os ambientes. Caso precisemos voltar
+  // temporariamente para o layout antigo, usamos o endpoint /api/feature-flags.
+  'home.tutorial_minimal': true,
 };
 
 export const parseFeatureFlags = <T extends string>(
