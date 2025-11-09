@@ -69,7 +69,7 @@ declare module "next-auth" {
     stripeSubscriptionId?: string | null;
     stripePriceId?: string | null;
 
-    // Trial (PRO)
+    // Trial (Plano Agência)
     proTrialStatus?: ProTrialState | null;
     proTrialActivatedAt?: Date | null;
     proTrialExpiresAt?: Date | null;
@@ -110,7 +110,7 @@ declare module "next-auth" {
       stripeCustomerId?: string | null;
       stripeSubscriptionId?: string | null;
       stripePriceId?: string | null;
-      // Trial (PRO)
+      // Trial (Plano Agência)
       proTrialStatus?: ProTrialState | null;
       proTrialActivatedAt?: string | null;
       proTrialExpiresAt?: string | null;

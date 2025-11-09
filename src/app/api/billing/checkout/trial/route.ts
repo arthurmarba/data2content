@@ -54,7 +54,7 @@ export async function POST(_req: NextRequest) {
         {
           ok: false,
           code: "INSTAGRAM_REQUIRED",
-          message: "Conecte seu Instagram antes de ativar o modo PRO de testes.",
+          message: "Conecte seu Instagram antes de ativar o modo Agência de testes.",
         },
         { status: 409 }
       );
@@ -80,7 +80,7 @@ export async function POST(_req: NextRequest) {
         {
           ok: false,
           code: "TRIAL_ALREADY_ACTIVE",
-          message: "Você já possui um modo PRO ativo neste momento.",
+          message: "Você já possui um modo Agência ativo neste momento.",
           trial: {
             state: "active",
             activatedAt: toDate((user as any).proTrialActivatedAt)?.toISOString() ?? null,

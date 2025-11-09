@@ -229,7 +229,7 @@ const VideoCard: React.FC<{
                     </span>
                   ))}
                 </div>
-                <p className="text-[11px] text-gray-400">Categorias disponíveis no modo PRO.</p>
+                <p className="text-[11px] text-gray-400">Categorias disponíveis no Modo Agência.</p>
               </div>
             ) : (
               <p className="text-[11px] text-gray-400">Categorias detalhadas não estão inclusas no plano atual deste criador.</p>
@@ -314,7 +314,7 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, showStrategyTags = tr
           Conteúdo
         </h4>
         <h4 className={`${props.readOnly ? 'md:col-span-3' : 'md:col-span-2'} text-left text-xs font-semibold text-gray-400 uppercase tracking-wider`}>
-          {showStrategyTags ? 'Estratégia' : strategyMode === 'lock' ? 'Categorias (Modo PRO)' : 'Categorias'}
+          {showStrategyTags ? 'Estratégia' : strategyMode === 'lock' ? 'Categorias (Modo Agência)' : 'Categorias'}
         </h4>
         {!props.readOnly && (
           <h4 className="md:col-span-1 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">

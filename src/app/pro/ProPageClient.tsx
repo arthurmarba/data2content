@@ -40,8 +40,10 @@ type ProPageClientProps = {
 
 const HERO_COPY = {
   title: "Feche campanhas e planeje com a IA da D2C.",
-  subtitle: "Planner PRO, discovery da comunidade, mentorias VIP e oportunidades sem exclusividade em um só lugar.",
-  helper: "Conecte seu Instagram, libere o planner completo e receba propostas como um agenciado (sem contrato exclusivo).",
+  subtitle:
+    "Planner Agência, discovery da comunidade, mentorias VIP e oportunidades sem exclusividade em um só lugar.",
+  helper:
+    "Conecte seu Instagram, libere o planner completo e receba propostas como um agenciado (sem contrato exclusivo).",
 };
 
 const BENEFITS = [
@@ -61,7 +63,7 @@ const BENEFITS = [
     icon: <Calculator className="h-5 w-5 text-brand-magenta" />,
   },
   {
-    title: "Planejamento PRO",
+    title: "Planejamento Agência",
     description: "Descoberta da comunidade, slots com IA e alertas no WhatsApp para executar com foco.",
     icon: <Calendar className="h-5 w-5 text-brand-magenta" />,
   },
@@ -76,7 +78,7 @@ const COMPARISON = [
   { feature: "Receber propostas e visualizar detalhes", free: true, pro: true },
   { feature: "Responder com IA e enviar pela plataforma", free: false, pro: true },
   { feature: "Calculadora dinâmica baseada nas suas métricas", free: false, pro: true },
-  { feature: "Planejamento PRO (Descoberta/Planner/WhatsApp IA)", free: false, pro: true },
+  { feature: "Planejamento Agência (Descoberta/Planner/WhatsApp IA)", free: false, pro: true },
   { feature: "Mentorias semanais e nudges personalizados", free: false, pro: true },
   { feature: "Oportunidades de campanha sem exclusividade", free: false, pro: true },
 ];
@@ -106,13 +108,14 @@ const FAQS = [
 
 const UNLOCKED_SURFACES = [
   {
-    title: "Planejamento PRO",
+    title: "Planejamento Agência",
     description: "Slots com IA, previsões de alcance e alertas no WhatsApp para cada entrega.",
     href: "/dashboard/planning",
   },
   {
     title: "Descoberta da Comunidade",
-    description: "Biblioteca viva de benchmarks, ideias e referências exclusivas dos creators PRO.",
+    description:
+      "Biblioteca viva de benchmarks, ideias e referências exclusivas dos creators do Plano Agência.",
     href: "/dashboard/discover",
   },
   {
@@ -129,7 +132,7 @@ const FLOW_STEPS = [
   },
   {
     title: "Planeje",
-    description: "Slots prontos no planner PRO, com previsões e alertas para manter a consistência.",
+    description: "Slots prontos no planner Agência, com previsões e alertas para manter a consistência.",
   },
   {
     title: "Negocie",
@@ -279,7 +282,7 @@ export default function ProPageClient({
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-16">
         <section className="space-y-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-pink-600">
-            <Sparkles className="h-4 w-4" /> Plano PRO
+            <Sparkles className="h-4 w-4" /> Plano Agência
           </div>
           <h1 className="text-4xl font-bold text-slate-900 sm:text-5xl">{HERO_COPY.title}</h1>
           <p className="mx-auto max-w-2xl text-lg text-slate-600">{HERO_COPY.subtitle}</p>
@@ -291,7 +294,7 @@ export default function ProPageClient({
                 onClick={() => handleOpenModal("hero")}
                 className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-pink-600/40 transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
               >
-                Ativar PRO
+                Ativar Plano Agência
                 <ArrowRight className="h-5 w-5" />
               </button>
               <Link
@@ -304,7 +307,7 @@ export default function ProPageClient({
           )}
           {hasProAccess && (
             <div className="mx-auto max-w-xl rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900 shadow-sm">
-              <p className="font-semibold">Você é PRO ✅</p>
+              <p className="font-semibold">Plano Agência ativo ✅</p>
               <p className="mt-1 text-emerald-800">
                 Explore as propostas com IA e mantenha seu planejamento atualizado para aproveitar
                 cada campanha com segurança.
@@ -352,7 +355,7 @@ export default function ProPageClient({
 
         <section className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 shadow-inner">
           <header className="mb-6 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-pink-600">Fluxo PRO</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-pink-600">Fluxo Plano Agência</p>
             <h2 className="text-2xl font-bold text-slate-900">Como a IA guia sua semana</h2>
             <p className="text-sm text-slate-600">Descubra, planeje e responda como um agenciado — mantendo sua autonomia.</p>
           </header>
@@ -371,7 +374,7 @@ export default function ProPageClient({
 
         <section className="space-y-8">
           <header>
-            <h2 className="text-2xl font-bold text-slate-900">Compare Free vs PRO</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Compare Free vs Plano Agência</h2>
             <p className="mt-1 text-sm text-slate-600">
               Sem pegadinhas: veja o que é liberado em cada plano.
             </p>
@@ -382,7 +385,7 @@ export default function ProPageClient({
                 <tr>
                   <th className="px-4 py-3 font-semibold">Recurso</th>
                   <th className="px-4 py-3 font-semibold text-center">Free</th>
-                  <th className="px-4 py-3 font-semibold text-center text-pink-600">PRO</th>
+                  <th className="px-4 py-3 font-semibold text-center text-pink-600">Plano Agência</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -518,7 +521,7 @@ export default function ProPageClient({
         <section className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-inner">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-sm font-semibold text-slate-700">Que telas eu libero com o PRO?</p>
+              <p className="text-sm font-semibold text-slate-700">Que telas eu libero com o Plano Agência?</p>
               <p className="text-sm text-slate-500">
                 Você ganha acesso completo ao planner com IA, à descoberta da comunidade e à caixa de oportunidades dentro da plataforma.
               </p>
@@ -571,7 +574,7 @@ export default function ProPageClient({
               Pronto para responder com IA e fechar sua próxima campanha?
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Ative o PRO para liberar análise, e-mail, calculadora e planejamento em um só clique.
+              Ative o Plano Agência para liberar análise, e-mail, calculadora e planejamento em um só clique.
             </p>
             <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <button
@@ -579,7 +582,7 @@ export default function ProPageClient({
                 onClick={() => handleOpenModal("bottom")}
                 className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-pink-600/40 transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
               >
-                Ativar PRO
+                Ativar Plano Agência
                 <ArrowRight className="h-5 w-5" />
               </button>
               <a

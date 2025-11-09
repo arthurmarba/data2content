@@ -116,6 +116,9 @@ const normalizeComparisonPeriod = (period?: string): ComparisonPeriodKey => {
   return DEFAULT_COMPARISON_PERIOD;
 };
 
+const TOP_POSTS_MAX_ITEMS = 10;
+const LOCKED_TOP_POSTS_PREVIEW_COUNT = 3;
+
 /**
  * COMPONENTES: Destaques / Rankings
  */
@@ -608,7 +611,7 @@ const LockedPremiumSection = ({
   description,
   ctaLabel,
   subtitle,
-  badgeLabel = "Modo PRO",
+  badgeLabel = "Modo Agência",
   showBadge = true,
   onAction,
   peek,
@@ -928,10 +931,10 @@ const tagStyleMap: Record<
   'format' | 'context' | 'proposal' | 'tone',
   { bgClass: string; textClass: string; labelPrefix: string }
 > = {
-  format: { bgClass: 'bg-[#EEF2FF]', textClass: 'text-[#3C4B9B]', labelPrefix: 'Formato' },
-  context: { bgClass: 'bg-[#FFF5E6]', textClass: 'text-[#C9721A]', labelPrefix: 'Contexto' },
-  proposal: { bgClass: 'bg-[#FEE9F1]', textClass: 'text-[#B83268]', labelPrefix: 'Proposta' },
-  tone: { bgClass: 'bg-[#E8FBF1]', textClass: 'text-[#2F8E5B]', labelPrefix: 'Tom' },
+  format: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Formato' },
+  context: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Contexto' },
+  proposal: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Proposta' },
+  tone: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Tom' },
 };
 
 const SparklineChart = ({ values, color = '#D62E5E' }: { values: number[]; color?: string }) => {
@@ -1339,11 +1342,11 @@ export default function MediaKitView({
   const lockedCategoriesDescription =
     premiumTrialState === "expired"
       ? "Seus dados ficaram congelados. Assine para continuar recebendo atualizações semanais."
-      : "Ative o modo PRO para ver os formatos, propostas e contextos que mais puxam crescimento.";
+      : "Ative o modo Agência para ver os formatos, propostas e contextos que mais puxam crescimento.";
   const lockedHighlightsDescription =
     premiumTrialState === "expired"
-      ? "Retome o modo PRO para seguir recebendo os destaques automáticos da semana."
-      : "Ative o modo PRO para destravar os principais insights sobre formatos, contextos e horários.";
+      ? "Retome o modo Agência para seguir recebendo os destaques automáticos da semana."
+      : "Ative o modo Agência para destravar os principais insights sobre formatos, contextos e horários.";
   const lockedViewTrackedRef = useRef(false);
   const topPostsLockedViewTrackedRef = useRef(false);
   const topPostsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1613,7 +1616,7 @@ export default function MediaKitView({
   );
   const topPostsIntro = useMemo(() => {
     if (isTopPostsLocked) {
-      return 'Prévia dos posts mais recentes. Ative o modo PRO para destravar a análise completa.';
+      return 'Prévia dos posts mais recentes. Ative o modo Agência para destravar a análise completa.';
     }
     if (!canViewCategories && visibilityMode === 'hide') {
       return 'Os posts com melhor desempenho aparecem, mas as categorias detalhadas estão ocultas nesta visualização.';
@@ -1622,11 +1625,14 @@ export default function MediaKitView({
   }, [isTopPostsLocked, canViewCategories, visibilityMode]);
   const topPostsForCarousel = useMemo(() => {
     if (!Array.isArray(videosWithCorrectStats)) return [];
-    const maxItems = Math.min(5, videosWithCorrectStats.length);
+    const maxItems = Math.min(TOP_POSTS_MAX_ITEMS, videosWithCorrectStats.length);
     return videosWithCorrectStats.slice(0, maxItems);
   }, [videosWithCorrectStats]);
   const visibleTopPosts = useMemo(
-    () => (isTopPostsLocked ? topPostsForCarousel.slice(0, 3) : topPostsForCarousel),
+    () =>
+      isTopPostsLocked
+        ? topPostsForCarousel.slice(0, LOCKED_TOP_POSTS_PREVIEW_COUNT)
+        : topPostsForCarousel,
     [isTopPostsLocked, topPostsForCarousel]
   );
   const handleTopPostsWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
@@ -2183,8 +2189,8 @@ export default function MediaKitView({
                               main: formattedViews,
                               secondary: 'visualizações',
                               arrangement: 'postfix',
-                              mainClass: 'text-base font-semibold text-[#D62E5E]',
-                              secondaryClass: 'text-[12px] text-[#777777]',
+                              mainClass: 'text-base font-semibold text-gray-900',
+                              secondaryClass: 'text-xs text-gray-500',
                             }
                           : null,
                         formattedLikes !== '—'
@@ -2193,8 +2199,8 @@ export default function MediaKitView({
                               main: formattedLikes,
                               secondary: 'curtidas',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-[#555555]',
-                              secondaryClass: 'text-[12px] text-[#777777]',
+                              mainClass: 'text-sm font-semibold text-gray-700',
+                              secondaryClass: 'text-xs text-gray-500',
                             }
                           : null,
                         formattedComments !== '—'
@@ -2203,8 +2209,8 @@ export default function MediaKitView({
                               main: formattedComments,
                               secondary: 'comentários',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-[#555555]',
-                              secondaryClass: 'text-[12px] text-[#777777]',
+                              mainClass: 'text-sm font-semibold text-gray-700',
+                              secondaryClass: 'text-xs text-gray-500',
                             }
                           : null,
                         formattedShares !== '—'
@@ -2213,8 +2219,8 @@ export default function MediaKitView({
                               main: formattedShares,
                               secondary: 'compartilhamentos',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-[#555555]',
-                              secondaryClass: 'text-[12px] text-[#777777]',
+                              mainClass: 'text-sm font-semibold text-gray-700',
+                              secondaryClass: 'text-xs text-gray-500',
                             }
                           : null,
                         formattedSaves !== '—'
@@ -2223,8 +2229,8 @@ export default function MediaKitView({
                               main: formattedSaves,
                               secondary: 'salvos',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-[#555555]',
-                              secondaryClass: 'text-[12px] text-[#777777]',
+                              mainClass: 'text-sm font-semibold text-gray-700',
+                              secondaryClass: 'text-xs text-gray-500',
                             }
                           : null,
                         dateLabel
@@ -2233,17 +2239,27 @@ export default function MediaKitView({
                               main: dateLabel,
                               secondary: 'Publicado em',
                               arrangement: 'prefix',
-                              mainClass: 'text-xs font-medium text-[#999999]',
-                              secondaryClass: 'text-[12px] text-[#999999]',
+                              mainClass: 'text-xs font-medium text-gray-500',
+                              secondaryClass: 'text-[11px] text-gray-400',
                             }
                           : null,
                       ].filter(Boolean) as MetricItem[];
+                      const primaryMetric =
+                        metrics.find((metric) => metric.key === 'views') ??
+                        metrics.find((metric) => metric.key !== 'date');
+                      const supportingMetrics = metrics.filter(
+                        (metric) => metric !== primaryMetric && metric.key !== 'date'
+                      );
+                      const supportingMetricCards = supportingMetrics.slice(0, 4);
+                      const dateMetric = metrics.find((metric) => metric.key === 'date');
+                      const hasPerformanceMetrics = Boolean(primaryMetric || supportingMetricCards.length);
+                      const primaryMetricLabel = primaryMetric?.secondary ?? 'Desempenho';
 
                       const isClickable = canViewCategories && !isTopPostsLocked;
                       return (
                         <article
                           key={video._id}
-                          className={`relative flex w-[82%] flex-none snap-start flex-col overflow-hidden rounded-2xl border border-[#EAEAEA] bg-white p-4 shadow-sm transition hover:shadow-md sm:w-[60%] md:w-[50%] lg:w-[360px] xl:w-[400px] 2xl:w-[440px] ${
+                          className={`relative flex w-[60%] flex-none snap-start flex-col overflow-hidden rounded-2xl border border-[#EAEAEA] bg-white p-2.5 shadow-sm transition hover:shadow-md sm:w-[45%] md:w-[35%] lg:w-[260px] xl:w-[280px] 2xl:w-[300px] ${
                             isClickable ? 'cursor-pointer' : ''
                           }`}
                           role={isClickable ? 'button' : undefined}
@@ -2260,7 +2276,7 @@ export default function MediaKitView({
                               : undefined
                           }
                         >
-                          <div className="aspect-[1/1] w-full overflow-hidden rounded-lg bg-[#F4F4F6]">
+                          <div className="mx-auto aspect-square w-full overflow-hidden rounded-lg bg-[#F4F4F6]">
                             {video.thumbnailUrl ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
@@ -2276,19 +2292,19 @@ export default function MediaKitView({
                           </div>
                           <div className="mt-4 flex flex-1 flex-col gap-3 text-left">
                             {index === 0 && !isTopPostsLocked ? (
-                              <span className="inline-block rounded-md bg-[#D62E5E] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                              <span className="inline-block rounded-md bg-gray-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
                                 Top 1
                               </span>
                             ) : null}
                             <p className="text-sm font-semibold text-[#1C1C1E] leading-snug line-clamp-2">{captionPreview}</p>
                             {tagMeta.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-wrap gap-1">
                                 {tagMeta.map(({ type, value }) => {
                                   const styles = tagStyleMap[type];
                                   return (
                                     <span
                                       key={`${video._id}-${type}-${value}`}
-                                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles.bgClass} ${styles.textClass}`}
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${styles.bgClass} ${styles.textClass}`}
                                     >
                                       {styles.labelPrefix}: {value}
                                     </span>
@@ -2296,39 +2312,51 @@ export default function MediaKitView({
                                 })}
                               </div>
                             ) : null}
-                            {metrics.length > 0 ? (
-                              <div className="flex flex-col gap-2">
-                                {metrics.map(({ key, main, secondary, arrangement, mainClass, secondaryClass }) => (
-                                  <div key={`${video._id}-${key}`} className="flex flex-wrap items-baseline gap-1">
-                                    {arrangement === 'prefix' ? (
-                                      <>
-                                        <span className={secondaryClass}>{secondary}</span>
-                                        <span className={mainClass}>{main}</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className={mainClass}>{main}</span>
-                                        <span className={secondaryClass}>{secondary}</span>
-                                      </>
-                                    )}
+                            {hasPerformanceMetrics ? (
+                              <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
+                                {primaryMetric ? (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-700">
+                                      {primaryMetricLabel}
+                                    </span>
+                                    <span className={`${primaryMetric.mainClass} text-lg leading-none`}>
+                                      {primaryMetric.main}
+                                    </span>
                                   </div>
-                                ))}
+                                ) : null}
+                                {supportingMetricCards.length ? (
+                                  <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
+                                    {supportingMetricCards.map(({ key, main, secondary, mainClass }) => (
+                                      <div key={`${video._id}-${key}-summary`} className="text-left">
+                                        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                                          {secondary}
+                                        </p>
+                                        <p className={`${mainClass} text-sm`}>{main}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
                               </div>
                             ) : null}
-                            {video.permalink && (
-                              <div className="mt-auto pt-5">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-medium text-gray-500">Detalhes completos</span>
+                            {(dateMetric || video.permalink) && (
+                              <div className="mt-auto flex flex-col gap-1 pt-3 text-[11px] text-gray-500">
+                                {dateMetric ? (
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">{dateMetric.secondary}</span>
+                                    <span className="text-xs font-semibold text-gray-800">{dateMetric.main}</span>
+                                  </div>
+                                ) : null}
+                                {video.permalink ? (
                                   <a
                                     href={video.permalink}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-sm font-semibold text-[#D62E5E] transition hover:underline"
+                                    className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 transition hover:underline"
                                   >
                                     Ver post
                                     <ArrowUpRight className="h-4 w-4" />
                                   </a>
-                                </div>
+                                ) : null}
                               </div>
                             )}
                           </div>
@@ -2341,7 +2369,7 @@ export default function MediaKitView({
                     <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-white/90 px-6 text-center">
                       <Lock className="h-6 w-6 text-[#6E1F93]" />
                       <p className="mt-3 text-sm text-gray-700">
-                        Veja o porquê desses posts performarem melhor destravando o modo PRO.
+                        Veja o porquê desses posts performarem melhor destravando o modo Agência.
                       </p>
                       <button
                         type="button"
@@ -2388,7 +2416,7 @@ export default function MediaKitView({
                   </>
                 ) : shouldLockPremiumSections ? (
                   <LockedPremiumSection
-                    title="Destaques de performance disponíveis no modo PRO"
+                    title="Destaques de performance disponíveis no modo Agência"
                     description={lockedHighlightsDescription}
                     ctaLabel={highlightCtaLabel}
                     subtitle={highlightSubtitle}
@@ -2422,7 +2450,7 @@ export default function MediaKitView({
                   </>
                 ) : shouldLockPremiumSections ? (
                   <LockedPremiumSection
-                    title="Categorias disponíveis no modo PRO"
+                    title="Categorias disponíveis no modo Agência"
                     description={lockedCategoriesDescription}
                     ctaLabel={categoryCtaLabel}
                     subtitle={categorySubtitle}

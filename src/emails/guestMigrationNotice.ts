@@ -7,10 +7,10 @@ const BILLING_URL = `${APP_BASE_URL}/dashboard/billing`;
 
 export function guestMigrationNotice(expiresAt: Date) {
   const date = expiresAt.toLocaleDateString('pt-BR');
-  const subject = 'Seu acesso PRO gratuito terminou';
-  const ctaText = 'Ative o plano PRO e mantenha o acesso completo';
+  const subject = 'Seu acesso ao Plano Agência gratuito terminou';
+  const ctaText = 'Ative o Plano Agência e mantenha o acesso completo';
   const bodyText = [
-    `Seu acesso PRO gratuito terminou em ${date}.`,
+    `Seu acesso ao Plano Agência gratuito terminou em ${date}.`,
     'Que tal continuar com o seu estrategista de bolso e desbloquear todos os recursos novamente?',
     `${ctaText}: ${BILLING_URL}`,
   ].join(' ');
@@ -18,7 +18,7 @@ export function guestMigrationNotice(expiresAt: Date) {
   return {
     subject,
     text: bodyText,
-    html: `<p>Seu acesso PRO gratuito terminou em <strong>${date}</strong>.</p>
+    html: `<p>Seu acesso ao Plano Agência gratuito terminou em <strong>${date}</strong>.</p>
 <p>Que tal continuar com o seu estrategista de bolso e desbloquear todos os recursos novamente?</p>
 <p><a href="${BILLING_URL}" style="color:#2563eb;font-weight:600;text-decoration:none;">${ctaText}</a></p>`,
   };

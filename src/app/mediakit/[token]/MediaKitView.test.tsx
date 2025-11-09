@@ -78,7 +78,7 @@ describe('MediaKitView ownership visibility', () => {
         showOwnerCtas={false}
       />
     );
-    expect(screen.queryByText(/Destaques de performance disponíveis no modo PRO/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Destaques de performance disponíveis no modo Agência/i)).not.toBeInTheDocument();
   });
 
   it('shows locked premium teasers for owners without access', () => {
@@ -90,6 +90,6 @@ describe('MediaKitView ownership visibility', () => {
         showOwnerCtas={true}
       />
     );
-    expect(screen.getByText(/Destaques de performance disponíveis no modo PRO/i)).toBeInTheDocument();
+    expect(screen.getByText(/Destaques de performance disponíveis no modo Agência/i)).toBeInTheDocument();
   });
 });

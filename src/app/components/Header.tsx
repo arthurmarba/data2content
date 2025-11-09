@@ -321,7 +321,7 @@ export default function Header() {
     if (planActive) return null;
     if (config.variant === "default") {
       return {
-        label: "Ativar PRO",
+        label: "Ativar Plano Agência",
         icon: <FaWhatsapp className="w-5 h-5" />,
         onClick: handleOpenSubscribeModal,
       };
@@ -337,10 +337,10 @@ export default function Header() {
     return (
       <span
         className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold leading-none text-emerald-700"
-        title="Plano PRO ativo"
+        title="Plano Agência ativo"
       >
         <span aria-hidden="true">✅</span>
-        <span className="truncate">PRO ativo</span>
+        <span className="truncate">Plano Agência ativo</span>
       </span>
     );
   }, [planActive]);

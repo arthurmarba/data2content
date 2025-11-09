@@ -31,7 +31,7 @@ const defaultCreators: Array<LandingCreatorHighlight & { summary?: string }> = [
     avgInteractionsPerPost: 35_000,
     rank: 1,
     consistencyScore: 92,
-    summary: "+420 mil interações no trimestre e presença constante nas mentorias PRO.",
+    summary: "+420 mil interações no trimestre e presença constante nas mentorias do Plano Agência.",
   },
   {
     id: "fallback-2",
@@ -44,7 +44,7 @@ const defaultCreators: Array<LandingCreatorHighlight & { summary?: string }> = [
     avgInteractionsPerPost: 35_000,
     rank: 2,
     consistencyScore: 88,
-    summary: "Fechou 4 campanhas nos últimos 60 dias após liberar diagnósticos PRO.",
+    summary: "Fechou 4 campanhas nos últimos 60 dias após liberar diagnósticos do Plano Agência.",
   },
   {
     id: "fallback-3",

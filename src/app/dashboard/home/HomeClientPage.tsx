@@ -121,8 +121,9 @@ const JOURNEY_STEP_COPY: Record<
     ctaLabel: "Copiar link do kit",
   },
   activate_pro: {
-    stepHelper: "Ative o plano PRO para receber propostas de publicidade, mentorias semanais e IA estrategista no WhatsApp.",
-    ctaLabel: "Ativar PRO agora",
+    stepHelper:
+      "Ative o Plano Agência para receber propostas de publicidade, mentorias semanais e IA estrategista no WhatsApp.",
+    ctaLabel: "Ativar Plano Agência agora",
   },
 };
 
@@ -621,7 +622,7 @@ export default function HomeClientPage() {
         return {
           icon: "⏳",
           className: "border-rose-200 bg-rose-50 text-rose-700",
-          text: planTrialCountdownLabel ? `Termina em ${planTrialCountdownLabel}` : "Modo PRO ativo",
+          text: planTrialCountdownLabel ? `Termina em ${planTrialCountdownLabel}` : "Modo Agência ativo",
         };
       }
 
@@ -647,7 +648,7 @@ export default function HomeClientPage() {
     return {
       icon: "✅",
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      text: "PRO ativo",
+      text: "Plano Agência ativo",
     };
   }, [
     isInstagramConnected,
@@ -803,15 +804,15 @@ export default function HomeClientPage() {
         ...base,
         calloutTitle: "Continue com a estrategista no WhatsApp.",
         calloutSubtitle:
-          "Assine PRO para seguir recebendo categorias vencedoras, horário ideal e lembretes direto no WhatsApp.",
+          "Assine o Plano Agência para seguir recebendo categorias vencedoras, horário ideal e lembretes direto no WhatsApp.",
         primary: {
-          label: "Assinar plano PRO",
+          label: "Assinar Plano Agência",
           variant: "pro" as const,
           icon: <FaGem />,
           onClick: openSubscribeModal,
           trackingKey: "hero_trial_upgrade",
         },
-        footnote: "🔒 Assine PRO e mantenha os alertas diários no WhatsApp.",
+        footnote: "🔒 Assine o Plano Agência e mantenha os alertas diários no WhatsApp.",
       };
     }
 
@@ -863,7 +864,7 @@ export default function HomeClientPage() {
           onClick: handleOpenWhatsApp,
           trackingKey: "hero_trial_connect",
         },
-        footnote: "🔒 Você já é PRO — conecte e receba os alertas no WhatsApp.",
+        footnote: "🔒 Plano Agência ativo — conecte e receba os alertas no WhatsApp.",
       };
     }
 
@@ -970,13 +971,13 @@ export default function HomeClientPage() {
       },
       {
         id: "progress-pro",
-        title: "Plano PRO",
+        title: "Plano Agência",
         description: planIsPro
           ? "IA ilimitada, alertas constantes e relatórios automáticos já estão ativos."
-          : "Assine para manter a IA ligada após o teste e receber suporte direto da equipe.",
+          : "Assine o Plano Agência para manter a IA ligada após o teste e receber suporte direto da equipe.",
         icon: <FaGem />,
         status: proStatus,
-        actionLabel: planIsPro ? "Ver painel PRO" : "Assinar PRO",
+        actionLabel: planIsPro ? "Ver painel Agência" : "Assinar Plano Agência",
         action: planIsPro ? () => handleNavigate("/dashboard") : handleHeaderSubscribe,
         variant: "pro",
         disabled: planIsPro,
@@ -1139,9 +1140,9 @@ export default function HomeClientPage() {
 
     if (!planIsPro) {
       return {
-        subtitle: "Ative o modo PRO para manter a IA ligada sem limites.",
+        subtitle: "Ative o Modo Agência para manter a IA ligada sem limites.",
         helper: null,
-        ctaLabel: "🚀 Assinar plano PRO",
+        ctaLabel: "🚀 Assinar Plano Agência",
         onClick: handleHeaderSubscribe,
       };
     }
@@ -1167,9 +1168,9 @@ export default function HomeClientPage() {
 
     if (planIsPro) {
       return {
-        subtitle: "Continue acompanhando seus alertas e relatórios no painel PRO.",
+        subtitle: "Continue acompanhando seus alertas e relatórios no painel do Plano Agência.",
         helper: null,
-        ctaLabel: "📊 Abrir painel PRO",
+        ctaLabel: "📊 Abrir painel Plano Agência",
         onClick: () => handleNavigate("/dashboard"),
       };
     }
@@ -1259,14 +1260,14 @@ export default function HomeClientPage() {
       {
         key: "planner",
         icon: <FaCalendarAlt aria-hidden="true" />,
-        title: plannerLocked ? "Planejamento (PRO)" : "Planejar com IA",
+        title: plannerLocked ? "Planejamento (Plano Agência)" : "Planejar com IA",
         description: plannerLocked
-          ? "Assine o plano PRO para liberar horários automáticos e roteiros com IA."
+          ? "Assine o Plano Agência para liberar horários automáticos e roteiros com IA."
           : isInstagramConnected
           ? "Gere horários personalizados e receba roteiros prontos."
           : "Conecte o Instagram e destrave horários com IA.",
-        status: plannerLocked ? "Recurso exclusivo PRO" : plannerMetric,
-        actionLabel: plannerLocked ? "Assinar plano PRO" : plannerActionLabel,
+        status: plannerLocked ? "Recurso exclusivo Plano Agência" : plannerMetric,
+        actionLabel: plannerLocked ? "Assinar Plano Agência" : plannerActionLabel,
         onAction: () => {
           if (plannerLocked) {
             openSubscribeModal();
@@ -1381,11 +1382,11 @@ export default function HomeClientPage() {
             <div className="space-y-1">
               <p className="font-semibold">Seu teste de 48h chegou ao fim.</p>
               <p className="text-xs text-amber-700">
-                Ative o plano PRO e continue recebendo roteiros e alertas ilimitados no WhatsApp.
+                Ative o Plano Agência e continue recebendo roteiros e alertas ilimitados no WhatsApp.
               </p>
             </div>
             <ActionButton
-              label="Assinar plano PRO"
+              label="Assinar Plano Agência"
               icon={<FaGem />}
               variant="pro"
               onClick={() => {
@@ -1471,10 +1472,10 @@ export default function HomeClientPage() {
 
     list.push({
       id: "calculator",
-      title: "Calculadora PRO",
+      title: "Calculadora Plano Agência",
       description: "Descubra seu valor de mercado",
       icon: <FaCalculator className="h-5 w-5" aria-hidden />,
-      badge: "PRO",
+      badge: "Agência",
       locked: proLocked,
       cta: proLocked ? "activate" : "open",
       onClick: () => {
@@ -1489,10 +1490,10 @@ export default function HomeClientPage() {
 
     list.push({
       id: "planner",
-      title: "Planejamento PRO",
+      title: "Planejamento Plano Agência",
       description: "Organize horários com IA",
       icon: <FaPuzzlePiece className="h-5 w-5" aria-hidden />,
-      badge: "PRO",
+      badge: "Agência",
       locked: proLocked,
       cta: proLocked ? "activate" : "open",
       onClick: () => {
@@ -1514,7 +1515,7 @@ export default function HomeClientPage() {
       title: "IA no WhatsApp",
       description: "Diagnóstico e ideias rápidas",
       icon: <FaWhatsapp className="h-5 w-5" aria-hidden />,
-      badge: "PRO",
+      badge: "Agência",
       locked: proLocked,
       cta: proLocked ? "activate" : "open",
       onClick: () => {
@@ -2110,7 +2111,7 @@ export default function HomeClientPage() {
                 onClick={handleHeaderSubscribe}
                 className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
               >
-                Assinar plano PRO
+                Assinar Plano Agência
               </button>
               <span className="text-center text-xs text-slate-500">
                 Alertas ilimitados + relatórios semanais automáticos.

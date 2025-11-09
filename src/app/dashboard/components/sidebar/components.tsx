@@ -59,7 +59,7 @@ const ProBadge = ({ className = "" }: { className?: string }) => (
   <span
     className={`inline-flex items-center rounded-full border border-brand-magenta/40 bg-brand-magenta/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-magenta ${className}`}
   >
-    PRO
+    AGÊNCIA
   </span>
 );
 

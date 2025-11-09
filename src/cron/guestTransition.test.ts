@@ -43,7 +43,10 @@ describe('handleGuestTransitions', () => {
     await handleGuestTransitions();
 
     expect(mockSend).toHaveBeenCalledWith(expired.email, expired.planExpiresAt);
-    expect(mockWhatsApp).toHaveBeenCalledWith(expired.whatsappPhone, expect.stringContaining('Seu acesso PRO gratuito terminou.'));
+    expect(mockWhatsApp).toHaveBeenCalledWith(
+      expired.whatsappPhone,
+      expect.stringContaining('Seu acesso ao Plano Agência gratuito terminou.')
+    );
     expect(mockBilling).toHaveBeenCalledWith(expired._id);
     expect(expired.role).toBe('user');
     expect(expired.planStatus).toBe('inactive');

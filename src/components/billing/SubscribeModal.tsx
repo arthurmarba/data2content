@@ -44,7 +44,7 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
     title: 'Planejamento e descoberta desbloqueados',
     items: [
       {
-        title: 'Planejamento PRO',
+        title: 'Planejamento Agência',
         description:
           'Slots com IA, previsões de alcance e alertas no WhatsApp para executar com foco diariamente.',
         linkLabel: 'Ver planner',
@@ -53,7 +53,7 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
       {
         title: 'Descoberta da Comunidade',
         description:
-          'Biblioteca viva com benchmarks de creators, ideias e tendências exclusivas da base PRO.',
+          'Biblioteca viva com benchmarks de creators, ideias e tendências exclusivas da base do Plano Agência.',
         linkLabel: 'Explorar descoberta',
         href: '/dashboard/discover',
       },
@@ -149,7 +149,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
       return;
     }
     if (isTrialActive) {
-      setError('Seu modo PRO já está ativo.');
+      setError('Seu modo Agência já está ativo.');
       return;
     }
     setLoadingAction('trial');
@@ -170,8 +170,8 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
         const code = body?.code;
         if (code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
         if (code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
-        if (code === 'INSTAGRAM_REQUIRED') { setError(body?.message ?? 'Conecte seu Instagram para ativar o modo PRO.'); return; }
-        if (code === 'TRIAL_ALREADY_ACTIVE') { await refetchBillingStatus(); setError('Seu modo PRO já está ativo.'); return; }
+        if (code === 'INSTAGRAM_REQUIRED') { setError(body?.message ?? 'Conecte seu Instagram para ativar o modo Agência.'); return; }
+        if (code === 'TRIAL_ALREADY_ACTIVE') { await refetchBillingStatus(); setError('Seu modo Agência já está ativo.'); return; }
         if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') { setError(body?.message ?? 'O período de testes já foi utilizado nesta conta.'); return; }
         throw new Error(body?.error || body?.message || 'Falha ao iniciar teste gratuito');
       }
@@ -236,7 +236,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
                 Receba Alertas e Oportunidades Diárias no seu WhatsApp
             </h2>
             <p className="text-gray-600 mt-2">
-                Ative o Plano PRO e transforme sua IA em um estrategista de conteúdo proativo.
+                Ative o Plano Agência e transforme sua IA em um estrategista de conteúdo proativo.
             </p>
         </div>
         
@@ -318,7 +318,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
                             {loadingAction === 'trial' ? 'Preparando…' : 'Teste gratuito (48h)'}
                         </button>
                         <button onClick={handleStart} disabled={disabled || !codeIsValid} className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50" aria-busy={loadingAction === 'subscribe'}>
-                            {loadingAction === 'subscribe' ? 'Processando…' : 'Ativar meu Plano PRO'}
+                            {loadingAction === 'subscribe' ? 'Processando…' : 'Ativar meu Plano Agência'}
                         </button>
                     </div>
                     <p className="mt-3 flex items-center justify-center gap-1 text-xs text-gray-500">

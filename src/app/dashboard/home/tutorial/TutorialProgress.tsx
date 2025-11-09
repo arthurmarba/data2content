@@ -93,7 +93,7 @@ export default function TutorialProgress({
           <span>{progress.progressLabel}</span>
           {showProBadge ? (
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              <span aria-hidden>✅</span>PRO ativo — negocie campanhas com IA
+              <span aria-hidden>✅</span>Plano Agência ativo — negocie campanhas com IA
             </span>
           ) : null}
           {onPrimaryAction && primaryLabel ? (

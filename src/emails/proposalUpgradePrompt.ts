@@ -11,7 +11,7 @@ export function proposalUpgradePromptEmail({ name, ctaUrl }: ProposalUpgradeProm
   const callout =
     'Uma marca acaba de enviar uma proposta através do seu Mídia Kit Data2Content.';
   const body =
-    '👉 Para responder e negociar com segurança, ative o plano PRO e use o Mobi para precificar automaticamente com base nas suas métricas.';
+    '👉 Para responder e negociar com segurança, ative o Plano Agência e use o Mobi para precificar automaticamente com base nas suas métricas.';
 
   const text = [
     greeting,
@@ -35,7 +35,7 @@ export function proposalUpgradePromptEmail({ name, ctaUrl }: ProposalUpgradeProm
         </a>
       </div>
       <p style="margin:0;color:#475569;font-size:13px;">
-        Assim que ativar o plano PRO, você desbloqueia diagnósticos do Mobi, precificação automática e pode responder às marcas direto pela plataforma.
+        Assim que ativar o Plano Agência, você desbloqueia diagnósticos do Mobi, precificação automática e pode responder às marcas direto pela plataforma.
       </p>
     </div>
   `;

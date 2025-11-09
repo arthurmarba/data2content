@@ -22,7 +22,7 @@ const DEFAULT_MEDIA = {
 const TestimonialSpotlight: React.FC<TestimonialSpotlightProps> = ({
   quote = DEFAULT_QUOTE,
   authorName = "Lívia Linhares",
-  authorRole = "criadora e membro PRO",
+  authorRole = "criadora e membro Plano Agência",
   mediaKitUrl = "/signup",
 }) => {
   return (

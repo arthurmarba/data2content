@@ -41,14 +41,14 @@ export default function WhatsAppUpsellPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">WhatsApp IA PRO</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">WhatsApp IA Plano Agência</h1>
         <p className="mt-1 text-sm text-gray-600">
           Assine e ative um consultor que monitora sua performance, envia alertas e recomendações no seu WhatsApp.
         </p>
       </div>
 
       <div className="mb-5 rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="mb-2 text-lg font-medium text-gray-800">Vantagens do PRO</h2>
+        <h2 className="mb-2 text-lg font-medium text-gray-800">Vantagens do Plano Agência</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
           <li>Alertas proativos de performance e oportunidades de conteúdo.</li>
           <li>Resumo semanal automático com destaques e prioridades.</li>

@@ -121,7 +121,7 @@ export default function StrategicReportInline() {
 
               <div className="rounded-2xl border border-white/60 bg-white/95 px-5 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.1)]">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-brand-purple">
-                  <span aria-hidden="true">👀</span> Peek do modo PRO
+                  <span aria-hidden="true">👀</span> Peek do Modo Agência
                 </div>
                 <p className="mt-3 text-sm font-semibold text-slate-900">
                   Categorias que mais puxam crescimento nas últimas semanas
@@ -137,8 +137,8 @@ export default function StrategicReportInline() {
                   ))}
                 </div>
                 <p className="sr-only">
-                  Prévia borrada das categorias de maior crescimento — disponível ao ativar o modo
-                  PRO.
+                  Prévia borrada das categorias de maior crescimento — disponível ao ativar o Modo
+                  Agência.
                 </p>
                 <p className="mt-3 text-xs text-slate-600">
                   Reels ↑ +22% com essas categorias. Ative 48h de trial para ver o porquê, dias ideais

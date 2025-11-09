@@ -173,7 +173,7 @@ Pergunta: "${String(query)}"`;
         const effectivePlan = planFromSession || planFromDb;
         if (!isActiveLike(effectivePlan)) {
           cta = {
-            label: 'Seja PRO e receba alertas diários via WhatsApp',
+            label: 'Entre no Plano Agência e receba alertas diários via WhatsApp',
             action: 'go_to_billing',
           };
         }

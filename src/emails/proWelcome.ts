@@ -14,29 +14,29 @@ export function proWelcomeEmail({
 
   const intervalLabel =
     planInterval === "year"
-      ? "associação anual"
+      ? "assinatura anual do Plano Agência"
       : planInterval === "month"
-      ? "assinatura mensal"
-      : "assinatura PRO";
+      ? "assinatura mensal do Plano Agência"
+      : "assinatura do Plano Agência";
 
   const subject = "Desbloqueie sua primeira resposta com IA hoje";
 
   const steps = [
     "Abra uma proposta e peça a faixa justa recomendada pelo Mobi.",
     "Use o texto sugerido e envie o e-mail pela própria plataforma em 1 clique.",
-    "Visite o Planner PRO para descobrir tendências e agendar slots com IA.",
+    "Visite o Planner Agência para descobrir tendências e agendar slots com IA.",
   ];
 
   const text = [
     `${greeting}`,
     "",
-    `Sua ${intervalLabel} da Data2Content está ativa. A partir de agora o PRO cuida da negociação, precificação e planejamento com você.`,
+    `Sua ${intervalLabel} da Data2Content está ativa. A partir de agora o Plano Agência cuida da negociação, precificação e planejamento com você.`,
     "",
     "Comece com estes passos rápidos:",
     ...steps.map((step) => `- ${step}`),
     "",
     `• Abrir Campanhas com IA: ${campaignsUrl}`,
-    `• Acessar o Planner PRO: ${plannerUrl}`,
+    `• Acessar o Planner Agência: ${plannerUrl}`,
     "",
     "Precisa ajustar a forma de pagamento ou rever a nota fiscal? Tudo fica disponível em Billing.",
     billingUrl,
@@ -47,7 +47,7 @@ export function proWelcomeEmail({
 
   const html = `
     <p>${greeting}</p>
-    <p>Sua <strong>${intervalLabel}</strong> da Data2Content está ativa. A partir de agora o PRO cuida da negociação, da faixa justa e do planejamento junto com você.</p>
+    <p>Sua <strong>${intervalLabel}</strong> da Data2Content está ativa. A partir de agora o Plano Agência cuida da negociação, da faixa justa e do planejamento junto com você.</p>
     <p>Comece com estes passos rápidos:</p>
     <ol style="padding-left:18px;margin:12px 0;">
       ${steps.map((step) => `<li style="margin-bottom:6px;">${step}</li>`).join("")}
@@ -57,7 +57,7 @@ export function proWelcomeEmail({
         Abrir Campanhas com IA
       </a>
       <a href="${plannerUrl}" style="display:inline-block;padding:12px 18px;border:1px solid #0f172a;color:#0f172a;border-radius:999px;font-weight:600;text-decoration:none;">
-        Acessar Planner PRO
+        Acessar Planner Agência
       </a>
     </p>
     <p style="margin-top:16px;">Precisa ajustar a forma de pagamento ou recuperar recibos? Visite o <a href="${billingUrl}" style="color:#0f172a;font-weight:600;">painel de Billing</a>.</p>

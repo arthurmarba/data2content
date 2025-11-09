@@ -184,14 +184,14 @@ export default function ProposalsClient() {
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess);
   const isBillingLoading = Boolean(billingStatus.isLoading);
   const canInteract = hasProAccess && !isBillingLoading;
-  const upgradeMessage = 'Responder pela plataforma é PRO.';
+  const upgradeMessage = 'Responder pela plataforma faz parte do Plano Agência.';
   const upgradeSubtitle =
-    'Ative o PRO para enviar com IA em 1 clique e negociar com a faixa justa automática.';
-  const tooltipAnalyzePro = 'Disponível no PRO: análise com IA e faixa justa automática.';
+    'Ative o Plano Agência para enviar com IA em 1 clique e negociar com a faixa justa automática.';
+  const tooltipAnalyzePro = 'Disponível no Plano Agência: análise com IA e faixa justa automática.';
   const showUpgradeToast = useCallback(() => {
     toast({
       variant: 'info',
-      title: 'Recurso exclusivo do plano PRO',
+      title: 'Recurso exclusivo do Plano Agência',
       description: upgradeMessage,
     });
   }, [toast, upgradeMessage]);
@@ -952,7 +952,7 @@ export default function ProposalsClient() {
                   Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
                 </p>
                 <p className="text-xs text-gray-500">
-                  Assinantes PRO também recebem propostas enviadas direto pela plataforma quando o link do mídia kit está na bio.
+                  Assinantes do Plano Agência também recebem propostas enviadas direto pela plataforma quando o link do mídia kit está na bio.
                 </p>
               </div>
               <button
@@ -1225,13 +1225,13 @@ export default function ProposalsClient() {
               <div className="space-y-1">
                 <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
                   <span aria-hidden>🤖</span>
-                  Recurso exclusivo PRO
+                  Recurso exclusivo Plano Agência
                 </span>
                 <h2 className="text-lg font-semibold text-gray-900">
                   Responda e negocie direto pela plataforma
                 </h2>
                 <p className="text-sm text-gray-600">
-                  Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o plano PRO.
+                  Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o Plano Agência.
                 </p>
               </div>
               <div className="flex w-full flex-col sm:w-auto sm:items-end">
@@ -1405,7 +1405,7 @@ export default function ProposalsClient() {
                     ? analysisLoading
                       ? 'Consultando Mobi...'
                       : 'Analisar com IA'
-                    : 'Analisar com IA (PRO)'}
+                    : 'Analisar com IA (Plano Agência)'}
                 </button>
               </div>
 
@@ -1474,7 +1474,7 @@ export default function ProposalsClient() {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                       <Lock className="h-4 w-4 text-gray-500" />
-                      Responder com IA (PRO)
+                      Responder com IA (Plano Agência)
                     </div>
                     {selectedProposal.lastResponseAt ? (
                       <span className="text-xs text-gray-500">
@@ -1483,7 +1483,7 @@ export default function ProposalsClient() {
                     ) : null}
                   </div>
                   <p className="mt-2 text-xs text-gray-500">
-                    Assine o PRO para liberar texto sugerido e envio direto para {selectedProposal.contactEmail}.
+                    Assine o Plano Agência para liberar texto sugerido e envio direto para {selectedProposal.contactEmail}.
                   </p>
                   <button
                     type="button"

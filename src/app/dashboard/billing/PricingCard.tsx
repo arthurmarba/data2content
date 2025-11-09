@@ -94,7 +94,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
     }
   }
 
-  // Inicia o modo PRO gratuito de 48h
+  // Inicia o modo Agência gratuito de 48h
   async function handleStartTrial() {
     if (!current) return;
     if (hasPremiumAccess || isTrialActive) {
@@ -124,12 +124,12 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       if (!res.ok) {
         const code = json?.code;
         if (code === "INSTAGRAM_REQUIRED") {
-          setErrorMsg(json?.message || "Conecte seu Instagram para ativar o modo PRO.");
+          setErrorMsg(json?.message || "Conecte seu Instagram para ativar o modo Agência.");
           return;
         }
         if (code === "TRIAL_ALREADY_ACTIVE") {
           await refetchBillingStatus();
-          setErrorMsg("Seu modo PRO já está ativo.");
+          setErrorMsg("Seu modo Agência já está ativo.");
           return;
         }
         if (code === "TRIAL_NOT_AVAILABLE" || code === "TRIAL_UNAVAILABLE") {

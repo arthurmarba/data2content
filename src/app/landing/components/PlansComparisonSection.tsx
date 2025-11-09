@@ -50,7 +50,7 @@ const features: FeatureRow[] = [
     pro: { status: "yes", label: "Sim" },
   },
   {
-    feature: "Participar das reuniões estratégicas semanais (VIP PRO)",
+    feature: "Participar das reuniões estratégicas semanais (VIP Plano Agência)",
     free: { status: "no", label: "Não disponível" },
     pro: { status: "yes", label: "Sim" },
   },
@@ -135,7 +135,7 @@ const PLAN_PRICING = {
     description: "Para entrar na comunidade e ganhar visibilidade com dados reais.",
   },
   pro: {
-    label: "Plano PRO ⭐",
+    label: "Plano Agência ⭐",
     price: "R$ 49,90",
     cadence: "/ mês",
     secondary: "ou R$ 350 / ano",
@@ -199,7 +199,7 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
 
           <div className="rounded-3xl border border-brand-glass bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
             <p className="text-eyebrow text-brand-magenta-bright">
-              Benefícios exclusivos do PRO ⭐
+              Benefícios exclusivos do Plano Agência ⭐
             </p>
             <ul className="mt-5 space-y-4 text-sm leading-normal text-brand-dark md:text-base">
               {PRO_PLAN_BENEFITS.map((item) => {
@@ -243,7 +243,7 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                     Gratuito
                   </th>
                   <th scope="col" className="px-6 py-5 text-center text-brand-dark md:px-8">
-                    Plano PRO
+                    Plano Agência
                   </th>
                 </tr>
               </thead>

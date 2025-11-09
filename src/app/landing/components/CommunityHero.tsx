@@ -492,7 +492,7 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
                 <div className="flex items-center gap-3">
                   <span aria-hidden="true" className="h-8 w-1 rounded-full bg-[#F6007B]" />
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#F6007B]">
-                    💎 Comunidade PRO
+                    💎 Comunidade Plano Agência
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-[#F6007B] drop-shadow-[0_0_12px_rgba(246,0,123,0.35)]">
@@ -503,7 +503,7 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
                 <strong className="font-semibold text-[#1A1A1A]">Crescimento estratégico</strong> guiado por dados reais
               </h3>
               <p className="text-sm text-[#555555]">
-                <strong className="font-semibold text-[#1A1A1A]">Quando a constância vira estratégia.</strong> O PRO é a evolução natural de quem já encontrou seu ritmo e quer decisões baseadas em dados reais.
+                <strong className="font-semibold text-[#1A1A1A]">Quando a constância vira estratégia.</strong> O Plano Agência é a evolução natural de quem já encontrou seu ritmo e quer decisões baseadas em dados reais.
               </p>
             </div>
             <div className="mt-6 flex-1 space-y-7 text-sm text-[#555555] md:text-base">

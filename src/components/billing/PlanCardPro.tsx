@@ -322,7 +322,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       return;
     }
     if (isTrialActive) {
-      setError('Seu modo PRO já está liberado.');
+      setError('Seu modo Agência já está liberado.');
       return;
     }
     try {
@@ -341,12 +341,12 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       if (!res.ok) {
         const code = json?.code;
         if (code === 'INSTAGRAM_REQUIRED') {
-          setError(json?.message || 'Conecte seu Instagram para iniciar o modo PRO.');
+          setError(json?.message || 'Conecte seu Instagram para iniciar o modo Agência.');
           return;
         }
         if (code === 'TRIAL_ALREADY_ACTIVE') {
           await refetchBillingStatus();
-          setError('Seu modo PRO já está ativo.');
+          setError('Seu modo Agência já está ativo.');
           return;
         }
         if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') {

@@ -70,7 +70,7 @@ test('free user sees calculator lock and triggers upgrade tracking', () => {
   render(<CalculatorClient />);
 
   expect(
-    screen.getByText('Calculadora de Publi liberada apenas para assinantes PRO')
+    screen.getByText('Calculadora de Publi liberada apenas para assinantes do Plano Agência')
   ).toBeInTheDocument();
   expect(track).toHaveBeenCalledWith('pro_feature_locked_viewed', {
     feature: 'calculator',
@@ -135,7 +135,7 @@ test('pro user can submit calculator and view results', async () => {
   render(<CalculatorClient />);
 
   expect(
-    screen.queryByText('Calculadora de Publi liberada apenas para assinantes PRO')
+    screen.queryByText('Calculadora de Publi liberada apenas para assinantes do Plano Agência')
   ).toBeNull();
 
   fireEvent.submit(screen.getByRole('button', { name: /Calcular valores/i }).closest('form')!);

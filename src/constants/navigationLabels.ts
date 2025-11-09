@@ -23,8 +23,8 @@ export const navigationLabels = {
     tooltip: "Monte seu calendário com IA",
   },
   pro: {
-    menu: "PRO",
-    tooltip: "Desbloquear PRO",
+    menu: "Plano Agência",
+    tooltip: "Desbloquear Plano Agência",
   },
   affiliates: {
     menu: "Indique e Ganhe",

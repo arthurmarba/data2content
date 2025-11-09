@@ -116,27 +116,27 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           disabled: isLoading,
         };
       case "reactivate_plan":
-        return {
-          state,
-          kind: "action",
-          label: "Reativar plano PRO",
-          description: "Volte a receber análises automáticas e recomendações em tempo real.",
-          stageLabel: "Recupere o acesso PRO",
-          step: 4,
-          totalSteps,
-          onPress: openSubscribeModal,
+      return {
+        state,
+        kind: "action",
+        label: "Reativar Plano Agência",
+        description: "Volte a receber análises automáticas e recomendações em tempo real.",
+        stageLabel: "Recupere o acesso ao Plano Agência",
+        step: 4,
+        totalSteps,
+        onPress: openSubscribeModal,
           disabled: isLoading,
         };
       case "subscribe":
-        return {
-          state,
-          kind: "action",
-          label: "Assinar PRO",
-          description: "Ative a IA ilimitada, análises comparativas e benchmarks do seu segmento.",
-          stageLabel: "Completar acesso PRO",
-          step: 4,
-          totalSteps,
-          onPress: openSubscribeModal,
+      return {
+        state,
+        kind: "action",
+        label: "Assinar Plano Agência",
+        description: "Ative a IA ilimitada, análises comparativas e benchmarks do seu segmento.",
+        stageLabel: "Completar acesso ao Plano Agência",
+        step: 4,
+        totalSteps,
+        onPress: openSubscribeModal,
           disabled: isLoading,
         };
       case "trial_active":
@@ -152,16 +152,16 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
         };
       case "plan_active":
       default:
-        return {
-          state,
-          kind: "status",
-          label: "Plano PRO ativo",
-          statusLabel: "Plano PRO ativo",
-          description: "Continue usando ideias avançadas, horários vencedores e benchmarks do seu nicho.",
-          stageLabel: "Plano PRO ativo",
-          step: 4,
-          totalSteps,
-        };
+      return {
+        state,
+        kind: "status",
+        label: "Plano Agência ativo",
+        statusLabel: "Plano Agência ativo",
+        description: "Continue usando ideias avançadas, horários vencedores e benchmarks do seu nicho.",
+        stageLabel: "Plano Agência ativo",
+        step: 4,
+        totalSteps,
+      };
     }
   }, [state, countdownLabel, isLoading]);
 }

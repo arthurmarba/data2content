@@ -151,7 +151,7 @@ export default function CalculatorClient() {
   const handleLockedAccess = (source: string = "cta") => {
     toast({
       variant: "info",
-      title: "Recurso exclusivo do plano PRO",
+      title: "Recurso exclusivo do Plano Agência",
       description: upgradeMessage,
     });
     track("pro_feature_upgrade_clicked", {
@@ -313,7 +313,7 @@ export default function CalculatorClient() {
           <FaChartLine className="h-3.5 w-3.5" />
           Calculadora de Publi
           <span className="inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pink-700">
-            PRO
+            AGÊNCIA
           </span>
         </div>
         <h1 className="text-3xl font-bold text-gray-900">
@@ -342,10 +342,10 @@ export default function CalculatorClient() {
               <div>
                 <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
                   <span aria-hidden>📊</span>
-                  Recurso exclusivo PRO
+                  Recurso exclusivo Plano Agência
                 </span>
                 <h2 className="mt-2 text-lg font-semibold text-gray-900">
-                  Calculadora de Publi liberada apenas para assinantes PRO
+                  Calculadora de Publi liberada apenas para assinantes do Plano Agência
                 </h2>
                 <p className="text-sm text-gray-600">
                   Descubra o valor ideal da sua publi com base nas suas métricas reais e histórico de contratos, com sugestão automática do Mobi.

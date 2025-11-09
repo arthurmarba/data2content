@@ -29,7 +29,7 @@ const VIP_BENEFITS = [
   {
     title: "Sala reservada com acompanhamento do Mobi",
     description:
-      "Calendários personalizados, checkpoints e planos de ação guiados pelo estrategista de bolso e time PRO.",
+      "Calendários personalizados, checkpoints e planos de ação guiados pelo estrategista de bolso e time Plano Agência.",
   },
   {
     title: "Alertas premium e nudges de consistência",
@@ -49,7 +49,7 @@ export const CommunityBenefitsSection: React.FC = () => (
           A comunidade impulsionada pela IA — e o salto que o Grupo VIP oferece
         </h2>
         <p className="text-base leading-relaxed text-brand-text-secondary md:text-lg">
-          A comunidade aberta usa a IA Mobi para direcionar sua rotina de criação. No Grupo VIP (Plano PRO), a mesma IA se
+          A comunidade aberta usa a IA Mobi para direcionar sua rotina de criação. No Grupo VIP (Plano Agência), a mesma IA se
           une a mentorias estratégicas semanais para acelerar seus resultados com acompanhamento de perto.
         </p>
       </div>
@@ -69,7 +69,7 @@ export const CommunityBenefitsSection: React.FC = () => (
 
         <div className="flex flex-col gap-4 rounded-3xl border border-brand-red/20 bg-gradient-to-br from-brand-pink/10 via-brand-purple/5 to-white p-6 shadow-sm transition hover:border-brand-red/40 hover:shadow-xl">
           <p className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-brand-purple md:text-sm">
-            Grupo VIP (Plano PRO)
+            Grupo VIP (Plano Agência)
           </p>
           {VIP_BENEFITS.map((benefit) => (
             <div
@@ -81,7 +81,7 @@ export const CommunityBenefitsSection: React.FC = () => (
             </div>
           ))}
           <div className="mt-2 text-sm text-brand-purple/70 md:text-base">
-            *Disponível para assinantes PRO ou durante o trial. Inclui acesso prioritário às mentorias semanais e materiais de apoio exclusivos.
+            *Disponível para assinantes do Plano Agência ou durante o trial. Inclui acesso prioritário às mentorias semanais e materiais de apoio exclusivos.
           </div>
         </div>
       </div>

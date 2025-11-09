@@ -103,8 +103,8 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         const code = body?.code;
         if (code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
         if (code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
-        if (code === 'INSTAGRAM_REQUIRED') { setError(body?.message ?? 'Conecte seu Instagram para ativar o modo PRO.'); return; }
-        if (code === 'TRIAL_ALREADY_ACTIVE') { await refetchBillingStatus(); setError('Seu modo PRO já está ativo.'); return; }
+        if (code === 'INSTAGRAM_REQUIRED') { setError(body?.message ?? 'Conecte seu Instagram para ativar o modo Agência.'); return; }
+        if (code === 'TRIAL_ALREADY_ACTIVE') { await refetchBillingStatus(); setError('Seu modo Agência já está ativo.'); return; }
         if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') { setError(body?.message ?? 'O período de testes já foi utilizado nesta conta.'); return; }
         throw new Error(body?.error || body?.message || 'Falha ao iniciar teste gratuito');
       }

@@ -194,7 +194,7 @@ const JOURNEY_STEP_COPY: Record<JourneyStepId, { title: string; description: str
     helper: "Contamos acessos reais ao kit para marcar como concluído.",
   },
   activate_pro: {
-    title: "Ative PRO",
+    title: "Ative o Plano Agência",
     description: "Desbloqueie IA ilimitada e WhatsApp.",
   },
 };
@@ -257,7 +257,7 @@ function buildJourneyProgress({
   let highlightMessage: string | null;
   const pendingSteps = totalSteps - completedCount;
   if (pendingSteps === 0) {
-    highlightMessage = "✨ PRO ativo — negocie campanhas com IA";
+    highlightMessage = "✨ Plano Agência ativo — negocie campanhas com IA";
   } else if (pendingSteps === 1) {
     highlightMessage = "🚀 Falta 1 passo para liberar propostas com IA";
   } else {

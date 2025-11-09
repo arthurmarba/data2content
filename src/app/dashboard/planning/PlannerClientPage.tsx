@@ -163,7 +163,7 @@ export default function PlannerClientPage() {
         <ContentPlannerSection
           userId={userId}
           publicMode={false}
-          title="Seu plano da semana (PRO)"
+          title="Seu plano da semana (Plano Agência)"
           description="Consistência melhora sua faixa justa e a taxa de aceite nas propostas. Ajuste a semana com as sugestões da IA."
           initialSlotId={initialSlotId}
           onInitialSlotConsumed={() => {

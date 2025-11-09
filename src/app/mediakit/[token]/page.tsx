@@ -121,10 +121,10 @@ async function fetchSummary(baseUrl: string, userId: string): Promise<Performanc
   }
 }
 
-/** Busca os posts de melhor performance (Top 5 por views). */ // ALTERADO
+/** Busca os posts de melhor performance (Top 10 por views). */ // ALTERADO
 async function fetchTopPosts(baseUrl: string, userId: string): Promise<VideoListItem[]> { // ALTERADO
   try {
-    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { cache: 'no-store' });
+    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=10`, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[MediaKitPage] Falha ao buscar top posts: ${res.status}`); // ALTERADO
       return [];

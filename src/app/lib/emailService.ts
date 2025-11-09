@@ -90,9 +90,9 @@ export async function sendProWelcomeEmail(
       text: template.text,
       html: template.html,
     });
-    logger.info(`[emailService] Boas-vindas PRO enviada para ${to}`);
+    logger.info(`[emailService] Boas-vindas Plano Agência enviada para ${to}`);
   } catch (err) {
-    logger.error('[emailService] Falha ao enviar boas-vindas PRO', err);
+    logger.error('[emailService] Falha ao enviar boas-vindas Plano Agência', err);
   }
 }
 

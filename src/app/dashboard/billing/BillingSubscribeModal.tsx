@@ -48,12 +48,13 @@ type PaywallCopy = {
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
     title: "Receba alertas e oportunidades diárias no seu WhatsApp",
-    subtitle: "Ative o PRO para transformar sua IA em um estrategista que planeja, analisa e negocia com você.",
+    subtitle:
+      "Ative o Plano Agência para transformar sua IA em um estrategista que planeja, analisa e negocia com você.",
     bullets: FEATURES,
-    ctaLabel: "Ativar PRO",
+    ctaLabel: "Ativar Plano Agência",
   },
   reply_email: {
-    title: "Responder e receber campanhas é PRO.",
+    title: "Responder e receber campanhas faz parte do Plano Agência.",
     subtitle:
       "Receba propostas direto pela plataforma e responda com IA em 1 clique usando a faixa justa automática.",
     bullets: [
@@ -64,28 +65,28 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ctaLabel: "Desbloquear IA",
   },
   ai_analysis: {
-    title: "Análise com IA é PRO.",
+    title: "Análise com IA é Plano Agência.",
     subtitle: "Descubra a faixa justa ideal e receba a recomendação do Mobi em segundos.",
     bullets: ["Faixa justa baseada nas suas métricas", "Sugestão objetiva (aceitar/ajustar/extra)"],
-    ctaLabel: "Ativar PRO",
+    ctaLabel: "Ativar Plano Agência",
   },
   calculator: {
-    title: "Calculadora de Publi é PRO.",
+    title: "Calculadora de Publi faz parte do Plano Agência.",
     subtitle: "Receba faixas de preço estratégicas, justas e premium geradas a partir das suas métricas reais.",
     bullets: ["Faixa estratégica, justa e premium automáticas", "Multiplicadores calibrados pelo seu desempenho"],
-    ctaLabel: "Ativar PRO",
+    ctaLabel: "Ativar Plano Agência",
   },
   planning: {
-    title: "Planejamento com IA é PRO.",
+    title: "Planejamento com IA é exclusivo do Plano Agência.",
     subtitle: "Descubra o que postar com o planner da IA, libere a área de descobertas da comunidade e receba alertas diários no WhatsApp.",
     bullets: [
       "Planner com horários, formatos e previsões otimizadas",
-      "Descoberta da Comunidade com referências e benchmarks PRO",
+      "Descoberta da Comunidade com referências e benchmarks do Plano Agência",
       "Mentorias semanais do Grupo VIP para ajustar sua estratégia",
       "Receba oportunidades de campanha e trate como um agenciado sem exclusividade",
       "WhatsApp IA com alertas diários de oportunidades",
     ],
-    ctaLabel: "Desbloquear Planejamento PRO",
+    ctaLabel: "Desbloquear Planejamento Plano Agência",
   },
   whatsapp: {
     title: "Conecte a IA direto no WhatsApp.",
@@ -95,7 +96,7 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
       "Diagnóstico automático do Instagram",
       "Alertas sobre campanhas e valores justos",
     ],
-    ctaLabel: "Ativar PRO",
+    ctaLabel: "Ativar Plano Agência",
   },
 };
 
@@ -142,7 +143,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const effectiveContext = context ?? "default";
   const paywallCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const bulletItems = paywallCopy.bullets && paywallCopy.bullets.length > 0 ? paywallCopy.bullets : FEATURES;
-  const primaryCtaLabel = paywallCopy.ctaLabel || "Ativar PRO";
+  const primaryCtaLabel = paywallCopy.ctaLabel || "Ativar Plano Agência";
   const isDefaultContext = effectiveContext === "default";
 
   // Fecha com ESC
@@ -720,7 +721,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
               >
-                Conhecer o PRO
+                Conhecer o Plano Agência
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </button>
 

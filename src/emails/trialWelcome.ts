@@ -11,11 +11,11 @@ export function trialWelcomeEmail({
   });
   const greeting = name ? `Olá, ${name}!` : "Olá!";
 
-  const subject = "Você ganhou 48h de acesso PRO — aproveite agora";
+  const subject = "Você ganhou 48h no Plano Agência — aproveite agora";
   const ctaUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai"}/media-kit`;
   const whatsappUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai"}/planning/whatsapp`;
 
-  const intro = `${greeting}\n\nVocê acabou de liberar o Modo PRO da Data2Content por 48 horas. Durante esse período, além da comunidade aberta, você também tem acesso completo ao <Grupo VIP> — mentorias estratégicas semanais, salas reservadas e alertas premium no WhatsApp.`;
+  const intro = `${greeting}\n\nVocê acabou de liberar o Modo Agência da Data2Content por 48 horas. Durante esse período, além da comunidade aberta, você também tem acesso completo ao <Grupo VIP> — mentorias estratégicas semanais, salas reservadas e alertas premium no WhatsApp.`;
 
   const stepsText = [
     "- Veja o seu Mídia Kit automático com insights de desempenho.",
@@ -30,7 +30,7 @@ export function trialWelcomeEmail({
 
   const html = `
   <p>${greeting}</p>
-  <p>Você acabou de liberar o <strong>Modo PRO</strong> da Data2Content por 48 horas. Durante esse período, além da comunidade aberta, você também tem acesso completo ao <strong>Grupo VIP</strong>: mentorias estratégicas semanais, salas reservadas e alertas premium no WhatsApp.</p>
+  <p>Você acabou de liberar o <strong>Modo Agência</strong> da Data2Content por 48 horas. Durante esse período, além da comunidade aberta, você também tem acesso completo ao <strong>Grupo VIP</strong>: mentorias estratégicas semanais, salas reservadas e alertas premium no WhatsApp.</p>
   <p>Comece por aqui:</p>
   <ul>
     <li><strong>Veja o seu Mídia Kit automático</strong> com insights frescos.</li>

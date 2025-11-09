@@ -12,7 +12,7 @@ interface WhatsAppPanelProps {
   canAccessFeatures: boolean;
   onActionRedirect: () => void;
   showToast: (message: string, type?: "info" | "warning" | "success" | "error") => void;
-  upsellOnly?: boolean; // quando true, renderiza apenas o upsell PRO
+  upsellOnly?: boolean; // quando true, renderiza apenas o upsell Plano Agência
 }
 
 export default function WhatsAppPanel({
@@ -121,7 +121,7 @@ export default function WhatsAppPanel({
     return () => clearInterval(intervalId);
   }, [expiresAt]);
 
-  // U P S E L L  –  quando não há acesso ou upsellOnly=true, mostra cartão de vendas PRO
+  // U P S E L L  –  quando não há acesso ou upsellOnly=true, mostra cartão de vendas Plano Agência
   if (!canAccessFeatures || upsellOnly) {
     const origin = upsellOnly ? "upsell_only" : "panel";
     const previewMessages = [
@@ -144,7 +144,7 @@ export default function WhatsAppPanel({
         <div className="flex items-center gap-3">
           <FaWhatsapp className="h-10 w-10 text-emerald-500" aria-hidden />
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">WhatsApp IA PRO</h3>
+            <h3 className="text-lg font-semibold text-slate-900">WhatsApp IA Plano Agência</h3>
             <p className="text-sm text-slate-600">
               Diagnósticos e ideias no seu WhatsApp (sem disparar lembretes automáticos).
             </p>
@@ -179,7 +179,7 @@ export default function WhatsAppPanel({
             ))}
           </div>
           <p className="sr-only">
-            Prévia borrada das mensagens que você recebe no WhatsApp IA PRO; disponível com o trial de 48h.
+            Prévia borrada das mensagens que você recebe no WhatsApp IA Plano Agência; disponível com o trial de 48h.
           </p>
           <p className="mt-3 text-xs text-slate-500">
             Ative 48h grátis para ver diagnósticos completos e puxar insights sob demanda sempre que precisar.
@@ -252,7 +252,7 @@ export default function WhatsAppPanel({
         <div className="flex items-center gap-3">
           <FaWhatsapp className="w-10 h-10 text-green-500" />
           <div>
-            <h3 className="font-semibold text-lg text-gray-800">WhatsApp IA PRO</h3>
+            <h3 className="font-semibold text-lg text-gray-800">WhatsApp IA Plano Agência</h3>
             <p className="text-sm text-gray-500 mt-1">
               Diagnósticos e ideias no seu WhatsApp (sem disparar lembretes automáticos).
             </p>

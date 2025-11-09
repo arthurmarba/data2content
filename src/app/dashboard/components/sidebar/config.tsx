@@ -54,8 +54,8 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
       {
         type: "item",
         key: "pro",
-        label: "Plano PRO",
-        tooltip: "Benefícios, preços e fluxos do PRO",
+        label: "Plano Agência",
+        tooltip: "Benefícios, preços e fluxos do Plano Agência",
         href: "/pro",
         icon: <Crown className="h-5 w-5 text-brand-magenta" />,
       },

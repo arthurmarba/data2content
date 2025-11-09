@@ -33,12 +33,12 @@ export function paymentFailureEmail({
       })}.`
     : "Faça a atualização assim que possível para evitar interrupções no acesso.";
 
-  const subject = "Falha no pagamento da sua assinatura PRO";
+  const subject = "Falha no pagamento da sua assinatura do Plano Agência";
 
   const text = [
     `${greeting}`,
     "",
-    `Não conseguimos processar o pagamento de ${formattedAmount} referente à sua assinatura PRO.`,
+    `Não conseguimos processar o pagamento de ${formattedAmount} referente à sua assinatura do Plano Agência.`,
     hostedInvoiceUrl ? `Visualize a fatura: ${hostedInvoiceUrl}` : "",
     "",
     "É só atualizar o cartão ou escolher outro método dentro do painel de Billing.",
@@ -58,7 +58,7 @@ export function paymentFailureEmail({
 
   const html = `
     <p>${greeting}</p>
-    <p>Não conseguimos processar o pagamento de <strong>${formattedAmount}</strong> referente à sua assinatura PRO.</p>
+    <p>Não conseguimos processar o pagamento de <strong>${formattedAmount}</strong> referente à sua assinatura do Plano Agência.</p>
     ${
       invoiceLink
         ? `<p>${invoiceLink}</p>`

@@ -37,20 +37,20 @@ export default function PlanningLockedView() {
     } catch {
       /* ignore */
     }
-  }, []); // Dispara modal assim que o usuário tenta acessar a área PRO
+  }, []); // Dispara modal assim que o usuário tenta acessar a área Plano Agência
 
   return (
     <main className="w-full max-w-none pb-12">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <section className="rounded-3xl border border-slate-200 bg-white px-6 py-10 text-center shadow-sm sm:px-10">
           <div className="mx-auto flex w-fit items-center gap-2 rounded-full bg-brand-magenta/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-magenta">
-            <Sparkles className="h-4 w-4" aria-hidden="true" /> Planejamento PRO
+            <Sparkles className="h-4 w-4" aria-hidden="true" /> Planejamento Plano Agência
           </div>
           <h1 className="mt-5 text-2xl font-semibold text-slate-900 sm:text-3xl">
             {planningEmptyState.title}
           </h1>
           <p className="mt-3 text-sm text-slate-600 sm:text-base">
-            Planejamento é PRO: gere horários com IA e mantenha constância para fechar melhor.
+            Planejamento faz parte do Plano Agência: gere horários com IA e mantenha constância para fechar melhor.
           </p>
 
           <ul className="mt-8 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">

@@ -1,7 +1,7 @@
 export const emptyStates = {
   campaigns: {
     title: "Sem propostas por aqui (ainda)",
-    description: "Para responder pela plataforma e negociar com IA, ative o PRO.",
+    description: "Para responder pela plataforma e negociar com IA, ative o Plano Agência.",
     ctaLabel: "Copiar link do Mídia Kit",
   },
   mediaKit: {
@@ -10,13 +10,13 @@ export const emptyStates = {
     ctaLabel: "Começar agora",
   },
   planning: {
-    title: "Planejamento é PRO",
+    title: "Planejamento faz parte do Plano Agência",
     bullets: [
       "Descoberta de tendências",
       "Planner com IA",
       "IA no WhatsApp",
     ],
-    ctaLabel: "Desbloquear PRO",
+    ctaLabel: "Desbloquear Plano Agência",
   },
 } as const;
 export type EmptyStateKey = keyof typeof emptyStates;

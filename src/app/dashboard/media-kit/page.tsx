@@ -251,7 +251,7 @@ function SelfMediaKitContent({
 
       const [summaryData, videosPayload, kpisData, demographicsData, engagementTrendData, ownerProfileData] = await Promise.all([
         safeFetch(`/api/v1/users/${userId}/highlights/performance-summary`),
-        safeFetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`),
+        safeFetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=10`),
         safeFetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`),
         safeFetch(`/api/demographics/${userId}`),
         safeFetch(`/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`),
