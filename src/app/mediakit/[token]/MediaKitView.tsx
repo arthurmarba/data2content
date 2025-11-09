@@ -1703,6 +1703,12 @@ export default function MediaKitView({
     if (affiliateCode) params.set('origin_affiliate', affiliateCode);
     return `/campaigns/new?${params.toString()}`;
   }, [affiliateCode, affiliateHandle, mediaKitSlug]);
+  const instagramProfileUrl = useMemo(() => {
+    if (!affiliateHandle) return null;
+    const normalizedHandle = affiliateHandle.replace(/^@+/, '').trim();
+    if (!normalizedHandle) return null;
+    return `https://www.instagram.com/${normalizedHandle}`;
+  }, [affiliateHandle]);
   const handleMultiCampaignCtaClick = useCallback(() => {
     track('media_kit_multi_campaign_cta_clicked', {
       slug: mediaKitSlug ?? null,
@@ -1816,8 +1822,21 @@ export default function MediaKitView({
                     <div className="space-y-1">
                       <h1 className="text-2xl font-bold sm:text-3xl">{user.name || 'Criador'}</h1>
                       <div className="flex flex-col items-center gap-1 text-sm text-gray-500 sm:flex-row sm:items-center sm:gap-2">
-                        {user.username ? <span>@{user.username}</span> : null}
-                        <span className={`${user.username ? 'hidden sm:inline' : 'hidden'} text-gray-300`}>•</span>
+                        {affiliateHandleLabel ? (
+                          instagramProfileUrl ? (
+                            <a
+                              href={instagramProfileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#6E1F93] hover:text-[#4A1370] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A3E8] rounded"
+                            >
+                              {affiliateHandleLabel}
+                            </a>
+                          ) : (
+                            <span>{affiliateHandleLabel}</span>
+                          )
+                        ) : null}
+                        <span className={`${affiliateHandleLabel ? 'hidden sm:inline' : 'hidden'} text-gray-300`}>•</span>
                         <span className="font-semibold text-[#6E1F93]">Parceiro Data2Content</span>
                       </div>
                       <p className="text-xs text-gray-500 sm:text-sm">Análises e campanhas com IA.</p>
