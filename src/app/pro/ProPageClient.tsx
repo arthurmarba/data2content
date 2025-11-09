@@ -43,7 +43,7 @@ const HERO_COPY = {
   subtitle:
     "Planner Agência, discovery da comunidade, mentorias VIP e oportunidades sem exclusividade em um só lugar.",
   helper:
-    "Conecte seu Instagram, libere o planner completo e receba propostas como um agenciado (sem contrato exclusivo).",
+    "Agências tradicionais ficam com 10%–30% da publicidade; aqui você paga só a assinatura, mantém 100% dos cachês e segue sem exclusividade.",
 };
 
 const BENEFITS = [
@@ -72,6 +72,11 @@ const BENEFITS = [
     description: "Mentorias semanais do Grupo VIP e nudges diários personalizados direto no seu WhatsApp.",
     icon: <MessageCircle className="h-5 w-5 text-brand-magenta" />,
   },
+  {
+    title: "Comissão zero",
+    description: "Agências cobram 10%–30% e exigem exclusividade; no Plano Agência você paga só a assinatura e fica com todo o valor das publis.",
+    icon: <Shield className="h-5 w-5 text-brand-magenta" />,
+  },
 ];
 
 const COMPARISON = [
@@ -81,6 +86,7 @@ const COMPARISON = [
   { feature: "Planejamento Agência (Descoberta/Planner/WhatsApp IA)", free: false, pro: true },
   { feature: "Mentorias semanais e nudges personalizados", free: false, pro: true },
   { feature: "Oportunidades de campanha sem exclusividade", free: false, pro: true },
+  { feature: "0% de comissão sobre publis (só assinatura)", free: false, pro: true },
 ];
 
 const FAQS = [
@@ -377,6 +383,9 @@ export default function ProPageClient({
             <h2 className="text-2xl font-bold text-slate-900">Compare Free vs Plano Agência</h2>
             <p className="mt-1 text-sm text-slate-600">
               Sem pegadinhas: veja o que é liberado em cada plano.
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Agências costumam reter 10%–30% por publi; no Plano Agência você paga só a assinatura e segue fechando com 100% do fee.
             </p>
           </header>
           <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">

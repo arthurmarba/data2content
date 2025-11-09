@@ -89,6 +89,9 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
       <p className="mt-2 text-sm text-slate-500">
         Conecte insights em tempo real e feche campanhas com ajuda do Mobi.
       </p>
+      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+        0% de comissão — só a assinatura fixa e sem exclusividade.
+      </p>
       <button
         type="button"
         className="mt-5 inline-flex items-center justify-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"

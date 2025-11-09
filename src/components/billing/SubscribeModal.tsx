@@ -238,6 +238,9 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
             <p className="text-gray-600 mt-2">
                 Ative o Plano Agência e transforme sua IA em um estrategista de conteúdo proativo.
             </p>
+            <p className="text-xs text-gray-500 mt-1">
+                Agências ficam com 10%–30% de comissão e pedem exclusividade; aqui você paga só a assinatura e mantém 100% das publis.
+            </p>
         </div>
         
         <div className="bg-gray-50/70 px-6 py-5 border-y border-gray-200 overflow-y-auto flex-1 min-h-0"> {/* Área rolável principal no mobile */}

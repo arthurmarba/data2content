@@ -54,6 +54,11 @@ const features: FeatureRow[] = [
     free: { status: "no", label: "Não disponível" },
     pro: { status: "yes", label: "Sim" },
   },
+  {
+    feature: "Comissão sobre publis",
+    free: { status: "limited", label: "Até 30% em agências tradicionais", note: "Comissões comem parte do cachê e costumam exigir exclusividade." },
+    pro: { status: "yes", label: "0% + sem exclusividade", note: "Pague só a assinatura e mantenha 100% do valor negociado." },
+  },
 ];
 
 const CheckIcon = () => (
@@ -157,7 +162,7 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
             Evolua no seu ritmo com o ecossistema D2C.
           </h2>
           <p className="mt-4 text-body-md font-normal text-brand-text-secondary">
-            Estruture sua carreira com dados, orientação e propostas qualificadas em um só lugar.
+            Estruture sua carreira com dados, orientação e propostas qualificadas em um só lugar — pagando só a assinatura (agências tradicionais ficam com 10–30% de comissão).
           </p>
         </div>
 

@@ -36,6 +36,7 @@ const FEATURES: string[] = [
   "Receba oportunidades de campanha como um agenciado (sem exclusividade)",
   "Relatório Avançado: categorias, formatos, dias/horas e narrativas de maior engajamento",
   "Cresça engajamento, seguidores e receita com decisões guiadas por dados",
+  "Assinatura fixa: agências cobram 10%–30% de comissão, aqui você mantém 100% das publis e continua independente.",
 ];
 
 type PaywallCopy = {

@@ -45,6 +45,9 @@ export default function WhatsAppUpsellPage() {
         <p className="mt-1 text-sm text-gray-600">
           Assine e ative um consultor que monitora sua performance, envia alertas e recomendações no seu WhatsApp.
         </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Diferente das agências que ficam com 10%–30% do cachê e pedem exclusividade, aqui você paga só a assinatura e segue livre.
+        </p>
       </div>
 
       <div className="mb-5 rounded-xl border border-gray-200 bg-white p-5">
