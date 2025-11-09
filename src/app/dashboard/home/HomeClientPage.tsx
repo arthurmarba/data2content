@@ -1625,14 +1625,15 @@ export default function HomeClientPage() {
   const mentorshipStrip = showMentorshipStrip ? (
     <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex sm:items-center sm:justify-between">
       <p className="text-sm text-slate-700">
-        <span className="font-semibold text-slate-900">✨ Mentorias semanais exclusivas.</span> Entre para receber os links.
+        <span className="font-semibold text-slate-900">✨ Mentorias semanais exclusivas do Plano Agência.</span>{" "}
+        O botão abaixo abre o grupo VIP no WhatsApp com os links das consultorias ao vivo.
       </p>
       <button
         type="button"
         onClick={handleOpenMentorshipGroup}
         className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-900 px-4 py-1.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-900 hover:text-white sm:mt-0"
       >
-        Entrar no grupo
+        Abrir grupo no WhatsApp
       </button>
     </div>
   ) : null;
