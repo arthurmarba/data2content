@@ -973,8 +973,8 @@ export default function HomeClientPage() {
         id: "progress-pro",
         title: "Plano Agência",
         description: planIsPro
-          ? "IA ilimitada, alertas constantes e relatórios automáticos já estão ativos."
-          : "Assine o Plano Agência para manter a IA ligada após o teste e receber suporte direto da equipe.",
+          ? "IA ilimitada, alertas constantes, convites de publicidade sem comissão e relatórios automáticos já estão ativos."
+          : "Assine o Plano Agência para manter a IA ligada, liberar oportunidades com marcas e receber suporte direto da equipe.",
         icon: <FaGem />,
         status: proStatus,
         actionLabel: planIsPro ? "Ver painel Agência" : "Assinar Plano Agência",
@@ -1140,7 +1140,7 @@ export default function HomeClientPage() {
 
     if (!planIsPro) {
       return {
-        subtitle: "Ative o Modo Agência para manter a IA ligada sem limites.",
+        subtitle: "Ative o Modo Agência para manter a IA ligada sem limites e receber oportunidades de publicidade sem exclusividade.",
         helper: null,
         ctaLabel: "🚀 Assinar Plano Agência",
         onClick: handleHeaderSubscribe,
@@ -1159,7 +1159,7 @@ export default function HomeClientPage() {
 
     if (planIsPro && !whatsappLinked) {
       return {
-        subtitle: "Conecte o WhatsApp para seguir recebendo alertas inteligentes.",
+        subtitle: "Conecte o WhatsApp para seguir recebendo alertas inteligentes e convites de publicidade.",
         helper: "Conexão segura em segundos.",
         ctaLabel: "🤖 Conectar WhatsApp IA",
         onClick: handleHeaderStartTrial,
@@ -1168,7 +1168,7 @@ export default function HomeClientPage() {
 
     if (planIsPro) {
       return {
-        subtitle: "Continue acompanhando seus alertas e relatórios no painel do Plano Agência.",
+        subtitle: "Continue acompanhando seus alertas, relatórios e oportunidades no painel do Plano Agência.",
         helper: null,
         ctaLabel: "📊 Abrir painel Plano Agência",
         onClick: () => handleNavigate("/dashboard"),

@@ -195,7 +195,7 @@ const JOURNEY_STEP_COPY: Record<JourneyStepId, { title: string; description: str
   },
   activate_pro: {
     title: "Ative o Plano Agência",
-    description: "Desbloqueie IA ilimitada e WhatsApp.",
+    description: "Desbloqueie IA ilimitada, WhatsApp estrategista e receba oportunidades de publicidade sem comissão.",
   },
 };
 
