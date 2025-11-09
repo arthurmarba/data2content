@@ -14,6 +14,8 @@ const LINK_TOKEN_EXPIRY_MINUTES = 60;
 export async function POST(request: Request) {
   const TAG = '[API /iniciar-vinculacao-fb]';
   logger.info(`${TAG} Recebida requisição POST.`);
+  const start = Date.now();
+  let userIdForLog: string | null = null;
 
   try {
     // 1. Obter a sessão do usuário
@@ -27,6 +29,7 @@ export async function POST(request: Request) {
     }
 
     const userId = session.user.id;
+    userIdForLog = userId;
     logger.debug(`${TAG} Sessão válida encontrada para User ID: ${userId}`);
 
     // 2. Gerar token seguro e data de expiração
@@ -71,10 +74,14 @@ export async function POST(request: Request) {
     logger.info(`${TAG} Cookie 'auth-link-token' definido com sucesso.`);
 
     // 6. Retornar sucesso
+    logger.info(`${TAG} Fluxo concluído em ${Date.now() - start}ms para User ${userId}.`);
     return NextResponse.json({ message: 'Iniciação de vinculação bem-sucedida.' }, { status: 200 });
 
   } catch (error) {
-    logger.error(`${TAG} Erro inesperado:`, error);
+    logger.error(
+      `${TAG} Erro inesperado após ${Date.now() - start}ms para user ${userIdForLog ?? 'desconhecido'}:`,
+      error
+    );
     // Retorna um erro genérico em caso de falha
     return NextResponse.json({ message: 'Erro interno do servidor ao iniciar vinculação.' }, { status: 500 });
   }

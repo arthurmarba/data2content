@@ -20,8 +20,11 @@ export default function InstagramPreConnectPage() {
         throw new Error(data?.message || "Falha ao preparar a vinculação.");
       }
       // Pós-callback iremos para a página de conexão em progresso
-      signIn("facebook", { callbackUrl: "/dashboard/instagram/connecting?instagramLinked=true" });
+      await signIn("facebook", {
+        callbackUrl: "/dashboard/instagram/connecting?instagramLinked=true",
+      });
     } catch (e: any) {
+      console.error("Falha ao iniciar fluxo Facebook/Instagram:", e);
       setError(e?.message || "Erro inesperado. Tente novamente.");
       setLoading(false);
     }
