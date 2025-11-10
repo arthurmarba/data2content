@@ -319,6 +319,11 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
     return NextResponse.json({ error: 'Failed to lookup user' }, { status: 500 });
   }
 
+  const rawStatusUser = user.planStatus;
+  const normStatusUser = normalizePlanStatusStrong(rawStatusUser);
+  const activeLikeUser = isActiveLikeNormalized(rawStatusUser);
+  logger.debug(`${postTag} planStatus do usuário raw="${rawStatusUser}" normalized="${normStatusUser}" activeLike=${activeLikeUser}`);
+
   const trialExpiresRaw = user.whatsappTrialExpiresAt;
   const trialExpiresDate =
     trialExpiresRaw instanceof Date ? trialExpiresRaw : trialExpiresRaw ? new Date(trialExpiresRaw) : null;
@@ -327,7 +332,7 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
   const trialWindowActive =
     Boolean(user.whatsappTrialActive) && Boolean(trialExpiresAt && trialExpiresAt.getTime() > Date.now());
 
-  if (user.whatsappTrialActive && !trialWindowActive) {
+  if (!activeLikeUser && user.whatsappTrialActive && !trialWindowActive) {
     const message =
       `Seu teste gratuito de 48h com a estrategista terminou. ` +
       `Ative o Plano Agência para continuar recebendo alertas personalizados: ${WHATSAPP_TRIAL_UPSELL_URL}`;
@@ -345,11 +350,6 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
   }
 
   // Bloqueio para plano não-ativo (normalizado)
-  const rawStatusUser = user.planStatus;
-  const normStatusUser = normalizePlanStatusStrong(rawStatusUser);
-  const activeLikeUser = isActiveLikeNormalized(rawStatusUser);
-  logger.debug(`${postTag} planStatus do usuário raw="${rawStatusUser}" normalized="${normStatusUser}" activeLike=${activeLikeUser}`);
-
   if (!activeLikeUser) {
     try {
       await sendWhatsAppMessage(
