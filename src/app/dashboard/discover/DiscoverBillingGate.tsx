@@ -24,7 +24,7 @@ export default function DiscoverBillingGate() {
           <div className="space-y-1">
             <p className="text-sm font-semibold text-slate-900">Ative a IA quando estiver pronto</p>
             <p>
-              O botão “Ativar IA 48h grátis” no topo libera horários quentes, formatos vencedores e benchmarks
+              O botão “Ativar IA no WhatsApp” no topo libera horários quentes, formatos vencedores e benchmarks
               personalizados para o seu nicho. Explore as ideias e decida quando avançar.
             </p>
           </div>

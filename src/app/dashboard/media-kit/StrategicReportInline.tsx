@@ -141,18 +141,18 @@ export default function StrategicReportInline() {
                   Agência.
                 </p>
                 <p className="mt-3 text-xs text-slate-600">
-                  Reels ↑ +22% com essas categorias. Ative 48h de trial para ver o porquê, dias ideais
-                  e formatos que destravam alcance.
+                  Reels ↑ +22% com essas categorias. Ative o Plano Agência para ver por que, os dias
+                  ideais e os formatos que destravam alcance.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-700">
-                    ⏳ 48h grátis
-                  </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
                     Benchmarks por categoria
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
                     Heatmap de horários
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
+                    Insights semanais
                   </span>
                 </div>
               </div>
@@ -161,11 +161,11 @@ export default function StrategicReportInline() {
                 <button
                   type="button"
                   onClick={() =>
-                    openPaywallModal({ context: 'planning', source: 'strategic_report_inline_trial' })
+                    openPaywallModal({ context: 'planning', source: 'strategic_report_inline_primary' })
                   }
                   className="inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
                 >
-                  Ativar trial de 48h
+                  Ativar Plano Agência
                 </button>
                 <button
                   type="button"

@@ -76,7 +76,7 @@ export default function PlanningLockedView() {
               {planningEmptyState.ctaLabel}
             </button>
             <p className="text-xs text-slate-500">
-              48h de teste gratuito • Cancelamento simples
+              Pagamento seguro via Stripe • Cancelamento simples
             </p>
           </div>
         </section>

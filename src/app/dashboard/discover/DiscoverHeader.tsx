@@ -94,20 +94,10 @@ export default function DiscoverHeader({ allowedPersonalized, featuredCount }: D
           Plano Agência ativo
         </span>
       );
-    } else if (trial?.state === "eligible") {
-      items.push(
-        <span
-          key="trial-available"
-          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600"
-        >
-          <Sparkles className="h-4 w-4 text-slate-500" aria-hidden />
-          Trial 48h disponível
-        </span>
-      );
     }
 
     return items;
-  }, [instagramConnected, instagram?.username, needsReconnect, isTrialActive, trialCountdown, hasPremiumAccess, trial?.state]);
+  }, [instagramConnected, instagram?.username, needsReconnect, isTrialActive, trialCountdown, hasPremiumAccess]);
 
   const toggleInfo = () => setInfoOpen((prev) => !prev);
   const handleInfoBlur = () => {

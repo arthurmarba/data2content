@@ -1331,11 +1331,11 @@ export default function MediaKitView({
   const canViewCategories = canViewPremiumSections;
   const shouldLockPremiumSections = !canViewPremiumSections && visibilityMode === 'lock';
   const shouldHidePremiumSections = !canViewPremiumSections && visibilityMode === 'hide';
-  const lockedCtaLabel = premiumAccess?.ctaLabel ?? "Ver categorias do meu perfil (Ativar trial 48h)";
+  const lockedCtaLabel = premiumAccess?.ctaLabel ?? "Ver categorias do meu perfil (Assinar Plano Agência)";
   const lockedSubtitle = premiumAccess?.subtitle ?? PRO_PLAN_FLEXIBILITY_COPY;
   const categoryCtaLabel = premiumAccess?.categoryCtaLabel ?? lockedCtaLabel;
   const categorySubtitle = premiumAccess?.categorySubtitle ?? lockedSubtitle;
-  const highlightDefaultCta = "Descobrir o que mais faz meu conteúdo crescer (Ativar trial 48h)";
+  const highlightDefaultCta = "Descobrir o que mais faz meu conteúdo crescer (Assinar Plano Agência)";
   const highlightCtaLabel = premiumAccess?.highlightCtaLabel ?? highlightDefaultCta;
   const highlightSubtitle = premiumAccess?.highlightSubtitle ?? lockedSubtitle;
   const premiumTrialState = premiumAccess?.trialState ?? null;

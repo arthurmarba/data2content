@@ -6,8 +6,8 @@ import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { FaCheck, FaLock } from 'react-icons/fa';
 import { useDebounce } from 'use-debounce';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
-import { track } from '@/lib/track';
 import { useSession } from 'next-auth/react';
+import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
 
 function cn(...classes: (string | undefined | false)[]) {
   return classes.filter(Boolean).join(' ');
@@ -131,7 +131,6 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   const [applyLoading, setApplyLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [trialLoading, setTrialLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [affiliateError, setAffiliateError] = useState<string | null>(null);
 
@@ -146,8 +145,6 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
-    isTrialActive,
-    refetch: refetchBillingStatus,
   } = useBillingStatus();
 
   // Hidrata código salvo (localStorage/cookie)
@@ -302,9 +299,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         return;
       }
       if (json?.clientSecret) {
-        router.push(
-          `/dashboard/billing/checkout?cs=${encodeURIComponent(json.clientSecret)}&sid=${encodeURIComponent(json.subscriptionId)}`
-        );
+        router.push(buildCheckoutUrl(json.clientSecret, json.subscriptionId));
         return;
       }
 
@@ -313,63 +308,6 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       setError(e?.message || 'Erro inesperado.');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function startTrialCheckout() {
-    if (hasPremiumAccess) {
-      setError('Você já possui um plano ativo.');
-      return;
-    }
-    if (isTrialActive) {
-      setError('Seu modo Agência já está liberado.');
-      return;
-    }
-    try {
-      setTrialLoading(true);
-      setError(null);
-      const res = await fetch('/api/billing/checkout/trial', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan,
-          currency,
-          affiliateCode: affiliateCode || undefined,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const code = json?.code;
-        if (code === 'INSTAGRAM_REQUIRED') {
-          setError(json?.message || 'Conecte seu Instagram para iniciar o modo Agência.');
-          return;
-        }
-        if (code === 'TRIAL_ALREADY_ACTIVE') {
-          await refetchBillingStatus();
-          setError('Seu modo Agência já está ativo.');
-          return;
-        }
-        if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') {
-          setError(json?.message || 'O período de testes já foi utilizado nesta conta.');
-          return;
-        }
-        setError(json?.message || json?.error || 'Não foi possível iniciar o teste.');
-        return;
-      }
-      const planLabel = plan === 'annual' ? 'anual' : 'mensal';
-      const totalValue = typeof preview?.total === 'number' ? preview.total : null;
-      const eventCurrency = typeof displayCurrency === 'string' ? displayCurrency : currency;
-      track('subscription_started', {
-        creator_id: creatorId,
-        plan: planLabel,
-        currency: eventCurrency,
-        value: totalValue,
-      });
-      await refetchBillingStatus();
-    } catch (e: any) {
-      setError(e?.message || 'Erro ao iniciar o teste.');
-    } finally {
-      setTrialLoading(false);
     }
   }
 
@@ -492,8 +430,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
               affiliateError ? 'border-brand-red' : 'border-gray-300'
             )}
           />
-          {/* Mantive o botão Aplicar somente se você quiser validar preview com código;
-              ele não é obrigatório para o trial, pois o cupom de afiliado é aplicado server-side */}
+          {/* Mantive o botão Aplicar caso queira validar preview manualmente */}
           {/* <button
             type="button"
             onClick={handleApplyAffiliate}
@@ -526,21 +463,6 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
 
       <div className="flex flex-col sm:flex-row gap-2">
         <button
-          onClick={startTrialCheckout}
-          disabled={
-            trialLoading ||
-            isPreviewLoading ||
-            hasPremiumAccess ||
-            billingStatusLoading ||
-            isTrialActive
-          }
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 sm:py-3 text-gray-900
-                     hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {trialLoading ? 'Iniciando teste…' : 'Iniciar teste gratuito (48h)'}
-        </button>
-
-        <button
           onClick={handleSubscribe}
           disabled={loading || isPreviewLoading || !preview || preview.total == null}
           className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-2 sm:py-3 text-white font-semibold
@@ -558,7 +480,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       </p>
       {hasPremiumAccess && !billingStatusLoading && (
         <p className="mt-2 text-center text-xs text-gray-600">
-          Você já possui um plano ativo ou em teste.
+          Você já possui um plano ativo.
         </p>
       )}
     </motion.div>

@@ -24,8 +24,6 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
-    isTrialActive,
-    refetch: refetchBillingStatus,
   } = useBillingStatus();
 
   const current = useMemo(() => {
@@ -94,59 +92,6 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
     }
   }
 
-  // Inicia o modo Agência gratuito de 48h
-  async function handleStartTrial() {
-    if (!current) return;
-    if (hasPremiumAccess || isTrialActive) {
-      setErrorMsg("Você já possui um plano ativo ou em teste.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setErrorMsg(null);
-
-      const body: any = {
-        priceId: current.priceId,
-        interval: plan === "annual" ? "year" : "month",
-      };
-      if (affiliateCode?.trim()) {
-        body.affiliateCode = affiliateCode.trim().toUpperCase();
-      }
-
-      const res = await fetch("/api/billing/checkout/trial", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        const code = json?.code;
-        if (code === "INSTAGRAM_REQUIRED") {
-          setErrorMsg(json?.message || "Conecte seu Instagram para ativar o modo Agência.");
-          return;
-        }
-        if (code === "TRIAL_ALREADY_ACTIVE") {
-          await refetchBillingStatus();
-          setErrorMsg("Seu modo Agência já está ativo.");
-          return;
-        }
-        if (code === "TRIAL_NOT_AVAILABLE" || code === "TRIAL_UNAVAILABLE") {
-          setErrorMsg(json?.message || "O período de testes já foi utilizado nesta conta.");
-          return;
-        }
-        throw new Error(json?.message || json?.error || "Falha ao iniciar teste gratuito.");
-      }
-
-      await refetchBillingStatus();
-    } catch (e: any) {
-      setErrorMsg(e?.message || "Erro inesperado.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="mx-auto max-w-xl rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
       <h2 className="mb-2 text-center text-lg sm:text-xl font-semibold">Plano Data2Content</h2>
@@ -196,16 +141,8 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
 
       <div className="grid grid-cols-1 gap-2">
         <button
-          onClick={handleStartTrial}
-          disabled={loading || !current || hasPremiumAccess || isTrialActive || billingStatusLoading}
-          className="w-full rounded-xl border border-black px-4 py-2 sm:py-3 text-black hover:bg-gray-50 disabled:opacity-50"
-        >
-          {loading ? "Iniciando…" : "Iniciar teste gratuito (48h)"}
-        </button>
-
-        <button
           onClick={handleSubscribe}
-          disabled={loading || !current}
+          disabled={loading || !current || hasPremiumAccess || billingStatusLoading}
           className="w-full rounded-xl bg-black px-4 py-2 sm:py-3 text-white disabled:opacity-50"
         >
           {loading ? "Iniciando…" : "Assinar agora"}
@@ -215,9 +152,9 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       <p className="mt-2 text-center text-xs text-gray-500">
         Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
       </p>
-      {(hasPremiumAccess || isTrialActive) && !billingStatusLoading && (
+      {hasPremiumAccess && !billingStatusLoading && (
         <p className="mt-1 text-center text-xs text-gray-600">
-          Você já possui um plano ativo ou em período de teste.
+          Você já possui um plano ativo.
         </p>
       )}
     </div>

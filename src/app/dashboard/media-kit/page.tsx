@@ -387,11 +387,11 @@ export default function MediaKitSelfServePage() {
   const canViewCategories = Boolean(billingStatus.hasPremiumAccess);
   const categoriesCtaLabel = trialExpired
     ? "Assinar e continuar de onde parei"
-    : "Ver categorias do meu perfil (Ativar trial 48h)";
+    : "Ver categorias do meu perfil (Assinar Plano Agência)";
   const categoriesSubtitle = trialExpired ? PRO_PLAN_FLEXIBILITY_COPY : INSTAGRAM_READ_ONLY_COPY;
   const highlightCtaLabel = trialExpired
     ? "Assinar e continuar de onde parei"
-    : "Descobrir o que mais faz meu conteúdo crescer (Ativar trial 48h)";
+    : "Descobrir o que mais faz meu conteúdo crescer (Assinar Plano Agência)";
   const highlightSubtitle = categoriesSubtitle;
   const handleUpgrade = useCallback(() => {
     openPaywallModal({ context: 'planning', source: 'media_kit_upgrade' });

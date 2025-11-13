@@ -47,7 +47,7 @@ export async function POST() {
         {
           code: "PortalUnavailable",
           error:
-            "Sua assinatura ainda não foi ativada. Retome o pagamento para concluir.",
+            "Sua assinatura ainda não foi ativada. Volte ao checkout dentro do app para concluir o pagamento.",
         },
         { status: 409, headers: noStoreHeaders }
       );

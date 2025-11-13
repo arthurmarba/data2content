@@ -266,6 +266,9 @@ export async function POST(req: NextRequest) {
     user.planStatus = "pending";
     user.planInterval = plan === "annual" ? "year" : "month";
     user.stripePriceId = priceId;
+    user.cancelAtPeriodEnd = false;
+    user.planExpiresAt = null;
+    (user as any).lastPaymentError = null;
     // O 'affiliateUsed' já foi salvo antes, então aqui apenas garantimos os outros campos
     await user.save();
 

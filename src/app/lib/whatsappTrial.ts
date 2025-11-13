@@ -1,5 +1,3 @@
-import { isPlanActiveLike } from "@/utils/planStatus";
-
 type TrialEligibilitySource = {
   planStatus?: unknown;
   whatsappTrialEligible?: unknown;
@@ -10,23 +8,11 @@ type TrialEligibilitySource = {
 export const WHATSAPP_TRIAL_DURATION_MS = 48 * 60 * 60 * 1000;
 
 export function isWhatsappTrialEnabled(): boolean {
-  return (
-    String(
-      process.env.WHATSAPP_TRIAL_ENABLED ??
-        process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED ??
-        "true"
-    )
-      .toLowerCase()
-      .trim() !== "false"
-  );
+  return false;
 }
 
 export function canStartWhatsappTrial(user: TrialEligibilitySource): boolean {
-  if (!isWhatsappTrialEnabled()) return false;
-  if (user.whatsappTrialEligible === false) return false;
-  if (user.whatsappTrialActive) return false;
-  if (user.whatsappTrialStartedAt) return false;
-  return !isPlanActiveLike(user.planStatus);
+  return false;
 }
 
 export interface WhatsappTrialActivationPayload {
@@ -45,9 +31,6 @@ export function buildWhatsappTrialActivation(now = new Date()): WhatsappTrialAct
       whatsappTrialEligible: false,
       whatsappTrialLastReminderAt: null,
       whatsappTrialLastNotificationAt: null,
-      planStatus: "trial",
-      planExpiresAt: expiresAt,
-      currentPeriodEnd: expiresAt,
     },
   };
 }

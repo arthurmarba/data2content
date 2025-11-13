@@ -66,7 +66,7 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
     if (isTrialActive) return "trial_active";
     if (hasPremiumAccess) return "plan_active";
     if (nextAction === "reactivate") return "reactivate_plan";
-    if (trialState === "eligible") return "trial_activate";
+    if (trialState === "eligible") return "subscribe";
     if (nextAction === "resubscribe") return "subscribe";
     if (trialState === "expired" || trialState === "converted" || trialState === "unavailable") {
       return "subscribe";
@@ -101,18 +101,6 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           step: 2,
           totalSteps,
           href: "/dashboard/instagram/connect",
-          disabled: isLoading,
-        };
-      case "trial_activate":
-        return {
-          state,
-          kind: "action",
-          label: "⚡ Ativar IA 48h grátis",
-          description: "Desbloqueie ideias adaptadas ao seu perfil + horários vencedores do seu nicho.",
-          stageLabel: "Etapa 3/4 — Curadoria avançada com IA",
-          step: 3,
-          totalSteps,
-          onPress: openSubscribeModal,
           disabled: isLoading,
         };
       case "reactivate_plan":

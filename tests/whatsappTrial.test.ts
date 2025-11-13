@@ -6,59 +6,11 @@ import {
 } from "@/app/lib/whatsappTrial";
 
 describe("whatsappTrial helpers", () => {
-  const originalEnabled = process.env.WHATSAPP_TRIAL_ENABLED;
-  const originalPublicEnabled = process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED;
-
-  beforeEach(() => {
-    delete process.env.WHATSAPP_TRIAL_ENABLED;
-    delete process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED;
-  });
-
-  afterEach(() => {
-    if (originalEnabled === undefined) {
-      delete process.env.WHATSAPP_TRIAL_ENABLED;
-    } else {
-      process.env.WHATSAPP_TRIAL_ENABLED = originalEnabled;
-    }
-
-    if (originalPublicEnabled === undefined) {
-      delete process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED;
-    } else {
-      process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED = originalPublicEnabled;
-    }
-  });
 
   describe("canStartWhatsappTrial", () => {
-    it("allows trial when plan inactive and flags allow", () => {
-      const eligible = canStartWhatsappTrial({ planStatus: "inactive" });
-      expect(eligible).toBe(true);
-    });
-
-    it("blocks when already active-like", () => {
-      const eligible = canStartWhatsappTrial({ planStatus: "active" });
-      expect(eligible).toBe(false);
-    });
-
-    it("blocks when trial disabled by flag", () => {
-      process.env.WHATSAPP_TRIAL_ENABLED = "false";
-      const eligible = canStartWhatsappTrial({ planStatus: "inactive" });
-      expect(eligible).toBe(false);
-    });
-
-    it("blocks when user already started trial", () => {
-      const eligible = canStartWhatsappTrial({
-        planStatus: "inactive",
-        whatsappTrialStartedAt: new Date(),
-      });
-      expect(eligible).toBe(false);
-    });
-
-    it("blocks when user marked as ineligible", () => {
-      const eligible = canStartWhatsappTrial({
-        planStatus: "inactive",
-        whatsappTrialEligible: false,
-      });
-      expect(eligible).toBe(false);
+    it("always blocks new trials", () => {
+      expect(canStartWhatsappTrial({ planStatus: "inactive" })).toBe(false);
+      expect(canStartWhatsappTrial({ planStatus: "active" })).toBe(false);
     });
   });
 
@@ -75,9 +27,6 @@ describe("whatsappTrial helpers", () => {
         whatsappTrialStartedAt: now,
         whatsappTrialExpiresAt: activation.expiresAt,
         whatsappTrialEligible: false,
-        planStatus: "trial",
-        planExpiresAt: activation.expiresAt,
-        currentPeriodEnd: activation.expiresAt,
       });
     });
   });

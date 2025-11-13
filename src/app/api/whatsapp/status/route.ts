@@ -5,15 +5,9 @@ import { jwtVerify } from "jose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import mongoose from "mongoose";
 import User from "@/app/models/User";
+import { isWhatsappTrialEnabled } from "@/app/lib/whatsappTrial";
 
-const WHATSAPP_TRIAL_ENABLED =
-  String(
-    process.env.WHATSAPP_TRIAL_ENABLED ??
-      process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED ??
-      "true"
-  )
-    .toLowerCase()
-    .trim() !== "false";
+const WHATSAPP_TRIAL_ENABLED = isWhatsappTrialEnabled();
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

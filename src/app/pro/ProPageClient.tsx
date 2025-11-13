@@ -503,13 +503,13 @@ export default function ProPageClient({
                       mês.
                     </p>
                   )}
-                  <ul className="space-y-2 text-sm text-slate-600">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      Teste gratuito de 48h com tudo liberado.
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                <ul className="space-y-2 text-sm text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                    Acesso imediato ao Planner, WhatsApp IA e discovery da comunidade.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
                       Cancelamento simples direto no app.
                     </li>
                     <li className="flex items-start gap-2">

@@ -28,6 +28,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getUpcomingMentorshipEvent } from "@/app/lib/community/events";
 import { getPlanAccessMeta, isPlanActiveLike } from "@/utils/planStatus";
+import { isWhatsappTrialEnabled } from "@/app/lib/whatsappTrial";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -391,14 +392,7 @@ const VIP_COMMUNITY_URL =
   process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL || "/planning/whatsapp";
 const WHATSAPP_TRIAL_URL =
   process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_URL || "/planning/whatsapp";
-const WHATSAPP_TRIAL_ENABLED =
-  String(
-    process.env.WHATSAPP_TRIAL_ENABLED ??
-      process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_ENABLED ??
-      "true"
-  )
-    .toLowerCase()
-    .trim() !== "false";
+const WHATSAPP_TRIAL_ENABLED = isWhatsappTrialEnabled();
 
 type UserSnapshot = Pick<
   IUser,

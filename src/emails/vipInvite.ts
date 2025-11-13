@@ -19,11 +19,11 @@ O Grupo VIP (Plano Agência) oferece:
 - Acompanhamento do Mobi com calendários personalizados e checkpoints.
 - Alertas premium no WhatsApp para manter sua constância sem esforço.
 
-Comece testando agora (48 horas gratuitas, sem cartão):
+Comece testando agora (sem cartão):
 - Acessar o painel Agência: ${billingUrl}
 - Conectar o WhatsApp IA Agência: ${whatsappUrl}
 
-Experimente todos os recursos do Plano Agência por 48 horas sem cobrança e veja como as mentorias avançadas impactam sua estratégia.
+Experimente todos os recursos do Plano Agência sem cobrança inicial e veja como as mentorias avançadas impactam sua estratégia.
 
 Bons conteúdos!
 Equipe Data2Content`;
@@ -45,7 +45,7 @@ Equipe Data2Content`;
         Ativar WhatsApp IA Agência
       </a>
     </p>
-    <p style="font-size:13px;color:#555;">Experimente todos os recursos do Plano Agência por 48 horas gratuitas antes de decidir.</p>
+    <p style="font-size:13px;color:#555;">Experimente todos os recursos do Plano Agência sem cobrança inicial antes de decidir.</p>
     <p style="margin-top:16px;">Bons conteúdos!<br/>Equipe Data2Content</p>
   `;
 

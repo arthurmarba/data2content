@@ -2,11 +2,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Crown, Check, ArrowRight, ArrowUpRight, Loader2, Lock } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
+import { buildCheckoutUrl } from "@/app/lib/checkoutRedirect";
 
 interface BillingSubscribeModalProps {
   open: boolean;
@@ -125,6 +127,7 @@ const FREE_VS_PRO_ROWS = [
 ];
 
 export default function BillingSubscribeModal({ open, onClose, context }: BillingSubscribeModalProps) {
+  const router = useRouter();
   const [prices, setPrices] = useState<PricesShape | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -386,7 +389,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     return Math.max(0, Math.round(pct * 100));
   }, [prices, currency]);
 
-  /** Redireciona para o Stripe Checkout para concluir a assinatura. */
+  /** Dispara o fluxo de assinatura (Checkout hospedado ou Payment Element). */
   const handleSubscribe = async () => {
     track("dashboard_cta_clicked", {
       creator_id: null,
@@ -418,14 +421,21 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       if (!response.ok) {
         throw new Error(body?.error || body?.message || "Não foi possível iniciar o checkout.");
       }
-      const url = body?.checkoutUrl || body?.url || null;
-      if (!url) {
-        throw new Error("Não foi possível iniciar o checkout. Tente novamente em instantes.");
+      if (body?.clientSecret) {
+        router.push(buildCheckoutUrl(body.clientSecret, body.subscriptionId));
+        return;
       }
 
-      window.location.href = url; // redireciona para o Stripe
+      const url = body?.checkoutUrl || body?.url || null;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
+      throw new Error("Não foi possível iniciar o checkout. Tente novamente em instantes.");
     } catch (e: any) {
       setError(e?.message || "Erro ao redirecionar para o checkout.");
+    } finally {
       setLoadingRedirect(false);
     }
   };
@@ -654,7 +664,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                 )}
 
                 <div className="mt-1 text-xs text-gray-600">
-                  Explore tudo por 48 horas antes de decidir. Cancele quando quiser.
+                  Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
                 </div>
               </div>
             </div>

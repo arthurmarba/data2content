@@ -511,7 +511,7 @@ const userSchema = new Schema<IUser>(
     proTrialStatus: {
       type: String,
       enum: [...PRO_TRIAL_STATES],
-      default: "eligible",
+      default: "unavailable",
       index: true,
     },
     proTrialActivatedAt: { type: Date, default: null },

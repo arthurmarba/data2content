@@ -90,7 +90,7 @@ const PlannerUpgradePanel: React.FC<PlannerUpgradePanelProps> = ({
   ];
 
   const handlePrimaryClick = () => {
-    track("planner_upsell_cta_click", { cta: "start_trial" });
+    track("planner_upsell_cta_click", { cta: "open_paywall" });
     onSubscribe?.();
   };
 
@@ -183,7 +183,7 @@ const PlannerUpgradePanel: React.FC<PlannerUpgradePanelProps> = ({
             onClick={handlePrimaryClick}
             className="inline-flex items-center justify-center rounded-md bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
           >
-            Gerar meu plano (Ativar trial 48h)
+            Gerar meu plano com o Plano Agência
           </button>
           <Link
             href={billingHref}

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from 'react';
-import PaymentStep from '@/components/billing/PaymentStep';
+import { useRouter } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { track } from '@/lib/track';
 import { useSession } from 'next-auth/react';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
 
 type Plan = 'monthly'|'annual';
 type Cur = 'brl'|'usd';
@@ -16,20 +17,18 @@ interface PricesShape {
 }
 
 export default function SubscribeInline({ prices }: { prices: PricesShape }) {
+  const router = useRouter();
   const { data: session } = useSession();
   const creatorId = session?.user?.id ?? null;
   const [plan, setPlan] = useState<Plan>('monthly');
   const [currency, setCurrency] = useState<Cur>('brl');
   const [affiliateCode, setAffiliateCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string|null>(null);
   const [error, setError] = useState<string|null>(null);
   const [codeError, setCodeError] = useState<string|null>(null);
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
-    isTrialActive,
-    refetch: refetchBillingStatus,
   } = useBillingStatus();
 
   const priceShown = plan === 'monthly' ? prices.monthly[currency] : prices.annual[currency];
@@ -73,49 +72,10 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         return;
       }
       if (body?.clientSecret) {
-        setClientSecret(body.clientSecret);
+        router.push(buildCheckoutUrl(body.clientSecret, body.subscriptionId));
         return;
       }
       throw new Error('Resposta da API inválida. Faltando clientSecret/checkoutUrl.');
-    } catch (e:any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleStartTrial() {
-    if (hasPremiumAccess || isTrialActive) {
-      setError('Você já possui um plano ativo ou em teste.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setCodeError(null);
-    try {
-      const res = await fetch('/api/billing/checkout/trial', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ plan, currency: currency.toUpperCase(), affiliateCode: affiliateCode.trim() || undefined })
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        const code = body?.code;
-        if (code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
-        if (code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
-        if (code === 'INSTAGRAM_REQUIRED') { setError(body?.message ?? 'Conecte seu Instagram para ativar o modo Agência.'); return; }
-        if (code === 'TRIAL_ALREADY_ACTIVE') { await refetchBillingStatus(); setError('Seu modo Agência já está ativo.'); return; }
-        if (code === 'TRIAL_NOT_AVAILABLE' || code === 'TRIAL_UNAVAILABLE') { setError(body?.message ?? 'O período de testes já foi utilizado nesta conta.'); return; }
-        throw new Error(body?.error || body?.message || 'Falha ao iniciar teste gratuito');
-      }
-      const planLabel = plan === 'annual' ? 'anual' : 'mensal';
-      track('subscription_started', {
-        creator_id: creatorId,
-        plan: planLabel,
-        currency: currency.toUpperCase(),
-        value: 0,
-      });
-      await refetchBillingStatus();
     } catch (e:any) {
       setError(e.message);
     } finally {
@@ -174,40 +134,24 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       </div>
 
       {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-      {(hasPremiumAccess || isTrialActive) && !billingStatusLoading && (
-        <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo ou em período de teste.</p>
+      {hasPremiumAccess && !billingStatusLoading && (
+        <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo.</p>
       )}
 
       {/* Ações */}
-      {!clientSecret && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            onClick={handleStartTrial}
-            disabled={loading || hasPremiumAccess || isTrialActive || billingStatusLoading}
-            className="w-full rounded-xl border border-gray-900 px-4 py-3 text-gray-900 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {loading ? 'Preparando…' : 'Teste gratuito (48h)'}
-          </button>
-          <button
-            onClick={handleStart}
-            disabled={loading}
-            className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50"
-          >
-            {loading ? 'Processando…' : 'Assinar agora'}
-          </button>
-          <p className="sm:col-span-2 mt-1 flex items-center justify-center gap-1 text-xs text-gray-500">
-            <Lock className="h-3 w-3" aria-hidden />
-            Só leitura: analisamos seu Instagram, não publicamos nada e você pode cancelar quando quiser.
-          </p>
-        </div>
-      )}
-
-      {/* Pagamento inline */}
-      {clientSecret && (
-        <div className="rounded-xl border border-gray-200 p-4">
-          <PaymentStep clientSecret={clientSecret} onClose={() => { /* no close; stay on page */ }} />
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-3">
+        <button
+          onClick={handleStart}
+          disabled={loading || hasPremiumAccess || billingStatusLoading}
+          className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50"
+        >
+          {loading ? 'Processando…' : 'Assinar agora'}
+        </button>
+        <p className="mt-1 flex items-center justify-center gap-1 text-xs text-gray-500">
+          <Lock className="h-3 w-3" aria-hidden />
+          Só leitura: analisamos seu Instagram, não publicamos nada e você pode cancelar quando quiser.
+        </p>
+      </div>
     </div>
   );
 }

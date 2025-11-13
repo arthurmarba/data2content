@@ -2,10 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import {
-  buildWhatsappTrialActivation,
-  canStartWhatsappTrial,
-} from "@/app/lib/whatsappTrial";
 import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
@@ -16,7 +12,6 @@ export const revalidate = 0;
  * POST /api/whatsapp/verify
  * Body: { phoneNumber: string, code: string }
  * - Não depende de sessão/cookies (WhatsApp não envia cookies).
- * - Permite iniciar o trial de 48h ao concluir a verificação.
  * - Vincula o telefone e marca whatsappVerified=true; invalida o código.
  */
 export async function POST(request: NextRequest) {
@@ -66,21 +61,12 @@ export async function POST(request: NextRequest) {
         { status: 410, headers: { "Cache-Control": "no-store" } }
       );
     }
-    const shouldStartTrial = canStartWhatsappTrial(user);
-    const trialActivation = shouldStartTrial
-      ? buildWhatsappTrialActivation(now)
-      : null;
-
     // 3) Atualiza atomically: define phone + verified, remove code
     const setPayload: Record<string, unknown> = {
       whatsappPhone: phoneNumber,
       whatsappVerified: true,
       whatsappLinkedAt: user.whatsappLinkedAt ?? now,
     };
-
-    if (trialActivation) {
-      Object.assign(setPayload, trialActivation.set);
-    }
 
     const updated = await User.findOneAndUpdate(
       { _id: user._id, whatsappVerificationCode: code },
@@ -114,21 +100,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: "Vinculação concluída com sucesso!",
-        trial: trialActivation
-          ? {
-              active: true,
-              startedAt: now.toISOString(),
-              expiresAt: trialActivation.expiresAt.toISOString(),
-            }
-          : {
-              active: Boolean(updated.whatsappTrialActive),
-              startedAt: updated.whatsappTrialStartedAt
-                ? new Date(updated.whatsappTrialStartedAt).toISOString()
-                : null,
-              expiresAt: updated.whatsappTrialExpiresAt
-                ? new Date(updated.whatsappTrialExpiresAt).toISOString()
-                : null,
-            },
+        trial: {
+          active: Boolean(updated.whatsappTrialActive),
+          startedAt: updated.whatsappTrialStartedAt
+            ? new Date(updated.whatsappTrialStartedAt).toISOString()
+            : null,
+          expiresAt: updated.whatsappTrialExpiresAt
+            ? new Date(updated.whatsappTrialExpiresAt).toISOString()
+            : null,
+        },
       },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );

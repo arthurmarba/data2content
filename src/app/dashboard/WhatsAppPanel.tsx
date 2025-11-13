@@ -131,7 +131,7 @@ export default function WhatsAppPanel({
     ];
 
     const handleStartTrial = () => {
-      track("whatsapp_upsell_cta_click", { cta: "start_trial", origin });
+      track("whatsapp_upsell_cta_click", { cta: "open_paywall", origin });
       onActionRedirect();
     };
 
@@ -179,10 +179,10 @@ export default function WhatsAppPanel({
             ))}
           </div>
           <p className="sr-only">
-            Prévia borrada das mensagens que você recebe no WhatsApp IA Plano Agência; disponível com o trial de 48h.
+            Prévia borrada das mensagens que você recebe no WhatsApp IA Plano Agência; disponível após assinar o Plano Agência.
           </p>
           <p className="mt-3 text-xs text-slate-500">
-            Ative 48h grátis para ver diagnósticos completos e puxar insights sob demanda sempre que precisar.
+            Assine o Plano Agência para ver diagnósticos completos e puxar insights sob demanda sempre que precisar.
           </p>
         </div>
 
@@ -191,7 +191,7 @@ export default function WhatsAppPanel({
             onClick={handleStartTrial}
             className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
           >
-            Ativar WhatsApp IA (48h grátis)
+            Ativar WhatsApp IA
           </button>
           <a
             href="/dashboard/billing"

@@ -43,7 +43,7 @@ import type { CreatorToolCardProps } from "./tutorial/CreatorToolCard";
 
 type Period = CommunityMetricsCardData["period"];
 const DEFAULT_PERIOD: Period = "30d";
-const TRIAL_CTA_LABEL = "⚡ Ativar IA no WhatsApp (48h grátis)";
+const TRIAL_CTA_LABEL = "⚡ Ativar IA no WhatsApp";
 const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
 
 type HeroAction = {
@@ -630,7 +630,7 @@ export default function HomeClientPage() {
         return {
           icon: "✨",
           className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-          text: "48h grátis • sem cartão",
+          text: "Assine o Plano Agência para liberar a IA completa",
         };
       }
 
@@ -638,7 +638,7 @@ export default function HomeClientPage() {
         return {
           icon: "💡",
           className: "border-amber-200 bg-amber-50 text-amber-700",
-          text: "Trial terminou — mantenha o Mobi ativo",
+          text: "Seu acesso promocional terminou — mantenha o Mobi ativo",
         };
       }
 
@@ -717,7 +717,7 @@ export default function HomeClientPage() {
       ctaLabel: isFreePlan ? trialLabel : microInsight.ctaLabel ?? "Ver detalhes",
       variant: isFreePlan ? "primary" : "secondary",
       footnote: isFreePlan
-        ? "48h grátis • Sem cartão • Cancele quando quiser."
+        ? "Assine o Plano Agência para liberar a IA completa."
         : "Incluído no seu plano atual.",
       teaser: highlight ? { label: highlight, blurred: isFreePlan } : undefined,
     };
@@ -961,10 +961,10 @@ export default function HomeClientPage() {
         title: "IA no WhatsApp",
         description: iaActive
           ? "Receba roteiros, alertas de horários quentes e análises direto no WhatsApp."
-          : "Teste 48h de IA no WhatsApp para descobrir ideias, horários e alertas automáticos.",
+          : "Ative o Plano Agência para descobrir ideias, horários e alertas automáticos no WhatsApp.",
         icon: <FaWhatsapp />,
         status: iaStatus,
-        actionLabel: iaActive ? "Ver alertas da IA" : "Ativar IA no WhatsApp (48h grátis)",
+        actionLabel: iaActive ? "Ver alertas da IA" : "Ativar IA no WhatsApp",
         action: iaActive ? handleOpenWhatsApp : handleHeaderStartTrial,
         variant: "whatsapp",
         disabled: false,
@@ -1131,7 +1131,7 @@ export default function HomeClientPage() {
 
     if (!whatsappLinked && !whatsappTrialActive && !whatsappTrialStarted && whatsappTrialEligible) {
       return {
-        subtitle: "Sua IA está quase pronta — ative no WhatsApp (48h grátis).",
+        subtitle: "Sua IA está quase pronta — ative no WhatsApp com o Plano Agência.",
         helper: "Conexão segura, leva menos de 30s.",
         ctaLabel: TRIAL_CTA_LABEL,
         onClick: handleHeaderStartTrial,
@@ -1380,7 +1380,7 @@ export default function HomeClientPage() {
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="font-semibold">Seu teste de 48h chegou ao fim.</p>
+              <p className="font-semibold">Seu acesso promocional chegou ao fim.</p>
               <p className="text-xs text-amber-700">
                 Ative o Plano Agência e continue recebendo roteiros e alertas ilimitados no WhatsApp.
               </p>
@@ -1408,7 +1408,7 @@ export default function HomeClientPage() {
         <div>
           <p className="text-sm font-semibold text-slate-900">Conecte seu WhatsApp</p>
           <p className="text-sm text-slate-600">
-            Copie o código, abra o WhatsApp e confirme para liberar o teste de 48h.
+            Copie o código, abra o WhatsApp e confirme para liberar a IA direto no app.
           </p>
         </div>
         <button

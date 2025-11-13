@@ -139,9 +139,9 @@ const PRO_TRIAL_STATE_SET: ReadonlySet<ProTrialState> = new Set<ProTrialState>([
 ]);
 
 function ensureProTrialState(value: unknown): ProTrialState {
-  if (typeof value !== "string") return "eligible";
+  if (typeof value !== "string") return "unavailable";
   const normalized = value.toLowerCase() as ProTrialState;
-  return PRO_TRIAL_STATE_SET.has(normalized) ? normalized : "eligible";
+  return PRO_TRIAL_STATE_SET.has(normalized) ? normalized : "unavailable";
 }
 
 function deriveInstagramInfo(user: any): InstagramAccessInfo {

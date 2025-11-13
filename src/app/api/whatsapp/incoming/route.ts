@@ -262,7 +262,7 @@ Vou acompanhar em tempo real o desempenho dos seus conteúdos, enviar resumos di
 Você pode começar me pedindo um planejamento de conteudo que otimize seu alcance. :)`;
 
           if (trialActivation) {
-            reply += '\n\n🎉 Você ganhou 48 horas de acesso gratuito via WhatsApp. Após esse período, ative seu Plano Agência para desbloquear mais 7 dias gratuitos.';
+            reply += '\n\n🎉 Você ganhou um acesso experimental via WhatsApp. Aproveite e ative seu Plano Agência para desbloquear mais 7 dias completos.';
           }
 
           // PS: conexão do Instagram, se ainda não estiver conectado
@@ -334,7 +334,7 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
 
   if (!activeLikeUser && user.whatsappTrialActive && !trialWindowActive) {
     const message =
-      `Seu teste gratuito de 48h com a estrategista terminou. ` +
+      `Seu acesso promocional com a estrategista terminou. ` +
       `Ative o Plano Agência para continuar recebendo alertas personalizados: ${WHATSAPP_TRIAL_UPSELL_URL}`;
     logger.info(`${postTag} Trial expirado para ${uid} (expiresAt=${trialExpiresIso}). Notificando e encerrando atendimento.`);
     try {
