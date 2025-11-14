@@ -15,6 +15,9 @@ export interface PlannerUISlot {
   scriptShort?: string;
   themes?: string[];
   themeKeyword?: string;
+  rationale?: string;
+  recordingTimeSec?: number;
+  aiVersionId?: string;
 }
 
 export interface TimeBlockScoreUI {
@@ -161,6 +164,9 @@ export function usePlannerData(params: {
             scriptShort: s.scriptShort,
             themes: s.themes || [],
             themeKeyword: s.themeKeyword,
+            rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
+            recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
+            aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
           }));
           safeSetSlots(planSlots);
           safeSetHeatmap(null); // público: quando vem plan, não há heatmap
@@ -178,6 +184,9 @@ export function usePlannerData(params: {
             scriptShort: r.scriptShort,
             themes: r.themes || [],
             themeKeyword: r.themeKeyword,
+            rationale: typeof r.rationale === 'string' ? r.rationale : undefined,
+            recordingTimeSec: typeof r.recordingTimeSec === 'number' ? r.recordingTimeSec : undefined,
+            aiVersionId: typeof r.aiVersionId === 'string' ? r.aiVersionId : undefined,
           }));
           safeSetSlots(recSlots);
           const hm: TimeBlockScoreUI[] = (data.heatmap || []).map((h: any) => ({
@@ -245,6 +254,9 @@ export function usePlannerData(params: {
             scriptShort: s.scriptShort,
             themes: s.themes || [],
             themeKeyword: s.themeKeyword,
+            rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
+            recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
+            aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
           }));
           safeSetSlots(planSlots);
         } else if (recData) {
@@ -261,9 +273,9 @@ export function usePlannerData(params: {
             scriptShort: r.scriptShort,
             themes: r.themes || [],
             themeKeyword: r.themeKeyword,
-            // opcional vindo do recomendador (para explicabilidade)
-            // @ts-ignore
-            rationale: r.rationale,
+            rationale: typeof r.rationale === 'string' ? r.rationale : undefined,
+            recordingTimeSec: typeof r.recordingTimeSec === 'number' ? r.recordingTimeSec : undefined,
+            aiVersionId: typeof r.aiVersionId === 'string' ? r.aiVersionId : undefined,
           }));
           safeSetSlots(recSlots);
         }
@@ -332,6 +344,9 @@ export function usePlannerData(params: {
       scriptShort: s.scriptShort,
       themes: s.themes || [],
       themeKeyword: s.themeKeyword,
+      rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
+      recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
+      aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
     }));
     safeSetSlots(planSlots);
     return planSlots;

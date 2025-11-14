@@ -9,38 +9,7 @@ const DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']; // 1..7
 const DAYS_FULL_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 type StatusCategory = 'champion' | 'test' | 'watch' | 'planned';
-type PerformanceLegendKey = 'champion' | 'test' | 'watch';
-
-const STATUS_CATEGORY_TO_LEGEND: Record<StatusCategory, PerformanceLegendKey> = {
-  champion: 'champion',
-  test: 'test',
-  watch: 'watch',
-  planned: 'watch',
-};
-
-const PERFORMANCE_CATEGORY_STYLES: Record<
-  PerformanceLegendKey,
-  { barClass: string; metaClass: string; emoji: string; label: string }
-> = {
-  champion: {
-    barClass: 'bg-[#1D8E5D]',
-    metaClass: 'text-[#1D8E5D]',
-    emoji: '🟩',
-    label: 'Campeão',
-  },
-  test: {
-    barClass: 'bg-[#4C5BD4]',
-    metaClass: 'text-[#4C5BD4]',
-    emoji: '🟦',
-    label: 'Em teste',
-  },
-  watch: {
-    barClass: 'bg-[#B9730F]',
-    metaClass: 'text-[#B9730F]',
-    emoji: '🟨',
-    label: 'Em observação',
-  },
-};
+const TARGET_SLOTS_PER_WEEK = 7;
 
 export interface CalendarHeatPoint {
   dayOfWeek: number;
@@ -319,7 +288,6 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
     () => daySummaries.filter((summary) => summary.totalSlots > 0),
     [daySummaries]
   );
-  const hasRelevantDays = relevantDaySummaries.length > 0;
   const defaultCreateTarget = useMemo(() => {
     const first = relevantDaySummaries[0];
     if (first) {
@@ -329,67 +297,54 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
     return { day: 1, blockStartHour: BLOCKS[1] ?? BLOCKS[0] };
   }, [relevantDaySummaries]);
 
-  const performanceRows = useMemo(() => {
-    type PerformanceEntry = {
-      slot: PlannerUISlot;
-      views: number;
-      blockStartHour: number;
-      heatScore?: number;
-    };
+  const slotCards = useMemo(() => {
+    if (!slots || !slots.length) return [] as PlannerSlotCard[];
+    const list = [...slots].sort((a, b) => {
+      if (a.dayOfWeek === b.dayOfWeek) {
+        return a.blockStartHour - b.blockStartHour;
+      }
+      return a.dayOfWeek - b.dayOfWeek;
+    });
 
-    const rows = daySummaries
-      .map((summary) => {
-        const entries = summary.blocks.flatMap((block) =>
-          block.items
-            .map((slot) => {
-              const views = slot.expectedMetrics?.viewsP50;
-              if (typeof views !== 'number' || !isFinite(views) || views <= 0) return null;
-              return {
-                slot,
-                views,
-                blockStartHour: block.blockStartHour,
-                heatScore: block.heatScore,
-              } as PerformanceEntry;
-            })
-            .filter((entry): entry is PerformanceEntry => Boolean(entry))
-        );
+    return list.map((slot) => {
+      const key = keyFor(slot.dayOfWeek, slot.blockStartHour);
+      const heatScore = heatMapMap.get(key);
+      const statusInfo = getStatusInfo(heatScore, slot);
+      const title =
+        slot.title?.trim() || slot.themeKeyword || slot.themes?.[0] || 'Sugestão pronta do Mobi';
+      const formatLabel = formatSlotFormat(slot.format);
+      const contextLabels = idsToLabels(slot.categories?.context, 'context');
+      const objectiveLabel = contextLabels[0] || slot.themeKeyword || slot.themes?.[1] || 'Contexto livre';
+      const channelLabel = slot.categories?.reference?.[0] || null;
+      const expectedMetrics = slot.expectedMetrics ?? {};
 
-        if (!entries.length) return null;
+      const viewsP50 = formatViews(expectedMetrics.viewsP50) ?? '—';
+      const viewsP90 = expectedMetrics.viewsP90 ? formatViews(expectedMetrics.viewsP90) : null;
+      const metricRange = viewsP90 ? `${viewsP50}–${viewsP90}` : viewsP50;
 
-        const totalViews = entries.reduce((sum, entry) => sum + entry.views, 0);
-        const averageViews = totalViews / entries.length;
-        const bestEntry = entries.reduce((prev, current) => (current.views > prev.views ? current : prev));
-        const statusInfo = getStatusInfo(bestEntry.heatScore, bestEntry.slot);
-        const legendKey = STATUS_CATEGORY_TO_LEGEND[statusInfo.category];
-        const style = PERFORMANCE_CATEGORY_STYLES[legendKey];
-        const bestViewsLabel = formatViews(bestEntry.views) ?? '—';
-        const averageViewsLabel = formatViews(averageViews) ?? '—';
+      return {
+        id: slot.slotId ?? `${slot.dayOfWeek}-${slot.blockStartHour}-${title}`,
+        dayTitle: dayFullLabel(slot.dayOfWeek),
+        blockLabel: blockLabel(slot.blockStartHour),
+        title,
+        formatLabel,
+        objectiveLabel,
+        channelLabel,
+        viewsP50,
+        viewsP90,
+        metricRange,
+        statusLabel: statusInfo.label,
+        statusCategory: statusInfo.category,
+        statusClass: statusInfo.metaClass,
+        slot,
+      } as PlannerSlotCard;
+    });
+  }, [slots, heatMapMap]);
 
-        return {
-          day: summary.day,
-          dayLabel: dayLabel(summary.day),
-          averageViews,
-          averageViewsLabel,
-          statusInfo,
-          legendKey,
-          legendEmoji: style.emoji,
-          statusLabel: style.label,
-          metaText: `${blockLabel(bestEntry.blockStartHour)} • ${bestViewsLabel} views • ${statusInfo.label}`,
-          tooltip: `🔥 ${blockLabel(bestEntry.blockStartHour)} • ${bestViewsLabel} views`,
-          barClass: style.barClass,
-          metaClass: style.metaClass,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => Boolean(row));
-
-    if (!rows.length) return [];
-    const maxValue = Math.max(...rows.map((row) => row.averageViews), 1);
-
-    return rows.map((row) => ({
-      ...row,
-      barWidth: Math.max(12, (row.averageViews / maxValue) * 100),
-    }));
-  }, [daySummaries]);
+  const completedSlots = useMemo(() => (slots || []).filter((slot) => slot.status === 'posted').length, [slots]);
+  const remainingSlots = Math.max(0, TARGET_SLOTS_PER_WEEK - (overview.total ?? 0));
+  const pendingSlots = Math.max(0, (overview.total ?? 0) - completedSlots);
+  const showLoadingBanner = loading;
 
   if (!publicMode && locked && !isBillingLoading) {
     return (
@@ -422,131 +377,45 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
 
   return (
     <div className="rounded-3xl border border-[#E6E6EB] bg-[#FAFAFB] p-4 sm:p-6 space-y-6">
-      <div className="space-y-5 rounded-2xl border border-[#E6E6EB] bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-[#F1F1F5] pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="flex items-center gap-2 text-[16px] font-semibold text-[#222222]">
-              <span aria-hidden>📅</span>
-              Resumo semanal
-            </p>
-            <p className="mt-1 mb-3 text-[13px] text-[#666666]">
-              Panorama das recomendações desta semana
-            </p>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-xl bg-[#FFF2F6] px-4 py-2 text-sm font-medium text-[#D62E5E] shadow-inner">
-            📅 Semana atual — {overview.total} {overview.total === 1 ? 'publicação sugerida' : 'publicações sugeridas'}
-          </div>
+      <section className="space-y-4 rounded-2xl border border-[#E6E6EB] bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <p className="text-base font-semibold text-[#1C1C1E]">
+            Semana atual — {overview.total ?? 0} {overview.total === 1 ? 'pauta' : 'pautas'} · {completedSlots} concluídas · {remainingSlots} pra meta
+          </p>
+          <span className="rounded-full border border-[#ECECF3] bg-[#F9F7FF] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#6B6B76]">
+            Modo cards · KPIs em destaque
+          </span>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <SummaryCard
-            variant="theme"
-            icon="💡"
-            title="Tema mais recorrente"
-            value={overview.topTheme ?? 'Em descoberta'}
-            helper={!overview.topTheme ? 'A IA está equilibrando temas para variar sua semana.' : undefined}
-          />
-          <SummaryCard
-            variant="engagement"
-            icon="🔥"
-            title="Melhor faixa"
-            value={
-              overview.bestBlock
-                ? `${dayFullLabel(overview.bestBlock.dayOfWeek)} • ${blockLabel(overview.bestBlock.blockStartHour)}`
-                : 'Aprimorando previsão'
-            }
-            helper={!overview.bestBlock ? 'Estamos analisando seus horários mais fortes.' : undefined}
-          />
-          <SummaryCard
-            variant="activity"
-            icon="🗂️"
-            title="Dias ativos"
-            value={`${overview.activeDays} ${overview.activeDays === 1 ? 'dia' : 'dias'}`}
-            helper="Distribua os posts para manter consistência."
-          />
-        </div>
-        {performanceRows.length > 0 && (
-          <div className="rounded-xl border border-[#EFEFF4] bg-[#FDFBFF] p-4">
-            <p className="text-sm font-semibold text-[#1C1C1E]">📊 Desempenho por dia</p>
-            <p className="mb-4 mt-1 text-xs text-[#5A5A67]">
-              Comparativo do alcance médio previsto por dia da semana. Use para reajustar formatos e horários.
-            </p>
-            <div className="space-y-3">
-              {performanceRows.map((row) => (
-                <div key={`performance-row-${row.day}`} className="space-y-1.5" title={row.tooltip}>
-                  <div className="flex items-center justify-between text-sm text-[#3F3F46]">
-                    <span className="flex items-center gap-2 font-semibold text-[#1C1C1E]">
-                      {row.dayLabel}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#F5F4FB] px-2 py-0.5 text-[11px] font-semibold text-[#4B4B55]">
-                        <span aria-hidden>{row.legendEmoji}</span>
-                        {row.statusLabel}
-                      </span>
-                    </span>
-                    <span className="font-semibold text-[#1C1C1E]">{row.averageViewsLabel} views</span>
-                  </div>
-                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#EEEDF5]">
-                    <span
-                      className={`absolute inset-y-0 left-0 rounded-full ${row.barClass}`}
-                      style={{ width: `${row.barWidth}%` }}
-                    />
-                  </div>
-                  <p className={`text-xs ${row.metaClass}`}>{row.metaText}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-4 text-xs text-[#5A5A67]">
-              {(['champion', 'test', 'watch'] as PerformanceLegendKey[]).map((key) => {
-                const legend = PERFORMANCE_CATEGORY_STYLES[key];
-                return (
-                  <span key={`performance-legend-${key}`} className="flex items-center gap-1">
-                    <span aria-hidden>{legend.emoji}</span>
-                    {legend.label}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
+        {showLoadingBanner && <PlannerLoadingBanner />}
+      </section>
 
-      {loading && <div className="text-sm text-gray-500">Carregando recomendações…</div>}
+      {loading && <PlannerLoadingSkeleton />}
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      <div className="rounded-2xl border border-[#E8E3FF] bg-[#F6F2FF] p-4 text-sm text-[#43316E]">
-        🤖 <span className="font-semibold text-[#2C1960]">Mobi:</span> selecionei os melhores horários da semana
-        com base nos resultados mais recentes. Clique em uma pauta para abrir e ajustar se quiser.
-      </div>
-
-      <div className="space-y-4">
-        {hasRelevantDays ? (
-          relevantDaySummaries.map((summary) => (
-            <PlannerDaySection
-              key={`planner-day-${summary.day}`}
-              summary={summary}
-              canEdit={canEdit}
-              onOpenSlot={onOpenSlot}
-              onRequestSubscribe={onRequestSubscribe}
-            />
-          ))
-        ) : (
-          <div className="rounded-2xl border border-dashed border-[#E4E4EA] bg-white p-6 text-sm text-[#4B4B55]">
-            Nenhuma sugestão disponível por enquanto. Peça novas pautas para o Mobi ou gere ideias no planner.
-          </div>
-        )}
-      </div>
+      {slotCards.length ? (
+        <PlannerSlotCardGrid
+          cards={slotCards}
+          canEdit={canEdit}
+          onOpenSlot={onOpenSlot}
+          onRequestSubscribe={onRequestSubscribe}
+        />
+      ) : (
+        <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
+      )}
 
       {canEdit && (
-        <div className="fixed bottom-6 right-5 z-40 md:hidden">
-          <button
-            type="button"
-            onClick={() => {
-              const target = defaultCreateTarget;
-              onCreateSlot(target.day, target.blockStartHour);
-            }}
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:from-[#c42853] hover:to-[#5a1877]"
-          >
-            🤖 Gerar sugestões
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const target = defaultCreateTarget;
+            onCreateSlot(target.day, target.blockStartHour);
+          }}
+          className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] text-2xl font-bold text-white shadow-lg transition hover:from-[#c42853] hover:to-[#5a1877]"
+          aria-label="Gerar novas pautas"
+          title="Gerar nova pauta"
+        >
+          +
+        </button>
       )}
 
       {!publicMode && !canEdit && (
@@ -571,109 +440,61 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   );
 };
 
-type SummaryVariant = 'theme' | 'engagement' | 'activity';
-
-const SUMMARY_VARIANT_STYLES: Record<SummaryVariant, { iconBg: string; iconText: string; titleColor: string }> = {
-  theme: { iconBg: 'bg-[#F2E8FF]', iconText: 'text-[#6E1F93]', titleColor: 'text-[#6E1F93]' },
-  engagement: { iconBg: 'bg-[#FFF3E8]', iconText: 'text-[#F97316]', titleColor: 'text-[#F97316]' },
-  activity: { iconBg: 'bg-[#EAF1FF]', iconText: 'text-[#2563EB]', titleColor: 'text-[#2563EB]' },
+const STATUS_EMOJI: Record<StatusCategory, string> = {
+  champion: '🔥',
+  test: '🧪',
+  watch: '👀',
+  planned: '⏳',
 };
 
-const SummaryCard = ({
-  variant,
-  icon,
-  title,
-  value,
-  helper,
-}: {
-  variant: SummaryVariant;
-  icon: string;
+interface PlannerSlotCard {
+  id: string;
+  dayTitle: string;
+  blockLabel: string;
   title: string;
-  value: string;
-  helper?: string;
-}) => {
-  const styles = SUMMARY_VARIANT_STYLES[variant];
-  return (
-    <div className="flex items-center gap-3 rounded-2xl bg-[#FFF8FA] p-4 shadow-sm">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl text-lg ${styles.iconBg} ${styles.iconText}`}>
-        {icon}
-      </div>
-      <div>
-        <p className={`text-xs font-semibold uppercase tracking-wide ${styles.titleColor}`}>{title}</p>
-        <p className="text-sm font-semibold text-[#1C1C1E]">{value}</p>
-        {helper && <p className="text-xs text-gray-500">{helper}</p>}
-      </div>
-    </div>
-  );
-};
+  formatLabel: string;
+  objectiveLabel: string;
+  channelLabel: string | null;
+  viewsP50: string;
+  viewsP90: string | null;
+  metricRange: string;
+  statusLabel: string;
+  statusCategory: StatusCategory;
+  statusClass: string;
+  slot: PlannerUISlot;
+}
 
-interface PlannerDaySectionProps {
-  summary: PlannerDaySummary;
+const PlannerSlotCardGrid = ({
+  cards,
+  canEdit,
+  onOpenSlot,
+  onRequestSubscribe,
+}: {
+  cards: PlannerSlotCard[];
   canEdit: boolean;
   onOpenSlot: (slot: PlannerUISlot) => void;
   onRequestSubscribe?: () => void;
-}
-
-const PlannerDaySection = React.memo<PlannerDaySectionProps>(
-  ({ summary, canEdit, onOpenSlot, onRequestSubscribe }) => {
-    const { day, blocks } = summary;
-    const dayTitle = useMemo<string>(() => dayFullLabel(day), [day]);
-
-    const primarySuggestion = useMemo(() => {
-      const items = blocks.flatMap((block) => {
-        if (!block.items.length) return [];
-        return block.items.map((slot) => ({
-          slot,
-          heatScore: block.heatScore,
-          blockStartHour: block.blockStartHour,
-        }));
-      });
-
-      if (!items.length) return null;
-      return items.sort((a, b) => {
-        const aViews = a.slot.expectedMetrics?.viewsP50 ?? 0;
-        const bViews = b.slot.expectedMetrics?.viewsP50 ?? 0;
-        return bViews - aViews;
-      })[0]!;
-    }, [blocks]);
-
-    if (!primarySuggestion) return null;
-
-    const { slot: primarySlot, heatScore, blockStartHour } = primarySuggestion;
-    const blockTime = blockLabel(primarySlot.blockStartHour ?? blockStartHour);
-    const viewsLabel = formatViews(primarySlot.expectedMetrics?.viewsP50);
-    const headline =
-      primarySlot.title?.trim() ||
-      primarySlot.themeKeyword ||
-      primarySlot.themes?.[0] ||
-      'Sugestão pronta do Mobi';
-
-    const formatName = formatSlotFormat(primarySlot.format);
-    const contextLabels = idsToLabels(primarySlot.categories?.context, 'context');
-    const contextName = contextLabels[0] || primarySlot.themeKeyword || primarySlot.themes?.[1] || 'Contexto livre';
-
-    const statusInfo = getStatusInfo(heatScore, primarySlot);
-    const metaParts = [blockTime, viewsLabel ? `${viewsLabel} views` : null, statusInfo.label].filter(Boolean);
-
-    const handleClick = () => {
-      if (canEdit) {
-        onOpenSlot(primarySlot);
-      } else if (onRequestSubscribe) {
-        onRequestSubscribe();
-      }
-    };
-
-    return (
-      <section id={`planner-day-${day}`}>
-        <div
+}) => {
+  if (!cards.length) return null;
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {cards.map((card) => (
+        <article
+          key={card.id}
           role={canEdit ? 'button' : undefined}
           tabIndex={canEdit ? 0 : -1}
-          onClick={handleClick}
+          onClick={() => {
+            if (canEdit) {
+              onOpenSlot(card.slot);
+            } else if (onRequestSubscribe) {
+              onRequestSubscribe();
+            }
+          }}
           onKeyDown={(event) => {
             if (!canEdit) return;
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              onOpenSlot(primarySlot);
+              onOpenSlot(card.slot);
             }
           }}
           className={[
@@ -681,55 +502,116 @@ const PlannerDaySection = React.memo<PlannerDaySectionProps>(
             canEdit ? 'cursor-pointer hover:border-[#C9B8FF] hover:shadow-md' : 'cursor-default',
           ].join(' ')}
         >
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#1C1C1E]">
-              <span className="inline-flex h-2 w-2 rounded-full bg-[#6E1F93]" aria-hidden />
-              {dayTitle}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-lg font-semibold text-[#1C1C1E]">
+                {card.dayTitle} · {card.blockLabel}
+              </p>
+              <span className={`inline-flex items-center gap-1 rounded-full border border-current px-3 py-1 text-xs font-semibold ${card.statusClass}`}>
+                <span aria-hidden>{STATUS_EMOJI[card.statusCategory]}</span>
+                {card.statusLabel}
+              </span>
             </div>
 
-            <p className="text-base font-semibold text-[#1C1C1E]">{headline}</p>
+            <p className="text-sm font-semibold text-[#1C1C1E]">{card.title}</p>
 
-            <p className={`text-sm font-medium ${statusInfo.metaClass}`}>
-              <span aria-hidden>🔥 </span>
-              {metaParts.join(' • ')}
+            <div className="flex flex-wrap gap-2">
+              <InfoChip value={card.formatLabel} />
+              <InfoChip value={card.objectiveLabel} />
+              {card.channelLabel && <InfoChip value={card.channelLabel} />}
+            </div>
+
+            <p className="text-sm font-semibold text-[#1C1C1E]">
+              📊 {card.metricRange} views
             </p>
 
-            <p className="text-sm text-[#5A5A67]">
-              🎬 {formatName}
-              {contextName ? ` • 💬 ${contextName}` : ''}
-            </p>
-
-            {primarySlot.themes && primarySlot.themes.length > 1 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {primarySlot.themes.slice(1).map((theme) => (
-                  <span
-                    key={theme}
-                    className="inline-flex items-center rounded-full bg-[#F3F0FF] px-3 py-1 text-xs font-medium text-[#6E1F93]"
-                  >
-                    {theme}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {canEdit ? (
-              <span className="text-xs font-semibold text-[#6E1F93]">Toque para abrir detalhes da pauta</span>
-            ) : (
+            {!canEdit && onRequestSubscribe && (
               <button
                 type="button"
-                onClick={onRequestSubscribe}
-                disabled={!onRequestSubscribe}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRequestSubscribe();
+                }}
                 className="text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
               >
                 Assine para editar esta pauta
               </button>
             )}
           </div>
+        </article>
+      ))}
+    </div>
+  );
+};
+
+const PlannerLoadingSkeleton = () => (
+  <div className="space-y-3 rounded-2xl border border-dashed border-[#E4E4EA] bg-white p-5">
+    {[1, 2, 3].map((row) => (
+      <div key={`planner-loading-${row}`} className="animate-pulse space-y-2">
+        <div className="h-3 w-32 rounded-full bg-[#F1F1F5]" />
+        <div className="h-5 w-3/4 rounded-full bg-[#ECEAFD]" />
+        <div className="flex gap-2">
+          <span className="h-6 w-20 rounded-full bg-[#F1F1F5]" />
+          <span className="h-6 w-20 rounded-full bg-[#F1F1F5]" />
         </div>
-      </section>
-    );
-  }
+      </div>
+    ))}
+  </div>
 );
-PlannerDaySection.displayName = 'PlannerDaySection';
+
+const PlannerLoadingBanner = () => (
+  <div className="rounded-xl border border-[#E0E7FF] bg-[#F5F7FF] px-4 py-3 text-sm text-[#1C1C1E]">
+    <div className="flex items-start gap-3">
+      <span className="text-lg" aria-hidden>
+        ⚙️
+      </span>
+      <div>
+        <p className="font-semibold">Calculando o melhor plano para a semana</p>
+        <p className="text-xs text-[#4B4B55]">
+          O Mobi está analisando horários quentes, formatos e KPIs recentes para atualizar seu calendário.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const InfoChip = ({ value }: { value: string }) => (
+  <span className="inline-flex items-center rounded-full bg-[#F5F5F7] px-2.5 py-0.5 text-xs font-medium text-[#4B4B55]">
+    {value}
+  </span>
+);
+
+const PlannerEmptyState = ({
+  onRequestSubscribe,
+  loading,
+}: {
+  onRequestSubscribe?: () => void;
+  loading: boolean;
+}) => (
+  <div className="rounded-2xl border border-dashed border-[#E4E4EA] bg-white p-6">
+    <p className="text-base font-semibold text-[#1C1C1E]">Prepare o terreno para novas pautas</p>
+    <ol className="mt-3 space-y-2 text-sm text-[#4B4B55]">
+      {[
+        'Confirme se o Instagram está conectado e liberado para IA',
+        'Escolha um tema ou objetivo semanal na tela de edição',
+        'Peça novas pautas e ajuste horários favoritos',
+      ].map((step, index) => (
+        <li key={step} className="flex gap-3">
+          <span className="text-xs font-semibold text-[#8E8EA0]">0{index + 1}</span>
+          <span>{step}</span>
+        </li>
+      ))}
+    </ol>
+    {onRequestSubscribe && !loading && (
+      <button
+        type="button"
+        onClick={onRequestSubscribe}
+        className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#E4E4EA] px-3 py-2 text-sm font-semibold text-[#6E1F93]"
+      >
+        Liberar planner completo
+      </button>
+    )}
+  </div>
+);
 
 export default ContentPlannerCalendar;

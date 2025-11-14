@@ -88,7 +88,17 @@ export default function PlannerClientPage() {
     return (
       <main className="w-full max-w-none pb-12">
         <div className="mx-auto max-w-[800px] px-3 sm:px-4 lg:max-w-7xl lg:px-6">
-          <p className="text-sm text-gray-500">Carregando…</p>
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
+            <div className="flex items-center gap-3 text-slate-700">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-lg">
+                ⏳
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Carregando seu planejamento</p>
+                <p className="text-xs text-slate-500">Estamos validando sua sessão para montar o calendário inteligente.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     );
@@ -110,43 +120,35 @@ export default function PlannerClientPage() {
     return (
       <main className="w-full max-w-none pb-12">
         <div className="mx-auto max-w-[800px] px-3 sm:px-4 lg:max-w-7xl lg:px-6">
-          <div className="rounded-2xl border border-blue-200 bg-white px-5 py-6 shadow-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-600">
-              Planner IA
-            </span>
-            <h2 className="mt-3 text-xl font-semibold text-slate-900">
-              Conecte seu Instagram para liberar o Planner automático
-            </h2>
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Planner IA</span>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-900">Conecte seu Instagram em menos de 2 minutos</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Em menos de 2 minutos você destrava o calendário adaptado aos seus horários quentes,
-              temas e formatos vencedores.
+              Liberamos horários quentes e pautas prontas assim que o perfil estiver sincronizado.
             </p>
-            <ul className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
-              <li className="rounded-full bg-slate-100 px-3 py-1">Slots semanais guiados pela IA</li>
-              <li className="rounded-full bg-slate-100 px-3 py-1">Melhores horários atualizados</li>
-              <li className="rounded-full bg-slate-100 px-3 py-1">Roteiros prontos em 1 clique</li>
-            </ul>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
                 onClick={handleConnectInstagram}
-                className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:w-auto"
+                className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 sm:w-auto"
               >
-                Conectar Instagram agora
+                Conectar agora
               </button>
               <button
-                onClick={handleExploreCommunity}
-                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
-              >
-                Explorar comunidade primeiro
-              </button>
-              <button
+                type="button"
                 onClick={handleOpenPlannerDemo}
-                className="inline-flex w-full items-center justify-center rounded-lg border border-transparent bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 sm:w-auto"
+                className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
               >
                 Ver planner demo
               </button>
+              <button
+                type="button"
+                onClick={handleExploreCommunity}
+                className="inline-flex items-center justify-center text-sm font-semibold text-slate-500 underline underline-offset-4 hover:text-slate-900 sm:ml-3"
+              >
+                Explorar comunidade
+              </button>
             </div>
-            <p className="mt-3 text-xs text-slate-500">{INSTAGRAM_READ_ONLY_COPY}</p>
+            <p className="mt-4 text-xs text-slate-500">{INSTAGRAM_READ_ONLY_COPY}</p>
           </div>
         </div>
       </main>

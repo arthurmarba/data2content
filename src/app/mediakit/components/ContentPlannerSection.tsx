@@ -31,6 +31,26 @@ function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | n
   };
 }
 
+function fromPlannerSlotData(data: PlannerSlotDataModal): PlannerUISlot {
+  return {
+    slotId: data.slotId,
+    dayOfWeek: data.dayOfWeek,
+    blockStartHour: data.blockStartHour,
+    format: data.format || 'reel',
+    categories: data.categories ?? {},
+    status: (data.status as PlannerUISlot['status']) || 'planned',
+    isExperiment: data.isExperiment,
+    expectedMetrics: data.expectedMetrics ?? {},
+    title: data.title,
+    scriptShort: data.scriptShort,
+    themes: data.themes ?? [],
+    themeKeyword: data.themeKeyword,
+    rationale: Array.isArray(data.rationale) ? data.rationale.join('\n') : (data.rationale as any),
+    recordingTimeSec: data.recordingTimeSec,
+    aiVersionId: data.aiVersionId ?? undefined,
+  };
+}
+
 function getWeekStartISO(date = new Date()): string {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -180,6 +200,75 @@ export const ContentPlannerList = ({
     [canEdit, slots, saveSlots, closeModal, effectiveLockedReason]
   );
 
+  const handleDuplicate = useCallback(
+    async (target: PlannerSlotDataModal) => {
+      if (!canEdit) {
+        openPaywallModal({ context: 'planning', source: 'planner_duplicate_blocked' });
+        const message =
+          effectiveLockedReason || 'Este planejamento está temporariamente bloqueado.';
+        setSavingError(message);
+        return;
+      }
+      const list: PlannerUISlot[] = Array.isArray(slots) ? [...slots] : [];
+      const duplicated = fromPlannerSlotData(target);
+      duplicated.slotId = undefined;
+      duplicated.status = 'drafted';
+      if (duplicated.title) duplicated.title = `${duplicated.title} (variação)`;
+      list.push(duplicated);
+      try {
+        await saveSlots(list);
+        setSavingError(null);
+      } catch (err: any) {
+        const message = err?.message || 'Não foi possível duplicar a pauta.';
+        setSavingError(message);
+        throw err;
+      }
+    },
+    [canEdit, slots, saveSlots, effectiveLockedReason]
+  );
+
+  const handleDelete = useCallback(
+    async (target: PlannerSlotDataModal) => {
+      if (!canEdit) {
+        openPaywallModal({ context: 'planning', source: 'planner_delete_blocked' });
+        const message =
+          effectiveLockedReason || 'Este planejamento está temporariamente bloqueado.';
+        setSavingError(message);
+        return;
+      }
+      if (!slots || !slots.length) return;
+      let removed = false;
+      const filtered = slots.filter((slotItem) => {
+        if (removed) return true;
+        if (target.slotId && slotItem.slotId) {
+          if (slotItem.slotId === target.slotId) {
+            removed = true;
+            return false;
+          }
+          return true;
+        }
+        const sameBlock =
+          slotItem.dayOfWeek === target.dayOfWeek && slotItem.blockStartHour === target.blockStartHour;
+        if (!target.slotId && sameBlock && !slotItem.slotId) {
+          removed = true;
+          return false;
+        }
+        return true;
+      });
+      if (!removed) return;
+      try {
+        await saveSlots(filtered);
+        setSavingError(null);
+        closeModal();
+      } catch (err: any) {
+        const message = err?.message || 'Não foi possível excluir a pauta.';
+        setSavingError(message);
+        throw err;
+      }
+    },
+    [canEdit, slots, saveSlots, effectiveLockedReason, closeModal]
+  );
+
   useEffect(() => {
     if (initialSlotId) {
       initialSlotHandledRef.current = false;
@@ -265,9 +354,10 @@ export const ContentPlannerList = ({
         weekStartISO={weekStartISO}
         slot={toPlannerSlotData(selectedSlot)}
         onSave={handleSave}
+        onDuplicateSlot={handleDuplicate}
+        onDeleteSlot={handleDelete}
         readOnly={publicMode || locked}
         canGenerate={canGenerate}
-        showGenerateCta={false}
         onUpgradeRequest={() => openPaywallModal({ context: 'planning', source: 'planner_slot_modal' })}
         upgradeMessage="Finalize a configuração necessária para gerar roteiros com IA."
       />
