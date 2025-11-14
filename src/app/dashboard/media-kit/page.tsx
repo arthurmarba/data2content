@@ -353,7 +353,6 @@ function SelfMediaKitContent({
       kpis={kpis}
       demographics={demographics}
       engagementTrend={engagementTrend}
-      showSharedBanner={false}
       showOwnerCtas={true}
       compactPadding={compactPadding}
       publicUrlForCopy={publicUrlForCopy || undefined}

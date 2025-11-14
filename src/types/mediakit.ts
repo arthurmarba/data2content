@@ -121,8 +121,6 @@ export interface MediaKitViewProps {
   kpis: KpiComparison | null;
   demographics: DemographicsData | null;
   engagementTrend?: EngagementTrendData | null;
-  // Exibe o banner institucional apenas em contexto de compartilhamento público
-  showSharedBanner?: boolean;
   showOwnerCtas?: boolean;
   // Slot extra: renderiza abaixo do bloco de afiliado (quando for o dono)
   belowAffiliateSlot?: React.ReactNode;

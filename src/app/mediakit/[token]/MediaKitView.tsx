@@ -14,8 +14,6 @@ import {
   MessageSquare,
   Share2,
   Bookmark,
-  Calendar,
-  Mail,
   ArrowUpRight,
   ArrowDownRight,
   X,
@@ -1070,7 +1068,6 @@ export default function MediaKitView({
   kpis: initialKpis,
   demographics,
   engagementTrend,
-  showSharedBanner = false,
   showOwnerCtas = false,
   belowAffiliateSlot,
   compactPadding = false,
@@ -1865,17 +1862,6 @@ const groupedTopPosts = useMemo(() => {
       sort: topPostsSort,
     });
   }, [affiliateHandle, mediaKitSlug, topPostsSort]);
-  const multiCampaignLink = useMemo(() => {
-    const params = new URLSearchParams({
-      utm_source: 'mediakit',
-      utm_medium: 'multi_campaign_cta',
-      utm_campaign: mediaKitSlug || 'public',
-    });
-    if (affiliateHandle) params.set('origin_handle', affiliateHandle);
-    if (mediaKitSlug) params.set('origin_slug', mediaKitSlug);
-    if (affiliateCode) params.set('origin_affiliate', affiliateCode);
-    return `/campaigns/new?${params.toString()}`;
-  }, [affiliateCode, affiliateHandle, mediaKitSlug]);
   useEffect(() => {
     const container = topPostsScrollRef.current;
     if (!container) return;
@@ -1905,13 +1891,6 @@ const groupedTopPosts = useMemo(() => {
     if (!normalizedHandle) return null;
     return `https://www.instagram.com/${normalizedHandle}`;
   }, [affiliateHandle]);
-  const handleMultiCampaignCtaClick = useCallback(() => {
-    track('media_kit_multi_campaign_cta_clicked', {
-      slug: mediaKitSlug ?? null,
-      handle: affiliateHandle ?? null,
-      affiliateCode: affiliateCode ?? null,
-    });
-  }, [affiliateCode, affiliateHandle, mediaKitSlug]);
   const isSubscribed = useMemo(() => {
     if (billingStatus.hasPremiumAccess) return true;
     return isPlanActiveLike((session?.user as any)?.planStatus);
@@ -1966,8 +1945,31 @@ const groupedTopPosts = useMemo(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeProposalDrawer, isProposalDrawerOpen]);
+  const [isScrollingUp, setIsScrollingUp] = useState(false);
+  const lastScrollYRef = useRef<number>(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScrollDirection = () => {
+      const currentY = window.scrollY || 0;
+      const lastY = lastScrollYRef.current;
+      const delta = currentY - lastY;
+      if (delta < -5 && !isScrollingUp) {
+        setIsScrollingUp(true);
+      } else if (delta > 5 && isScrollingUp) {
+        setIsScrollingUp(false);
+      }
+      lastScrollYRef.current = currentY;
+    };
+    window.addEventListener('scroll', handleScrollDirection, { passive: true });
+    return () => window.removeEventListener('scroll', handleScrollDirection);
+  }, [isScrollingUp]);
   const stickyEligible = Boolean(isPublicView && mediaKitSlug) && !isCitiesModalOpen && selectedPostId === null;
-  const stickyVisible = stickyEligible && hasPassedStickyStart && !isStickyEndVisible && !isProposalDrawerOpen;
+  const stickyVisible =
+    stickyEligible &&
+    hasPassedStickyStart &&
+    !isStickyEndVisible &&
+    !isProposalDrawerOpen &&
+    isScrollingUp;
   const mainContainerClass = `${containerClass} ${stickyVisible ? 'pb-28 sm:pb-36' : ''}`;
   const handleStickyProposalClick = useCallback(() => {
     track('media_kit_proposal_sticky_clicked', {
@@ -2087,20 +2089,29 @@ const groupedTopPosts = useMemo(() => {
                   </div>
                 </div>
 
-                {heroMetricCardsData.length || (user?._id && !shouldHidePremiumSections) ? (
-                  <CategoryRankingsSummary
-                    rankings={categoryRankingsEnabled ? categoryRankingsData : null}
-                    loading={categoryRankingsLoading}
-                    locked={shouldLockPremiumSections}
-                    lockedDescription={lockedCategoriesDescription}
-                    lockedCtaLabel={categoryCtaLabel}
-                    lockedSubtitle={categorySubtitle}
-                    onLockedAction={() => handleLockedCtaClick('media_kit_categories_summary')}
-                    metricCards={heroMetricCardsData}
-                  />
-                ) : null}
               </div>
             </motion.section>
+
+            {heroMetricCardsData.length || (user?._id && !shouldHidePremiumSections) ? (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.05}
+                className={`${cardStyle} space-y-4`}
+              >
+                <CategoryRankingsSummary
+                  rankings={categoryRankingsEnabled ? categoryRankingsData : null}
+                  loading={categoryRankingsLoading}
+                  locked={shouldLockPremiumSections}
+                  lockedDescription={lockedCategoriesDescription}
+                  lockedCtaLabel={categoryCtaLabel}
+                  lockedSubtitle={categorySubtitle}
+                  onLockedAction={() => handleLockedCtaClick('media_kit_categories_summary')}
+                  metricCards={heroMetricCardsData}
+                />
+              </motion.section>
+            ) : null}
 
             {showOwnerCtas && publicUrlForCopy ? (
               <motion.section
@@ -2797,143 +2808,26 @@ const groupedTopPosts = useMemo(() => {
               )}
             </motion.section>
 
-            {showSharedBanner && (
-              <motion.section
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0.9}
-                className="rounded-3xl bg-gradient-to-br from-[#6E1F93] via-[#9446B0] to-[#D62E5E] px-6 py-10 text-center text-white shadow-lg"
-              >
-                <Mail className="mx-auto h-10 w-10" />
-                <h3 className="mt-4 text-3xl font-bold sm:text-4xl">
-                  Inteligência criativa para marcas que querem resultado.
-                </h3>
-                <p className="mt-3 text-sm text-white/80 sm:text-base">
-                  Nós decodificamos o DNA da audiência de cada criador para construir campanhas que convertem.
-                </p>
-                <a
-                  href="mailto:arthur@data2content.ai?subject=Desenho de Campanha Inteligente"
-                  className="mt-6 inline-flex items-center justify-center rounded-full bg-white px-8 py-3 text-sm font-semibold text-[#6E1F93] shadow-sm transition hover:bg-white/90"
-                >
-                  Desenhar campanha inteligente
-                </a>
-              </motion.section>
-            )}
-
-            {isPublicView && mediaKitSlug ? (
-              <motion.section
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0.85}
-                className={`${cardStyle} space-y-5`}
-              >
-                <div className="space-y-2 text-left">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                    Marcas
-                  </p>
-                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Envie sua proposta</h2>
-                  <p className="text-sm text-gray-600">
-                    Preencha o briefing e fale direto com o criador. Você recebe resposta por e-mail ou WhatsApp.
-                  </p>
-                </div>
-                <div className="space-y-4 rounded-2xl border border-[#E8DAFF] bg-white p-6 shadow-sm">
-                  <ul className="space-y-3 text-sm text-gray-600">
-                    <li className="flex items-start gap-2">
-                      <Send className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
-                      <span>Formulário inteligente com briefing completo para acelerar o retorno do criador.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Mail className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
-                      <span>O criador recebe sua proposta em tempo real por e-mail e pela plataforma.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Calendar className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
-                      <span>Combine entregas, orçamento e cronograma em um único lugar.</span>
-                    </li>
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={openProposalDrawer}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#c12652]"
-                  >
-                    💼 Enviar proposta para {affiliateHandleLabel}
-                  </button>
-                  <p className="text-xs text-gray-500">
-                    Precisa de ajuda? Nossa equipe acompanha todas as propostas para garantir o melhor match.
-                  </p>
-                </div>
-              </motion.section>
-            ) : null}
-
             {isPublicView ? <div ref={stickyEndRef} className="h-px w-full" aria-hidden="true" /> : null}
 
-            {isPublicView ? (
-              <motion.section
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0.9}
-                className={`${cardStyle} space-y-4 bg-gradient-to-br from-[#F9F7FF] via-white to-[#FFF9F0]`}
-              >
-                <div className="flex flex-col gap-3 text-left sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                      Campanhas inteligentes
-                    </p>
-                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Planeje com vários criadores</h2>
-                    <p className="text-sm text-gray-600">
-                      Preencha um briefing único e deixe nossa IA indicar os melhores perfis para a sua campanha.
-                    </p>
-                  </div>
-                  <Sparkles className="hidden h-10 w-10 text-[#D62E5E] sm:block" />
-                </div>
-                <div className="rounded-2xl border border-[#F0D9FF] bg-white/80 p-6 shadow-sm backdrop-blur">
-                  <ul className="space-y-3 text-sm text-gray-600">
-                    <li className="flex items-start gap-2">
-                      <Users className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
-                      <span>Combine criadores de moda, beleza, tech e mais em uma única estratégia.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Calendar className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
-                      <span>Defina orçamento total, prazos e entregáveis para campanhas completas.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Sparkles className="mt-0.5 h-4 w-4 text-[#6E1F93]" />
-                      <span>Match automático com os criadores mais aderentes às suas metas.</span>
-                    </li>
-                  </ul>
+            {!isPublicView && (
+              <footer className="mt-10 rounded-3xl border border-[#EAEAEA] bg-white px-6 py-6 text-center shadow-sm">
+                <p className="text-sm font-semibold text-[#1C1C1E]">
+                  Dados e análise por <span className="text-[#D62E5E]">Data2Content AI</span>
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Atualizado automaticamente via Instagram API e inteligência proprietária.
+                </p>
+                {contactEmail ? (
                   <a
-                    href={multiCampaignLink}
-                    onClick={handleMultiCampaignCtaClick}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#6E1F93] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#5a1a78]"
+                    href={`mailto:${contactEmail}`}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-5 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
                   >
-                    🎯 Criar campanha com vários criadores
+                    Contatar para parceria
                   </a>
-                  <p className="mt-3 text-xs text-gray-500">
-                    Deixe nossa IA encontrar os perfis ideais pra sua marca. Você recebe uma confirmação por e-mail.
-                  </p>
-                </div>
-              </motion.section>
-            ) : null}
-
-            <footer className="mt-10 rounded-3xl border border-[#EAEAEA] bg-white px-6 py-6 text-center shadow-sm">
-              <p className="text-sm font-semibold text-[#1C1C1E]">
-                Dados e análise por <span className="text-[#D62E5E]">Data2Content AI</span>
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Atualizado automaticamente via Instagram API e inteligência proprietária.
-              </p>
-              {contactEmail ? (
-                <a
-                  href={`mailto:${contactEmail}`}
-                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-5 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
-                >
-                  Contatar para parceria
-                </a>
-              ) : null}
-            </footer>
+                ) : null}
+              </footer>
+            )}
           </div>
         </div>
 

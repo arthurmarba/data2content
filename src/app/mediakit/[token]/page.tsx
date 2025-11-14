@@ -277,7 +277,6 @@ export default async function MediaKitPage(
           kpis={kpis}
           demographics={demographics}
           engagementTrend={engagementTrend}
-          showSharedBanner={!isOwner}
           showOwnerCtas={false}
           mediaKitSlug={params.token}
           premiumAccess={premiumAccessConfig}
