@@ -299,6 +299,16 @@ function SelfMediaKitContent({
       profile?.instagram?.profile_picture_url ||
       fallbackImage ||
       undefined;
+    const followersCount =
+      typeof profile.followers_count === 'number'
+        ? profile.followers_count
+        : typeof profile.followersCount === 'number'
+          ? profile.followersCount
+          : typeof profile?.instagram?.followers_count === 'number'
+            ? profile.instagram.followers_count
+            : typeof profile?.instagram?.followersCount === 'number'
+              ? profile.instagram.followersCount
+              : null;
 
     return {
       _id: profile._id || userId,
@@ -318,6 +328,8 @@ function SelfMediaKitContent({
       country: profile.country ?? undefined,
       instagramUsername: profile.instagramUsername ?? undefined,
       instagram: profile.instagram ?? undefined,
+      followers_count: followersCount ?? undefined,
+      followersCount: followersCount ?? undefined,
     } as any;
   }, [ownerProfile, userId, fallbackName, fallbackEmail, fallbackImage]);
 
@@ -379,38 +391,32 @@ export default function MediaKitSelfServePage() {
     if (normalized && normalized !== "unknown") return normalized;
     return normalizedSessionPlanStatus;
   }, [billingStatus.normalizedStatus, normalizedSessionPlanStatus]);
-  const hasPremiumAccess =
-    billingStatus.hasPremiumAccess || isPlanActiveLike(effectivePlanStatus);
   const isGracePeriod = billingStatus.isGracePeriod || effectivePlanStatus === "non_renewing";
+  const hasPremiumAccess =
+    billingStatus.hasPremiumAccess || isPlanActiveLike(effectivePlanStatus) || isGracePeriod;
   const trialState = billingStatus.trial?.state ?? null;
   const trialExpired = trialState === "expired";
-  const canViewCategories = Boolean(billingStatus.hasPremiumAccess);
+  const canViewCategories = hasPremiumAccess;
   const categoriesCtaLabel = trialExpired
     ? "Assinar e continuar de onde parei"
     : "Ver categorias do meu perfil (Assinar Plano Agência)";
   const categoriesSubtitle = trialExpired ? PRO_PLAN_FLEXIBILITY_COPY : INSTAGRAM_READ_ONLY_COPY;
-  const highlightCtaLabel = trialExpired
-    ? "Assinar e continuar de onde parei"
-    : "Descobrir o que mais faz meu conteúdo crescer (Assinar Plano Agência)";
-  const highlightSubtitle = categoriesSubtitle;
   const handleUpgrade = useCallback(() => {
     openPaywallModal({ context: 'planning', source: 'media_kit_upgrade' });
   }, []);
-  const premiumAccessConfig = useMemo<MediaKitPremiumAccessConfig>(
-    () => ({
-      canViewCategories,
-      ctaLabel: canViewCategories ? undefined : categoriesCtaLabel,
-      subtitle: canViewCategories ? undefined : categoriesSubtitle,
-      categoryCtaLabel: canViewCategories ? undefined : categoriesCtaLabel,
-      categorySubtitle: canViewCategories ? undefined : categoriesSubtitle,
-      highlightCtaLabel: canViewCategories ? undefined : highlightCtaLabel,
-      highlightSubtitle: canViewCategories ? undefined : highlightSubtitle,
+  const premiumAccessConfig = useMemo<MediaKitPremiumAccessConfig | undefined>(() => {
+    if (hasPremiumAccess) return undefined;
+    return {
+      canViewCategories: false,
+      ctaLabel: categoriesCtaLabel,
+      subtitle: categoriesSubtitle,
+      categoryCtaLabel: categoriesCtaLabel,
+      categorySubtitle: categoriesSubtitle,
       onRequestUpgrade: handleUpgrade,
       trialState,
       visibilityMode: 'lock',
-    }),
-    [canViewCategories, categoriesCtaLabel, categoriesSubtitle, handleUpgrade, highlightCtaLabel, highlightSubtitle, trialState]
-  );
+    };
+  }, [hasPremiumAccess, categoriesCtaLabel, categoriesSubtitle, handleUpgrade, trialState]);
   
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   // Lógica e Estado para o Modal do WhatsApp

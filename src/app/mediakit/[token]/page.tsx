@@ -237,6 +237,13 @@ export default async function MediaKitPage(
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));
+  if (
+    plainUser &&
+    typeof plainUser.followersCount !== 'number' &&
+    typeof plainUser.followers_count === 'number'
+  ) {
+    plainUser.followersCount = plainUser.followers_count;
+  }
   const now = Date.now();
   const planStatus = (plainUser?.planStatus ?? null) as any;
   const trialStatus = (plainUser?.proTrialStatus ?? null) as string | null;

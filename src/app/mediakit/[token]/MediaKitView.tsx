@@ -21,6 +21,8 @@ import {
   X,
   Lock,
   Send,
+  Globe,
+  Volume2,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { UserAvatar } from '@/app/components/UserAvatar';
@@ -118,182 +120,6 @@ const normalizeComparisonPeriod = (period?: string): ComparisonPeriodKey => {
 
 const TOP_POSTS_MAX_ITEMS = 10;
 const LOCKED_TOP_POSTS_PREVIEW_COUNT = 3;
-
-/**
- * COMPONENTES: Destaques / Rankings
- */
-const PerformanceHighlightsCarousel = ({ userId }: { userId: string }) => {
-  const [summary, setSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const { timePeriod } = useGlobalTimePeriod();
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!userId) return;
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `/api/v1/users/${userId}/highlights/performance-summary?timePeriod=${timePeriod}`
-        );
-        const result = await response.json();
-        setSummary(result);
-      } catch (error) {
-        console.error('Failed to fetch performance highlights', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [userId, timePeriod]);
-
-  if (loading) {
-    return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        {[...Array(4)].map((_, index) => (
-          <div key={index} className="h-28 rounded-2xl bg-gray-100 animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-  if (!summary) return <p className="text-gray-500">Não foi possível carregar os destaques.</p>;
-
-  const getPortugueseWeekdayName = (dow0to6: number): string =>
-    ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][((dow0to6 % 7) + 7) % 7] || '';
-
-  const highlightItems = [
-    {
-      key: 'format',
-      title: 'Melhor formato',
-      icon: <TrendingUp className="h-4 w-4" />,
-      data: summary.topPerformingFormat,
-    },
-    {
-      key: 'context',
-      title: 'Contexto vencedor',
-      icon: <Sparkles className="h-4 w-4" />,
-      data: summary.topPerformingContext,
-    },
-    {
-      key: 'proposal',
-      title: 'Proposta em alta',
-      icon: <Sparkles className="h-4 w-4" />,
-      data: summary.topPerformingProposal,
-    },
-    {
-      key: 'tone',
-      title: 'Tom que engaja',
-      icon: <MessageSquare className="h-4 w-4" />,
-      data: summary.topPerformingTone,
-    },
-    {
-      key: 'reference',
-      title: 'Referência que inspira',
-      icon: <Sparkles className="h-4 w-4" />,
-      data: summary.topPerformingReference,
-    },
-    {
-      key: 'day',
-      title: 'Dia mais quente',
-      icon: <CalendarDays className="h-4 w-4" />,
-      data: summary.bestDay
-        ? {
-            name: getPortugueseWeekdayName(summary.bestDay.dayOfWeek),
-            metricName: 'Interações médias',
-            valueFormatted: summary.bestDay.average?.toFixed?.(1) ?? '—',
-          }
-        : null,
-    },
-  ].filter((item) => item.data);
-
-  const narrative =
-    summary?.headline ||
-    summary?.insightSummary?.topHighlight ||
-    (summary?.topPerformingFormat?.name && summary?.topPerformingContext?.name
-      ? `Conteúdos em ${summary.topPerformingFormat.name} com foco em ${summary.topPerformingContext.name} lideram as interações recentes.`
-      : null);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        {highlightItems.map((item, index) => {
-          const isAccent = index === 0;
-          return (
-            <div
-              key={item.key}
-              className={`flex min-w-[140px] flex-1 basis-[45%] items-start gap-2 rounded-xl p-3 ${
-                isAccent ? 'bg-gradient-to-br from-[#FFE1EA] via-white to-[#FFF8FA]' : 'bg-[#FAFAFB]'
-              }`}
-            >
-              <span className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full ${isAccent ? 'bg-white text-[#D62E5E]' : 'bg-white text-[#6E1F93]'}`}>
-                {item.icon}
-              </span>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{item.title}</p>
-                <p className="text-sm font-bold text-[#1C1C1E] leading-tight">{item.data.name}</p>
-                <p className="text-xs text-gray-500">
-                  {item.data.metricName}: {item.data.valueFormatted}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {narrative ? (
-        <p className="rounded-xl bg-white p-4 text-center text-sm font-medium text-[#6E1F93] shadow-sm">
-          {narrative}
-        </p>
-      ) : null}
-    </div>
-  );
-};
-
-const LockedCategoriesPeek = () => {
-  const sections = [
-    { label: "Formato", items: ["Reels", "Stories", "Carrossel"] },
-    { label: "Proposta", items: ["Bastidores", "Educação", "Review"] },
-    { label: "Contexto", items: ["Tutorial", "Diário", "Entrevista"] },
-  ];
-  return (
-    <div className="space-y-3" aria-hidden="true">
-      {sections.map((section) => (
-        <div key={section.label} className="space-y-2">
-          <h4 className="text-xs font-semibold text-gray-500">{section.label}</h4>
-          <div className="flex flex-wrap gap-2">
-            {section.items.map((item) => (
-              <span
-                key={`${section.label}-${item}`}
-                className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700/90 blur-[1px]"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const LockedHighlightsPeek = () => {
-  const samples = [
-    { title: "Melhor formato", detail: "+22% interações" },
-    { title: "Contexto vencedor", detail: "+18% alcance" },
-    { title: "Horário quente", detail: "19h – 21h" },
-  ];
-  return (
-    <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
-      {samples.map((item) => (
-        <div
-          key={item.title}
-          className="rounded-lg border border-pink-100 bg-white/80 p-4 shadow-sm"
-        >
-          <p className="text-sm font-semibold text-gray-800">{item.title}</p>
-          <p className="text-xs text-gray-500 mt-2 blur-[1px]">{item.detail}</p>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 interface ProposalFormState {
   brandName: string;
@@ -627,7 +453,7 @@ const LockedPremiumSection = ({
         </span>
       ) : null}
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+        <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">{title}</h2>
         <p className="text-gray-500 text-sm">{description}</p>
       </div>
       <div>{peek}</div>
@@ -732,12 +558,7 @@ interface RankItem {
   category: string;
   value: number;
 }
-type CategoryKey = 'format' | 'proposal' | 'context';
-
-interface MetricListProps {
-  items: RankItem[];
-  type: CategoryKey;
-}
+type CategoryKey = 'format' | 'proposal' | 'context' | 'tone' | 'references';
 
 // Fallback robusto: tenta classification -> commaSeparatedIdsToLabels -> Title Case do id
 const idToLabel = (id: string | number, type: CategoryKey) => {
@@ -760,145 +581,80 @@ const idToLabel = (id: string | number, type: CategoryKey) => {
     .join(' ');
 };
 
-const MetricList = ({ items, type }: MetricListProps) => (
-  <ul className="space-y-1 text-sm text-gray-600">
-    {items.map((it, idx) => (
-      <li key={`${it.category}-${idx}`} className="flex justify-between border-b border-gray-100 pb-1 last:border-b-0">
-        <span className="truncate pr-2 font-medium text-gray-700" title={String(it.category)}>
-          {idToLabel(it.category, type)}
-        </span>
-        <span className="tabular-nums text-gray-500">{new Intl.NumberFormat('pt-BR').format(it.value)}</span>
-      </li>
-    ))}
-  </ul>
-);
+type CategoryRankingsMap = {
+  fp?: RankItem[];
+  fa?: RankItem[];
+  pp?: RankItem[];
+  pa?: RankItem[];
+  cp?: RankItem[];
+  ca?: RankItem[];
+  tp?: RankItem[];
+  ta?: RankItem[];
+  rp?: RankItem[];
+  ra?: RankItem[];
+} | null;
 
-const CategoryRankingsCarousel = ({ userId }: { userId: string }) => {
-  const [rankings, setRankings] = useState<any>({});
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
+const useCategoryRankings = (userId?: string | null, enabled = true) => {
+  const [state, setState] = useState<{
+    data: CategoryRankingsMap;
+    loading: boolean;
+    error: Error | null;
+  }>({ data: null, loading: false, error: null });
 
   useEffect(() => {
-    const fetchAllRankings = async () => {
-      if (!userId) return;
-      setLoading(true);
+    if (!userId || !enabled) {
+      setState((prev) => ({ ...prev, loading: false }));
+      return;
+    }
 
+    let cancelled = false;
+    const fetchAllRankings = async () => {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
       const endDate = new Date().toISOString();
       const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
       const fetchCategoryRanking = async (category: CategoryKey, metric: string) => {
         const qs = new URLSearchParams({ category, metric, startDate, endDate, limit: '5', userId });
         const res = await fetch(`/api/admin/dashboard/rankings/categories?${qs.toString()}`);
-        return res.ok ? res.json() : [];
+        if (!res.ok) return [];
+        return res.json();
       };
 
       try {
-        const [fp, fa, pp, pa, cp, ca] = await Promise.all([
+        const [fp, fa, pp, pa, cp, ca, tp, ta, rp, ra] = await Promise.all([
           fetchCategoryRanking('format', 'posts'),
           fetchCategoryRanking('format', 'avg_total_interactions'),
           fetchCategoryRanking('proposal', 'posts'),
           fetchCategoryRanking('proposal', 'avg_total_interactions'),
           fetchCategoryRanking('context', 'posts'),
           fetchCategoryRanking('context', 'avg_total_interactions'),
+          fetchCategoryRanking('tone', 'posts'),
+          fetchCategoryRanking('tone', 'avg_total_interactions'),
+          fetchCategoryRanking('references', 'posts'),
+          fetchCategoryRanking('references', 'avg_total_interactions'),
         ]);
-        setRankings({ fp, fa, pp, pa, cp, ca });
+        if (!cancelled) {
+          setState({ data: { fp, fa, pp, pa, cp, ca, tp, ta, rp, ra }, loading: false, error: null });
+        }
       } catch (error) {
         console.error('Failed to fetch rankings', error);
-      } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error : new Error('Failed to fetch rankings'),
+          }));
+        }
       }
     };
+
     fetchAllRankings();
-  }, [userId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, enabled]);
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[...Array(2)].map((_, index) => (
-          <div key={index} className="h-24 rounded-2xl bg-gray-100 animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-  if (!Object.keys(rankings).length)
-    return <p className="text-gray-500">Não foi possível carregar os rankings.</p>;
-
-  const summaryRows = [
-    rankings.fa?.[0]
-      ? `Formato destaque: ${idToLabel(rankings.fa[0].category, 'format')}`
-      : null,
-    rankings.pa?.[0]
-      ? `Proposta forte: ${idToLabel(rankings.pa[0].category, 'proposal')}`
-      : null,
-    rankings.ca?.[0]
-      ? `Contexto de impacto: ${idToLabel(rankings.ca[0].category, 'context')}`
-      : null,
-  ].filter(Boolean) as string[];
-
-  const detailSections = [
-    {
-      key: 'formats',
-      title: 'Formatos',
-      items: [
-        { label: 'Mais publicados', data: rankings.fp, type: 'format' as const },
-        { label: 'Maior média de interações', data: rankings.fa, type: 'format' as const },
-      ],
-    },
-    {
-      key: 'proposals',
-      title: 'Propostas',
-      items: [
-        { label: 'Mais publicadas', data: rankings.pp, type: 'proposal' as const },
-        { label: 'Maior média de interações', data: rankings.pa, type: 'proposal' as const },
-      ],
-    },
-    {
-      key: 'contexts',
-      title: 'Contextos',
-      items: [
-        { label: 'Mais recorrentes', data: rankings.cp, type: 'context' as const },
-        { label: 'Maior média de interações', data: rankings.ca, type: 'context' as const },
-      ],
-    },
-  ];
-
-  return (
-    <div className="space-y-4">
-      {summaryRows.length > 0 ? (
-        <div className="space-y-2 text-sm text-gray-700">
-          {summaryRows.map((text) => (
-            <p key={text}>{text}</p>
-          ))}
-        </div>
-      ) : null}
-      <button
-        type="button"
-        className="flex w-full items-center justify-between rounded-2xl border border-[#EAEAEA] bg-[#FAFAFB] px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-[#D62E5E]"
-        onClick={() => setExpanded((prev) => !prev)}
-      >
-        <span>Ver comparativos detalhados</span>
-        <ArrowDownRight className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-      </button>
-      {expanded ? (
-        <div className="space-y-5 rounded-2xl border border-[#EAEAEA] bg-white p-4">
-          {detailSections.map((section) => (
-            <div key={section.key} className="space-y-3">
-              <h4 className="text-sm font-semibold text-gray-800">{section.title}</h4>
-              {section.items.map(
-                (block) =>
-                  Array.isArray(block.data) && block.data.length > 0 ? (
-                    <div key={`${section.key}-${block.label}`} className="rounded-xl bg-[#FAFAFB] p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{block.label}</p>
-                      <MetricList items={block.data.slice(0, 5)} type={block.type} />
-                    </div>
-                  ) : null
-              )}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
+  return state;
 };
 
 /**
@@ -927,14 +683,46 @@ const TrendIndicator = ({ value, showValue = true }: TrendIndicatorProps & { sho
   );
 };
 
+const DeltaPill = ({
+  value,
+  label,
+}: {
+  value: number | null | undefined;
+  label?: string;
+}) => {
+  if (value === null || value === undefined) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-600">
+        Estável
+        {label ? <span className="ml-1 font-normal text-gray-500">{label}</span> : null}
+      </span>
+    );
+  }
+  const isPositive = value >= 0;
+  const sign = isPositive ? '+' : '−';
+  const magnitude = Math.abs(value);
+  const formatted = Number.isFinite(magnitude)
+    ? `${sign}${magnitude >= 10 ? magnitude.toFixed(0) : magnitude.toFixed(1)}%`
+    : `${sign}∞`;
+  const pillClass = isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pillClass}`}>
+      {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      {formatted}
+      {label ? <span className="font-normal text-gray-500">{label}</span> : null}
+    </span>
+  );
+};
+
 const tagStyleMap: Record<
-  'format' | 'context' | 'proposal' | 'tone',
+  'format' | 'context' | 'proposal' | 'tone' | 'references',
   { bgClass: string; textClass: string; labelPrefix: string }
 > = {
   format: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Formato' },
   context: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Contexto' },
   proposal: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Proposta' },
   tone: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Tom' },
+  references: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Referência' },
 };
 
 const SparklineChart = ({ values, color = '#D62E5E' }: { values: number[]; color?: string }) => {
@@ -983,7 +771,236 @@ const SparklineChart = ({ values, color = '#D62E5E' }: { values: number[]; color
   );
 };
 
+const DemographicBarList = ({
+  data,
+  maxItems = 4,
+  accentClass = 'from-[#D62E5E] to-[#6E1F93]',
+}: {
+  data: Array<{ label: string; percentage: number }>;
+  maxItems?: number;
+  accentClass?: string;
+}) => {
+  if (!data?.length) return null;
+  return (
+    <div className="space-y-3">
+      {data.slice(0, maxItems).map((item) => (
+        <div key={`${item.label}-${item.percentage}`}>
+          <div className="flex items-center justify-between text-xs font-medium text-gray-600">
+            <span>{item.label}</span>
+            <span className="text-gray-800">{Math.round(item.percentage)}%</span>
+          </div>
+          <div className="mt-1.5 h-2 rounded-full bg-gray-100">
+            <div
+              className={`h-2 rounded-full bg-gradient-to-r ${accentClass}`}
+              style={{ width: `${Math.min(item.percentage, 100)}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+type InsightMetricCard = {
+  key: string;
+  title: string;
+  icon: React.ReactNode;
+  accent: string;
+  value: string;
+  helper?: string | null;
+  change?: number | null | undefined;
+};
+
+type CategoryRankingsSummaryProps = {
+  rankings: CategoryRankingsMap;
+  loading: boolean;
+  locked: boolean;
+  lockedDescription: string;
+  lockedCtaLabel: string;
+  lockedSubtitle?: string;
+  onLockedAction?: () => void;
+  metricCards?: InsightMetricCard[];
+};
+
+const CategoryRankingsSummary = ({
+  rankings,
+  loading,
+  locked,
+  lockedDescription,
+  lockedCtaLabel,
+  lockedSubtitle,
+  onLockedAction,
+  metricCards = [],
+}: CategoryRankingsSummaryProps) => {
+  const summaryCards = [
+    {
+      key: 'format',
+      title: 'Formato destaque',
+      icon: <TrendingUp className="h-4 w-4" />,
+      accent: '#6E1F93',
+      item: rankings?.fa?.[0],
+      type: 'format' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'proposal',
+      title: 'Proposta forte',
+      icon: <Sparkles className="h-4 w-4" />,
+      accent: '#D62E5E',
+      item: rankings?.pa?.[0],
+      type: 'proposal' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'context',
+      title: 'Contexto que engaja',
+      icon: <MessageSquare className="h-4 w-4" />,
+      accent: '#9446B0',
+      item: rankings?.ca?.[0],
+      type: 'context' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'tone',
+      title: 'Tom em destaque',
+      icon: <Volume2 className="h-4 w-4" />,
+      accent: '#1C4FD7',
+      item: rankings?.ta?.[0],
+      type: 'tone' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'reference',
+      title: 'Referência em alta',
+      icon: <Bookmark className="h-4 w-4" />,
+      accent: '#F97316',
+      item: rankings?.ra?.[0],
+      type: 'references' as const,
+      helper: 'Maior média de interações',
+    },
+  ] as const;
+
+  if (locked) {
+    return (
+      <div className="rounded-2xl border border-[#F5D2E3] bg-white/80 p-4 shadow-sm backdrop-blur">
+        <div className="flex items-center gap-2 text-[#D62E5E]">
+          <Lock className="h-4 w-4" />
+          <p className="text-xs font-semibold uppercase tracking-wide">Modo Agência</p>
+        </div>
+        <p className="mt-2 text-sm text-gray-700">{lockedDescription}</p>
+        {lockedSubtitle ? <p className="mt-1 text-xs text-gray-500">{lockedSubtitle}</p> : null}
+        <button
+          type="button"
+          onClick={() => onLockedAction?.()}
+          className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c12652]"
+        >
+          {lockedCtaLabel}
+          <ArrowUpRight className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  const renderableCategoryCards = summaryCards
+    .map((card) => {
+      if (!card.item) return null;
+      return {
+        kind: 'category' as const,
+        key: card.key,
+        title: card.title,
+        icon: card.icon,
+        accent: card.accent,
+        primary: idToLabel(card.item.category, card.type),
+        secondary: `${card.helper}: ${new Intl.NumberFormat('pt-BR').format(card.item.value)}`,
+        change: null as number | null,
+      };
+    })
+    .filter((card): card is NonNullable<typeof card> => Boolean(card));
+
+  const metricCardsRenderable = metricCards.map((card) => ({
+    kind: 'metric' as const,
+    key: card.key,
+    title: card.title,
+    icon: card.icon,
+    accent: card.accent,
+    primary: card.value,
+    secondary: card.helper ?? undefined,
+    change: card.change ?? null,
+  }));
+
+  const cardsToRender = [...metricCardsRenderable, ...renderableCategoryCards];
+
+  const hasData = cardsToRender.length > 0;
+  const skeletonCount = Math.max(metricCards.length || 3, summaryCards.length);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {loading
+          ? Array.from({ length: skeletonCount }).map((_, index) => (
+              <div
+                key={`insight-skeleton-${index}`}
+                className="h-28 animate-pulse rounded-2xl border border-[#EDE7FB] bg-white/60"
+              />
+            ))
+          : hasData
+            ? cardsToRender.map((card) => (
+                <div
+                  key={card.key}
+                  className="rounded-2xl border border-[#EDE7FB] bg-white/90 p-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white"
+                      style={{ backgroundColor: card.accent }}
+                    >
+                      {card.icon}
+                    </span>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {card.title}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-base font-bold text-gray-900">{card.primary}</p>
+                  {card.secondary ? (
+                    <p className="text-xs text-gray-500">{card.secondary}</p>
+                  ) : null}
+                  {card.change !== undefined && card.change !== null ? (
+                    <div className="mt-2">
+                      <DeltaPill value={card.change} />
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-white/80 p-4 text-sm text-gray-500 sm:col-span-2 lg:col-span-3">
+                Não encontramos dados recentes para destacar categorias. Tente outro período ou volte mais tarde.
+              </div>
+            )}
+      </div>
+    </div>
+  );
+};
+
+const TopPostChip = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) => (
+  <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white">
+    {label}
+    <span className="text-xs font-bold">{value}</span>
+  </span>
+);
+
 const genderLabelMap: { [key: string]: string } = { f: 'Feminino', m: 'Masculino', u: 'Desconhecido' };
+type DemographicBreakdownEntry = { label: string; percentage: number };
+type DemographicBreakdowns = {
+  gender: DemographicBreakdownEntry[];
+  age: DemographicBreakdownEntry[];
+  location: DemographicBreakdownEntry[];
+};
 const getTopEntry = (data: { [key: string]: number } | undefined) =>
   !data || Object.keys(data).length === 0 ? null : Object.entries(data).reduce((a, b) => (a[1] > b[1] ? a : b));
 const generateDemographicSummary = (demographics: any) => {
@@ -1234,7 +1251,13 @@ export default function MediaKitView({
   const engagementRateColor = engagementRateValue !== null ? 'text-[#D62E5E]' : 'text-gray-400';
   const followerCountDisplay =
     typeof user.followers_count === 'number' ? user.followers_count.toLocaleString('pt-BR') : '—';
-  const followersCountRaw = (user as any)?.followers_count;
+  const followersCountRaw =
+    (user as any)?.followers_count ??
+    (user as any)?.followersCount ??
+    (user as any)?.instagram?.followers_count ??
+    (user as any)?.instagram?.followersCount ??
+    (user as any)?.instagram?.followers ??
+    null;
   const followersDisplay = useMemo(() => {
     if (typeof followersCountRaw !== 'number' || !Number.isFinite(followersCountRaw) || followersCountRaw <= 0) {
       return null;
@@ -1257,35 +1280,97 @@ export default function MediaKitView({
       maximumFractionDigits: avgReachValue >= 1000 ? 1 : 0,
     }).format(avgReachValue);
   }, [avgReachValue]);
-  const heroMetrics = useMemo(
+  const heroPeriodLabel = useMemo(() => selectedPeriodLabel.toLocaleLowerCase('pt-BR'), [selectedPeriodLabel]);
+  const heroKpiCards = useMemo(() => {
+    const followerGain = displayKpis?.followerGrowth?.currentValue ?? null;
+    const followerGainLabel =
+      typeof followerGain === 'number' && Number.isFinite(followerGain)
+        ? `${followerGain > 0 ? '+' : ''}${followerGain.toLocaleString('pt-BR')} no período`
+        : null;
+    const postingFrequencyValue = displayKpis?.postingFrequency?.currentValue ?? null;
+    const postingFrequencyLabel =
+      typeof postingFrequencyValue === 'number' && Number.isFinite(postingFrequencyValue)
+        ? `${postingFrequencyValue.toFixed(postingFrequencyValue % 1 === 0 ? 0 : 1)} posts/semana`
+        : null;
+    const totalFollowersValue = followersDisplay ?? followerCountDisplay ?? '—';
+    return [
+      {
+        key: 'followers',
+        icon: <Users className="h-5 w-5" />,
+        label: 'Total de seguidores',
+        value: totalFollowersValue,
+        change: displayKpis?.followerGrowth?.percentageChange ?? null,
+        helper: followerGainLabel,
+      },
+      avgReachDisplay
+        ? {
+            key: 'reach',
+            icon: <Eye className="h-5 w-5" />,
+            label: 'Alcance por post',
+            value: avgReachDisplay,
+            change: displayKpis?.avgReachPerPost?.percentageChange ?? displayKpis?.avgViewsPerPost?.percentageChange ?? null,
+            helper: `Média dos ${heroPeriodLabel}`,
+          }
+        : null,
+      engagementRateHeroDisplay
+        ? {
+            key: 'engagement',
+            icon: <Heart className="h-5 w-5" />,
+            label: 'Taxa de engajamento',
+            value: engagementRateHeroDisplay,
+            change: displayKpis?.engagementRate?.percentageChange ?? null,
+            helper: `Média dos ${heroPeriodLabel}`,
+          }
+        : null,
+      postingFrequencyLabel
+        ? {
+            key: 'frequency',
+            icon: <CalendarDays className="h-5 w-5" />,
+            label: 'Ritmo de publicação',
+            value: postingFrequencyLabel,
+            change: displayKpis?.postingFrequency?.percentageChange ?? null,
+            helper: `vs ${heroPeriodLabel}`,
+          }
+        : null,
+    ].filter(Boolean) as Array<{
+      key: string;
+      icon: React.ReactNode;
+      label: string;
+      value: string;
+      change: number | null | undefined;
+      helper?: string | null;
+    }>;
+  }, [
+    avgReachDisplay,
+    displayKpis?.avgReachPerPost?.percentageChange,
+    displayKpis?.avgViewsPerPost?.percentageChange,
+    displayKpis?.engagementRate?.percentageChange,
+    displayKpis?.followerGrowth?.percentageChange,
+    displayKpis?.followerGrowth?.currentValue,
+    displayKpis?.postingFrequency?.currentValue,
+    displayKpis?.postingFrequency?.percentageChange,
+    engagementRateHeroDisplay,
+    followersDisplay,
+    heroPeriodLabel,
+  ]);
+  const HERO_METRIC_ACCENTS: Record<string, string> = {
+    followers: '#6E1F93',
+    reach: '#1C4FD7',
+    engagement: '#D62E5E',
+    frequency: '#9446B0',
+  };
+  const heroMetricCardsData = useMemo<InsightMetricCard[]>(
     () =>
-      [
-        followersDisplay
-          ? {
-              key: 'followers',
-              icon: <Users className="h-4 w-4" />,
-              label: 'Seguidores',
-              value: followersDisplay,
-            }
-          : null,
-        engagementRateHeroDisplay
-          ? {
-              key: 'engagement',
-              icon: <Heart className="h-4 w-4" />,
-              label: 'Engajamento médio',
-              value: engagementRateHeroDisplay,
-            }
-          : null,
-        avgReachDisplay
-          ? {
-              key: 'reach',
-              icon: <Eye className="h-4 w-4" />,
-              label: 'Alcance por post',
-              value: avgReachDisplay,
-            }
-          : null,
-      ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; label: string; value: string }>,
-    [avgReachDisplay, engagementRateHeroDisplay, followersDisplay]
+      heroKpiCards.map((metric) => ({
+        key: `metric-${metric.key}`,
+        title: metric.label,
+        icon: metric.icon,
+        accent: HERO_METRIC_ACCENTS[metric.key] ?? '#6E1F93',
+        value: metric.value,
+        helper: metric.helper,
+        change: metric.change,
+      })),
+    [heroKpiCards]
   );
 
   const isPublicView = !showOwnerCtas;
@@ -1335,21 +1420,40 @@ export default function MediaKitView({
   const lockedSubtitle = premiumAccess?.subtitle ?? PRO_PLAN_FLEXIBILITY_COPY;
   const categoryCtaLabel = premiumAccess?.categoryCtaLabel ?? lockedCtaLabel;
   const categorySubtitle = premiumAccess?.categorySubtitle ?? lockedSubtitle;
-  const highlightDefaultCta = "Descobrir o que mais faz meu conteúdo crescer (Assinar Plano Agência)";
-  const highlightCtaLabel = premiumAccess?.highlightCtaLabel ?? highlightDefaultCta;
-  const highlightSubtitle = premiumAccess?.highlightSubtitle ?? lockedSubtitle;
   const premiumTrialState = premiumAccess?.trialState ?? null;
   const lockedCategoriesDescription =
     premiumTrialState === "expired"
       ? "Seus dados ficaram congelados. Assine para continuar recebendo atualizações semanais."
       : "Ative o modo Agência para ver os formatos, propostas e contextos que mais puxam crescimento.";
-  const lockedHighlightsDescription =
-    premiumTrialState === "expired"
-      ? "Retome o modo Agência para seguir recebendo os destaques automáticos da semana."
-      : "Ative o modo Agência para destravar os principais insights sobre formatos, contextos e horários.";
   const lockedViewTrackedRef = useRef(false);
   const topPostsLockedViewTrackedRef = useRef(false);
   const topPostsScrollRef = useRef<HTMLDivElement | null>(null);
+  const topPostsScrollTrackedRef = useRef(false);
+  const [topPostsScrollIndicators, setTopPostsScrollIndicators] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
+  });
+  const [topPostsSort, setTopPostsSort] = useState<'views' | 'engagementRate' | 'saves'>('views');
+  const topPostSortOptions = [
+    { value: 'views', label: 'Visualizações' },
+    { value: 'engagementRate', label: 'Taxa de engajamento' },
+    { value: 'saves', label: 'Salvos' },
+  ] as const;
+  const categorySummaryViewedRef = useRef(false);
+  const categoryRankingsEnabled =
+    Boolean(user?._id) && !shouldHidePremiumSections && !shouldLockPremiumSections;
+  const { data: categoryRankingsData, loading: categoryRankingsLoading } = useCategoryRankings(
+    user?._id ? String(user._id) : null,
+    categoryRankingsEnabled
+  );
+  const hasCategorySummaryData = useMemo(() => {
+    if (!categoryRankingsData) return false;
+    return Boolean(
+      categoryRankingsData.fa?.length ||
+        categoryRankingsData.pa?.length ||
+        categoryRankingsData.ca?.length
+    );
+  }, [categoryRankingsData]);
 
   // ✅ Bio com a mesma regra do componente antigo + fallbacks
   const bioText = useMemo(() => {
@@ -1380,11 +1484,11 @@ export default function MediaKitView({
     return cleaned.length > 120 ? `${cleaned.slice(0, 117).trim()}…` : cleaned;
   }, [heroBio, user]);
 
-  const demographicBreakdowns = useMemo(() => {
-    if (!demographics?.follower_demographics) return null as any;
+  const demographicBreakdowns = useMemo<DemographicBreakdowns | null>(() => {
+    if (!demographics?.follower_demographics) return null;
     const { gender, age, city } = demographics.follower_demographics;
-    const calculatePercentages = (data: Record<string, number> | undefined) => {
-      if (!data) return [] as { label: string; percentage: number }[];
+    const calculatePercentages = (data: Record<string, number> | undefined): DemographicBreakdownEntry[] => {
+      if (!data) return [];
       const total = Object.values(data).reduce((sum: number, count: number) => sum + count, 0);
       return Object.entries(data)
         .map(([label, count]) => ({ label, percentage: ((count as number) / total) * 100 }))
@@ -1396,18 +1500,40 @@ export default function MediaKitView({
       location: calculatePercentages(city), // lista completa; exibimos top 3 no card
     };
   }, [demographics]);
-  const topGenderBreakdown = useMemo(
+  const fullLocationBreakdown = useMemo<DemographicBreakdownEntry[]>(
+    () => demographicBreakdowns?.location ?? [],
+    [demographicBreakdowns]
+  );
+  const topGenderBreakdown = useMemo<DemographicBreakdownEntry[]>(
     () => (demographicBreakdowns?.gender ? demographicBreakdowns.gender.slice(0, 3) : []),
     [demographicBreakdowns]
   );
-  const topAgeBreakdown = useMemo(
+  const topAgeBreakdown = useMemo<DemographicBreakdownEntry[]>(
     () => (demographicBreakdowns?.age ? demographicBreakdowns.age.slice(0, 3) : []),
     [demographicBreakdowns]
   );
-  const topLocationBreakdown = useMemo(
-    () => (demographicBreakdowns?.location ? demographicBreakdowns.location.slice(0, 3) : []),
-    [demographicBreakdowns]
+  const topLocationBreakdown = useMemo<DemographicBreakdownEntry[]>(
+    () => fullLocationBreakdown.slice(0, 3),
+    [fullLocationBreakdown]
   );
+  const genderBarData = useMemo(
+    () =>
+      topGenderBreakdown.map((item) => ({
+        label: genderLabelMap[item.label.toLowerCase()] || item.label,
+        percentage: item.percentage,
+      })),
+    [topGenderBreakdown]
+  );
+  const ageBarData = useMemo(
+    () =>
+      topAgeBreakdown.map((item) => ({
+        label: item.label,
+        percentage: item.percentage,
+      })),
+    [topAgeBreakdown]
+  );
+  const hasMoreCities = fullLocationBreakdown.length > 3;
+  const demographySourceCopy = 'Fonte: Instagram API + Data2Content';
   const demographicHighlights = useMemo(() => {
     const entries: Array<{ key: string; icon: React.ReactNode; title: string; value: string }> = [];
     if (topGenderBreakdown[0]) {
@@ -1573,68 +1699,80 @@ export default function MediaKitView({
     []
   );
   const isTopPostsLocked = !canViewCategories && visibilityMode === 'lock';
-  const quickStats = useMemo(
-    () => [
-      {
-        key: 'reach',
-        label: 'Alcance médio',
-        icon: <Eye className="h-5 w-5" />,
-        value: displayKpis?.avgReachPerPost?.currentValue ?? displayKpis?.avgViewsPerPost?.currentValue ?? null,
-        change: displayKpis?.avgReachPerPost?.percentageChange ?? displayKpis?.avgViewsPerPost?.percentageChange ?? null,
-        type: 'number' as const,
-        detail: 'por post',
-      },
-      {
-        key: 'engagement',
-        label: 'Taxa de engajamento',
-        icon: <Heart className="h-5 w-5" />,
-        value: displayKpis?.engagementRate?.currentValue ?? null,
-        change: displayKpis?.engagementRate?.percentageChange ?? null,
-        type: 'percent' as const,
-        detail: 'média do período',
-      },
-      {
-        key: 'frequency',
-        label: 'Posts semanais',
-        icon: <CalendarDays className="h-5 w-5" />,
-        value: displayKpis?.postingFrequency?.currentValue ?? null,
-        change: displayKpis?.postingFrequency?.percentageChange ?? null,
-        type: 'number' as const,
-        detail: 'ritmo de publicação',
-      },
-      {
-        key: 'followers',
-        label: 'Crescimento',
-        icon: <Users className="h-5 w-5" />,
-        value: displayKpis?.followerGrowth?.currentValue ?? null,
-        change: displayKpis?.followerGrowth?.percentageChange ?? null,
-        type: 'number' as const,
-        detail: 'seguidores',
-      },
-    ],
-    [displayKpis]
-  );
-  const topPostsIntro = useMemo(() => {
+  const topPostsIntro = useMemo<string | null>(() => {
     if (isTopPostsLocked) {
       return 'Prévia dos posts mais recentes. Ative o modo Agência para destravar a análise completa.';
     }
     if (!canViewCategories && visibilityMode === 'hide') {
       return 'Os posts com melhor desempenho aparecem, mas as categorias detalhadas estão ocultas nesta visualização.';
     }
-    return 'Os posts que mais engajaram no período, com métricas prontas para apresentar.';
+    return null;
   }, [isTopPostsLocked, canViewCategories, visibilityMode]);
-  const topPostsForCarousel = useMemo(() => {
+  const decoratedTopPosts = useMemo(() => {
     if (!Array.isArray(videosWithCorrectStats)) return [];
-    const maxItems = Math.min(TOP_POSTS_MAX_ITEMS, videosWithCorrectStats.length);
-    return videosWithCorrectStats.slice(0, maxItems);
+    return videosWithCorrectStats.map((video, index) => {
+      const stats = (video.stats ?? {}) as Record<string, any>;
+      const likes = Number(stats.likes ?? stats.like_count ?? 0);
+      const comments = Number(stats.comments ?? stats.comment_count ?? 0);
+      const shares = Number(stats.shares ?? stats.share_count ?? 0);
+      const saves = Number(stats.saves ?? stats.save_count ?? 0);
+      const views = Number(
+        stats.views ?? stats.view_count ?? stats.reach ?? stats.impressions ?? 0
+      );
+      const interactions = likes + comments + shares + saves;
+      const engagementRate =
+        views > 0 && Number.isFinite(interactions) ? (interactions / views) * 100 : null;
+      return {
+        ...video,
+        derivedStats: {
+          views,
+          likes,
+          comments,
+          shares,
+          saves,
+          interactions,
+          engagementRate,
+        },
+        originalIndex: index,
+      };
+    });
   }, [videosWithCorrectStats]);
-  const visibleTopPosts = useMemo(
-    () =>
-      isTopPostsLocked
-        ? topPostsForCarousel.slice(0, LOCKED_TOP_POSTS_PREVIEW_COUNT)
-        : topPostsForCarousel,
-    [isTopPostsLocked, topPostsForCarousel]
-  );
+  const topPostSortLabelMap: Record<'views' | 'engagementRate' | 'saves', string> = {
+    views: 'visualizações',
+    engagementRate: 'taxa de engajamento',
+    saves: 'salvos',
+  };
+  const sortedTopPosts = useMemo(() => {
+    const getter = (video: (typeof decoratedTopPosts)[number]) => {
+      const derived = video.derivedStats ?? {};
+      if (topPostsSort === 'engagementRate') return derived.engagementRate ?? -Infinity;
+      if (topPostsSort === 'saves') return derived.saves ?? 0;
+      return derived.views ?? 0;
+    };
+    return [...decoratedTopPosts].sort((a, b) => {
+      const diff = (getter(b) ?? 0) - (getter(a) ?? 0);
+      if (diff !== 0) return diff;
+      return (a.originalIndex ?? 0) - (b.originalIndex ?? 0);
+    });
+  }, [decoratedTopPosts, topPostsSort]);
+  const topPostsForCarousel = useMemo(() => {
+    const maxItems = Math.min(TOP_POSTS_MAX_ITEMS, sortedTopPosts.length);
+    return sortedTopPosts.slice(0, maxItems);
+  }, [sortedTopPosts]);
+const visibleTopPosts = useMemo(
+  () =>
+    isTopPostsLocked
+      ? topPostsForCarousel.slice(0, LOCKED_TOP_POSTS_PREVIEW_COUNT)
+      : topPostsForCarousel,
+  [isTopPostsLocked, topPostsForCarousel]
+);
+const groupedTopPosts = useMemo(() => {
+  const groups: typeof visibleTopPosts[] = [];
+  for (let i = 0; i < visibleTopPosts.length; i += 2) {
+    groups.push(visibleTopPosts.slice(i, i + 2));
+  }
+  return groups;
+}, [visibleTopPosts]);
   const handleTopPostsWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     const container = topPostsScrollRef.current;
     if (!container) return;
@@ -1698,6 +1836,25 @@ export default function MediaKitView({
       affiliateHandle,
     });
   }, [affiliateCode, affiliateHandle, mediaKitSlug]);
+  const handleTopPostSortChange = useCallback(
+    (value: typeof topPostSortOptions[number]['value']) => {
+      if (value === topPostsSort) return;
+      setTopPostsSort(value);
+      track('media_kit_top_posts_sort_changed', {
+        slug: mediaKitSlug ?? null,
+        handle: affiliateHandle ?? null,
+        sort: value,
+      });
+    },
+    [affiliateHandle, mediaKitSlug, topPostsSort]
+  );
+  const handleTopPostsBriefingClick = useCallback(() => {
+    track('media_kit_top_posts_briefing_clicked', {
+      slug: mediaKitSlug ?? null,
+      handle: affiliateHandle ?? null,
+      sort: topPostsSort,
+    });
+  }, [affiliateHandle, mediaKitSlug, topPostsSort]);
   const multiCampaignLink = useMemo(() => {
     const params = new URLSearchParams({
       utm_source: 'mediakit',
@@ -1709,6 +1866,29 @@ export default function MediaKitView({
     if (affiliateCode) params.set('origin_affiliate', affiliateCode);
     return `/campaigns/new?${params.toString()}`;
   }, [affiliateCode, affiliateHandle, mediaKitSlug]);
+  useEffect(() => {
+    const container = topPostsScrollRef.current;
+    if (!container) return;
+    const updateScrollState = () => {
+      const canScrollLeft = container.scrollLeft > 8;
+      const canScrollRight = container.scrollWidth - container.clientWidth - container.scrollLeft > 8;
+      setTopPostsScrollIndicators({ canScrollLeft, canScrollRight });
+      if (!topPostsScrollTrackedRef.current && canScrollLeft) {
+        track('media_kit_top_posts_scrolled', {
+          slug: mediaKitSlug ?? null,
+          handle: affiliateHandle ?? null,
+        });
+        topPostsScrollTrackedRef.current = true;
+      }
+    };
+    updateScrollState();
+    container.addEventListener('scroll', updateScrollState);
+    window.addEventListener('resize', updateScrollState);
+    return () => {
+      container.removeEventListener('scroll', updateScrollState);
+      window.removeEventListener('resize', updateScrollState);
+    };
+  }, [affiliateHandle, mediaKitSlug, visibleTopPosts]);
   const instagramProfileUrl = useMemo(() => {
     if (!affiliateHandle) return null;
     const normalizedHandle = affiliateHandle.replace(/^@+/, '').trim();
@@ -1792,6 +1972,24 @@ export default function MediaKitView({
       affiliateCode,
     });
   }, [affiliateCode, affiliateHandle, affiliateLink, mediaKitSlug]);
+  useEffect(() => {
+    if (shouldHidePremiumSections || shouldLockPremiumSections) return;
+    if (!hasCategorySummaryData) return;
+    if (categorySummaryViewedRef.current) return;
+    track('media_kit_category_summary_viewed', {
+      slug: mediaKitSlug ?? null,
+      handle: affiliateHandle ?? null,
+      affiliateCode: affiliateCode ?? null,
+    });
+    categorySummaryViewedRef.current = true;
+  }, [
+    affiliateCode,
+    affiliateHandle,
+    hasCategorySummaryData,
+    mediaKitSlug,
+    shouldHidePremiumSections,
+    shouldLockPremiumSections,
+  ]);
 
   return (
     <GlobalTimePeriodProvider>
@@ -1803,12 +2001,12 @@ export default function MediaKitView({
               initial="hidden"
               animate="visible"
               custom={0}
-              className="relative overflow-hidden rounded-3xl border border-[#E6E2F3] bg-gradient-to-b from-[#F9F9FB] via-white to-white px-6 py-6 text-[#1C1C1E] shadow-md sm:px-8 sm:py-8"
+              className="relative rounded-3xl border border-[#E6E2F3] bg-gradient-to-b from-[#F9F9FB] via-white to-white px-6 py-6 text-[#1C1C1E] shadow-md sm:px-8 sm:py-8"
             >
               <button
                 type="button"
                 onClick={handleShareClick}
-                className="absolute right-5 top-5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-[#6E1F93] shadow-sm transition hover:bg-white"
+                className="absolute right-5 top-5 hidden h-10 w-10 items-center justify-center rounded-full bg-white/70 text-[#6E1F93] shadow-sm transition hover:bg-white md:inline-flex"
                 aria-label="Compartilhar mídia kit"
               >
                 <Share2 className="h-5 w-5" />
@@ -1819,14 +2017,14 @@ export default function MediaKitView({
                 </span>
               )}
 
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+              <div className="space-y-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
                   <div className="rounded-full border-2 border-white bg-white p-1 shadow-md">
                     <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={128} />
                   </div>
                   <div className="space-y-3 text-center sm:text-left">
                     <div className="space-y-1">
-                      <h1 className="text-2xl font-bold sm:text-3xl">{user.name || 'Criador'}</h1>
+                      <h1 className="text-xl font-bold sm:text-3xl">{user.name || 'Criador'}</h1>
                       <div className="flex flex-col items-center gap-1 text-sm text-gray-500 sm:flex-row sm:items-center sm:gap-2">
                         {affiliateHandleLabel ? (
                           instagramProfileUrl ? (
@@ -1834,7 +2032,7 @@ export default function MediaKitView({
                               href={instagramProfileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[#6E1F93] hover:text-[#4A1370] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A3E8] rounded"
+                              className="rounded text-[#6E1F93] hover:text-[#4A1370] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A3E8]"
                             >
                               {affiliateHandleLabel}
                             </a>
@@ -1861,28 +2059,33 @@ export default function MediaKitView({
                         “{heroTagline}”
                       </p>
                     ) : null}
+                    <div className="md:hidden">
+                      <button
+                        type="button"
+                        onClick={handleShareClick}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#EADDFC] bg-white/80 px-4 py-2 text-sm font-semibold text-[#5a1a78] shadow-sm"
+                        aria-label="Compartilhar mídia kit"
+                      >
+                        <Share2 className="h-4 w-4" />
+                        Compartilhar mídia kit
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {heroMetrics.length ? (
-                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {heroMetrics.map((metric) => (
-                    <div
-                      key={metric.key}
-                      className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur"
-                    >
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6E1F93]/10 text-[#6E1F93]">
-                        {metric.icon}
-                      </span>
-                      <div className="text-left">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{metric.label}</p>
-                        <p className="text-sm font-semibold text-[#1C1C1E]">{metric.value}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+                {heroMetricCardsData.length || (user?._id && !shouldHidePremiumSections) ? (
+                  <CategoryRankingsSummary
+                    rankings={categoryRankingsEnabled ? categoryRankingsData : null}
+                    loading={categoryRankingsLoading}
+                    locked={shouldLockPremiumSections}
+                    lockedDescription={lockedCategoriesDescription}
+                    lockedCtaLabel={categoryCtaLabel}
+                    lockedSubtitle={categorySubtitle}
+                    onLockedAction={() => handleLockedCtaClick('media_kit_categories_summary')}
+                    metricCards={heroMetricCardsData}
+                  />
+                ) : null}
+              </div>
             </motion.section>
 
             {showOwnerCtas && publicUrlForCopy ? (
@@ -1933,51 +2136,79 @@ export default function MediaKitView({
                 initial="hidden"
                 animate="visible"
                 custom={0.2}
-                className={`${cardStyle} space-y-5`}
+                className={`${cardStyle} space-y-6`}
               >
                 <div className="space-y-2 text-left">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Quem é o público</p>
-                  <h2 className="text-2xl font-bold text-gray-900">Audiência & demografia</h2>
+                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Audiência & demografia</h2>
                   <p className="text-sm leading-relaxed text-gray-600">{demographicSummary}</p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {demographicHighlights.map((item) => (
-                    <div key={item.key} className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#FAFAFB]">
-                        {item.icon}
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold text-[#1C1C1E]">{item.title}</p>
-                        <p className="text-xs text-gray-500">{item.value}</p>
+                <div className="grid gap-4 lg:grid-cols-3">
+                  {genderBarData.length ? (
+                    <div className="rounded-2xl border border-[#EAEAEA] bg-white/90 p-4 shadow-sm">
+                      <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                        <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-[#D62E5E]" />
+                        Gênero predominante
+                        </div>
+                        <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
+                          Top 3
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">Percentual de seguidores por gênero</p>
+                      <div className="mt-4">
+                        <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
                       </div>
                     </div>
-                  ))}
-                </div>
-                {topLocationBreakdown.length > 0 ? (
-                  <div className="rounded-xl border border-[#EAEAEA] bg-[#FAFAFB] p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <MapPin className="h-4 w-4 text-[#D62E5E]" />
-                      Principais cidades
+                  ) : null}
+                  {ageBarData.length ? (
+                    <div className="rounded-2xl border border-[#EAEAEA] bg-white/90 p-4 shadow-sm">
+                      <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                        <div className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-[#6E1F93]" />
+                        Faixas etárias
+                        </div>
+                        <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
+                          Top 3
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">Top audiências por idade</p>
+                      <div className="mt-4">
+                        <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
+                      </div>
                     </div>
-                    <ul className="mt-3 space-y-2 text-xs text-gray-600">
-                      {topLocationBreakdown.map((item: { label: string; percentage: number }) => (
-                        <li key={item.label} className="flex items-center justify-between">
-                          <span className="font-medium text-gray-700">{item.label}</span>
-                          <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {demographicBreakdowns.location.length > 3 ? (
-                      <button
-                        type="button"
-                        className="mt-3 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
-                        onClick={() => setCitiesModalOpen(true)}
-                      >
-                        Ver mais cidades ▸
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                  ) : null}
+                  {topLocationBreakdown.length ? (
+                    <div className="rounded-2xl border border-[#EAEAEA] bg-white/90 p-4 shadow-sm">
+                      <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                        <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-[#D62E5E]" />
+                        Principais cidades
+                        </div>
+                        <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
+                          Top 3
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">Onde estão os seguidores mais engajados</p>
+                      <div className="mt-4">
+                        <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
+                      </div>
+                      {hasMoreCities ? (
+                        <button
+                          type="button"
+                          className="mt-4 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+                          onClick={() => setCitiesModalOpen(true)}
+                        >
+                          Ver mais cidades ▸
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+                <p className="flex items-center gap-2 text-xs text-gray-400">
+                  <Globe className="h-3.5 w-3.5" />
+                  {demographySourceCopy}
+                </p>
               </motion.section>
             )}
 
@@ -1991,7 +2222,7 @@ export default function MediaKitView({
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-2 text-left">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Como ele performa</p>
-                  <h2 className="text-2xl font-bold text-gray-900">Performance geral</h2>
+                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Performance geral</h2>
                   <p className="text-sm text-gray-600">
                     Resumo dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')}.
                   </p>
@@ -2030,30 +2261,7 @@ export default function MediaKitView({
                   <MetricSkeletonRow />
                 </div>
               ) : (
-                <>
-                  <div className="rounded-2xl bg-[#FAFAFB] p-4">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {quickStats.map((metric) => (
-                        <div key={metric.key} className="rounded-xl bg-white p-4 text-center shadow-sm">
-                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#FFE7EC] text-[#D62E5E]">
-                            {metric.icon}
-                          </div>
-                          <span className="mt-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {metric.label}
-                          </span>
-                          <p className="mt-1 text-xl font-semibold text-[#D62E5E]">
-                            {formatQuickStatValue(metric.value, metric.type)}
-                          </p>
-                          <div className="mt-1 flex items-center justify-center">
-                            <TrendIndicator value={metric.change} showValue={false} />
-                          </div>
-                          <p className="mt-1 text-xs text-gray-400">{metric.detail}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-[#EAEAEA] bg-white p-4 shadow-sm">
                       <h3 className="text-sm font-semibold text-gray-800">Médias por post</h3>
                       <div className="mt-3 space-y-2">
@@ -2111,8 +2319,7 @@ export default function MediaKitView({
                         <p className="text-[11px] text-gray-400">Seguidores totais no Instagram</p>
                       </div>
                     </div>
-                  </div>
-                </>
+                </div>
               )}
 
               <p className="text-xs text-gray-500">
@@ -2127,12 +2334,41 @@ export default function MediaKitView({
               custom={0.4}
               className={`${cardStyle} space-y-5`}
             >
-              <div className="space-y-2 text-left">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                  Conteúdo real em destaque
-                </p>
-                <h2 className="text-2xl font-bold text-gray-900">Top posts</h2>
-                <p className="text-sm text-gray-600">{topPostsIntro}</p>
+              <div className="space-y-3">
+                <div className="space-y-2 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
+                    Conteúdo real em destaque
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Top posts</h2>
+                    <span className="rounded-full bg-[#F4ECFB] px-3 py-1 text-xs font-semibold text-[#6E1F93]">
+                      {selectedPeriodLabel}
+                    </span>
+                  </div>
+                  {topPostsIntro ? <p className="text-sm text-gray-600">{topPostsIntro}</p> : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#EDE7FB] bg-white/90 p-3 shadow-sm">
+                  <div className="flex-1 min-w-[200px] space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Ordenar por</p>
+                    <div className="inline-flex w-full flex-wrap items-center rounded-full bg-[#F3EBFF]/80 p-1 text-xs font-semibold text-gray-600">
+                      {topPostSortOptions.map((option) => {
+                        const isActive = topPostsSort === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => handleTopPostSortChange(option.value)}
+                            className={`flex-1 rounded-full px-3 py-1 transition ${
+                              isActive ? 'bg-white text-[#6E1F93] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {videosWithCorrectStats.length === 0 ? (
@@ -2142,37 +2378,57 @@ export default function MediaKitView({
                 </div>
               ) : (
                 <div className="relative">
-                  <p className="mb-3 text-xs font-medium text-gray-500">
-                    Os conteúdos abaixo tiveram desempenho acima da média — ótimos para apresentar em propostas comerciais.
-                  </p>
-                  <div
-                    ref={topPostsScrollRef}
-                    onWheel={handleTopPostsWheel}
-                    className={`flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pr-6 sm:pr-8 lg:pr-12 ${
-                      isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''
-                    }`}
-                  >
-                    {visibleTopPosts.map((video, index) => {
-                      const captionPreview = truncateCaption(video.caption, 140) ?? 'Conteúdo em destaque';
-                      const dateLabel = formatDateLabel(video.postDate);
-                      const formatLabel = Array.isArray(video.format) ? video.format[0] : undefined;
-                      const contextLabel = Array.isArray(video.context) ? video.context[0] : undefined;
-                      const proposalLabel = Array.isArray(video.proposal) ? video.proposal[0] : undefined;
-                      const toneLabel = Array.isArray(video.tone) ? video.tone[0] : undefined;
-                      const formattedViews = formatMetricValue(
-                        (video.stats?.views ?? (video.stats as any)?.reach ?? null) as number | null | undefined
-                      );
+                  <div className="relative">
+                    <div
+                      ref={topPostsScrollRef}
+                      onWheel={handleTopPostsWheel}
+                      className={`flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pr-6 sm:pr-8 lg:pr-12 transition ${
+                        isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''
+                      }`}
+                    >
+                      {groupedTopPosts.map((group, groupIndex) => (
+                        <div
+                          key={`top-post-group-${groupIndex}`}
+                          className="flex min-w-[65%] flex-none snap-start gap-2 sm:min-w-[45%] lg:min-w-[35%]"
+                        >
+                          {group.map((video, groupOffset) => {
+                            const index = groupIndex * 2 + groupOffset;
+                        const captionPreview = truncateCaption(video.caption, 140) ?? 'Conteúdo em destaque';
+                        const dateLabel = formatDateLabel(video.postDate);
+                        const formatLabel = Array.isArray(video.format) ? video.format[0] : undefined;
+                        const contextLabel = Array.isArray(video.context) ? video.context[0] : undefined;
+                        const proposalLabel = Array.isArray(video.proposal) ? video.proposal[0] : undefined;
+                        const toneLabel = Array.isArray(video.tone) ? video.tone[0] : undefined;
+                        const referenceLabel = Array.isArray(video.references) ? video.references[0] : undefined;
+                        const formattedViews = formatMetricValue(
+                          (video.stats?.views ?? (video.stats as any)?.reach ?? null) as number | null | undefined
+                        );
                       const formattedLikes = formatMetricValue((video.stats as any)?.likes ?? (video.stats as any)?.like_count);
                       const formattedComments = formatMetricValue(video.stats?.comments);
                       const formattedShares = formatMetricValue((video.stats as any)?.shares ?? (video.stats as any)?.share_count);
                       const formattedSaves = formatMetricValue(video.stats?.saves);
+                      const derivedStats = (video as any).derivedStats ?? {};
+                      const highlightViews =
+                        typeof derivedStats.views === 'number' && derivedStats.views > 0
+                          ? formatMetricValue(derivedStats.views)
+                          : null;
+                      const highlightSaves =
+                        typeof derivedStats.saves === 'number' && derivedStats.saves > 0
+                          ? formatMetricValue(derivedStats.saves)
+                          : null;
+                      const highlightEr =
+                        typeof derivedStats.engagementRate === 'number' && Number.isFinite(derivedStats.engagementRate)
+                          ? `${derivedStats.engagementRate >= 10 ? derivedStats.engagementRate.toFixed(1) : derivedStats.engagementRate.toFixed(2)}%`
+                          : null;
                       const tagMeta = [
                         formatLabel ? { type: 'format' as const, value: formatLabel } : null,
                         contextLabel ? { type: 'context' as const, value: contextLabel } : null,
                         proposalLabel ? { type: 'proposal' as const, value: proposalLabel } : null,
                         toneLabel ? { type: 'tone' as const, value: toneLabel } : null,
+                        referenceLabel ? { type: 'references' as const, value: referenceLabel } : null,
                       ].filter(
-                        (item): item is { type: 'format' | 'context' | 'proposal' | 'tone'; value: string } => Boolean(item)
+                        (item): item is { type: 'format' | 'context' | 'proposal' | 'tone' | 'references'; value: string } =>
+                          Boolean(item)
                       );
                       type MetricItem = {
                         key: string;
@@ -2250,18 +2506,66 @@ export default function MediaKitView({
                       const supportingMetrics = metrics.filter(
                         (metric) => metric !== primaryMetric && metric.key !== 'date'
                       );
-                      const supportingMetricCards = supportingMetrics.slice(0, 4);
-                      const dateMetric = metrics.find((metric) => metric.key === 'date');
-                      const hasPerformanceMetrics = Boolean(primaryMetric || supportingMetricCards.length);
                       const primaryMetricLabel = primaryMetric?.secondary ?? 'Desempenho';
-
-                      const isClickable = canViewCategories && !isTopPostsLocked;
-                      return (
-                        <article
-                          key={video._id}
-                          className={`relative flex w-[60%] flex-none snap-start flex-col overflow-hidden rounded-2xl border border-[#EAEAEA] bg-white p-2.5 shadow-sm transition hover:shadow-md sm:w-[45%] md:w-[35%] lg:w-[260px] xl:w-[280px] 2xl:w-[300px] ${
-                            isClickable ? 'cursor-pointer' : ''
-                          }`}
+                      const formattedInteractions =
+                        typeof derivedStats.interactions === 'number' && derivedStats.interactions > 0
+                          ? formatMetricValue(derivedStats.interactions)
+                          : null;
+                      const summaryMetrics = [
+                        primaryMetric ? { ...primaryMetric, secondary: primaryMetricLabel } : null,
+                        highlightEr
+                          ? {
+                              key: 'engagementRate',
+                              main: highlightEr,
+                              secondary: 'Taxa de engajamento',
+                              arrangement: 'postfix',
+                              mainClass: 'text-sm font-semibold text-gray-900',
+                              secondaryClass: 'text-[11px] text-gray-500',
+                            }
+                          : null,
+                      ].filter((item): item is MetricItem => Boolean(item));
+                      const interactionsSummaryMetric = formattedInteractions
+                        ? {
+                            key: 'interactions',
+                            main: formattedInteractions,
+                            secondary: 'Interações',
+                            arrangement: 'postfix',
+                            mainClass: 'text-sm font-semibold text-gray-900',
+                            secondaryClass: 'text-[11px] text-gray-500',
+                          }
+                        : null;
+                      const interactionBreakdownMetrics = [
+                        ...supportingMetrics.filter((metric) =>
+                          ['likes', 'comments', 'shares', 'saves'].includes(metric.key)
+                        ),
+                        !supportingMetrics.some((metric) => metric.key === 'saves') && highlightSaves
+                          ? {
+                              key: 'saves',
+                              main: highlightSaves!,
+                              secondary: 'Salvos',
+                              arrangement: 'postfix',
+                              mainClass: 'text-sm font-semibold text-gray-900',
+                              secondaryClass: 'text-[11px] text-gray-500',
+                            }
+                          : null,
+                      ].filter((item): item is MetricItem => Boolean(item));
+                      const additionalDetailMetrics = supportingMetrics.filter(
+                        (metric) => !['likes', 'comments', 'shares', 'saves'].includes(metric.key)
+                      );
+                      const hasSummaryMetrics = summaryMetrics.length > 0;
+                      const hasInteractionBreakdown = interactionBreakdownMetrics.length > 0;
+                      const hasAdditionalDetailMetrics = additionalDetailMetrics.length > 0;
+                      const hasDetailMetrics =
+                        hasSummaryMetrics || Boolean(interactionsSummaryMetric) || hasInteractionBreakdown || hasAdditionalDetailMetrics;
+                      const hasThumbnail = Boolean(video.thumbnailUrl);
+                            const isTopHighlight = index === 0;
+                            const isClickable = canViewCategories && !isTopPostsLocked;
+                            return (
+                              <article
+                                key={video._id}
+                                className={`relative flex min-w-[220px] max-w-[260px] flex-1 basis-1/2 flex-col gap-2 rounded-2xl border border-[#E4E4EA] bg-white px-3 pt-3 pb-2 text-xs shadow-sm transition hover:shadow-md ${
+                                  isClickable ? 'cursor-pointer' : ''
+                                } ${isTopHighlight ? 'border-[#D62E5E]/50 shadow-lg' : ''}`}
                           role={isClickable ? 'button' : undefined}
                           tabIndex={isClickable ? 0 : undefined}
                           onClick={isClickable ? () => setSelectedPostId(video._id) : undefined}
@@ -2276,100 +2580,176 @@ export default function MediaKitView({
                               : undefined
                           }
                         >
-                          <div className="mx-auto aspect-square w-full overflow-hidden rounded-lg bg-[#F4F4F6]">
-                            {video.thumbnailUrl ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            {isTopHighlight ? (
+                              <span className="inline-flex items-center rounded-full bg-[#1C1C1E] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                                Top 1 do período
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-[#F4F4F6] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                                #{index + 1}
+                              </span>
+                            )}
+                            {dateLabel ? (
+                              <div className="text-right text-xs text-gray-500">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Publicado</p>
+                                <p className="font-semibold text-gray-700">{dateLabel}</p>
+                                  </div>
+                                ) : null}
+                          </div>
+                          {hasThumbnail ? (
+                            <div className="relative w-full overflow-hidden rounded-2xl border border-[#E4E3EC] bg-[#F7F7FB] aspect-[4/5]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={video.thumbnailUrl}
+                                src={video.thumbnailUrl!}
                                 alt={captionPreview}
                                 className="h-full w-full object-cover"
                               />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-400">
-                                Sem prévia disponível
-                              </div>
-                            )}
-                          </div>
-                          <div className="mt-4 flex flex-1 flex-col gap-3 text-left">
-                            {index === 0 && !isTopPostsLocked ? (
-                              <span className="inline-block rounded-md bg-gray-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                Top 1
-                              </span>
-                            ) : null}
-                            <p className="text-sm font-semibold text-[#1C1C1E] leading-snug line-clamp-2">{captionPreview}</p>
-                            {tagMeta.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                            </div>
+                          ) : (
+                            <div className="flex aspect-[4/5] w-full items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-400">
+                              Sem prévia disponível
+                            </div>
+                          )}
+                          {tagMeta.length > 0 ? (
+                            <div className="rounded-2xl border border-[#EDECF5] bg-white p-3 space-y-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">Categorias mapeadas</p>
+                              <div className="flex flex-wrap gap-1.5">
                                 {tagMeta.map(({ type, value }) => {
                                   const styles = tagStyleMap[type];
                                   return (
                                     <span
                                       key={`${video._id}-${type}-${value}`}
-                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${styles.bgClass} ${styles.textClass}`}
+                                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${styles.bgClass} ${styles.textClass}`}
                                     >
                                       {styles.labelPrefix}: {value}
                                     </span>
                                   );
                                 })}
                               </div>
-                            ) : null}
-                            {hasPerformanceMetrics ? (
-                              <div className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
-                                {primaryMetric ? (
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-700">
-                                      {primaryMetricLabel}
-                                    </span>
-                                    <span className={`${primaryMetric.mainClass} text-lg leading-none`}>
-                                      {primaryMetric.main}
-                                    </span>
+                            </div>
+                          ) : null}
+                          {hasDetailMetrics ? (
+                            <div className="rounded-2xl border border-[#EDECF5] bg-white p-3">
+                              <div className="space-y-4">
+                                {hasSummaryMetrics ? (
+                                  <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+                                      Indicadores principais
+                                    </p>
+                                    <div className="mt-1.5 space-y-1.5">
+                                      {summaryMetrics.map((metric) => (
+                                        <div
+                                          key={`${video._id}-${metric.key}-summary`}
+                                          className="flex items-baseline justify-between text-sm"
+                                        >
+                                          <p className="text-[10px] uppercase tracking-[0.08em] text-gray-500">{metric.secondary}</p>
+                                          <p className="text-sm font-semibold text-gray-900">{metric.main}</p>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 ) : null}
-                                {supportingMetricCards.length ? (
-                                  <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
-                                    {supportingMetricCards.map(({ key, main, secondary, mainClass }) => (
-                                      <div key={`${video._id}-${key}-summary`} className="text-left">
-                                        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                                          {secondary}
-                                        </p>
-                                        <p className={`${mainClass} text-sm`}>{main}</p>
+
+                                {interactionsSummaryMetric || hasInteractionBreakdown ? (
+                                  <div className="space-y-2">
+                                    {hasSummaryMetrics ? <div className="h-px bg-[#EFEDF6]" /> : null}
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">Interações</p>
+                                      {interactionsSummaryMetric ? (
+                                        <p className="text-sm font-semibold text-gray-900">{interactionsSummaryMetric.main}</p>
+                                      ) : null}
+                                    </div>
+                                    {hasInteractionBreakdown ? (
+                                      <div className="space-y-1.5">
+                                        {interactionBreakdownMetrics.map((metric) => (
+                                          <div
+                                            key={`${video._id}-${metric.key}-breakdown`}
+                                            className="flex items-baseline justify-between text-sm"
+                                          >
+                                            <p className="text-[10px] uppercase tracking-[0.08em] text-gray-500">{metric.secondary}</p>
+                                            <p className="text-sm font-semibold text-gray-900">{metric.main}</p>
+                                          </div>
+                                        ))}
                                       </div>
-                                    ))}
+                                    ) : null}
+                                  </div>
+                                ) : null}
+
+                                {hasAdditionalDetailMetrics ? (
+                                  <div className="space-y-2">
+                                    {(hasSummaryMetrics || interactionsSummaryMetric || hasInteractionBreakdown) ? (
+                                      <div className="h-px bg-[#EFEDF6]" />
+                                    ) : null}
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">Outros sinais</p>
+                                    <div className="space-y-1.5">
+                                      {additionalDetailMetrics.map((metric) => (
+                                        <div
+                                          key={`${video._id}-${metric.key}-additional`}
+                                          className="flex items-baseline justify-between text-sm"
+                                        >
+                                          <p className="text-[10px] uppercase tracking-[0.08em] text-gray-500">{metric.secondary}</p>
+                                          <p className="text-sm font-semibold text-gray-900">{metric.main}</p>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 ) : null}
                               </div>
+                            </div>
+                          ) : null}
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-500">
+                            {isClickable ? (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setSelectedPostId(video._id);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 font-semibold text-gray-700 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                Ver detalhes
+                              </button>
                             ) : null}
-                            {(dateMetric || video.permalink) && (
-                              <div className="mt-auto flex flex-col gap-1 pt-3 text-[11px] text-gray-500">
-                                {dateMetric ? (
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-medium">{dateMetric.secondary}</span>
-                                    <span className="text-xs font-semibold text-gray-800">{dateMetric.main}</span>
-                                  </div>
-                                ) : null}
-                                {video.permalink ? (
-                                  <a
-                                    href={video.permalink}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 transition hover:underline"
-                                  >
-                                    Ver post
-                                    <ArrowUpRight className="h-4 w-4" />
-                                  </a>
-                                ) : null}
-                              </div>
-                            )}
+                            {video.permalink ? (
+                              <a
+                                href={video.permalink}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                                className="inline-flex items-center gap-1 rounded-full border border-transparent px-2.5 py-1 font-semibold text-[#1C4FD7] transition hover:text-[#153fae]"
+                              >
+                                Ver no Instagram
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </a>
+                            ) : null}
                           </div>
-                        </article>
-                      );
-                    })}
+                              </article>
+                            );
+                          })}
+                          {group.length === 1 ? <div className="invisible flex-1 basis-1/2" aria-hidden="true" /> : null}
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      className={`pointer-events-none absolute inset-y-6 left-0 w-12 bg-gradient-to-r from-[#FAFAFB] to-transparent transition-opacity ${
+                        topPostsScrollIndicators.canScrollLeft ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-y-6 right-0 w-12 bg-gradient-to-l from-[#FAFAFB] to-transparent transition-opacity ${
+                        topPostsScrollIndicators.canScrollRight ? 'opacity-100' : 'opacity-0'
+                      }`}
+                    />
                   </div>
 
                   {isTopPostsLocked && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-white/90 px-6 text-center">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-white/95 px-6 text-center shadow-inner">
                       <Lock className="h-6 w-6 text-[#6E1F93]" />
                       <p className="mt-3 text-sm text-gray-700">
-                        Veja o porquê desses posts performarem melhor destravando o modo Agência.
+                        Desbloqueie para ver os insights completos e baixar o briefing pronto para marcas.
                       </p>
                       <button
                         type="button"
@@ -2394,73 +2774,6 @@ export default function MediaKitView({
                 </div>
               )}
             </motion.section>
-
-            {user?._id && !shouldHidePremiumSections && (
-              <motion.section
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0.5}
-                className={`${cardStyle} space-y-5`}
-              >
-                {canViewPremiumSections ? (
-                  <>
-                    <div className="space-y-2 text-left">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                        Insights que reforçam o valor
-                      </p>
-                      <h2 className="text-2xl font-bold text-gray-900">Destaques & insights</h2>
-                      <p className="text-sm text-gray-600">Arraste para descobrir os pontos fortes recentes.</p>
-                    </div>
-                    <PerformanceHighlightsCarousel userId={String(user._id)} />
-                  </>
-                ) : shouldLockPremiumSections ? (
-                  <LockedPremiumSection
-                    title="Destaques de performance disponíveis no modo Agência"
-                    description={lockedHighlightsDescription}
-                    ctaLabel={highlightCtaLabel}
-                    subtitle={highlightSubtitle}
-                    onAction={() => handleLockedCtaClick('media_kit_highlights')}
-                    peek={<LockedHighlightsPeek />}
-                  />
-                ) : null}
-              </motion.section>
-            )}
-
-            {user?._id && !shouldHidePremiumSections && (
-              <motion.section
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                custom={0.6}
-                className={`${cardStyle} space-y-5`}
-              >
-                {canViewPremiumSections ? (
-                  <>
-                    <div className="space-y-2 text-left">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                        Comparativos rápidos
-                      </p>
-                      <h2 className="text-2xl font-bold text-gray-900">Rankings por categoria</h2>
-                      <p className="text-sm text-gray-600">
-                        Veja onde o criador se destaca em formatos, propostas e contextos.
-                      </p>
-                    </div>
-                    <CategoryRankingsCarousel userId={String(user._id)} />
-                  </>
-                ) : shouldLockPremiumSections ? (
-                  <LockedPremiumSection
-                    title="Categorias disponíveis no modo Agência"
-                    description={lockedCategoriesDescription}
-                    ctaLabel={categoryCtaLabel}
-                    subtitle={categorySubtitle}
-                    showBadge={false}
-                    onAction={() => handleLockedCtaClick('media_kit_categories')}
-                    peek={<LockedCategoriesPeek />}
-                  />
-                ) : null}
-              </motion.section>
-            )}
 
             {showSharedBanner && (
               <motion.section
@@ -2498,7 +2811,7 @@ export default function MediaKitView({
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
                     Marcas
                   </p>
-                  <h2 className="text-2xl font-bold text-gray-900">Envie sua proposta</h2>
+                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Envie sua proposta</h2>
                   <p className="text-sm text-gray-600">
                     Preencha o briefing e fale direto com o criador. Você recebe resposta por e-mail ou WhatsApp.
                   </p>
@@ -2547,7 +2860,7 @@ export default function MediaKitView({
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
                       Campanhas inteligentes
                     </p>
-                    <h2 className="text-2xl font-bold text-gray-900">Planeje com vários criadores</h2>
+                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Planeje com vários criadores</h2>
                     <p className="text-sm text-gray-600">
                       Preencha um briefing único e deixe nossa IA indicar os melhores perfis para a sua campanha.
                     </p>
@@ -2651,7 +2964,7 @@ export default function MediaKitView({
           </div>
         ) : null}
 
-        {isCitiesModalOpen && demographicBreakdowns?.location && (
+        {isCitiesModalOpen && fullLocationBreakdown.length > 0 && (
           <div
             className="fixed inset-0 z-[200] bg-black/40"
             role="dialog"
@@ -2674,7 +2987,7 @@ export default function MediaKitView({
                 </div>
                 <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
                   <div className="space-y-3">
-                    {demographicBreakdowns.location.map((item: any) => (
+                    {fullLocationBreakdown.map((item) => (
                       <div key={item.label} className="text-sm font-medium text-gray-700">
                         <div className="flex items-center justify-between text-xs text-gray-500">
                           <span>{item.label}</span>
