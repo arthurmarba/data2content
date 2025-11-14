@@ -30,6 +30,7 @@ import { MediaKitViewProps, VideoListItem } from '@/types/mediakit';
 import { useGlobalTimePeriod, GlobalTimePeriodProvider } from '@/app/admin/creator-dashboard/components/filters/GlobalTimePeriodContext';
 import { getCategoryById, commaSeparatedIdsToLabels } from '@/app/lib/classification';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
+import ButtonPrimary from '@/app/landing/components/ButtonPrimary';
 import { useSession } from 'next-auth/react';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
@@ -118,6 +119,17 @@ const normalizeComparisonPeriod = (period?: string): ComparisonPeriodKey => {
 
 const TOP_POSTS_MAX_ITEMS = 10;
 const LOCKED_TOP_POSTS_PREVIEW_COUNT = 3;
+const landingSunriseBackground =
+  'radial-gradient(120% 140% at 50% -25%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 58%), radial-gradient(70% 120% at 10% -10%, rgba(255, 44, 126, 0.1) 0%, rgba(255, 44, 126, 0) 55%), radial-gradient(90% 120% at 90% 10%, rgba(36, 107, 253, 0.07) 0%, rgba(36, 107, 253, 0) 60%), linear-gradient(180deg, #fffefe 0%, #fafbfe 40%, #f4f6fb 100%)';
+const glassCardBaseClass =
+  'rounded-[28px] border border-white/55 bg-white/90 shadow-[0_32px_80px_rgba(15,23,42,0.12)] backdrop-blur-xl';
+const chipHighlightClass = 'landing-chip text-brand-primary border-brand-primary/20 bg-white/80';
+const textSecondaryClass = 'text-[#475569]';
+const textMutedClass = 'text-[#94A3B8]';
+const formLabelClass = 'text-xs font-semibold uppercase tracking-[0.2em] text-[#94A3B8]';
+const formHelperTextClass = 'text-[11px] text-[#94A3B8]';
+const formInputClass =
+  'mt-1 w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-2 text-sm text-[#0F172A] shadow-inner focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]/30';
 
 interface ProposalFormState {
   brandName: string;
@@ -289,7 +301,7 @@ const PublicProposalForm = ({
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor={`${formId}-brand`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label htmlFor={`${formId}-brand`} className={formLabelClass}>
             Nome da marca*
           </label>
           <input
@@ -298,11 +310,11 @@ const PublicProposalForm = ({
             value={form.brandName}
             onChange={handleChange('brandName')}
             placeholder="Ex.: Natura"
-            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+            className={formInputClass}
           />
         </div>
         <div>
-          <label htmlFor={`${formId}-email`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label htmlFor={`${formId}-email`} className={formLabelClass}>
             E-mail comercial*
           </label>
           <input
@@ -312,11 +324,11 @@ const PublicProposalForm = ({
             value={form.contactEmail}
             onChange={handleChange('contactEmail')}
             placeholder="nome@empresa.com"
-            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+            className={formInputClass}
           />
         </div>
         <div>
-          <label htmlFor={`${formId}-whatsapp`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label htmlFor={`${formId}-whatsapp`} className={formLabelClass}>
             WhatsApp (opcional)
           </label>
           <input
@@ -324,34 +336,34 @@ const PublicProposalForm = ({
             value={form.contactWhatsapp}
             onChange={handleChange('contactWhatsapp')}
             placeholder="+55 11 90000-0000"
-            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+            className={formInputClass}
           />
         </div>
         <div>
-          <label htmlFor={`${formId}-budget`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label htmlFor={`${formId}-budget`} className={formLabelClass}>
             Orçamento disponível
           </label>
-          <div className="mt-1 flex rounded-xl border border-gray-200 shadow-sm focus-within:border-pink-500 focus-within:ring-1 focus-within:ring-pink-500">
+          <div className="mt-1 flex rounded-2xl border border-white/60 bg-white/70 shadow-inner focus-within:border-[#6E1F93] focus-within:ring-1 focus-within:ring-[#6E1F93]/30">
             <input
               id={`${formId}-budget`}
               value={form.budget}
               onChange={handleChange('budget')}
               placeholder="Ex.: 5000"
-              className="w-full rounded-l-xl border-r border-gray-200 px-4 py-2 text-sm text-gray-800 focus:outline-none"
+              className="w-full rounded-l-2xl border-r border-white/40 bg-transparent px-4 py-2 text-sm text-[#0F172A] focus:outline-none"
             />
             <input
               value={form.currency}
               onChange={handleChange('currency')}
-              className="w-20 rounded-r-xl bg-gray-50 px-3 py-2 text-center text-sm font-semibold uppercase text-gray-600 focus:outline-none"
+              className="w-20 rounded-r-2xl bg-white/70 px-3 py-2 text-center text-sm font-semibold uppercase text-[#6E1F93] focus:outline-none"
             />
           </div>
-          <p className="mt-1 text-xs text-gray-400">Informe números; moeda padrão BRL.</p>
+          <p className={formHelperTextClass}>Informe números; moeda padrão BRL.</p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor={`${formId}-title`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label htmlFor={`${formId}-title`} className={formLabelClass}>
             Título da campanha*
           </label>
           <input
@@ -360,11 +372,11 @@ const PublicProposalForm = ({
             value={form.campaignTitle}
             onChange={handleChange('campaignTitle')}
             placeholder="Ex.: Lançamento coleção verão"
-            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+            className={formInputClass}
           />
         </div>
         <div>
-          <label htmlFor={`${formId}-deliverables`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label htmlFor={`${formId}-deliverables`} className={formLabelClass}>
             Entregáveis desejados
           </label>
           <textarea
@@ -373,14 +385,14 @@ const PublicProposalForm = ({
             onChange={handleChange('deliverables')}
             placeholder="Stories, Reels, UGC..."
             rows={3}
-            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+            className={formInputClass}
           />
-          <p className="mt-1 text-xs text-gray-400">Separe por vírgulas ou quebra de linha.</p>
+          <p className={formHelperTextClass}>Separe por vírgulas ou quebra de linha.</p>
         </div>
       </div>
 
       <div>
-        <label htmlFor={`${formId}-description`} className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+        <label htmlFor={`${formId}-description`} className={formLabelClass}>
           Descrição / briefing
         </label>
         <textarea
@@ -389,7 +401,7 @@ const PublicProposalForm = ({
           onChange={handleChange('campaignDescription')}
           placeholder="Compartilhe objetivos, público e principais mensagens da campanha."
           rows={4}
-          className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+          className={formInputClass}
         />
       </div>
 
@@ -407,12 +419,12 @@ const PublicProposalForm = ({
       <button
         type="submit"
         disabled={submitting}
-        className="inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#c12652] disabled:cursor-not-allowed disabled:bg-[#d28aa2]"
+        className="inline-flex w-full justify-center rounded-full bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {submitting ? 'Enviando...' : 'Enviar proposta'}
         <Send className="h-4 w-4" />
       </button>
-      <p className="text-xs text-gray-400">
+      <p className={formHelperTextClass}>
         Ao enviar, você concorda em ser contatado pelo criador. Guardamos seu IP para evitar spam.
       </p>
     </form>
@@ -443,16 +455,16 @@ const LockedPremiumSection = ({
   const disabled = typeof onAction !== "function";
 
   return (
-    <div className="space-y-4">
+    <div className={`${glassCardBaseClass} space-y-4 p-6`}>
       {showBadge ? (
-        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
-          <Lock className="h-4 w-4" aria-hidden="true" />
+        <span className={`${chipHighlightClass} text-[0.62rem]`}>
+          <Lock className="h-3.5 w-3.5" aria-hidden="true" />
           {badgeLabel}
         </span>
       ) : null}
       <div className="space-y-2">
-        <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">{title}</h2>
-        <p className="text-gray-500 text-sm">{description}</p>
+        <h2 className="text-[clamp(1.4rem,2vw,2rem)] font-bold text-[#0F172A]">{title}</h2>
+        <p className={textSecondaryClass}>{description}</p>
       </div>
       <div>{peek}</div>
       <div>
@@ -460,15 +472,13 @@ const LockedPremiumSection = ({
           type="button"
           onClick={disabled ? undefined : () => onAction?.()}
           disabled={disabled}
-          className={`inline-flex items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 ${
-            disabled ? "opacity-70 cursor-not-allowed" : ""
-          }`}
+          className="inline-flex w-full justify-center rounded-full bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {ctaLabel}
           <ArrowUpRight className="ml-2 h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      {subtitle ? <p className="text-xs text-gray-500">{subtitle}</p> : null}
+      {subtitle ? <p className="text-xs text-[#94A3B8]">{subtitle}</p> : null}
     </div>
   );
 };
@@ -491,7 +501,11 @@ const StickyCtaBar = ({
   affiliateHandleLabel,
 }: StickyCtaBarProps) => {
   const baseButtonClasses =
-    'group flex w-full flex-col items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
+    'group flex w-full flex-col items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
+  const primaryButtonClasses =
+    'bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] text-white focus-visible:outline-[#6E1F93]';
+  const secondaryButtonClasses =
+    'border border-white/50 bg-white/90 text-[#6E1F93] focus-visible:outline-[#6E1F93]';
 
   return (
     <div
@@ -502,7 +516,7 @@ const StickyCtaBar = ({
         <button
           type="button"
           onClick={() => onProposalClick()}
-          className={`${baseButtonClasses} bg-[#1C4FD7] hover:bg-[#1a46c3] focus-visible:outline-[#1C4FD7]`}
+          className={`${baseButtonClasses} ${primaryButtonClasses}`}
         >
           <span className="flex items-center gap-2 text-base">
             <span role="img" aria-hidden="true">
@@ -517,7 +531,7 @@ const StickyCtaBar = ({
           <a
             href={affiliateLink}
             onClick={() => onAffiliateClick()}
-            className={`${baseButtonClasses} bg-[#6E1F93] hover:bg-[#5a1a78] focus-visible:outline-[#6E1F93]`}
+            className={`${baseButtonClasses} ${secondaryButtonClasses}`}
             rel="noopener noreferrer"
           >
             <span className="flex items-center gap-2 text-base">
@@ -526,7 +540,7 @@ const StickyCtaBar = ({
               </span>
               Criar meu Mídia Kit
             </span>
-            <span className="mt-1 text-xs font-medium text-white/80">
+            <span className="mt-1 text-xs font-medium text-[#6E1F93]">
               Comece agora com seu link afiliado
             </span>
           </a>
@@ -534,7 +548,7 @@ const StickyCtaBar = ({
           <button
             type="button"
             disabled
-            className={`${baseButtonClasses} cursor-not-allowed bg-gray-200 text-gray-500 shadow-none`}
+            className={`${baseButtonClasses} cursor-not-allowed border border-white/40 bg-white/70 text-[#94a3b8] shadow-none`}
           >
             <span className="flex items-center gap-2 text-base">
               <span role="img" aria-hidden="true">
@@ -542,7 +556,7 @@ const StickyCtaBar = ({
               </span>
               Criar meu Mídia Kit
             </span>
-            <span className="mt-1 text-xs font-medium text-gray-500/80">
+            <span className="mt-1 text-xs font-medium text-[#94a3b8]">
               Link disponível em breve para {affiliateHandleLabel}
             </span>
           </button>
@@ -591,6 +605,28 @@ type CategoryRankingsMap = {
   rp?: RankItem[];
   ra?: RankItem[];
 } | null;
+const categoryKeys: CategoryKey[] = ['format', 'proposal', 'context', 'tone', 'references'];
+const categoryToAvgKey: Record<CategoryKey, keyof NonNullable<CategoryRankingsMap>> = {
+  format: 'fa',
+  proposal: 'pa',
+  context: 'ca',
+  tone: 'ta',
+  references: 'ra',
+};
+const categoryToPostsKey: Record<CategoryKey, keyof NonNullable<CategoryRankingsMap>> = {
+  format: 'fp',
+  proposal: 'pp',
+  context: 'cp',
+  tone: 'tp',
+  references: 'rp',
+};
+const hasCategoryRankingData = (data?: CategoryRankingsMap | null) =>
+  Boolean(
+    data &&
+      ['fa', 'pa', 'ca', 'ta', 'ra'].some(
+        (key) => Array.isArray((data as any)[key]) && (data as any)[key]?.length > 0
+      )
+  );
 
 const useCategoryRankings = (userId?: string | null, enabled = true) => {
   const [state, setState] = useState<{
@@ -690,9 +726,9 @@ const DeltaPill = ({
 }) => {
   if (value === null || value === undefined) {
     return (
-      <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-600">
+      <span className="inline-flex items-center rounded-full border border-white/50 bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-[#475569]">
         Estável
-        {label ? <span className="ml-1 font-normal text-gray-500">{label}</span> : null}
+        {label ? <span className={`ml-1 font-normal ${textMutedClass}`}>{label}</span> : null}
       </span>
     );
   }
@@ -707,7 +743,7 @@ const DeltaPill = ({
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pillClass}`}>
       {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
       {formatted}
-      {label ? <span className="font-normal text-gray-500">{label}</span> : null}
+      {label ? <span className={`font-normal ${textMutedClass}`}>{label}</span> : null}
     </span>
   );
 };
@@ -716,18 +752,18 @@ const tagStyleMap: Record<
   'format' | 'context' | 'proposal' | 'tone' | 'references',
   { bgClass: string; textClass: string; labelPrefix: string }
 > = {
-  format: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Formato' },
-  context: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Contexto' },
-  proposal: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Proposta' },
-  tone: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Tom' },
-  references: { bgClass: 'bg-gray-100', textClass: 'text-gray-700', labelPrefix: 'Referência' },
+  format: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Formato' },
+  context: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Contexto' },
+  proposal: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Proposta' },
+  tone: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Tom' },
+  references: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Referência' },
 };
 
-const SparklineChart = ({ values, color = '#D62E5E' }: { values: number[]; color?: string }) => {
+const SparklineChart = ({ values, color = '#6E1F93' }: { values: number[]; color?: string }) => {
   const gradientId = useId();
   if (!values || values.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-[11px] font-medium text-gray-400">
+      <div className="flex h-full items-center justify-center text-[11px] font-medium text-[#94A3B8]">
         Sem dados recentes
       </div>
     );
@@ -783,11 +819,11 @@ const DemographicBarList = ({
     <div className="space-y-3">
       {data.slice(0, maxItems).map((item) => (
         <div key={`${item.label}-${item.percentage}`}>
-          <div className="flex items-center justify-between text-xs font-medium text-gray-600">
+          <div className="flex items-center justify-between text-xs font-medium text-[#475569]">
             <span>{item.label}</span>
-            <span className="text-gray-800">{Math.round(item.percentage)}%</span>
+            <span className="text-[#0F172A]">{Math.round(item.percentage)}%</span>
           </div>
-          <div className="mt-1.5 h-2 rounded-full bg-gray-100">
+          <div className="mt-1.5 h-2 rounded-full bg-white/60">
             <div
               className={`h-2 rounded-full bg-gradient-to-r ${accentClass}`}
               style={{ width: `${Math.min(item.percentage, 100)}%` }}
@@ -885,8 +921,8 @@ const CategoryRankingsSummary = ({
           <Lock className="h-4 w-4" />
           <p className="text-xs font-semibold uppercase tracking-wide">Modo Agência</p>
         </div>
-        <p className="mt-2 text-sm text-gray-700">{lockedDescription}</p>
-        {lockedSubtitle ? <p className="mt-1 text-xs text-gray-500">{lockedSubtitle}</p> : null}
+    <p className={`${textSecondaryClass} mt-2 text-sm`}>{lockedDescription}</p>
+    {lockedSubtitle ? <p className={`mt-1 text-xs ${textMutedClass}`}>{lockedSubtitle}</p> : null}
         <button
           type="button"
           onClick={() => onLockedAction?.()}
@@ -938,14 +974,14 @@ const CategoryRankingsSummary = ({
           ? Array.from({ length: skeletonCount }).map((_, index) => (
               <div
                 key={`insight-skeleton-${index}`}
-                className="h-28 animate-pulse rounded-2xl border border-[#EDE7FB] bg-white/60"
+                className="h-28 animate-pulse rounded-[24px] border border-white/50 bg-white/70"
               />
             ))
           : hasData
             ? cardsToRender.map((card) => (
                 <div
                   key={card.key}
-                  className="rounded-2xl border border-[#EDE7FB] bg-white/90 p-4 shadow-sm"
+                  className="rounded-[24px] border border-white/55 bg-white/90 p-4 shadow-[0_20px_55px_rgba(15,23,42,0.12)]"
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -954,13 +990,13 @@ const CategoryRankingsSummary = ({
                     >
                       {card.icon}
                     </span>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <p className={`text-xs font-semibold uppercase tracking-wide ${textMutedClass}`}>
                       {card.title}
                     </p>
                   </div>
-                  <p className="mt-2 text-base font-bold text-gray-900">{card.primary}</p>
+                  <p className="mt-2 text-base font-bold text-[#0F172A]">{card.primary}</p>
                   {card.secondary ? (
-                    <p className="text-xs text-gray-500">{card.secondary}</p>
+                    <p className={`text-xs ${textMutedClass}`}>{card.secondary}</p>
                   ) : null}
                   {card.change !== undefined && card.change !== null ? (
                     <div className="mt-2">
@@ -970,7 +1006,7 @@ const CategoryRankingsSummary = ({
                 </div>
               ))
             : (
-              <div className="rounded-2xl border border-dashed border-gray-200 bg-white/80 p-4 text-sm text-gray-500 sm:col-span-2 lg:col-span-3">
+              <div className="rounded-[24px] border border-dashed border-white/50 bg-white/70 p-4 text-sm text-[#475569] sm:col-span-2 lg:col-span-3">
                 Não encontramos dados recentes para destacar categorias. Tente outro período ou volte mais tarde.
               </div>
             )}
@@ -1136,10 +1172,10 @@ export default function MediaKitView({
     return option?.label ?? 'Últimos 30 dias';
   }, [PERIOD_OPTIONS, comparisonPeriod]);
 
-  const cardStyle = 'bg-white rounded-3xl border border-[#EAEAEA] shadow-sm p-5 sm:p-6';
+  const cardStyle = `${glassCardBaseClass} p-5 sm:p-6`;
   const containerClass = compactPadding
-    ? 'mx-auto w-full max-w-5xl px-4 py-6'
-    : 'mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8';
+    ? 'landing-section__inner mx-auto w-full py-6'
+    : 'landing-section__inner mx-auto w-full pb-12 pt-8';
   const sectionsWrapperClass = 'flex flex-col gap-4 sm:gap-3 lg:gap-2';
   const compactNumberFormat = (num: number | null | undefined) =>
     num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
@@ -1245,7 +1281,7 @@ export default function MediaKitView({
   ]);
   const engagementRateValue = displayKpis?.engagementRate?.currentValue ?? null;
   const engagementRateDisplay = formatQuickStatValue(engagementRateValue, 'percent');
-  const engagementRateColor = engagementRateValue !== null ? 'text-[#D62E5E]' : 'text-gray-400';
+  const engagementRateColor = engagementRateValue !== null ? 'text-[#D62E5E]' : 'text-[#CBD2F5]';
   const followerCountDisplay =
     typeof user.followers_count === 'number' ? user.followers_count.toLocaleString('pt-BR') : '—';
   const followersCountRaw =
@@ -1436,22 +1472,6 @@ export default function MediaKitView({
     { value: 'engagementRate', label: 'Taxa de engajamento' },
     { value: 'saves', label: 'Salvos' },
   ] as const;
-  const categorySummaryViewedRef = useRef(false);
-  const categoryRankingsEnabled =
-    Boolean(user?._id) && !shouldHidePremiumSections && !shouldLockPremiumSections;
-  const { data: categoryRankingsData, loading: categoryRankingsLoading } = useCategoryRankings(
-    user?._id ? String(user._id) : null,
-    categoryRankingsEnabled
-  );
-  const hasCategorySummaryData = useMemo(() => {
-    if (!categoryRankingsData) return false;
-    return Boolean(
-      categoryRankingsData.fa?.length ||
-        categoryRankingsData.pa?.length ||
-        categoryRankingsData.ca?.length
-    );
-  }, [categoryRankingsData]);
-
   // ✅ Bio com a mesma regra do componente antigo + fallbacks
   const bioText = useMemo(() => {
     const directUser = typeof (user as any)?.biography === 'string' ? (user as any).biography.trim() : '';
@@ -1601,6 +1621,111 @@ export default function MediaKitView({
       return newVideo;
     });
   }, [videos]);
+  const fallbackCategoryRankings = useMemo<CategoryRankingsMap>(() => {
+    if (!videosWithCorrectStats.length) return null;
+
+    const aggregates: Record<CategoryKey, Map<string, { sum: number; count: number }>> = {
+      format: new Map(),
+      proposal: new Map(),
+      context: new Map(),
+      tone: new Map(),
+      references: new Map(),
+    };
+
+    const toArray = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => (typeof item === 'string' ? item.trim() : String(item ?? '').trim()))
+          .filter(Boolean);
+      }
+      if (typeof value === 'string' && value.trim().length) return [value.trim()];
+      return [];
+    };
+
+    const getScore = (video: VideoListItem) => {
+      const derived = ((video as any)?.derivedStats ?? {}) as Record<string, unknown>;
+      const stats = (video.stats ?? {}) as Record<string, unknown>;
+      const interactionSum =
+        (typeof stats.likes === 'number' ? stats.likes : 0) +
+        (typeof stats.comments === 'number' ? stats.comments : 0) +
+        (typeof stats.shares === 'number' ? stats.shares : 0) +
+        (typeof stats.saves === 'number' ? stats.saves : 0);
+      const candidates = [
+        derived.interactions,
+        derived.views,
+        stats.views,
+        stats.reach,
+        interactionSum,
+      ];
+      const positive = candidates.find(
+        (value) => typeof value === 'number' && Number.isFinite(value) && value > 0
+      );
+      if (typeof positive === 'number') return positive;
+      return 1;
+    };
+
+    videosWithCorrectStats.forEach((video) => {
+      const baseScore = getScore(video);
+      categoryKeys.forEach((type) => {
+        const rawValues = (video as any)?.[type];
+        const values = toArray(rawValues);
+        if (!values.length) return;
+        values.forEach((value) => {
+          const existing = aggregates[type].get(value) ?? { sum: 0, count: 0 };
+          existing.sum += baseScore;
+          existing.count += 1;
+          aggregates[type].set(value, existing);
+        });
+      });
+    });
+
+    const result: Record<string, RankItem[]> = {};
+    categoryKeys.forEach((type) => {
+      const map = aggregates[type];
+      if (!map.size) return;
+      const sorted = Array.from(map.entries())
+        .map(([category, stats]) => ({
+          category,
+          value: stats.sum > 0 ? stats.sum : stats.count,
+          posts: stats.count,
+        }))
+        .sort((a, b) => b.value - a.value || b.posts - a.posts);
+      if (!sorted.length) return;
+      result[categoryToAvgKey[type]] = sorted.map(({ category, value }) => ({
+        category,
+        value,
+      }));
+      result[categoryToPostsKey[type]] = sorted.map(({ category, posts }) => ({
+        category,
+        value: posts,
+      }));
+    });
+
+    return Object.keys(result).length ? (result as CategoryRankingsMap) : null;
+  }, [videosWithCorrectStats]);
+
+  const categorySummaryViewedRef = useRef(false);
+  const categoryRankingsEnabled =
+    Boolean(user?._id) && !shouldHidePremiumSections && !shouldLockPremiumSections;
+  const { data: categoryRankingsData, loading: categoryRankingsLoading } = useCategoryRankings(
+    user?._id ? String(user._id) : null,
+    categoryRankingsEnabled
+  );
+  const effectiveCategoryRankings = useMemo<CategoryRankingsMap>(() => {
+    if (hasCategoryRankingData(categoryRankingsData)) return categoryRankingsData;
+    if (hasCategoryRankingData(fallbackCategoryRankings)) return fallbackCategoryRankings;
+    return categoryRankingsData ?? fallbackCategoryRankings;
+  }, [categoryRankingsData, fallbackCategoryRankings]);
+  const hasCategorySummaryData = useMemo(
+    () => hasCategoryRankingData(effectiveCategoryRankings),
+    [effectiveCategoryRankings]
+  );
+  const categoryRankingsLoadingState =
+    categoryRankingsEnabled &&
+    categoryRankingsLoading &&
+    !hasCategoryRankingData(categoryRankingsData) &&
+    !hasCategoryRankingData(fallbackCategoryRankings);
+
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heroDescriptor = useMemo(() => {
@@ -2007,7 +2132,10 @@ const groupedTopPosts = useMemo(() => {
 
   return (
     <GlobalTimePeriodProvider>
-      <div className="bg-[#FAFAFB] min-h-screen font-sans text-gray-900">
+      <div
+        className="min-h-screen font-sans text-[#0F172A]"
+        style={{ background: landingSunriseBackground }}
+      >
         <div className={mainContainerClass}>
           <div className={sectionsWrapperClass}>
             <motion.section
@@ -2015,40 +2143,37 @@ const groupedTopPosts = useMemo(() => {
               initial="hidden"
               animate="visible"
               custom={0}
-              className="relative rounded-3xl border border-[#E6E2F3] bg-gradient-to-b from-[#F9F9FB] via-white to-white px-6 py-6 text-[#1C1C1E] shadow-md sm:px-8 sm:py-8"
+              className="relative overflow-hidden rounded-[40px] border border-white/60 bg-white/90 px-6 py-6 text-[#0F172A] shadow-[0_40px_120px_rgba(15,23,42,0.18)] backdrop-blur-2xl sm:px-8 sm:py-8"
             >
-              <button
-                type="button"
-                onClick={handleShareClick}
-                className="absolute right-5 top-5 hidden h-10 w-10 items-center justify-center rounded-full bg-white/70 text-[#6E1F93] shadow-sm transition hover:bg-white md:inline-flex"
-                aria-label="Compartilhar mídia kit"
-              >
-                <Share2 className="h-5 w-5" />
-              </button>
-              {hasCopiedLink && (
-                <span className="absolute right-20 top-5 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#6E1F93] shadow-sm">
-                  Link copiado!
-                </span>
-              )}
-
-              <div className="space-y-6">
-                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
-                  <div className="flex justify-center sm:block">
-                    <div className="rounded-full border-2 border-white bg-white p-1 shadow-md">
+              <div className="pointer-events-none absolute inset-0">
+                <div className="absolute inset-0 rounded-[38px] border border-white/25 opacity-60" />
+                <div className="absolute -top-20 right-0 h-64 w-64 rounded-full bg-[#6E1F93]/20 blur-[140px]" />
+                <div className="absolute -bottom-16 left-0 h-56 w-56 rounded-full bg-[#FF2C7E]/15 blur-[150px]" />
+              </div>
+              <div className="relative z-10 space-y-8">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+                    <div className="rounded-full border-4 border-white/80 bg-white/95 p-1 shadow-[0_25px_65px_rgba(15,23,42,0.18)]">
                       <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={128} />
                     </div>
-                  </div>
-                  <div className="space-y-3 text-center sm:text-left">
-                    <div className="space-y-1">
-                      <h1 className="text-xl font-bold sm:text-3xl">{user.name || 'Criador'}</h1>
-                      <div className="flex flex-col items-center gap-1 text-sm text-gray-500 sm:flex-row sm:items-center sm:gap-2">
+                    <div className="space-y-4 text-center sm:text-left">
+                      <span className={`${chipHighlightClass} text-[0.62rem]`}>
+                        Mídia kit Data2Content
+                      </span>
+                      <div className="space-y-2">
+                        <h1 className="text-[clamp(2rem,4vw,3rem)] font-black leading-tight tracking-tight text-[#0F172A]">
+                          {user.name || 'Criador'}
+                        </h1>
+                        <p className="text-sm font-medium text-[#475569]">Análises e campanhas com IA.</p>
+                      </div>
+                      <div className="flex flex-col items-center gap-1 text-sm text-[#475569] sm:flex-row sm:items-center sm:gap-2">
                         {affiliateHandleLabel ? (
                           instagramProfileUrl ? (
                             <a
                               href={instagramProfileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="rounded text-[#6E1F93] hover:text-[#4A1370] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A3E8]"
+                              className="rounded text-[#6E1F93] underline-offset-2 transition hover:text-[#4A1370]"
                             >
                               {affiliateHandleLabel}
                             </a>
@@ -2056,39 +2181,48 @@ const groupedTopPosts = useMemo(() => {
                             <span>{affiliateHandleLabel}</span>
                           )
                         ) : null}
-                        <span className={`${affiliateHandleLabel ? 'hidden sm:inline' : 'hidden'} text-gray-300`}>•</span>
+                        {affiliateHandleLabel ? (
+                          <span className="hidden text-[#cbd5f5] sm:inline">•</span>
+                        ) : null}
                         <span className="font-semibold text-[#6E1F93]">Parceiro Data2Content</span>
                       </div>
-                      <p className="text-xs text-gray-500 sm:text-sm">Análises e campanhas com IA.</p>
                       {heroDescriptor ? (
-                        <p className="text-xs text-gray-400 sm:text-sm">{heroDescriptor}</p>
+                        <p className="text-sm text-[#475569]">{heroDescriptor}</p>
                       ) : null}
                       {heroLocationLabel ? (
-                        <p className="text-xs text-gray-400 sm:text-sm">{heroLocationLabel}</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6E1F93]">
+                          {heroLocationLabel}
+                        </p>
                       ) : null}
                     </div>
-                    {heroBio ? (
-                      <p className="text-sm leading-relaxed text-gray-600">{heroBio}</p>
+                  </div>
+                  <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row sm:justify-end lg:w-auto lg:flex-col lg:items-end">
+                    <ButtonPrimary
+                      onClick={handleShareClick}
+                      variant="outline"
+                      size="md"
+                      className="w-full min-w-[220px] justify-center shadow-none sm:w-auto"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      Compartilhar mídia kit
+                    </ButtonPrimary>
+                    {hasCopiedLink ? (
+                      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6E1F93]">
+                        Link copiado!
+                      </span>
                     ) : null}
-                    {heroTagline ? (
-                      <p className="text-sm italic text-[#4A3C65]">
-                        “{heroTagline}”
-                      </p>
-                    ) : null}
-                    <div className="md:hidden">
-                      <button
-                        type="button"
-                        onClick={handleShareClick}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#EADDFC] bg-white/80 px-4 py-2 text-sm font-semibold text-[#5a1a78] shadow-sm"
-                        aria-label="Compartilhar mídia kit"
-                      >
-                        <Share2 className="h-4 w-4" />
-                        Compartilhar mídia kit
-                      </button>
-                    </div>
                   </div>
                 </div>
-
+                <div className="space-y-3 text-center text-sm text-[#475569] sm:text-left">
+                  {heroBio ? (
+                    <p className="text-base leading-relaxed text-[#0F172A]/85">{heroBio}</p>
+                  ) : null}
+                  {heroTagline ? (
+                    <p className="text-sm italic text-[#4A1370]">
+                      “{heroTagline}”
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </motion.section>
 
@@ -2101,8 +2235,8 @@ const groupedTopPosts = useMemo(() => {
                 className={`${cardStyle} space-y-4`}
               >
                 <CategoryRankingsSummary
-                  rankings={categoryRankingsEnabled ? categoryRankingsData : null}
-                  loading={categoryRankingsLoading}
+                  rankings={categoryRankingsEnabled ? effectiveCategoryRankings : null}
+                  loading={categoryRankingsLoadingState}
                   locked={shouldLockPremiumSections}
                   lockedDescription={lockedCategoriesDescription}
                   lockedCtaLabel={categoryCtaLabel}
@@ -2119,23 +2253,23 @@ const groupedTopPosts = useMemo(() => {
                 initial="hidden"
                 animate="visible"
                 custom={0.05}
-                className={`${cardStyle} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}
+                className={`${cardStyle} flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between`}
               >
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                    Link do mídia kit
-                  </p>
-                  <p className="mt-1 break-all text-sm text-gray-700">{publicUrlForCopy}</p>
+                <div className="space-y-2 text-center sm:text-left">
+                  <span className={`${chipHighlightClass} text-[0.62rem]`}>Compartilhe com marcas</span>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-[#6E1F93]">Link do mídia kit</p>
+                  <p className="break-all text-sm text-[#475569]">{publicUrlForCopy}</p>
                 </div>
-                <div className="flex sm:flex-col sm:items-end gap-2">
-                  <button
-                    type="button"
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <ButtonPrimary
                     onClick={handleShareClick}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#6E1F93]/10 px-4 py-2 text-xs font-semibold text-[#5a1a78] transition hover:bg-[#6E1F93]/15"
+                    variant="brand"
+                    size="md"
+                    className="w-full min-w-[200px] justify-center sm:w-auto"
                   >
                     Copiar link
-                  </button>
-                  <span className="text-xs text-gray-500 sm:text-right">
+                  </ButtonPrimary>
+                  <span className="text-xs text-[#64748B] sm:text-right">
                     Compartilhe este link com marcas e parceiros.
                   </span>
                 </div>
@@ -2150,7 +2284,7 @@ const groupedTopPosts = useMemo(() => {
               <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.1}>
                 <SubscribeCtaBanner
                   isSubscribed={isSubscribed}
-                  className="rounded-3xl border border-[#EAEAEA] bg-white shadow-sm"
+                  className={`${glassCardBaseClass} p-6`}
                 />
               </motion.div>
             )}
@@ -2163,24 +2297,24 @@ const groupedTopPosts = useMemo(() => {
                 custom={0.2}
                 className={`${cardStyle} space-y-6`}
               >
-                <div className="space-y-2 text-left">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Quem é o público</p>
-                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Audiência & demografia</h2>
-                  <p className="text-sm leading-relaxed text-gray-600">{demographicSummary}</p>
+                <div className="space-y-3 text-left">
+                  <span className={`${chipHighlightClass} text-[0.62rem]`}>Quem é o público</span>
+                  <h2 className="text-[clamp(1.5rem,2.2vw,2.2rem)] font-bold text-[#0F172A]">Audiência & demografia</h2>
+                  <p className="text-base leading-relaxed text-[#475569]">{demographicSummary}</p>
                 </div>
                 <div className="grid gap-4 lg:grid-cols-3">
                   {genderBarData.length ? (
-                    <div className="rounded-2xl border border-[#EAEAEA] bg-white/90 p-4 shadow-sm">
-                      <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                    <div className="rounded-[24px] border border-white/50 bg-white/95 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+                      <div className="flex items-center justify-between text-sm font-semibold text-[#0F172A]">
                         <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-[#D62E5E]" />
-                        Gênero predominante
+                          <Users className="h-4 w-4 text-[#D62E5E]" />
+                          Gênero predominante
                         </div>
                         <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
                           Top 3
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-gray-500">Percentual de seguidores por gênero</p>
+                      <p className="mt-1 text-xs text-[#94a3b8]">Percentual de seguidores por gênero</p>
                       <div className="mt-4">
                         <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
                       </div>
@@ -2196,17 +2330,17 @@ const groupedTopPosts = useMemo(() => {
                     </div>
                   ) : null}
                   {ageBarData.length ? (
-                    <div className="rounded-2xl border border-[#EAEAEA] bg-white/90 p-4 shadow-sm">
-                      <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                    <div className="rounded-[24px] border border-white/50 bg-white/95 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+                      <div className="flex items-center justify-between text-sm font-semibold text-[#0F172A]">
                         <div className="flex items-center gap-2">
-                        <CalendarDays className="h-4 w-4 text-[#6E1F93]" />
-                        Faixas etárias
+                          <CalendarDays className="h-4 w-4 text-[#6E1F93]" />
+                          Faixas etárias
                         </div>
                         <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
                           Top 3
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-gray-500">Top audiências por idade</p>
+                      <p className="mt-1 text-xs text-[#94a3b8]">Top audiências por idade</p>
                       <div className="mt-4">
                         <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
                       </div>
@@ -2222,17 +2356,17 @@ const groupedTopPosts = useMemo(() => {
                     </div>
                   ) : null}
                   {topLocationBreakdown.length ? (
-                    <div className="rounded-2xl border border-[#EAEAEA] bg-white/90 p-4 shadow-sm">
-                      <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                    <div className="rounded-[24px] border border-white/50 bg-white/95 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+                      <div className="flex items-center justify-between text-sm font-semibold text-[#0F172A]">
                         <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-[#D62E5E]" />
-                        Principais cidades
+                          <MapPin className="h-4 w-4 text-[#D62E5E]" />
+                          Principais cidades
                         </div>
                         <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
                           Top 3
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-gray-500">Onde estão os seguidores mais engajados</p>
+                      <p className="mt-1 text-xs text-[#94a3b8]">Onde estão os seguidores mais engajados</p>
                       <div className="mt-4">
                         <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
                       </div>
@@ -2248,7 +2382,7 @@ const groupedTopPosts = useMemo(() => {
                     </div>
                   ) : null}
                 </div>
-                <p className="flex items-center gap-2 text-xs text-gray-400">
+                <p className="flex items-center gap-2 text-xs text-[#94a3b8]">
                   <Globe className="h-3.5 w-3.5" />
                   {demographySourceCopy}
                 </p>
@@ -2263,17 +2397,17 @@ const groupedTopPosts = useMemo(() => {
               className={`${cardStyle} space-y-6`}
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2 text-left">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Como ele performa</p>
-                  <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Performance geral</h2>
-                  <p className="text-sm text-gray-600">
+                <div className="space-y-3 text-left">
+                  <span className={`${chipHighlightClass} text-[0.62rem]`}>Como ele performa</span>
+                  <h2 className="text-[clamp(1.5rem,2vw,2.2rem)] font-bold text-[#0F172A]">Performance geral</h2>
+                  <p className="text-base text-[#475569]">
                     Resumo dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')}.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <label
                     htmlFor="comparisonPeriod"
-                    className="text-xs font-semibold uppercase tracking-wide text-gray-500"
+                    className="text-xs font-semibold uppercase tracking-wide text-[#94a3b8]"
                   >
                     Período
                   </label>
@@ -2281,7 +2415,7 @@ const groupedTopPosts = useMemo(() => {
                     id="comparisonPeriod"
                     value={comparisonPeriod}
                     onChange={(event) => setComparisonPeriod(normalizeComparisonPeriod(event.target.value))}
-                    className="rounded-full border border-[#EAEAEA] bg-[#FAFAFB] px-4 py-2 text-xs font-semibold text-gray-700 focus:border-[#6E1F93] focus:outline-none"
+                    className="rounded-full border border-white/60 bg-white/80 px-4 py-2 text-xs font-semibold text-[#0F172A] shadow-inner focus:border-[#6E1F93] focus:outline-none"
                   >
                     {PERIOD_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -2305,8 +2439,8 @@ const groupedTopPosts = useMemo(() => {
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-[#EAEAEA] bg-white p-4 shadow-sm">
-                      <h3 className="text-sm font-semibold text-gray-800">Médias por post</h3>
+                    <div className="rounded-[24px] border border-white/55 bg-white/95 p-4 shadow-[0_20px_55px_rgba(15,23,42,0.12)]">
+                      <h3 className="text-sm font-semibold text-[#0F172A]">Médias por post</h3>
                       <div className="mt-3 space-y-2">
                         <AverageMetricRow
                           icon={<Eye className="h-4 w-4 text-[#6E1F93]" />}
@@ -2335,10 +2469,10 @@ const groupedTopPosts = useMemo(() => {
                         />
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-[#EAEAEA] bg-white p-4 shadow-sm">
+                    <div className="rounded-[24px] border border-white/55 bg-white/95 p-4 shadow-[0_20px_55px_rgba(15,23,42,0.12)]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <h3 className="text-sm font-semibold text-gray-800">Taxa de engajamento</h3>
+                          <h3 className="text-sm font-semibold text-[#0F172A]">Taxa de engajamento</h3>
                           <div className="mt-2 flex items-baseline gap-2">
                             <span className={`text-3xl font-bold ${engagementRateColor}`}>
                               {engagementRateDisplay}
@@ -2353,19 +2487,19 @@ const groupedTopPosts = useMemo(() => {
                       <div className="mt-4 h-[70px] w-full overflow-hidden rounded-xl bg-[#FAFAFB]">
                         <SparklineChart values={engagementSparklineValues} />
                       </div>
-                      <p className="mt-3 text-xs text-gray-500">
+                      <p className="mt-3 text-xs text-[#64748B]">
                         {engagementTrendNarrative}
                       </p>
-                      <div className="mt-4 rounded-xl bg-[#FAFAFB] p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Base atual</p>
-                        <p className="mt-1 text-sm font-semibold text-[#1C1C1E]">{followerCountDisplay}</p>
-                        <p className="text-[11px] text-gray-400">Seguidores totais no Instagram</p>
+                      <div className="mt-4 rounded-xl border border-white/60 bg-white/80 p-3 shadow-inner">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">Base atual</p>
+                        <p className="mt-1 text-sm font-semibold text-[#0F172A]">{followerCountDisplay}</p>
+                        <p className="text-[11px] text-[#94a3b8]">Seguidores totais no Instagram</p>
                       </div>
                     </div>
                 </div>
               )}
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[#94a3b8]">
                 Média dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')} via Data2Content AI.
               </p>
             </motion.section>
@@ -2378,22 +2512,20 @@ const groupedTopPosts = useMemo(() => {
               className={`${cardStyle} space-y-5`}
             >
               <div className="space-y-3">
-                <div className="space-y-2 text-left">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                    Conteúdo real em destaque
-                  </p>
+                <div className="space-y-3 text-left">
+                  <span className={`${chipHighlightClass} text-[0.62rem]`}>Conteúdo real em destaque</span>
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">Top posts</h2>
-                    <span className="rounded-full bg-[#F4ECFB] px-3 py-1 text-xs font-semibold text-[#6E1F93]">
+                    <h2 className="text-[clamp(1.6rem,2vw,2.4rem)] font-bold text-[#0F172A]">Top posts</h2>
+                    <span className="rounded-full bg-[#F4ECFB] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
                       {selectedPeriodLabel}
                     </span>
                   </div>
-                  {topPostsIntro ? <p className="text-sm text-gray-600">{topPostsIntro}</p> : null}
+                  {topPostsIntro ? <p className="text-base text-[#475569]">{topPostsIntro}</p> : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#EDE7FB] bg-white/90 p-3 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 rounded-[32px] border border-white/55 bg-white/95 p-4 shadow-[0_20px_55px_rgba(15,23,42,0.1)]">
                   <div className="flex-1 min-w-[200px] space-y-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Ordenar por</p>
-                    <div className="inline-flex w-full flex-wrap items-center rounded-full bg-[#F3EBFF]/80 p-1 text-xs font-semibold text-gray-600">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">Ordenar por</p>
+                    <div className="inline-flex w-full flex-wrap items-center rounded-full border border-white/60 bg-white/80 p-1 text-xs font-semibold text-[#475569] shadow-inner">
                       {topPostSortOptions.map((option) => {
                         const isActive = topPostsSort === option.value;
                         return (
@@ -2401,8 +2533,10 @@ const groupedTopPosts = useMemo(() => {
                             key={option.value}
                             type="button"
                             onClick={() => handleTopPostSortChange(option.value)}
-                            className={`flex-1 rounded-full px-3 py-1 transition ${
-                              isActive ? 'bg-white text-[#6E1F93] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            className={`flex-1 rounded-full px-3 py-1.5 transition ${
+                              isActive
+                                ? 'bg-white text-[#6E1F93] shadow-[0_8px_18px_rgba(15,23,42,0.12)]'
+                                : 'text-[#94a3b8] hover:text-[#0F172A]'
                             }`}
                           >
                             {option.label}
@@ -2421,7 +2555,7 @@ const groupedTopPosts = useMemo(() => {
                 </div>
               ) : (
                 <div className="relative">
-                  <div className="relative">
+                  <div className={`${glassCardBaseClass} overflow-hidden p-4`}>
                     <div
                       ref={topPostsScrollRef}
                       onWheel={handleTopPostsWheel}
@@ -2488,8 +2622,8 @@ const groupedTopPosts = useMemo(() => {
                               main: formattedViews,
                               secondary: 'visualizações',
                               arrangement: 'postfix',
-                              mainClass: 'text-base font-semibold text-gray-900',
-                              secondaryClass: 'text-xs text-gray-500',
+                              mainClass: 'text-base font-semibold text-[#0F172A]',
+                              secondaryClass: `text-xs ${textMutedClass}`,
                             }
                           : null,
                         formattedLikes !== '—'
@@ -2498,8 +2632,8 @@ const groupedTopPosts = useMemo(() => {
                               main: formattedLikes,
                               secondary: 'curtidas',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-gray-700',
-                              secondaryClass: 'text-xs text-gray-500',
+                              mainClass: 'text-sm font-semibold text-[#475569]',
+                              secondaryClass: `text-xs ${textMutedClass}`,
                             }
                           : null,
                         formattedComments !== '—'
@@ -2508,8 +2642,8 @@ const groupedTopPosts = useMemo(() => {
                               main: formattedComments,
                               secondary: 'comentários',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-gray-700',
-                              secondaryClass: 'text-xs text-gray-500',
+                              mainClass: 'text-sm font-semibold text-[#475569]',
+                              secondaryClass: `text-xs ${textMutedClass}`,
                             }
                           : null,
                         formattedShares !== '—'
@@ -2518,8 +2652,8 @@ const groupedTopPosts = useMemo(() => {
                               main: formattedShares,
                               secondary: 'compartilhamentos',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-gray-700',
-                              secondaryClass: 'text-xs text-gray-500',
+                              mainClass: 'text-sm font-semibold text-[#475569]',
+                              secondaryClass: `text-xs ${textMutedClass}`,
                             }
                           : null,
                         formattedSaves !== '—'
@@ -2528,8 +2662,8 @@ const groupedTopPosts = useMemo(() => {
                               main: formattedSaves,
                               secondary: 'salvos',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-gray-700',
-                              secondaryClass: 'text-xs text-gray-500',
+                              mainClass: 'text-sm font-semibold text-[#475569]',
+                              secondaryClass: `text-xs ${textMutedClass}`,
                             }
                           : null,
                         dateLabel
@@ -2538,8 +2672,8 @@ const groupedTopPosts = useMemo(() => {
                               main: dateLabel,
                               secondary: 'Publicado em',
                               arrangement: 'prefix',
-                              mainClass: 'text-xs font-medium text-gray-500',
-                              secondaryClass: 'text-[11px] text-gray-400',
+                              mainClass: `text-xs font-medium ${textMutedClass}`,
+                              secondaryClass: 'text-[11px] text-[#CBD5F5]',
                             }
                           : null,
                       ].filter(Boolean) as MetricItem[];
@@ -2562,8 +2696,8 @@ const groupedTopPosts = useMemo(() => {
                               main: highlightEr,
                               secondary: 'Taxa de engajamento',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-gray-900',
-                              secondaryClass: 'text-[11px] text-gray-500',
+                              mainClass: 'text-sm font-semibold text-[#0F172A]',
+                              secondaryClass: `text-[11px] ${textMutedClass}`,
                             }
                           : null,
                       ].filter((item): item is MetricItem => Boolean(item));
@@ -2573,8 +2707,8 @@ const groupedTopPosts = useMemo(() => {
                             main: formattedInteractions,
                             secondary: 'Interações',
                             arrangement: 'postfix',
-                            mainClass: 'text-sm font-semibold text-gray-900',
-                            secondaryClass: 'text-[11px] text-gray-500',
+                            mainClass: 'text-sm font-semibold text-[#0F172A]',
+                            secondaryClass: `text-[11px] ${textMutedClass}`,
                           }
                         : null;
                       const interactionBreakdownMetrics = [
@@ -2587,8 +2721,8 @@ const groupedTopPosts = useMemo(() => {
                               main: highlightSaves!,
                               secondary: 'Salvos',
                               arrangement: 'postfix',
-                              mainClass: 'text-sm font-semibold text-gray-900',
-                              secondaryClass: 'text-[11px] text-gray-500',
+                              mainClass: 'text-sm font-semibold text-[#0F172A]',
+                              secondaryClass: `text-[11px] ${textMutedClass}`,
                             }
                           : null,
                       ].filter((item): item is MetricItem => Boolean(item));
@@ -2602,46 +2736,46 @@ const groupedTopPosts = useMemo(() => {
                         hasSummaryMetrics || Boolean(interactionsSummaryMetric) || hasInteractionBreakdown || hasAdditionalDetailMetrics;
                       const hasThumbnail = Boolean(video.thumbnailUrl);
                             const isTopHighlight = index === 0;
-                            const isClickable = canViewCategories && !isTopPostsLocked;
+                            const isClickable = (canViewCategories || isPublicView) && !isTopPostsLocked;
                             return (
                               <article
                                 key={video._id}
-                                className={`relative flex min-w-[220px] max-w-[260px] flex-1 basis-1/2 flex-col gap-2 rounded-2xl border border-[#E4E4EA] bg-white px-3 pt-3 pb-2 text-xs shadow-sm transition hover:shadow-md ${
+                                className={`relative flex min-w-[220px] max-w-[260px] flex-1 basis-1/2 flex-col gap-2 rounded-[28px] border border-white/60 bg-white/95 px-3 pt-3 pb-2 text-xs shadow-[0_20px_55px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_30px_70px_rgba(15,23,42,0.18)] ${
                                   isClickable ? 'cursor-pointer' : ''
-                                } ${isTopHighlight ? 'border-[#D62E5E]/50 shadow-lg' : ''}`}
-                          role={isClickable ? 'button' : undefined}
-                          tabIndex={isClickable ? 0 : undefined}
-                          onClick={isClickable ? () => setSelectedPostId(video._id) : undefined}
-                          onKeyDown={
-                            isClickable
-                              ? (event) => {
-                                  if (event.key === 'Enter' || event.key === ' ') {
-                                    event.preventDefault();
-                                    setSelectedPostId(video._id);
-                                  }
+                                } ${isTopHighlight ? '!border-[#FF2C7E]/40 !shadow-[0_35px_85px_rgba(255,44,126,0.25)]' : ''}`}
+                                role={isClickable ? 'button' : undefined}
+                                tabIndex={isClickable ? 0 : undefined}
+                                onClick={isClickable ? () => setSelectedPostId(video._id) : undefined}
+                                onKeyDown={
+                                  isClickable
+                                    ? (event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                          event.preventDefault();
+                                          setSelectedPostId(video._id);
+                                        }
+                                      }
+                                    : undefined
                                 }
-                              : undefined
-                          }
-                        >
+                              >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             {isTopHighlight ? (
-                              <span className="inline-flex items-center rounded-full bg-[#1C1C1E] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                              <span className="inline-flex items-center rounded-full bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow-inner">
                                 Top 1 do período
                               </span>
                             ) : (
-                              <span className="inline-flex items-center rounded-full bg-[#F4F4F6] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                              <span className="inline-flex items-center rounded-full border border-white/50 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#475569]">
                                 #{index + 1}
                               </span>
                             )}
                             {dateLabel ? (
-                              <div className="text-right text-xs text-gray-500">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Publicado</p>
-                                <p className="font-semibold text-gray-700">{dateLabel}</p>
-                                  </div>
-                                ) : null}
+                              <div className="text-right text-xs text-[#94a3b8]">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide">Publicado</p>
+                                <p className="font-semibold text-[#475569]">{dateLabel}</p>
+                              </div>
+                            ) : null}
                           </div>
                           {hasThumbnail ? (
-                            <div className="relative w-full overflow-hidden rounded-2xl border border-[#E4E3EC] bg-[#F7F7FB] aspect-[4/5]">
+                            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-white/50 bg-white/70">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={video.thumbnailUrl!}
@@ -2651,13 +2785,13 @@ const groupedTopPosts = useMemo(() => {
                               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                             </div>
                           ) : (
-                            <div className="flex aspect-[4/5] w-full items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-[11px] font-semibold text-gray-400">
+                            <div className="flex aspect-[4/5] w-full items-center justify-center rounded-2xl border border-dashed border-white/60 bg-white/70 text-[11px] font-semibold text-[#94a3b8]">
                               Sem prévia disponível
                             </div>
                           )}
                           {tagMeta.length > 0 ? (
-                            <div className="rounded-2xl border border-[#EDECF5] bg-white p-3 space-y-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">Categorias mapeadas</p>
+                            <div className="rounded-2xl border border-white/55 bg-white/95 p-3 space-y-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">Categorias mapeadas</p>
                               <div className="flex flex-wrap gap-1.5">
                                 {tagMeta.map(({ type, value }) => {
                                   const styles = tagStyleMap[type];
@@ -2665,7 +2799,7 @@ const groupedTopPosts = useMemo(() => {
                                     <span
                                       key={`${video._id}-${type}-${value}`}
                                       className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${styles.bgClass} ${styles.textClass}`}
-                                    >
+                                      >
                                       {styles.labelPrefix}: {value}
                                     </span>
                                   );
@@ -2674,11 +2808,11 @@ const groupedTopPosts = useMemo(() => {
                             </div>
                           ) : null}
                           {hasDetailMetrics ? (
-                            <div className="rounded-2xl border border-[#EDECF5] bg-white p-3">
+                            <div className="rounded-2xl border border-white/55 bg-white/95 p-3">
                               <div className="space-y-4">
                                 {hasSummaryMetrics ? (
                                   <div>
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">
                                       Indicadores principais
                                     </p>
                                     <div className="mt-1.5 space-y-1.5">
@@ -2687,8 +2821,8 @@ const groupedTopPosts = useMemo(() => {
                                           key={`${video._id}-${metric.key}-summary`}
                                           className="flex items-baseline justify-between text-sm"
                                         >
-                                          <p className="text-[10px] uppercase tracking-[0.08em] text-gray-500">{metric.secondary}</p>
-                                          <p className="text-sm font-semibold text-gray-900">{metric.main}</p>
+                                          <p className="text-[10px] uppercase tracking-[0.08em] text-[#94a3b8]">{metric.secondary}</p>
+                                          <p className="text-sm font-semibold text-[#0F172A]">{metric.main}</p>
                                         </div>
                                       ))}
                                     </div>
@@ -2699,9 +2833,9 @@ const groupedTopPosts = useMemo(() => {
                                   <div className="space-y-2">
                                     {hasSummaryMetrics ? <div className="h-px bg-[#EFEDF6]" /> : null}
                                     <div className="flex items-center justify-between">
-                                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">Interações</p>
+                                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">Interações</p>
                                       {interactionsSummaryMetric ? (
-                                        <p className="text-sm font-semibold text-gray-900">{interactionsSummaryMetric.main}</p>
+                                        <p className="text-sm font-semibold text-[#0F172A]">{interactionsSummaryMetric.main}</p>
                                       ) : null}
                                     </div>
                                     {hasInteractionBreakdown ? (
@@ -2711,8 +2845,8 @@ const groupedTopPosts = useMemo(() => {
                                             key={`${video._id}-${metric.key}-breakdown`}
                                             className="flex items-baseline justify-between text-sm"
                                           >
-                                            <p className="text-[10px] uppercase tracking-[0.08em] text-gray-500">{metric.secondary}</p>
-                                            <p className="text-sm font-semibold text-gray-900">{metric.main}</p>
+                                            <p className="text-[10px] uppercase tracking-[0.08em] text-[#94a3b8]">{metric.secondary}</p>
+                                            <p className="text-sm font-semibold text-[#0F172A]">{metric.main}</p>
                                           </div>
                                         ))}
                                       </div>
@@ -2725,15 +2859,15 @@ const groupedTopPosts = useMemo(() => {
                                     {(hasSummaryMetrics || interactionsSummaryMetric || hasInteractionBreakdown) ? (
                                       <div className="h-px bg-[#EFEDF6]" />
                                     ) : null}
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">Outros sinais</p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">Outros sinais</p>
                                     <div className="space-y-1.5">
                                       {additionalDetailMetrics.map((metric) => (
                                         <div
                                           key={`${video._id}-${metric.key}-additional`}
                                           className="flex items-baseline justify-between text-sm"
                                         >
-                                          <p className="text-[10px] uppercase tracking-[0.08em] text-gray-500">{metric.secondary}</p>
-                                          <p className="text-sm font-semibold text-gray-900">{metric.main}</p>
+                                          <p className="text-[10px] uppercase tracking-[0.08em] text-[#94a3b8]">{metric.secondary}</p>
+                                          <p className="text-sm font-semibold text-[#0F172A]">{metric.main}</p>
                                         </div>
                                       ))}
                                     </div>
@@ -2742,7 +2876,7 @@ const groupedTopPosts = useMemo(() => {
                               </div>
                             </div>
                           ) : null}
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-500">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#64748B]">
                             {isClickable ? (
                               <button
                                 type="button"
@@ -2750,7 +2884,7 @@ const groupedTopPosts = useMemo(() => {
                                   event.stopPropagation();
                                   setSelectedPostId(video._id);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 font-semibold text-gray-700 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                                className="inline-flex items-center gap-1 rounded-full border border-white/60 bg-white/80 px-2.5 py-1 font-semibold text-[#0F172A] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
                               >
                                 <Eye className="h-3.5 w-3.5" />
                                 Ver detalhes
@@ -2779,19 +2913,20 @@ const groupedTopPosts = useMemo(() => {
                   </div>
 
                   {isTopPostsLocked && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-white/95 px-6 text-center shadow-inner">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border border-white/60 bg-gradient-to-br from-white/95 via-white/90 to-[#FDECF4]/95 px-6 text-center shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
                       <Lock className="h-6 w-6 text-[#6E1F93]" />
-                      <p className="mt-3 text-sm text-gray-700">
+                      <p className="mt-3 text-sm text-[#475569]">
                         Desbloqueie para ver os insights completos e baixar o briefing pronto para marcas.
                       </p>
-                      <button
-                        type="button"
+                      <ButtonPrimary
                         onClick={handleTopPostsCtaClick}
-                        className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c12652]"
+                        variant="brand"
+                        size="md"
+                        className="mt-4"
                       >
                         {categoryCtaLabel}
-                      </button>
-                      {categorySubtitle && <p className="mt-2 text-xs text-gray-500">{categorySubtitle}</p>}
+                      </ButtonPrimary>
+                      {categorySubtitle && <p className="mt-2 text-xs text-[#94a3b8]">{categorySubtitle}</p>}
                     </div>
                   )}
                   {!isTopPostsLocked && visibleTopPosts.length > 1 ? (
@@ -2799,7 +2934,7 @@ const groupedTopPosts = useMemo(() => {
                       {visibleTopPosts.map((video, index) => (
                         <span
                           key={`dot-${video._id}`}
-                          className={`h-1.5 w-5 rounded-full ${index === 0 ? 'bg-[#D62E5E]' : 'bg-gray-300'}`}
+                          className={`h-1.5 w-5 rounded-full ${index === 0 ? 'bg-[#6E1F93]' : 'bg-[#E2E8F0]'}`}
                         />
                       ))}
                     </div>
@@ -2811,17 +2946,17 @@ const groupedTopPosts = useMemo(() => {
             {isPublicView ? <div ref={stickyEndRef} className="h-px w-full" aria-hidden="true" /> : null}
 
             {!isPublicView && (
-              <footer className="mt-10 rounded-3xl border border-[#EAEAEA] bg-white px-6 py-6 text-center shadow-sm">
-                <p className="text-sm font-semibold text-[#1C1C1E]">
+              <footer className={`${glassCardBaseClass} mt-10 px-6 py-6 text-center`}>
+                <p className="text-sm font-semibold text-[#0F172A]">
                   Dados e análise por <span className="text-[#D62E5E]">Data2Content AI</span>
                 </p>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-[#94a3b8]">
                   Atualizado automaticamente via Instagram API e inteligência proprietária.
                 </p>
                 {contactEmail ? (
                   <a
                     href={`mailto:${contactEmail}`}
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-5 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] px-5 py-2 text-xs font-semibold text-white shadow-lg transition hover:opacity-90"
                   >
                     Contatar para parceria
                   </a>
@@ -2863,7 +2998,7 @@ const groupedTopPosts = useMemo(() => {
                 <button
                   type="button"
                   onClick={closeProposalDrawer}
-                  className="rounded-full p-2 text-gray-400 transition hover:text-gray-600"
+                  className="rounded-full p-2 text-[#94A3B8] transition hover:text-[#0F172A]"
                   aria-label="Fechar formulário de proposta"
                 >
                   <X className="h-5 w-5" />
@@ -2890,11 +3025,11 @@ const groupedTopPosts = useMemo(() => {
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
-                  <h3 id="cities-modal-title" className="text-sm font-semibold text-gray-800">
+                  <h3 id="cities-modal-title" className="text-sm font-semibold text-[#0F172A]">
                     Todas as cidades
                   </h3>
                   <button
-                    className="rounded-full p-1.5 text-gray-400 transition hover:text-gray-600"
+                    className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
                     aria-label="Fechar"
                     onClick={() => setCitiesModalOpen(false)}
                   >
@@ -2904,10 +3039,10 @@ const groupedTopPosts = useMemo(() => {
                 <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
                   <div className="space-y-3">
                     {fullLocationBreakdown.map((item) => (
-                      <div key={item.label} className="text-sm font-medium text-gray-700">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div key={item.label} className="text-sm font-medium text-[#475569]">
+                        <div className="flex items-center justify-between text-xs text-[#94A3B8]">
                           <span>{item.label}</span>
-                          <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
+                          <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
                         </div>
                         <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
                           <div
@@ -2921,7 +3056,7 @@ const groupedTopPosts = useMemo(() => {
                 </div>
                 <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
                   <button
-                    className="inline-flex items-center rounded-full border border-[#EAEAEA] px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
                     onClick={() => setCitiesModalOpen(false)}
                   >
                     Fechar
@@ -2941,11 +3076,11 @@ const groupedTopPosts = useMemo(() => {
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
-                  <h3 id="gender-modal-title" className="text-sm font-semibold text-gray-800">
+                  <h3 id="gender-modal-title" className="text-sm font-semibold text-[#0F172A]">
                     Distribuição por gênero
                   </h3>
                   <button
-                    className="rounded-full p-1.5 text-gray-400 transition hover:text-gray-600"
+                    className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
                     aria-label="Fechar"
                     onClick={() => setGenderModalOpen(false)}
                   >
@@ -2957,10 +3092,10 @@ const groupedTopPosts = useMemo(() => {
                     {fullGenderBreakdown.map((item) => {
                       const label = genderLabelMap[item.label.toLowerCase()] || item.label;
                       return (
-                        <div key={item.label} className="text-sm font-medium text-gray-700">
-                          <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div key={item.label} className="text-sm font-medium text-[#475569]">
+                          <div className="flex items-center justify-between text-xs text-[#94A3B8]">
                             <span>{label}</span>
-                            <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
+                            <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
                           </div>
                           <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
                             <div
@@ -2975,7 +3110,7 @@ const groupedTopPosts = useMemo(() => {
                 </div>
                 <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
                   <button
-                    className="inline-flex items-center rounded-full border border-[#EAEAEA] px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
                     onClick={() => setGenderModalOpen(false)}
                   >
                     Fechar
@@ -2995,11 +3130,11 @@ const groupedTopPosts = useMemo(() => {
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
-                  <h3 id="age-modal-title" className="text-sm font-semibold text-gray-800">
+                  <h3 id="age-modal-title" className="text-sm font-semibold text-[#0F172A]">
                     Distribuição por idade
                   </h3>
                   <button
-                    className="rounded-full p-1.5 text-gray-400 transition hover:text-gray-600"
+                    className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
                     aria-label="Fechar"
                     onClick={() => setAgeModalOpen(false)}
                   >
@@ -3009,10 +3144,10 @@ const groupedTopPosts = useMemo(() => {
                 <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
                   <div className="space-y-3">
                     {fullAgeBreakdown.map((item) => (
-                      <div key={item.label} className="text-sm font-medium text-gray-700">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div key={item.label} className="text-sm font-medium text-[#475569]">
+                        <div className="flex items-center justify-between text-xs text-[#94A3B8]">
                           <span>{item.label}</span>
-                          <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
+                          <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
                         </div>
                         <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
                           <div
@@ -3026,7 +3161,7 @@ const groupedTopPosts = useMemo(() => {
                 </div>
                 <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
                   <button
-                    className="inline-flex items-center rounded-full border border-[#EAEAEA] px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
                     onClick={() => setAgeModalOpen(false)}
                   >
                     Fechar

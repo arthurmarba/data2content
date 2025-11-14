@@ -112,7 +112,9 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       }`
     : "";
 
-  const asideSurface = isMobile ? "bg-white shadow-xl border-r" : "bg-transparent border-r";
+  const asideSurface = isMobile
+    ? "bg-white shadow-xl border-r"
+    : "bg-white/95 backdrop-blur border-r shadow-[0_20px_60px_rgba(12,18,38,0.08)]";
   const navPaddingX = showLabels ? "px-3 sm:px-4" : "px-2";
 
   return (
