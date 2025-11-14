@@ -295,56 +295,74 @@ const PlannerSlotCardComponent: React.FC<PlannerSlotCardProps> = ({
 
   return (
     <article
-      className="flex h-full flex-col gap-4 rounded-xl border border-[#ECECF2] bg-white p-4 shadow-sm transition hover:shadow-lg"
+      className="flex h-full flex-col gap-5 rounded-2xl border border-[#ECECF2] bg-white p-5 shadow-sm transition hover:shadow-lg sm:p-6"
       aria-label={aria}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[#1C1C1E]">
-          <Clock size={16} className="text-[#6E1F93]" />
-          {headerTimeLabel}
-        </div>
-        {statusBadge && (
-          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${statusBadge.className}`}>
-            {statusBadge.icon}
-            {statusBadge.label}
-          </span>
-        )}
-      </div>
-
-      {heatBadge && (
-        <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${heatBadge.className}`}>
-          {heatBadge.icon}
-          {heatBadge.label}
-        </span>
-      )}
-
-      <div className="space-y-3">
-        {themeKeyword && (
-          <span
-            className="inline-flex items-center gap-2 rounded-full bg-[#F2E8FF] px-3 py-1 text-xs font-semibold"
-            style={{ color: accent.accent }}
-          >
-            <Sparkles size={14} color={accent.accent} />
-            {themeKeyword}
-          </span>
-        )}
-        <h4 className="text-sm font-semibold text-[#1C1C1E]">{fallbackTitleText}</h4>
-
-        <div className="flex flex-wrap gap-2">
-          <MetricBadge icon={<Eye size={14} />} label="Views" value={viewsValue ?? '—'} />
-          {typeof p90 === 'number' && <MetricBadge icon={<Trophy size={14} />} label="P90" value={formatCompact(p90) ?? '—'} />}
-        </div>
-
+      <header className="flex flex-col gap-3 border-b border-[#F1F0F5] pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          {detailItems.map((item) => (
-            <div key={item.key} className="flex items-center gap-2 text-sm text-[#3F3F46]">
-              <span>{item.icon}</span>
-              <span>
-                <span className="font-semibold text-[#1C1C1E]">{item.label}:</span> {item.value}
-              </span>
-            </div>
-          ))}
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8E8EA3]">Dia e faixa de horário</p>
+          <div className="flex items-center gap-2 text-base font-semibold text-[#1C1C1E]">
+            <Clock size={16} className="text-[#6E1F93]" />
+            {headerTimeLabel}
+          </div>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {heatBadge && (
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${heatBadge.className}`}>
+              {heatBadge.icon}
+              {heatBadge.label}
+            </span>
+          )}
+          {statusBadge && (
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${statusBadge.className}`}>
+              {statusBadge.icon}
+              {statusBadge.label}
+            </span>
+          )}
+        </div>
+      </header>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)]">
+        <div className="space-y-4">
+          {themeKeyword && (
+            <span
+              className="inline-flex items-center gap-2 rounded-full bg-[#F2E8FF] px-3 py-1 text-xs font-semibold"
+              style={{ color: accent.accent }}
+            >
+              <Sparkles size={14} color={accent.accent} />
+              {themeKeyword}
+            </span>
+          )}
+          <div className="space-y-1">
+            <h4 className="text-base font-semibold leading-snug text-[#1C1C1E]">{fallbackTitleText}</h4>
+            {headline && headline !== fallbackTitleText && (
+              <p className="text-sm text-[#4B4B55]">{headline}</p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <MetricBadge icon={<Eye size={14} />} label="Views típicas" value={viewsValue ?? '—'} />
+            {typeof p90 === 'number' && (
+              <MetricBadge icon={<Trophy size={14} />} label="P90" value={formatCompact(p90) ?? '—'} />
+            )}
+          </div>
+        </div>
+
+        {detailItems.length > 0 && (
+          <div className="rounded-2xl border border-[#ECECF2] bg-[#F9F8FB] p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8E8EA3]">Categorias principais</p>
+            <dl className="mt-3 space-y-3">
+              {detailItems.map((item) => (
+                <div key={item.key} className="flex items-start gap-3 text-sm text-[#3F3F46]">
+                  <span className="mt-0.5 text-base">{item.icon}</span>
+                  <span>
+                    <span className="font-semibold text-[#1C1C1E]">{item.label}:</span> {item.value}
+                  </span>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
       </div>
 
       {expanded && (

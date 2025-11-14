@@ -311,27 +311,25 @@ export const ContentPlannerList = ({
 
   if (!publicMode && isBillingLoading && (locked || !hasPremiumAccess)) {
     return (
-      <div className="text-center p-8">
-        <span className="text-gray-500">Carregando status da sua assinatura…</span>
+      <div className="py-6 text-center text-sm text-slate-500">
+        Carregando status da sua assinatura…
       </div>
     );
   }
 
   if (showLockedState) {
     return (
-      <>
-        <PlannerUpgradePanel
-          status={normalizedPlanStatus}
-          lockedReason={effectiveLockedReason}
-          onSubscribe={() => openPaywallModal({ context: 'planning', source: 'planner_locked_state' })}
-          billingHref="/dashboard/billing"
-        />
-      </>
+      <PlannerUpgradePanel
+        status={normalizedPlanStatus}
+        lockedReason={effectiveLockedReason}
+        onSubscribe={() => openPaywallModal({ context: 'planning', source: 'planner_locked_state' })}
+        billingHref="/dashboard/billing"
+      />
     );
   }
 
   return (
-    <>
+    <div className="space-y-6">
       <ContentPlannerCalendar
         slots={slots}
         heatmap={heatmap}
@@ -361,7 +359,7 @@ export const ContentPlannerList = ({
         onUpgradeRequest={() => openPaywallModal({ context: 'planning', source: 'planner_slot_modal' })}
         upgradeMessage="Finalize a configuração necessária para gerar roteiros com IA."
       />
-    </>
+    </div>
   );
 };
 
@@ -400,11 +398,9 @@ export function ContentPlannerSection({
   }, [onLockChange]);
 
   const showHeader = publicMode || !lockInfo.locked || lockInfo.billingLoading || !hasPremiumAccess;
-
-  const headerNode = showHeader ? (
-    <header>
-      <h2 className="text-[22px] font-bold text-[#1C1C1E]">{title}</h2>
-      {description && <p className="mt-1 text-[13px] text-[#666666]">{description}</p>}
+  const headerMarkup = showHeader && description ? (
+    <header className="space-y-1 text-left">
+      <p className="text-sm text-slate-600">{description}</p>
     </header>
   ) : null;
 
@@ -415,9 +411,9 @@ export function ContentPlannerSection({
     if (isBillingLoading && !hasPremiumAccess) {
       return (
         <section className="space-y-4">
-          {headerNode}
-          <div className="text-center p-8">
-            <span className="text-gray-500">Carregando status da sua assinatura…</span>
+          {headerMarkup}
+          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-center text-sm text-slate-500 shadow-sm sm:px-6">
+            Carregando status da sua assinatura…
           </div>
         </section>
       );
@@ -426,7 +422,7 @@ export function ContentPlannerSection({
     if (!hasPremiumAccess) {
       return (
         <section className="space-y-4">
-          {headerNode}
+          {headerMarkup}
           <PlannerUpgradePanel
             status={normalizedPlanStatus}
             lockedReason={upgradeReason}
@@ -440,7 +436,7 @@ export function ContentPlannerSection({
 
   return (
     <section className="space-y-4">
-      {headerNode}
+      {headerMarkup}
       <ContentPlannerList
         userId={userId}
         publicMode={publicMode}

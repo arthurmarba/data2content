@@ -11,6 +11,22 @@ const DAYS_FULL_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira'
 type StatusCategory = 'champion' | 'test' | 'watch' | 'planned';
 const TARGET_SLOTS_PER_WEEK = 7;
 
+type SummaryTileProps = {
+  label: string;
+  value: string;
+  helper?: string;
+};
+
+function SummaryTile({ label, value, helper }: SummaryTileProps) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-slate-900">{value}</p>
+      {helper && <p className="mt-0.5 text-xs text-slate-500">{helper}</p>}
+    </div>
+  );
+}
+
 export interface CalendarHeatPoint {
   dayOfWeek: number;
   blockStartHour: number;
@@ -343,7 +359,53 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
 
   const completedSlots = useMemo(() => (slots || []).filter((slot) => slot.status === 'posted').length, [slots]);
   const remainingSlots = Math.max(0, TARGET_SLOTS_PER_WEEK - (overview.total ?? 0));
-  const pendingSlots = Math.max(0, (overview.total ?? 0) - completedSlots);
+  const bestBlockLabel = useMemo(() => {
+    if (!overview.bestBlock || typeof overview.bestBlock.blockStartHour !== 'number') return null;
+    const dayName = dayFullLabel(overview.bestBlock.dayOfWeek).replace('-feira', '');
+    const blockRange = blockLabel(overview.bestBlock.blockStartHour);
+    return `${dayName} • ${blockRange}`;
+  }, [overview]);
+  const topThemeLabel = overview.topTheme ?? null;
+  const summaryTiles = useMemo(
+    () =>
+      [
+        {
+          key: 'total',
+          label: 'Pautas sugeridas',
+          value: String(overview.total ?? 0),
+          helper: `${completedSlots} concluídas`,
+        },
+        {
+          key: 'remaining',
+          label: 'Slots restantes',
+          value: String(remainingSlots),
+          helper: `Meta ${TARGET_SLOTS_PER_WEEK}/semana`,
+        },
+        {
+          key: 'days',
+          label: 'Dias com pauta',
+          value: String(overview.activeDays ?? 0),
+          helper: 'Dos 7 dias da semana',
+        },
+        topThemeLabel
+          ? {
+              key: 'theme',
+              label: 'Tema em alta',
+              value: topThemeLabel,
+              helper: 'Repetiu mais vezes nos slots',
+            }
+          : null,
+        bestBlockLabel
+          ? {
+              key: 'block',
+              label: 'Próximo slot quente',
+              value: bestBlockLabel,
+              helper: 'Janela com maior probabilidade',
+            }
+          : null,
+      ].filter(Boolean) as Array<{ key: string; label: string; value: string; helper?: string }>,
+    [overview, completedSlots, remainingSlots, topThemeLabel, bestBlockLabel]
+  );
   const showLoadingBanner = loading;
 
   if (!publicMode && locked && !isBillingLoading) {
@@ -376,18 +438,31 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   }
 
   return (
-    <div className="rounded-3xl border border-[#E6E6EB] bg-[#FAFAFB] p-4 sm:p-6 space-y-6">
-      <section className="space-y-4 rounded-2xl border border-[#E6E6EB] bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <p className="text-base font-semibold text-[#1C1C1E]">
-            Semana atual — {overview.total ?? 0} {overview.total === 1 ? 'pauta' : 'pautas'} · {completedSlots} concluídas · {remainingSlots} pra meta
+    <section className="rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6 space-y-6">
+      <div className="space-y-4 border-b border-slate-100 pb-5">
+        <header className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plano semanal</p>
+              <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">O que postar por dia nesta semana</h2>
+            </div>
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Atualizado pela IA
+            </span>
+          </div>
+          <p className="text-sm text-slate-500">
+            Bloqueie slots, ajuste formatos e acompanhe a meta de {TARGET_SLOTS_PER_WEEK} pautas por semana.
           </p>
-          <span className="rounded-full border border-[#ECECF3] bg-[#F9F7FF] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#6B6B76]">
-            Modo cards · KPIs em destaque
-          </span>
-        </div>
-        {showLoadingBanner && <PlannerLoadingBanner />}
-      </section>
+        </header>
+        {summaryTiles.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {summaryTiles.map((tile) => (
+              <SummaryTile key={tile.key} label={tile.label} value={tile.value} helper={tile.helper} />
+            ))}
+          </div>
+        )}
+      </div>
+      {showLoadingBanner && <PlannerLoadingBanner />}
 
       {loading && <PlannerLoadingSkeleton />}
       {error && <div className="text-sm text-red-600">{error}</div>}
@@ -401,21 +476,6 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         />
       ) : (
         <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
-      )}
-
-      {canEdit && (
-        <button
-          type="button"
-          onClick={() => {
-            const target = defaultCreateTarget;
-            onCreateSlot(target.day, target.blockStartHour);
-          }}
-          className="fixed bottom-6 right-6 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] text-2xl font-bold text-white shadow-lg transition hover:from-[#c42853] hover:to-[#5a1877]"
-          aria-label="Gerar novas pautas"
-          title="Gerar nova pauta"
-        >
-          +
-        </button>
       )}
 
       {!publicMode && !canEdit && (
@@ -436,7 +496,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         </div>
       )}
 
-    </div>
+    </section>
   );
 };
 
@@ -498,13 +558,13 @@ const PlannerSlotCardGrid = ({
             }
           }}
           className={[
-            'rounded-2xl border border-[#E6E6EB] bg-white p-5 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#6E1F93]/30 focus:ring-offset-2',
+            'rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta',
             canEdit ? 'cursor-pointer hover:border-[#C9B8FF] hover:shadow-md' : 'cursor-default',
           ].join(' ')}
         >
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-lg font-semibold text-[#1C1C1E]">
+              <p className="text-lg font-semibold text-slate-900">
                 {card.dayTitle} · {card.blockLabel}
               </p>
               <span className={`inline-flex items-center gap-1 rounded-full border border-current px-3 py-1 text-xs font-semibold ${card.statusClass}`}>
@@ -513,7 +573,7 @@ const PlannerSlotCardGrid = ({
               </span>
             </div>
 
-            <p className="text-sm font-semibold text-[#1C1C1E]">{card.title}</p>
+            <p className="text-sm font-semibold text-slate-900">{card.title}</p>
 
             <div className="flex flex-wrap gap-2">
               <InfoChip value={card.formatLabel} />
@@ -521,7 +581,7 @@ const PlannerSlotCardGrid = ({
               {card.channelLabel && <InfoChip value={card.channelLabel} />}
             </div>
 
-            <p className="text-sm font-semibold text-[#1C1C1E]">
+            <p className="text-sm font-semibold text-slate-700">
               📊 {card.metricRange} views
             </p>
 
@@ -576,7 +636,7 @@ const PlannerLoadingBanner = () => (
 );
 
 const InfoChip = ({ value }: { value: string }) => (
-  <span className="inline-flex items-center rounded-full bg-[#F5F5F7] px-2.5 py-0.5 text-xs font-medium text-[#4B4B55]">
+  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
     {value}
   </span>
 );

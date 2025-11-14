@@ -6,24 +6,21 @@ const DiscoverViewTracker = NextDynamic(
   () => import("../../discover/components/DiscoverViewTracker"),
   { ssr: false }
 );
-const DiscoverBillingGate = NextDynamic(() => import("./DiscoverBillingGate"), { ssr: false });
 const DiscoverHeaderConfigurator = NextDynamic(
   () => import("./DiscoverHeaderConfigurator"),
   { ssr: false }
 );
 const DiscoverActionBar = NextDynamic(() => import("./DiscoverActionBar"), { ssr: false });
-const FeaturedIdeasSection = NextDynamic(() => import("./FeaturedIdeasSection"), { ssr: false });
 const DiscoverExplorerSection = NextDynamic(
   () => import("./DiscoverExplorerSection"),
   { ssr: false }
 );
-const DiscoverInsightsSection = NextDynamic(
-  () => import("./DiscoverInsightsSection"),
-  { ssr: false }
-);
-import DiscoverHeader from "./DiscoverHeader";
 
 export const dynamic = "force-dynamic";
+
+const MAX_POST_AGE_DAYS = 80;
+const MAX_POST_AGE_MS = MAX_POST_AGE_DAYS * 24 * 60 * 60 * 1000;
+const LIST_SAMPLE_SIZE = 36;
 
 type PostCard = {
   id: string;
@@ -103,6 +100,7 @@ export default async function DiscoverContentPage({
     if (Array.isArray(v)) params.set(k, v.join(","));
     else params.set(k, String(v));
   }
+  params.set("limitPerRow", String(LIST_SAMPLE_SIZE));
   const qs = params.toString();
 
   const result = await fetchFeed(qs).catch(
@@ -151,68 +149,30 @@ export default async function DiscoverContentPage({
     (s) => !blockedTitles.has((s.title || "").trim())
   );
 
+  const cutoffTimestamp = Date.now() - MAX_POST_AGE_MS;
+  const recencyFilteredSections = visibleSections.map((section) => {
+    const filteredItems = (section.items || []).filter((item) => {
+      if (!item.postDate) return false;
+      const timestamp = new Date(item.postDate).getTime();
+      if (Number.isNaN(timestamp)) return false;
+      return timestamp >= cutoffTimestamp;
+    });
+    return { ...section, items: filteredItems };
+  });
+
   const primaryCandidateKeys = ["user_suggested", "personalized", "recommended"];
   const featuredSection =
-    visibleSections.find((section) => primaryCandidateKeys.includes(section.key)) ||
-    visibleSections[0] ||
+    recencyFilteredSections.find((section) => primaryCandidateKeys.includes(section.key)) ||
+    recencyFilteredSections[0] ||
     null;
   const secondarySections = featuredSection
-    ? visibleSections.filter((section) => section.key !== featuredSection.key)
-    : visibleSections;
-  const totalIdeas = visibleSections.reduce(
+    ? recencyFilteredSections.filter((section) => section.key !== featuredSection.key)
+    : recencyFilteredSections;
+  const totalIdeas = recencyFilteredSections.reduce(
     (acc, section) => acc + (section.items?.length ?? 0),
     0
   );
-  const featuredIdeas = featuredSection?.items?.length ?? 0;
   const exploredLabel = totalIdeas > 0 ? Math.min(totalIdeas, 48) : 0;
-
-  const flattenedItems = visibleSections.flatMap((section) => section.items || []);
-  const viewValues = flattenedItems
-    .map((item) => item.stats?.views)
-    .filter(
-      (value): value is number =>
-        typeof value === "number" && Number.isFinite(value) && value > 0
-    );
-  const interactionValues = flattenedItems
-    .map((item) => item.stats?.total_interactions)
-    .filter(
-      (value): value is number =>
-        typeof value === "number" && Number.isFinite(value) && value > 0
-    );
-
-  const avgViews = viewValues.length
-    ? viewValues.reduce((sum, curr) => sum + curr, 0) / viewValues.length
-    : null;
-  const avgInteractions = interactionValues.length
-    ? interactionValues.reduce((sum, curr) => sum + curr, 0) / interactionValues.length
-    : null;
-
-  const hourBuckets = new Map<string, number>();
-  for (const item of flattenedItems) {
-    if (!item.postDate) continue;
-    const date = new Date(item.postDate);
-    if (Number.isNaN(date.getTime())) continue;
-    const hour = date.getHours();
-    const bucketLabel =
-      hour >= 6 && hour < 12
-        ? "Manhã (6h-11h)"
-        : hour >= 12 && hour < 18
-        ? "Tarde (12h-17h)"
-        : hour >= 18 && hour < 24
-        ? "Noite (18h-23h)"
-        : "Madrugada (0h-5h)";
-    hourBuckets.set(bucketLabel, (hourBuckets.get(bucketLabel) || 0) + 1);
-  }
-
-  let topHourLabel: string | null = null;
-  for (const [label, count] of hourBuckets) {
-    if (!topHourLabel || (hourBuckets.get(topHourLabel) || 0) < count) {
-      topHourLabel = label;
-    }
-  }
-  const heatmapBuckets = Array.from(hourBuckets.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
 
   return (
     <main className="w-full max-w-none pb-10">
@@ -220,41 +180,10 @@ export default async function DiscoverContentPage({
       <DiscoverViewTracker />
 
       <div className="mx-auto max-w-[820px] space-y-8 px-3 pt-6 sm:px-4 sm:pt-6 lg:max-w-7xl lg:px-6">
-        <DiscoverHeader allowedPersonalized={allowedPersonalized} featuredCount={featuredIdeas} />
-
         <DiscoverActionBar allowedPersonalized={allowedPersonalized} />
-
-        {featuredSection?.items?.length ? (
-          <FeaturedIdeasSection items={featuredSection.items} totalItems={featuredIdeas} />
-        ) : null}
 
         <DiscoverExplorerSection sections={secondarySections} primaryKey={featuredSection?.key} />
 
-        <DiscoverInsightsSection
-          avgViews={avgViews}
-          avgInteractions={avgInteractions}
-          totalPosts={flattenedItems.length}
-          topHourLabel={topHourLabel}
-          heatmapBuckets={heatmapBuckets}
-        />
-
-        <section className="rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Próximos passos
-              </p>
-              <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">
-                Planeje e troque ideias com quem está no mesmo ritmo
-              </h3>
-              <p className="text-sm text-slate-600">
-                Você explorou {exploredLabel || "várias"} ideias hoje. Salve as melhores e valide com a
-                comunidade.
-              </p>
-            </div>
-            <DiscoverBillingGate />
-          </div>
-        </section>
       </div>
     </main>
   );

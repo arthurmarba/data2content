@@ -513,15 +513,15 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         } ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-8 scale-[0.98]'}`}
       >
         <header
-          className="border-b border-neutral-200 px-5 pb-5 pt-8 sm:px-6 sm:pb-7 sm:pt-10"
+          className="border-b border-neutral-200 px-5 py-4 sm:px-6 sm:py-5"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px))' }}
         >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-1 flex-col gap-2">
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-500">
                 Horário recomendado
               </p>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <p id={dialogLabelId} className="text-3xl font-semibold leading-tight text-neutral-900">
                   {headerText}
                 </p>

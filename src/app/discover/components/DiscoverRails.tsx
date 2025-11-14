@@ -42,6 +42,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
   const [expandedError, setExpandedError] = useState<string | null>(null);
   const [expandedLoading, setExpandedLoading] = useState(false);
   const expandedCacheRef = useRef<Map<string, PostCard[]>>(new Map());
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
   const TITLE_OVERRIDES: Record<string, string> = {
     user_suggested: 'Ideias do seu nicho',
@@ -80,9 +81,43 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
     return sections.slice().sort((a, b) => idxOf(a.key) - idxOf(b.key));
   }, [sections, exp]);
 
+  const { sectionsWithCover, missingThumbs } = useMemo(() => {
+    let removed = 0;
+    const cleaned = ordered.map((section) => {
+      const items = (section.items || []);
+      const filtered = items.filter((item) => {
+        const hasCover = Boolean(item?.coverUrl);
+        if (!hasCover) {
+          removed += 1;
+          return false;
+        }
+        if (hiddenIds.has(item.id)) return false;
+        return true;
+      });
+      return { ...section, items: filtered };
+    });
+    return { sectionsWithCover: cleaned, missingThumbs: removed };
+  }, [ordered, hiddenIds]);
+
+  useEffect(() => {
+    if (missingThumbs <= 0) return;
+    try {
+      track('discover_missing_cover_filtered', { count: missingThumbs, exp });
+    } catch {}
+  }, [missingThumbs, exp]);
+
+  const handleCardUnavailable = useCallback((postId: string) => {
+    setHiddenIds((prev) => {
+      if (prev.has(postId)) return prev;
+      const next = new Set(prev);
+      next.add(postId);
+      return next;
+    });
+  }, []);
+
   const handleExpand = useCallback(
     async (sectionKey: string) => {
-      const base = ordered.find((s) => s.key === sectionKey);
+      const base = sectionsWithCover.find((s) => s.key === sectionKey);
       if (!base) return;
 
       setExpandedKey(sectionKey);
@@ -90,7 +125,8 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
 
       const cached = expandedCacheRef.current.get(sectionKey);
       if (cached) {
-        setExpandedItems(cached);
+        const filteredCached = cached.filter((item) => !hiddenIds.has(item.id));
+        setExpandedItems(filteredCached);
         return;
       }
 
@@ -112,8 +148,11 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
         const allSections: Section[] = Array.isArray(payload.sections) ? payload.sections : [];
         const match = allSections.find((sec) => sec.key === sectionKey);
         if (match) {
-          expandedCacheRef.current.set(sectionKey, match.items || []);
-          setExpandedItems(match.items || []);
+          const sanitizedItems = (match.items || []).filter(
+            (item) => Boolean(item?.coverUrl) && !hiddenIds.has(item.id)
+          );
+          expandedCacheRef.current.set(sectionKey, sanitizedItems);
+          setExpandedItems(sanitizedItems);
           try {
             track('discover_shelf_expand', {
               shelf_key: sectionKey,
@@ -130,7 +169,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
         setExpandedLoading(false);
       }
     },
-    [ordered, searchParams, exp]
+    [sectionsWithCover, searchParams, exp, hiddenIds]
   );
 
   const handleCollapse = useCallback(() => {
@@ -141,7 +180,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
   }, []);
 
   const expandedSectionMeta = expandedKey
-    ? ordered.find((s) => s.key === expandedKey) || null
+    ? sectionsWithCover.find((s) => s.key === expandedKey) || null
     : null;
 
   if (expandedKey && expandedSectionMeta && expandedItems) {
@@ -183,6 +222,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
                 item={item as any}
                 trackContext={{ shelf_key: expandedSectionMeta.key, rank: idx + 1, exp, view: 'expanded' }}
                 variant="grid"
+                onUnavailable={handleCardUnavailable}
               />
             ))}
             {expandedItems.length === 0 && !expandedLoading && !expandedError && (
@@ -198,7 +238,18 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
 
   return (
     <div className="space-y-6">
-      {ordered.map((s, index) => {
+      {(missingThumbs > 0 || hiddenIds.size > 0) && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm text-amber-900 shadow-sm">
+          <p className="font-medium">
+            Removemos {missingThumbs} conteúdo(s) sem capa recente
+            {hiddenIds.size ? ` e ocultamos ${hiddenIds.size} indisponível(eis)` : ""}.
+          </p>
+          <p className="mt-1 text-xs text-amber-800">
+            Reconecte o Instagram em <a className="underline" href="/dashboard/settings">Configurações → Instagram</a> para carregar tudo novamente.
+          </p>
+        </div>
+      )}
+      {sectionsWithCover.map((s, index) => {
         const title = TITLE_OVERRIDES[s.key] || s.title;
         const description = DESCRIPTIONS[s.key];
         const isPrimary = s.key === primaryKey;
@@ -237,6 +288,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
                       item={it as any}
                       trackContext={{ shelf_key: s.key, rank: idx + 1, exp }}
                       variant="rail"
+                      onUnavailable={handleCardUnavailable}
                     />
                   ))}
                   {(s.items || []).length === 0 && (

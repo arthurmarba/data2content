@@ -2,7 +2,7 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/track';
 // (Preferimos abrir direto no Instagram; modal não é mais usado)
 
@@ -43,10 +43,12 @@ export default function DiscoverCard({
   item,
   trackContext,
   variant = 'rail',
+  onUnavailable,
 }: {
   item: PostCard;
   trackContext?: Record<string, any>;
   variant?: 'rail' | 'grid';
+  onUnavailable?: (postId: string) => void;
 }) {
   const views = item?.stats?.views ?? item?.stats?.total_interactions;
   const isViews = item?.stats?.views !== undefined;
@@ -56,8 +58,17 @@ export default function DiscoverCard({
   const [imgFailed, setImgFailed] = useState(false);
   // Modal removido: abrimos direto no Instagram
 
-  const fallbackCover = '/images/Colorido-Simbolo.png';
   const isGrid = variant === 'grid';
+
+  useEffect(() => {
+    if (imgFailed && onUnavailable) {
+      onUnavailable(item.id);
+    }
+  }, [imgFailed, item.id, onUnavailable]);
+
+  if (imgFailed && onUnavailable) {
+    return null;
+  }
 
   return (
     <article
@@ -75,7 +86,7 @@ export default function DiscoverCard({
           className="relative block aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
           aria-label="Abrir no Instagram"
         >
-          {item.coverUrl && !imgFailed ? (
+          {item.coverUrl ? (
             <Image
               src={item.coverUrl}
               alt={short || 'Capa do post'}
@@ -86,15 +97,7 @@ export default function DiscoverCard({
               draggable={false}
               onError={() => setImgFailed(true)}
             />
-          ) : (
-            <Image
-              fill
-              src={fallbackCover}
-              alt="Sem capa"
-              className="w-full h-full object-cover opacity-70"
-              draggable={false}
-            />
-          )}
+          ) : null}
           {/* Overlay de gradiente + linhas breves */}
           {(short || metrics) && (
             <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 via-black/65 to-transparent">
@@ -119,7 +122,7 @@ export default function DiscoverCard({
         </a>
       ) : (
         <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
-          {item.coverUrl && !imgFailed ? (
+          {item.coverUrl ? (
             <Image
               src={item.coverUrl}
               alt={short || 'Capa do post'}
@@ -130,15 +133,7 @@ export default function DiscoverCard({
               draggable={false}
               onError={() => setImgFailed(true)}
             />
-          ) : (
-            <Image
-              fill
-              src={fallbackCover}
-              alt="Sem capa"
-              className="w-full h-full object-cover opacity-70"
-              draggable={false}
-            />
-          )}
+          ) : null}
           {(short || metrics) && (
             <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 via-black/65 to-transparent">
               {metrics && (
