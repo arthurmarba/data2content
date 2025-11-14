@@ -935,7 +935,7 @@ const CategoryRankingsSummary = ({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {loading
           ? Array.from({ length: skeletonCount }).map((_, index) => (
               <div
@@ -1496,21 +1496,29 @@ export default function MediaKitView({
     };
     return {
       gender: calculatePercentages(gender),
-      age: calculatePercentages(age).slice(0, 5),
+      age: calculatePercentages(age),
       location: calculatePercentages(city), // lista completa; exibimos top 3 no card
     };
   }, [demographics]);
+  const fullGenderBreakdown = useMemo<DemographicBreakdownEntry[]>(
+    () => demographicBreakdowns?.gender ?? [],
+    [demographicBreakdowns]
+  );
+  const fullAgeBreakdown = useMemo<DemographicBreakdownEntry[]>(
+    () => demographicBreakdowns?.age ?? [],
+    [demographicBreakdowns]
+  );
   const fullLocationBreakdown = useMemo<DemographicBreakdownEntry[]>(
     () => demographicBreakdowns?.location ?? [],
     [demographicBreakdowns]
   );
   const topGenderBreakdown = useMemo<DemographicBreakdownEntry[]>(
-    () => (demographicBreakdowns?.gender ? demographicBreakdowns.gender.slice(0, 3) : []),
-    [demographicBreakdowns]
+    () => fullGenderBreakdown.slice(0, 3),
+    [fullGenderBreakdown]
   );
   const topAgeBreakdown = useMemo<DemographicBreakdownEntry[]>(
-    () => (demographicBreakdowns?.age ? demographicBreakdowns.age.slice(0, 3) : []),
-    [demographicBreakdowns]
+    () => fullAgeBreakdown.slice(0, 3),
+    [fullAgeBreakdown]
   );
   const topLocationBreakdown = useMemo<DemographicBreakdownEntry[]>(
     () => fullLocationBreakdown.slice(0, 3),
@@ -1533,6 +1541,8 @@ export default function MediaKitView({
     [topAgeBreakdown]
   );
   const hasMoreCities = fullLocationBreakdown.length > 3;
+  const hasMoreGender = fullGenderBreakdown.length > topGenderBreakdown.length;
+  const hasMoreAgeGroups = fullAgeBreakdown.length > topAgeBreakdown.length;
   const demographySourceCopy = 'Fonte: Instagram API + Data2Content';
   const demographicHighlights = useMemo(() => {
     const entries: Array<{ key: string; icon: React.ReactNode; title: string; value: string }> = [];
@@ -1915,6 +1925,8 @@ const groupedTopPosts = useMemo(() => {
   }, [session?.user, user]);
 
   const [isCitiesModalOpen, setCitiesModalOpen] = useState(false);
+  const [isGenderModalOpen, setGenderModalOpen] = useState(false);
+  const [isAgeModalOpen, setAgeModalOpen] = useState(false);
   const handleLockedCtaClick = useCallback(
     (surface: string) => {
       track('media_kit_trial_cta_clicked', { surface });
@@ -2018,9 +2030,11 @@ const groupedTopPosts = useMemo(() => {
               )}
 
               <div className="space-y-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-                  <div className="rounded-full border-2 border-white bg-white p-1 shadow-md">
-                    <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={128} />
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+                  <div className="flex justify-center sm:block">
+                    <div className="rounded-full border-2 border-white bg-white p-1 shadow-md">
+                      <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={128} />
+                    </div>
                   </div>
                   <div className="space-y-3 text-center sm:text-left">
                     <div className="space-y-1">
@@ -2159,6 +2173,15 @@ const groupedTopPosts = useMemo(() => {
                       <div className="mt-4">
                         <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
                       </div>
+                      {hasMoreGender ? (
+                        <button
+                          type="button"
+                          className="mt-4 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+                          onClick={() => setGenderModalOpen(true)}
+                        >
+                          Ver mais gêneros ▸
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                   {ageBarData.length ? (
@@ -2176,6 +2199,15 @@ const groupedTopPosts = useMemo(() => {
                       <div className="mt-4">
                         <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
                       </div>
+                      {hasMoreAgeGroups ? (
+                        <button
+                          type="button"
+                          className="mt-4 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+                          onClick={() => setAgeModalOpen(true)}
+                        >
+                          Ver mais idades ▸
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                   {topLocationBreakdown.length ? (
@@ -2733,16 +2765,6 @@ const groupedTopPosts = useMemo(() => {
                         </div>
                       ))}
                     </div>
-                    <div
-                      className={`pointer-events-none absolute inset-y-6 left-0 w-12 bg-gradient-to-r from-[#FAFAFB] to-transparent transition-opacity ${
-                        topPostsScrollIndicators.canScrollLeft ? 'opacity-100' : 'opacity-0'
-                      }`}
-                    />
-                    <div
-                      className={`pointer-events-none absolute inset-y-6 right-0 w-12 bg-gradient-to-l from-[#FAFAFB] to-transparent transition-opacity ${
-                        topPostsScrollIndicators.canScrollRight ? 'opacity-100' : 'opacity-0'
-                      }`}
-                    />
                   </div>
 
                   {isTopPostsLocked && (
@@ -3007,6 +3029,111 @@ const groupedTopPosts = useMemo(() => {
                   <button
                     className="inline-flex items-center rounded-full border border-[#EAEAEA] px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
                     onClick={() => setCitiesModalOpen(false)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {isGenderModalOpen && fullGenderBreakdown.length > 0 && (
+          <div
+            className="fixed inset-0 z-[200] bg-black/40"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gender-modal-title"
+          >
+            <div className="absolute inset-0 flex items-center justify-center p-4">
+              <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
+                  <h3 id="gender-modal-title" className="text-sm font-semibold text-gray-800">
+                    Distribuição por gênero
+                  </h3>
+                  <button
+                    className="rounded-full p-1.5 text-gray-400 transition hover:text-gray-600"
+                    aria-label="Fechar"
+                    onClick={() => setGenderModalOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                  <div className="space-y-3">
+                    {fullGenderBreakdown.map((item) => {
+                      const label = genderLabelMap[item.label.toLowerCase()] || item.label;
+                      return (
+                        <div key={item.label} className="text-sm font-medium text-gray-700">
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <span>{label}</span>
+                            <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
+                          </div>
+                          <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
+                            <div
+                              className="h-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#F97316]"
+                              style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
+                  <button
+                    className="inline-flex items-center rounded-full border border-[#EAEAEA] px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    onClick={() => setGenderModalOpen(false)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {isAgeModalOpen && fullAgeBreakdown.length > 0 && (
+          <div
+            className="fixed inset-0 z-[200] bg-black/40"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="age-modal-title"
+          >
+            <div className="absolute inset-0 flex items-center justify-center p-4">
+              <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
+                  <h3 id="age-modal-title" className="text-sm font-semibold text-gray-800">
+                    Distribuição por idade
+                  </h3>
+                  <button
+                    className="rounded-full p-1.5 text-gray-400 transition hover:text-gray-600"
+                    aria-label="Fechar"
+                    onClick={() => setAgeModalOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                  <div className="space-y-3">
+                    {fullAgeBreakdown.map((item) => (
+                      <div key={item.label} className="text-sm font-medium text-gray-700">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>{item.label}</span>
+                          <span className="font-semibold text-gray-800">{Math.round(item.percentage)}%</span>
+                        </div>
+                        <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
+                          <div
+                            className="h-2 rounded-full bg-gradient-to-r from-[#6E1F93] to-[#D62E5E]"
+                            style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
+                  <button
+                    className="inline-flex items-center rounded-full border border-[#EAEAEA] px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                    onClick={() => setAgeModalOpen(false)}
                   >
                     Fechar
                   </button>
