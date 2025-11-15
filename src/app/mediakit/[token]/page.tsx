@@ -227,13 +227,32 @@ export default async function MediaKitPage(
     fetchEngagementTrend(baseUrl, (user as any)._id.toString()),
   ]);
 
+  const normalizeCategoryField = (value: unknown): string[] => {
+    const collected: string[] = [];
+    const collect = (entry: unknown) => {
+      if (entry == null) return;
+      if (Array.isArray(entry)) {
+        entry.forEach(collect);
+        return;
+      }
+      if (typeof entry === 'string') {
+        const trimmed = entry.trim();
+        if (trimmed) collected.push(trimmed);
+        return;
+      }
+      collected.push(String(entry));
+    };
+    collect(value);
+    return collected;
+  };
+
   let compatibleVideos = (videos || []).map((video: any) => ({
     ...video,
-    format: video.format ? [video.format] : [],
-    proposal: video.proposal ? [video.proposal] : [],
-    context: video.context ? [video.context] : [],
-    tone: video.tone ? [video.tone] : [],
-    references: video.references ? [video.references] : [],
+    format: normalizeCategoryField(video.format),
+    proposal: normalizeCategoryField(video.proposal),
+    context: normalizeCategoryField(video.context),
+    tone: normalizeCategoryField(video.tone),
+    references: normalizeCategoryField(video.references),
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));

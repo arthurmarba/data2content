@@ -748,16 +748,6 @@ const DeltaPill = ({
   );
 };
 
-const tagStyleMap: Record<
-  'format' | 'context' | 'proposal' | 'tone' | 'references',
-  { bgClass: string; textClass: string; labelPrefix: string }
-> = {
-  format: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Formato' },
-  context: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Contexto' },
-  proposal: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Proposta' },
-  tone: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Tom' },
-  references: { bgClass: 'border border-white/50 bg-white/80', textClass: 'text-[#475569]', labelPrefix: 'Referência' },
-};
 
 const SparklineChart = ({ values, color = '#6E1F93' }: { values: number[]; color?: string }) => {
   const gradientId = useId();
@@ -1443,8 +1433,7 @@ export default function MediaKitView({
     return () => observer.disconnect();
   }, [isPublicView]);
 
-  const baseVisibilityMode = premiumAccess?.visibilityMode ?? 'lock';
-  const visibilityMode = isPublicView ? 'hide' : baseVisibilityMode;
+  const visibilityMode = premiumAccess?.visibilityMode ?? 'lock';
   const canViewPremiumSections = premiumAccess?.canViewCategories ?? true;
   const canViewCategories = canViewPremiumSections;
   const shouldLockPremiumSections = !canViewPremiumSections && visibilityMode === 'lock';
@@ -2522,7 +2511,7 @@ const groupedTopPosts = useMemo(() => {
                   </div>
                   {topPostsIntro ? <p className="text-base text-[#475569]">{topPostsIntro}</p> : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 rounded-[32px] border border-white/55 bg-white/95 p-4 shadow-[0_20px_55px_rgba(15,23,42,0.1)]">
+                <div className="flex flex-wrap items-center gap-3 rounded-[32px] border border-white/55 bg-white/95 p-4 shadow-[0_2px_8px_rgba(15,23,42,0.08)]">
                   <div className="flex-1 min-w-[200px] space-y-1">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-[#94a3b8]">Ordenar por</p>
                     <div className="inline-flex w-full flex-wrap items-center rounded-full border border-white/60 bg-white/80 p-1 text-xs font-semibold text-[#475569] shadow-inner">
@@ -2555,7 +2544,7 @@ const groupedTopPosts = useMemo(() => {
                 </div>
               ) : (
                 <div className="relative">
-                  <div className={`${glassCardBaseClass} overflow-hidden p-4`}>
+                  <div className={`${glassCardBaseClass} overflow-hidden p-4 shadow-[0_4px_14px_rgba(15,23,42,0.12)]`}>
                     <div
                       ref={topPostsScrollRef}
                       onWheel={handleTopPostsWheel}
@@ -2572,11 +2561,6 @@ const groupedTopPosts = useMemo(() => {
                             const index = groupIndex * 2 + groupOffset;
                         const captionPreview = truncateCaption(video.caption, 140) ?? 'Conteúdo em destaque';
                         const dateLabel = formatDateLabel(video.postDate);
-                        const formatLabel = Array.isArray(video.format) ? video.format[0] : undefined;
-                        const contextLabel = Array.isArray(video.context) ? video.context[0] : undefined;
-                        const proposalLabel = Array.isArray(video.proposal) ? video.proposal[0] : undefined;
-                        const toneLabel = Array.isArray(video.tone) ? video.tone[0] : undefined;
-                        const referenceLabel = Array.isArray(video.references) ? video.references[0] : undefined;
                         const formattedViews = formatMetricValue(
                           (video.stats?.views ?? (video.stats as any)?.reach ?? null) as number | null | undefined
                         );
@@ -2597,16 +2581,51 @@ const groupedTopPosts = useMemo(() => {
                         typeof derivedStats.engagementRate === 'number' && Number.isFinite(derivedStats.engagementRate)
                           ? `${derivedStats.engagementRate >= 10 ? derivedStats.engagementRate.toFixed(1) : derivedStats.engagementRate.toFixed(2)}%`
                           : null;
-                      const tagMeta = [
-                        formatLabel ? { type: 'format' as const, value: formatLabel } : null,
-                        contextLabel ? { type: 'context' as const, value: contextLabel } : null,
-                        proposalLabel ? { type: 'proposal' as const, value: proposalLabel } : null,
-                        toneLabel ? { type: 'tone' as const, value: toneLabel } : null,
-                        referenceLabel ? { type: 'references' as const, value: referenceLabel } : null,
-                      ].filter(
-                        (item): item is { type: 'format' | 'context' | 'proposal' | 'tone' | 'references'; value: string } =>
-                          Boolean(item)
-                      );
+                      const normalizeTagValues = (input: unknown): string[] => {
+                        const result: string[] = [];
+                        const pushValue = (value: unknown) => {
+                          if (value == null) return;
+                          if (Array.isArray(value)) {
+                            value.forEach(pushValue);
+                            return;
+                          }
+                          if (typeof value === 'string') {
+                            const trimmed = value.trim();
+                            if (trimmed) result.push(trimmed);
+                            return;
+                          }
+                          if (typeof value === 'number' || typeof value === 'boolean') {
+                            result.push(String(value));
+                          }
+                        };
+                        pushValue(input);
+                        return result;
+                      };
+
+                      const buildTagEntries = <T extends 'format' | 'context' | 'proposal' | 'tone' | 'references'>(
+                        value: unknown,
+                        type: T
+                      ) => normalizeTagValues(value).map((v) => ({ type, value: v }));
+
+                      const tagMetaRaw = [
+                        ...buildTagEntries(video.format, 'format'),
+                        ...buildTagEntries(video.context, 'context'),
+                        ...buildTagEntries(video.proposal, 'proposal'),
+                        ...buildTagEntries(video.tone, 'tone'),
+                        ...buildTagEntries(video.references, 'references'),
+                      ];
+
+                      const tagMeta = tagMetaRaw.reduce(
+                        (acc, entry) => {
+                          const key = `${entry.type}-${entry.value}`;
+                          if (!acc.seen.has(key)) {
+                            acc.seen.add(key);
+                            acc.list.push(entry);
+                          }
+                          return acc;
+                        },
+                        { seen: new Set<string>(), list: [] as { type: 'format' | 'context' | 'proposal' | 'tone' | 'references'; value: string }[] }
+                      ).list;
                       type MetricItem = {
                         key: string;
                         main: string;
@@ -2740,9 +2759,9 @@ const groupedTopPosts = useMemo(() => {
                             return (
                               <article
                                 key={video._id}
-                                className={`relative flex min-w-[220px] max-w-[260px] flex-1 basis-1/2 flex-col gap-2 rounded-[28px] border border-white/60 bg-white/95 px-3 pt-3 pb-2 text-xs shadow-[0_20px_55px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_30px_70px_rgba(15,23,42,0.18)] ${
+                                className={`relative flex min-w-[220px] max-w-[260px] flex-1 basis-1/2 flex-col gap-2 rounded-[28px] border border-white/60 bg-white/95 px-3 pt-3 pb-2 text-xs shadow-[0_2px_10px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,23,42,0.16)] ${
                                   isClickable ? 'cursor-pointer' : ''
-                                } ${isTopHighlight ? '!border-[#FF2C7E]/40 !shadow-[0_35px_85px_rgba(255,44,126,0.25)]' : ''}`}
+                                } ${isTopHighlight ? '!border-[#FF2C7E]/40' : ''}`}
                                 role={isClickable ? 'button' : undefined}
                                 tabIndex={isClickable ? 0 : undefined}
                                 onClick={isClickable ? () => setSelectedPostId(video._id) : undefined}
@@ -2791,21 +2810,23 @@ const groupedTopPosts = useMemo(() => {
                           )}
                           {tagMeta.length > 0 ? (
                             <div className="rounded-2xl border border-white/55 bg-white/95 p-3 space-y-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">Categorias mapeadas</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {tagMeta.map(({ type, value }) => {
-                                  const styles = tagStyleMap[type];
-                                  return (
-                                    <span
-                                      key={`${video._id}-${type}-${value}`}
-                                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${styles.bgClass} ${styles.textClass}`}
-                                      >
-                                      {styles.labelPrefix}: {value}
-                                    </span>
-                                  );
-                                })}
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94a3b8]">
+                                Categorias mapeadas
+                              </p>
+                              <div className="space-y-1.5">
+                                {tagMeta.map(({ type, value }) => (
+                                  <p
+                                    key={`${video._id}-${type}-${value}`}
+                                    className={`text-[10px] uppercase tracking-[0.08em] ${textMutedClass}`}
+                                  >
+                                    {value}
+                                  </p>
+                                ))}
                               </div>
                             </div>
+                          ) : null}
+                          {tagMeta.length > 0 && hasDetailMetrics ? (
+                            <div className="h-px bg-[#EFEDF6]" />
                           ) : null}
                           {hasDetailMetrics ? (
                             <div className="rounded-2xl border border-white/55 bg-white/95 p-3">
@@ -2988,28 +3009,30 @@ const groupedTopPosts = useMemo(() => {
               aria-hidden="true"
             />
             <div className="relative z-[201] w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
-              <div className="flex items-start justify-between border-b border-[#F0F0F5] px-6 py-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Propostas</p>
-                  <h3 id={proposalDrawerTitleId} className="text-xl font-bold text-[#1C1C1E]">
-                    💼 Enviar proposta para {affiliateHandleLabel}
-                  </h3>
+              <div className="flex max-h-[calc(100vh-1.5rem)] flex-col sm:max-h-none">
+                <div className="flex items-start justify-between border-b border-[#F0F0F5] px-6 py-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Propostas</p>
+                    <h3 id={proposalDrawerTitleId} className="text-xl font-bold text-[#1C1C1E]">
+                      💼 Enviar proposta para {affiliateHandleLabel}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeProposalDrawer}
+                    className="rounded-full p-2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                    aria-label="Fechar formulário de proposta"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={closeProposalDrawer}
-                  className="rounded-full p-2 text-[#94A3B8] transition hover:text-[#0F172A]"
-                  aria-label="Fechar formulário de proposta"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="max-h-[80vh] overflow-y-auto px-6 py-6 sm:px-8">
-                <PublicProposalForm
-                  mediaKitSlug={mediaKitSlug}
-                  onSubmitSuccess={handleProposalSuccess}
-                  utmContext={utm}
-                />
+                <div className="flex-1 overflow-y-auto px-6 py-6 sm:flex-none sm:overflow-visible sm:px-8">
+                  <PublicProposalForm
+                    mediaKitSlug={mediaKitSlug}
+                    onSubmitSuccess={handleProposalSuccess}
+                    utmContext={utm}
+                  />
+                </div>
               </div>
             </div>
           </div>
