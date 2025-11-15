@@ -15,7 +15,7 @@ export default async function PlanningWhatsAppPage() {
   }
 
   if (!hasPlannerAccess(session.user)) {
-    return <PlanningLockedView />;
+    return <PlanningLockedView variant="whatsapp" returnTo="/planning/whatsapp" />;
   }
 
   return <WhatsAppUpsellPage />;

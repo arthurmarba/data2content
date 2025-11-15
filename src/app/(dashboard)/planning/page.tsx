@@ -21,7 +21,7 @@ export default async function PlanningIndexPage() {
     isPlanActiveLike(normalizedStatus) || proTrialStatus === "active" || role === "admin";
 
   if (!hasProAccess) {
-    return <PlanningLockedView />;
+    return <PlanningLockedView variant="planner" returnTo="/planning" />;
   }
 
   redirect("/planning/planner");

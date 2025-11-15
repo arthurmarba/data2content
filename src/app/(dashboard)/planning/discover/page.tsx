@@ -19,7 +19,7 @@ export default async function PlanningDiscoverPage({
   }
 
   if (!hasPlannerAccess(session.user)) {
-    return <PlanningLockedView />;
+    return <PlanningLockedView variant="discover" returnTo="/planning/discover" />;
   }
 
   return <DiscoverContentPage searchParams={searchParams} />;

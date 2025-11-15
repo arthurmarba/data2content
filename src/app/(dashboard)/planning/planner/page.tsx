@@ -15,7 +15,7 @@ export default async function PlanningPlannerPage() {
   }
 
   if (!hasPlannerAccess(session.user)) {
-    return <PlanningLockedView />;
+    return <PlanningLockedView variant="planner" returnTo="/planning/planner" />;
   }
 
   return <PlannerClientPage />;

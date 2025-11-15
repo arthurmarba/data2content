@@ -1,84 +1,116 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { Compass as CompassIcon, MessageCircle, Wand2, Sparkles } from "lucide-react";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { Lock } from "lucide-react";
 import { emptyStates } from "@/constants/emptyStates";
 import { track } from "@/lib/track";
+import { usePaywallOpener } from "@/app/dashboard/components/sidebar/hooks";
+
+type PlanningLockedVariant = "planner" | "discover" | "whatsapp";
+
+type VariantContent = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  bullets: string[];
+  ctaLabel: string;
+};
 
 const planningEmptyState = emptyStates.planning;
-const features = [
-  { icon: <CompassIcon className="h-5 w-5 text-brand-purple" />, label: planningEmptyState.bullets[0] },
-  { icon: <Wand2 className="h-5 w-5 text-brand-purple" />, label: planningEmptyState.bullets[1] },
-  { icon: <MessageCircle className="h-5 w-5 text-brand-purple" />, label: planningEmptyState.bullets[2] },
-];
 
-export default function PlanningLockedView() {
-  const handleUpgrade = () => {
-    try {
-      track("paywall_viewed", { creator_id: null, context: "planning", plan: null });
-      window.dispatchEvent(
-        new CustomEvent("open-subscribe-modal", {
-          detail: { context: "planning", source: "planning_locked_cta", returnTo: "/dashboard/planning" },
-        })
-      );
-    } catch {
-      /* ignore */
-    }
-  };
+const VARIANT_COPY: Record<PlanningLockedVariant, VariantContent> = {
+  planner: {
+    eyebrow: "Calendário com IA",
+    title: planningEmptyState.title,
+    description: "Planejamento faz parte do Plano Agência: gere horários com IA e mantenha constância para fechar melhor.",
+    bullets: [
+      "Slots inteligentes por dia e horário",
+      "Alertas da IA no WhatsApp",
+      "Roteiros e benchmarks do seu segmento",
+    ],
+    ctaLabel: planningEmptyState.ctaLabel,
+  },
+  discover: {
+    eyebrow: "Descoberta da Comunidade",
+    title: "Biblioteca de referências exclusiva do Plano Agência",
+    description: "Ideias prontas, roteiros e benchmarks da comunidade ficam disponíveis somente para assinantes ativos.",
+    bullets: [
+      "Posts e formatos que estão performando agora",
+      "Insights filtrados por nicho e objetivo",
+      "Atualizações semanais direto da comunidade",
+    ],
+    ctaLabel: "Desbloquear Descoberta",
+  },
+  whatsapp: {
+    eyebrow: "IA no WhatsApp",
+    title: "Ative o estrategista direto no WhatsApp",
+    description: "Receba avisos de horários quentes, roteiros e campanhas no app que você já usa todo dia.",
+    bullets: ["Alertas diários personalizados", "Diagnósticos da sua performance", "Campanhas e faixas justas no chat"],
+    ctaLabel: "Ativar IA no WhatsApp",
+  },
+};
+
+const trackingContextMap: Record<PlanningLockedVariant, "planning" | "discover" | "whatsapp_ai"> = {
+  planner: "planning",
+  discover: "discover",
+  whatsapp: "whatsapp_ai",
+};
+
+type PlanningLockedViewProps = {
+  variant?: PlanningLockedVariant;
+  returnTo?: string;
+};
+
+export default function PlanningLockedView({ variant = "planner", returnTo = "/dashboard/planning" }: PlanningLockedViewProps) {
+  const openPaywall = usePaywallOpener();
+  const content = useMemo(() => VARIANT_COPY[variant] ?? VARIANT_COPY.planner, [variant]);
 
   useEffect(() => {
-    try {
-      track("paywall_viewed", { creator_id: null, context: "planning", plan: null });
-      window.dispatchEvent(
-        new CustomEvent("open-subscribe-modal", {
-          detail: { context: "planning", source: "planning_locked_auto", returnTo: "/dashboard/planning" },
-        })
-      );
-    } catch {
-      /* ignore */
-    }
-  }, []); // Dispara modal assim que o usuário tenta acessar a área Plano Agência
+    track("paywall_viewed", { creator_id: null, context: trackingContextMap[variant], plan: null });
+  }, [variant]);
+
+  const handleUpgrade = useCallback(() => {
+    const source = variant === "discover" ? "planning_locked_discover_cta" : variant === "whatsapp" ? "planning_locked_whatsapp_cta" : "planning_locked_planner_cta";
+    openPaywall("planning", { source, returnTo });
+  }, [openPaywall, returnTo, variant]);
 
   return (
-    <main className="w-full max-w-none pb-12">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <section className="rounded-3xl border border-slate-200 bg-white px-6 py-10 text-center shadow-sm sm:px-10">
-          <div className="mx-auto flex w-fit items-center gap-2 rounded-full bg-brand-magenta/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-magenta">
-            <Sparkles className="h-4 w-4" aria-hidden="true" /> Planejamento Plano Agência
-          </div>
-          <h1 className="mt-5 text-2xl font-semibold text-slate-900 sm:text-3xl">
-            {planningEmptyState.title}
-          </h1>
-          <p className="mt-3 text-sm text-slate-600 sm:text-base">
-            Planejamento faz parte do Plano Agência: gere horários com IA e mantenha constância para fechar melhor.
-          </p>
-
-          <ul className="mt-8 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-            {features.map((feature) => (
-              <li
-                key={feature.label}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:justify-start"
+    <main className="flex w-full justify-center px-4 pb-12 pt-16 sm:pt-24">
+      <div className="w-full max-w-3xl">
+        <section className="rounded-3xl border border-dashed border-pink-200 bg-white px-5 py-6 text-sm text-slate-600 shadow-sm sm:px-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="rounded-full bg-pink-50 p-2 text-pink-600">
+                <Lock className="h-4 w-4" aria-hidden />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-pink-600">{content.eyebrow}</p>
+                <h1 className="mt-1 text-2xl font-semibold text-slate-900 sm:text-3xl">{content.title}</h1>
+                <p className="mt-2 text-sm text-slate-600 sm:text-base">{content.description}</p>
+              </div>
+            </div>
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+              <button
+                type="button"
+                onClick={handleUpgrade}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-magenta px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-magenta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
               >
-                <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm">
-                  {feature.icon}
-                </span>
-                <span className="font-medium leading-tight">{feature.label}</span>
+                {content.ctaLabel}
+              </button>
+              <p className="text-xs text-slate-500 text-left sm:text-right">Pagamento seguro via Stripe · Cancelamento simples</p>
+            </div>
+          </div>
+          <ul className="mt-6 flex flex-wrap items-center justify-start gap-2">
+            {content.bullets.map((feature) => (
+              <li
+                key={feature}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700"
+              >
+                <span aria-hidden className="text-lg leading-none text-brand-purple">•</span>
+                {feature}
               </li>
             ))}
           </ul>
-
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleUpgrade}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand-magenta px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-brand-magenta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta sm:w-auto"
-            >
-              {planningEmptyState.ctaLabel}
-            </button>
-            <p className="text-xs text-slate-500">
-              Pagamento seguro via Stripe • Cancelamento simples
-            </p>
-          </div>
         </section>
       </div>
     </main>
