@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { idsToLabels } from '@/app/lib/classification';
+import { prefillInspirationCache } from '../utils/inspirationCache';
 
 const DAYS_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
@@ -71,9 +72,8 @@ const GradientPillButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>
   <button
     {...props}
     disabled={disabled}
-    className={`inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-[#c92d60] hover:to-[#5a1877] ${
-      disabled ? 'cursor-not-allowed opacity-60 hover:from-[#D62E5E] hover:to-[#6E1F93]' : ''
-    } ${className}`}
+    className={`inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-[#c92d60] hover:to-[#5a1877] ${disabled ? 'cursor-not-allowed opacity-60 hover:from-[#D62E5E] hover:to-[#6E1F93]' : ''
+      } ${className}`}
   >
     {children}
   </button>
@@ -88,9 +88,8 @@ const OutlinePillButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>>
   <button
     {...props}
     disabled={disabled}
-    className={`inline-flex items-center justify-center gap-2 rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900 ${
-      disabled ? 'cursor-not-allowed opacity-50 hover:border-neutral-300 hover:text-neutral-700' : ''
-    } ${className}`}
+    className={`inline-flex items-center justify-center gap-2 rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900 ${disabled ? 'cursor-not-allowed opacity-50 hover:border-neutral-300 hover:text-neutral-700' : ''
+      } ${className}`}
   >
     {children}
   </button>
@@ -301,8 +300,9 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
       scriptShort: description,
       recordingTimeSec,
       aiVersionId: typeof aiVersionId === 'string' ? aiVersionId : slot.aiVersionId ?? null,
+      themes: themesLocal,
     };
-  }, [slot, title, format, effectiveTheme, description, recordingTimeSec, aiVersionId]);
+  }, [slot, title, format, effectiveTheme, description, recordingTimeSec, aiVersionId, themesLocal]);
 
   const handleSave = async () => {
     if (!slot) return;
@@ -351,6 +351,13 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
 
   useEffect(() => {
     if (!open || !slot || autoThemesFetched) return;
+
+    // If we already have themes, don't regenerate
+    if (slot.themes && slot.themes.length > 0) {
+      setAutoThemesFetched(true);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -383,6 +390,20 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
       if (!res.ok) throw new Error('Falha ao buscar conteúdos');
       const data = await res.json();
       const arr = Array.isArray(data?.posts) ? data.posts : [];
+
+      const first = arr[0];
+      if (first) {
+        prefillInspirationCache(slot as any, {
+          self: {
+            id: String(first.id),
+            caption: String(first.caption || ''),
+            views: Number(first.views || 0),
+            thumbnailUrl: first.thumbnailUrl || null,
+            postLink: first.postLink || null,
+          }
+        });
+      }
+
       setInspPosts(
         arr.map((p: any) => ({
           id: String(p.id),
@@ -399,6 +420,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
       setInspLoading(false);
     }
   };
+
+
 
   const fetchCommunityInspirations = async () => {
     if (!slot) return;
@@ -419,6 +442,20 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
       if (!res.ok) throw new Error('Falha ao buscar conteúdos da comunidade');
       const data = await res.json();
       const arr = Array.isArray(data?.posts) ? data.posts : [];
+
+      const first = arr[0];
+      if (first) {
+        prefillInspirationCache(slot as any, {
+          community: {
+            id: String(first.id),
+            caption: String(first.caption || ''),
+            views: Number(first.views || 0),
+            coverUrl: first.coverUrl || null,
+            postLink: first.postLink || null,
+          }
+        });
+      }
+
       setCommunityPosts(
         arr.map((p: any) => ({
           id: String(p.id),
@@ -499,21 +536,19 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         type="button"
         aria-label="Fechar painel"
         onClick={onClose}
-        className={`absolute inset-0 bg-slate-900/50 ${prefersReducedMotion ? '' : 'transition-opacity duration-200 ease-out'} ${
-          isVisible ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={`absolute inset-0 bg-slate-900/50 ${prefersReducedMotion ? '' : 'transition-opacity duration-200 ease-out'} ${isVisible ? 'opacity-100' : 'opacity-0'
+          }`}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={dialogLabelId}
         aria-describedby={dialogDescId}
-        className={`relative z-10 flex h-full max-h-[95vh] w-full flex-col bg-white shadow-2xl sm:max-h-[90vh] sm:w-[620px] lg:w-[700px] sm:rounded-[32px] ${
-          prefersReducedMotion ? '' : 'transition-transform duration-200 ease-out'
-        } ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-8 scale-[0.98]'}`}
+        className={`relative z-10 flex h-full max-h-[95vh] w-full flex-col bg-[#F8FAFF] shadow-2xl sm:max-h-[90vh] sm:w-[620px] lg:w-[700px] sm:rounded-[32px] sm:border sm:border-slate-100 ${prefersReducedMotion ? '' : 'transition-transform duration-200 ease-out'
+          } ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-8 scale-[0.98]'}`}
       >
         <header
-          className="border-b border-neutral-200 px-5 py-4 sm:px-6 sm:py-5"
+          className="border-b border-slate-200/80 bg-white/70 px-5 pt-6 pb-4 sm:px-6 sm:pt-7 sm:pb-5 backdrop-blur"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px))' }}
         >
           <div className="flex items-center justify-between gap-4">
@@ -545,12 +580,12 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           </div>
         </header>
 
-        <div id={dialogDescId} className="flex-1 overflow-y-auto bg-white">
+        <div id={dialogDescId} className="flex-1 overflow-y-auto bg-[#F8FAFF]">
           <div className="space-y-5 px-5 py-6 sm:px-6">
-            <section className="space-y-4 rounded-2xl border border-neutral-200/80 bg-white px-4 py-4 sm:px-5">
+            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
               <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Resumo do card</p>
-                <p className="text-sm text-neutral-500">Só o essencial para o slot do dia.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Resumo do card</p>
+                <p className="text-sm text-slate-500">Só o essencial para o slot do dia.</p>
               </div>
               {!readOnly ? (
                 <input
@@ -569,7 +604,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                 {summaryChips.map((chip) => (
                   <div
                     key={chip.key}
-                    className="flex items-center gap-3 rounded-2xl border border-neutral-200/80 px-4 py-3 text-sm"
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 px-4 py-3 text-sm"
                   >
                     <span className="text-base" aria-hidden>
                       {chip.icon}
@@ -631,7 +666,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
               </div>
             </section>
 
-            <section className="space-y-4 rounded-2xl border border-neutral-200/80 bg-white px-4 py-4 sm:px-5">
+            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">KPIs projetados</p>
                 {typeof recordingTimeSec === 'number' && (
@@ -650,7 +685,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
             </section>
 
 
-            <section className="space-y-4 rounded-2xl border border-neutral-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
+            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
               <div className="flex flex-wrap items-start gap-3">
                 <button
                   type="button"
@@ -703,9 +738,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                                 <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-xs text-neutral-500">Sem imagem</div>
                               )}
                               <span
-                                className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[10px] font-semibold text-white ${
-                                  isHighMatch ? 'bg-rose-500' : 'bg-purple-600'
-                                }`}
+                                className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[10px] font-semibold text-white ${isHighMatch ? 'bg-rose-500' : 'bg-purple-600'
+                                  }`}
                               >
                                 🏆 {isHighMatch ? 'Match alto' : 'Match da IA'}
                               </span>
@@ -742,7 +776,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
               )}
             </section>
 
-            <section className="space-y-4 rounded-2xl border border-neutral-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
+            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
               <div className="flex flex-wrap items-start gap-3">
                 <button
                   type="button"
@@ -831,7 +865,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         </div>
 
         <div
-          className="sticky bottom-0 border-t border-neutral-200 bg-white px-5 py-4 shadow-[0_-20px_30px_rgba(15,23,42,0.06)] sm:px-6"
+          className="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4 shadow-[0_-20px_30px_rgba(15,23,42,0.06)] sm:px-6"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
         >
           {readOnly ? (
@@ -846,13 +880,22 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
             <div className="space-y-3">
               {error && <p className="text-xs text-red-600">{error}</p>}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex gap-2">
+                  <OutlinePillButton
+                    type="button"
+                    disabled={loading}
+                    onClick={handleSave}
+                  >
+                    Salvar
+                  </OutlinePillButton>
+                </div>
                 <GradientPillButton
                   type="button"
                   disabled={loading || !slot || !canGenerate}
                   onClick={requestGeneration}
                   className="w-full sm:w-auto"
                 >
-                  {loading ? 'Processando…' : 'Gerar variação'}
+                  {loading ? 'Processando…' : 'Gerar com IA'}
                 </GradientPillButton>
               </div>
             </div>

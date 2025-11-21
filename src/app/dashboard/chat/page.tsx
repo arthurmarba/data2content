@@ -11,6 +11,7 @@ import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { openPaywallModal } from "@/utils/paywallModal";
+import ChatBillingGate from "@/app/dashboard/components/chat/ChatBillingGate";
 
 type ChatCalcContext = {
   calcId: string;
@@ -146,11 +147,26 @@ export default function ChatHomePage() {
     };
   }, [calcId, calcContextType, router, sp, toast]);
 
+  if (billingStatus.isLoading) {
+    return (
+      <div className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden flex-1 min-h-0 items-center justify-center">
+        <div className="animate-pulse text-gray-400">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!isActiveLike) {
+    return (
+      <div className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden flex-1 min-h-0">
+        <ChatBillingGate />
+      </div>
+    );
+  }
+
   return (
     // Offset do header fixo já é tratado pelo layout; aqui garantimos altura total da viewport
     <div
-      className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden"
-      style={{ minHeight: "100svh" }}
+      className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden flex-1 min-h-0"
     >
       {/* Card de conexão IG quando voltamos do OAuth */}
       <div className="mx-auto max-w-4xl w-full px-4 pt-2 space-y-2">
@@ -158,8 +174,8 @@ export default function ChatHomePage() {
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <InstagramConnectCard
               canAccessFeatures={true}
-              onActionRedirect={() => {}}
-              showToast={() => {}}
+              onActionRedirect={() => { }}
+              showToast={() => { }}
             />
           </div>
         )}
@@ -170,6 +186,7 @@ export default function ChatHomePage() {
         <ChatPanel
           onUpsellClick={() => openPaywallModal({ context: "default", source: "chat_panel" })}
           calculationContext={calcContext}
+          fullHeight
         />
       </div>
     </div>

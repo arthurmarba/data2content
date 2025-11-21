@@ -653,8 +653,8 @@ export async function generatePricingAnalysisInsight(input: PricingAnalysisInput
             : null;
     const justoValid =
         typeof calcResult.justo === 'number' &&
-        Number.isFinite(calcResult.justo) &&
-        calcResult.justo >= 200
+            Number.isFinite(calcResult.justo) &&
+            calcResult.justo >= 200
             ? calcResult.justo
             : null;
     const comparisonBase = estimatedValue ?? justoValid;
@@ -892,8 +892,8 @@ export async function generateProposalAnalysisMessage(
 
     const deliverablesList = Array.isArray(deliverables)
         ? deliverables
-              .map((item) => (typeof item === 'string' ? item.trim() : ''))
-              .filter((item): item is string => item.length > 0)
+            .map((item) => (typeof item === 'string' ? item.trim() : ''))
+            .filter((item): item is string => item.length > 0)
         : [];
     const deliverablesText = deliverablesList.length > 0 ? formatList(deliverablesList) : null;
 
@@ -1024,8 +1024,8 @@ export async function generateProposalAnalysisMessage(
             suggestionSentence = suggestionTargetFormatted
                 ? `Sugiro reposicionar o valor em torno de ${suggestionTargetFormatted}, justificando com suas métricas e entregáveis.`
                 : faixaRange
-                ? `Sugiro reposicionar o valor para se aproximar da faixa de mercado ${faixaRange}, reforçando seu histórico e a qualidade das entregas.`
-                : 'Sugiro reposicionar o valor, reforçando seus indicadores principais e o escopo completo da entrega.';
+                    ? `Sugiro reposicionar o valor para se aproximar da faixa de mercado ${faixaRange}, reforçando seu histórico e a qualidade das entregas.`
+                    : 'Sugiro reposicionar o valor, reforçando seus indicadores principais e o escopo completo da entrega.';
             suggestionType = 'ajustar';
             break;
         default:
@@ -1095,8 +1095,7 @@ export async function generateProposalAnalysisMessage(
             : `Vi a proposta de ${valueEmailSnippet} e ela está super alinhada com o que meu público procura.`
     );
     emailParagraphs.push(
-        `${metricsSnippet ? `Pelas minhas métricas (${metricsEmailSnippet})` : 'Pelas minhas métricas recentes'}${
-            deliverablesText ? ` e pelo formato solicitado${deliverablesEmailSnippet}` : ''
+        `${metricsSnippet ? `Pelas minhas métricas (${metricsEmailSnippet})` : 'Pelas minhas métricas recentes'}${deliverablesText ? ` e pelo formato solicitado${deliverablesEmailSnippet}` : ''
         }, ${scenarioEmailSentence}`
     );
     emailParagraphs.push(scenarioEmailSuggestion);
@@ -1109,8 +1108,8 @@ export async function generateProposalAnalysisMessage(
         suggestionTargetRounded !== null
             ? suggestionTargetRounded
             : typeof offeredBudgetValue === 'number'
-            ? offeredBudgetValue
-            : null;
+                ? offeredBudgetValue
+                : null;
 
     logger.info(`${fnTag} ${brandName}: analysis="${analysis.slice(0, 80)}..." reply="${replyDraft.slice(0, 80)}..."`);
     Sentry.captureMessage(`${fnTag} ${brandName}`, 'info');
@@ -1150,11 +1149,15 @@ Sua tarefa é gerar a mensagem COMPLETA de um alerta proativo para ser enviada a
 
 **REGRAS CRÍTICAS:**
 1.  **NÃO USE SAUDAÇÕES GENÉRICAS.** Nunca comece com "Olá", "Oi", "E aí", etc.
-2.  **COMECE DIRETAMENTE COM O DADO MAIS IMPORTANTE.** A primeira frase deve ser o núcleo do alerta para que o usuário veja o valor imediatamente na notificação. Use o nome do usuário para personalizar, por exemplo: "Arthur, notei que...".
-3.  **SEJA CONCISO.** Use 1-2 parágrafos curtos para explicar a situação com base na informação fornecida.
-4.  **PERSONALIZE.** Use o nome do usuário, '${userName}', naturalmente na mensagem.
-5.  **MARCA.** Após a explicação principal, adicione a linha "🚨 Alerta do Radar Mobi!". Use emojis relevantes (🚀 para positivo, 💡 para oportunidade, etc.).
-6.  **ENGAJE.** Termine a mensagem com UMA pergunta estratégica e aberta que incentive o usuário a refletir sobre uma solução ou a pedir mais detalhes a você.
+2.  **COMECE DIRETAMENTE COM O DADO MAIS IMPORTANTE.** A primeira frase deve ser o núcleo do alerta. Use o nome do usuário para personalizar: "Arthur, notei que...".
+3.  **SEJA CONCISO.** Use 1-2 parágrafos curtos.
+4.  **PERSONALIZE.** Use o nome do usuário, '${userName}', naturalmente.
+5.  **MARCA E EMOJIS.** Use emojis específicos para o tipo de alerta:
+    *   🚀 **Crescimento/Sucesso:** Para recordes, altas taxas, metas batidas.
+    *   ⚠️ **Atenção/Queda:** Para quedas bruscas ou métricas abaixo do esperado.
+    *   💡 **Oportunidade:** Para tendências ou insights de horário.
+    *   Adicione a linha "🚨 Alerta do Radar Mobi!" ao final do primeiro parágrafo.
+6.  **ENGAJE (CALL TO ACTION).** Termine com uma pergunta que convide o usuário a abrir o chat para saber mais. Ex: "Quer ver quais posts causaram isso?", "Vamos ajustar a estratégia para a próxima semana?".
 
 **Informação-Chave detectada pelo sistema para o alerta de hoje (use-a para construir sua mensagem):**
 ---
@@ -1176,13 +1179,21 @@ Gere a mensagem final agora.
             { role: 'system', content: systemPrompt },
         ];
 
+        // Se for canal WEB, adiciona instrução de formatação rica
+        if (enrichedContext.channel === 'web') {
+            initialMsgs.push({
+                role: 'system',
+                content: 'INSTRUÇÃO DE FORMATAÇÃO WEB: Você está respondendo no chat web. Use formatação rica Markdown para melhor didática: use **negrito** para conceitos-chave, listas (bullet points) para passos, e headers (###) para separar seções. Seja visualmente organizado.'
+            });
+        }
+
         // Se houver resumo de conversa no estado, adiciona como mensagem de sistema para reduzir contexto
         try {
             const summary = (enrichedContext as any)?.dialogueState?.conversationSummary as string | undefined;
             if (summary && typeof summary === 'string' && summary.trim().length > 0) {
                 initialMsgs.push({ role: 'system', content: `Resumo da conversa até agora:\n${summary.trim()}` });
             }
-        } catch {/* ignore */}
+        } catch {/* ignore */ }
 
         initialMsgs.push(...historyMessages);
         initialMsgs.push({ role: 'user', content: incomingText });
@@ -1261,7 +1272,7 @@ Gere a mensagem final agora.
             stream: true,
             messages: currentMsgs,
         };
-        
+
         const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert';
 
         if (isLightweightIntent) {

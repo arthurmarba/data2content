@@ -18,6 +18,10 @@ export const navigationLabels = {
     menu: "Descoberta",
     tooltip: "Monitore formatos e temas em alta",
   },
+  planningChat: {
+    menu: "Chat IA",
+    tooltip: "Peça análises e pautas dentro do Planejamento",
+  },
   planningPlanner: {
     menu: "Calendário",
     tooltip: "Monte seu calendário com IA",

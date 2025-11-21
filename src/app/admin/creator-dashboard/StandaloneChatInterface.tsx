@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef, FC, Fragment, useCallback } from 'react';
+import React, { useState, useEffect, useRef, FC, useCallback } from 'react';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // For OpenAI message types
 // Assuming BarChart related components are not directly used in the chat message/input part itself,
 // but in VisualizationCard. If needed, they would be imported here or in VisualizationCard.
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { renderFormatted, type RenderTheme } from '@/app/dashboard/components/chat/chatUtils';
 
 
 // --- TYPES AND INTERFACES ---
@@ -187,18 +188,8 @@ const useIntelligenceChat = () => {
 
 // --- UI COMPONENTS ---
 
-const SimpleMarkdown: FC<{ text: string }> = React.memo(({ text }) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g);
-  return (
-    <p className="text-sm whitespace-pre-wrap leading-relaxed text-gray-700 dark:text-gray-200">
-      {parts.map((part, index) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={index} className="font-semibold text-gray-900 dark:text-white">{part.slice(2, -2)}</strong>;
-        }
-        return <Fragment key={index}>{part}</Fragment>;
-      })}
-    </p>
-  );
+const SimpleMarkdown: FC<{ text: string; theme?: RenderTheme }> = React.memo(({ text, theme = 'default' }) => {
+  return renderFormatted(text, theme);
 });
 SimpleMarkdown.displayName = 'SimpleMarkdown';
 
@@ -286,8 +277,10 @@ const MessageBubble: FC<{ message: Message }> = React.memo(({ message }) => {
                     💡
                 </div>
             )}
-            <div className={`px-4 py-2.5 rounded-xl max-w-lg ${isUser ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-sm'}`}>
-                {showSkeleton ? <MessageSkeleton /> : <SimpleMarkdown text={message.content || " "} />}
+            <div className={isUser
+                ? 'max-w-[92%] sm:max-w-[75%] rounded-2xl rounded-tr-sm bg-indigo-600 text-white shadow-sm px-3.5 py-2.5'
+                : 'max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch] text-gray-800 px-1 text-[15px] leading-7'}>
+                {showSkeleton ? <MessageSkeleton /> : <SimpleMarkdown text={message.content || " "} theme={isUser ? 'inverse' : 'default'} />}
             </div>
              {isUser && (
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-lg shadow-sm">

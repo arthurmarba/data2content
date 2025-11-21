@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { CalendarDays, Clock, Layers, Lock, Sparkles, Target, Wand2 } from 'lucide-react';
 import { PlannerUISlot } from '@/hooks/usePlannerData';
 import { idsToLabels } from '@/app/lib/classification';
+import { prefillInspirationCache } from '../utils/inspirationCache';
 
 const BLOCKS = [9, 12, 15, 18] as const;
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -78,6 +81,25 @@ function formatSlotFormat(formatId?: string): string {
   return FORMAT_LABELS[formatId] ?? formatId;
 }
 
+function formatCompactNumber(value?: number) {
+  if (typeof value !== 'number' || !isFinite(value) || value < 0) return null;
+  try {
+    return value.toLocaleString('pt-BR', {
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    });
+  } catch {
+    return String(value);
+  }
+}
+
+const toProxyUrl = (raw?: string | null) => {
+  if (!raw) return '';
+  if (raw.startsWith('/api/proxy/thumbnail/')) return raw;
+  if (/^https?:\/\//i.test(raw)) return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
+  return raw;
+};
+
 function getStatusInfo(
   heatScore: number | undefined,
   slot: PlannerUISlot
@@ -150,7 +172,27 @@ type BestViewsOverview = {
   value: number;
 };
 
+type InspirationPost = {
+  id: string;
+  caption: string;
+  views: number;
+  date: string;
+  thumbnailUrl?: string | null;
+  postLink?: string | null;
+};
+
+type CommunityInspirationPost = {
+  id: string;
+  caption: string;
+  views: number;
+  date: string;
+  coverUrl?: string | null;
+  postLink?: string | null;
+  reason?: string[];
+};
+
 export interface ContentPlannerCalendarProps {
+  userId?: string;
   slots: PlannerUISlot[] | null;
   heatmap: CalendarHeatPoint[] | null;
   loading: boolean;
@@ -165,7 +207,11 @@ export interface ContentPlannerCalendarProps {
   onCreateSlot: (dayOfWeek: number, blockStartHour: number) => void;
 }
 
+import PlannerDayPicker from './PlannerDayPicker';
+import PlannerDailySchedule from './PlannerDailySchedule';
+
 export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
+  userId,
   slots,
   heatmap,
   loading,
@@ -179,12 +225,34 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   onOpenSlot,
   onCreateSlot,
 }) => {
+  const [viewMode, setViewMode] = React.useState<'list' | 'calendar'>('calendar');
+  const [selectedDay, setSelectedDay] = React.useState<number>(() => {
+    const today = new Date().getDay() + 1; // 1=Sun, 7=Sat
+    return today;
+  });
+  const [inspirationPosts, setInspirationPosts] = useState<InspirationPost[]>([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityInspirationPost[]>([]);
+  const [inspirationLoading, setInspirationLoading] = useState(false);
+  const [communityLoading, setCommunityLoading] = useState(false);
+  const [inspirationError, setInspirationError] = useState<string | null>(null);
+  const [communityError, setCommunityError] = useState<string | null>(null);
+
   const slotsMap = useMemo(() => {
     const map = new Map<string, PlannerUISlot[]>();
     (slots || []).forEach((slot) => {
       const key = keyFor(slot.dayOfWeek, slot.blockStartHour);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(slot);
+    });
+    return map;
+  }, [slots]);
+
+  const slotsByDay = useMemo(() => {
+    const map = new Map<number, PlannerUISlot[]>();
+    (slots || []).forEach((slot) => {
+      const list = map.get(slot.dayOfWeek) || [];
+      list.push(slot);
+      map.set(slot.dayOfWeek, list);
     });
     return map;
   }, [slots]);
@@ -389,23 +457,184 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         },
         topThemeLabel
           ? {
-              key: 'theme',
-              label: 'Tema em alta',
-              value: topThemeLabel,
-              helper: 'Repetiu mais vezes nos slots',
-            }
+            key: 'theme',
+            label: 'Tema em alta',
+            value: topThemeLabel,
+            helper: 'Repetiu mais vezes nos slots',
+          }
           : null,
         bestBlockLabel
           ? {
-              key: 'block',
-              label: 'Próximo slot quente',
-              value: bestBlockLabel,
-              helper: 'Janela com maior probabilidade',
-            }
+            key: 'block',
+            label: 'Próximo slot quente',
+            value: bestBlockLabel,
+            helper: 'Janela com maior probabilidade',
+          }
           : null,
       ].filter(Boolean) as Array<{ key: string; label: string; value: string; helper?: string }>,
     [overview, completedSlots, remainingSlots, topThemeLabel, bestBlockLabel]
   );
+  const inspirationSeed = useMemo(() => {
+    if (!slots || !slots.length) return null;
+    const daySlots = slots.filter((slot) => slot.dayOfWeek === selectedDay);
+    const pool = daySlots.length ? daySlots : slots;
+    const withTheme = pool.find(
+      (slot) =>
+        (slot.themeKeyword && slot.themeKeyword.trim()) ||
+        (slot.themes && slot.themes.length > 0)
+    );
+    if (withTheme) return withTheme;
+    const sorted = [...pool].sort(
+      (a, b) => (b.expectedMetrics?.viewsP50 ?? 0) - (a.expectedMetrics?.viewsP50 ?? 0)
+    );
+    return sorted[0] ?? pool[0] ?? null;
+  }, [slots, selectedDay]);
+  const inspirationTheme = useMemo(() => {
+    const rawTheme =
+      (inspirationSeed?.themeKeyword && inspirationSeed.themeKeyword.trim()) ||
+      (inspirationSeed?.themes && inspirationSeed.themes[0]) ||
+      '';
+    if (rawTheme) return rawTheme;
+    return overview.topTheme ?? '';
+  }, [inspirationSeed, overview.topTheme]);
+  const inspirationSummary = useMemo(() => {
+    if (!inspirationSeed) return null;
+    const dayName = dayFullLabel(inspirationSeed.dayOfWeek).replace('-feira', '');
+    const blockRange = blockLabel(inspirationSeed.blockStartHour);
+    const formatLabel = formatSlotFormat(inspirationSeed.format);
+    return `${dayName} • ${blockRange} • ${formatLabel}`;
+  }, [inspirationSeed]);
+  const inspirationContextLabels = useMemo(
+    () => idsToLabels(inspirationSeed?.categories?.context, 'context'),
+    [inspirationSeed?.categories?.context]
+  );
+  const inspirationProposalLabels = useMemo(
+    () => idsToLabels(inspirationSeed?.categories?.proposal, 'proposal'),
+    [inspirationSeed?.categories?.proposal]
+  );
+  const inspirationKey = useMemo(
+    () =>
+      inspirationSeed
+        ? `${inspirationSeed.dayOfWeek}-${inspirationSeed.blockStartHour}-${inspirationTheme}`
+        : null,
+    [inspirationSeed, inspirationTheme]
+  );
+  const shouldLoadInspirations =
+    Boolean(userId) && Boolean(inspirationSeed) && !publicMode && !locked;
+
+  const loadInspirationPosts = useCallback(async () => {
+    if (!inspirationSeed || !userId || publicMode || locked) return;
+    setInspirationLoading(true);
+    setInspirationError(null);
+    try {
+      const res = await fetch('/api/planner/inspirations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          dayOfWeek: inspirationSeed.dayOfWeek,
+          blockStartHour: inspirationSeed.blockStartHour,
+          categories: inspirationSeed.categories || {},
+          limit: 8,
+        }),
+      });
+      if (!res.ok) throw new Error('Falha ao buscar inspirações pessoais');
+      const data = await res.json();
+      const arr = Array.isArray(data?.posts) ? data.posts : [];
+      setInspirationPosts(
+        arr.map((p: any) => ({
+          id: String(p.id),
+          caption: String(p.caption || ''),
+          views: Number(p.views || 0),
+          date: String(p.date || ''),
+          thumbnailUrl: p.thumbnailUrl || null,
+          postLink: p.postLink || null,
+        }))
+      );
+    } catch (err: any) {
+      setInspirationError(err?.message || 'Erro ao carregar conteúdos');
+    } finally {
+      setInspirationLoading(false);
+    }
+  }, [inspirationSeed, locked, publicMode, userId]);
+
+  const loadCommunityPosts = useCallback(async () => {
+    if (!inspirationSeed || !userId || publicMode || locked) return;
+    setCommunityLoading(true);
+    setCommunityError(null);
+    try {
+      const res = await fetch('/api/planner/inspirations/community', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          categories: inspirationSeed.categories || {},
+          script: typeof inspirationSeed.rationale === 'string'
+            ? inspirationSeed.rationale
+            : inspirationSeed.scriptShort || '',
+          themeKeyword: inspirationTheme || undefined,
+          limit: 10,
+        }),
+      });
+      if (!res.ok) throw new Error('Falha ao buscar inspirações da comunidade');
+      const data = await res.json();
+      const arr = Array.isArray(data?.posts) ? data.posts : [];
+      setCommunityPosts(
+        arr.map((p: any) => ({
+          id: String(p.id),
+          caption: String(p.caption || ''),
+          views: Number(p.views || 0),
+          date: String(p.date || ''),
+          coverUrl: p.coverUrl || null,
+          postLink: p.postLink || null,
+          reason: Array.isArray(p.reason) ? p.reason : [],
+        }))
+      );
+    } catch (err: any) {
+      setCommunityError(err?.message || 'Erro ao carregar comunidade');
+    } finally {
+      setCommunityLoading(false);
+    }
+  }, [inspirationSeed, inspirationTheme, locked, publicMode, userId]);
+
+  useEffect(() => {
+    if (!shouldLoadInspirations) {
+      setInspirationPosts([]);
+      setCommunityPosts([]);
+      setInspirationError(null);
+      setCommunityError(null);
+      setInspirationLoading(false);
+      setCommunityLoading(false);
+      return;
+    }
+    void loadInspirationPosts();
+    void loadCommunityPosts();
+  }, [shouldLoadInspirations, inspirationKey, loadInspirationPosts, loadCommunityPosts]);
+
+  useEffect(() => {
+    if (!inspirationSeed || inspirationLoading || communityLoading) return;
+
+    const firstSelf = inspirationPosts[0];
+    const firstCommunity = communityPosts[0];
+
+    prefillInspirationCache(inspirationSeed, {
+      self: firstSelf ? {
+        id: firstSelf.id,
+        caption: firstSelf.caption,
+        views: firstSelf.views,
+        thumbnailUrl: firstSelf.thumbnailUrl,
+        postLink: firstSelf.postLink
+      } : null,
+      community: firstCommunity ? {
+        id: firstCommunity.id,
+        caption: firstCommunity.caption,
+        views: firstCommunity.views,
+        coverUrl: firstCommunity.coverUrl,
+        postLink: firstCommunity.postLink
+      } : null
+    });
+  }, [inspirationSeed, inspirationPosts, communityPosts, inspirationLoading, communityLoading]);
+
   const showLoadingBanner = loading;
 
   if (!publicMode && locked && !isBillingLoading) {
@@ -439,43 +668,85 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6 space-y-6">
-      <div className="space-y-4 border-b border-slate-100 pb-5">
-        <header className="space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plano semanal</p>
-              <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">O que postar por dia nesta semana</h2>
-            </div>
-            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Atualizado pela IA
-            </span>
-          </div>
+      <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">Planejamento Semanal</h2>
           <p className="text-sm text-slate-500">
-            Bloqueie slots, ajuste formatos e acompanhe a meta de {TARGET_SLOTS_PER_WEEK} pautas por semana.
+            {remainingSlots > 0 ? `${remainingSlots} slots restantes para a meta` : 'Meta semanal atingida!'}
           </p>
-        </header>
-        {summaryTiles.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {summaryTiles.map((tile) => (
-              <SummaryTile key={tile.key} label={tile.label} value={tile.value} helper={tile.helper} />
-            ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-lg bg-slate-100 p-1">
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+            >
+              Calendário
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+            >
+              Lista
+            </button>
           </div>
-        )}
+        </div>
       </div>
       {showLoadingBanner && <PlannerLoadingBanner />}
 
       {loading && <PlannerLoadingSkeleton />}
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      {slotCards.length ? (
-        <PlannerSlotCardGrid
-          cards={slotCards}
-          canEdit={canEdit}
-          onOpenSlot={onOpenSlot}
-          onRequestSubscribe={onRequestSubscribe}
-        />
+      {viewMode === 'calendar' ? (
+        <div className="flex flex-col gap-6">
+          <PlannerDayPicker
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            slotsByDay={slotsByDay}
+          />
+          <PlannerDailySchedule
+            dayIndex={selectedDay}
+            slots={slotsByDay.get(selectedDay) || []}
+            onOpenSlot={onOpenSlot}
+            onCreateSlot={onCreateSlot}
+            userId={userId}
+            publicMode={publicMode}
+            locked={locked}
+          />
+        </div>
       ) : (
-        <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
+        <>
+          {slotCards.length ? (
+            <>
+              <PlannerSlotCardGrid
+                cards={slotCards}
+                canEdit={canEdit}
+                onOpenSlot={onOpenSlot}
+                onRequestSubscribe={onRequestSubscribe}
+              />
+              {!publicMode && !locked && inspirationSeed && (
+                <PlannerInspirationsPanel
+                  inspirationSummary={inspirationSummary}
+                  inspirationTheme={inspirationTheme}
+                  contextLabels={inspirationContextLabels}
+                  proposalLabels={inspirationProposalLabels}
+                  inspirationPosts={inspirationPosts}
+                  communityPosts={communityPosts}
+                  inspirationLoading={inspirationLoading}
+                  communityLoading={communityLoading}
+                  inspirationError={inspirationError}
+                  communityError={communityError}
+                  onRefreshInspiration={loadInspirationPosts}
+                  onRefreshCommunity={loadCommunityPosts}
+                />
+              )}
+            </>
+          ) : (
+            <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
+          )}
+        </>
       )}
 
       {!publicMode && !canEdit && (
@@ -507,7 +778,190 @@ const STATUS_EMOJI: Record<StatusCategory, string> = {
   planned: '⏳',
 };
 
-interface PlannerSlotCard {
+const PlannerInspirationsPanel = ({
+  inspirationSummary,
+  inspirationTheme,
+  contextLabels,
+  proposalLabels,
+  inspirationPosts,
+  communityPosts,
+  inspirationLoading,
+  communityLoading,
+  inspirationError,
+  communityError,
+  onRefreshInspiration,
+  onRefreshCommunity,
+}: {
+  inspirationSummary: string | null;
+  inspirationTheme: string;
+  contextLabels: string[];
+  proposalLabels: string[];
+  inspirationPosts: InspirationPost[];
+  communityPosts: CommunityInspirationPost[];
+  inspirationLoading: boolean;
+  communityLoading: boolean;
+  inspirationError: string | null;
+  communityError: string | null;
+  onRefreshInspiration: () => void;
+  onRefreshCommunity: () => void;
+}) => {
+  const helperPieces = [
+    inspirationTheme ? `Tema: ${inspirationTheme}` : null,
+    contextLabels.length ? `Contexto: ${contextLabels.slice(0, 2).join(' • ')}` : null,
+    proposalLabels.length ? `Objetivo: ${proposalLabels.slice(0, 2).join(' • ')}` : null,
+  ].filter((piece): piece is string => Boolean(piece));
+
+  return (
+    <div className="space-y-3 border-t border-slate-200 pt-4">
+      <div className="space-y-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-500">
+          Inspirações alinhadas a estas pautas
+        </p>
+        {inspirationSummary && (
+          <p className="text-sm font-semibold text-slate-900">{inspirationSummary}</p>
+        )}
+        {helperPieces.length > 0 && (
+          <p className="text-[13px] text-slate-600">
+            {helperPieces.join(' · ')}
+          </p>
+        )}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <CompactInspirationList
+          title="Do seu histórico"
+          subtitle="Recortes seus com mesmo tema/horário"
+          posts={inspirationPosts}
+          loading={inspirationLoading}
+          error={inspirationError}
+          onRefresh={onRefreshInspiration}
+          kind="self"
+        />
+        <CompactInspirationList
+          title="Da comunidade"
+          subtitle="Posts externos que combinam com a pauta"
+          posts={communityPosts}
+          loading={communityLoading}
+          error={communityError}
+          onRefresh={onRefreshCommunity}
+          kind="community"
+        />
+      </div>
+    </div>
+  );
+};
+
+const CompactInspirationList = ({
+  title,
+  subtitle,
+  posts,
+  loading,
+  error,
+  onRefresh,
+  kind,
+}: {
+  title: string;
+  subtitle: string;
+  posts: InspirationPost[] | CommunityInspirationPost[];
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+  kind: 'self' | 'community';
+}) => (
+  <div className="space-y-2 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm">
+    <div className="flex items-center justify-between gap-2">
+      <div className="space-y-0.5">
+        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="text-[11px] text-slate-500">{subtitle}</p>
+      </div>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onRefresh();
+        }}
+        disabled={loading}
+        className="text-[11px] font-semibold text-slate-600 underline underline-offset-2 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {loading ? 'Atualizando…' : 'Recarregar'}
+      </button>
+    </div>
+    {error && <p className="text-xs text-red-600">{error}</p>}
+    {loading && !posts.length && (
+      <div className="space-y-2">
+        {[1, 2, 3].map((idx) => (
+          <div
+            key={`insp-skel-${idx}-${kind}`}
+            className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-2.5 animate-pulse"
+          >
+            <div className="h-12 w-12 rounded-lg bg-slate-200" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-3/4 rounded bg-slate-200" />
+              <div className="h-3 w-1/2 rounded bg-slate-200" />
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+    {!loading && !posts.length && !error && (
+      <p className="text-xs text-slate-500">
+        Nenhum conteúdo encontrado para este conjunto de pautas.
+      </p>
+    )}
+    {posts.length > 0 && (
+      <div className="space-y-2">
+        {posts.slice(0, 4).map((p) => {
+          const views = formatCompactNumber((p as any).views) || (p as any).views?.toLocaleString?.('pt-BR');
+          const dateLabel = (p as any).date ? new Date((p as any).date).toLocaleDateString('pt-BR') : '';
+          const cover = 'thumbnailUrl' in p ? p.thumbnailUrl : (p as any).coverUrl;
+          const reasons = 'reason' in p ? (p as any).reason : [];
+          return (
+            <a
+              key={`list-${kind}-${p.id}`}
+              href={(p as any).postLink || undefined}
+              target={(p as any).postLink ? '_blank' : undefined}
+              rel={(p as any).postLink ? 'noreferrer' : undefined}
+              className="flex items-center gap-3 rounded-xl border border-slate-100 px-2.5 py-2 transition hover:-translate-y-[1px] hover:shadow-sm"
+            >
+              <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                {cover ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={toProxyUrl(cover)} alt="Inspiração" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">Sem imagem</div>
+                )}
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="line-clamp-2 text-xs font-semibold text-slate-900">{p.caption || 'Sem legenda'}</p>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                  {views && <span>{views} views</span>}
+                  {dateLabel && <span>{dateLabel}</span>}
+                </div>
+                {reasons && Array.isArray(reasons) && reasons.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {reasons.slice(0, 2).map((tag, idx) => (
+                      <span
+                        key={`reason-${p.id}-${idx}`}
+                        className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400">
+                {kind === 'self' ? 'Você' : 'Comunidade'}
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
+
+export interface PlannerSlotCard {
   id: string;
   dayTitle: string;
   blockLabel: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Category } from "@/app/lib/classification";
 import {
@@ -114,10 +114,15 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>(
     () => buildSelectedFromParams(params)
   );
+  const [appliedFilters, setAppliedFilters] = useState<SelectedFilters>(
+    () => buildSelectedFromParams(params)
+  );
   const [currentView, setCurrentView] = useState<ViewState>(defaultView);
 
   useEffect(() => {
-    setSelectedFilters(buildSelectedFromParams(params));
+    const next = buildSelectedFromParams(params);
+    setSelectedFilters(next);
+    setAppliedFilters(next);
   }, [params]);
 
   useEffect(() => {
@@ -131,6 +136,15 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   const hasSelections = MASTER_ORDER.some(
     (key) => selectedFilters[key].length > 0
   );
+
+  const filtersMatch = useCallback((a: SelectedFilters, b: SelectedFilters) => {
+    return MASTER_ORDER.every((key) => {
+      const left = [...(a[key] || [])].sort();
+      const right = [...(b[key] || [])].sort();
+      if (left.length !== right.length) return false;
+      return left.every((value, index) => value === right[index]);
+    });
+  }, []);
 
   const updateUrl = useCallback(
     (nextState: SelectedFilters) => {
@@ -150,6 +164,19 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
     [params, pathname, router]
   );
 
+  const hasPendingChanges = useMemo(
+    () => !filtersMatch(selectedFilters, appliedFilters),
+    [filtersMatch, selectedFilters, appliedFilters]
+  );
+
+  const applyFilters = useCallback(
+    (nextState: SelectedFilters) => {
+      setAppliedFilters(nextState);
+      updateUrl(nextState);
+    },
+    [updateUrl]
+  );
+
   const handleMasterClick = useCallback((categoryId: CategoryId) => {
     setCurrentView(categoryId);
   }, []);
@@ -167,23 +194,22 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
           ? current.filter((value) => value !== optionId)
           : [...current, optionId];
         const nextState = { ...prev, [categoryId]: nextValues };
-        updateUrl(nextState);
         return nextState;
       });
     },
-    [updateUrl]
+    []
   );
 
   const handleClearAll = useCallback(() => {
     const emptyState = createEmptySelection();
     setSelectedFilters(emptyState);
-    const search = new URLSearchParams(params.toString());
-    MASTER_ORDER.forEach((key) => search.delete(key));
-    const query = search.toString();
-    const href = query ? `${pathname}?${query}` : pathname;
-    router.replace(href, { scroll: false });
+    applyFilters(emptyState);
     setCurrentView("master");
-  }, [params, pathname, router]);
+  }, [applyFilters]);
+
+  const handleApplyFilters = useCallback(() => {
+    applyFilters(selectedFilters);
+  }, [applyFilters, selectedFilters]);
 
   const currentCategory =
     currentView === "master"
@@ -197,13 +223,13 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   }, [currentCategory, currentView]);
 
   return (
-    <div className="filter-container flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white/70 p-3 shadow-sm sm:p-4">
+    <div className="filter-container flex flex-wrap items-center gap-2 p-1 sm:p-2">
       {currentView !== "master" && (
         <button
           type="button"
           onClick={handleBack}
           aria-label="Voltar para categorias"
-          className="filter-button-back inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent text-brand-magenta transition hover:bg-brand-magenta/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+          className="filter-button-back inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
         >
           <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -218,38 +244,29 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={category.id}
                 type="button"
                 onClick={() => handleMasterClick(category.id)}
-                className={`filter-button-master inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
+                className={`filter-button-master inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
                   hasSelection
-                    ? "has-selection border-transparent bg-gradient-to-r from-brand-magenta to-brand-purple text-white shadow-sm"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-brand-magenta/40 hover:text-brand-magenta"
+                    ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                 }`}
               >
-                <span className="flex items-center gap-1">
-                  <span>{category.label}</span>
-                  {hasSelection && (
-                    <span className="text-base leading-none text-white" aria-hidden="true">
-                      •
-                    </span>
-                  )}
-                </span>
-                <ChevronRightIcon
-                  className={`h-4 w-4 transition ${
-                    hasSelection ? "text-white/80" : "text-brand-magenta/60"
-                  }`}
-                  aria-hidden="true"
+              <span className="flex items-center gap-1 truncate">
+                <span>{category.label}</span>
+                {hasSelection && (
+                  <span className="text-base leading-none text-brand-magenta" aria-hidden="true">
+                    •
+                  </span>
+                )}
+              </span>
+              <ChevronRightIcon
+                className={`h-4 w-4 transition ${
+                  hasSelection ? "text-brand-magenta/80" : "text-brand-magenta/60"
+                }`}
+                aria-hidden="true"
                 />
               </button>
             );
           })}
-          {hasSelections && (
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="ml-auto inline-flex items-center rounded-full border border-transparent bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-            >
-              Limpar filtros
-            </button>
-          )}
         </>
       )}
 
@@ -265,16 +282,16 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={option.id}
                 type="button"
                 onClick={() => toggleFilter(currentCategory.id, option.id)}
-                className={`filter-button-child inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
+                className={`filter-button-child inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-medium text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
                   isSelected
-                    ? "is-selected border-transparent bg-gradient-to-r from-brand-magenta to-brand-purple text-white shadow-sm"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-brand-magenta/40 hover:text-brand-magenta"
+                    ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                 }`}
                 aria-pressed={isSelected}
               >
                 <CheckIcon
                   className={`h-4 w-4 transition ${
-                    isSelected ? "opacity-100 text-white" : "opacity-0 text-transparent"
+                    isSelected ? "opacity-100 text-brand-magenta" : "opacity-0 text-transparent"
                   }`}
                   aria-hidden="true"
                 />
@@ -283,6 +300,29 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
             );
           })}
         </>
+      )}
+
+      {(hasPendingChanges || hasSelections) && (
+        <div className="ml-auto flex w-full flex-wrap items-center gap-2 justify-end sm:w-auto sm:flex-nowrap">
+          {hasPendingChanges && (
+            <button
+              type="button"
+              onClick={handleApplyFilters}
+              className="inline-flex items-center rounded-full border border-brand-magenta/30 bg-brand-magenta px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+            >
+              Aplicar filtros
+            </button>
+          )}
+          {hasSelections && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
       )}
 
     </div>

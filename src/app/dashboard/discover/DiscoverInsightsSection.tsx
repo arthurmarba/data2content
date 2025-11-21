@@ -1,5 +1,7 @@
 "use client";
 
+import GlassCard from "@/components/GlassCard";
+
 type DiscoverInsightsSectionProps = {
   viewsP50?: number | null;
   viewsP75?: number | null;
@@ -10,12 +12,18 @@ type DiscoverInsightsSectionProps = {
   heatmapBuckets?: Array<{ label: string; count: number }>;
   sampleWindowDays?: number;
   sectionsCount?: number;
+  className?: string;
 };
+
+const compactFormatter = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 
 function formatMetric(value?: number | null, suffix = "") {
   if (typeof value !== "number" || Number.isNaN(value) || value <= 0) return "—";
   try {
-    return `${value.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 })}${suffix}`;
+    return `${compactFormatter.format(value)}${suffix}`;
   } catch {
     return `${value}${suffix}`;
   }
@@ -30,13 +38,13 @@ type StatTileProps = {
 
 function StatTile({ label, primary, secondary, helper }: StatTileProps) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-slate-900">
+    <div className="rounded-2xl border border-brand-chip bg-brand-glass-100/80 p-4 text-[#0F172A] shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-text-secondary/70">{label}</p>
+      <p className="mt-3 text-[clamp(2rem,2.6vw,2.5rem)] font-semibold text-[#0F172A]">
         {primary}
-        {secondary && <span className="text-base font-medium text-slate-500"> · {secondary}</span>}
+        {secondary && <span className="text-base font-medium text-brand-text-secondary/80"> · {secondary}</span>}
       </p>
-      {helper && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
+      {helper && <p className="mt-2 text-sm text-brand-text-secondary/90">{helper}</p>}
     </div>
   );
 }
@@ -51,6 +59,7 @@ export default function DiscoverInsightsSection({
   heatmapBuckets = [],
   sampleWindowDays,
   sectionsCount,
+  className,
 }: DiscoverInsightsSectionProps) {
   const totalHeat = heatmapBuckets.reduce((sum, bucket) => sum + bucket.count, 0) || 1;
   const windowLabel = sampleWindowDays ? `últimos ${sampleWindowDays} dias` : "janela recente";
@@ -80,34 +89,40 @@ export default function DiscoverInsightsSection({
   const hasHeatmap = topBuckets.length > 0;
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6">
-      <header className="space-y-4 border-b border-slate-100 pb-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Panorama de desempenho</p>
-            <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-              Sinais que a IA captou esta semana
+    <GlassCard
+      className={["space-y-6 border border-brand-glass shadow-[0_35px_90px_rgba(15,23,42,0.08)]", className]
+        .filter(Boolean)
+        .join(" ")}
+      showGlow
+    >
+      <header className="space-y-4 border-b border-white/40 pb-5 text-[#0F172A]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <span className="landing-chip text-brand-primary/80">Panorama da comunidade</span>
+            <h2 className="text-[clamp(1.9rem,3vw,2.4rem)] font-semibold leading-tight text-brand-dark">
+              Benchmarks vivos do seu segmento
             </h2>
           </div>
-          <div className="text-right text-xs font-medium uppercase tracking-wide text-slate-400 sm:text-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-text-secondary/70">
             Atualizado automaticamente
-          </div>
+          </p>
         </div>
         {summaryChips.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             {summaryChips.map((chip) => (
-              <span
+              <div
                 key={chip.label}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600"
+                className="rounded-2xl border border-white/50 bg-white/70 px-4 py-3 text-sm text-brand-text-secondary/80 shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
               >
-                {chip.label}: <span className="text-slate-900">{chip.value}</span>
-              </span>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em]">{chip.label}</p>
+                <p className="mt-1 text-xl font-semibold text-brand-dark">{chip.value}</p>
+              </div>
             ))}
           </div>
         )}
       </header>
 
-      <div className="grid gap-4 pt-5 sm:grid-cols-2">
+      <div className="grid gap-4 pt-2 sm:grid-cols-2">
         <StatTile
           label="Views típicas"
           primary={formattedViewsP50}
@@ -122,55 +137,57 @@ export default function DiscoverInsightsSection({
         />
       </div>
 
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+      <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-5 shadow-[0_12px_32px_rgba(15,23,42,0.08)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Horário mais quente</p>
-            <p className="text-xl font-semibold text-slate-900">{topHourLabel || "—"}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand-text-secondary/70">
+              Horário mais quente
+            </p>
+            <p className="text-2xl font-semibold text-brand-dark">{topHourLabel || "—"}</p>
           </div>
-          <p className="text-xs text-slate-500">Base: melhores slots da amostra.</p>
+          <p className="text-xs text-brand-text-secondary/80">Base: slots de maior tração na amostra.</p>
         </div>
         {hasHeatmap ? (
-          <div className="mt-4 space-y-3">
+          <div className="mt-5 space-y-3">
             {topBuckets.map((bucket) => {
               const ratio = bucket.count / totalHeat;
               const widthPercent = `${Math.max(ratio * 100, 8)}%`;
               return (
                 <div key={bucket.label} className="flex items-center gap-3">
-                  <span className="w-32 text-sm font-medium text-slate-600">{bucket.label}</span>
-                  <div className="h-2 flex-1 rounded-full bg-slate-200">
+                  <span className="w-32 text-sm font-medium text-brand-text-secondary/90">{bucket.label}</span>
+                  <div className="h-2 flex-1 rounded-full bg-brand-glass-200/70">
                     <div
-                      className="h-2 rounded-full bg-gradient-to-r from-brand-magenta to-brand-purple"
+                      className="h-2 rounded-full bg-gradient-to-r from-brand-magenta to-brand-purple transition-[width]"
                       style={{ width: widthPercent }}
                     />
                   </div>
-                  <span className="text-xs font-semibold text-slate-500">{Math.round(ratio * 100)}%</span>
+                  <span className="text-xs font-semibold text-brand-text-secondary/80">{Math.round(ratio * 100)}%</span>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="mt-3 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500">
+          <div className="mt-4 rounded-2xl border border-dashed border-brand-chip/80 px-4 py-3 text-sm text-brand-text-secondary">
             Sem dados suficientes ainda. Assim que os primeiros slots aparecerem, mostramos aqui.
           </div>
         )}
       </div>
 
-      <div className="mt-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-5 py-5 text-white">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Movimentos sugeridos</p>
+      <div className="rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1B1B3A] to-[#6E1F93] px-5 py-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">Movimentos sugeridos</p>
         {hasTips ? (
-          <div className="mt-3 space-y-3 text-sm">
+          <div className="mt-4 space-y-3 text-sm">
             {tips.map((tip) => (
-              <div key={tip} className="flex items-start gap-3">
-                <span className="text-base text-white/60">✓</span>
-                <p className="text-white/90">{tip}</p>
+              <div key={tip} className="flex items-start gap-3 text-white/90">
+                <span className="mt-0.5 text-base text-brand-sun">✦</span>
+                <p>{tip}</p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="mt-3 text-sm text-white/70">Ainda não temos recomendações suficientes para o segmento.</p>
+          <p className="mt-4 text-sm text-white/80">Ainda não temos recomendações suficientes para o segmento.</p>
         )}
       </div>
-    </section>
+    </GlassCard>
   );
 }

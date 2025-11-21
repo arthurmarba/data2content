@@ -1,398 +1,341 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, type ReactNode } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
-import ContentPlannerSection from "@/app/mediakit/components/ContentPlannerSection";
-import { useHeaderSetup } from "../context/HeaderContext";
-import { track } from "@/lib/track";
-import { INSTAGRAM_READ_ONLY_COPY } from "@/app/constants/trustCopy";
-import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
-import DiscoverInsightsSection from "../discover/DiscoverInsightsSection";
-import DiscoverBillingGate from "../discover/DiscoverBillingGate";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  ContentPlannerCalendar,
+  PlannerSlotCard,
+} from '@/app/mediakit/components/ContentPlannerCalendar';
+import PlannerSlotModal, { PlannerSlotData as PlannerSlotDataModal } from '@/app/mediakit/components/PlannerSlotModal';
+import SimplifiedInsights from '@/app/dashboard/discover/SimplifiedInsights';
+import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
+import { useBillingStatus } from '@/app/hooks/useBillingStatus';
+import { track } from '@/lib/track';
+import { openPaywallModal } from '@/utils/paywallModal';
 
-const MAX_POST_AGE_DAYS = 80;
-const MAX_POST_AGE_MS = MAX_POST_AGE_DAYS * 24 * 60 * 60 * 1000;
-const INSIGHTS_LIMIT_PER_ROW = 36;
+const MAX_POST_AGE_DAYS = 30;
 
-type PlannerPostCard = {
-  id: string;
-  postDate?: string | null;
-  stats?: {
-    views?: number;
-    total_interactions?: number;
-  };
-};
-
-type PlannerFeedSection = {
-  key: string;
-  items?: PlannerPostCard[];
-};
-
-type PlannerInsights = {
-  viewsP50: number | null;
-  viewsP75: number | null;
-  interactionsP50: number | null;
-  interactionsP75: number | null;
-  totalPosts: number;
-  topHourLabel: string | null;
-  heatmapBuckets: Array<{ label: string; count: number }>;
-  sectionsCount: number;
-};
-
-function percentile(sortedValues: number[], ratio: number): number | null {
-  if (!sortedValues.length) return null;
-  if (sortedValues.length === 1) return sortedValues[0] ?? null;
-  const index = (sortedValues.length - 1) * ratio;
-  const lower = Math.floor(index);
-  const upper = Math.ceil(index);
-  if (lower === upper) return sortedValues[lower] ?? null;
-  const weight = index - lower;
-  return sortedValues[lower]! * (1 - weight) + sortedValues[upper]! * weight;
-}
-
-function computeInsightsFromSections(sections: PlannerFeedSection[]): PlannerInsights {
-  const cutoff = Date.now() - MAX_POST_AGE_MS;
-  const flattened: PlannerPostCard[] = [];
-
-  sections.forEach((section) => {
-    const items = Array.isArray(section.items) ? section.items : [];
-    items.forEach((item) => {
-      if (!item?.postDate) return;
-      const timestamp = new Date(item.postDate).getTime();
-      if (Number.isNaN(timestamp) || timestamp < cutoff) return;
-      flattened.push(item);
-    });
-  });
-
-  const viewValues = flattened
-    .map((item) => item?.stats?.views)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0);
-
-  const interactionValues = flattened
-    .map((item) => item?.stats?.total_interactions)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0);
-
-  const sortedViews = viewValues.slice().sort((a, b) => a - b);
-  const sortedInteractions = interactionValues.slice().sort((a, b) => a - b);
-
-  const viewsP50 = percentile(sortedViews, 0.5);
-  const viewsP75 = percentile(sortedViews, 0.75);
-  const interactionsP50 = percentile(sortedInteractions, 0.5);
-  const interactionsP75 = percentile(sortedInteractions, 0.75);
-
-  const hourBuckets = new Map<string, number>();
-  flattened.forEach((item) => {
-    if (!item?.postDate) return;
-    const timestamp = new Date(item.postDate).getTime();
-    if (Number.isNaN(timestamp)) return;
-    const hour = new Date(timestamp).getHours();
-    const label =
-      hour >= 6 && hour < 12
-        ? "Manhã (6h-11h)"
-        : hour >= 12 && hour < 18
-        ? "Tarde (12h-17h)"
-        : hour >= 18 && hour < 24
-        ? "Noite (18h-23h)"
-        : "Madrugada (0h-5h)";
-    hourBuckets.set(label, (hourBuckets.get(label) || 0) + 1);
-  });
-
-  let topHourLabel: string | null = null;
-  for (const [label, count] of hourBuckets.entries()) {
-    if (!topHourLabel || (hourBuckets.get(topHourLabel) || 0) < count) {
-      topHourLabel = label;
-    }
-  }
-
-  const heatmapBuckets = Array.from(hourBuckets.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count);
-
+function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | null {
+  if (!slot) return null;
   return {
-    viewsP50,
-    viewsP75,
-    interactionsP50,
-    interactionsP75,
-    totalPosts: flattened.length,
-    topHourLabel,
-    heatmapBuckets,
-    sectionsCount: sections.length,
+    slotId: (slot as any).slotId,
+    dayOfWeek: slot.dayOfWeek,
+    blockStartHour: slot.blockStartHour,
+    format: (slot as any).format || 'reel',
+    categories: slot.categories,
+    status: slot.status as any,
+    isExperiment: (slot as any).isExperiment,
+    expectedMetrics: slot.expectedMetrics as any,
+    title: (slot as any).title,
+    scriptShort: (slot as any).scriptShort,
+    themes: (slot as any).themes,
+    themeKeyword: (slot as any).themeKeyword,
+    rationale: (slot as any).rationale,
+    recordingTimeSec: (slot as any).recordingTimeSec,
+    aiVersionId: (slot as any).aiVersionId,
   };
 }
 
-type PlannerCardProps = {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-  children?: ReactNode;
-};
+function fromPlannerSlotData(data: PlannerSlotDataModal): PlannerUISlot {
+  return {
+    slotId: data.slotId,
+    dayOfWeek: data.dayOfWeek,
+    blockStartHour: data.blockStartHour,
+    format: data.format || 'reel',
+    categories: data.categories ?? {},
+    status: (data.status as PlannerUISlot['status']) || 'planned',
+    isExperiment: data.isExperiment,
+    expectedMetrics: data.expectedMetrics ?? {},
+    title: data.title,
+    scriptShort: data.scriptShort,
+    themes: data.themes ?? [],
+    themeKeyword: data.themeKeyword,
+    rationale: Array.isArray(data.rationale) ? data.rationale.join('\n') : (data.rationale as any),
+    recordingTimeSec: data.recordingTimeSec,
+    aiVersionId: data.aiVersionId ?? undefined,
+  };
+}
 
-function PlannerCard({ eyebrow, title, description, actions, children }: PlannerCardProps) {
-  return (
-    <section className="rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          {eyebrow && (
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{eyebrow}</p>
-          )}
-          <h3 className="text-xl font-semibold text-slate-900 sm:text-2xl">{title}</h3>
-          {description && <p className="text-sm text-slate-600">{description}</p>}
-        </div>
-        {actions ? <div className="sm:shrink-0">{actions}</div> : null}
-      </div>
-      {children ? <div className="mt-6">{children}</div> : null}
-    </section>
-  );
+function getWeekStartISO(date = new Date()): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - dow);
+  return d.toISOString().slice(0, 10);
 }
 
 export default function PlannerClientPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const slotIdParam = searchParams?.get("slotId") ?? searchParams?.get("slot") ?? null;
-  const [initialSlotId, setInitialSlotId] = useState<string | null>(slotIdParam);
-  const focusAnchorRef = useRef<HTMLDivElement | null>(null);
-  const resumeHandledRef = useRef(false);
-  const viewTrackedRef = useRef(false);
-  const [insights, setInsights] = useState<PlannerInsights | null>(null);
-  const [insightsStatus, setInsightsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const billing = useBillingStatus();
+  const { planStatus } = billing;
+  const isBillingLoading = billing.isLoading;
 
+  const {
+    slots,
+    heatmap,
+    loading,
+    error,
+    reload,
+    saveSlots,
+    locked,
+    lockedReason,
+  } = usePlannerData({ userId: session?.user?.id || '', targetSlotsPerWeek: 7 });
+
+  const [selectedSlot, setSelectedSlot] = useState<PlannerUISlot | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [savingError, setSavingError] = useState<string | null>(null);
+  const weekStartISO = useMemo(() => getWeekStartISO(), []);
+
+  // Check access
+  // Note: canAccessPlanner and getPlanStatus might need to be imported or implemented if not available
+  // Assuming they are available as per previous code, but if not, we use billing flags
+  const hasAccess = billing.hasPremiumAccess || billing.isTrialActive || billing.normalizedStatus === 'active';
+  const effectiveLocked = locked || !hasAccess;
+  const effectiveLockedReason = effectiveLocked
+    ? lockedReason ?? 'Atualize seu plano para acessar o planejador completo.'
+    : undefined;
+  const canEdit = hasAccess;
+
+  // Handle slot selection from URL
   useEffect(() => {
-    setInitialSlotId(slotIdParam);
-  }, [slotIdParam]);
-
-  const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
-  const userId = (session?.user as any)?.id as string | undefined;
-
-  useHeaderSetup(
-    {
-      variant: "compact",
-      showSidebarToggle: true,
-      showUserMenu: true,
-      sticky: true,
-      contentTopPadding: 8,
-      title: undefined,
-      subtitle: undefined,
-      condensedOnScroll: false,
-    },
-    []
-  );
-
-  const handleConnectInstagram = useCallback(() => {
-    track("planner_gate_cta_click", { cta: "connect_instagram" });
-    router.push("/dashboard?intent=instagram");
-  }, [router]);
-
-  const handleExploreCommunity = useCallback(() => {
-    track("planner_gate_cta_click", { cta: "explore_community" });
-    router.push("/planning/discover");
-  }, [router]);
-
-  const handleOpenPlannerDemo = useCallback(() => {
-    track("planner_gate_cta_click", { cta: "open_demo" });
-    router.push("/planning/demo");
-  }, [router]);
-
-  useEffect(() => {
-    if (viewTrackedRef.current) return;
-    if (status !== "authenticated") return;
-    if (!userId) return;
-    track("planning_viewed", { creator_id: userId, surface: "planner_page" });
-    viewTrackedRef.current = true;
-  }, [status, userId]);
-
-  useEffect(() => {
-    if (resumeHandledRef.current) return;
-    if (status !== "authenticated") return;
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
-      if (!stored) return;
-      const data = JSON.parse(stored);
-      if (data?.context !== "planning") return;
-      window.sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
-      resumeHandledRef.current = true;
-      focusAnchorRef.current?.focus({ preventScroll: false });
-    } catch {
-      try {
-        window.sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
-      } catch {
-        /* ignore */
+    const slotId = searchParams.get('slotId');
+    if (slotId && slots && slots.length > 0 && !selectedSlot && !isModalOpen) {
+      const found = slots.find((s) => s.slotId === slotId);
+      if (found) {
+        setSelectedSlot(found);
+        setIsModalOpen(true);
       }
     }
-  }, [status]);
+  }, [searchParams, slots, selectedSlot, isModalOpen]);
 
-  useEffect(() => {
-    if (status !== "authenticated" || !userId) return;
-    const controller = new AbortController();
-    setInsightsStatus("loading");
-    setInsights(null);
+  const handleOpenSlot = useCallback((slot: PlannerUISlot) => {
+    setSelectedSlot(slot);
+    setIsModalOpen(true);
+    setSavingError(null);
+    track('planner_slot_opened', { slotId: slot.slotId });
+  }, []);
 
-    fetch(`/api/discover/feed?limitPerRow=${INSIGHTS_LIMIT_PER_ROW}`, {
-      method: "GET",
-      cache: "no-store",
-      credentials: "include",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok || !payload?.ok) {
-          throw new Error("invalid_response");
+  const handleCloseSlot = useCallback(() => {
+    setSelectedSlot(null);
+    setIsModalOpen(false);
+    setSavingError(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('slotId');
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
+  const handleCreateSlot = useCallback(
+    (dayOfWeek: number, blockStartHour: number) => {
+      if (!canEdit) {
+        openPaywallModal();
+        return;
+      }
+      track("planner_plan_generated", {
+        creator_id: session?.user?.id,
+        day_of_week: dayOfWeek,
+        block_start_hour: blockStartHour,
+        source: "calendar_quick_generate",
+      });
+      const stub: PlannerUISlot = {
+        dayOfWeek,
+        blockStartHour,
+        format: 'reel',
+        categories: {},
+        status: 'test',
+        isExperiment: true,
+        expectedMetrics: {},
+        title: '',
+      } as PlannerUISlot;
+      handleOpenSlot(stub);
+    },
+    [canEdit, handleOpenSlot, session?.user?.id]
+  );
+
+  const handleSave = useCallback(
+    async (updated: PlannerSlotDataModal) => {
+      if (!canEdit) {
+        openPaywallModal({ context: 'planning', source: 'planner_save_blocked' });
+        throw new Error('Edição bloqueada.');
+      }
+
+      const list: PlannerUISlot[] = Array.isArray(slots) ? [...slots] : [];
+      const idx = list.findIndex(
+        (slot) => slot.dayOfWeek === updated.dayOfWeek && slot.blockStartHour === updated.blockStartHour
+      );
+
+      const base = idx >= 0 ? list[idx]! : ({} as PlannerUISlot);
+      const merged: PlannerUISlot = {
+        ...base,
+        ...updated,
+        format: updated.format || base.format || 'reel',
+        categories: updated.categories ?? base.categories ?? {},
+        expectedMetrics: updated.expectedMetrics ?? base.expectedMetrics,
+        scriptShort: updated.scriptShort ?? base.scriptShort,
+        themeKeyword: updated.themeKeyword ?? base.themeKeyword,
+      } as PlannerUISlot;
+
+      if (idx >= 0) {
+        list[idx] = merged;
+      } else {
+        list.push(merged);
+      }
+
+      try {
+        await saveSlots(list);
+        setSavingError(null);
+        handleCloseSlot();
+        reload(); // Refresh to get updated IDs etc
+      } catch (err: any) {
+        const message = err?.message || 'Não foi possível salvar o planejamento.';
+        setSavingError(message);
+        throw err;
+      }
+    },
+    [canEdit, slots, saveSlots, handleCloseSlot, reload]
+  );
+
+  const handleDelete = useCallback(
+    async (target: PlannerSlotDataModal) => {
+      if (!canEdit) {
+        openPaywallModal({ context: 'planning', source: 'planner_delete_blocked' });
+        return;
+      }
+      if (!slots || !slots.length) return;
+
+      const filtered = slots.filter((slotItem) => {
+        if (target.slotId && slotItem.slotId) {
+          return slotItem.slotId !== target.slotId;
         }
-        const sections: PlannerFeedSection[] = Array.isArray(payload.sections) ? payload.sections : [];
-        setInsights(computeInsightsFromSections(sections));
-        setInsightsStatus("ready");
-      })
-      .catch((error) => {
-        if (error?.name === "AbortError") return;
-        setInsights(null);
-        setInsightsStatus("error");
+        const sameBlock =
+          slotItem.dayOfWeek === target.dayOfWeek && slotItem.blockStartHour === target.blockStartHour;
+        if (!target.slotId && sameBlock && !slotItem.slotId) {
+          return false;
+        }
+        return true;
       });
 
-    return () => {
-      controller.abort();
-    };
-  }, [status, userId]);
+      try {
+        await saveSlots(filtered);
+        setSavingError(null);
+        handleCloseSlot();
+        reload();
+      } catch (err: any) {
+        const message = err?.message || 'Não foi possível excluir a pauta.';
+        setSavingError(message);
+        throw err;
+      }
+    },
+    [canEdit, slots, saveSlots, handleCloseSlot, reload]
+  );
 
-  if (status === "loading") {
-    return (
-      <main className="w-full max-w-none pb-12">
-        <div className="mx-auto max-w-[800px] px-3 sm:px-4 lg:max-w-7xl lg:px-6">
-          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
-            <div className="flex items-center gap-3 text-slate-700">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-lg">
-                ⏳
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Carregando seu planejamento</p>
-                <p className="text-xs text-slate-500">Estamos validando sua sessão para montar o calendário inteligente.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  const handleDuplicate = useCallback(
+    async (target: PlannerSlotDataModal) => {
+      if (!canEdit) {
+        openPaywallModal({ context: 'planning', source: 'planner_duplicate_blocked' });
+        return;
+      }
+      const list: PlannerUISlot[] = Array.isArray(slots) ? [...slots] : [];
+      const duplicated = fromPlannerSlotData(target);
+      duplicated.slotId = undefined;
+      duplicated.status = 'drafted';
+      if (duplicated.title) duplicated.title = `${duplicated.title} (variação)`;
+      list.push(duplicated);
+      try {
+        await saveSlots(list);
+        setSavingError(null);
+        reload();
+      } catch (err: any) {
+        const message = err?.message || 'Não foi possível duplicar a pauta.';
+        setSavingError(message);
+        throw err;
+      }
+    },
+    [canEdit, slots, saveSlots, reload]
+  );
 
-  if (!userId) {
-    return (
-      <main className="w-full max-w-none pb-12">
-        <div className="mx-auto max-w-[800px] px-3 sm:px-4 lg:max-w-7xl lg:px-6">
-          <p className="text-sm text-gray-500">
-            Você precisa estar autenticado para acessar o planejamento.
-          </p>
-        </div>
-      </main>
-    );
-  }
+  const handleRequestSubscribe = useCallback(() => {
+    openPaywallModal();
+    track('planner_subscribe_clicked');
+  }, []);
 
-  if (status === "authenticated" && !instagramConnected) {
-    return (
-      <main className="w-full max-w-none pb-12">
-        <div className="mx-auto max-w-[800px] px-3 sm:px-4 lg:max-w-7xl lg:px-6">
-          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Planner IA</span>
-            <h2 className="mt-4 text-2xl font-semibold text-slate-900">Conecte seu Instagram em menos de 2 minutos</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Liberamos horários quentes e pautas prontas assim que o perfil estiver sincronizado.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                onClick={handleConnectInstagram}
-                className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 sm:w-auto"
-              >
-                Conectar agora
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenPlannerDemo}
-                className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
-              >
-                Ver planner demo
-              </button>
-              <button
-                type="button"
-                onClick={handleExploreCommunity}
-                className="inline-flex items-center justify-center text-sm font-semibold text-slate-500 underline underline-offset-4 hover:text-slate-900 sm:ml-3"
-              >
-                Explorar comunidade
-              </button>
-            </div>
-            <p className="mt-4 text-xs text-slate-500">{INSTAGRAM_READ_ONLY_COPY}</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  // Calculate Insights
+  const topHourLabel = useMemo(() => {
+    if (!heatmap || heatmap.length === 0) return null;
+    const best = heatmap.reduce((prev, current) => (prev.score > current.score ? prev : current));
+    return `${best.blockStartHour}h`;
+  }, [heatmap]);
+
+  const tips: string[] = useMemo(() => {
+    const t: string[] = [];
+    if (topHourLabel) {
+      t.push(`Seus dados históricos mostram um pico de engajamento às ${topHourLabel}. Agende seus conteúdos mais importantes (como lançamentos ou virais) para esta janela de ouro.`);
+    }
+    // Add generic tips if needed, or derived from slots
+    if (slots && slots.length < 3) {
+      t.push("O algoritmo prioriza constância. Aumentar sua frequência para 3 posts semanais pode elevar sua entrega em até 2x. Foque em criar hábito.");
+    } else if (slots && slots.length >= 3) {
+      t.push("Domine a narrativa completa: use Reels para atrair novos olhos (topo de funil) e Carrosséis para educar e converter sua base fiel (fundo de funil).");
+    }
+    return t;
+  }, [topHourLabel, slots]);
+
+  if (status === 'loading') return null;
 
   return (
-    <main className="w-full max-w-none pb-12">
-      <div
-        ref={focusAnchorRef}
-        tabIndex={-1}
-        className="mx-auto max-w-[800px] px-3 sm:px-4 lg:max-w-7xl lg:px-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
-      >
-        <div className="space-y-8">
-          <section className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Planner IA</p>
-            <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-              Planeje com IA e mantenha o ritmo pelo WhatsApp
-            </h2>
-            <p className="text-sm text-slate-600">
-              Organize os slots da semana, gere roteiros e ative alertas no celular para não perder os horários quentes.
-            </p>
-          </section>
+    <div className="min-h-screen bg-[#FAFAFA] pb-20">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">Planejador de Conteúdo</h1>
+          <p className="mt-1 text-slate-500">
+            Organize sua semana e descubra os melhores horários para postar.
+          </p>
+        </div>
 
-          <PlannerCard
-            eyebrow="Ative o WhatsApp IA"
-            title="Receba alertas e ajustes direto no celular"
-            description="Use o estrategista no WhatsApp para lembrar horários quentes, validar pautas e puxar benchmarks."
-            actions={<DiscoverBillingGate />}
-          />
-
-          <ContentPlannerSection
-            userId={userId}
-            publicMode={false}
-            title="Seu plano da semana (Plano Agência)"
-            initialSlotId={initialSlotId}
-            onInitialSlotConsumed={() => {
-              if (initialSlotId) {
-                setInitialSlotId(null);
-                router.replace("/planning/planner");
-              }
-            }}
-          />
-
-          {insightsStatus === "loading" && (
-            <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600 shadow-sm sm:px-6">
-              Carregando insights do seu segmento…
-            </div>
-          )}
-
-          {insightsStatus === "ready" && insights && (
-            <DiscoverInsightsSection
-              viewsP50={insights.viewsP50 ?? undefined}
-              viewsP75={insights.viewsP75 ?? undefined}
-              interactionsP50={insights.interactionsP50 ?? undefined}
-              interactionsP75={insights.interactionsP75 ?? undefined}
-              totalPosts={insights.totalPosts}
-              topHourLabel={insights.topHourLabel ?? undefined}
-              heatmapBuckets={insights.heatmapBuckets}
-              sampleWindowDays={MAX_POST_AGE_DAYS}
-              sectionsCount={insights.sectionsCount}
+        <div className="grid gap-8 lg:grid-cols-12">
+          <div className="space-y-8 lg:col-span-12">
+            {/* Insights Simplificados */}
+            <SimplifiedInsights
+              heatmap={heatmap || []}
+              tips={tips}
             />
-          )}
 
-          {insightsStatus === "error" && (
-            <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 shadow-sm sm:px-6">
-              Não conseguimos carregar os insights agora. Tente novamente em instantes.
-            </div>
-          )}
-
+            {/* Calendário */}
+            <ContentPlannerCalendar
+              userId={session?.user?.id || ''}
+              slots={slots}
+              heatmap={heatmap}
+              loading={loading}
+              error={savingError ?? error}
+              canEdit={canEdit}
+              locked={effectiveLocked}
+              lockedReason={effectiveLockedReason}
+              isBillingLoading={isBillingLoading}
+              onRequestSubscribe={handleRequestSubscribe}
+              onOpenSlot={handleOpenSlot}
+              onCreateSlot={handleCreateSlot}
+            />
+          </div>
         </div>
       </div>
-    </main>
+
+      {/* Modal de Slot */}
+      <PlannerSlotModal
+        open={isModalOpen}
+        onClose={handleCloseSlot}
+        userId={session?.user?.id || ''}
+        weekStartISO={weekStartISO}
+        slot={toPlannerSlotData(selectedSlot)}
+        onSave={handleSave}
+        onDuplicateSlot={handleDuplicate}
+        onDeleteSlot={handleDelete}
+        readOnly={!canEdit}
+        canGenerate={canEdit}
+        onUpgradeRequest={handleRequestSubscribe}
+        upgradeMessage="Finalize a configuração necessária para gerar roteiros com IA."
+      />
+    </div>
   );
 }

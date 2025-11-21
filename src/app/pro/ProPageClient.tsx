@@ -39,11 +39,11 @@ type ProPageClientProps = {
 };
 
 const HERO_COPY = {
-  title: "Feche campanhas e planeje com a IA da D2C.",
+  title: "Posicione seu conteúdo para atrair marcas com IA.",
   subtitle:
-    "Planner Agência, discovery da comunidade, mentorias VIP e oportunidades sem exclusividade em um só lugar.",
+    "Plano Agência: estratégia guiada, IA no WhatsApp e mentorias semanais para você negociar direto com as marcas.",
   helper:
-    "Agências tradicionais ficam com 10%–30% da publicidade; aqui você paga só a assinatura, mantém 100% dos cachês e segue sem exclusividade.",
+    "Você segue dono do relacionamento; as marcas chegam a você. Só assinatura fixa, 0% de comissão nas publis.",
 };
 
 const BENEFITS = [
@@ -53,8 +53,8 @@ const BENEFITS = [
     icon: <Sparkles className="h-5 w-5 text-brand-magenta" />,
   },
   {
-    title: "Campanhas sem exclusividade",
-    description: "Receba oportunidades de publicidade, responda com IA e conduza como um agenciado sem contrato.",
+    title: "Campanhas inbound",
+    description: "Inbox direto no seu nome: as marcas chegam, você responde com IA e conduz a negociação.",
     icon: <Mail className="h-5 w-5 text-brand-magenta" />,
   },
   {
@@ -64,12 +64,12 @@ const BENEFITS = [
   },
   {
     title: "Planejamento Agência",
-    description: "Descoberta da comunidade, slots com IA e alertas no WhatsApp para executar com foco.",
+    description: "Slots guiados por IA, alertas no WhatsApp e referências da comunidade para subir sua autoridade.",
     icon: <Calendar className="h-5 w-5 text-brand-magenta" />,
   },
   {
     title: "Mentorias + WhatsApp IA",
-    description: "Mentorias semanais do Grupo VIP e nudges diários personalizados direto no seu WhatsApp.",
+    description: "Mentoria estratégica semanal + IA 24/7 no WhatsApp para alinhar posicionamento e constância.",
     icon: <MessageCircle className="h-5 w-5 text-brand-magenta" />,
   },
   {
@@ -86,6 +86,7 @@ const COMPARISON = [
   { feature: "Planejamento Agência (Descoberta/Planner/WhatsApp IA)", free: false, pro: true },
   { feature: "Mentorias semanais e nudges personalizados", free: false, pro: true },
   { feature: "Oportunidades de campanha sem exclusividade", free: false, pro: true },
+  { feature: "Posicionamento para atrair marcas (IA + mentoria)", free: false, pro: true },
   { feature: "0% de comissão sobre publis (só assinatura)", free: false, pro: true },
 ];
 
@@ -110,6 +111,26 @@ const FAQS = [
     answer:
       "Você escolhe mensal ou anual. As cobranças são feitas pelo Stripe com nota fiscal emitida e recibos enviados por e-mail.",
   },
+  {
+    question: "Preciso dar exclusividade ou pagar comissão?",
+    answer:
+      "Não. O Plano Agência é por assinatura fixa: você mantém 100% dos cachês e negocia direto com as marcas, sem exclusividade.",
+  },
+  {
+    question: "O que entra nas mentorias semanais?",
+    answer:
+      "Ajustes de posicionamento, pitch, pricing e revisão de deals. É um espaço para dúvidas táticas e acompanhamento contínuo.",
+  },
+  {
+    question: "O WhatsApp IA depende de integrar o Instagram?",
+    answer:
+      "Recomendamos conectar o Instagram para diagnósticos mais precisos. Sem a conexão, a IA funciona com menos contexto sobre seu perfil.",
+  },
+  {
+    question: "Posso trocar o período (mensal/anual) depois?",
+    answer:
+      "Sim. Você pode mudar o período na gestão de assinatura. A alteração passa a valer no próximo ciclo de cobrança.",
+  },
 ];
 
 const UNLOCKED_SURFACES = [
@@ -126,7 +147,7 @@ const UNLOCKED_SURFACES = [
   },
   {
     title: "Inbox de oportunidades",
-    description: "Receba campanhas como um agenciado, responda com IA e mantenha sua autonomia.",
+    description: "Marcas chegam direto para você; responda com IA e mantenha autonomia total.",
     href: "/campaigns",
   },
 ];
@@ -422,61 +443,57 @@ export default function ProPageClient({
           </div>
         </section>
 
+        {!hasProAccess && (
         <section className="grid gap-8 md:grid-cols-5 md:items-center" id="pricing">
           <div className="md:col-span-2 space-y-3">
             <h2 className="text-2xl font-bold text-slate-900">Escolha como quer assinar</h2>
             <p className="text-sm text-slate-600">
-              Transparência total: você decide mensal ou anual, com economia para quem fica mais
-              tempo.
+              Defina período e moeda. Annual traz economia; mensal mantém flexibilidade.
             </p>
             {pricesError && (
               <p className="text-sm font-semibold text-red-600">{pricesError}</p>
             )}
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handlePeriodToggle("monthly")}
-                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
-                  period === "monthly"
-                    ? "border-pink-500 bg-pink-50 text-pink-700"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                }`}
-              >
-                Plano mensal
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePeriodToggle("annual")}
-                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
-                  period === "annual"
-                    ? "border-pink-500 bg-pink-50 text-pink-700"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                }`}
-              >
-                Plano anual {savingsPct > 0 && <span className="text-xs text-emerald-600">–{savingsPct}%</span>}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCurrencyToggle("brl")}
-                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
-                  currency === "brl"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                }`}
-              >
-                BRL
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCurrencyToggle("usd")}
-                className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
-                  currency === "usd"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                }`}
-              >
-                USD
-              </button>
+              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1">
+                <button
+                  type="button"
+                  onClick={() => handlePeriodToggle("monthly")}
+                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
+                    period === "monthly" ? "bg-pink-50 text-pink-700" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Mensal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePeriodToggle("annual")}
+                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
+                    period === "annual" ? "bg-pink-50 text-pink-700" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Anual {savingsPct > 0 && <span className="text-xs text-emerald-600">–{savingsPct}%</span>}
+                </button>
+              </div>
+              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1">
+                <button
+                  type="button"
+                  onClick={() => handleCurrencyToggle("brl")}
+                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
+                    currency === "brl" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  BRL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCurrencyToggle("usd")}
+                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
+                    currency === "usd" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  USD
+                </button>
+              </div>
             </div>
           </div>
           <div className="md:col-span-3">
@@ -503,13 +520,21 @@ export default function ProPageClient({
                       mês.
                     </p>
                   )}
-                <ul className="space-y-2 text-sm text-slate-600">
-                  <li className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                    Acesso imediato ao Planner, WhatsApp IA e discovery da comunidade.
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                  <ul className="space-y-2 text-sm text-slate-600">
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      Acesso imediato ao Planner, WhatsApp IA e discovery da comunidade.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      Mentorias semanais do Grupo VIP para ajustar conteúdo, pricing e pitch.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      Inbox de oportunidades e respostas com IA para negociar direto com as marcas.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
                       Cancelamento simples direto no app.
                     </li>
                     <li className="flex items-start gap-2">
@@ -526,13 +551,14 @@ export default function ProPageClient({
             </div>
           </div>
         </section>
+        )}
 
         <section className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-inner">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <p className="text-sm font-semibold text-slate-700">Que telas eu libero com o Plano Agência?</p>
               <p className="text-sm text-slate-500">
-                Você ganha acesso completo ao planner com IA, à descoberta da comunidade e à caixa de oportunidades dentro da plataforma.
+                Planejamento com IA, descoberta da comunidade e inbox de oportunidades — tudo pronto para você negociar direto.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -540,6 +566,8 @@ export default function ProPageClient({
                 { label: "Ver planner", href: "/dashboard/planning" },
                 { label: "Ver discovery", href: "/dashboard/discover" },
                 { label: "Campanhas", href: "/campaigns" },
+                { label: "Calculadora de Publi", href: "/dashboard/calculator" },
+                { label: "Chat IA", href: "/dashboard/chat" },
               ].map((link) => (
                 <Link
                   key={link.label}

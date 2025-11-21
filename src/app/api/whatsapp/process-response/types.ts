@@ -70,4 +70,5 @@ export interface EnrichedAIContext {
   dialogueState?: IDialogueState;
   userName: string;
   currentAlertDetails?: AlertDetails;
+  channel?: 'web' | 'whatsapp';
 }

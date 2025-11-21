@@ -1,5 +1,5 @@
 import React from "react";
-import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard } from "react-icons/fa";
+import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard, FaComments } from "react-icons/fa";
 import { Compass as CompassIcon, Calculator, Megaphone, Crown } from "lucide-react";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
@@ -66,6 +66,15 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
     title: navigationLabels.planning.menu,
     description: navigationLabels.planning.tooltip,
     items: [
+      {
+        type: "item",
+        key: "planning.chat",
+        label: navigationLabels.planningChat.menu,
+        tooltip: navigationLabels.planningChat.tooltip,
+        href: "/planning/chat",
+        icon: <FaComments className="h-5 w-5" />,
+        paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
+      },
       {
         type: "item",
         key: "planning.calendar",

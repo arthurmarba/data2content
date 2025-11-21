@@ -24,17 +24,17 @@ export default function DiscoverExplorerSection({ sections, primaryKey }: Discov
 
   return (
     <section aria-labelledby={headingId} className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-6">
+      <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-6">
         <header className="space-y-1 text-left">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Explorar ideias por formato</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Explorar ideias</p>
           <h2 id={headingId} className="text-lg font-semibold text-slate-900 sm:text-xl">
-            Explore o que está performando em cada tipo de ideia
+            Filtre e veja só o que importa
           </h2>
           <p className="text-xs text-slate-500">
-            Use os filtros para navegar rapidamente por formatos, propostas e contextos. A IA já selecionou os destaques mais recentes para você.
+            Combine formatos, propostas e contextos antes de aplicar para carregar um feed mais enxuto.
           </p>
         </header>
-        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 sm:px-4">
+        <div className="mt-4">
           <DiscoverChips />
         </div>
       </div>

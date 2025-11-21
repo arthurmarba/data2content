@@ -22,6 +22,9 @@ import {
   FaRobot,
   FaShieldAlt,
   FaUsers,
+  FaLock,
+  FaExternalLinkAlt,
+  FaGlobe,
   FaWhatsapp,
   FaTimes,
 } from "react-icons/fa";
@@ -122,8 +125,8 @@ const JOURNEY_STEP_COPY: Record<
   },
   activate_pro: {
     stepHelper:
-      "Ative o Plano Agência para receber propostas de publicidade, mentorias semanais e IA estrategista no WhatsApp.",
-    ctaLabel: "Ativar Plano Agência agora",
+      "Posicione seu conteúdo para atrair marcas: IA no WhatsApp 24/7 + mentoria semanal para fechar campanhas sem exclusividade.",
+    ctaLabel: "Ativar Plano Agência",
   },
 };
 
@@ -171,6 +174,7 @@ export default function HomeClientPage() {
   const searchParams = useSearchParams();
 
   const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
+  const [isHydrated, setIsHydrated] = React.useState(false);
   const onboardingCompletionRequested = React.useRef(false);
   const isNewUser = Boolean(session?.user?.isNewUserForOnboarding);
   const focusIntent = searchParams?.get("intent")?.toLowerCase() ?? null;
@@ -251,6 +255,10 @@ export default function HomeClientPage() {
     },
     [sessionUserId, trackDashboardCta]
   );
+
+  React.useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   React.useEffect(() => {
     if (dashboardMinimal) {
@@ -405,7 +413,8 @@ export default function HomeClientPage() {
   const defaultCommunityFreeUrl =
     process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/planning/discover";
   const defaultCommunityVipUrl =
-    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? defaultCommunityFreeUrl;
+    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ??
+    "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
   const communityFreeMember = summary?.community?.free?.isMember ?? false;
   const communityFreeInviteUrl =
     summary?.community?.free?.inviteUrl ?? defaultCommunityFreeUrl;
@@ -423,6 +432,8 @@ export default function HomeClientPage() {
     !whatsappTrialActive && whatsappTrialStarted && !whatsappTrialEligible && !planIsPro;
   const iaEngaged = whatsappLinked || whatsappTrialActive || whatsappTrialStarted || planIsPro;
   const hasPremiumAccessPlan = summary?.plan?.hasPremiumAccess ?? false;
+  const canAccessVipCommunity =
+    hasPremiumAccessPlan && communityVipHasAccess && Boolean(communityVipInviteUrl);
   const planTrialActive = summary?.plan?.trial?.active ?? false;
   const planTrialEligible = summary?.plan?.trial?.eligible ?? false;
   const planTrialStarted = summary?.plan?.trial?.started ?? false;
@@ -550,17 +561,12 @@ export default function HomeClientPage() {
     (origin?: unknown) => {
       const originLabel = typeof origin === "string" ? origin : "default";
       trackCardAction("connect_prompt", "explore_community", { origin: originLabel });
-      const targetUrl =
-        isSubscriberPlan && communityVipInviteUrl
-          ? communityVipInviteUrl
-          : communityFreeInviteUrl;
-      handleNavigate(targetUrl);
+      if (!communityFreeInviteUrl) return;
+      handleNavigate(communityFreeInviteUrl);
     },
     [
       communityFreeInviteUrl,
-      communityVipInviteUrl,
       handleNavigate,
-      isSubscriberPlan,
       trackCardAction,
     ]
   );
@@ -672,7 +678,7 @@ export default function HomeClientPage() {
     );
   }, [headerPill]);
 
-  const headerSetupConfig = React.useMemo( () => {
+  const headerSetupConfig = React.useMemo(() => {
     if (dashboardMinimal) {
       return {
         cta: null,
@@ -735,8 +741,8 @@ export default function HomeClientPage() {
     const ctaLabel = !isInstagramConnected
       ? "Conectar Instagram"
       : isFreePlan
-      ? trialLabel
-      : microInsight?.ctaLabel ?? "Ver detalhes";
+        ? trialLabel
+        : microInsight?.ctaLabel ?? "Ver detalhes";
     const telemetryPayload = {
       cta_label: ctaLabel,
       highlight,
@@ -778,8 +784,21 @@ export default function HomeClientPage() {
   ]);
 
   const handleJoinVip = React.useCallback(() => {
-    handleNavigate(communityVipInviteUrl);
-  }, [communityVipInviteUrl, handleNavigate]);
+    if (!communityVipInviteUrl) return;
+    if (canAccessVipCommunity) {
+      trackCardAction("mentorship", "vip_click", { surface: "mentorship_strip", access: "allowed" });
+      handleNavigate(communityVipInviteUrl);
+      return;
+    }
+    trackCardAction("mentorship", "vip_locked", { surface: "mentorship_strip", access: "blocked" });
+    openSubscribeModal("default", { source: "mentorship_strip", returnTo: "/dashboard/home" });
+  }, [canAccessVipCommunity, communityVipInviteUrl, handleNavigate, openSubscribeModal, trackCardAction]);
+
+  const handleOpenFreeCommunity = React.useCallback(() => {
+    if (!communityFreeInviteUrl) return;
+    trackCardAction("mentorship", "free_click", { surface: "mentorship_strip" });
+    handleNavigate(communityFreeInviteUrl);
+  }, [communityFreeInviteUrl, handleNavigate, trackCardAction]);
 
   const whatsappBanner = React.useMemo(() => {
     const previewMessages = [
@@ -993,8 +1012,8 @@ export default function HomeClientPage() {
         actionLabel: communityVipMember
           ? "Mentoria ativa"
           : communityVipHasAccess
-          ? "Entrar no grupo VIP"
-          : "Abrir comunidade",
+            ? "Entrar no grupo VIP"
+            : "Abrir comunidade",
         action: () => {
           if (communityVipMember) {
             handleMentorshipAction("whatsapp_reminder");
@@ -1070,7 +1089,7 @@ export default function HomeClientPage() {
           throw new Error(`failed_${response.status}`);
         }
         trackSurfaceView("home_onboarding_completed", { reason: "auto_progress" });
-        await update?.({ isNewUserForOnboarding: false }).catch(() => {});
+        await update?.({ isNewUserForOnboarding: false }).catch(() => { });
       } catch {
         if (!cancelled) {
           onboardingCompletionRequested.current = false;
@@ -1087,7 +1106,7 @@ export default function HomeClientPage() {
     !planIsPro &&
     (whatsappTrialActive || (!trialExpired && whatsappTrialStarted && whatsappTrialEligible));
   const showProUpsellCard = !planIsPro && trialExpired;
-  const showMentorshipStrip = hasPremiumAccessPlan && communityVipHasAccess && Boolean(communityVipInviteUrl);
+  const showMentorshipStrip = isHydrated && Boolean(communityVipInviteUrl || communityFreeInviteUrl);
 
 
   const headerStats = React.useMemo(() => {
@@ -1237,10 +1256,10 @@ export default function HomeClientPage() {
     const plannerMetric = !isInstagramConnected
       ? "Conexão somente leitura em segundos."
       : nextSlotLabel
-      ? `Próximo horário sugerido: ${nextSlotLabel}`
-      : weeklyGoal > 0
-      ? `Progresso da semana: ${Math.min(postsSoFar, weeklyGoal)}/${weeklyGoal} posts`
-      : "Defina uma meta semanal e eu gero os horários ideais.";
+        ? `Próximo horário sugerido: ${nextSlotLabel}`
+        : weeklyGoal > 0
+          ? `Progresso da semana: ${Math.min(postsSoFar, weeklyGoal)}/${weeklyGoal} posts`
+          : "Defina uma meta semanal e eu gero os horários ideais.";
     const plannerActionLabel = isInstagramConnected ? "Gerar horários com IA" : "Conectar Instagram";
     const plannerLocked = planningGroupLocked && !(hasPremiumAccessPlan || planTrialActive);
 
@@ -1251,10 +1270,10 @@ export default function HomeClientPage() {
     const communityStatus = communityVipMember
       ? "Mentorias VIP ativas."
       : communityVipHasAccess
-      ? "Grupo VIP liberado para você."
-      : communityFreeMember
-      ? "Você já está na comunidade."
-      : "Acesso gratuito e leve.";
+        ? "Grupo VIP liberado para você."
+        : communityFreeMember
+          ? "Você já está na comunidade."
+          : "Acesso gratuito e leve.";
 
     const cards = [
       {
@@ -1264,8 +1283,8 @@ export default function HomeClientPage() {
         description: plannerLocked
           ? "Assine o Plano Agência para liberar horários automáticos e roteiros com IA."
           : isInstagramConnected
-          ? "Gere horários personalizados e receba roteiros prontos."
-          : "Conecte o Instagram e destrave horários com IA.",
+            ? "Gere horários personalizados e receba roteiros prontos."
+            : "Conecte o Instagram e destrave horários com IA.",
         status: plannerLocked ? "Recurso exclusivo Plano Agência" : plannerMetric,
         actionLabel: plannerLocked ? "Assinar Plano Agência" : plannerActionLabel,
         onAction: () => {
@@ -1303,24 +1322,30 @@ export default function HomeClientPage() {
           : "Entre para trocar bastidores com criadores Data2Content.",
         status: communityStatus,
         actionLabel: isSubscriberPlan
-          ? communityVipMember
+          ? canAccessVipCommunity
             ? "Abrir comunidade VIP"
-            : "Entrar na comunidade VIP"
+            : "Assinar para VIP"
           : communityFreeMember
-          ? "Abrir comunidade"
-          : "Entrar na comunidade",
-        onAction: () => handleJoinFreeCommunity("tool_card"),
+            ? "Abrir comunidade"
+            : "Entrar na comunidade",
+        onAction:
+          isSubscriberPlan && communityVipInviteUrl
+            ? handleJoinVip
+            : () => handleJoinFreeCommunity("tool_card"),
       });
     }
 
     return cards;
   }, [
+    canAccessVipCommunity,
     communityFreeMember,
     communityOnHome,
     communityVipHasAccess,
     communityVipMember,
+    communityVipInviteUrl,
     handleConsistencyAction,
     handleJoinFreeCommunity,
+    handleJoinVip,
     handleMediaKitAction,
     handleNextPostAction,
     hasMediaKit,
@@ -1489,24 +1514,48 @@ export default function HomeClientPage() {
     });
 
     list.push({
-      id: "planner",
-      title: "Planejamento Plano Agência",
-      description: "Organize horários com IA",
-      icon: <FaPuzzlePiece className="h-5 w-5" aria-hidden />,
+      id: "calendar",
+      title: "Calendário",
+      description: "Agende e organize seus posts",
+      icon: <FaCalendarAlt className="h-5 w-5" aria-hidden />,
       badge: "Agência",
       locked: proLocked,
       cta: proLocked ? "activate" : "open",
       onClick: () => {
-        emitToolClick("planner", proLocked ? "paywall" : "open");
-        if (proLocked) {
-          openSubscribeModal("planning", { source: "home_creator_tools" });
-          return;
-        }
+        emitToolClick("calendar", proLocked ? "paywall" : "open");
         if (!isInstagramConnected) {
           handleNavigate("/dashboard/instagram/connect");
           return;
         }
         handleNavigate("/planning/planner");
+      },
+    });
+
+    list.push({
+      id: "discovery",
+      title: "Descoberta",
+      description: "Inspirações e tendências virais",
+      icon: <FaUsers className="h-5 w-5" aria-hidden />,
+      badge: "Agência",
+      locked: proLocked,
+      cta: proLocked ? "activate" : "open",
+      onClick: () => {
+        emitToolClick("discovery", proLocked ? "paywall" : "open");
+        handleNavigate("/planning/discover");
+      },
+    });
+
+    list.push({
+      id: "chat",
+      title: "Chat IA",
+      description: "Seu assistente de conteúdo",
+      icon: <FaRobot className="h-5 w-5" aria-hidden />,
+      badge: "Agência",
+      locked: proLocked,
+      cta: proLocked ? "activate" : "open",
+      onClick: () => {
+        emitToolClick("chat", proLocked ? "paywall" : "open");
+        handleNavigate("/dashboard/chat");
       },
     });
 
@@ -1616,25 +1665,48 @@ export default function HomeClientPage() {
     }
   }, [emitTutorialAction, handleCopyMediaKitLink, handleNavigate, hasPremiumAccessPlan, journeyProgress?.nextStepId, mediaKitShareIntentUrl, mediaKitShareUrl, openSubscribeModal, trackDashboardCta]);
 
-  const handleOpenMentorshipGroup = React.useCallback(() => {
-    if (!communityVipInviteUrl) return;
-    trackCardAction("mentorship", "enter_group", { surface: "mentorship_strip" });
-    handleNavigate(communityVipInviteUrl);
-  }, [communityVipInviteUrl, handleNavigate, trackCardAction]);
-
   const mentorshipStrip = showMentorshipStrip ? (
-    <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex sm:items-center sm:justify-between">
-      <p className="text-sm text-slate-700">
-        <span className="font-semibold text-slate-900">✨ Mentorias semanais exclusivas do Plano Agência.</span>{" "}
-        O botão abaixo abre o grupo VIP no WhatsApp com os links das consultorias ao vivo.
-      </p>
-      <button
-        type="button"
-        onClick={handleOpenMentorshipGroup}
-        className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-900 px-4 py-1.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-900 hover:text-white sm:mt-0"
-      >
-        Abrir grupo no WhatsApp
-      </button>
+    <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4">
+      <div className="space-y-1 text-sm text-slate-700">
+        <div className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
+          <span>✨ Mentorias semanais do Plano Agência</span>
+          {!canAccessVipCommunity ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+              <FaLock className="h-3 w-3" />
+              Assinantes
+            </span>
+          ) : null}
+        </div>
+        <p className="text-slate-600">
+          Consultorias ao vivo no grupo VIP de assinantes e comunidade gratuita para networking.
+        </p>
+      </div>
+      <div className="mt-3 flex flex-col gap-2 sm:mt-0 sm:flex-row sm:items-center">
+        {communityVipInviteUrl ? (
+          <button
+            type="button"
+            onClick={handleJoinVip}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            {canAccessVipCommunity ? "Abrir grupo VIP" : "Assinar para entrar"}
+            {!canAccessVipCommunity ? (
+              <FaLock className="h-4 w-4" />
+            ) : (
+              <FaExternalLinkAlt className="h-4 w-4" />
+            )}
+          </button>
+        ) : null}
+        {communityFreeInviteUrl ? (
+          <button
+            type="button"
+            onClick={handleOpenFreeCommunity}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 px-4 py-1.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+          >
+            Comunidade gratuita
+            <FaGlobe className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
     </div>
   ) : null;
 
@@ -1694,435 +1766,431 @@ export default function HomeClientPage() {
   return (
     <>
       <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-      {connectBanner}
-      {showWelcomeCard ? (
-        <div className="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50/95 px-5 py-5 text-emerald-900 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-600">
-                Bem-vindo à Data2Content
-              </p>
-              <p className="text-sm font-semibold">
-                Veja o que destrava seus diagnósticos: conecte o Instagram, ative a IA no WhatsApp,
-                entre na comunidade e escolha seu plano ideal.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={handleWelcomePrimary}
-                className="inline-flex items-center justify-center rounded-full bg-[#F6007B] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-              >
-                Ver primeiros passos
-              </button>
-              <button
-                type="button"
-                onClick={handleWelcomeDismiss}
-                className="inline-flex items-center justify-center rounded-full border border-emerald-200 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2"
-              >
-                Já entendi
-              </button>
+        {connectBanner}
+        {showWelcomeCard ? (
+          <div className="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50/95 px-5 py-5 text-emerald-900 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-600">
+                  Bem-vindo à Data2Content
+                </p>
+                <p className="text-sm font-semibold">
+                  Veja o que destrava seus diagnósticos: conecte o Instagram, ative a IA no WhatsApp,
+                  entre na comunidade e escolha seu plano ideal.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={handleWelcomePrimary}
+                  className="inline-flex items-center justify-center rounded-full bg-[#F6007B] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+                >
+                  Ver primeiros passos
+                </button>
+                <button
+                  type="button"
+                  onClick={handleWelcomeDismiss}
+                  className="inline-flex items-center justify-center rounded-full border border-emerald-200 px-5 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2"
+                >
+                  Já entendi
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
-      <section className="rounded-3xl border border-slate-200 bg-white/95 px-6 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl space-y-4 text-center lg:text-left">
-            <div className="space-y-2">
-              <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500 lg:justify-start">
-                {`Etapa ${journeyStageInfo.step} de ${journeyStageInfo.total} · ${journeyStageInfo.label}`}
-              </span>
-              <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-                <span aria-hidden="true">👋</span>{" "}
-                {isNewUser ? (
-                  <>
-                    Bem-vindo, <span className="text-[#F6007B]">{firstName}</span>!{" "}
-                    <span className="text-slate-900">Vamos dar os primeiros passos com IA.</span>
-                  </>
-                ) : (
-                  <>
-                    Oi, <span className="text-[#F6007B]">{firstName}</span>!{" "}
-                    <span className="text-slate-900">Sua carreira de criador com IA começa aqui.</span>
-                  </>
-                )}
-              </h1>
-              <p className="text-base text-slate-600 sm:text-lg">{heroMessaging.subtitle}</p>
-              {heroFeedbackMessage ? (
-                <p className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 lg:justify-start">
-                  {heroFeedbackMessage}
+        ) : null}
+        <section className="rounded-3xl border border-slate-200 bg-white/95 px-6 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl space-y-4 text-center lg:text-left">
+              <div className="space-y-2">
+                <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500 lg:justify-start">
+                  {`Etapa ${journeyStageInfo.step} de ${journeyStageInfo.total} · ${journeyStageInfo.label}`}
+                </span>
+                <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+                  <span aria-hidden="true">👋</span>{" "}
+                  {isNewUser ? (
+                    <>
+                      Bem-vindo, <span className="text-[#F6007B]">{firstName}</span>!{" "}
+                      <span className="text-slate-900">Vamos dar os primeiros passos com IA.</span>
+                    </>
+                  ) : (
+                    <>
+                      Oi, <span className="text-[#F6007B]">{firstName}</span>!{" "}
+                      <span className="text-slate-900">Sua carreira de criador com IA começa aqui.</span>
+                    </>
+                  )}
+                </h1>
+                <p className="text-base text-slate-600 sm:text-lg">{heroMessaging.subtitle}</p>
+                {heroFeedbackMessage ? (
+                  <p className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 lg:justify-start">
+                    {heroFeedbackMessage}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-col items-stretch justify-start gap-2 sm:inline-flex sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={heroMessaging.onClick}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2 sm:w-auto"
+                >
+                  {heroMessaging.ctaLabel}
+                </button>
+                {heroMessaging.helper ? (
+                  <span className="text-xs text-slate-500 sm:text-left">{heroMessaging.helper}</span>
+                ) : null}
+              </div>
+            </div>
+            {headerStats.length ? (
+              <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-lg">
+                {headerStats.map((stat) => (
+                  <div
+                    key={stat.key}
+                    className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-4 text-left shadow-sm"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      {stat.label}
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900">{stat.value}</p>
+                    {stat.helper ? (
+                      <p className="text-xs text-slate-500">{stat.helper}</p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
+        <section
+          id="home-progress-section"
+          className="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+                Etapa {journeyStageInfo.step} de {journeyStageInfo.total}
+              </p>
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                {progressHeading}
+              </h2>
+              {isNewUser ? (
+                <p className="mt-1 text-sm font-semibold text-slate-500">{progressDescription}</p>
+              ) : null}
+            </div>
+            <div className="text-left text-sm font-semibold text-slate-500 sm:text-right">
+              <p>{journeyStageInfo.label}</p>
+              {isNewUser ? (
+                <p className="text-xs text-slate-400">
+                  {progressCompletedCount}/{progressTotalCount} passos concluídos
                 </p>
               ) : null}
             </div>
-            <div className="flex flex-col items-stretch justify-start gap-2 sm:inline-flex sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={heroMessaging.onClick}
-                className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2 sm:w-auto"
-              >
-                {heroMessaging.ctaLabel}
-              </button>
-              {heroMessaging.helper ? (
-                <span className="text-xs text-slate-500 sm:text-left">{heroMessaging.helper}</span>
-              ) : null}
-            </div>
           </div>
-          {headerStats.length ? (
-            <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-lg">
-              {headerStats.map((stat) => (
-                <div
-                  key={stat.key}
-                  className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-4 text-left shadow-sm"
+          <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-[#F6007B] transition-[width]"
+              style={{ width: `${stageProgressPercent}%` }}
+            />
+          </div>
+          <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
+            <span>
+              {progressCompletedCount}/{progressTotalCount} etapas concluídas
+            </span>
+            <span>{stageProgressPercent}% da jornada</span>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {progressItems.map((item) => {
+              const statusEmoji = STEP_STATUS_ICONS[item.status];
+              const statusLabel = STEP_STATUS_LABELS[item.status];
+              const disabled = item.disabled || item.status === "loading";
+              const isHighlighted = highlightedJourneyId === item.id;
+              const cardClassName = [
+                "flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2",
+                isHighlighted
+                  ? "border-[#F6007B]/50 bg-white shadow-[0_22px_48px_rgba(246,0,123,0.12)] ring-2 ring-[#F6007B]/20"
+                  : "border-slate-100 bg-slate-50",
+                disabled
+                  ? "cursor-not-allowed opacity-60"
+                  : "hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)]",
+              ].join(" ");
+              return (
+                <button
+                  key={`${item.id}-summary`}
+                  type="button"
+                  onClick={() => {
+                    if (disabled) return;
+                    item.action();
+                  }}
+                  disabled={disabled}
+                  className={cardClassName}
+                  data-highlight={isHighlighted ? "true" : undefined}
                 >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    {stat.label}
-                  </p>
-                  <p className="text-lg font-semibold text-slate-900">{stat.value}</p>
-                  {stat.helper ? (
-                    <p className="text-xs text-slate-500">{stat.helper}</p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </section>
-      <section
-        id="home-progress-section"
-        className="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm"
-      >
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
-              Etapa {journeyStageInfo.step} de {journeyStageInfo.total}
-            </p>
-            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
-              {progressHeading}
-            </h2>
-            {isNewUser ? (
-              <p className="mt-1 text-sm font-semibold text-slate-500">{progressDescription}</p>
-            ) : null}
-          </div>
-          <div className="text-left text-sm font-semibold text-slate-500 sm:text-right">
-            <p>{journeyStageInfo.label}</p>
-            {isNewUser ? (
-              <p className="text-xs text-slate-400">
-                {progressCompletedCount}/{progressTotalCount} passos concluídos
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
-          <div
-            className="h-full rounded-full bg-[#F6007B] transition-[width]"
-            style={{ width: `${stageProgressPercent}%` }}
-          />
-        </div>
-        <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
-          <span>
-            {progressCompletedCount}/{progressTotalCount} etapas concluídas
-          </span>
-          <span>{stageProgressPercent}% da jornada</span>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {progressItems.map((item) => {
-            const statusEmoji = STEP_STATUS_ICONS[item.status];
-            const statusLabel = STEP_STATUS_LABELS[item.status];
-            const disabled = item.disabled || item.status === "loading";
-            const isHighlighted = highlightedJourneyId === item.id;
-            const cardClassName = [
-              "flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2",
-              isHighlighted
-                ? "border-[#F6007B]/50 bg-white shadow-[0_22px_48px_rgba(246,0,123,0.12)] ring-2 ring-[#F6007B]/20"
-                : "border-slate-100 bg-slate-50",
-              disabled
-                ? "cursor-not-allowed opacity-60"
-                : "hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)]",
-            ].join(" ");
-            return (
-              <button
-                key={`${item.id}-summary`}
-                type="button"
-                onClick={() => {
-                  if (disabled) return;
-                  item.action();
-                }}
-                disabled={disabled}
-                className={cardClassName}
-                data-highlight={isHighlighted ? "true" : undefined}
-              >
-                <span className="text-xl" aria-hidden="true">
-                  {statusEmoji}
-                </span>
-                <div className="space-y-0.5">
-                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    {statusLabel}
-                  </p>
-                  <p className="text-xs text-slate-500">{item.description}</p>
-                  <span
-                    className={`mt-1 inline-flex items-center gap-1 text-[11px] font-semibold ${
-                      disabled ? "text-slate-400" : "text-[#F6007B]"
-                    }`}
-                  >
-                    {item.actionLabel}
-                    {!disabled ? (
-                      <FaChevronDown className="-rotate-90" aria-hidden="true" />
-                    ) : null}
+                  <span className="text-xl" aria-hidden="true">
+                    {statusEmoji}
                   </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-
-      <section className="mt-6 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6 shadow-sm">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">IA no WhatsApp</h2>
-              <p className="text-sm text-slate-600">
-                {whatsappBanner.subheading} {whatsappBanner.description}
-              </p>
-            </div>
-            <ul className="space-y-2 text-sm text-slate-700">
-              {whatsappBanner.bullets.map((item) => (
-                <li key={item.text} className="flex items-start gap-2">
-                  <span aria-hidden="true">{item.icon}</span>
-                  <span>{item.text}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="space-y-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm text-slate-600 shadow-sm">
-              <p className="flex items-center gap-2">
-                <span aria-hidden="true">💬</span>
-                Mobi envia alertas quando surge um pico de engajamento no seu perfil.
-              </p>
-              <p className="flex items-center gap-2">
-                <span aria-hidden="true">🕓</span>
-                Conexão segura em menos de 30 segundos.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
-              <p className="text-xs text-slate-600">{whatsappBanner.calloutSubtitle}</p>
-              <ActionButton
-                label={whatsappBanner.primary.label}
-                icon={whatsappBanner.primary.icon}
-                variant={whatsappBanner.primary.variant}
-                onClick={() => {
-                  trackHeroAction(whatsappBanner.primary.trackingKey, {
-                    stage: heroStage,
-                    whatsapp_linked: whatsappLinked,
-                    plan_is_pro: planIsPro,
-                    community_free_member: communityFreeMember,
-                    community_vip_member: communityVipMember,
-                  });
-                  whatsappBanner.primary.onClick();
-                }}
-                disabled={isInitialLoading}
-                className={[
-                  "w-full justify-center rounded-full px-6 py-3 text-sm font-semibold sm:w-auto",
-                  whatsappBanner.primary.className ?? null,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              />
-              {whatsappBanner.footnote ? (
-                <p className="text-xs text-slate-500">{whatsappBanner.footnote}</p>
-              ) : null}
-            </div>
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {statusLabel}
+                    </p>
+                    <p className="text-xs text-slate-500">{item.description}</p>
+                    <span
+                      className={`mt-1 inline-flex items-center gap-1 text-[11px] font-semibold ${disabled ? "text-slate-400" : "text-[#F6007B]"
+                        }`}
+                    >
+                      {item.actionLabel}
+                      {!disabled ? (
+                        <FaChevronDown className="-rotate-90" aria-hidden="true" />
+                      ) : null}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-          <div className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_20px_55px_rgba(15,23,42,0.12)] backdrop-blur-sm">
-            <div className="flex flex-col gap-5">
-              <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6007B]/10 text-[#F6007B]">
-                  <FaRobot className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Prévia do chat com a IA</p>
-                  <p className="text-xs text-slate-500">Veja como os alertas chegam pra você</p>
-                </div>
+        </section>
+
+
+        <section className="mt-6 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6 shadow-sm">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">IA no WhatsApp</h2>
+                <p className="text-sm text-slate-600">
+                  {whatsappBanner.subheading} {whatsappBanner.description}
+                </p>
               </div>
-              <div className="space-y-3">
-                {whatsappBanner.previewMessages.slice(0, 3).map((message, index) => (
-                  <div key={message} className="flex items-start gap-2">
+              <ul className="space-y-2 text-sm text-slate-700">
+                {whatsappBanner.bullets.map((item) => (
+                  <li key={item.text} className="flex items-start gap-2">
+                    <span aria-hidden="true">{item.icon}</span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="space-y-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm text-slate-600 shadow-sm">
+                <p className="flex items-center gap-2">
+                  <span aria-hidden="true">💬</span>
+                  Mobi envia alertas quando surge um pico de engajamento no seu perfil.
+                </p>
+                <p className="flex items-center gap-2">
+                  <span aria-hidden="true">🕓</span>
+                  Conexão segura em menos de 30 segundos.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
+                <p className="text-xs text-slate-600">{whatsappBanner.calloutSubtitle}</p>
+                <ActionButton
+                  label={whatsappBanner.primary.label}
+                  icon={whatsappBanner.primary.icon}
+                  variant={whatsappBanner.primary.variant}
+                  onClick={() => {
+                    trackHeroAction(whatsappBanner.primary.trackingKey, {
+                      stage: heroStage,
+                      whatsapp_linked: whatsappLinked,
+                      plan_is_pro: planIsPro,
+                      community_free_member: communityFreeMember,
+                      community_vip_member: communityVipMember,
+                    });
+                    whatsappBanner.primary.onClick();
+                  }}
+                  disabled={isInitialLoading}
+                  className={[
+                    "w-full justify-center rounded-full px-6 py-3 text-sm font-semibold sm:w-auto",
+                    whatsappBanner.primary.className ?? null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                />
+                {whatsappBanner.footnote ? (
+                  <p className="text-xs text-slate-500">{whatsappBanner.footnote}</p>
+                ) : null}
+              </div>
+            </div>
+            <div className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_20px_55px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+              <div className="flex flex-col gap-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6007B]/10 text-[#F6007B]">
+                    <FaRobot className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Prévia do chat com a IA</p>
+                    <p className="text-xs text-slate-500">Veja como os alertas chegam pra você</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {whatsappBanner.previewMessages.slice(0, 3).map((message, index) => (
+                    <div key={message} className="flex items-start gap-2">
+                      <span aria-hidden="true" className="mt-1 text-[#F6007B]">
+                        🤖
+                      </span>
+                      <div
+                        className={`max-w-[240px] rounded-2xl px-4 py-2 text-[13px] leading-relaxed shadow-sm ${index % 2 === 0 ? "bg-white text-slate-700" : "bg-slate-50 text-slate-700"
+                          }`}
+                      >
+                        {message}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-start gap-2 text-slate-400">
                     <span aria-hidden="true" className="mt-1 text-[#F6007B]">
                       🤖
                     </span>
-                    <div
-                      className={`max-w-[240px] rounded-2xl px-4 py-2 text-[13px] leading-relaxed shadow-sm ${
-                        index % 2 === 0 ? "bg-white text-slate-700" : "bg-slate-50 text-slate-700"
-                      }`}
-                    >
-                      {message}
+                    <div className="flex items-center gap-1 rounded-2xl bg-slate-50 px-4 py-2 text-[13px]">
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B]" />
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:120ms]" />
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:240ms]" />
                     </div>
                   </div>
-                ))}
-                <div className="flex items-start gap-2 text-slate-400">
-                  <span aria-hidden="true" className="mt-1 text-[#F6007B]">
-                    🤖
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <section className="mt-6 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ferramentas do criador</h2>
+            <p className="text-sm text-slate-500">
+              Aja quando quiser: planner, kit de mídia e comunidade em um só lugar.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {toolCards.map((card) => (
+              <div
+                key={card.key}
+                className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B]">
+                    {card.icon}
                   </span>
-                  <div className="flex items-center gap-1 rounded-2xl bg-slate-50 px-4 py-2 text-[13px]">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:120ms]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:240ms]" />
+                  <div className="space-y-1">
+                    <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+                    <p className="text-sm text-slate-600">{card.description}</p>
                   </div>
                 </div>
+                <p className="text-xs font-semibold text-slate-500">{card.status}</p>
+                <button
+                  type="button"
+                  onClick={card.onAction}
+                  className="inline-flex items-center justify-center rounded-full bg-[#F6007B] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+                >
+                  {card.actionLabel}
+                </button>
               </div>
-            </div>
+            ))}
           </div>
-        </div>
-      </section>
-
-
-      <section className="mt-6 space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ferramentas do criador</h2>
-          <p className="text-sm text-slate-500">
-            Aja quando quiser: planner, kit de mídia e comunidade em um só lugar.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {toolCards.map((card) => (
-            <div
-              key={card.key}
-              className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm"
-            >
-              <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B]">
-                  {card.icon}
-                </span>
-                <div className="space-y-1">
-                  <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
-                  <p className="text-sm text-slate-600">{card.description}</p>
-                </div>
+        </section>
+        {microInsightCard ? (
+          <section className="mt-8">
+            <div className="rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
+                <FaMagic className="h-3.5 w-3.5 text-[#F6007B]" aria-hidden />
+                Micro-insight da semana
               </div>
-              <p className="text-xs font-semibold text-slate-500">{card.status}</p>
-              <button
-                type="button"
-                onClick={card.onAction}
-                className="inline-flex items-center justify-center rounded-full bg-[#F6007B] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-              >
-                {card.actionLabel}
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
-      {microInsightCard ? (
-        <section className="mt-8">
-          <div className="rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
-              <FaMagic className="h-3.5 w-3.5 text-[#F6007B]" aria-hidden />
-              Micro-insight da semana
-            </div>
-            <div className="mt-3 space-y-2">
-              <p className="text-base leading-relaxed text-slate-900">{microInsightCard.message}</p>
-              {microInsightCard.impactLabel ? (
-                <p className="text-sm font-semibold text-emerald-600">{microInsightCard.impactLabel}</p>
-              ) : null}
-              {microInsightCard.contextLabel ? (
-                <p className="text-xs text-slate-500">{microInsightCard.contextLabel}</p>
-              ) : null}
-              {microInsightCard.teaser ? (
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                    Peek de valor
-                  </span>
-                  <span
-                    className={`rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm ${
-                      microInsightCard.teaser.blurred ? "filter blur-[2px]" : ""
-                    }`}
-                  >
-                    {microInsightCard.teaser.label}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-            {microInsightCard.ctaLabel || microInsightCard.footnote ? (
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                {microInsightCard.ctaLabel ? (
-                  <button
-                    type="button"
-                    onClick={handleMicroInsightAction}
-                    className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                      microInsightCard.variant === "primary"
+              <div className="mt-3 space-y-2">
+                <p className="text-base leading-relaxed text-slate-900">{microInsightCard.message}</p>
+                {microInsightCard.impactLabel ? (
+                  <p className="text-sm font-semibold text-emerald-600">{microInsightCard.impactLabel}</p>
+                ) : null}
+                {microInsightCard.contextLabel ? (
+                  <p className="text-xs text-slate-500">{microInsightCard.contextLabel}</p>
+                ) : null}
+                {microInsightCard.teaser ? (
+                  <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                      Peek de valor
+                    </span>
+                    <span
+                      className={`rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm ${microInsightCard.teaser.blurred ? "filter blur-[2px]" : ""
+                        }`}
+                    >
+                      {microInsightCard.teaser.label}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+              {microInsightCard.ctaLabel || microInsightCard.footnote ? (
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  {microInsightCard.ctaLabel ? (
+                    <button
+                      type="button"
+                      onClick={handleMicroInsightAction}
+                      className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${microInsightCard.variant === "primary"
                         ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f] focus-visible:ring-[#F6007B]/40"
                         : "border border-slate-300 text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300"
-                    }`}
-                  >
-                    {microInsightCard.ctaLabel}
-                  </button>
-                ) : null}
-                {microInsightCard.footnote ? (
-                  <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                    <FaShieldAlt className="h-3 w-3" aria-hidden />
-                    {microInsightCard.footnote}
-                  </span>
-                ) : null}
+                        }`}
+                    >
+                      {microInsightCard.ctaLabel}
+                    </button>
+                  ) : null}
+                  {microInsightCard.footnote ? (
+                    <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                      <FaShieldAlt className="h-3 w-3" aria-hidden />
+                      {microInsightCard.footnote}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {showTrialMessageCard ? (
+          <section className="mt-10 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                  Teste gratuito da IA em andamento
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Aproveite os próximos {planTrialCountdownLabel ?? "dois dias"} para planejar a semana, pedir ideias e
+                  confirmar horários com a IA.
+                </p>
               </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+              <div className="flex w-full flex-col gap-2 sm:max-w-xs">
+                <button
+                  type="button"
+                  onClick={handleOpenWhatsApp}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+                >
+                  Ver alertas da IA
+                </button>
+                <span className="text-center text-xs text-slate-500">
+                  Mobi envia lembretes sempre que surge um pico de engajamento.
+                </span>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
-      {showTrialMessageCard ? (
-        <section className="mt-10 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
-                Teste gratuito da IA em andamento
-              </h2>
-              <p className="text-sm text-slate-600">
-                Aproveite os próximos {planTrialCountdownLabel ?? "dois dias"} para planejar a semana, pedir ideias e
-                confirmar horários com a IA.
-              </p>
+        {showProUpsellCard ? (
+          <section className="mt-10 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF1F8] via-white to-white px-6 py-6 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Gostou da IA?</h2>
+                <p className="text-sm text-slate-600">
+                  Continue com relatórios automáticos, alertas ilimitados e suporte direto da equipe D2C.
+                </p>
+              </div>
+              <div className="flex w-full flex-col gap-2 sm:max-w-xs">
+                <button
+                  type="button"
+                  onClick={handleHeaderSubscribe}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+                >
+                  Assinar Plano Agência
+                </button>
+                <span className="text-center text-xs text-slate-500">
+                  Alertas ilimitados + relatórios semanais automáticos.
+                </span>
+              </div>
             </div>
-            <div className="flex w-full flex-col gap-2 sm:max-w-xs">
-              <button
-                type="button"
-                onClick={handleOpenWhatsApp}
-                className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-              >
-                Ver alertas da IA
-              </button>
-              <span className="text-center text-xs text-slate-500">
-                Mobi envia lembretes sempre que surge um pico de engajamento.
-              </span>
-            </div>
-          </div>
-        </section>
-      ) : null}
+          </section>
+        ) : null}
 
-      {showProUpsellCard ? (
-        <section className="mt-10 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF1F8] via-white to-white px-6 py-6 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Gostou da IA?</h2>
-              <p className="text-sm text-slate-600">
-                Continue com relatórios automáticos, alertas ilimitados e suporte direto da equipe D2C.
-              </p>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:max-w-xs">
-              <button
-                type="button"
-                onClick={handleHeaderSubscribe}
-                className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-              >
-                Assinar Plano Agência
-              </button>
-              <span className="text-center text-xs text-slate-500">
-                Alertas ilimitados + relatórios semanais automáticos.
-              </span>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-    </div>
-  </>
+      </div>
+    </>
   );
 }

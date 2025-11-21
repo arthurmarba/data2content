@@ -9,6 +9,7 @@ import { normalizePlanStatus } from '@/utils/planStatus';
 import { track } from '@/lib/track';
 import ContentPlannerCalendar from './ContentPlannerCalendar';
 import { openPaywallModal } from '@/utils/paywallModal';
+import GlassCard from '@/components/GlassCard';
 
 function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | null {
   if (!slot) return null;
@@ -331,6 +332,7 @@ export const ContentPlannerList = ({
   return (
     <div className="space-y-6">
       <ContentPlannerCalendar
+        userId={userId}
         slots={slots}
         heatmap={heatmap}
         loading={loading}
@@ -371,6 +373,7 @@ export function ContentPlannerSection({
   onLockChange,
   initialSlotId,
   onInitialSlotConsumed,
+  className = '',
 }: {
   userId: string;
   publicMode?: boolean;
@@ -379,6 +382,7 @@ export function ContentPlannerSection({
   onLockChange?: Parameters<typeof ContentPlannerList>[0]['onLockChange'];
   initialSlotId?: string | null;
   onInitialSlotConsumed?: () => void;
+  className?: string;
 }) {
   const [lockInfo, setLockInfo] = useState<{
     locked: boolean;
@@ -398,10 +402,17 @@ export function ContentPlannerSection({
   }, [onLockChange]);
 
   const showHeader = publicMode || !lockInfo.locked || lockInfo.billingLoading || !hasPremiumAccess;
-  const headerMarkup = showHeader && description ? (
-    <header className="space-y-1 text-left">
-      <p className="text-sm text-slate-600">{description}</p>
-    </header>
+  const cardClassName = ['overflow-hidden border border-brand-glass shadow-[0_45px_100px_rgba(15,23,42,0.08)]', className]
+    .filter(Boolean)
+    .join(' ');
+  const headerMarkup = showHeader ? (
+    <div className="space-y-3">
+      <span className="landing-chip text-brand-primary/80">Planner IA ativo</span>
+      <div className="space-y-2 text-left">
+        <h2 className="text-[clamp(1.7rem,2.5vw,2.2rem)] font-semibold text-brand-dark">{title}</h2>
+        {description ? <p className="text-sm text-brand-text-secondary/90">{description}</p> : null}
+      </div>
+    </div>
   ) : null;
 
   const upgradeReason =
@@ -410,43 +421,48 @@ export function ContentPlannerSection({
   if (!publicMode) {
     if (isBillingLoading && !hasPremiumAccess) {
       return (
-        <section className="space-y-4">
+        <GlassCard className={`${cardClassName} p-6`}>
           {headerMarkup}
-          <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5 text-center text-sm text-slate-500 shadow-sm sm:px-6">
+          <div className="mt-6 rounded-2xl border border-brand-chip/80 bg-brand-glass-100/80 px-5 py-4 text-center text-sm text-brand-text-secondary">
             Carregando status da sua assinatura…
           </div>
-        </section>
+        </GlassCard>
       );
     }
 
     if (!hasPremiumAccess) {
       return (
-        <section className="space-y-4">
+        <GlassCard className={`${cardClassName} p-6`}>
           {headerMarkup}
-          <PlannerUpgradePanel
-            status={normalizedPlanStatus}
-            lockedReason={upgradeReason}
-            onSubscribe={() => openPaywallModal({ context: 'planning', source: 'planner_section_locked' })}
-            billingHref="/dashboard/billing"
-          />
-        </section>
+          <div className="mt-6">
+            <PlannerUpgradePanel
+              status={normalizedPlanStatus}
+              lockedReason={upgradeReason}
+              onSubscribe={() => openPaywallModal({ context: 'planning', source: 'planner_section_locked' })}
+              billingHref="/dashboard/billing"
+            />
+          </div>
+        </GlassCard>
       );
     }
   }
 
+  const contentPaddingClass = headerMarkup ? 'px-3 pb-6 pt-4 sm:px-6' : 'px-4 py-6 sm:px-8';
+
   return (
-    <section className="space-y-4">
-      {headerMarkup}
-      <ContentPlannerList
-        userId={userId}
-        publicMode={publicMode}
-        onLockChange={handleLockChange}
-        billingStatus={billing}
-        hasPremiumAccess={hasPremiumAccess}
-        initialSlotId={initialSlotId}
-        onInitialSlotConsumed={onInitialSlotConsumed}
-      />
-    </section>
+    <GlassCard className={cardClassName}>
+      <div className="px-3 py-4 sm:px-6">
+        <ContentPlannerList
+          userId={userId}
+          publicMode={publicMode}
+          onLockChange={handleLockChange}
+          billingStatus={billing}
+          hasPremiumAccess={hasPremiumAccess}
+          initialSlotId={initialSlotId}
+          onInitialSlotConsumed={onInitialSlotConsumed}
+        />
+      </div>
+    </GlassCard>
   );
 }
 

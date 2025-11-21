@@ -119,6 +119,12 @@ const normalizeComparisonPeriod = (period?: string): ComparisonPeriodKey => {
 
 const TOP_POSTS_MAX_ITEMS = 10;
 const LOCKED_TOP_POSTS_PREVIEW_COUNT = 3;
+const HERO_METRIC_ACCENTS: Record<string, string> = {
+  followers: '#6E1F93',
+  reach: '#1C4FD7',
+  engagement: '#D62E5E',
+  frequency: '#9446B0',
+};
 const landingSunriseBackground =
   'radial-gradient(120% 140% at 50% -25%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 58%), radial-gradient(70% 120% at 10% -10%, rgba(255, 44, 126, 0.1) 0%, rgba(255, 44, 126, 0) 55%), radial-gradient(90% 120% at 90% 10%, rgba(36, 107, 253, 0.07) 0%, rgba(36, 107, 253, 0) 60%), linear-gradient(180deg, #fffefe 0%, #fafbfe 40%, #f4f6fb 100%)';
 const glassCardBaseClass =
@@ -1374,14 +1380,9 @@ export default function MediaKitView({
     displayKpis?.postingFrequency?.percentageChange,
     engagementRateHeroDisplay,
     followersDisplay,
+    followerCountDisplay,
     heroPeriodLabel,
   ]);
-  const HERO_METRIC_ACCENTS: Record<string, string> = {
-    followers: '#6E1F93',
-    reach: '#1C4FD7',
-    engagement: '#D62E5E',
-    frequency: '#9446B0',
-  };
   const heroMetricCardsData = useMemo<InsightMetricCard[]>(
     () =>
       heroKpiCards.map((metric) => ({
