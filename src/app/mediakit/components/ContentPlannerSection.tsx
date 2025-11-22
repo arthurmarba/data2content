@@ -181,6 +181,7 @@ export const ContentPlannerList = ({
         scriptShort: updated.scriptShort ?? base.scriptShort,
         themeKeyword: updated.themeKeyword ?? base.themeKeyword,
       } as PlannerUISlot;
+      merged.isSaved = true;
 
       if (idx >= 0) {
         list[idx] = merged;
@@ -214,6 +215,7 @@ export const ContentPlannerList = ({
       const duplicated = fromPlannerSlotData(target);
       duplicated.slotId = undefined;
       duplicated.status = 'drafted';
+      duplicated.isSaved = true;
       if (duplicated.title) duplicated.title = `${duplicated.title} (variação)`;
       list.push(duplicated);
       try {

@@ -246,6 +246,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
 
   const contextLabels = useMemo(() => idsToLabels(slot?.categories?.context, 'context'), [slot?.categories?.context]);
   const proposalLabels = useMemo(() => idsToLabels(slot?.categories?.proposal, 'proposal'), [slot?.categories?.proposal]);
+  const toneLabels = useMemo(() => idsToLabels(slot?.categories?.tone ? [slot.categories.tone] : [], 'tone'), [slot?.categories?.tone]);
+  const referenceLabels = useMemo(() => idsToLabels(slot?.categories?.reference, 'reference'), [slot?.categories?.reference]);
 
   const contextSummary = useMemo(
     () => (contextLabels.length ? contextLabels.slice(0, 2).join(' • ') : ''),
@@ -254,6 +256,14 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const proposalSummary = useMemo(
     () => (proposalLabels.length ? proposalLabels.slice(0, 2).join(' • ') : ''),
     [proposalLabels]
+  );
+  const toneSummary = useMemo(
+    () => (toneLabels.length ? toneLabels[0] : ''),
+    [toneLabels]
+  );
+  const referenceSummary = useMemo(
+    () => (referenceLabels.length ? referenceLabels.slice(0, 2).join(' • ') : ''),
+    [referenceLabels]
   );
 
   const formatLabel = useMemo(() => {
@@ -558,12 +568,11 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         aria-modal="true"
         aria-labelledby={dialogLabelId}
         aria-describedby={dialogDescId}
-        className={`relative z-10 flex h-full max-h-[95vh] w-full flex-col bg-[#F8FAFF] shadow-2xl sm:max-h-[90vh] sm:w-[620px] lg:w-[700px] sm:rounded-[32px] sm:border sm:border-slate-100 ${prefersReducedMotion ? '' : 'transition-transform duration-200 ease-out'
+        className={`relative z-10 flex h-full max-h-[95vh] w-full flex-col bg-[#F8FAFF] shadow-2xl rounded-2xl overflow-hidden sm:max-h-[90vh] sm:w-[620px] lg:w-[700px] sm:rounded-[32px] sm:border sm:border-slate-100 ${prefersReducedMotion ? '' : 'transition-transform duration-200 ease-out'
           } ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-8 scale-[0.98]'}`}
       >
         <header
           className="border-b border-slate-200/80 bg-white/70 px-5 pt-6 pb-4 sm:px-6 sm:pt-7 sm:pb-5 backdrop-blur"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px))' }}
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-1 flex-col gap-2">
@@ -594,234 +603,253 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           </div>
         </header>
 
-        <div id={dialogDescId} className="flex-1 overflow-y-auto bg-[#F8FAFF]">
-          <div className="space-y-5 px-5 py-6 sm:px-6">
-            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Resumo do card</p>
-                <p className="text-sm text-slate-500">Só o essencial para o slot do dia.</p>
-              </div>
+        <div id={dialogDescId} className="flex-1 overflow-y-auto bg-white">
+          <div className="space-y-8 px-5 py-6 sm:px-8">
+            {/* Main Content Section */}
+            <section className="space-y-6">
               {!readOnly ? (
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex.: Bastidores do drop de domingo"
-                  className="w-full rounded-2xl border border-neutral-200 px-4 py-2 text-lg font-semibold text-neutral-900 shadow-inner focus:border-neutral-400 focus:outline-none"
+                  className="w-full border-b border-slate-200 px-0 py-2 text-2xl font-bold text-slate-900 placeholder-slate-400 focus:border-brand-primary focus:outline-none focus:ring-0"
                 />
               ) : (
-                <p className="text-lg font-semibold leading-snug text-neutral-900">
+                <h2 className="text-2xl font-bold leading-tight text-slate-900">
                   {title || effectiveTheme || 'Defina o título da pauta'}
-                </p>
+                </h2>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                {summaryChips.map((chip) => (
-                  <div
-                    key={chip.key}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 px-4 py-3 text-sm"
-                  >
-                    <span className="text-base" aria-hidden>
-                      {chip.icon}
-                    </span>
-                    <span className={`truncate ${chip.value ? 'text-neutral-900' : 'text-neutral-400'}`}>
-                      {chip.value || chip.fallback}
-                    </span>
+
+              {/* 4-Column Grid Layout for Summary (2 rows) */}
+              <div className="grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-4 lg:grid-cols-4 lg:divide-x lg:divide-slate-100">
+                {/* Row 1 */}
+                <div className="flex flex-col gap-2 px-2 lg:first:pl-0">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Formato</span>
                   </div>
-                ))}
+                  <span className="text-xs font-semibold text-slate-900">{formatLabel}</span>
+                </div>
+                <div className="flex flex-col gap-2 px-2">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Tema</span>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-900 line-clamp-2" title={effectiveTheme}>{effectiveTheme || '—'}</span>
+                </div>
+                <div className="flex flex-col gap-2 px-2">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Proposta</span>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-900 line-clamp-2" title={proposalSummary}>{proposalSummary || '—'}</span>
+                </div>
+                <div className="flex flex-col gap-2 px-2">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Contexto</span>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-900 line-clamp-2" title={contextSummary}>{contextSummary || '—'}</span>
+                </div>
+
+                {/* Row 2 */}
+                <div className="flex flex-col gap-2 px-2 lg:first:pl-0 border-t border-slate-100 pt-4 lg:border-t-0 lg:pt-0">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Tom</span>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-900 line-clamp-2 capitalize">{toneSummary || '—'}</span>
+                </div>
+                <div className="flex flex-col gap-2 px-2 border-t border-slate-100 pt-4 lg:border-t-0 lg:pt-0">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Referência</span>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-900 line-clamp-2">{referenceSummary || '—'}</span>
+                </div>
+                <div className="flex flex-col gap-2 px-2 border-t border-slate-100 pt-4 lg:border-t-0 lg:pt-0">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Projeção</span>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-700">{p50Compact || '—'}</span>
+                </div>
+                {/* Empty slot for alignment if needed, or just leave 7 items */}
               </div>
-              <div className="flex flex-wrap gap-2">
-                <OutlinePillButton
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button
                   type="button"
                   onClick={() => title && navigator.clipboard?.writeText(title)}
                   disabled={!title}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"
                 >
                   Copiar título
-                </OutlinePillButton>
-              </div>
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Pautas recomendadas</p>
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => handleRegenerateThemes()}
-                      disabled={themesLoading}
-                      className="text-xs font-semibold text-neutral-600 underline-offset-2 transition hover:text-neutral-900 disabled:text-neutral-300"
-                    >
-                      {themesLoading ? 'Atualizando…' : 'Atualizar'}
-                    </button>
-                  )}
-                </div>
-                {themesLoading && !themesLocal.length ? (
-                  <div className="space-y-2">
-                    {[...Array(3)].map((_, idx) => (
-                      <div key={`theme-skel-${idx}`} className="h-4 w-full animate-pulse rounded bg-neutral-100" />
-                    ))}
-                  </div>
-                ) : themesLocal.length > 0 ? (
-                  <div className="space-y-2">
-                    {themesLocal.slice(0, 4).map((t, i) => (
-                      <button
-                        key={`theme-${i}`}
-                        type="button"
-                        onClick={() => {
-                          setTitle(t);
-                          setThemeKw(t);
-                        }}
-                        className="block w-full text-left text-base font-semibold text-neutral-900 transition hover:text-neutral-600"
-                      >
-                        {String(i + 1).padStart(2, '0')} · {t}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-500">Nenhuma pauta disponível para este slot.</p>
-                )}
+                </button>
               </div>
             </section>
 
-            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">KPIs projetados</p>
-                {typeof recordingTimeSec === 'number' && (
-                  <span className="text-xs text-neutral-500">⏱️ {Math.round(recordingTimeSec / 60) || 1} min de gravação</span>
+            {/* Recommended Themes */}
+            <section className="space-y-4 pt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Pautas recomendadas</h3>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => handleRegenerateThemes()}
+                    disabled={themesLoading}
+                    className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
+                  >
+                    {themesLoading ? 'Atualizando…' : 'Gerar novas ideias'}
+                  </button>
                 )}
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+
+              {themesLoading && !themesLocal.length ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, idx) => (
+                    <div key={`theme-skel-${idx}`} className="h-12 w-full animate-pulse rounded-xl bg-slate-50" />
+                  ))}
+                </div>
+              ) : themesLocal.length > 0 ? (
+                <div className="grid gap-2">
+                  {themesLocal.slice(0, 4).map((t, i) => (
+                    <button
+                      key={`theme-${i}`}
+                      type="button"
+                      onClick={() => {
+                        setTitle(t);
+                        setThemeKw(t);
+                      }}
+                      className="group flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm transition hover:border-brand-primary/30 hover:bg-brand-primary/5 hover:shadow-md"
+                    >
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500 group-hover:bg-white group-hover:text-brand-primary">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">
+                        {t}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic">Nenhuma pauta disponível para este slot.</p>
+              )}
+            </section>
+
+            {/* KPIs */}
+            <section className="space-y-4 pt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">KPIs projetados</h3>
+                {typeof recordingTimeSec === 'number' && (
+                  <span className="text-xs font-medium text-slate-400">⏱️ {Math.round(recordingTimeSec / 60) || 1} min de gravação</span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-4">
                 {kpiCards.map((kpi) => (
-                  <div key={kpi.key} className="rounded-2xl border border-neutral-200 px-4 py-3 text-center">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{kpi.label}</p>
-                    <p className={`text-2xl font-semibold ${kpi.value ? 'text-neutral-900' : 'text-neutral-300'}`}>{kpi.value || '—'}</p>
-                    <p className="text-[11px] text-neutral-400">{kpi.label === 'Views P90' ? 'potencial máximo' : kpi.label === 'Saves / Compart.' ? 'meta estimada' : 'mediana do bloco'}</p>
+                  <div key={kpi.key} className="flex flex-col gap-1 rounded-xl bg-slate-50 p-4 text-center border border-slate-100">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{kpi.label}</span>
+                    <span className={`text-xl font-bold ${kpi.value ? 'text-slate-900' : 'text-slate-300'}`}>{kpi.value || '—'}</span>
                   </div>
                 ))}
               </div>
             </section>
 
-
-            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
-              <div className="flex flex-wrap items-start gap-3">
+            {/* Inspirations */}
+            <section className="space-y-4 pt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Conteúdos que inspiram</h3>
                 <button
-                  type="button"
-                  className="flex flex-1 items-center justify-between rounded-2xl border border-transparent px-1 text-left text-sm font-semibold text-neutral-900 transition hover:border-neutral-200"
-                  onClick={() => setInspirationsOpen((prev) => !prev)}
-                >
-                  <span className="flex items-center gap-2">
-                    <span aria-hidden>📈</span> Conteúdos que inspiram
-                  </span>
-                  <span className="text-xl text-neutral-400">{inspirationsOpen ? '−' : '+'}</span>
-                </button>
-                <OutlinePillButton
                   type="button"
                   onClick={() => {
                     setInspirationsOpen(true);
                     void fetchInspirations();
                   }}
                   disabled={inspLoading}
-                  className="whitespace-nowrap"
+                  className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
                 >
                   {inspLoading ? 'Carregando…' : 'Atualizar'}
-                </OutlinePillButton>
+                </button>
               </div>
+
               {inspirationsOpen && (
                 <>
                   {inspError && <p className="text-xs text-red-600">{inspError}</p>}
                   {inspLoading && !inspPosts.length && (
-                    <div className="flex gap-3 overflow-x-auto pb-1">
+                    <div className="flex gap-4 overflow-x-auto pb-2">
                       {[...Array(3)].map((_, i) => (
-                        <div key={`insp-skel-${i}`} className="min-w-[220px] rounded-2xl border border-neutral-100 bg-neutral-50 p-4 animate-pulse">
-                          <div className="h-32 w-full rounded-xl bg-neutral-200" />
+                        <div key={`insp-skel-${i}`} className="min-w-[200px] w-[200px] shrink-0 animate-pulse rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <div className="aspect-[4/5] w-full rounded-lg bg-slate-200" />
                           <div className="mt-3 space-y-2">
-                            <div className="h-3 rounded bg-neutral-200" />
-                            <div className="h-3 w-2/3 rounded bg-neutral-200" />
+                            <div className="h-3 w-3/4 rounded bg-slate-200" />
+                            <div className="h-3 w-1/2 rounded bg-slate-200" />
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
                   {inspPosts.length > 0 && (
-                    <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+                    <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                       {(inspExpanded ? inspPosts : inspPosts.slice(0, 6)).map((p) => {
                         const viewsLabel = formatCompact(p.views) || p.views.toLocaleString('pt-BR');
-                        const isHighMatch = p.views >= 750000;
                         return (
                           <a
                             key={`insp-${p.id}`}
                             href={p.postLink || '#'}
                             target="_blank"
                             rel="noreferrer"
-                            className="snap-start min-w-[240px] max-w-[260px] overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-[1px] hover:shadow-md"
+                            className="snap-start shrink-0 w-[200px] group flex flex-col gap-3 rounded-xl transition hover:-translate-y-1"
                           >
-                            <div className="relative aspect-[4/3] w-full">
+                            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-slate-100 shadow-sm group-hover:shadow-md">
                               {p.thumbnailUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={toProxyUrl(p.thumbnailUrl)} alt="Conteúdo de inspiração" className="h-full w-full object-cover" />
+                                <img src={toProxyUrl(p.thumbnailUrl)} alt="Inspiracao" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-xs text-neutral-500">Sem imagem</div>
+                                <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">Sem imagem</div>
                               )}
-                              <span
-                                className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[10px] font-semibold text-white ${isHighMatch ? 'bg-rose-500' : 'bg-purple-600'
-                                  }`}
-                              >
-                                🏆 {isHighMatch ? 'Match alto' : 'Match da IA'}
-                              </span>
-                            </div>
-                            <div className="space-y-2 p-3">
-                              <p className="line-clamp-2 text-sm font-semibold text-neutral-900" title={p.caption}>
-                                {p.caption || 'Legenda não disponível'}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                                <span className="font-semibold text-neutral-900">{viewsLabel} views</span>
-                                <span>{p.date ? new Date(p.date).toLocaleDateString('pt-BR') : ''}</span>
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                              <div className="absolute bottom-3 left-3 right-3 text-white">
+                                <div className="flex items-center gap-1.5 text-[10px] font-medium">
+                                  <span>👁️ {viewsLabel}</span>
+                                </div>
                               </div>
                             </div>
+                            <p className="line-clamp-2 text-xs font-medium text-slate-700 group-hover:text-slate-900">
+                              {p.caption || 'Sem legenda'}
+                            </p>
                           </a>
                         );
                       })}
                     </div>
                   )}
                   {!inspLoading && !inspPosts.length && !inspError && (
-                    <p className="text-xs text-neutral-500">Sem conteúdos similares para este horário agora.</p>
-                  )}
-                  {inspPosts.length > 6 && (
-                    <div className="pt-1 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setInspExpanded((v) => !v)}
-                        className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-4 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900"
-                      >
-                        {inspExpanded ? 'Ver menos' : `Ver todos (${inspPosts.length})`}
-                      </button>
-                    </div>
+                    <p className="text-sm text-slate-500 italic">Sem conteúdos similares para este horário agora.</p>
                   )}
                 </>
               )}
             </section>
 
-            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-5">
-              <div className="flex flex-wrap items-start gap-3">
+            {/* Community Inspirations */}
+            <section className="space-y-4 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Inspirações da comunidade</h3>
+                  <button
+                    type="button"
+                    onClick={() => setCommunityOpen((prev) => !prev)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    {communityOpen ? '−' : '+'}
+                  </button>
+                </div>
+
                 <button
-                  type="button"
-                  className="flex flex-1 items-center justify-between rounded-2xl border border-transparent px-1 text-left text-sm font-semibold text-neutral-900 transition hover:border-neutral-200"
-                  onClick={() => setCommunityOpen((prev) => !prev)}
-                >
-                  <span className="flex items-center gap-2">
-                    <span aria-hidden>🤝</span> Inspirações da comunidade
-                  </span>
-                  <span className="text-xl text-neutral-400">{communityOpen ? '−' : '+'}</span>
-                </button>
-                <OutlinePillButton
                   type="button"
                   onClick={() => {
                     setCommunityOpen(true);
                     void fetchCommunityInspirations();
                   }}
                   disabled={communityLoading}
-                  className="whitespace-nowrap"
+                  className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
                 >
                   {communityLoading ? 'Carregando…' : 'Atualizar'}
-                </OutlinePillButton>
+                </button>
               </div>
+
               {communityOpen && (
                 <>
                   {communityError && <p className="text-xs text-red-600">{communityError}</p>}
@@ -841,7 +869,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                   {communityPosts.length > 0 && (
                     <div className="grid gap-3 sm:grid-cols-2">
                       {(communityExpanded ? communityPosts : communityPosts.slice(0, 4)).map((p) => (
-                        <div key={`community-${p.id}`} className="flex gap-3 rounded-2xl border border-neutral-200/80 bg-white p-3 shadow-sm">
+                        <div key={`community-${p.id}`} className="flex gap-3 rounded-2xl border border-neutral-200/80 bg-white p-3 shadow-sm transition hover:border-brand-primary/30 hover:shadow-md">
                           <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
                             {p.coverUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -870,7 +898,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                     </div>
                   )}
                   {!communityLoading && !communityPosts.length && !communityError && (
-                    <p className="text-xs text-neutral-500">Nenhuma inspiração da comunidade para este contexto.</p>
+                    <p className="text-xs text-neutral-500 italic">Nenhuma inspiração da comunidade para este contexto.</p>
                   )}
                   {communityPosts.length > 4 && (
                     <div className="pt-1 text-center">

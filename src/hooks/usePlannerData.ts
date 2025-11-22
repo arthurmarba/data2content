@@ -18,6 +18,7 @@ export interface PlannerUISlot {
   rationale?: string;
   recordingTimeSec?: number;
   aiVersionId?: string;
+  isSaved?: boolean;
 }
 
 export interface TimeBlockScoreUI {
@@ -53,7 +54,8 @@ function slotsShallowEqual(a: PlannerUISlot[] | null, b: PlannerUISlot[] | null)
       x.status !== y.status ||
       x.isExperiment !== y.isExperiment ||
       (x.title || '') !== (y.title || '') ||
-      (x.themeKeyword || '') !== (y.themeKeyword || '')
+      (x.themeKeyword || '') !== (y.themeKeyword || '') ||
+      !!x.isSaved !== !!y.isSaved
     ) return false;
   }
   return true;
@@ -68,6 +70,21 @@ function heatmapShallowEqual(a: TimeBlockScoreUI[] | null, b: TimeBlockScoreUI[]
     if (x.dayOfWeek !== y.dayOfWeek || x.blockStartHour !== y.blockStartHour || x.score !== y.score) return false;
   }
   return true;
+}
+
+function mergePlanAndRecommendations(planSlots: PlannerUISlot[], recSlots: PlannerUISlot[]): PlannerUISlot[] {
+  if (!recSlots.length) return planSlots;
+  if (!planSlots.length) return recSlots;
+  const map = new Map<string, PlannerUISlot>();
+  recSlots.forEach((slot) => {
+    const key = `${slot.dayOfWeek}-${slot.blockStartHour}`;
+    map.set(key, slot);
+  });
+  planSlots.forEach((slot) => {
+    const key = `${slot.dayOfWeek}-${slot.blockStartHour}`;
+    map.set(key, slot);
+  });
+  return Array.from(map.values());
 }
 
 export function usePlannerData(params: {
@@ -98,6 +115,7 @@ export function usePlannerData(params: {
   // controle de concorrência
   const fetchIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const recommendationsRef = useRef<PlannerUISlot[]>([]);
 
   const safeSetSlots = (next: PlannerUISlot[] | null) => {
     setSlots(prev => (slotsShallowEqual(prev, next) ? prev : next));
@@ -167,7 +185,9 @@ export function usePlannerData(params: {
             rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
             recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
             aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
+            isSaved: true,
           }));
+          recommendationsRef.current = [];
           safeSetSlots(planSlots);
           safeSetHeatmap(null); // público: quando vem plan, não há heatmap
         } else {
@@ -187,7 +207,9 @@ export function usePlannerData(params: {
             rationale: typeof r.rationale === 'string' ? r.rationale : undefined,
             recordingTimeSec: typeof r.recordingTimeSec === 'number' ? r.recordingTimeSec : undefined,
             aiVersionId: typeof r.aiVersionId === 'string' ? r.aiVersionId : undefined,
+            isSaved: false,
           }));
+          recommendationsRef.current = recSlots;
           safeSetSlots(recSlots);
           const hm: TimeBlockScoreUI[] = (data.heatmap || []).map((h: any) => ({
             dayOfWeek: h.dayOfWeek,
@@ -199,7 +221,7 @@ export function usePlannerData(params: {
       } else {
         // Dono (autenticado) — busca plan e rec em paralelo (rec traz heatmap)
         const qsPlan = new URLSearchParams({ weekStart: normalizedWeekStart.toISOString() });
-        const qsRec  = new URLSearchParams({
+        const qsRec = new URLSearchParams({
           weekStart: normalizedWeekStart.toISOString(),
           targetSlotsPerWeek: String(targetSlotsPerWeek ?? TARGET_SUGGESTIONS),
           periodDays: String(PERIOD_DAYS),
@@ -240,45 +262,47 @@ export function usePlannerData(params: {
 
         if (fetchIdRef.current !== myId) return; // resposta obsoleta
 
-        if (planData?.plan?.slots?.length) {
-          const planSlots: PlannerUISlot[] = planData.plan.slots.map((s: any) => ({
-            slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
-            dayOfWeek: s.dayOfWeek,
-            blockStartHour: s.blockStartHour,
-            format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',
-            categories: s.categories || {},
-            status: s.status,
-            isExperiment: !!s.isExperiment,
-            expectedMetrics: s.expectedMetrics || {},
-            title: s.title,
-            scriptShort: s.scriptShort,
-            themes: s.themes || [],
-            themeKeyword: s.themeKeyword,
-            rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
-            recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
-            aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
-          }));
-          safeSetSlots(planSlots);
-        } else if (recData) {
-          const recSlots: PlannerUISlot[] = (recData.recommendations || []).map((r: any) => ({
-            slotId: typeof r.slotId === 'string' ? r.slotId : undefined,
-            dayOfWeek: r.dayOfWeek,
-            blockStartHour: r.blockStartHour,
-            format: (typeof r.format === 'string' && r.format) ? r.format : 'reel',
-            categories: r.categories || {},
-            status: r.status,
-            isExperiment: !!r.isExperiment,
-            expectedMetrics: r.expectedMetrics || {},
-            title: r.title,
-            scriptShort: r.scriptShort,
-            themes: r.themes || [],
-            themeKeyword: r.themeKeyword,
-            rationale: typeof r.rationale === 'string' ? r.rationale : undefined,
-            recordingTimeSec: typeof r.recordingTimeSec === 'number' ? r.recordingTimeSec : undefined,
-            aiVersionId: typeof r.aiVersionId === 'string' ? r.aiVersionId : undefined,
-          }));
-          safeSetSlots(recSlots);
-        }
+        const planSlots: PlannerUISlot[] = (planData?.plan?.slots || []).map((s: any) => ({
+          slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
+          dayOfWeek: s.dayOfWeek,
+          blockStartHour: s.blockStartHour,
+          format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',
+          categories: s.categories || {},
+          status: s.status,
+          isExperiment: !!s.isExperiment,
+          expectedMetrics: s.expectedMetrics || {},
+          title: s.title,
+          scriptShort: s.scriptShort,
+          themes: s.themes || [],
+          themeKeyword: s.themeKeyword,
+          rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
+          recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
+          aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
+          isSaved: true,
+        }));
+
+        const recSlots: PlannerUISlot[] = (recData?.recommendations || []).map((r: any) => ({
+          slotId: typeof r.slotId === 'string' ? r.slotId : undefined,
+          dayOfWeek: r.dayOfWeek,
+          blockStartHour: r.blockStartHour,
+          format: (typeof r.format === 'string' && r.format) ? r.format : 'reel',
+          categories: r.categories || {},
+          status: r.status,
+          isExperiment: !!r.isExperiment,
+          expectedMetrics: r.expectedMetrics || {},
+          title: r.title,
+          scriptShort: r.scriptShort,
+          themes: r.themes || [],
+          themeKeyword: r.themeKeyword,
+          rationale: typeof r.rationale === 'string' ? r.rationale : undefined,
+          recordingTimeSec: typeof r.recordingTimeSec === 'number' ? r.recordingTimeSec : undefined,
+          aiVersionId: typeof r.aiVersionId === 'string' ? r.aiVersionId : undefined,
+          isSaved: false,
+        }));
+
+        recommendationsRef.current = recSlots;
+        const mergedSlots = mergePlanAndRecommendations(planSlots, recSlots);
+        safeSetSlots(mergedSlots);
 
         if (recData?.heatmap) {
           const hm: TimeBlockScoreUI[] = (recData.heatmap || []).map((h: any) => ({
@@ -304,10 +328,11 @@ export function usePlannerData(params: {
   }, [fetchData]);
 
   const saveSlots = useCallback(async (updatedSlots: PlannerUISlot[], userTimeZone?: string) => {
+    const slotsToPersist = (updatedSlots || []).filter((slot) => slot && slot.isSaved !== false);
     const body = {
       weekStart: normalizedWeekStart.toISOString(),
       userTimeZone,
-      slots: updatedSlots,
+      slots: slotsToPersist,
     };
     const res = await fetch('/api/planner/plan', {
       method: 'POST',
@@ -347,8 +372,12 @@ export function usePlannerData(params: {
       rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
       recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
       aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
+      isSaved: true,
     }));
-    safeSetSlots(planSlots);
+    setSlots((prev) => {
+      const mergedSlots = mergePlanAndRecommendations(planSlots, recommendationsRef.current || []);
+      return slotsShallowEqual(prev, mergedSlots) ? prev : mergedSlots;
+    });
     return planSlots;
   }, [normalizedWeekStart]);
 

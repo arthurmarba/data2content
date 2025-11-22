@@ -2,14 +2,14 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { CalendarDays, Clock, Layers, Lock, Sparkles, Target, Wand2 } from 'lucide-react';
+import { CalendarDays, Clock, Layers, Lock, Sparkles, Target, Wand2, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X } from 'lucide-react';
 import { PlannerUISlot } from '@/hooks/usePlannerData';
 import { idsToLabels } from '@/app/lib/classification';
-import { prefillInspirationCache } from '../utils/inspirationCache';
+import { prefillInspirationCache, fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
 
 const BLOCKS = [9, 12, 15, 18] as const;
 const DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
-const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']; // 1..7
+const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']; // 1..7 (1 = Dom)
 const DAYS_FULL_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 type StatusCategory = 'champion' | 'test' | 'watch' | 'planned';
 const TARGET_SLOTS_PER_WEEK = 7;
@@ -21,14 +21,14 @@ export interface CalendarHeatPoint {
 }
 
 function dayLabel(dayOfWeek: number) {
-  if (dayOfWeek === 7) return DAYS_PT[0];
-  return DAYS_PT[dayOfWeek];
+  const idx = ((dayOfWeek - 1) % 7 + 7) % 7;
+  return DAYS_PT[idx] ?? DAYS_PT[0];
 }
 
 function dayFullLabel(dayOfWeek: number): string {
+  const idx = ((dayOfWeek - 1) % 7 + 7) % 7;
   const fallbackLabel = DAYS_FULL_PT[0] ?? 'Domingo';
-  if (dayOfWeek === 7) return fallbackLabel;
-  const label = DAYS_FULL_PT[dayOfWeek];
+  const label = DAYS_FULL_PT[idx];
   return label ?? fallbackLabel;
 }
 
@@ -189,6 +189,7 @@ export interface ContentPlannerCalendarProps {
   onRequestSubscribe?: () => void;
   onOpenSlot: (slot: PlannerUISlot) => void;
   onCreateSlot: (dayOfWeek: number, blockStartHour: number) => void;
+  onDeleteSlot?: (slot: PlannerUISlot) => void;
 }
 
 import PlannerDayPicker from './PlannerDayPicker';
@@ -208,6 +209,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   onRequestSubscribe,
   onOpenSlot,
   onCreateSlot,
+  onDeleteSlot,
 }) => {
   const [viewMode, setViewMode] = React.useState<'list' | 'calendar'>('calendar');
   const [selectedDay, setSelectedDay] = React.useState<number>(() => {
@@ -221,25 +223,52 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   const [inspirationError, setInspirationError] = useState<string | null>(null);
   const [communityError, setCommunityError] = useState<string | null>(null);
 
+  // Responsive view mode switching
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setViewMode('list');
+      } else {
+        setViewMode('calendar');
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const sortedSlots = useMemo(() => {
+    if (!slots) return [] as PlannerUISlot[];
+    return [...slots].sort((a, b) => {
+      if (a.dayOfWeek === b.dayOfWeek) {
+        return a.blockStartHour - b.blockStartHour;
+      }
+      return a.dayOfWeek - b.dayOfWeek;
+    });
+  }, [slots]);
+
   const slotsMap = useMemo(() => {
     const map = new Map<string, PlannerUISlot[]>();
-    (slots || []).forEach((slot) => {
+    sortedSlots.forEach((slot) => {
       const key = keyFor(slot.dayOfWeek, slot.blockStartHour);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(slot);
     });
     return map;
-  }, [slots]);
+  }, [sortedSlots]);
 
   const slotsByDay = useMemo(() => {
     const map = new Map<number, PlannerUISlot[]>();
-    (slots || []).forEach((slot) => {
+    sortedSlots.forEach((slot) => {
       const list = map.get(slot.dayOfWeek) || [];
       list.push(slot);
       map.set(slot.dayOfWeek, list);
     });
     return map;
-  }, [slots]);
+  }, [sortedSlots]);
 
   const heatMapMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -366,15 +395,9 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   }, [relevantDaySummaries]);
 
   const slotCards = useMemo(() => {
-    if (!slots || !slots.length) return [] as PlannerSlotCard[];
-    const list = [...slots].sort((a, b) => {
-      if (a.dayOfWeek === b.dayOfWeek) {
-        return a.blockStartHour - b.blockStartHour;
-      }
-      return a.dayOfWeek - b.dayOfWeek;
-    });
+    if (!sortedSlots.length) return [] as PlannerSlotCard[];
 
-    return list.map((slot) => {
+    return sortedSlots.map((slot) => {
       const key = keyFor(slot.dayOfWeek, slot.blockStartHour);
       const heatScore = heatMapMap.get(key);
       const statusInfo = getStatusInfo(heatScore, slot);
@@ -389,6 +412,12 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
       const viewsP50 = formatViews(expectedMetrics.viewsP50) ?? '—';
       const viewsP90 = expectedMetrics.viewsP90 ? formatViews(expectedMetrics.viewsP90) : null;
       const metricRange = viewsP90 ? `${viewsP50}–${viewsP90}` : viewsP50;
+
+      // Extended labels for the new grid
+      const proposalLabel = idsToLabels(slot.categories?.proposal, 'proposal').join(', ') || '-';
+      const contextLabel = idsToLabels(slot.categories?.context, 'context').join(', ') || '-';
+      const toneLabel = idsToLabels(slot.categories?.tone ? [slot.categories.tone] : [], 'tone')[0] || '-';
+      const referenceLabel = idsToLabels(slot.categories?.reference, 'reference').join(', ') || '-';
 
       return {
         id: slot.slotId ?? `${slot.dayOfWeek}-${slot.blockStartHour}-${title}`,
@@ -405,9 +434,14 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         statusCategory: statusInfo.category,
         statusClass: statusInfo.metaClass,
         slot,
+        // New fields
+        proposalLabel,
+        contextLabel,
+        toneLabel,
+        referenceLabel,
       } as PlannerSlotCard;
     });
-  }, [slots, heatMapMap]);
+  }, [sortedSlots, heatMapMap]);
 
   const completedSlots = useMemo(() => (slots || []).filter((slot) => slot.status === 'posted').length, [slots]);
   const remainingSlots = Math.max(0, TARGET_SLOTS_PER_WEEK - (overview.total ?? 0));
@@ -653,6 +687,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
             userId={userId}
             publicMode={publicMode}
             locked={locked}
+            onDeleteSlot={onDeleteSlot}
           />
         </div>
       ) : (
@@ -664,23 +699,12 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
                 canEdit={canEdit}
                 onOpenSlot={onOpenSlot}
                 onRequestSubscribe={onRequestSubscribe}
+                userId={userId}
+                publicMode={publicMode}
+                locked={locked}
+                onDeleteSlot={onDeleteSlot}
               />
-              {!publicMode && !locked && inspirationSeed && (
-                <PlannerInspirationsPanel
-                  inspirationSummary={inspirationSummary}
-                  inspirationTheme={inspirationTheme}
-                  contextLabels={inspirationContextLabels}
-                  proposalLabels={inspirationProposalLabels}
-                  inspirationPosts={inspirationPosts}
-                  communityPosts={communityPosts}
-                  inspirationLoading={inspirationLoading}
-                  communityLoading={communityLoading}
-                  inspirationError={inspirationError}
-                  communityError={communityError}
-                  onRefreshInspiration={loadInspirationPosts}
-                  onRefreshCommunity={loadCommunityPosts}
-                />
-              )}
+
             </>
           ) : (
             <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
@@ -915,83 +939,356 @@ export interface PlannerSlotCard {
   statusCategory: StatusCategory;
   statusClass: string;
   slot: PlannerUISlot;
+  // New fields for rich grid
+  proposalLabel: string;
+  contextLabel: string;
+  toneLabel: string;
+  referenceLabel: string;
 }
+
+const ListModeSlotCard = ({
+  card,
+  canEdit,
+  onOpenSlot,
+  onRequestSubscribe,
+  userId,
+  publicMode,
+  locked,
+  onDeleteSlot,
+}: {
+  card: PlannerSlotCard;
+  canEdit: boolean;
+  onOpenSlot: (slot: PlannerUISlot) => void;
+  onRequestSubscribe?: () => void;
+  userId?: string;
+  publicMode?: boolean;
+  locked?: boolean;
+  onDeleteSlot?: (slot: PlannerUISlot) => void;
+}) => {
+  const [showInspirations, setShowInspirations] = useState(() => !publicMode && !locked);
+  const [selfInspiration, setSelfInspiration] = useState<{ id: string; caption: string; views?: number; thumbnailUrl?: string | null; postLink?: string | null } | null>(null);
+  const [communityInspiration, setCommunityInspiration] = useState<{ id: string; caption: string; views?: number; coverUrl?: string | null; postLink?: string | null } | null>(null);
+  const [inspLoading, setInspLoading] = useState(false);
+  const [inspError, setInspError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const canShowInspirations = !publicMode && !locked;
+    setShowInspirations(canShowInspirations);
+
+    const cached = canShowInspirations ? getCachedInspirations(card.slot) : null;
+    setSelfInspiration(cached?.self ?? null);
+    setCommunityInspiration(cached?.community ?? null);
+    setInspLoading(false);
+    setInspError(null);
+  }, [card.slot, publicMode, locked]);
+
+  useEffect(() => {
+    if (!showInspirations || !userId || publicMode || locked) {
+      return;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      const cached = getCachedInspirations(card.slot);
+      const hasCached = Boolean(cached?.self || cached?.community);
+
+      if (cached) {
+        setSelfInspiration(cached.self);
+        setCommunityInspiration(cached.community);
+        setInspLoading(false);
+      } else {
+        setInspLoading(true);
+      }
+      setInspError(null);
+      try {
+        const result = await fetchSlotInspirations(userId, card.slot);
+        if (!cancelled) {
+          setSelfInspiration(result.self);
+          setCommunityInspiration(result.community);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setInspError(err?.message || 'Erro ao carregar inspirações');
+        }
+      } finally {
+        if (!cancelled && !hasCached) setInspLoading(false);
+      }
+    };
+
+    void load();
+    return () => { cancelled = true; };
+  }, [card.slot, userId, publicMode, locked, showInspirations]);
+
+  const formatCaption = (caption?: string) => {
+    if (!caption) return '';
+    return caption.length > 70 ? `${caption.slice(0, 67)}…` : caption;
+  };
+
+  const handleOpenLink = (event: React.MouseEvent, link?: string | null) => {
+    event.stopPropagation();
+    if (!link) return;
+    try {
+      window.open(link, '_blank', 'noopener,noreferrer');
+    } catch {
+      // silent fail
+    }
+  };
+
+  return (
+    <article
+      role={canEdit ? 'button' : undefined}
+      tabIndex={canEdit ? 0 : -1}
+      onClick={() => {
+        if (canEdit) {
+          onOpenSlot(card.slot);
+        } else if (onRequestSubscribe) {
+          onRequestSubscribe();
+        }
+      }}
+      onKeyDown={(event) => {
+        if (!canEdit) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpenSlot(card.slot);
+        }
+      }}
+      className={[
+        'group relative flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+        canEdit ? 'cursor-pointer' : 'cursor-default',
+      ].join(' ')}
+    >
+      {/* Header with Day/Time and Status */}
+      <div className="flex items-center justify-between pb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-900">{card.dayTitle}</span>
+          <span className="text-xs text-slate-400">•</span>
+          <span className="text-sm font-medium text-slate-600">{card.blockLabel}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {card.slot.isSaved && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 pl-2 pr-1 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-primary">
+              <Bookmark className="h-3 w-3" />
+              Salvo
+              {onDeleteSlot && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteSlot(card.slot);
+                  }}
+                  className="ml-1 rounded-full p-0.5 hover:bg-brand-primary/20 text-brand-primary"
+                  title="Remover salvo"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          )}
+          <span className={`inline-flex items-center gap-1 rounded-full border border-current px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${card.statusClass}`}>
+            <span aria-hidden>{STATUS_EMOJI[card.statusCategory]}</span>
+            {card.statusLabel}
+          </span>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="space-y-2 border-b border-slate-100 pb-3">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tema</span>
+        <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+          <h3 className="line-clamp-2 text-base font-bold leading-snug text-slate-900 group-hover:text-brand-magenta transition-colors">
+            {card.title}
+          </h3>
+        </div>
+      </div>
+
+      {/* 6-Column Grid Layout */}
+      <div className="grid grid-cols-2 gap-y-4 gap-x-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 lg:gap-x-4 lg:divide-x lg:divide-slate-100">
+        <div className="flex flex-col gap-1.5 px-1 lg:px-3 lg:first:pl-0">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Formato</span>
+          </div>
+          <span className="truncate text-xs font-semibold text-slate-800" title={card.formatLabel}>{card.formatLabel}</span>
+        </div>
+        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <Target className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Proposta</span>
+          </div>
+          <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.proposalLabel}>{card.proposalLabel}</span>
+        </div>
+        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <Compass className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Contexto</span>
+          </div>
+          <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.contextLabel}>{card.contextLabel}</span>
+        </div>
+        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <MessageCircle className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Tom</span>
+          </div>
+          <span className="truncate text-xs font-semibold text-slate-800" title={card.toneLabel}>{card.toneLabel}</span>
+        </div>
+        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <LinkIcon className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Referência</span>
+          </div>
+          <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.referenceLabel}>{card.referenceLabel}</span>
+        </div>
+        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <TrendingUp className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Projeção</span>
+          </div>
+          <span className="text-xs font-bold text-emerald-700">{card.viewsP50}</span>
+        </div>
+      </div>
+
+      {/* Inspirations inline */}
+      {!publicMode && !locked && showInspirations && (
+        <div className="mt-2 space-y-3 border-t border-slate-100 pt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Inspirações
+            </p>
+          </div>
+
+          {inspError && <p className="text-[11px] text-red-600">{inspError}</p>}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* Loading Skeletons */}
+            {inspLoading && !selfInspiration && !communityInspiration && (
+              <div className="col-span-2 grid gap-3 sm:grid-cols-2">
+                {[0, 1].map((idx) => (
+                  <div
+                    key={`insp-skeleton-${idx}`}
+                    className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5"
+                  >
+                    <div className="h-14 w-14 shrink-0 animate-pulse rounded-lg bg-gradient-to-br from-slate-200 to-slate-100" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-24 animate-pulse rounded-full bg-slate-200" />
+                      <div className="h-3 w-full animate-pulse rounded-full bg-slate-200" />
+                      <div className="h-3 w-1/2 animate-pulse rounded-full bg-slate-200" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!inspLoading && !selfInspiration && !communityInspiration && (
+              <div className="col-span-2 py-2 text-center text-[11px] text-slate-400 italic">
+                Nenhuma inspiração encontrada para este contexto.
+              </div>
+            )}
+
+            {selfInspiration && (
+              <button
+                type="button"
+                onClick={(e) => handleOpenLink(e, selfInspiration.postLink)}
+                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left text-[11px] text-slate-600 transition hover:-translate-y-[1px] hover:shadow-md hover:border-brand-primary/20"
+              >
+                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
+                  {selfInspiration.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={toProxyUrl(selfInspiration.thumbnailUrl)} alt="Inspiracao" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-brand-primary">Seu Acervo</span>
+                  </div>
+                  <p className="line-clamp-2 text-[11px] font-medium text-slate-700 leading-snug">{formatCaption(selfInspiration.caption)}</p>
+                  {selfInspiration.views ? (
+                    <span className="text-[10px] text-slate-500">{selfInspiration.views.toLocaleString('pt-BR')} views</span>
+                  ) : null}
+                </div>
+              </button>
+            )}
+
+            {communityInspiration && (
+              <button
+                type="button"
+                onClick={(e) => handleOpenLink(e, communityInspiration.postLink)}
+                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left text-[11px] text-slate-600 transition hover:-translate-y-[1px] hover:shadow-md hover:border-brand-primary/20"
+              >
+                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
+                  {communityInspiration.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={toProxyUrl(communityInspiration.coverUrl)} alt="Inspiracao comunidade" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
+                  )}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600">Comunidade</span>
+                  </div>
+                  <p className="line-clamp-2 text-[11px] font-medium text-slate-700 leading-snug">{formatCaption(communityInspiration.caption)}</p>
+                  {communityInspiration.views ? (
+                    <span className="text-[10px] text-slate-500">{communityInspiration.views.toLocaleString('pt-BR')} views</span>
+                  ) : null}
+                </div>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!canEdit && onRequestSubscribe && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRequestSubscribe();
+          }}
+          className="mt-2 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+        >
+          Assine para editar esta pauta
+        </button>
+      )}
+    </article>
+  );
+};
 
 const PlannerSlotCardGrid = ({
   cards,
   canEdit,
   onOpenSlot,
   onRequestSubscribe,
+  userId,
+  publicMode,
+  locked,
+  onDeleteSlot,
 }: {
   cards: PlannerSlotCard[];
   canEdit: boolean;
   onOpenSlot: (slot: PlannerUISlot) => void;
   onRequestSubscribe?: () => void;
+  userId?: string;
+  publicMode?: boolean;
+  locked?: boolean;
+  onDeleteSlot?: (slot: PlannerUISlot) => void;
 }) => {
   if (!cards.length) return null;
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4">
       {cards.map((card) => (
-        <article
+        <ListModeSlotCard
           key={card.id}
-          role={canEdit ? 'button' : undefined}
-          tabIndex={canEdit ? 0 : -1}
-          onClick={() => {
-            if (canEdit) {
-              onOpenSlot(card.slot);
-            } else if (onRequestSubscribe) {
-              onRequestSubscribe();
-            }
-          }}
-          onKeyDown={(event) => {
-            if (!canEdit) return;
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              onOpenSlot(card.slot);
-            }
-          }}
-          className={[
-            'rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta',
-            canEdit ? 'cursor-pointer hover:border-[#C9B8FF] hover:shadow-md' : 'cursor-default',
-          ].join(' ')}
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-lg font-semibold text-slate-900">
-                {card.dayTitle} · {card.blockLabel}
-              </p>
-              <span className={`inline-flex items-center gap-1 rounded-full border border-current px-3 py-1 text-xs font-semibold ${card.statusClass}`}>
-                <span aria-hidden>{STATUS_EMOJI[card.statusCategory]}</span>
-                {card.statusLabel}
-              </span>
-            </div>
-
-            <p className="text-sm font-semibold text-slate-900">{card.title}</p>
-
-            <div className="flex flex-wrap gap-2">
-              <InfoChip value={card.formatLabel} />
-              <InfoChip value={card.objectiveLabel} />
-              {card.channelLabel && <InfoChip value={card.channelLabel} />}
-            </div>
-
-            <p className="text-sm font-semibold text-slate-700">
-              📊 {card.metricRange} views
-            </p>
-
-            {!canEdit && onRequestSubscribe && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onRequestSubscribe();
-                }}
-                className="text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
-              >
-                Assine para editar esta pauta
-              </button>
-            )}
-          </div>
-        </article>
+          card={card}
+          canEdit={canEdit}
+          onOpenSlot={onOpenSlot}
+          onRequestSubscribe={onRequestSubscribe}
+          userId={userId}
+          publicMode={publicMode}
+          locked={locked}
+          onDeleteSlot={onDeleteSlot}
+        />
       ))}
     </div>
   );

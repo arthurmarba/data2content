@@ -7,7 +7,9 @@ import {
     MessageCircle,
     Link as LinkIcon,
     TrendingUp,
-    Plus
+    Plus,
+    Bookmark,
+    X
 } from 'lucide-react';
 import { ALLOWED_BLOCKS } from '@/app/lib/planner/constants';
 import { fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
@@ -21,6 +23,7 @@ interface PlannerDailyScheduleProps {
     userId?: string;
     publicMode?: boolean;
     locked?: boolean;
+    onDeleteSlot?: (slot: PlannerUISlot) => void;
 }
 
 const toProxyUrl = (raw?: string | null) => {
@@ -42,12 +45,14 @@ const ScheduleSlotCard = ({
     userId,
     publicMode,
     locked,
+    onDeleteSlot,
 }: {
     slot: PlannerUISlot;
     onClick: () => void;
     userId?: string;
     publicMode?: boolean;
     locked?: boolean;
+    onDeleteSlot?: (slot: PlannerUISlot) => void;
 }) => {
     const colorClass = getStatusColor(slot.status);
     const [showInspirations, setShowInspirations] = useState(() => !publicMode && !locked);
@@ -129,6 +134,12 @@ const ScheduleSlotCard = ({
         }
     };
 
+    const title =
+        slot.title?.trim() ||
+        slot.themeKeyword ||
+        (slot.themes && slot.themes.length ? slot.themes[0] : '') ||
+        'Sugestão pronta do Mobi';
+
     return (
         <div
             onClick={(e) => {
@@ -137,6 +148,38 @@ const ScheduleSlotCard = ({
             }}
             className={`group relative flex cursor-pointer flex-col gap-4 rounded-2xl border bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${colorClass}`}
         >
+            {slot.isSaved && (
+                <div className="flex justify-end">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 pl-2 pr-1 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-primary">
+                        <Bookmark className="h-3 w-3" />
+                        Salvo
+                        {onDeleteSlot && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteSlot(slot);
+                                }}
+                                className="ml-1 rounded-full p-0.5 hover:bg-brand-primary/20 text-brand-primary"
+                                title="Remover salvo"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        )}
+                    </span>
+                </div>
+            )}
+
+            {/* Title / tema principal */}
+            <div className="space-y-2 border-b border-slate-100 pb-3">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tema</span>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <h3 className="line-clamp-2 text-base font-bold leading-snug text-slate-900 group-hover:text-brand-magenta transition-colors">
+                        {title}
+                    </h3>
+                </div>
+            </div>
+
             {/* New Grid Layout: Format | Proposal | Context | Tone | Reference | View Projection */}
             <div className="grid grid-cols-2 gap-y-4 gap-x-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-4 lg:divide-x lg:divide-slate-100">
                 <div className="flex flex-col gap-1.5 px-1 lg:px-3">
@@ -286,6 +329,7 @@ export default function PlannerDailySchedule({
     userId,
     publicMode,
     locked,
+    onDeleteSlot,
 }: PlannerDailyScheduleProps) {
     // Define allowed time blocks (aligned with backend validation)
     const timeBlocks = [...ALLOWED_BLOCKS];
@@ -348,6 +392,7 @@ export default function PlannerDailySchedule({
                                             userId={userId}
                                             publicMode={publicMode}
                                             locked={locked}
+                                            onDeleteSlot={onDeleteSlot}
                                         />
                                     ))}
                                     <button

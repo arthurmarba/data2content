@@ -176,6 +176,7 @@ export default function PlannerClientPage() {
         scriptShort: updated.scriptShort ?? base.scriptShort,
         themeKeyword: updated.themeKeyword ?? base.themeKeyword,
       } as PlannerUISlot;
+      merged.isSaved = true;
 
       if (idx >= 0) {
         list[idx] = merged;
@@ -241,6 +242,7 @@ export default function PlannerClientPage() {
       const duplicated = fromPlannerSlotData(target);
       duplicated.slotId = undefined;
       duplicated.status = 'drafted';
+      duplicated.isSaved = true;
       if (duplicated.title) duplicated.title = `${duplicated.title} (variação)`;
       list.push(duplicated);
       try {
@@ -297,10 +299,7 @@ export default function PlannerClientPage() {
         <div className="grid gap-8 lg:grid-cols-12">
           <div className="space-y-8 lg:col-span-12">
             {/* Insights Simplificados */}
-            <SimplifiedInsights
-              heatmap={heatmap || []}
-              tips={tips}
-            />
+
 
             {/* Calendário */}
             <ContentPlannerCalendar
@@ -316,6 +315,10 @@ export default function PlannerClientPage() {
               onRequestSubscribe={handleRequestSubscribe}
               onOpenSlot={handleOpenSlot}
               onCreateSlot={handleCreateSlot}
+              onDeleteSlot={(slot) => {
+                const data = toPlannerSlotData(slot);
+                if (data) handleDelete(data);
+              }}
             />
           </div>
         </div>
