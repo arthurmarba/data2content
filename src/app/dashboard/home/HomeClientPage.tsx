@@ -12,6 +12,7 @@ import {
   FaCalendarAlt,
   FaCalculator,
   FaChevronDown,
+  FaChartLine,
   FaGem,
   FaHandshake,
   FaInstagram,
@@ -1262,6 +1263,7 @@ export default function HomeClientPage() {
           : "Defina uma meta semanal e eu gero os horários ideais.";
     const plannerActionLabel = isInstagramConnected ? "Gerar horários com IA" : "Conectar Instagram";
     const plannerLocked = planningGroupLocked && !(hasPremiumAccessPlan || planTrialActive);
+    const chartsLocked = plannerLocked;
 
     const mediaKitLastUpdate = summary?.mediaKit?.lastUpdatedLabel
       ? `Atualizado ${summary.mediaKit.lastUpdatedLabel}`
@@ -1297,6 +1299,35 @@ export default function HomeClientPage() {
             return;
           }
           handleConsistencyAction("plan_week");
+        },
+      },
+      {
+        key: "charts",
+        icon: <FaChartLine aria-hidden="true" />,
+        title: chartsLocked ? "Gráficos (Plano Agência)" : "Gráficos de desempenho",
+        description: chartsLocked
+          ? "Assine o Plano Agência para destravar gráficos de alcance e engajamento."
+          : "Visualize picos de alcance, formatos e tons que mais engajam.",
+        status: chartsLocked
+          ? "Exclusivo Plano Agência"
+          : isInstagramConnected
+            ? "Explore tendências com dados reais da sua conta."
+            : "Conecte o Instagram para popular os gráficos.",
+        actionLabel: chartsLocked
+          ? "Assinar Plano Agência"
+          : isInstagramConnected
+            ? "Abrir gráficos"
+            : "Conectar Instagram",
+        onAction: () => {
+          if (chartsLocked) {
+            openSubscribeModal();
+            return;
+          }
+          if (!isInstagramConnected) {
+            handleNavigate("/dashboard/instagram/connect");
+            return;
+          }
+          handleNavigate("/planning/graficos");
         },
       },
       {
@@ -1348,6 +1379,7 @@ export default function HomeClientPage() {
     handleJoinVip,
     handleMediaKitAction,
     handleNextPostAction,
+    handleNavigate,
     hasMediaKit,
     hasPremiumAccessPlan,
     isInstagramConnected,
@@ -1469,6 +1501,7 @@ export default function HomeClientPage() {
 
   const creatorTools = React.useMemo<CreatorToolCardProps[]>(() => {
     const proLocked = !hasPremiumAccessPlan;
+    const chartsLocked = planningGroupLocked && !(hasPremiumAccessPlan || planTrialActive);
     const list: CreatorToolCardProps[] = [];
 
     list.push({
@@ -1546,6 +1579,30 @@ export default function HomeClientPage() {
     });
 
     list.push({
+      id: "charts",
+      title: chartsLocked ? "Gráficos (Plano Agência)" : "Gráficos",
+      description: chartsLocked
+        ? "Assine o Plano Agência para destravar gráficos de alcance e engajamento."
+        : "Veja horários quentes, formatos e tons que mais engajam.",
+      icon: <FaChartLine className="h-5 w-5" aria-hidden />,
+      badge: "Agência",
+      locked: chartsLocked,
+      cta: chartsLocked ? "activate" : "open",
+      onClick: () => {
+        emitToolClick("charts", chartsLocked ? "paywall" : "open");
+        if (chartsLocked) {
+          openSubscribeModal("planning", { source: "home_creator_tools", returnTo: "/planning/graficos" });
+          return;
+        }
+        if (!isInstagramConnected) {
+          handleNavigate("/dashboard/instagram/connect");
+          return;
+        }
+        handleNavigate("/planning/graficos");
+      },
+    });
+
+    list.push({
       id: "chat",
       title: "Chat IA",
       description: "Seu assistente de conteúdo",
@@ -1595,7 +1652,19 @@ export default function HomeClientPage() {
     });
 
     return list;
-  }, [emitToolClick, handleNavigate, handleOpenWhatsApp, hasPremiumAccessPlan, isInstagramConnected, openSubscribeModal, setShowWhatsAppConnect, trackWhatsappEvent, whatsappLinked]);
+  }, [
+    emitToolClick,
+    handleNavigate,
+    handleOpenWhatsApp,
+    hasPremiumAccessPlan,
+    isInstagramConnected,
+    openSubscribeModal,
+    planningGroupLocked,
+    planTrialActive,
+    setShowWhatsAppConnect,
+    trackWhatsappEvent,
+    whatsappLinked,
+  ]);
 
   const tutorialLoading = loading && !journeyProgress;
   const toolsLoading = loading && !summary;
