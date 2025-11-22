@@ -46,7 +46,7 @@ export default function CoverageHighlights({
 
   if (!loading && !hasContent) return null;
 
-  const topSegments = segments.slice(0, 4);
+  const topSegments = segments.slice(0, 5);
   const topRegions = regions.slice(0, 5);
 
   const cardTokens = {
@@ -88,7 +88,7 @@ export default function CoverageHighlights({
             </div>
             <div className="flex flex-col gap-2">
               {loading
-                ? Array.from({ length: 4 }, (_, index) => (
+                ? Array.from({ length: 5 }, (_, index) => (
                     <div key={`segment-skeleton-${index}`} className="h-12 rounded-xl bg-neutral-100" />
                   ))
                 : topSegments.map((segment, index) => {

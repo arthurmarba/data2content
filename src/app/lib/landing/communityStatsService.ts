@@ -23,12 +23,14 @@ const DEFAULT_TTL_MS = Math.max(
 const RANK_WINDOW_DAYS = 21;
 const CATEGORY_LOOKBACK_DAYS = 30;
 const RECENT_ENTRIES_DAYS = 7;
-const DEFAULT_TOP_CREATORS_LIMIT = 15;
+const DEFAULT_TOP_CREATORS_LIMIT = 16;
 const envTopCreatorsLimit = Number(process.env.LANDING_TOP_CREATORS_LIMIT);
-const TOP_CREATORS_LIMIT =
+const TOP_CREATORS_LIMIT = Math.max(
+  DEFAULT_TOP_CREATORS_LIMIT,
   Number.isFinite(envTopCreatorsLimit) && envTopCreatorsLimit > 0
     ? Math.floor(envTopCreatorsLimit)
-    : DEFAULT_TOP_CREATORS_LIMIT;
+    : 0,
+);
 const TOP_CATEGORIES_LIMIT = 4;
 
 type LeanCommunityUser = {

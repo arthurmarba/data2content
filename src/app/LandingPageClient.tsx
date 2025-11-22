@@ -220,9 +220,26 @@ const FALLBACK_RANKING = [
     rank: 15,
     consistencyScore: 81,
   },
+  {
+    id: "fallback-creator-16",
+    name: "Felipe Andrade",
+    username: "@felipeandrade",
+    avatarUrl: null,
+    followers: 176_000,
+    totalInteractions: 220_000,
+    postCount: 9,
+    avgInteractionsPerPost: 24_000,
+    rank: 16,
+    consistencyScore: 80,
+  },
 ];
 
-const CREATOR_GALLERY_LIMIT = 15;
+const CREATOR_GALLERY_LIMIT_MOBILE = 15;
+const CREATOR_GALLERY_LIMIT_DESKTOP = 16;
+const CREATOR_GALLERY_MAX_LIMIT = Math.max(
+  CREATOR_GALLERY_LIMIT_MOBILE,
+  CREATOR_GALLERY_LIMIT_DESKTOP,
+);
 
 const FALLBACK_COVERAGE_SEGMENTS: LandingCoverageSegment[] = [
   {
@@ -532,8 +549,7 @@ export default function LandingPageClient() {
     };
   }, []);
 
-  const resolvedStats = stats ?? fallbackStats;
-  const metrics = resolvedStats.metrics;
+  const metrics = stats?.metrics ?? (loadingStats ? null : fallbackStats.metrics);
   const segmentsForCoverage = coverageSegments?.length
     ? coverageSegments
     : FALLBACK_COVERAGE_SEGMENTS;
@@ -541,20 +557,12 @@ export default function LandingPageClient() {
     ? coverageRegions
     : FALLBACK_COVERAGE_REGIONS;
   const rankingForGallery = React.useMemo(() => {
-    const baseRanking = resolvedStats.ranking ?? [];
+    const baseRanking = stats?.ranking ?? fallbackStats.ranking ?? [];
     const uniqueBaseRanking = baseRanking.filter(
       (creator, index, list) => list.findIndex((item) => item.id === creator.id) === index,
     );
-    if (uniqueBaseRanking.length >= CREATOR_GALLERY_LIMIT) {
-      return uniqueBaseRanking.slice(0, CREATOR_GALLERY_LIMIT);
-    }
-    const fallbackExtras = fallbackStats.ranking
-      .filter((fallbackCreator) =>
-        !uniqueBaseRanking.some((baseCreator) => baseCreator.id === fallbackCreator.id),
-      )
-      .slice(0, CREATOR_GALLERY_LIMIT - uniqueBaseRanking.length);
-    return [...uniqueBaseRanking, ...fallbackExtras];
-  }, [resolvedStats, fallbackStats]);
+    return uniqueBaseRanking.slice(0, CREATOR_GALLERY_MAX_LIMIT);
+  }, [stats, fallbackStats]);
 
   return (
     <div
@@ -586,7 +594,8 @@ export default function LandingPageClient() {
           creators={rankingForGallery}
           loading={loadingStats}
           onRequestMediaKit={handleCreatorCta}
-          maxVisible={CREATOR_GALLERY_LIMIT}
+          maxVisible={CREATOR_GALLERY_LIMIT_MOBILE}
+          maxVisibleDesktop={CREATOR_GALLERY_LIMIT_DESKTOP}
         />
         <TestimonialSpotlight />
         <PlansComparisonSection onCreateAccount={handleCreatorCta} />

@@ -10,6 +10,7 @@ type CreatorGallerySectionProps = {
   loading?: boolean;
   onRequestMediaKit?: () => void;
   maxVisible?: number;
+  maxVisibleDesktop?: number;
 };
 
 const numberFormatter = new Intl.NumberFormat("pt-BR", {
@@ -24,15 +25,41 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
   loading = false,
   onRequestMediaKit,
   maxVisible = DEFAULT_MAX_VISIBLE_CREATORS,
+  maxVisibleDesktop,
 }) => {
+  const [isDesktop, setIsDesktop] = React.useState(false);
+
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const applyMatches = (event: MediaQueryList | MediaQueryListEvent) => setIsDesktop(event.matches);
+
+    applyMatches(mediaQuery);
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      const listener = (event: MediaQueryListEvent) => applyMatches(event);
+      mediaQuery.addEventListener("change", listener);
+      return () => mediaQuery.removeEventListener("change", listener);
+    }
+
+    if (typeof mediaQuery.addListener === "function") {
+      const legacyListener = (event: MediaQueryListEvent) => applyMatches(event);
+      mediaQuery.addListener(legacyListener);
+      return () => mediaQuery.removeListener(legacyListener);
+    }
+
+    return undefined;
+  }, []);
+
+  const resolvedMaxVisible = isDesktop ? maxVisibleDesktop ?? maxVisible : maxVisible;
+
   const skeletonCards = React.useMemo(
-    () => Array.from({ length: maxVisible }),
-    [maxVisible],
+    () => Array.from({ length: resolvedMaxVisible }),
+    [resolvedMaxVisible],
   );
 
   const visibleCreators = React.useMemo(
-    () => creators.slice(0, maxVisible),
-    [creators, maxVisible],
+    () => creators.slice(0, resolvedMaxVisible),
+    [creators, resolvedMaxVisible],
   );
 
   const handleMediaKitClick = React.useCallback(
