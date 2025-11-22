@@ -18,7 +18,7 @@ export default function PlannerDayPicker({
 
     return (
         <div className="flex w-full overflow-x-auto pb-2 sm:pb-0">
-            <div className="flex w-full min-w-[600px] items-center justify-between rounded-2xl bg-slate-50 p-1.5 ring-1 ring-slate-200">
+            <div className="flex w-full min-w-full sm:min-w-[600px] items-center justify-between rounded-2xl bg-slate-50 p-1.5 ring-1 ring-slate-200">
                 {days.map((dayIndex) => {
                     const isSelected = selectedDay === dayIndex;
                     const hasContent = (slotsByDay.get(dayIndex)?.length || 0) > 0;

@@ -8,6 +8,8 @@ export function timePeriodToDays(timePeriod: TimePeriod): number {
       return 30;
     case 'last_90_days':
       return 90;
+    case 'last_180_days':
+      return 180;
     case 'last_6_months':
       return 180;
     case 'last_12_months':

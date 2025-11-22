@@ -7,7 +7,7 @@ import { getNestedValue } from './dataAccessHelpers';
 import { isValidCategoryId } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 
-export type GroupingType = 'format' | 'context' | 'proposal';
+export type GroupingType = 'format' | 'context' | 'proposal' | 'tone' | 'references';
 
 interface AverageResult {
   name: string;
@@ -61,7 +61,10 @@ async function getAverageEngagementByGrouping(
       if (Array.isArray(keys)) {
         for (const key of keys) {
           if (!key) continue; // Pula chaves nulas ou vazias dentro do array
-          if (!isValidCategoryId(key, groupBy)) continue; // ignora IDs desconhecidos
+
+          // Mapeia 'references' (campo do banco) para 'reference' (tipo da classificação)
+          const classificationType = groupBy === 'references' ? 'reference' : groupBy;
+          if (!isValidCategoryId(key, classificationType)) continue; // ignora IDs desconhecidos
 
           if (!aggregation[key]) {
             aggregation[key] = { sum: 0, count: 0 };
@@ -78,10 +81,10 @@ async function getAverageEngagementByGrouping(
       const name =
         groupBy === 'format'
           ? formatMapping?.[key] ||
-            key
-              .replace(/_/g, ' ')
-              .toLocaleLowerCase()
-              .replace(/\b\w/g, (l) => l.toUpperCase())
+          key
+            .replace(/_/g, ' ')
+            .toLocaleLowerCase()
+            .replace(/\b\w/g, (l) => l.toUpperCase())
           : key;
       results.push({
         name,

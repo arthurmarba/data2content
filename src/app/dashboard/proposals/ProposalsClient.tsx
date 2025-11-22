@@ -1422,11 +1422,11 @@ export default function ProposalsClient() {
               <div className="h-px w-full bg-gray-100" />
 
               {canInteract ? (
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="space-y-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-semibold text-gray-900">Responder com IA</span>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-500">
                         Enviaremos para {selectedProposal.contactEmail} com cabeçalho Data2Content.
                       </p>
                     </div>
@@ -1458,9 +1458,9 @@ export default function ProposalsClient() {
                     onChange={(event) => setReplyDraft(event.target.value)}
                     rows={5}
                     placeholder="Oi, tudo bem? Recebi a proposta e posso te ajudar com…"
-                    className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100"
                   />
-                  <div className="mt-2 flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
                     {selectedProposal.lastResponseAt ? (
                       <span>Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}</span>
                     ) : (
@@ -1470,7 +1470,7 @@ export default function ProposalsClient() {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600 shadow-sm">
+                <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
                       <Lock className="h-4 w-4 text-gray-500" />
@@ -1482,7 +1482,7 @@ export default function ProposalsClient() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="text-xs text-gray-500">
                     Assine o Plano Agência para liberar texto sugerido e envio direto para {selectedProposal.contactEmail}.
                   </p>
                   <button
@@ -1493,7 +1493,7 @@ export default function ProposalsClient() {
                         proposalId: selectedProposal.id,
                       })
                     }
-                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700"
                   >
                     Desbloquear resposta com IA
                   </button>

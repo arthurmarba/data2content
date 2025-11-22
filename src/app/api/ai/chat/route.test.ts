@@ -1,6 +1,6 @@
 // @jest-environment node
 import { NextRequest } from 'next/server';
-import { POST as chat } from './route';
+import { POST as chat, sanitizeTables } from './route';
 import { getServerSession } from 'next-auth/next';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
@@ -136,4 +136,19 @@ it('retorna mensagem amigável quando LLM falha', async () => {
   const json = await res.json();
   expect(res.status).toBe(200);
   expect(String(json.answer)).toMatch(/problema técnico|tentar novamente/i);
+});
+
+it('converte tabela esparsa em lista', () => {
+  const input = [
+    '| Item | Col1 | Col2 |',
+    '| --- | --- | --- |',
+    '| A | valor |  |',
+    '| B |  |  |',
+  ].join('\n');
+
+  const sanitized = sanitizeTables(input);
+  expect(sanitized).toContain('- **A**');
+  expect(sanitized).toContain('  - Col1: valor');
+  expect(sanitized).not.toContain('| ---');
+  expect(sanitized).not.toContain('| Col2 |');
 });

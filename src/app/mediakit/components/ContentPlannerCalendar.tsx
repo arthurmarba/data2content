@@ -14,22 +14,6 @@ const DAYS_FULL_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira'
 type StatusCategory = 'champion' | 'test' | 'watch' | 'planned';
 const TARGET_SLOTS_PER_WEEK = 7;
 
-type SummaryTileProps = {
-  label: string;
-  value: string;
-  helper?: string;
-};
-
-function SummaryTile({ label, value, helper }: SummaryTileProps) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-900">{value}</p>
-      {helper && <p className="mt-0.5 text-xs text-slate-500">{helper}</p>}
-    </div>
-  );
-}
-
 export interface CalendarHeatPoint {
   dayOfWeek: number;
   blockStartHour: number;
@@ -427,53 +411,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
 
   const completedSlots = useMemo(() => (slots || []).filter((slot) => slot.status === 'posted').length, [slots]);
   const remainingSlots = Math.max(0, TARGET_SLOTS_PER_WEEK - (overview.total ?? 0));
-  const bestBlockLabel = useMemo(() => {
-    if (!overview.bestBlock || typeof overview.bestBlock.blockStartHour !== 'number') return null;
-    const dayName = dayFullLabel(overview.bestBlock.dayOfWeek).replace('-feira', '');
-    const blockRange = blockLabel(overview.bestBlock.blockStartHour);
-    return `${dayName} • ${blockRange}`;
-  }, [overview]);
-  const topThemeLabel = overview.topTheme ?? null;
-  const summaryTiles = useMemo(
-    () =>
-      [
-        {
-          key: 'total',
-          label: 'Pautas sugeridas',
-          value: String(overview.total ?? 0),
-          helper: `${completedSlots} concluídas`,
-        },
-        {
-          key: 'remaining',
-          label: 'Slots restantes',
-          value: String(remainingSlots),
-          helper: `Meta ${TARGET_SLOTS_PER_WEEK}/semana`,
-        },
-        {
-          key: 'days',
-          label: 'Dias com pauta',
-          value: String(overview.activeDays ?? 0),
-          helper: 'Dos 7 dias da semana',
-        },
-        topThemeLabel
-          ? {
-            key: 'theme',
-            label: 'Tema em alta',
-            value: topThemeLabel,
-            helper: 'Repetiu mais vezes nos slots',
-          }
-          : null,
-        bestBlockLabel
-          ? {
-            key: 'block',
-            label: 'Próximo slot quente',
-            value: bestBlockLabel,
-            helper: 'Janela com maior probabilidade',
-          }
-          : null,
-      ].filter(Boolean) as Array<{ key: string; label: string; value: string; helper?: string }>,
-    [overview, completedSlots, remainingSlots, topThemeLabel, bestBlockLabel]
-  );
+
   const inspirationSeed = useMemo(() => {
     if (!slots || !slots.length) return null;
     const daySlots = slots.filter((slot) => slot.dayOfWeek === selectedDay);
@@ -520,7 +458,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
     [inspirationSeed, inspirationTheme]
   );
   const shouldLoadInspirations =
-    Boolean(userId) && Boolean(inspirationSeed) && !publicMode && !locked;
+    viewMode === 'list' && Boolean(userId) && Boolean(inspirationSeed) && !publicMode && !locked;
 
   const loadInspirationPosts = useCallback(async () => {
     if (!inspirationSeed || !userId || publicMode || locked) return;
@@ -694,6 +632,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
           </div>
         </div>
       </div>
+
       {showLoadingBanner && <PlannerLoadingBanner />}
 
       {loading && <PlannerLoadingSkeleton />}

@@ -9,7 +9,7 @@ import {
 } from '@/app/lib/constants/timePeriods';
 
 // Tipo de agrupamento local (usado apenas na resposta)
-type GroupingType = 'format' | 'context' | 'proposal';
+type GroupingType = 'format' | 'context' | 'proposal' | 'tone' | 'references';
 
 // Constantes para validação de parâmetros
 
@@ -55,7 +55,7 @@ export async function GET(
   }
 
   // Determinar groupBy (padrão format)
-  const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context', 'proposal'];
+  const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context', 'proposal', 'tone', 'references'];
   const groupBy: GroupingType =
     groupByParam && ALLOWED_GROUPINGS.includes(groupByParam)
       ? groupByParam

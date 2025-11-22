@@ -31,6 +31,97 @@ const SUMMARY_INTERVAL_SAFE = SUMMARY_GENERATION_INTERVAL || 6;
 
 const MAX_AI_EXCERPT = 1500;
 
+function isTableStart(lines: string[], index: number) {
+  const first = (lines[index] ?? '').trim();
+  const second = (lines[index + 1] ?? '').trim();
+  if (!first || !second) return false;
+  if (!first.includes('|') || !second.includes('|')) return false;
+  return /---/.test(second);
+}
+
+function parseRow(raw: string): string[] {
+  const normalized = raw.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+  return normalized.split('|').map((c) => c.trim());
+}
+
+function isEmptyCell(value?: string) {
+  const normalized = (value ?? '').replace(/[–—-]/g, '').trim();
+  return normalized.length === 0;
+}
+
+export function sanitizeTables(markdown: string): string {
+  const lines = markdown.split('\n');
+  const output: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    if (!isTableStart(lines, i)) {
+      output.push(lines[i] ?? '');
+      i += 1;
+      continue;
+    }
+
+    const tableLines: string[] = [];
+    let j = i;
+    while (j < lines.length) {
+      const candidate = (lines[j] ?? '').trim();
+      if (!candidate || !candidate.includes('|')) break;
+      tableLines.push(lines[j] ?? '');
+      j += 1;
+    }
+
+    const header = parseRow(tableLines[0] ?? '');
+    const rows: string[][] = tableLines
+      .slice(2)
+      .map(parseRow)
+      .filter((r): r is string[] => Array.isArray(r) && r.length > 0);
+    const colCount = header.length;
+    const totalCells = rows.length * colCount || 1;
+
+    const emptyCounts: number[] = Array(colCount).fill(0);
+    for (const row of rows) {
+      for (let c = 0; c < colCount; c++) {
+        const cell = row[c] ?? '';
+        if (isEmptyCell(cell)) emptyCounts[c] = (emptyCounts[c] ?? 0) + 1;
+      }
+    }
+    const emptyRatio = emptyCounts.reduce((sum, val) => sum + (val ?? 0), 0) / totalCells;
+    const hasSparseColumn = emptyCounts.some((cnt) => rows.length > 0 && ((cnt ?? 0) / rows.length) > 0.3);
+    const isWide = colCount > 4;
+    const shouldCondense = isWide || emptyRatio > 0.3 || hasSparseColumn;
+
+    if (!shouldCondense) {
+      output.push(...tableLines);
+    } else {
+      const bulletLines: string[] = [];
+      rows.forEach((row) => {
+        const title = (row?.[0] ?? '').trim();
+        const details: string[] = [];
+        for (let c = 1; c < colCount; c++) {
+          const cell = row?.[c] ?? '';
+          if (isEmptyCell(cell)) continue;
+          const label = header[c] || `Col ${c + 1}`;
+          details.push(`  - ${label}: ${cell}`);
+        }
+        if (title && details.length > 0) {
+          bulletLines.push(`- **${title}**`);
+          bulletLines.push(...details);
+        } else if (details.length > 0) {
+          bulletLines.push(...details.map((d) => d.replace(/^  - /, '- ')));
+        }
+      });
+      if (bulletLines.length === 0) {
+        bulletLines.push(...tableLines);
+      }
+      output.push(...bulletLines);
+    }
+
+    i = j;
+  }
+
+  return output.join('\n');
+}
+
 async function extractContextFromAIResponse(aiResponseText: string, userId: string) {
   const trimmed = (aiResponseText || '').trim();
   const wasQuestion = trimmed.endsWith('?');
@@ -306,17 +397,18 @@ Pergunta: "${String(query)}"`;
 
     const instigatingQuestion = await generateInstigatingQuestion(finalText, dialogueState, access.targetUserId);
     const fullResponse = instigatingQuestion ? `${finalText.trim()}\n\n${instigatingQuestion}` : finalText.trim();
-    const pendingActionInfo = aiResponseSuggestsPendingAction(fullResponse);
+    const sanitizedResponse = sanitizeTables(fullResponse);
+    const pendingActionInfo = aiResponseSuggestsPendingAction(sanitizedResponse);
 
     try {
       const updated: ChatCompletionMessageParam[] = [
         ...historyMessages,
         { role: 'user', content: String(query) } as ChatCompletionUserMessageParam,
-        { role: 'assistant', content: fullResponse } as ChatCompletionAssistantMessageParam,
+        { role: 'assistant', content: sanitizedResponse } as ChatCompletionAssistantMessageParam,
       ].slice(-HISTORY_LIMIT_SAFE);
       await stateService.setConversationHistory(conversationKey, updated);
 
-      const extractedContext = await extractContextFromAIResponse(fullResponse, access.targetUserId);
+      const extractedContext = await extractContextFromAIResponse(sanitizedResponse, access.targetUserId);
       const counter = (dialogueState?.summaryTurnCounter ?? 0) + 1;
       const dialogueUpdate: Partial<IDialogueState> = {
         lastInteraction: Date.now(),
@@ -369,7 +461,7 @@ Pergunta: "${String(query)}"`;
 
     const currentTaskResponse = currentTaskPayload || (COMPLEX_TASK_INTENTS.includes(effectiveIntent as any) ? dialogueState?.currentTask ?? null : null);
 
-    return NextResponse.json({ answer: fullResponse, cta, pendingAction: pendingActionPayload, currentTask: currentTaskResponse }, { status: 200 });
+    return NextResponse.json({ answer: sanitizedResponse, cta, pendingAction: pendingActionPayload, currentTask: currentTaskResponse }, { status: 200 });
   } catch (error: unknown) {
     console.error("POST /api/ai/chat error:", error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido.';

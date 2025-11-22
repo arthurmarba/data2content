@@ -380,13 +380,9 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
         <span dangerouslySetInnerHTML={{ __html: applyInlineMarkup(raw, theme) }} />
     );
 
-    const tableWrapper = (key: string, node: JSX.Element, hasBadge?: boolean) => (
-        <div key={key} className="relative overflow-x-auto my-3 max-w-full">
+    const tableWrapper = (key: string, node: JSX.Element) => (
+        <div key={key} className="overflow-x-auto my-3 max-w-full">
             {node}
-            <span
-                aria-hidden
-                className={`pointer-events-none absolute inset-y-0 right-0 ${hasBadge ? 'w-8' : 'w-10'} ${isInverse ? 'bg-gradient-to-l from-slate-900 via-slate-900/60 to-transparent' : 'bg-gradient-to-l from-white via-white/70 to-transparent'}`}
-            />
         </div>
     );
 
@@ -428,14 +424,39 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
             const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
             elements.push(<p key={`p-${idx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
         } else if (block.type === 'ul') {
-            elements.push(
-                <ul key={`ul-${idx}`} className={`list-disc ml-6 pl-1 space-y-1 ${listClass}`}>
-                    {block.items.map((it, jdx) => {
+            const hasTitleBullet = block.items.length > 1 && Boolean(block.items[0]?.trim()?.endsWith(':'));
+            const allLongSentences = block.items.length >= 2 && block.items.every((it) => (it ?? '').length > 80);
+
+            if (hasTitleBullet || allLongSentences) {
+                if (hasTitleBullet) {
+                    const title = (block.items[0] ?? '').trim().replace(/:\s*$/, '');
+                    elements.push(
+                        <p
+                            key={`ul-title-${idx}`}
+                            className={`${paragraphClass} font-semibold`}
+                            dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(title), theme) }}
+                        />
+                    );
+                    block.items.slice(1).forEach((it, jdx) => {
                         const html = applyInlineMarkup(escapeHtml(it), theme);
-                        return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
-                    })}
-                </ul>
-            );
+                        elements.push(<p key={`ul-title-item-${idx}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
+                    });
+                } else {
+                    block.items.forEach((it, jdx) => {
+                        const html = applyInlineMarkup(escapeHtml(it), theme);
+                        elements.push(<p key={`ul-paragraph-${idx}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
+                    });
+                }
+            } else {
+                elements.push(
+                    <ul key={`ul-${idx}`} className={`list-disc ml-6 pl-1 space-y-1 ${listClass}`}>
+                        {block.items.map((it, jdx) => {
+                            const html = applyInlineMarkup(escapeHtml(it), theme);
+                            return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
+                        })}
+                    </ul>
+                );
+            }
         } else if (block.type === 'ol') {
             elements.push(
                 <ol key={`ol-${idx}`} className={`list-decimal ml-6 pl-1 space-y-0.5 ${listClass}`}>

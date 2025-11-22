@@ -15,19 +15,31 @@ export const getInspirationCacheKey = (slot: PlannerUISlot) => {
 const cache = new Map<string, InspirationResult>();
 const pendingRequests = new Map<string, Promise<InspirationResult>>();
 
+export function getCachedInspirations(slot: PlannerUISlot): InspirationResult | null {
+    const key = getInspirationCacheKey(slot);
+    return cache.get(key) ?? null;
+}
+
 export async function fetchSlotInspirations(
     userId: string,
-    slot: PlannerUISlot
+    slot: PlannerUISlot,
+    options?: { force?: boolean }
 ): Promise<InspirationResult> {
+    const force = options?.force;
     const key = getInspirationCacheKey(slot);
 
+    if (force) {
+        pendingRequests.delete(key);
+        cache.delete(key);
+    }
+
     // Return cached result if available
-    if (cache.has(key)) {
+    if (!force && cache.has(key)) {
         return cache.get(key)!;
     }
 
     // Return pending promise if request is in flight (deduplication)
-    if (pendingRequests.has(key)) {
+    if (!force && pendingRequests.has(key)) {
         return pendingRequests.get(key)!;
     }
 

@@ -103,11 +103,11 @@ export default function ChatPanel({
       return;
     }
     if (trimmed !== previousTargetRef.current) {
-      setMessages([]);
-      setInlineAlert(null);
+      clearChat();
+      setInput('');
       previousTargetRef.current = trimmed;
     }
-  }, [isAdmin, targetUserId, setMessages, setInlineAlert]);
+  }, [isAdmin, targetUserId, clearChat, setInput]);
 
   useEffect(() => {
     const trimmed = targetUserId.trim();

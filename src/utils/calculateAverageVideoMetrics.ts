@@ -66,39 +66,113 @@ async function calculateAverageVideoMetrics(
         }
       },
       // Passo 2: Criar os campos corretos para cada documento em tempo de execução
-      { 
+      {
         $project: {
-          // Calcula o tempo médio de visualização em segundos a partir do dado bruto em milissegundos
-          watchTimeInSeconds: {
-            $cond: {
-              if: { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
-              then: { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
-              else: null
-            }
-          },
-          // Calcula a taxa de retenção na hora
-          retentionRate: {
-            $cond: {
-              if: { $and: [
-                { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
-                { $gt: [{ $ifNull: ['$stats.video_duration_seconds', 0] }, 0] }
-              ]},
-              then: {
-                $divide: [
-                  { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
-                  '$stats.video_duration_seconds'
-                ]
-              },
-              else: null
-            }
-          }
-          ,
           views: { $ifNull: ['$stats.views', '$stats.video_views'] },
+          durationSeconds: { $ifNull: ['$stats.video_duration_seconds', 0] },
+          watchTimeInSeconds: {
+            $let: {
+              vars: {
+                avgMs: '$stats.ig_reels_avg_watch_time',
+                avgSecLegacy: '$stats.average_video_watch_time_seconds',
+                totalMs: '$stats.ig_reels_video_view_total_time',
+                viewsVal: { $ifNull: ['$stats.views', '$stats.video_views'] },
+              },
+              in: {
+                $cond: [
+                  { $gt: [{ $ifNull: ['$$avgMs', 0] }, 0] },
+                  { $divide: ['$$avgMs', 1000] },
+                  {
+                    $cond: [
+                      { $gt: [{ $ifNull: ['$$avgSecLegacy', 0] }, 0] },
+                      '$$avgSecLegacy',
+                      {
+                        $cond: [
+                          {
+                            $and: [
+                              { $gt: [{ $ifNull: ['$$totalMs', 0] }, 0] },
+                              { $gt: [{ $ifNull: ['$$viewsVal', 0] }, 0] },
+                            ],
+                          },
+                          {
+                            $divide: [
+                              { $divide: ['$$totalMs', 1000] },
+                              { $ifNull: ['$$viewsVal', 1] },
+                            ],
+                          },
+                          null,
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          retentionRate: {
+            $let: {
+              vars: {
+                duration: { $ifNull: ['$stats.video_duration_seconds', 0] },
+                avgMs: '$stats.ig_reels_avg_watch_time',
+                avgSecLegacy: '$stats.average_video_watch_time_seconds',
+                totalMs: '$stats.ig_reels_video_view_total_time',
+                viewsVal: { $ifNull: ['$stats.views', '$stats.video_views'] },
+              },
+              in: {
+                $cond: [
+                  { $gt: ['$$duration', 0] },
+                  {
+                    $let: {
+                      vars: {
+                        wt: {
+                          $cond: [
+                            { $gt: [{ $ifNull: ['$$avgMs', 0] }, 0] },
+                            { $divide: ['$$avgMs', 1000] },
+                            {
+                              $cond: [
+                                { $gt: [{ $ifNull: ['$$avgSecLegacy', 0] }, 0] },
+                                '$$avgSecLegacy',
+                                {
+                                  $cond: [
+                                    {
+                                      $and: [
+                                        { $gt: [{ $ifNull: ['$$totalMs', 0] }, 0] },
+                                        { $gt: [{ $ifNull: ['$$viewsVal', 0] }, 0] },
+                                      ],
+                                    },
+                                    {
+                                      $divide: [
+                                        { $divide: ['$$totalMs', 1000] },
+                                        { $ifNull: ['$$viewsVal', 1] },
+                                      ],
+                                    },
+                                    null,
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      },
+                      in: {
+                        $cond: [
+                          { $gt: [{ $ifNull: ['$$wt', 0] }, 0] },
+                          { $divide: ['$$wt', '$$duration'] },
+                          null,
+                        ],
+                      },
+                    },
+                  },
+                  null,
+                ],
+              },
+            },
+          },
           likes: '$stats.likes',
           comments: '$stats.comments',
           shares: '$stats.shares',
-          saves: '$stats.saved'
-        }
+          saves: '$stats.saved',
+        },
       },
       // Passo 3: Agrupar tudo para calcular as médias finais
       {

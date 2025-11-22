@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { idsToLabels } from '@/app/lib/classification';
 import { prefillInspirationCache } from '../utils/inspirationCache';
+import { setCachedThemes } from '../utils/plannerThemesCache';
 
 const DAYS_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
@@ -135,8 +136,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     Array<{ id: string; caption: string; views: number; date: string; coverUrl?: string | null; postLink?: string | null; reason?: string[] }>
   >([]);
   const [communityExpanded, setCommunityExpanded] = useState<boolean>(false);
-  const [inspirationsOpen, setInspirationsOpen] = useState(false);
-  const [communityOpen, setCommunityOpen] = useState(false);
+  const [inspirationsOpen, setInspirationsOpen] = useState(true);
+  const [communityOpen, setCommunityOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(open);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -167,8 +168,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     setAutoThemesFetched(false);
     setInspExpanded(false);
     setCommunityExpanded(false);
-    setInspirationsOpen(false);
-    setCommunityOpen(false);
+    setInspirationsOpen(true);
+    setCommunityOpen(true);
   }, [open, slot, derivedTheme]);
 
   useEffect(() => {
@@ -337,6 +338,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         const data = await res.json();
         const arr: string[] = Array.isArray(data?.themes) ? data.themes : [];
         setThemesLocal(arr);
+        setCachedThemes(slot as any, arr);
         if (!themeKw && typeof data?.keyword === 'string' && data.keyword.trim()) {
           setThemeKw(String(data.keyword).trim());
         }
@@ -371,7 +373,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     };
   }, [open, slot, autoThemesFetched, handleRegenerateThemes]);
 
-  const fetchInspirations = async () => {
+  const fetchInspirations = useCallback(async () => {
     if (!slot) return;
     setInspLoading(true);
     setInspError(null);
@@ -419,11 +421,17 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     } finally {
       setInspLoading(false);
     }
-  };
+  }, [slot, userId]);
+
+  useEffect(() => {
+    if (!open || !slot || !inspirationsOpen) return;
+    if (inspLoading || inspPosts.length) return;
+    void fetchInspirations();
+  }, [open, slot, inspirationsOpen, inspLoading, inspPosts.length, fetchInspirations]);
 
 
 
-  const fetchCommunityInspirations = async () => {
+  const fetchCommunityInspirations = useCallback(async () => {
     if (!slot) return;
     setCommunityLoading(true);
     setCommunityError(null);
@@ -472,7 +480,13 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     } finally {
       setCommunityLoading(false);
     }
-  };
+  }, [slot, description, effectiveTheme, userId]);
+
+  useEffect(() => {
+    if (!open || !slot || !communityOpen) return;
+    if (communityLoading || communityPosts.length) return;
+    void fetchCommunityInspirations();
+  }, [open, slot, communityOpen, communityLoading, communityPosts.length, fetchCommunityInspirations]);
 
   const handleGenerate = async (strategy: GenerationStrategy = 'default') => {
     if (!slot) return;
@@ -697,7 +711,15 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                   </span>
                   <span className="text-xl text-neutral-400">{inspirationsOpen ? '−' : '+'}</span>
                 </button>
-                <OutlinePillButton type="button" onClick={fetchInspirations} disabled={inspLoading} className="whitespace-nowrap">
+                <OutlinePillButton
+                  type="button"
+                  onClick={() => {
+                    setInspirationsOpen(true);
+                    void fetchInspirations();
+                  }}
+                  disabled={inspLoading}
+                  className="whitespace-nowrap"
+                >
                   {inspLoading ? 'Carregando…' : 'Atualizar'}
                 </OutlinePillButton>
               </div>
@@ -790,7 +812,10 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                 </button>
                 <OutlinePillButton
                   type="button"
-                  onClick={fetchCommunityInspirations}
+                  onClick={() => {
+                    setCommunityOpen(true);
+                    void fetchCommunityInspirations();
+                  }}
                   disabled={communityLoading}
                   className="whitespace-nowrap"
                 >

@@ -3,6 +3,7 @@ export const ALLOWED_TIME_PERIODS = [
   'last_7_days',
   'last_30_days',
   'last_90_days',
+  'last_180_days',
   'last_6_months',
   'last_12_months',
 ] as const;

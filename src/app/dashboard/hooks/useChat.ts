@@ -37,6 +37,11 @@ export function useChat({ userWithId, isAdmin, targetUserId }: UseChatProps) {
             setInlineAlert('Você precisa estar logado para enviar mensagens.');
             return;
         }
+        const trimmedTarget = targetUserId.trim();
+        if (isAdmin && !trimmedTarget) {
+            setInlineAlert('Selecione um usuário no Admin Mode antes de enviar.');
+            return;
+        }
         if (isSending) return;
         if (typeof navigator !== 'undefined' && navigator && !navigator.onLine) {
             setInlineAlert('Sem conexão com a internet no momento.');
@@ -51,10 +56,12 @@ export function useChat({ userWithId, isAdmin, targetUserId }: UseChatProps) {
         setMessages(prev => [...prev, { sender: 'user', text: prompt }]);
 
         try {
-            const trimmedTarget = targetUserId.trim();
             const payload: Record<string, unknown> = { query: prompt };
-            if (isAdmin && trimmedTarget && trimmedTarget !== userWithId?.id) {
-                payload.targetUserId = trimmedTarget;
+            if (isAdmin) {
+                const targetForPayload = trimmedTarget || userWithId?.id;
+                if (targetForPayload) {
+                    payload.targetUserId = targetForPayload;
+                }
             }
 
             const res = await fetch("/api/ai/chat", {
