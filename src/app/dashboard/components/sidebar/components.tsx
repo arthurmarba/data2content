@@ -349,10 +349,14 @@ const SidebarLinkItem = ({
         prefetch={false}
         onClick={handleClick}
         className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} rounded-xl ${tokens.alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${tokens.focusOffsetClass} ${
-          active
-            ? "bg-white font-semibold text-slate-900 border border-slate-200 shadow-sm shadow-brand-magenta/10"
-            : "font-medium text-slate-600 hover:bg-white/85 hover:text-slate-900 border border-transparent"
-        } ${!tokens.showLabels ? "px-0.5 py-2 justify-center" : ""}`}
+          !tokens.showLabels
+            ? active
+              ? "bg-transparent border-0 shadow-none font-semibold text-slate-900"
+              : "bg-transparent border-0 shadow-none font-medium text-slate-600 hover:bg-transparent"
+            : active
+              ? "bg-white font-semibold text-slate-900 border border-slate-200 shadow-sm shadow-brand-magenta/10"
+              : "font-medium text-slate-600 hover:bg-white/85 hover:text-slate-900 border border-transparent"
+        } ${!tokens.showLabels ? "px-0 py-2 justify-center" : ""}`}
         title={item.tooltip}
       >
         {showActiveIndicator && (
@@ -451,10 +455,14 @@ const SidebarChildLink = ({
         prefetch={false}
         onClick={handleClick}
         className={`group relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${focusOffsetClass} ${
-          active
-            ? "bg-white text-slate-900 border border-slate-200 shadow-sm shadow-brand-magenta/10"
-            : "text-slate-600 hover:bg-white/80 hover:text-slate-900 border border-transparent"
-        } ${!showLabels ? "justify-center px-0.5" : ""}`}
+          !showLabels
+            ? active
+              ? "bg-transparent border-0 shadow-none text-slate-900"
+              : "bg-transparent border-0 shadow-none text-slate-600 hover:bg-transparent"
+            : active
+              ? "bg-white text-slate-900 border border-slate-200 shadow-sm shadow-brand-magenta/10"
+              : "text-slate-600 hover:bg-white/80 hover:text-slate-900 border border-transparent"
+        } ${!showLabels ? "justify-center px-0" : ""}`}
         title={item.tooltip}
       >
         {showActiveIndicator && (
