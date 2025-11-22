@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSession, signIn } from "next-auth/react";
 import {
   FaArrowDown
@@ -12,9 +12,11 @@ import { isPlanActiveLike } from "@/utils/planStatus";
 import { MessageBubble } from './components/chat/MessageBubble';
 import { Composer } from './components/chat/Composer';
 import { PromptChip } from './components/chat/PromptChip';
-import { ChatCalculationContext } from './components/chat/types';
+import { AlertItem, ChatCalculationContext } from './components/chat/types';
 import { useChat } from "./hooks/useChat";
 import { usePricingAnalysis } from "./hooks/usePricingAnalysis";
+import { useAlerts } from "./hooks/useAlerts";
+import { AlertsDrawer } from "./components/chat/AlertsDrawer";
 
 interface SessionUserWithId {
   id?: string;
@@ -78,6 +80,22 @@ export default function ChatPanel({
     isAdmin,
     targetUserId
   });
+
+  const {
+    alerts,
+    status: alertsStatus,
+    setStatus: setAlertsStatus,
+    unreadCount: alertsUnreadCount,
+    hasNext: alertsHasNext,
+    fetchState: alertsFetchState,
+    ensureLoaded: ensureAlertsLoaded,
+    refresh: refreshAlerts,
+    loadMore: loadMoreAlerts,
+    markAsRead: markAlertAsRead,
+    refreshUnreadCount: refreshAlertsUnreadCount,
+  } = useAlerts();
+
+  const [isAlertsOpen, setAlertsOpen] = useState(false);
 
   const {
     pricingAnalysisContext,
@@ -231,6 +249,18 @@ export default function ChatPanel({
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    ensureAlertsLoaded();
+  }, [ensureAlertsLoaded]);
+
+  useEffect(() => {
+    refreshAlertsUnreadCount();
+    const id = window.setInterval(() => {
+      refreshAlertsUnreadCount();
+    }, 60000);
+    return () => window.clearInterval(id);
+  }, [refreshAlertsUnreadCount]);
+
   const handleSend = async () => {
     await sendPrompt(input);
   };
@@ -259,6 +289,35 @@ export default function ChatPanel({
   const isWelcome = messages.length === 0;
   const fullName = (session?.user?.name || "").trim();
   const firstName = fullName ? fullName.split(" ")[0] : "visitante";
+  const handleAlertSelect = useCallback(
+    (alert: AlertItem) => {
+      if (!alert) return;
+      autoScrollOnNext.current = true;
+      setMessages((prev) => {
+        if (prev.some((msg) => msg.alertId === alert.id)) return prev;
+        const content = alert.body ? `*${alert.title}*\n\n${alert.body}` : alert.title;
+        return [
+          ...prev,
+          {
+            sender: 'consultant',
+            text: content,
+            alertId: alert.id,
+            alertTitle: alert.title,
+            alertSeverity: alert.severity ?? 'info',
+          },
+        ];
+      });
+      setAlertsOpen(false);
+      markAlertAsRead(alert.id).then((ok) => {
+        if (!ok) {
+          setInlineAlert((prev) => prev ?? 'Não consegui marcar o alerta como lido agora.');
+        }
+      }).catch(() => {
+        setInlineAlert((prev) => prev ?? 'Não consegui marcar o alerta como lido agora.');
+      });
+    },
+    [autoScrollOnNext, markAlertAsRead, setAlertsOpen, setInlineAlert, setMessages]
+  );
 
   const welcomePrompts = [
     { label: "narrativa que gera compartilhamentos", requiresIG: true },
@@ -411,6 +470,14 @@ export default function ChatPanel({
           onOpenTools={() => setIsToolsOpen(true)}
           isToolsOpen={isToolsOpen}
           onCloseTools={() => setIsToolsOpen(false)}
+          onOpenAlerts={() => {
+            setIsToolsOpen(false);
+            setAlertsOpen(true);
+            ensureAlertsLoaded();
+          }}
+          isAlertsOpen={isAlertsOpen}
+          onCloseAlerts={() => setAlertsOpen(false)}
+          alertsBadgeCount={alertsUnreadCount}
           instagramConnected={instagramConnected}
           onConnectInstagram={handleCorrectInstagramLink}
           instagramUsername={instagramUsername}
@@ -423,6 +490,24 @@ export default function ChatPanel({
           onClearChat={clearChat}
         />
       </div>
+
+      <AlertsDrawer
+        isOpen={isAlertsOpen}
+        onClose={() => setAlertsOpen(false)}
+        alerts={alerts}
+        status={alertsStatus}
+        onStatusChange={(status) => {
+          setAlertsStatus(status);
+          refreshAlerts(status);
+        }}
+        loading={alertsFetchState.loading}
+        error={alertsFetchState.error}
+        unreadCount={alertsUnreadCount}
+        hasNext={alertsHasNext}
+        onRefresh={() => refreshAlerts()}
+        onLoadMore={loadMoreAlerts}
+        onSelectAlert={handleAlertSelect}
+      />
 
       {/* Voltar ao fim */}
       <AnimatePresence>

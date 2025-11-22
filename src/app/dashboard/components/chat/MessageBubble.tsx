@@ -16,6 +16,15 @@ export const MessageBubble = React.memo(function MessageBubble({
 }: MessageBubbleProps) {
     const router = useRouter();
     const isUser = message.sender === 'user';
+    const isAlert = Boolean(message.alertId);
+    const severity = message.alertSeverity || 'info';
+
+    const severityBadgeClass = (() => {
+        if (severity === 'critical') return 'bg-red-100 text-red-700';
+        if (severity === 'warning') return 'bg-amber-100 text-amber-700';
+        if (severity === 'success') return 'bg-emerald-100 text-emerald-700';
+        return 'bg-indigo-100 text-indigo-700';
+    })();
 
     return (
         <li className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -27,6 +36,16 @@ export const MessageBubble = React.memo(function MessageBubble({
                             : 'max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch] text-gray-800 px-1 text-[15px] leading-7',
                     ].join(' ')}
                 >
+                    {isAlert && (
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 ${severityBadgeClass}`}>
+                                Alerta
+                            </span>
+                            {message.alertTitle ? (
+                                <span className="truncate text-[12px] font-semibold text-gray-600">{message.alertTitle}</span>
+                            ) : null}
+                        </div>
+                    )}
                     <div className={isUser ? 'text-white/95' : undefined}>
                         {renderFormatted(message.text, isUser ? 'inverse' : 'default')}
                     </div>

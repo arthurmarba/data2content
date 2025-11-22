@@ -6,6 +6,9 @@ export interface Message {
         action: string;
     };
     contextCalcId?: string;
+    alertId?: string;
+    alertTitle?: string;
+    alertSeverity?: 'info' | 'warning' | 'success' | 'critical';
 }
 
 export interface CurrentTaskState {
@@ -64,4 +67,16 @@ export type PricingAnalysisContext = {
 export type PreloadedMessage = {
     role: 'system' | 'assistant';
     content: string;
+};
+
+export type AlertItem = {
+    id: string;
+    title: string;
+    body: string;
+    channel?: 'whatsapp' | 'system' | 'email' | 'other';
+    severity?: 'info' | 'warning' | 'success' | 'critical';
+    metadata?: Record<string, unknown> | null;
+    sourceMessageId?: string | null;
+    readAt?: string | null;
+    createdAt: string;
 };

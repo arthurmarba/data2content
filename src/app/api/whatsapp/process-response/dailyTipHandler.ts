@@ -597,6 +597,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
     let userForRadar: IUser | null = null;
     let userPhoneForRadar: string | null | undefined;
+    let canSendWhatsApp = false;
     
     if (!PROACTIVE_ALERT_TEMPLATE_NAME || !GENERIC_ERROR_TEMPLATE_NAME) {
         logger.error(`${handlerTAG} Nomes de template (PROACTIVE_ALERT_TEMPLATE_NAME, GENERIC_ERROR_TEMPLATE_NAME) não configurados nas variáveis de ambiente. Interrompendo.`);
@@ -643,9 +644,9 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         }
 
         userPhoneForRadar = userForRadar.whatsappPhone;
-        if (!userPhoneForRadar || !userForRadar.whatsappVerified) {
-            logger.warn(`${handlerTAG} Usuário ${userId} sem WhatsApp válido/verificado.`);
-            return NextResponse.json({ success: true, message: "User has no verified WhatsApp number." }, { status: 200 });
+        canSendWhatsApp = Boolean(userPhoneForRadar && userForRadar.whatsappVerified);
+        if (!canSendWhatsApp) {
+            logger.info(`${handlerTAG} Usuário ${userId} sem WhatsApp válido/verificado. Segue apenas com alerta em plataforma.`);
         }
         
         const dialogueStateForRadar = await stateService.getDialogueState(userId);
@@ -763,24 +764,28 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
             // O resto da lógica para enviar e salvar no histórico permanece.
             let whatsappMessageIdFallback: string | undefined;
-            let sendStatusFallback: 'sent' | 'failed' = 'failed';
+            let sendStatusFallback: 'sent' | 'failed' | 'skipped_no_whatsapp' = 'failed';
             let sendErrorFallback: string | undefined;
 
-            try {
-                const templateComponents: ITemplateComponent[] = [{
-                    type: 'body',
-                    parameters: [{
-                        type: 'text',
-                        text: finalDefaultMessageToSend.replace(/\n/g, ' ')
-                    }]
-                }];
+            if (canSendWhatsApp && userPhoneForRadar) {
+                try {
+                    const templateComponents: ITemplateComponent[] = [{
+                        type: 'body',
+                        parameters: [{
+                            type: 'text',
+                            text: finalDefaultMessageToSend.replace(/\n/g, ' ')
+                        }]
+                    }];
 
-                whatsappMessageIdFallback = await sendTemplateMessage(userPhoneForRadar, PROACTIVE_ALERT_TEMPLATE_NAME, templateComponents);
-                sendStatusFallback = 'sent';
-                logger.info(`${handlerTAG} Mensagem de fallback (template) enviada. WhatsAppMsgID: ${whatsappMessageIdFallback}`);
-            } catch (sendError: any) {
-                logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem de fallback (template). Erro:`, sendError);
-                sendErrorFallback = (sendError.message || String(sendError)).substring(0, 200);
+                    whatsappMessageIdFallback = await sendTemplateMessage(userPhoneForRadar, PROACTIVE_ALERT_TEMPLATE_NAME, templateComponents);
+                    sendStatusFallback = 'sent';
+                    logger.info(`${handlerTAG} Mensagem de fallback (template) enviada. WhatsAppMsgID: ${whatsappMessageIdFallback}`);
+                } catch (sendError: any) {
+                    logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem de fallback (template). Erro:`, sendError);
+                    sendErrorFallback = (sendError.message || String(sendError)).substring(0, 200);
+                }
+            } else {
+                sendStatusFallback = 'skipped_no_whatsapp';
             }
             
             let updatedFallbackHistory = dialogueStateForRadar.fallbackInsightsHistory || [];
@@ -801,12 +806,17 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             await stateService.updateDialogueState(userId, stateToUpdate);
 
             try {
-                const noEventDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; inspirationId?: string } = {
-                    reason: 'Nenhum evento de regra detectado, insight de fallback fornecido.',
-                    fallbackInsightProvided: fallbackInsightText || 'Fallback genérico de engajamento.',
-                    fallbackInsightType: fallbackInsightType || 'none',
-                    whatsappMessageId: whatsappMessageIdFallback,
-                    sendStatus: sendStatusFallback,
+            const noEventDetails: AlertDetails & {
+                whatsappMessageId?: string;
+                sendStatus?: 'sent' | 'failed' | 'skipped_no_whatsapp';
+                sendError?: string;
+                inspirationId?: string;
+            } = {
+                reason: 'Nenhum evento de regra detectado, insight de fallback fornecido.',
+                fallbackInsightProvided: fallbackInsightText || 'Fallback genérico de engajamento.',
+                fallbackInsightType: fallbackInsightType || 'none',
+                whatsappMessageId: whatsappMessageIdFallback,
+                sendStatus: sendStatusFallback,
                     sendError: sendErrorFallback,
                     inspirationId: inspiration.inspirationId
                 };
@@ -918,25 +928,34 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
         fullAlertMessageToUser = appendInstagramLinkIfMissing(fullAlertMessageToUser, detectedEvent.detailsForLog);
 
-        let alertEntryDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; inspirationId?: string } = { ...detectedEvent.detailsForLog, inspirationId: inspiration.inspirationId };
+        let alertEntryDetails: AlertDetails & {
+            whatsappMessageId?: string;
+            sendStatus?: 'sent' | 'failed' | 'skipped_no_whatsapp';
+            sendError?: string;
+            inspirationId?: string;
+        } = { ...detectedEvent.detailsForLog, inspirationId: inspiration.inspirationId };
 
-        try {
-            const templateComponents: ITemplateComponent[] = [{
-                type: 'body',
-                parameters: [{
-                    type: 'text',
-                    text: fullAlertMessageToUser.replace(/\n/g, ' ')
-                }]
-            }];
+        if (canSendWhatsApp && userPhoneForRadar) {
+            try {
+                const templateComponents: ITemplateComponent[] = [{
+                    type: 'body',
+                    parameters: [{
+                        type: 'text',
+                        text: fullAlertMessageToUser.replace(/\n/g, ' ')
+                    }]
+                }];
 
-            const wamid = await sendTemplateMessage(userPhoneForRadar, PROACTIVE_ALERT_TEMPLATE_NAME, templateComponents);
-            logger.info(`${handlerTAG} Alerta do Radar (template) enviado. WhatsAppMsgID: ${wamid}`);
-            alertEntryDetails.whatsappMessageId = wamid;
-            alertEntryDetails.sendStatus = 'sent';
-        } catch (sendError: any) {
-            logger.error(`${handlerTAG} FALHA AO ENVIAR alerta do Radar (template). Erro:`, sendError);
-            alertEntryDetails.sendStatus = 'failed';
-            alertEntryDetails.sendError = (sendError.message || String(sendError)).substring(0, 200);
+                const wamid = await sendTemplateMessage(userPhoneForRadar, PROACTIVE_ALERT_TEMPLATE_NAME, templateComponents);
+                logger.info(`${handlerTAG} Alerta do Radar (template) enviado. WhatsAppMsgID: ${wamid}`);
+                alertEntryDetails.whatsappMessageId = wamid;
+                alertEntryDetails.sendStatus = 'sent';
+            } catch (sendError: any) {
+                logger.error(`${handlerTAG} FALHA AO ENVIAR alerta do Radar (template). Erro:`, sendError);
+                alertEntryDetails.sendStatus = 'failed';
+                alertEntryDetails.sendError = (sendError.message || String(sendError)).substring(0, 200);
+            }
+        } else {
+            alertEntryDetails.sendStatus = 'skipped_no_whatsapp';
         }
 
         try {
@@ -966,7 +985,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
     } catch (error) {
         logger.error(`${handlerTAG} Erro GERAL ao processar Radar Mobi para User ${userId}:`, error);
 
-        if (userPhoneForRadar) {
+        if (canSendWhatsApp && userPhoneForRadar) {
             try {
                 const templateComponents: ITemplateComponent[] = [];
                 const wamid = await sendTemplateMessage(userPhoneForRadar, GENERIC_ERROR_TEMPLATE_NAME, templateComponents);

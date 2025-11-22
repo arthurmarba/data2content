@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTimes, FaInstagram, FaExternalLinkAlt, FaTrash } from 'react-icons/fa';
-import { useRouter } from 'next/navigation';
+import { FaTimes, FaInstagram, FaTrash } from 'react-icons/fa';
 import WhatsAppConnectInline from '../../WhatsAppConnectInline';
 import { AdminUserSelector } from './AdminUserSelector';
 
@@ -32,9 +31,6 @@ export const ToolsDrawer = React.memo(function ToolsDrawer({
     onSelectUser,
     onClearChat,
 }: ToolsDrawerProps) {
-    const router = useRouter();
-    const safeBottom = 'env(safe-area-inset-bottom, 0px)';
-
     return (
         <AnimatePresence>
             {isOpen && (
@@ -91,24 +87,6 @@ export const ToolsDrawer = React.memo(function ToolsDrawer({
                                         <span aria-hidden="true" className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${instagramConnected ? 'translate-x-5' : 'translate-x-0'}`} />
                                     </button>
                                 </div>
-
-                                {instagramConnected && (
-                                    <button
-                                        onClick={() => {
-                                            router.push('/media-kit');
-                                            onClose();
-                                        }}
-                                        className="flex items-center gap-4 w-full text-left p-4 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors shadow-sm"
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-brand-magenta-soft flex items-center justify-center text-brand-primary">
-                                            <FaExternalLinkAlt className="text-lg" />
-                                        </div>
-                                        <div>
-                                            <span className="text-sm font-semibold text-gray-900 block">Abrir Mídia Kit</span>
-                                            <p className="text-xs text-gray-500">Visualize seu perfil profissional.</p>
-                                        </div>
-                                    </button>
-                                )}
 
                                 <button
                                     onClick={() => {

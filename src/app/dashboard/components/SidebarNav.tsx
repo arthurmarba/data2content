@@ -8,6 +8,7 @@ import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 import { buildSidebarSections } from "./sidebar/config";
 import { SidebarSectionList, type SidebarPresentationTokens } from "./sidebar/components";
 import { useSidebarViewport, useBodyScrollLock, useMobileAutoClose, usePaywallOpener } from "./sidebar/hooks";
+import { useAlerts } from "../hooks/useAlerts";
 
 interface SidebarNavProps {
   isCollapsed: boolean; // true = fechado; false = aberto
@@ -34,6 +35,19 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
 
   useBodyScrollLock(isMobile && isOpen);
   useMobileAutoClose({ isMobile, isOpen, pathname, onToggle });
+
+  const {
+    unreadCount: alertsUnreadCount,
+    refreshUnreadCount: refreshAlertsBadge,
+  } = useAlerts();
+
+  React.useEffect(() => {
+    refreshAlertsBadge();
+    const id = window.setInterval(() => {
+      refreshAlertsBadge();
+    }, 60000);
+    return () => window.clearInterval(id);
+  }, [refreshAlertsBadge]);
 
   const sections = useMemo(
     () =>
@@ -136,6 +150,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
             pathname={pathname}
             userId={userId}
             interaction={interaction}
+            badges={{ "planning.chat": alertsUnreadCount }}
           />
         </div>
       </nav>

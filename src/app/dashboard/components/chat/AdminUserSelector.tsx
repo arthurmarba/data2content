@@ -106,73 +106,61 @@ export function AdminUserSelector({
                 </div>
             </div>
 
-            <div className="relative flex items-center gap-2">
-                <div className="relative flex-1">
-                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" aria-hidden="true" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(event) => {
-                            setSearchQuery(event.target.value);
+            <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" aria-hidden="true" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(event) => {
+                        setSearchQuery(event.target.value);
+                        setShowSuggestions(true);
+                    }}
+                    onFocus={() => {
+                        if (searchQuery.trim().length >= 2 && (searchLoading || searchResults.length > 0)) {
                             setShowSuggestions(true);
-                        }}
-                        onFocus={() => {
-                            if (searchQuery.trim().length >= 2 && (searchLoading || searchResults.length > 0)) {
-                                setShowSuggestions(true);
-                            }
-                        }}
-                        onKeyDown={handleSearchKeyDown}
-                        placeholder="Buscar usuário..."
-                        className="w-full border border-gray-200 rounded-xl bg-gray-50 pl-9 pr-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all"
-                        autoCapitalize="none"
-                        autoCorrect="off"
-                    />
+                        }
+                    }}
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Buscar usuário..."
+                    className="w-full border border-gray-200 rounded-xl bg-gray-50 pl-9 pr-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                />
 
-                    {showSuggestions && (
-                        <div className="absolute z-50 bottom-full left-0 right-0 mb-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
-                            {searchLoading && (
-                                <div className="px-3 py-2 text-xs text-gray-500">Carregando…</div>
-                            )}
-                            {searchError && !searchLoading && (
-                                <div className="px-3 py-2 text-xs text-red-600">{searchError}</div>
-                            )}
-                            {!searchLoading && searchResults.length === 0 && !searchError && (
-                                <div className="px-3 py-2 text-xs text-gray-500">Nenhum resultado.</div>
-                            )}
-                            <ul className="max-h-48 overflow-y-auto text-xs">
-                                {searchResults.map((creator, index) => {
-                                    const label = creator.name || creator.email || creator._id;
-                                    const isActive = index === activeSuggestion;
-                                    return (
-                                        <li
-                                            key={creator._id}
-                                            className={`cursor-pointer px-3 py-2.5 border-b border-gray-50 last:border-0 ${isActive ? 'bg-brand-primary/5 text-brand-primary' : 'hover:bg-gray-50 text-gray-700'}`}
-                                            onMouseEnter={() => setActiveSuggestion(index)}
-                                            onMouseDown={(event) => {
-                                                event.preventDefault();
-                                                handleSuggestionSelect(creator);
-                                            }}
-                                        >
-                                            <div className="font-medium truncate">{label}</div>
-                                            <div className="text-[10px] text-gray-400 truncate">{creator._id}</div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
-                    )}
-                </div>
-
-                <button
-                    type="button"
-                    onClick={handleManualApply}
-                    disabled={!searchQuery.trim()}
-                    className="flex-shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                >
-                    OK
-                </button>
+                {showSuggestions && (
+                    <div className="absolute z-50 bottom-full left-0 right-0 mb-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+                        {searchLoading && (
+                            <div className="px-3 py-2 text-xs text-gray-500">Carregando…</div>
+                        )}
+                        {searchError && !searchLoading && (
+                            <div className="px-3 py-2 text-xs text-red-600">{searchError}</div>
+                        )}
+                        {!searchLoading && searchResults.length === 0 && !searchError && (
+                            <div className="px-3 py-2 text-xs text-gray-500">Nenhum resultado.</div>
+                        )}
+                        <ul className="max-h-48 overflow-y-auto text-xs">
+                            {searchResults.map((creator, index) => {
+                                const label = creator.name || creator.email || creator._id;
+                                const isActive = index === activeSuggestion;
+                                return (
+                                    <li
+                                        key={creator._id}
+                                        className={`cursor-pointer px-3 py-2.5 border-b border-gray-50 last:border-0 ${isActive ? 'bg-brand-primary/5 text-brand-primary' : 'hover:bg-gray-50 text-gray-700'}`}
+                                        onMouseEnter={() => setActiveSuggestion(index)}
+                                        onMouseDown={(event) => {
+                                            event.preventDefault();
+                                            handleSuggestionSelect(creator);
+                                        }}
+                                    >
+                                        <div className="font-medium truncate">{label}</div>
+                                        <div className="text-[10px] text-gray-400 truncate">{creator._id}</div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
-

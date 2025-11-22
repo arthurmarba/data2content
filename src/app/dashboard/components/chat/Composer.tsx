@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPlus, FaPaperPlane, FaInstagram, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaPlus, FaPaperPlane, FaInstagram, FaCheckCircle, FaExclamationTriangle, FaBell } from 'react-icons/fa';
 import { ToolsDrawer } from './ToolsDrawer';
 
 interface ComposerProps {
@@ -12,6 +12,10 @@ interface ComposerProps {
     onOpenTools: () => void;
     isToolsOpen: boolean;
     onCloseTools: () => void;
+    onOpenAlerts: () => void;
+    isAlertsOpen: boolean;
+    onCloseAlerts: () => void;
+    alertsBadgeCount: number;
     instagramConnected: boolean;
     onConnectInstagram: () => void;
     instagramUsername: string | null;
@@ -33,6 +37,10 @@ export const Composer = React.memo(function Composer({
     onOpenTools,
     isToolsOpen,
     onCloseTools,
+    onOpenAlerts,
+    isAlertsOpen,
+    onCloseAlerts,
+    alertsBadgeCount,
     instagramConnected,
     onConnectInstagram,
     instagramUsername,
@@ -106,15 +114,37 @@ export const Composer = React.memo(function Composer({
                     )}
                 </AnimatePresence>
 
-                <div className="relative flex items-end gap-2 bg-white rounded-[24px] border border-gray-200 focus-within:border-brand-primary/30 focus-within:shadow-lg focus-within:shadow-brand-primary/5 transition-all duration-300 p-1.5">
-                    <button
-                        onClick={onOpenTools}
-                        className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
-                        aria-label="Abrir ferramentas"
-                        title="Ferramentas"
-                    >
-                        <FaPlus />
-                    </button>
+                <div className="relative flex items-end gap-2 bg-white rounded-[28px] border border-gray-200/80 focus-within:border-brand-primary/40 focus-within:shadow-lg focus-within:shadow-brand-primary/10 transition-all duration-300 p-1.5">
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={onOpenTools}
+                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full transition-all ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            aria-label="Abrir ferramentas"
+                            title="Ferramentas"
+                        >
+                            <FaPlus />
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                if (isAlertsOpen) {
+                                    onCloseAlerts();
+                                } else {
+                                    onOpenAlerts();
+                                }
+                            }}
+                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full transition-all ${isAlertsOpen ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            aria-label="Abrir alertas"
+                            title="Alertas"
+                        >
+                            <FaBell />
+                            {alertsBadgeCount > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[18px] rounded-full bg-red-500 px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
+                                    {alertsBadgeCount > 99 ? '99+' : alertsBadgeCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
 
                     <textarea
                         ref={textAreaRef}
@@ -128,7 +158,7 @@ export const Composer = React.memo(function Composer({
                             }
                         }}
                         placeholder="Digite sua mensagem..."
-                        className="flex-1 resize-none overflow-hidden bg-transparent py-2 px-2 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-400 text-gray-900 max-h-[200px]"
+                        className="flex-1 resize-none overflow-hidden bg-transparent py-2 px-2 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-400 text-gray-900 max-h-[200px] rounded-2xl focus:bg-white/50 transition-colors"
                         style={{ minHeight: '40px' }}
                         disabled={isSending}
                     />
@@ -141,8 +171,8 @@ export const Composer = React.memo(function Composer({
                         }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onSend}
-                        className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${input.trim().length > 0
-                            ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-md shadow-brand-primary/20'
+                        className={`flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300 ${input.trim().length > 0
+                            ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-md shadow-brand-primary/25'
                             : 'bg-gray-200 text-gray-400'
                             }`}
                         disabled={!input.trim() || isSending}

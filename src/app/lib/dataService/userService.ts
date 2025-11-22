@@ -22,6 +22,7 @@ import CommunityInspirationModel from '@/app/models/CommunityInspiration';
 import AccountInsightModel from '@/app/models/AccountInsight';
 import AdDeal from '@/app/models/AdDeal';
 import StoryMetricModel from '@/app/models/StoryMetric'; // Modelo para métricas de stories
+import Alert from '@/app/models/Alert';
 
 // Conexão com o banco de dados
 import { connectToDatabase } from './connection';
@@ -326,6 +327,37 @@ export async function addAlertToHistory(
       return null;
     }
     logger.info(`${TAG} Alerta adicionado ao histórico para User ${userId}. Novo tamanho do histórico: ${updatedUser.alertHistory?.length || 0}`);
+
+    try {
+      const detailsAny = alertEntry.details as any;
+      const title =
+        detailsAny?.title ||
+        detailsAny?.reason ||
+        alertEntry.type;
+      const body = alertEntry.finalUserMessage || alertEntry.messageForAI || alertEntry.type;
+      const rawSeverity = detailsAny?.severity;
+      const severity =
+        rawSeverity === 'critical' || rawSeverity === 'warning' || rawSeverity === 'success' || rawSeverity === 'info'
+          ? rawSeverity
+          : 'info';
+
+      await Alert.create({
+        user: userId,
+        title: title || alertEntry.type,
+        body,
+        channel: 'whatsapp',
+        severity,
+        metadata: {
+          type: alertEntry.type,
+          details: alertEntry.details,
+          userInteraction: alertEntry.userInteraction ?? null,
+        },
+        createdAt: alertEntry.date ? new Date(alertEntry.date) : undefined,
+      });
+    } catch (alertError) {
+      logger.warn(`${TAG} Falha ao registrar alerta em coleção dedicada para user ${userId}:`, alertError);
+    }
+
     return updatedUser as IUser; // Assegura o tipo IUser
   } catch (error: any) {
     logger.error(`${TAG} Erro ao adicionar alerta ao histórico para User ${userId}:`, error);

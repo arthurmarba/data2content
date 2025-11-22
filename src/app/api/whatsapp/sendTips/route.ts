@@ -10,11 +10,12 @@ import { callOpenAIForTips }          from "@/app/lib/aiService";
 import { sendWhatsAppMessage }        from "@/app/lib/whatsappService";
 import { Model, Types, type FilterQuery } from "mongoose";
 import { isActiveLike, type ActiveLikeStatus } from "@/app/lib/isActiveLike";
+import Alert from "@/app/models/Alert";
 
 /* ────────────────────────────────────────────────────────── *
  * Tipos auxiliares                                           *
  * ────────────────────────────────────────────────────────── */
-interface ReportResult { userId: string; success: boolean }
+interface ReportResult { userId: string; success: boolean; delivered: boolean }
 
 interface DailyMetricDoc {
   stats?: { curtidas?: number };
@@ -23,6 +24,23 @@ interface DailyMetricDoc {
 interface TipsData {
   titulo?: string;           // “💡 Dicas da Semana”…
   dicas ?: string[];         // lista com os bullets
+}
+
+async function recordAlertForUser(userId: string, tips: TipsData, messageText: string) {
+  try {
+    await Alert.create({
+      user: userId,
+      title: tips.titulo || "Dicas da Semana",
+      body: messageText,
+      channel: "system",
+      severity: "info",
+      metadata: {
+        source: "whatsapp_sendTips",
+      },
+    });
+  } catch (error) {
+    console.warn("[sendTips] Falha ao registrar alerta em Alert collection", error);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +91,7 @@ export async function POST(request: NextRequest) {
   /* 2) DB */
   await connectToDatabase();
 
-  // ✅ Considera active-like e exige número verificado
+  // ✅ Considera active-like; envia pelo WhatsApp quando possível, mas registra alerta mesmo sem telefone
   const now = new Date();
   const trialWindowFilter: FilterQuery<IUser> = {
     $or: [
@@ -92,13 +110,11 @@ export async function POST(request: NextRequest) {
   ].filter(isActiveLike);
   const users = await User.find({
     planStatus: { $in: ACTIVE_LIKE },
-    whatsappPhone: { $exists: true, $ne: null },
-    whatsappVerified: true,
     ...trialWindowFilter,
   }).lean();
 
   if (!users.length) {
-    return NextResponse.json({ message: "Nenhum usuário elegível com WhatsApp verificado." }, { status: 200 });
+    return NextResponse.json({ message: "Nenhum usuário elegível para receber dicas." }, { status: 200 });
   }
 
   /* 3) Janela de 7 dias */
@@ -107,7 +123,7 @@ export async function POST(request: NextRequest) {
 
   /* 4) Processa todos em paralelo */
   const results = await Promise.allSettled<ReportResult>(
-    users.map(async u => {
+    users.map<Promise<ReportResult>>(async u => {
       const userId = u._id?.toString() ?? "UNKNOWN";
       try {
         // 4a) coleta curtidas simplificadas
@@ -120,7 +136,7 @@ export async function POST(request: NextRequest) {
           .select("stats.curtidas")
           .lean();
 
-        if (!dms.length) return { userId, success: false };
+        if (!dms.length) return { userId, success: false, delivered: false };
 
         // 4b) agrega & chama IA
         const weekly = aggregateWeeklyMetrics(dms);
@@ -134,20 +150,27 @@ export async function POST(request: NextRequest) {
           tips = { dicas: [String(rawTips)] };
         }
 
-        // 4c) monta e envia WhatsApp
-        if (u.whatsappPhone) {
-          await safeSendWhatsAppMessage(u.whatsappPhone, formatTipsMessage(tips));
-          return { userId, success: true };
+        // 4c) monta mensagem e registra alerta na plataforma
+        const messageText = formatTipsMessage(tips);
+        await recordAlertForUser(userId, tips, messageText);
+
+        // 4d) envia WhatsApp se houver número; caso contrário, apenas registra
+        let delivered = false;
+        if (u.whatsappPhone && u.whatsappVerified) {
+          await safeSendWhatsAppMessage(u.whatsappPhone, messageText);
+          delivered = true;
         }
-        return { userId, success: false };
+
+        return { userId, success: true, delivered };
 
       } catch (err) {
         console.error(`${tag} erro p/ ${userId}`, err);
-        return { userId, success: false };
+        return { userId, success: false, delivered: false };
       }
     })
   );
 
   const ok = results.filter(r => r.status === "fulfilled" && r.value.success).length;
-  return NextResponse.json({ message: `Dicas enviadas a ${ok} usuários.` }, { status: 200 });
+  const delivered = results.filter(r => r.status === "fulfilled" && r.value.delivered).length;
+  return NextResponse.json({ message: `Alertas gerados para ${ok} usuários. WhatsApp enviado para ${delivered}.` }, { status: 200 });
 }
