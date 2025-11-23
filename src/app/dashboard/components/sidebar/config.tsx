@@ -1,5 +1,5 @@
 import React from "react";
-import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard, FaComments } from "react-icons/fa";
+import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard, FaComments, FaInstagram } from "react-icons/fa";
 import { Compass as CompassIcon, Calculator, Megaphone, Crown, LineChart } from "lucide-react";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
@@ -144,6 +144,15 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
     title: "Conta",
     description: "Gerencie assinatura e suporte",
     items: [
+      {
+        type: "item",
+        key: "instagram-connection",
+        label: "Conexão",
+        tooltip: "Gerencie a conexão com sua conta do Instagram",
+        href: "/dashboard/instagram-connection",
+        icon: <FaInstagram />,
+        hideInMinimal: true,
+      },
       {
         type: "item",
         key: "settings",

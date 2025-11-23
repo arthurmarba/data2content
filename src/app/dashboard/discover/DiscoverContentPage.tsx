@@ -179,7 +179,7 @@ export default async function DiscoverContentPage({
       <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 
-      <div className="mx-auto max-w-[820px] space-y-8 px-3 pt-6 sm:px-4 sm:pt-6 lg:max-w-7xl lg:px-6">
+      <div className="space-y-8 px-6 py-8">
         <DiscoverActionBar allowedPersonalized={allowedPersonalized} />
 
         <DiscoverExplorerSection sections={secondarySections} primaryKey={featuredSection?.key} />

@@ -35,7 +35,7 @@ export default function CreatorToolsGrid({ tools, loading, disabledReason, footn
   }
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_24px_40px_rgba(15,23,42,0.06)]">
+    <section className="p-2">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">Ferramentas</p>

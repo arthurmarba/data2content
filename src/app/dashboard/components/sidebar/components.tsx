@@ -90,7 +90,7 @@ export const SidebarSectionList = ({
 
 const SectionBlock = ({ section, index, tokens, pathname, userId, interaction, badges }: SectionBlockProps) => {
   const wrapperClass =
-    index === 0 ? "" : "mt-6 border-t border-slate-200/80 pt-6";
+    index === 0 ? "" : "mt-10 border-t border-slate-200/80 pt-6";
 
   return (
     <section className={wrapperClass}>
@@ -217,11 +217,10 @@ const SidebarGroupItem = ({
       <button
         type="button"
         onClick={handleToggle}
-        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} rounded-xl ${tokens.alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${tokens.focusOffsetClass} ${
-          active
-            ? "bg-white font-semibold text-slate-900 border border-slate-200 shadow-sm shadow-brand-magenta/10"
-            : "font-medium text-slate-600 hover:bg-white/80 hover:text-slate-900 border border-transparent"
-        }`}
+        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} rounded-xl ${tokens.alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${tokens.focusOffsetClass} ${active
+          ? "bg-slate-100 font-semibold text-slate-900"
+          : "font-medium text-slate-900 hover:bg-slate-100"
+          }`}
         aria-expanded={expanded}
         aria-controls={`nav-group-${group.key}`}
         title={group.tooltip}
@@ -235,15 +234,12 @@ const SidebarGroupItem = ({
 
         <span
           aria-hidden="true"
-          className={`relative flex ${tokens.iconSize} shrink-0 items-center justify-center rounded-xl ${
-            tokens.showLabels ? "" : "mx-auto"
-          } ${tokens.collapsedIconShift} border border-slate-200 bg-white ${tokens.showLabels ? "text-[16px]" : "text-[18px]"} transition-colors duration-200 ${
-            active
-              ? "border-brand-magenta/40 text-brand-purple shadow shadow-brand-magenta/15"
-              : "text-slate-500 group-hover:border-brand-magenta/35 group-hover:text-brand-purple group-hover:bg-white"
-          } ${!tokens.showLabels && active ? "ring-2 ring-brand-magenta/35 shadow shadow-brand-magenta/20" : ""} ${
-            !tokens.showLabels && !active ? "hover:shadow hover:shadow-brand-magenta/10" : ""
-          }`}
+          className={`relative flex ${tokens.iconSize} shrink-0 items-center justify-center rounded-xl ${tokens.showLabels ? "" : "mx-auto"
+            } ${tokens.collapsedIconShift} bg-transparent ${tokens.showLabels ? "text-[16px]" : "text-[18px]"} transition-colors duration-200 ${active
+              ? "text-slate-900"
+              : "text-slate-900 group-hover:text-slate-900"
+            } ${!tokens.showLabels && active ? "ring-2 ring-brand-magenta/35 shadow shadow-brand-magenta/20" : ""} ${!tokens.showLabels && !active ? "hover:shadow hover:shadow-brand-magenta/10" : ""
+            }`}
         >
           {group.icon}
           {locked && !tokens.showLabels && (
@@ -277,9 +273,8 @@ const SidebarGroupItem = ({
 
       <div
         id={`nav-group-${group.key}`}
-        className={`overflow-hidden transition-[max-height,opacity] duration-200 ease-out ${
-          expanded && tokens.showLabels ? "opacity-100" : "opacity-0"
-        } ${tokens.showLabels ? "pl-2" : ""}`}
+        className={`overflow-hidden transition-[max-height,opacity] duration-200 ease-out ${expanded && tokens.showLabels ? "opacity-100" : "opacity-0"
+          } ${tokens.showLabels ? "pl-2" : ""}`}
         style={
           tokens.showLabels
             ? { maxHeight: expanded ? contentHeight || 0 : 0 }
@@ -348,15 +343,14 @@ const SidebarLinkItem = ({
         href={item.href}
         prefetch={false}
         onClick={handleClick}
-        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} rounded-xl ${tokens.alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${tokens.focusOffsetClass} ${
-          !tokens.showLabels
-            ? active
-              ? "bg-transparent border-0 shadow-none font-semibold text-slate-900"
-              : "bg-transparent border-0 shadow-none font-medium text-slate-600 hover:bg-transparent"
-            : active
-              ? "bg-white font-semibold text-slate-900 border border-slate-200 shadow-sm shadow-brand-magenta/10"
-              : "font-medium text-slate-600 hover:bg-white/85 hover:text-slate-900 border border-transparent"
-        } ${!tokens.showLabels ? "px-0 py-2 justify-center" : ""}`}
+        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} rounded-xl ${tokens.alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${tokens.focusOffsetClass} ${!tokens.showLabels
+          ? active
+            ? "bg-transparent border-0 shadow-none font-semibold text-slate-900"
+            : "bg-transparent border-0 shadow-none font-medium text-slate-600 hover:bg-transparent"
+          : active
+            ? "bg-slate-100 font-semibold text-slate-900"
+            : "font-medium text-slate-900 hover:bg-slate-100"
+          } ${!tokens.showLabels ? "px-0 py-2 justify-center" : ""}`}
         title={item.tooltip}
       >
         {showActiveIndicator && (
@@ -368,15 +362,12 @@ const SidebarLinkItem = ({
 
         <span
           aria-hidden="true"
-          className={`relative flex ${tokens.iconSize} shrink-0 items-center justify-center rounded-xl ${
-            tokens.showLabels ? "" : "mx-auto"
-          } ${tokens.collapsedIconShift} border border-slate-200 bg-white ${tokens.showLabels ? "text-[16px]" : "text-[18px]"} transition-colors duration-200 ${
-            active
-              ? "border-brand-magenta/40 text-brand-purple shadow shadow-brand-magenta/15"
-              : "text-slate-500 group-hover:border-brand-magenta/35 group-hover:text-brand-purple group-hover:bg-white"
-          } ${!tokens.showLabels && active ? "ring-2 ring-brand-magenta/35 shadow shadow-brand-magenta/20" : ""} ${
-            !tokens.showLabels && !active ? "hover:shadow hover:shadow-brand-magenta/10" : ""
-          }`}
+          className={`relative flex ${tokens.iconSize} shrink-0 items-center justify-center rounded-xl ${tokens.showLabels ? "" : "mx-auto"
+            } ${tokens.collapsedIconShift} bg-transparent ${tokens.showLabels ? "text-[16px]" : "text-[18px]"} transition-colors duration-200 ${active
+              ? "text-slate-900"
+              : "text-slate-900 group-hover:text-slate-900"
+            } ${!tokens.showLabels && active ? "ring-2 ring-brand-magenta/35 shadow shadow-brand-magenta/20" : ""} ${!tokens.showLabels && !active ? "hover:shadow hover:shadow-brand-magenta/10" : ""
+            }`}
         >
           {item.icon}
           {showBadge && (
@@ -454,15 +445,14 @@ const SidebarChildLink = ({
         href={item.href}
         prefetch={false}
         onClick={handleClick}
-        className={`group relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${focusOffsetClass} ${
-          !showLabels
-            ? active
-              ? "bg-transparent border-0 shadow-none text-slate-900"
-              : "bg-transparent border-0 shadow-none text-slate-600 hover:bg-transparent"
-            : active
-              ? "bg-white text-slate-900 border border-slate-200 shadow-sm shadow-brand-magenta/10"
-              : "text-slate-600 hover:bg-white/80 hover:text-slate-900 border border-transparent"
-        } ${!showLabels ? "justify-center px-0" : ""}`}
+        className={`group relative flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${focusOffsetClass} ${!showLabels
+          ? active
+            ? "bg-transparent border-0 shadow-none text-slate-900"
+            : "bg-transparent border-0 shadow-none text-slate-600 hover:bg-transparent"
+          : active
+            ? "bg-slate-100 text-slate-900"
+            : "text-slate-900 hover:bg-slate-100"
+          } ${!showLabels ? "justify-center px-0" : ""}`}
         title={item.tooltip}
       >
         {showActiveIndicator && (
@@ -474,7 +464,7 @@ const SidebarChildLink = ({
 
         <span
           aria-hidden="true"
-          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-[13px] text-slate-600 transition-colors duration-200 group-hover:border-brand-magenta/35 group-hover:text-brand-purple"
+          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-transparent text-[13px] text-slate-900 transition-colors duration-200 group-hover:text-slate-900"
         >
           {item.icon}
           {showBadge && (

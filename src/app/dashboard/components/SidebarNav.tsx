@@ -66,10 +66,10 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     () => ({
       showLabels,
       alignClass: showLabels ? "justify-start" : "justify-center",
-      itemPadding: showLabels ? "px-4 py-2.5" : "py-2",
+      itemPadding: showLabels ? "px-5 py-3" : "py-3",
       itemGap: showLabels ? "gap-4" : "gap-0",
-      itemTextSize: showLabels ? "text-[15px]" : "text-[13px]",
-      iconSize: "h-10 w-10",
+      itemTextSize: showLabels ? "text-base" : "text-sm",
+      iconSize: "h-5 w-5",
       collapsedIconShift: showLabels ? "" : "translate-x-[1px]",
       focusOffsetClass: isMobile ? "focus-visible:ring-offset-white" : "focus-visible:ring-offset-[#f7f8fa]",
     }),
@@ -108,7 +108,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   }, []);
 
   const asideBase =
-    "flex flex-col border-slate-200/80 text-slate-900 transition-transform duration-200 ease-out";
+    "flex flex-col border-slate-200/80 text-slate-900 transition-transform duration-200 ease-out relative";
 
   const mobileVisibility = isMobile
     ? isOpen
@@ -121,39 +121,39 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     : "";
 
   const desktopClasses = !isMobile
-    ? `hidden lg:flex lg:flex-col lg:fixed lg:top-[var(--header-h,4rem)] lg:left-0 lg:h-[calc(100svh_-_var(--header-h,4rem))] lg:z-[200] lg:transform-none ${
-        isCollapsed ? "lg:w-16" : "lg:w-72"
-      }`
+    ? `hidden lg:flex lg:flex-col lg:fixed lg:top-[var(--header-h,5rem)] lg:left-0 lg:h-[calc(100svh_-_var(--header-h,5rem))] lg:z-[200] lg:transform-none border-none ${isCollapsed ? "lg:w-20" : "lg:w-[320px]"
+    }`
     : "";
 
   const asideSurface = isMobile
     ? "bg-white shadow-xl border-r"
-    : "bg-white/95 backdrop-blur border-r shadow-[0_20px_60px_rgba(12,18,38,0.08)]";
+    : "bg-white";
   const navPaddingX = showLabels ? "px-3 sm:px-4" : "px-2";
 
   return (
-    <aside
-      className={`${asideBase} ${asideSurface} ${mobileClasses} ${desktopClasses} ${
-        !mounted ? "opacity-0 pointer-events-none" : "opacity-100"
-      }`}
-      aria-label="Navegação do dashboard"
-      aria-hidden={isMobile ? !isOpen : false}
-    >
-      <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} pb-6 pt-6`}>
-        <div
-          onWheel={handleSidebarWheel}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 sm:pr-1.5 scrollbar-hide"
-        >
-          <SidebarSectionList
-            sections={sections}
-            tokens={layoutTokens}
-            pathname={pathname}
-            userId={userId}
-            interaction={interaction}
-            badges={{ "planning.chat": alertsUnreadCount }}
-          />
-        </div>
-      </nav>
-    </aside>
+    <>
+      <aside
+        className={`${asideBase} ${asideSurface} ${mobileClasses} ${desktopClasses} ${!mounted ? "opacity-0 pointer-events-none" : "opacity-100"
+          } overflow-visible`}
+        aria-label="Navegação do dashboard"
+        aria-hidden={isMobile ? !isOpen : false}
+      >
+        <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} pb-3 pt-10`}>
+          <div
+            onWheel={handleSidebarWheel}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 sm:pr-1.5 scrollbar-hide"
+          >
+            <SidebarSectionList
+              sections={sections}
+              tokens={layoutTokens}
+              pathname={pathname}
+              userId={userId}
+              interaction={interaction}
+              badges={{ "planning.chat": alertsUnreadCount }}
+            />
+          </div>
+        </nav>
+      </aside>
+    </>
   );
 }

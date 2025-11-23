@@ -323,6 +323,7 @@ export default function ChatPanel({
     { label: "narrativa que gera compartilhamentos", requiresIG: true },
     { label: "melhor dia/hora pra postar por formato", requiresIG: true },
     { label: "planejamento baseado em categorias", requiresIG: true },
+    { label: "ranking dos meus melhores formatos", requiresIG: true },
   ];
 
   return (
@@ -388,7 +389,7 @@ export default function ChatPanel({
               ))}
 
               {/* “Respondendo…” inline */}
-                <AnimatePresence>
+              <AnimatePresence>
                 {isSending && (
                   <motion.li
                     key="respondendo-inline"

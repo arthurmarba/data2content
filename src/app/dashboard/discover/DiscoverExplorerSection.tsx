@@ -24,7 +24,7 @@ export default function DiscoverExplorerSection({ sections, primaryKey }: Discov
 
   return (
     <section aria-labelledby={headingId} className="space-y-4">
-      <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm sm:px-6">
+      <div className="px-0 py-4">
         <header className="space-y-1 text-left">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Explorar ideias</p>
           <h2 id={headingId} className="text-lg font-semibold text-slate-900 sm:text-xl">

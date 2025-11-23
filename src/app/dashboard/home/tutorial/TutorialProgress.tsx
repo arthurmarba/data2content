@@ -80,7 +80,7 @@ export default function TutorialProgress({
     progressLabel.length > 0 && progressLabel.toLowerCase() !== completionLabel.toLowerCase();
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+    <section className="p-2">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Jornada</p>
@@ -125,7 +125,7 @@ export default function TutorialProgress({
         {steps.map((step) => (
           <article
             key={step.id}
-            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+            className="rounded-2xl border border-slate-200 bg-white p-4"
           >
             <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">

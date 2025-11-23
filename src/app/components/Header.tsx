@@ -25,7 +25,7 @@ import {
 } from "../dashboard/context/HeaderContext";
 import { useHeaderVisibility } from "@/hooks/useHeaderVisibility";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
-import { navigationLabels } from "@/constants/navigationLabels";
+
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 
 interface SessionUser {
@@ -47,16 +47,16 @@ function buildLayoutClasses(variant: HeaderVariant, condensed: boolean) {
     "justify-between",
     "gap-x-3",
     "w-full",
-    "min-h-[56px]",
+    "min-h-[72px]",
   ];
   if (variant === "immersive") {
     base.push(condensed ? "py-2 sm:py-2.5" : "py-2.5 sm:py-3.5");
   } else if (variant === "compact") {
     base.push(condensed ? "py-1.5 sm:py-2" : "py-2 sm:py-2.5");
   } else if (condensed) {
-    base.push("py-1.5", "sm:py-2", "h-12");
+    base.push("py-1.5", "sm:py-2", "h-16");
   } else {
-    base.push("py-0", "h-14");
+    base.push("py-2", "h-[72px]");
   }
 
   return base.join(" ");
@@ -72,8 +72,8 @@ function buildShellClasses(
   const basePosition = docked
     ? "fixed inset-x-0 bottom-0"
     : sticky
-    ? "fixed inset-x-0 top-0"
-    : "relative";
+      ? "fixed inset-x-0 top-0"
+      : "relative";
 
   const base = [
     basePosition,
@@ -90,16 +90,15 @@ function buildShellClasses(
   if (variant === "immersive") {
     base.push(
       "backdrop-blur supports-[backdrop-filter]:bg-white/80",
-      condensed ? "bg-white/90 shadow" : "bg-white/80 shadow-sm",
-      "border-b border-gray-100/60"
+      condensed ? "bg-white/90 shadow" : "bg-white/80 shadow-sm"
     );
   } else if (variant === "minimal") {
-    base.push("bg-white", "border-b", "border-gray-100");
+    base.push("bg-white");
   } else {
     const shadowClass = condensed
       ? "shadow-[0_3px_10px_rgba(15,23,42,0.08)]"
-      : "shadow-[0_1px_2px_rgba(0,0,0,0.03)]";
-    base.push("bg-white", "border-b", "border-gray-100", shadowClass);
+      : "shadow-none";
+    base.push("bg-white", shadowClass, "border-none");
   }
 
   return base.join(" ");
@@ -299,20 +298,7 @@ export default function Header() {
     window.dispatchEvent(new Event("open-subscribe-modal"));
   }, []);
 
-  const planningBreadcrumb = useMemo(() => {
-    const entries = [
-      { path: "/planning", label: navigationLabels.planningPlanner.menu },
-      { path: "/planning/planner", label: navigationLabels.planningPlanner.menu },
-      { path: "/planning/discover", label: navigationLabels.planningDiscover.menu },
-    ];
-    const match = entries.find(
-      (entry) => pathname === entry.path || pathname.startsWith(`${entry.path}/`)
-    );
-    if (match) {
-      return `${navigationLabels.planning.menu} ▸ ${match.label}`;
-    }
-    return null;
-  }, [pathname]);
+
 
   const effectiveCta = useMemo<HeaderCta | null>(() => {
     const isHomePage = pathname === "/dashboard";
@@ -329,7 +315,7 @@ export default function Header() {
     return null;
   }, [config, handleOpenSubscribeModal, pathname, planActive]);
 
-  const effectiveTitleValue = config.title ?? planningBreadcrumb ?? null;
+  const effectiveTitleValue = config.title ?? null;
   const effectiveSubtitleValue = config.subtitle ?? null;
 
   const defaultProBadge = useMemo(() => {
@@ -376,7 +362,7 @@ export default function Header() {
           src="/images/Colorido-Simbolo.png"
           alt="Data2Content"
           fill
-          className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.4]"
+          className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.2]"
           priority
         />
       </div>
@@ -392,8 +378,8 @@ export default function Header() {
         isDockedToBottom
           ? { paddingBottom: "var(--sab, 0px)" }
           : config.sticky
-          ? { paddingTop: "var(--sat, 0px)" }
-          : undefined
+            ? { paddingTop: "var(--sat, 0px)" }
+            : undefined
       }
       aria-label="Barra superior do dashboard"
     >

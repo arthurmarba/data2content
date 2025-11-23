@@ -44,7 +44,7 @@ const MediaKitSkeleton = ({ compactPadding }: { compactPadding?: boolean }) => {
       >
         <span className="sr-only">Carregando Mídia Kit...</span>
 
-        <div className={`${cardClass} px-6 py-6 sm:px-8 sm:py-8`}>
+        <div className="px-0 py-6 sm:px-0 sm:py-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
               <div className={`${skeletonPulse} h-28 w-28 rounded-full sm:h-32 sm:w-32`} />
@@ -368,7 +368,7 @@ export default function MediaKitSelfServePage() {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const fetchedOnce = useRef(false);
 
@@ -416,7 +416,7 @@ export default function MediaKitSelfServePage() {
       visibilityMode: 'lock',
     };
   }, [hasPremiumAccess, categoriesCtaLabel, categoriesSubtitle, handleUpgrade, trialState]);
-  
+
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   // Lógica e Estado para o Modal do WhatsApp
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
@@ -435,7 +435,6 @@ export default function MediaKitSelfServePage() {
       showUserMenu: true,
       sticky: true,
       mobileDocked: false,
-      contentTopPadding: 48,
       title: undefined,
       subtitle: undefined,
       extraContent: undefined,
@@ -511,7 +510,7 @@ export default function MediaKitSelfServePage() {
       setError('Ocorreu um erro inesperado ao tentar conectar. Tente novamente.');
     }
   };
-  
+
   useEffect(() => {
     let mounted = true;
     const loadOrCreateLink = async () => {
@@ -574,7 +573,7 @@ export default function MediaKitSelfServePage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
-                  onClick={() => router.push('/dashboard?intent=instagram')}
+              onClick={() => router.push('/dashboard?intent=instagram')}
               className="inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
               Ver primeiros passos
@@ -597,7 +596,7 @@ export default function MediaKitSelfServePage() {
       {/* 🔥 Removido DiscoverBillingGate e qualquer CTA de assinatura aqui.
           O CTA vive apenas dentro do MediaKitView para evitar duplicação. */}
 
-      <section className="w-full bg-white pb-10" aria-label="Mídia Kit">
+      <section className="w-full bg-white pb-10 px-6 border-t border-l border-slate-200 lg:rounded-tl-3xl" aria-label="Mídia Kit">
         <SelfMediaKitContent
           userId={(session?.user as any)?.id as string}
           fallbackName={session?.user?.name}

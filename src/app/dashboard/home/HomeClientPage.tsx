@@ -1735,7 +1735,7 @@ export default function HomeClientPage() {
   }, [emitTutorialAction, handleCopyMediaKitLink, handleNavigate, hasPremiumAccessPlan, journeyProgress?.nextStepId, mediaKitShareIntentUrl, mediaKitShareUrl, openSubscribeModal, trackDashboardCta]);
 
   const mentorshipStrip = showMentorshipStrip ? (
-    <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4">
+    <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
       <div className="space-y-1 text-sm text-slate-700">
         <div className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
           <span>✨ Mentorias semanais do Plano Agência</span>
@@ -1792,7 +1792,7 @@ export default function HomeClientPage() {
 
   if (tutorialHomeEnabled) {
     return (
-      <div className="mx-auto w-full max-w-6xl space-y-10 px-4 pb-12 pt-6 sm:px-6 lg:px-8">
+      <div className="w-full space-y-10 px-6 py-8">
         <TutorialProgress
           progress={journeyProgress ?? null}
           loading={tutorialLoading}
@@ -1803,7 +1803,7 @@ export default function HomeClientPage() {
           primaryDisabled={loading}
         />
         {mentorshipStrip}
-        <div className="border-t border-slate-200/80 pt-8">
+        <div className="pt-8">
           <CreatorToolsGrid
             tools={creatorTools}
             loading={toolsLoading}
@@ -1818,7 +1818,7 @@ export default function HomeClientPage() {
 
   if (dashboardMinimal) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+      <div className="w-full px-6 py-8">
         <MinimalDashboard
           summary={summary}
           loading={loading}
@@ -1834,7 +1834,7 @@ export default function HomeClientPage() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+      <div className="w-full px-6 py-8">
         {connectBanner}
         {showWelcomeCard ? (
           <div className="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50/95 px-5 py-5 text-emerald-900 shadow-sm">
@@ -1867,7 +1867,7 @@ export default function HomeClientPage() {
             </div>
           </div>
         ) : null}
-        <section className="rounded-3xl border border-slate-200 bg-white/95 px-6 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.06)]">
+        <section className="mb-8 px-2">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl space-y-4 text-center lg:text-left">
               <div className="space-y-2">
@@ -1913,7 +1913,7 @@ export default function HomeClientPage() {
                 {headerStats.map((stat) => (
                   <div
                     key={stat.key}
-                    className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-4 text-left shadow-sm"
+                    className="px-4 py-4 text-left"
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                       {stat.label}
@@ -1930,7 +1930,7 @@ export default function HomeClientPage() {
         </section>
         <section
           id="home-progress-section"
-          className="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm"
+          className="mt-6"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -2018,7 +2018,7 @@ export default function HomeClientPage() {
         </section>
 
 
-        <section className="mt-6 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6 shadow-sm">
+        <section className="mt-6 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -2128,7 +2128,7 @@ export default function HomeClientPage() {
             {toolCards.map((card) => (
               <div
                 key={card.key}
-                className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm"
+                className="flex flex-col gap-4"
               >
                 <div className="flex items-start gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B]">
@@ -2153,7 +2153,7 @@ export default function HomeClientPage() {
         </section>
         {microInsightCard ? (
           <section className="mt-8">
-            <div className="rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+            <div className="">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
                 <FaMagic className="h-3.5 w-3.5 text-[#F6007B]" aria-hidden />
                 Micro-insight da semana
@@ -2207,7 +2207,7 @@ export default function HomeClientPage() {
         ) : null}
 
         {showTrialMessageCard ? (
-          <section className="mt-10 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+          <section className="mt-10 rounded-3xl bg-white px-6 py-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
@@ -2235,7 +2235,7 @@ export default function HomeClientPage() {
         ) : null}
 
         {showProUpsellCard ? (
-          <section className="mt-10 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF1F8] via-white to-white px-6 py-6 shadow-sm">
+          <section className="mt-10 rounded-3xl bg-gradient-to-br from-[#FFF1F8] via-white to-white px-6 py-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Gostou da IA?</h2>

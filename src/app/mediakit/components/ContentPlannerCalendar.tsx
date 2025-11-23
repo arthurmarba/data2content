@@ -639,7 +639,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   }
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6 space-y-6">
+    <section className="space-y-6">
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Planejamento Semanal</h2>

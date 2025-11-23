@@ -212,16 +212,16 @@ export default function ProposalsClient() {
         context === 'default'
           ? 'other'
           : (context as
-              | 'planner'
-              | 'planning'
-              | 'discover'
-              | 'whatsapp_ai'
-              | 'reply_email'
-              | 'ai_analysis'
-              | 'calculator'
-              | 'other'
-              | null
-              | undefined);
+            | 'planner'
+            | 'planning'
+            | 'discover'
+            | 'whatsapp_ai'
+            | 'reply_email'
+            | 'ai_analysis'
+            | 'calculator'
+            | 'other'
+            | null
+            | undefined);
 
       track('paywall_viewed', {
         creator_id: null,
@@ -585,13 +585,13 @@ export default function ProposalsClient() {
           prev.map((item) =>
             item.id === updated.id
               ? {
-                  ...item,
-                  status: updated.status,
-                  budget: updated.budget,
-                  currency: updated.currency,
-                  lastResponseAt: updated.lastResponseAt,
-                  lastResponseMessage: updated.lastResponseMessage,
-                }
+                ...item,
+                status: updated.status,
+                budget: updated.budget,
+                currency: updated.currency,
+                lastResponseAt: updated.lastResponseAt,
+                lastResponseMessage: updated.lastResponseMessage,
+              }
               : item
           )
         );
@@ -692,8 +692,8 @@ export default function ProposalsClient() {
     const lastActionHelper = selectedProposal.lastResponseAt
       ? 'Resposta enviada'
       : selectedProposal.status === 'novo'
-      ? 'Ainda não visualizada'
-      : 'Aguardando ação';
+        ? 'Ainda não visualizada'
+        : 'Aguardando ação';
 
     return [
       {
@@ -939,584 +939,579 @@ export default function ProposalsClient() {
 
   return (
     <>
-      <div className="px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-6xl space-y-8">
-            <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-600">
-                  <Inbox className="h-4 w-4" />
-                  Campanhas
+      <div className="px-6 py-8">
+        <div className="w-full space-y-8">
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-600">
+                <Inbox className="h-4 w-4" />
+                Campanhas
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">Central de propostas</h1>
+              <p className="text-sm text-gray-600">
+                Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
+              </p>
+              <p className="text-xs text-gray-500">
+                Assinantes do Plano Agência também recebem propostas enviadas direto pela plataforma quando o link do mídia kit está na bio.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadProposals}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Atualizar
+            </button>
+          </header>
+
+          <section>
+            {isMediaKitLoading ? (
+              <div className="text-sm text-gray-500">Carregando link do mídia kit…</div>
+            ) : mediaKitUrl ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Link do seu mídia kit
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Coloque na bio do Instagram. Marcas enviam propostas por aqui.
+                  </p>
+                  <p className="mt-1 truncate text-sm font-semibold text-gray-900">{mediaKitUrl}</p>
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900">Central de propostas</h1>
-                <p className="text-sm text-gray-600">
-                  Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={handleCopyMediaKitLink}
+                    disabled={isCopyingMediaKitLink}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
+                  >
+                    <ClipboardCopy className="h-4 w-4" />
+                    {isCopyingMediaKitLink ? 'Copiando…' : 'Copiar link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareMediaKitLink}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 sm:ml-2"
+                  >
+                    Compartilhar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Conecte seu Instagram</p>
+                  <p className="text-xs text-gray-500">
+                    Gere o mídia kit para receber propostas diretamente pela bio.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push('/dashboard/media-kit')}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                >
+                  Criar mídia kit
+                </button>
+              </div>
+            )}
+          </section>
+
+          <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
+            {summaryCards.map((card) => (
+              <div
+                key={card.label}
+                className={`min-w-[70%] snap-center rounded-2xl border border-gray-200 bg-white p-5 sm:min-w-0 ${card.highlight ? 'ring-2 ring-pink-100' : ''
+                  }`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {card.label}
                 </p>
-                <p className="text-xs text-gray-500">
-                  Assinantes do Plano Agência também recebem propostas enviadas direto pela plataforma quando o link do mídia kit está na bio.
+                <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="space-y-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Pipeline financeiro</h2>
+                <p className="text-sm text-gray-500">
+                  Distribuição minimalista por etapa para decidir onde focar.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={loadProposals}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Atualizar
-              </button>
-            </header>
-
-            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              {isMediaKitLoading ? (
-                <div className="text-sm text-gray-500">Carregando link do mídia kit…</div>
-              ) : mediaKitUrl ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Link do seu mídia kit
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Coloque na bio do Instagram. Marcas enviam propostas por aqui.
-                    </p>
-                    <p className="mt-1 truncate text-sm font-semibold text-gray-900">{mediaKitUrl}</p>
+              <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Atualizado em tempo real
+                </span>
+                <div className="flex items-center gap-2 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => scrollPipeline('prev')}
+                    className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
+                    aria-label="Visualizar etapa anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollPipeline('next')}
+                    className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
+                    aria-label="Visualizar próxima etapa"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              ref={pipelineCarouselRef}
+              className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:pb-0 xl:grid-cols-4"
+            >
+              {pipelineStagesData.map((stage) => (
+                <div
+                  key={stage.key}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    if (dragOverStage !== stage.key) {
+                      setDragOverStage(stage.key);
+                    }
+                  }}
+                  onDragLeave={(event) => {
+                    const nextTarget = event.relatedTarget as Node | null;
+                    if (nextTarget && event.currentTarget.contains(nextTarget)) {
+                      return;
+                    }
+                    setDragOverStage((prev) => (prev === stage.key ? null : prev));
+                  }}
+                  onDrop={(event) => handleDropOnStage(stage, event)}
+                  className={`flex min-w-[85%] snap-center flex-shrink-0 flex-col rounded-2xl border border-gray-200 bg-gradient-to-b ${stage.tone
+                    } p-4 transition md:min-w-0 md:snap-start ${dragOverStage === stage.key ? 'ring-2 ring-pink-200' : ''
+                    }`}
+                  role="list"
+                  aria-labelledby={`stage-${stage.key}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p
+                        id={`stage-${stage.key}`}
+                        className="text-xs font-semibold uppercase tracking-wide text-gray-500"
+                      >
+                        {stage.label}
+                      </p>
+                      <p className="mt-1 text-2xl font-bold text-gray-900">
+                        {currencyFormatter(stage.currency).format(stage.amount)}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-white/70 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                      {stage.count} {stage.count === 1 ? 'proposta' : 'propostas'}
+                    </span>
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={handleCopyMediaKitLink}
-                      disabled={isCopyingMediaKitLink}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
-                    >
-                      <ClipboardCopy className="h-4 w-4" />
-                      {isCopyingMediaKitLink ? 'Copiando…' : 'Copiar link'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleShareMediaKitLink}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 sm:ml-2"
-                    >
-                      Compartilhar
-                    </button>
+                  <div className="mt-4 space-y-3" role="presentation">
+                    {stage.items.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-gray-300 bg-white/60 px-4 py-5 text-xs text-gray-400">
+                        {stage.emptyLabel}
+                      </p>
+                    ) : (
+                      stage.items.map((proposal) => (
+                        <article
+                          key={proposal.id}
+                          role="button"
+                          tabIndex={0}
+                          draggable
+                          onDragStart={(event) => handleDragStart(event, proposal.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => handleProposalSelect(proposal.id, true)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleProposalSelect(proposal.id, true);
+                            }
+                          }}
+                          className={`w-full rounded-xl border bg-white px-4 py-3 text-left text-sm transition hover:-translate-y-0.5 hover:border-pink-200 ${selectedId === proposal.id
+                            ? 'border-pink-300 ring-1 ring-pink-100'
+                            : 'border-transparent'
+                            }`}
+                          aria-grabbed={draggedProposalId === proposal.id}
+                        >
+                          <div className="font-semibold text-gray-900">{proposal.brandName}</div>
+                          <p className="text-xs text-gray-500">{proposal.campaignTitle}</p>
+                          <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                            <span className="font-semibold text-gray-700">
+                              {proposal.budget != null
+                                ? currencyFormatter(proposal.currency).format(proposal.budget)
+                                : '—'}
+                            </span>
+                            <span>{formatDate(proposal.createdAt)}</span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 sm:hidden">
+                            <span>Mover estágio</span>
+                            <select
+                              className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-600"
+                              value={stage.key}
+                              onChange={(event) =>
+                                handleMoveViaSelect(proposal.id, event.target.value as PipelineStageKey)
+                              }
+                            >
+                              {PIPELINE_STAGES.map((option) => (
+                                <option key={option.key} value={option.key}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </article>
+                      ))
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Conecte seu Instagram</p>
-                    <p className="text-xs text-gray-500">
-                      Gere o mídia kit para receber propostas diretamente pela bio.
-                    </p>
-                  </div>
+              ))}
+            </div>
+            {totalPipelineStages > 1 ? (
+              <div className="mt-3 flex items-center justify-center gap-2 md:hidden">
+                {pipelineStagesData.map((stage, index) => (
+                  <button
+                    key={stage.key}
+                    type="button"
+                    onClick={() => scrollPipelineTo(index)}
+                    className={`h-2.5 w-2.5 rounded-full transition ${pipelinePage === index ? 'bg-pink-500' : 'bg-gray-300'
+                      }`}
+                    aria-label={`Ir para etapa ${stage.label}`}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          {noData ? (
+            <section className="rounded-3xl border border-dashed border-gray-200 p-8 text-center">
+              <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
+                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <Inbox className="h-4 w-4" />
+                  {emptyStates.campaigns.title}
+                </span>
+                <p className="text-sm text-slate-600">{emptyStates.campaigns.description}</p>
+                {mediaKitUrl ? (
+                  <button
+                    type="button"
+                    onClick={handleCopyMediaKitLink}
+                    disabled={isCopyingMediaKitLink}
+                    className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-400"
+                  >
+                    <ClipboardCopy className="h-4 w-4" />
+                    {isCopyingMediaKitLink ? 'Copiando...' : emptyStates.campaigns.ctaLabel}
+                  </button>
+                ) : (
                   <button
                     type="button"
                     onClick={() => router.push('/dashboard/media-kit')}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
                   >
                     Criar mídia kit
                   </button>
-                </div>
-              )}
-            </section>
-
-            <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
-              {summaryCards.map((card) => (
-                <div
-                  key={card.label}
-                  className={`min-w-[70%] snap-center rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:min-w-0 ${
-                    card.highlight ? 'ring-2 ring-pink-100' : ''
-                  }`}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {card.label}
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
-                </div>
-              ))}
-            </section>
-
-            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Pipeline financeiro</h2>
-              <p className="text-sm text-gray-500">
-                Distribuição minimalista por etapa para decidir onde focar.
-              </p>
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:justify-end">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Atualizado em tempo real
-              </span>
-              <div className="flex items-center gap-2 md:hidden">
-                <button
-                  type="button"
-                  onClick={() => scrollPipeline('prev')}
-                  className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
-                  aria-label="Visualizar etapa anterior"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scrollPipeline('next')}
-                  className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
-                  aria-label="Visualizar próxima etapa"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                )}
               </div>
-            </div>
-          </div>
-          <div
-            ref={pipelineCarouselRef}
-            className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:pb-0 xl:grid-cols-4"
-          >
-            {pipelineStagesData.map((stage) => (
-              <div
-                key={stage.key}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  if (dragOverStage !== stage.key) {
-                    setDragOverStage(stage.key);
-                  }
-                }}
-                onDragLeave={(event) => {
-                  const nextTarget = event.relatedTarget as Node | null;
-                  if (nextTarget && event.currentTarget.contains(nextTarget)) {
-                    return;
-                  }
-                  setDragOverStage((prev) => (prev === stage.key ? null : prev));
-                }}
-                onDrop={(event) => handleDropOnStage(stage, event)}
-                className={`flex min-w-[85%] snap-center flex-shrink-0 flex-col rounded-2xl border border-gray-200 bg-gradient-to-b ${
-                  stage.tone
-                } p-4 transition md:min-w-0 md:snap-start ${
-                  dragOverStage === stage.key ? 'ring-2 ring-pink-200' : ''
-                }`}
-                role="list"
-                aria-labelledby={`stage-${stage.key}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p
-                      id={`stage-${stage.key}`}
-                      className="text-xs font-semibold uppercase tracking-wide text-gray-500"
-                    >
-                      {stage.label}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">
-                      {currencyFormatter(stage.currency).format(stage.amount)}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-white/70 px-2 py-1 text-[11px] font-semibold text-gray-600">
-                    {stage.count} {stage.count === 1 ? 'proposta' : 'propostas'}
-                  </span>
-                </div>
-                <div className="mt-4 space-y-3" role="presentation">
-                  {stage.items.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-gray-300 bg-white/60 px-4 py-5 text-xs text-gray-400">
-                      {stage.emptyLabel}
-                    </p>
-                  ) : (
-                    stage.items.map((proposal) => (
-                      <article
-                        key={proposal.id}
-                        role="button"
-                        tabIndex={0}
-                        draggable
-                        onDragStart={(event) => handleDragStart(event, proposal.id)}
-                        onDragEnd={handleDragEnd}
-                        onClick={() => handleProposalSelect(proposal.id, true)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            handleProposalSelect(proposal.id, true);
-                          }
-                        }}
-                        className={`w-full rounded-xl border bg-white px-4 py-3 text-left text-sm shadow-sm transition hover:-translate-y-0.5 hover:border-pink-200 hover:shadow ${
-                          selectedId === proposal.id
-                            ? 'border-pink-300 ring-1 ring-pink-100'
-                            : 'border-transparent'
-                        }`}
-                        aria-grabbed={draggedProposalId === proposal.id}
-                      >
-                        <div className="font-semibold text-gray-900">{proposal.brandName}</div>
-                        <p className="text-xs text-gray-500">{proposal.campaignTitle}</p>
-                        <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                          <span className="font-semibold text-gray-700">
-                            {proposal.budget != null
-                              ? currencyFormatter(proposal.currency).format(proposal.budget)
-                              : '—'}
-                          </span>
-                          <span>{formatDate(proposal.createdAt)}</span>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 sm:hidden">
-                          <span>Mover estágio</span>
-                          <select
-                            className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-600"
-                            value={stage.key}
-                            onChange={(event) =>
-                              handleMoveViaSelect(proposal.id, event.target.value as PipelineStageKey)
-                            }
-                          >
-                            {PIPELINE_STAGES.map((option) => (
-                              <option key={option.key} value={option.key}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </article>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          {totalPipelineStages > 1 ? (
-            <div className="mt-3 flex items-center justify-center gap-2 md:hidden">
-              {pipelineStagesData.map((stage, index) => (
-                <button
-                  key={stage.key}
-                  type="button"
-                  onClick={() => scrollPipelineTo(index)}
-                  className={`h-2.5 w-2.5 rounded-full transition ${
-                    pipelinePage === index ? 'bg-pink-500' : 'bg-gray-300'
-                  }`}
-                  aria-label={`Ir para etapa ${stage.label}`}
-                />
-              ))}
-            </div>
+            </section>
           ) : null}
-        </section>
 
-        {noData ? (
-          <section className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
-              <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                <Inbox className="h-4 w-4" />
-                {emptyStates.campaigns.title}
-              </span>
-              <p className="text-sm text-slate-600">{emptyStates.campaigns.description}</p>
-                    {mediaKitUrl ? (
-                      <button
-                        type="button"
-                        onClick={handleCopyMediaKitLink}
-                        disabled={isCopyingMediaKitLink}
-                        className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-400"
-                      >
-                        <ClipboardCopy className="h-4 w-4" />
-                        {isCopyingMediaKitLink ? 'Copiando...' : emptyStates.campaigns.ctaLabel}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => router.push('/dashboard/media-kit')}
-                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
-                      >
-                        Criar mídia kit
-                      </button>
-                    )}
-            </div>
-          </section>
-        ) : null}
-
-        {!canInteract && !isBillingLoading ? (
-          <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
-                  <span aria-hidden>🤖</span>
-                  Recurso exclusivo Plano Agência
-                </span>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Responda e negocie direto pela plataforma
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o Plano Agência.
-                </p>
-              </div>
-              <div className="flex w-full flex-col sm:w-auto sm:items-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    showUpgradeToast();
-                    openPaywall('banner', 'reply_email', {
-                      returnTo: buildReturnTo(),
-                      proposalId: selectedProposal?.id ?? null,
-                    });
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
-                >
-                  Desbloquear IA
-                </button>
-                <p className="mt-2 text-xs text-gray-500 text-left sm:text-right max-w-xs">
-                  {upgradeSubtitle}
-                </p>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-
-        {selectedProposal ? (
-          <section ref={detailsSectionRef} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="space-y-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Campanha</p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2
-                      ref={detailsHeadingRef}
-                      tabIndex={-1}
-                      className="text-2xl font-semibold text-gray-900 focus:outline-none"
-                    >
-                      {selectedProposal.campaignTitle}
-                    </h2>
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${STATUS_COLORS[selectedProposal.status]}`}
-                    >
-                      {STATUS_LABELS[selectedProposal.status]}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                    <span className="font-semibold text-gray-900">{selectedProposal.brandName}</span>
-                    <span aria-hidden="true">•</span>
-                    <span>Recebida em {formatDate(selectedProposal.createdAt)}</span>
-                    {lastActionDate ? (
-                      <>
-                        <span aria-hidden="true">•</span>
-                        <span>Última ação {formatDate(lastActionDate)}</span>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1 sm:text-right">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Status</span>
-                  <select
-                    value={selectedProposal.status}
-                    onChange={(event) =>
-                      updateProposalStatus(selectedProposal.id, event.target.value as ProposalStatus)
-                    }
-                    className="min-w-[180px] rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
-                  >
-                    {(['novo', 'visto', 'respondido', 'aceito', 'rejeitado'] as ProposalStatus[]).map((status) => (
-                      <option key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {summaryTiles.length ? (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  {summaryTiles.map((tile) => (
-                    <div key={tile.key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{tile.label}</p>
-                      <p className="mt-1 text-xl font-semibold text-gray-900">{tile.value}</p>
-                      {tile.helper ? <p className="text-xs text-gray-500">{tile.helper}</p> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              {selectedProposal.originIp ? (
-                <p className="text-xs text-gray-400">
-                  Origem: {selectedProposal.originIp}
-                  {selectedProposal.userAgent ? ` • ${selectedProposal.userAgent}` : ''}
-                </p>
-              ) : null}
-
-              <details className="rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-700" role="group">
-                <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-gray-900">
-                  Briefing e referências
-                  <span className="text-xs font-normal text-gray-400">
-                    {deliverablesCount ? `${deliverablesCount} entregável${deliverablesCount > 1 ? 's' : ''}` : 'Sem entregáveis'}
-                    {' · '}
-                    {referenceLinksCount
-                      ? `${referenceLinksCount} link${referenceLinksCount > 1 ? 's' : ''}`
-                      : 'Sem links'}
+          {!canInteract && !isBillingLoading ? (
+            <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
+                    <span aria-hidden>🤖</span>
+                    Recurso exclusivo Plano Agência
                   </span>
-                </summary>
-                <div className="mt-3 space-y-4">
-                  <p className="whitespace-pre-line rounded-xl border border-gray-50 bg-gray-50 p-3 text-gray-700">
-                    {selectedProposal.campaignDescription || 'A marca não enviou briefing detalhado.'}
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Responda e negocie direto pela plataforma
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o Plano Agência.
                   </p>
-                  {selectedProposal.deliverables.length > 0 ? (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Entregáveis detalhados</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {selectedProposal.deliverables.map((item) => (
-                          <span
-                            key={item}
-                            className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-700"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  {selectedProposal.referenceLinks.length > 0 ? (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Links de referência</p>
-                      <ul className="mt-2 space-y-2">
-                        {selectedProposal.referenceLinks.map((link) => (
-                          <li key={link}>
-                            <a
-                              href={link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 text-sm font-medium text-[#6E1F93] hover:underline"
-                            >
-                              {link}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
                 </div>
-              </details>
-
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Assistente IA</p>
-                  <p className="text-xs text-gray-500">Peça um diagnóstico rápido antes de responder.</p>
-                </div>
-                <button
-                  ref={analyzeButtonRef}
-                  type="button"
-                  onClick={handleAnalyze}
-                  disabled={analysisLoading}
-                  className={
-                    !canInteract && !isBillingLoading
-                      ? 'mt-3 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-500 shadow-sm transition hover:border-gray-400 hover:bg-gray-50 sm:mt-0'
-                      : 'mt-3 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-500 sm:mt-0'
-                  }
-                  title={!canInteract && !isBillingLoading ? tooltipAnalyzePro : undefined}
-                  aria-disabled={analysisLoading || !canInteract}
-                >
-                  {canInteract ? (
-                    <MessageSquare className="h-4 w-4" />
-                  ) : (
-                    <Lock className="h-4 w-4" />
-                  )}
-                  {canInteract
-                    ? analysisLoading
-                      ? 'Consultando Mobi...'
-                      : 'Analisar com IA'
-                    : 'Analisar com IA (Plano Agência)'}
-                </button>
-              </div>
-
-              {analysisMessage && canInteract ? (
-                <div className="rounded-2xl border border-pink-200 bg-pink-50 p-5 text-sm text-pink-900 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <Send className="h-4 w-4" />
-                    <span className="font-semibold">Diagnóstico do Mobi</span>
-                  </div>
-                  <p className="mt-2 whitespace-pre-line leading-relaxed">{analysisMessage}</p>
-                </div>
-              ) : null}
-
-              <div className="h-px w-full bg-gray-100" />
-
-              {canInteract ? (
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-semibold text-gray-900">Responder com IA</span>
-                      <p className="text-xs text-gray-500">
-                        Enviaremos para {selectedProposal.contactEmail} com cabeçalho Data2Content.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={handleRefreshReply}
-                        disabled={replyRegenerating}
-                        className="inline-flex items-center gap-2 rounded-full border border-pink-200 px-3 py-1.5 text-xs font-semibold text-pink-600 transition hover:border-pink-400 hover:bg-pink-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
-                      >
-                        <RefreshCcw className="h-4 w-4" />
-                        {replyRegenerating ? 'Gerando...' : 'Nova sugestão'}
-                      </button>
-                      <button
-                        ref={sendReplyButtonRef}
-                        type="button"
-                        onClick={handleSendReply}
-                        disabled={replySending || !replyDraft.trim()}
-                        className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
-                      >
-                        <Send className="h-4 w-4" />
-                        {replySending ? 'Enviando...' : 'Enviar resposta'}
-                      </button>
-                    </div>
-                  </div>
-                  <textarea
-                    ref={replyTextareaRef}
-                    value={replyDraft}
-                    onChange={(event) => setReplyDraft(event.target.value)}
-                    rows={5}
-                    placeholder="Oi, tudo bem? Recebi a proposta e posso te ajudar com…"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100"
-                  />
-                  <div className="flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-                    {selectedProposal.lastResponseAt ? (
-                      <span>Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}</span>
-                    ) : (
-                      <span>Pronto para enviar em 1 clique.</span>
-                    )}
-                    <span>{replyDraft.length} caracteres</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                      <Lock className="h-4 w-4 text-gray-500" />
-                      Responder com IA (Plano Agência)
-                    </div>
-                    {selectedProposal.lastResponseAt ? (
-                      <span className="text-xs text-gray-500">
-                        Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Assine o Plano Agência para liberar texto sugerido e envio direto para {selectedProposal.contactEmail}.
-                  </p>
+                <div className="flex w-full flex-col sm:w-auto sm:items-end">
                   <button
                     type="button"
-                    onClick={() =>
-                      openPaywall('reply_cta', 'reply_email', {
-                        returnTo: buildReturnTo(selectedProposal.id),
-                        proposalId: selectedProposal.id,
-                      })
-                    }
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700"
+                    onClick={() => {
+                      showUpgradeToast();
+                      openPaywall('banner', 'reply_email', {
+                        returnTo: buildReturnTo(),
+                        proposalId: selectedProposal?.id ?? null,
+                      });
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
                   >
-                    Desbloquear resposta com IA
+                    Desbloquear IA
+                  </button>
+                  <p className="mt-2 text-xs text-gray-500 text-left sm:text-right max-w-xs">
+                    {upgradeSubtitle}
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+
+          {selectedProposal ? (
+            <section ref={detailsSectionRef}>
+              <div className="space-y-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Campanha</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2
+                        ref={detailsHeadingRef}
+                        tabIndex={-1}
+                        className="text-2xl font-semibold text-gray-900 focus:outline-none"
+                      >
+                        {selectedProposal.campaignTitle}
+                      </h2>
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${STATUS_COLORS[selectedProposal.status]}`}
+                      >
+                        {STATUS_LABELS[selectedProposal.status]}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                      <span className="font-semibold text-gray-900">{selectedProposal.brandName}</span>
+                      <span aria-hidden="true">•</span>
+                      <span>Recebida em {formatDate(selectedProposal.createdAt)}</span>
+                      {lastActionDate ? (
+                        <>
+                          <span aria-hidden="true">•</span>
+                          <span>Última ação {formatDate(lastActionDate)}</span>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 sm:text-right">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Status</span>
+                    <select
+                      value={selectedProposal.status}
+                      onChange={(event) =>
+                        updateProposalStatus(selectedProposal.id, event.target.value as ProposalStatus)
+                      }
+                      className="min-w-[180px] rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                    >
+                      {(['novo', 'visto', 'respondido', 'aceito', 'rejeitado'] as ProposalStatus[]).map((status) => (
+                        <option key={status} value={status}>
+                          {STATUS_LABELS[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {summaryTiles.length ? (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {summaryTiles.map((tile) => (
+                      <div key={tile.key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{tile.label}</p>
+                        <p className="mt-1 text-xl font-semibold text-gray-900">{tile.value}</p>
+                        {tile.helper ? <p className="text-xs text-gray-500">{tile.helper}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {selectedProposal.originIp ? (
+                  <p className="text-xs text-gray-400">
+                    Origem: {selectedProposal.originIp}
+                    {selectedProposal.userAgent ? ` • ${selectedProposal.userAgent}` : ''}
+                  </p>
+                ) : null}
+
+                <details className="rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-700" role="group">
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-gray-900">
+                    Briefing e referências
+                    <span className="text-xs font-normal text-gray-400">
+                      {deliverablesCount ? `${deliverablesCount} entregável${deliverablesCount > 1 ? 's' : ''}` : 'Sem entregáveis'}
+                      {' · '}
+                      {referenceLinksCount
+                        ? `${referenceLinksCount} link${referenceLinksCount > 1 ? 's' : ''}`
+                        : 'Sem links'}
+                    </span>
+                  </summary>
+                  <div className="mt-3 space-y-4">
+                    <p className="whitespace-pre-line rounded-xl border border-gray-50 bg-gray-50 p-3 text-gray-700">
+                      {selectedProposal.campaignDescription || 'A marca não enviou briefing detalhado.'}
+                    </p>
+                    {selectedProposal.deliverables.length > 0 ? (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Entregáveis detalhados</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedProposal.deliverables.map((item) => (
+                            <span
+                              key={item}
+                              className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-700"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {selectedProposal.referenceLinks.length > 0 ? (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Links de referência</p>
+                        <ul className="mt-2 space-y-2">
+                          {selectedProposal.referenceLinks.map((link) => (
+                            <li key={link}>
+                              <a
+                                href={link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-[#6E1F93] hover:underline"
+                              >
+                                {link}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                </details>
+
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Assistente IA</p>
+                    <p className="text-xs text-gray-500">Peça um diagnóstico rápido antes de responder.</p>
+                  </div>
+                  <button
+                    ref={analyzeButtonRef}
+                    type="button"
+                    onClick={handleAnalyze}
+                    disabled={analysisLoading}
+                    className={
+                      !canInteract && !isBillingLoading
+                        ? 'mt-3 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-500 shadow-sm transition hover:border-gray-400 hover:bg-gray-50 sm:mt-0'
+                        : 'mt-3 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-500 sm:mt-0'
+                    }
+                    title={!canInteract && !isBillingLoading ? tooltipAnalyzePro : undefined}
+                    aria-disabled={analysisLoading || !canInteract}
+                  >
+                    {canInteract ? (
+                      <MessageSquare className="h-4 w-4" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
+                    {canInteract
+                      ? analysisLoading
+                        ? 'Consultando Mobi...'
+                        : 'Analisar com IA'
+                      : 'Analisar com IA (Plano Agência)'}
                   </button>
                 </div>
-              )}
-            </div>
-          </section>
-        ) : detailLoading ? (
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm">
-            Carregando detalhes da proposta...
-          </section>
-        ) : null}
 
-        <footer className="pt-6 text-sm text-gray-400">
-          Precisa atualizar suas métricas antes de responder?{' '}
-          <button
-            type="button"
-            onClick={() => router.push('/dashboard/calculator')}
-            className="font-semibold text-pink-600 underline-offset-4 hover:underline"
-          >
-            Abra a Calculadora de Publi
-          </button>
-        </footer>
+                {analysisMessage && canInteract ? (
+                  <div className="rounded-2xl border border-pink-200 bg-pink-50 p-5 text-sm text-pink-900 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Send className="h-4 w-4" />
+                      <span className="font-semibold">Diagnóstico do Mobi</span>
+                    </div>
+                    <p className="mt-2 whitespace-pre-line leading-relaxed">{analysisMessage}</p>
+                  </div>
+                ) : null}
+
+                <div className="h-px w-full bg-gray-100" />
+
+                {canInteract ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold text-gray-900">Responder com IA</span>
+                        <p className="text-xs text-gray-500">
+                          Enviaremos para {selectedProposal.contactEmail} com cabeçalho Data2Content.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={handleRefreshReply}
+                          disabled={replyRegenerating}
+                          className="inline-flex items-center gap-2 rounded-full border border-pink-200 px-3 py-1.5 text-xs font-semibold text-pink-600 transition hover:border-pink-400 hover:bg-pink-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                          {replyRegenerating ? 'Gerando...' : 'Nova sugestão'}
+                        </button>
+                        <button
+                          ref={sendReplyButtonRef}
+                          type="button"
+                          onClick={handleSendReply}
+                          disabled={replySending || !replyDraft.trim()}
+                          className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
+                        >
+                          <Send className="h-4 w-4" />
+                          {replySending ? 'Enviando...' : 'Enviar resposta'}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      ref={replyTextareaRef}
+                      value={replyDraft}
+                      onChange={(event) => setReplyDraft(event.target.value)}
+                      rows={12}
+                      placeholder="Oi, tudo bem? Recebi a proposta e posso te ajudar com…"
+                      className="w-full min-h-[300px] rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100"
+                    />
+                    <div className="flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+                      {selectedProposal.lastResponseAt ? (
+                        <span>Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}</span>
+                      ) : (
+                        <span>Pronto para enviar em 1 clique.</span>
+                      )}
+                      <span>{replyDraft.length} caracteres</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                        <Lock className="h-4 w-4 text-gray-500" />
+                        Responder com IA (Plano Agência)
+                      </div>
+                      {selectedProposal.lastResponseAt ? (
+                        <span className="text-xs text-gray-500">
+                          Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Assine o Plano Agência para liberar texto sugerido e envio direto para {selectedProposal.contactEmail}.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openPaywall('reply_cta', 'reply_email', {
+                          returnTo: buildReturnTo(selectedProposal.id),
+                          proposalId: selectedProposal.id,
+                        })
+                      }
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700"
+                    >
+                      Desbloquear resposta com IA
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+          ) : detailLoading ? (
+            <section className="rounded-3xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm">
+              Carregando detalhes da proposta...
+            </section>
+          ) : null}
+
+          <footer className="pt-6 text-sm text-gray-400">
+            Precisa atualizar suas métricas antes de responder?{' '}
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard/calculator')}
+              className="font-semibold text-pink-600 underline-offset-4 hover:underline"
+            >
+              Abra a Calculadora de Publi
+            </button>
+          </footer>
         </div>
       </div>
     </>

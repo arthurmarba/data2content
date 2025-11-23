@@ -69,7 +69,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
       sections.forEach((s, idx) => {
         track('discover_shelf_impression', { shelf_key: s.key, index: idx, items: s.items?.length ?? 0, exp });
       });
-    } catch {}
+    } catch { }
   }, [sections, exp]);
 
   const ordered = useMemo(() => {
@@ -103,7 +103,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
     if (missingThumbs <= 0) return;
     try {
       track('discover_missing_cover_filtered', { count: missingThumbs, exp });
-    } catch {}
+    } catch { }
   }, [missingThumbs, exp]);
 
   const handleCardUnavailable = useCallback((postId: string) => {
@@ -159,7 +159,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
               total_items: match.items?.length ?? 0,
               exp,
             });
-          } catch {}
+          } catch { }
         } else {
           setExpandedError('Não encontramos mais conteúdos para esta lista.');
         }
@@ -256,15 +256,13 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
         const useAltBackground = index % 2 === 1;
         const containerClass = isPrimary
           ? "border border-transparent bg-transparent"
-          : useAltBackground
-          ? "border border-slate-200 bg-slate-50/80 shadow-sm"
-          : "border border-slate-200 bg-white shadow-sm";
+          : "border border-transparent bg-transparent";
         const gradientClass = useAltBackground ? "from-slate-50/80" : "from-white";
         const ctaLabel = CTA_LABEL_OVERRIDES[s.key] || "Ver coleção completa";
         return (
           <section key={s.key} aria-label={title} className="w-full">
             <div
-              className={`rounded-3xl px-4 py-5 sm:px-6 sm:py-6 ${containerClass}`}
+              className={`px-0 py-5 sm:px-0 sm:py-6 ${containerClass}`}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
@@ -279,8 +277,6 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
               </div>
               {description && <p className="mt-1 text-xs text-gray-500 sm:text-sm">{description}</p>}
               <div className="group relative mt-4 -mx-1 overflow-x-auto hide-scrollbar">
-                <div className={`pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r ${gradientClass} to-transparent`} />
-                <div className={`pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l ${gradientClass} to-transparent`} />
                 <div className="rail-scroll px-1 flex flex-nowrap gap-3 snap-x snap-mandatory scroll-px-2">
                   {(s.items || []).map((it, idx) => (
                     <DiscoverCard

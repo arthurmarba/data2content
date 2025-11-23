@@ -15,13 +15,17 @@ export async function GET(_req: NextRequest) {
     await connectToDatabase();
     const user = await User.findById(session.user.id)
       .select(
-        'isInstagramConnected instagramSyncErrorMsg instagramSyncErrorCode lastInstagramSyncAttempt lastInstagramSyncSuccess instagramReconnectNotifiedAt instagramDisconnectCount'
+        'isInstagramConnected instagramSyncErrorMsg instagramSyncErrorCode lastInstagramSyncAttempt lastInstagramSyncSuccess instagramReconnectNotifiedAt instagramDisconnectCount instagramAccountId availableIgAccounts'
       )
       .lean();
 
     if (!user) {
       return NextResponse.json({ ok: false, error: 'User not found' }, { status: 404 });
     }
+
+    const connectedAccount = user.availableIgAccounts?.find(
+      (acc) => acc.igAccountId === user.instagramAccountId
+    );
 
     return NextResponse.json({
       ok: true,
@@ -32,6 +36,9 @@ export async function GET(_req: NextRequest) {
       lastSyncSuccess: typeof user.lastInstagramSyncSuccess === 'boolean' ? user.lastInstagramSyncSuccess : null,
       reconnectNotifiedAt: user.instagramReconnectNotifiedAt ? new Date(user.instagramReconnectNotifiedAt).toISOString() : null,
       disconnectCount: typeof user.instagramDisconnectCount === 'number' ? user.instagramDisconnectCount : 0,
+      username: connectedAccount?.username ?? null,
+      profilePictureUrl: connectedAccount?.profile_picture_url ?? null,
+      pageName: connectedAccount?.pageName ?? null,
     });
   } catch (error) {
     console.error('[api/instagram/status] failed', error);

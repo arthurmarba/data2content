@@ -23,7 +23,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   return (
     <SidebarProvider>
       <HeaderProvider>
-        <div className="relative w-full bg-[#f7f8fa] overflow-x-hidden min-h-svh overscroll-none">
+        <div className="relative w-full bg-white overflow-hidden h-screen overscroll-none">
           <LayoutContent>{children}</LayoutContent>
         </div>
       </HeaderProvider>
@@ -73,13 +73,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [isGeminiHeaderPage]);
 
-  const mainOffset = isGuidedFlow ? "" : isCollapsed ? "lg:ml-16" : "lg:ml-64";
+  const mainOffset = isGuidedFlow ? "" : isCollapsed ? "lg:ml-16" : "lg:ml-[320px]";
 
   const mainScrollClass = isMediaKitPage
     ? "overflow-y-auto"
     : isChatPage
-    ? "overflow-hidden"
-    : "overflow-y-auto";
+      ? "overflow-hidden"
+      : "overflow-y-auto";
 
   const wantsStickyHeader = headerConfig?.sticky !== false;
   const isMobileDocked = Boolean(headerConfig?.mobileDocked && wantsStickyHeader);
@@ -90,15 +90,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     typeof customPadding === "number"
       ? `${customPadding}px`
       : typeof customPadding === "string"
-      ? customPadding
-      : undefined;
+        ? customPadding
+        : undefined;
 
   const baseTopPadding = "var(--header-h, 56px)";
   const resolvedPaddingTop = isMobileDocked
     ? "0px"
-    : isStickyHeader
-    ? `calc(${baseTopPadding} + ${resolvedContentTopPadding ?? "0px"})`
-    : resolvedContentTopPadding ?? "0px";
+    : (isStickyHeader || isMediaKitPage)
+      ? `calc(${baseTopPadding} + ${resolvedContentTopPadding ?? "0px"})`
+      : resolvedContentTopPadding ?? "0px";
 
   return (
     <>
@@ -112,19 +112,27 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className="flex flex-col w-full min-h-svh" id="dashboard-shell">
+      <div className="flex flex-col w-full h-full" id="dashboard-shell">
         <Header />
 
         <main
           id="dashboard-main"
-          className={`flex flex-col flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}
-          style={{ paddingTop: resolvedPaddingTop }}
+          className={`flex flex-col flex-1 min-h-0 ${mainOffset} bg-white lg:rounded-tl-3xl overflow-hidden`}
+          style={{ marginTop: resolvedPaddingTop }}
         >
-          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 space-y-4">
-            <InstagramReconnectBanner />
-            <TrialBanner />
+          <div
+            className={`w-full h-full ${mainScrollClass}`}
+            style={{
+              maskImage: "linear-gradient(to bottom, transparent 0px, black 12px, black 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent 0px, black 12px, black 100%)",
+            }}
+          >
+            <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 space-y-4 pt-4">
+              <InstagramReconnectBanner />
+              <TrialBanner />
+            </div>
+            {children}
           </div>
-          {children}
         </main>
       </div>
     </>
