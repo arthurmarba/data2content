@@ -1792,7 +1792,7 @@ export default function HomeClientPage() {
 
   if (tutorialHomeEnabled) {
     return (
-      <div className="w-full space-y-10 px-6 py-8">
+      <div className="w-full space-y-8 px-4 pt-4 pb-8 sm:px-6">
         <TutorialProgress
           progress={journeyProgress ?? null}
           loading={tutorialLoading}
@@ -1803,7 +1803,7 @@ export default function HomeClientPage() {
           primaryDisabled={loading}
         />
         {mentorshipStrip}
-        <div className="pt-8">
+        <div className="pt-4">
           <CreatorToolsGrid
             tools={creatorTools}
             loading={toolsLoading}
@@ -1818,7 +1818,7 @@ export default function HomeClientPage() {
 
   if (dashboardMinimal) {
     return (
-      <div className="w-full px-6 py-8">
+      <div className="w-full px-4 pt-4 pb-8 sm:px-6">
         <MinimalDashboard
           summary={summary}
           loading={loading}
@@ -1834,7 +1834,7 @@ export default function HomeClientPage() {
 
   return (
     <>
-      <div className="w-full px-6 py-8">
+      <div className="w-full px-4 pt-4 pb-8 sm:px-6">
         {connectBanner}
         {showWelcomeCard ? (
           <div className="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50/95 px-5 py-5 text-emerald-900 shadow-sm">
@@ -1867,7 +1867,7 @@ export default function HomeClientPage() {
             </div>
           </div>
         ) : null}
-        <section className="mb-8 px-2">
+        <section className="mb-4 px-2">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl space-y-4 text-center lg:text-left">
               <div className="space-y-2">
@@ -1930,7 +1930,7 @@ export default function HomeClientPage() {
         </section>
         <section
           id="home-progress-section"
-          className="mt-6"
+          className="mt-2"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>

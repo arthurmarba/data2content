@@ -180,8 +180,39 @@ const ScheduleSlotCard = ({
                 </div>
             </div>
 
-            {/* New Grid Layout: Format | Proposal | Context | Tone | Reference | View Projection */}
-            <div className="grid grid-cols-2 gap-y-4 gap-x-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-x-4 lg:divide-x lg:divide-slate-100">
+            {/* Mobile-Optimized Layout (Big Numbers) */}
+            <div className="flex flex-col gap-4 sm:hidden">
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Projeção</span>
+                        <span className="text-2xl font-bold text-emerald-700">{viewsLabel}</span>
+                    </div>
+                    <div className="h-8 w-px bg-slate-200" />
+                    <div className="flex flex-col gap-1 text-right">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formato</span>
+                        <div className="flex items-center justify-end gap-1.5 text-slate-700">
+                            <LayoutTemplate className="h-4 w-4" />
+                            <span className="text-sm font-semibold">{formatLabel}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    {contextLabel && contextLabel !== '-' && (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                            {contextLabel}
+                        </span>
+                    )}
+                    {toneLabel && toneLabel !== '-' && (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                            {toneLabel}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* Desktop Grid Layout */}
+            <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-y-4 gap-x-3 lg:gap-x-4 lg:divide-x lg:divide-slate-100">
                 <div className="flex flex-col gap-1.5 px-1 lg:px-3">
                     <div className="flex items-center gap-1.5 text-slate-500">
                         <LayoutTemplate className="h-4 w-4" />
@@ -363,7 +394,7 @@ export default function PlannerDailySchedule({
     return (
         <div className="relative space-y-8 py-6">
             {/* Continuous Timeline Line */}
-            <div className="absolute left-[4.5rem] top-6 bottom-6 w-px bg-slate-200" />
+            <div className="absolute left-[3.5rem] top-6 bottom-6 w-px bg-slate-200 sm:left-[4.5rem]" />
 
             {timeBlocks.map((hour) => {
                 const blockSlots = slotsByBlock.get(hour) || [];
@@ -371,17 +402,17 @@ export default function PlannerDailySchedule({
                 const label = `${String(hour).padStart(2, '0')}:00`;
 
                 return (
-                    <div key={hour} className="relative flex gap-6">
+                    <div key={hour} className="relative flex gap-4 sm:gap-6">
                         {/* Time Label */}
-                        <div className="flex w-12 flex-shrink-0 flex-col items-end pt-2">
+                        <div className="flex w-10 flex-shrink-0 flex-col items-end pt-2 sm:w-12">
                             <span className="text-sm font-semibold text-slate-400">{label}</span>
                         </div>
 
                         {/* Timeline Dot */}
-                        <div className="absolute left-[4.5rem] top-3.5 -ml-1.5 h-3 w-3 rounded-full border-2 border-slate-50 bg-slate-300 ring-4 ring-white" />
+                        <div className="absolute left-[3.5rem] top-3.5 -ml-1.5 h-3 w-3 rounded-full border-2 border-slate-50 bg-slate-300 ring-4 ring-white sm:left-[4.5rem]" />
 
                         {/* Content Area */}
-                        <div className="flex-1 pl-8">
+                        <div className="flex-1 pl-4 sm:pl-8">
                             {hasSlots ? (
                                 <div className="space-y-3">
                                     {blockSlots.map((slot, idx) => (

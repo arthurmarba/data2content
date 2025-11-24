@@ -34,7 +34,7 @@ export default function DiscoverExplorerSection({ sections, primaryKey }: Discov
             Combine formatos, propostas e contextos antes de aplicar para carregar um feed mais enxuto.
           </p>
         </header>
-        <div className="mt-4">
+        <div className="sticky top-[var(--header-h,3.5rem)] z-20 mt-4 -mx-4 px-4 py-2 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-100/50 transition-all">
           <DiscoverChips />
         </div>
       </div>

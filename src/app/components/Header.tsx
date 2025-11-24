@@ -267,7 +267,7 @@ export default function Header() {
       lastHeightRef.current = total;
     }
 
-    const sanitized = Math.max(total, 48);
+    const sanitized = Math.min(Math.max(total, 56), 96);
     document.documentElement.style.setProperty("--header-h", `${Math.round(sanitized)}px`);
   }, []);
 

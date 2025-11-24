@@ -223,7 +223,11 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   }, [currentCategory, currentView]);
 
   return (
-    <div className="filter-container flex flex-wrap items-center gap-2 p-1 sm:p-2">
+    <div className="filter-container flex flex-nowrap overflow-x-auto hide-scrollbar items-center gap-2 p-1 sm:flex-wrap sm:overflow-visible sm:p-2">
+      <style jsx global>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
       {currentView !== "master" && (
         <button
           type="button"
@@ -244,25 +248,23 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={category.id}
                 type="button"
                 onClick={() => handleMasterClick(category.id)}
-                className={`filter-button-master inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
-                  hasSelection
+                className={`filter-button-master inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${hasSelection
                     ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
-                }`}
+                  }`}
               >
-              <span className="flex items-center gap-1 truncate">
-                <span>{category.label}</span>
-                {hasSelection && (
-                  <span className="text-base leading-none text-brand-magenta" aria-hidden="true">
-                    •
-                  </span>
-                )}
-              </span>
-              <ChevronRightIcon
-                className={`h-4 w-4 transition ${
-                  hasSelection ? "text-brand-magenta/80" : "text-brand-magenta/60"
-                }`}
-                aria-hidden="true"
+                <span className="flex items-center gap-1 truncate">
+                  <span>{category.label}</span>
+                  {hasSelection && (
+                    <span className="text-base leading-none text-brand-magenta" aria-hidden="true">
+                      •
+                    </span>
+                  )}
+                </span>
+                <ChevronRightIcon
+                  className={`h-4 w-4 transition ${hasSelection ? "text-brand-magenta/80" : "text-brand-magenta/60"
+                    }`}
+                  aria-hidden="true"
                 />
               </button>
             );
@@ -282,17 +284,15 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={option.id}
                 type="button"
                 onClick={() => toggleFilter(currentCategory.id, option.id)}
-                className={`filter-button-child inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-medium text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
-                  isSelected
+                className={`filter-button-child inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-medium text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${isSelected
                     ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
-                }`}
+                  }`}
                 aria-pressed={isSelected}
               >
                 <CheckIcon
-                  className={`h-4 w-4 transition ${
-                    isSelected ? "opacity-100 text-brand-magenta" : "opacity-0 text-transparent"
-                  }`}
+                  className={`h-4 w-4 transition ${isSelected ? "opacity-100 text-brand-magenta" : "opacity-0 text-transparent"
+                    }`}
                   aria-hidden="true"
                 />
                 <span className="truncate">{option.label}</span>

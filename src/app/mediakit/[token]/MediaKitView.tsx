@@ -810,16 +810,16 @@ const DemographicBarList = ({
 }) => {
   if (!data?.length) return null;
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {data.slice(0, maxItems).map((item) => (
         <div key={`${item.label}-${item.percentage}`}>
-          <div className="flex items-center justify-between text-xs font-medium text-[#475569]">
-            <span>{item.label}</span>
-            <span className="text-[#0F172A]">{Math.round(item.percentage)}%</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-slate-700">{item.label}</span>
+            <span className="font-bold text-slate-900">{Math.round(item.percentage)}%</span>
           </div>
-          <div className="mt-1.5 h-2 rounded-full bg-white/60">
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
             <div
-              className={`h-2 rounded-full bg-gradient-to-r ${accentClass}`}
+              className={`h-full rounded-full bg-gradient-to-r ${accentClass}`}
               style={{ width: `${Math.min(item.percentage, 100)}%` }}
             />
           </div>
@@ -847,7 +847,6 @@ type CategoryRankingsSummaryProps = {
   lockedCtaLabel: string;
   lockedSubtitle?: string;
   onLockedAction?: () => void;
-  metricCards?: InsightMetricCard[];
 };
 
 const CategoryRankingsSummary = ({
@@ -858,7 +857,6 @@ const CategoryRankingsSummary = ({
   lockedCtaLabel,
   lockedSubtitle,
   onLockedAction,
-  metricCards = [],
 }: CategoryRankingsSummaryProps) => {
   const summaryCards = [
     {
@@ -910,21 +908,21 @@ const CategoryRankingsSummary = ({
 
   if (locked) {
     return (
-      <div className="rounded-2xl border border-[#F5D2E3] bg-white/80 p-4 shadow-sm backdrop-blur">
-        <div className="flex items-center gap-2 text-[#D62E5E]">
-          <Lock className="h-4 w-4" />
-          <p className="text-xs font-semibold uppercase tracking-wide">Modo Agência</p>
+      <div className="rounded-3xl border border-dashed border-[#F5D2E3] bg-[#FFF5F9]/50 p-8 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF1F4] text-[#D62E5E]">
+          <Lock className="h-5 w-5" />
         </div>
-        <p className={`${textSecondaryClass} mt-2 text-sm`}>{lockedDescription}</p>
-        {lockedSubtitle ? <p className={`mt-1 text-xs ${textMutedClass}`}>{lockedSubtitle}</p> : null}
+        <h3 className="mt-4 text-lg font-semibold text-slate-900">Modo Agência Bloqueado</h3>
+        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">{lockedDescription}</p>
         <button
           type="button"
           onClick={() => onLockedAction?.()}
-          className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c12652]"
+          className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c12652] hover:shadow-md"
         >
           {lockedCtaLabel}
           <ArrowUpRight className="h-4 w-4" />
         </button>
+        {lockedSubtitle ? <p className="mt-3 text-xs text-slate-500">{lockedSubtitle}</p> : null}
       </div>
     );
   }
@@ -940,68 +938,49 @@ const CategoryRankingsSummary = ({
         accent: card.accent,
         primary: idToLabel(card.item.category, card.type),
         secondary: `${card.helper}: ${new Intl.NumberFormat('pt-BR').format(card.item.value)}`,
-        change: null as number | null,
       };
     })
     .filter((card): card is NonNullable<typeof card> => Boolean(card));
 
-  const metricCardsRenderable = metricCards.map((card) => ({
-    kind: 'metric' as const,
-    key: card.key,
-    title: card.title,
-    icon: card.icon,
-    accent: card.accent,
-    primary: card.value,
-    secondary: card.helper ?? undefined,
-    change: card.change ?? null,
-  }));
-
-  const cardsToRender = [...metricCardsRenderable, ...renderableCategoryCards];
-
-  const hasData = cardsToRender.length > 0;
-  const skeletonCount = Math.max(metricCards.length || 3, summaryCards.length);
-  const cardShellClass = 'rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm';
-  const titleClass = 'text-xs font-semibold uppercase tracking-wide text-slate-500';
-  const valueClass = 'mt-3 text-lg font-semibold text-slate-900';
+  const hasData = renderableCategoryCards.length > 0;
+  const skeletonCount = 3;
+  const cardShellClass = 'flex flex-col justify-between rounded-3xl bg-slate-50 p-6 transition hover:bg-slate-100';
+  const titleClass = 'text-xs font-bold uppercase tracking-wider text-slate-500';
+  const valueClass = 'mt-4 text-xl font-bold text-slate-900';
   const helperClass = 'mt-1 text-xs text-slate-500';
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {loading
-          ? Array.from({ length: skeletonCount }).map((_, index) => (
-            <div
-              key={`insight-skeleton-${index}`}
-              className={`${cardShellClass} h-28 animate-pulse`}
-            />
-          ))
-          : hasData
-            ? cardsToRender.map((card) => (
-              <div key={card.key} className={cardShellClass}>
-                <div className="flex items-center gap-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {loading
+        ? Array.from({ length: skeletonCount }).map((_, index) => (
+          <div
+            key={`insight-skeleton-${index}`}
+            className="h-40 animate-pulse rounded-3xl bg-slate-100"
+          />
+        ))
+        : hasData
+          ? renderableCategoryCards.map((card) => (
+            <div key={card.key} className={cardShellClass}>
+              <div>
+                <div className="flex items-center gap-3">
                   <span
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white"
-                    style={{ backgroundColor: card.accent }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm"
+                    style={{ color: card.accent }}
                   >
                     {card.icon}
                   </span>
                   <p className={titleClass}>{card.title}</p>
                 </div>
                 <p className={valueClass}>{card.primary}</p>
-                {card.secondary ? <p className={helperClass}>{card.secondary}</p> : null}
-                {card.change !== undefined && card.change !== null ? (
-                  <div className="mt-3">
-                    <DeltaPill value={card.change} />
-                  </div>
-                ) : null}
               </div>
-            ))
-            : (
-              <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-6 text-sm text-slate-500 sm:col-span-2 lg:col-span-3">
-                Não encontramos dados recentes para destacar categorias. Tente outro período ou volte mais tarde.
-              </div>
-            )}
-      </div>
+              <p className={helperClass}>{card.secondary}</p>
+            </div>
+          ))
+          : (
+            <div className="col-span-full rounded-3xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+              Não encontramos dados suficientes para destacar categorias neste período.
+            </div>
+          )}
     </div>
   );
 };
@@ -2129,104 +2108,128 @@ export default function MediaKitView({
               initial="hidden"
               animate="visible"
               custom={0}
-              className="relative overflow-hidden text-[#0F172A]"
+              className="flex flex-col items-center text-center sm:items-start sm:text-left"
             >
-              <div className="pointer-events-none absolute inset-0">
-                {/* Decorative elements removed for flat design */}
-              </div>
-              <div className="relative z-10 space-y-8">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
-                    <div className="rounded-full">
-                      <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={128} />
-                    </div>
-                    <div className="space-y-3 text-center sm:text-left">
-                      <div className="space-y-1.5">
-                        <h1 className="text-[clamp(2rem,4vw,3rem)] font-black leading-tight tracking-tight text-[#0F172A]">
-                          {user.name || 'Criador'}
-                        </h1>
-                        <p className="text-sm font-medium text-[#475569]">Análises e campanhas com IA.</p>
-                      </div>
-                      <div className="flex flex-col items-center gap-1 text-sm text-[#475569] sm:flex-row sm:items-center sm:gap-2">
-                        {affiliateHandleLabel ? (
-                          instagramProfileUrl ? (
-                            <a
-                              href={instagramProfileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="rounded text-[#6E1F93] underline-offset-2 transition hover:text-[#4A1370]"
-                            >
-                              {affiliateHandleLabel}
-                            </a>
-                          ) : (
-                            <span>{affiliateHandleLabel}</span>
-                          )
-                        ) : null}
-                        {affiliateHandleLabel ? (
-                          <span className="hidden text-[#cbd5f5] sm:inline">•</span>
-                        ) : null}
-                        <span className="font-semibold text-[#6E1F93]">Parceiro Data2Content</span>
-                      </div>
-                      {heroDescriptor ? (
-                        <p className="text-sm text-[#475569]">{heroDescriptor}</p>
-                      ) : null}
-                      {heroLocationLabel ? (
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6E1F93]">
-                          {heroLocationLabel}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row sm:justify-end lg:w-auto lg:flex-col lg:items-end">
-                    <ButtonPrimary
-                      onClick={handleShareClick}
-                      variant="outline"
-                      size="md"
-                      className="w-full min-w-[220px] justify-center shadow-none sm:w-auto"
-                    >
-                      <Share2 className="h-4 w-4" />
-                      Compartilhar mídia kit
-                    </ButtonPrimary>
-                    {hasCopiedLink ? (
-                      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6E1F93]">
-                        Link copiado!
-                      </span>
-                    ) : null}
+              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
+                <div className="relative">
+                  <div className="rounded-full p-1 ring-1 ring-slate-200">
+                    <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={120} />
                   </div>
                 </div>
-                <div className="space-y-3 text-center text-sm text-[#475569] sm:text-left">
-                  {heroBio ? (
-                    <p className="text-base leading-relaxed text-[#0F172A]/85">{heroBio}</p>
-                  ) : null}
-                  {heroTagline ? (
-                    <p className="text-sm italic text-[#4A1370]">
-                      “{heroTagline}”
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                      {user.name || 'Criador'}
+                    </h1>
+                    <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+                      {affiliateHandleLabel && (
+                        <a
+                          href={instagramProfileUrl || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-lg font-medium text-slate-600 transition hover:text-[#6E1F93]"
+                        >
+                          {affiliateHandleLabel}
+                        </a>
+                      )}
+
+                      {heroLocationLabel && (
+                        <>
+                          <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:block" />
+                          <span className="text-sm font-medium text-slate-500">
+                            {heroLocationLabel}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {heroBio && (
+                    <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
+                      {heroBio}
                     </p>
-                  ) : null}
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2 sm:justify-start">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                      <Sparkles className="h-3.5 w-3.5 text-[#6E1F93]" />
+                      Parceiro Data2Content
+                    </span>
+                    {heroDescriptor && (
+                      <span className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
+                        {heroDescriptor}
+                      </span>
+                    )}
+                  </div>
                 </div>
+              </div>
+
+              <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <ButtonPrimary
+                  onClick={handleShareClick}
+                  variant="outline"
+                  size="md"
+                  className="w-full justify-center rounded-full border-slate-200 shadow-sm hover:bg-slate-50 sm:w-auto"
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Compartilhar
+                </ButtonPrimary>
+                {hasCopiedLink && (
+                  <span className="animate-fade-in ml-3 flex items-center text-xs font-medium text-emerald-600">
+                    Link copiado!
+                  </span>
+                )}
               </div>
             </motion.section>
 
-            {heroMetricCardsData.length || (user?._id && !shouldHidePremiumSections) ? (
+            {/* Hero Metrics Grid */}
+            {heroMetricCardsData.length > 0 && (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.1}
+                className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-4"
+              >
+                {heroMetricCardsData.map((metric) => (
+                  <div key={metric.key} className="flex flex-col rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition hover:shadow-md">
+                    <div className="mb-4 flex items-center gap-3 text-slate-500">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-[#6E1F93]">
+                        {metric.icon}
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider">{metric.title}</span>
+                    </div>
+                    <div className="mt-auto">
+                      <span className="block text-3xl font-bold text-slate-900">{metric.value}</span>
+                      {metric.change !== undefined && metric.change !== null && (
+                        <div className="mt-2">
+                          <DeltaPill value={metric.change} />
+                        </div>
+                      )}
+                      {metric.helper && (
+                        <p className="mt-2 text-xs text-slate-400">{metric.helper}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </motion.section>
+            )}
 
-              <div className="pt-8">
+            {(user?._id && !shouldHidePremiumSections) ? (
+              <div className="pt-12">
                 <motion.section
                   variants={cardVariants}
                   initial="hidden"
                   animate="visible"
-                  custom={0.1}
-                  className="relative"
+                  custom={0.2}
+                  className="space-y-6"
                 >
-                  <div className="mb-6">
-                    <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
-                      Categorias
-                    </p>
-                    <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-                      Destaques por categoria
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {categorySubtitle}
-                    </p>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900">Destaques Estratégicos</h2>
+                      <p className="mt-1 text-slate-500">{categorySubtitle}</p>
+                    </div>
                   </div>
 
                   <CategoryRankingsSummary
@@ -2237,7 +2240,6 @@ export default function MediaKitView({
                     lockedCtaLabel={categoryCtaLabel}
                     lockedSubtitle={lockedSubtitle}
                     onLockedAction={() => handleLockedCtaClick('media_kit_categories_summary')}
-                    metricCards={heroMetricCardsData}
                   />
                 </motion.section>
               </div>
@@ -2257,145 +2259,112 @@ export default function MediaKitView({
             )}
 
             {demographics && demographicBreakdowns && (
-              <div className="pt-8">
+              <div className="pt-12">
                 <motion.section
                   variants={cardVariants}
                   initial="hidden"
                   animate="visible"
                   custom={0.2}
-                  className="space-y-6"
+                  className="space-y-8"
                 >
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
-                      Quem é o público
-                    </p>
-                    <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-                      Audiência & demografia
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {demographicSummary}
-                    </p>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Audiência & Demografia</h2>
+                    <p className="mt-1 text-slate-500">{demographicSummary}</p>
                   </div>
-                  <div className="grid gap-4 lg:grid-cols-3">
+
+                  <div className="grid gap-6 lg:grid-cols-3">
                     {genderBarData.length ? (
-                      <div className="rounded-3xl border border-slate-200 px-6 py-6">
-                        <div className="flex items-center justify-between text-sm font-semibold text-[#0F172A]">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-[#D62E5E]" />
-                            Gênero predominante
+                      <div className="rounded-3xl bg-slate-50 p-6">
+                        <div className="mb-6 flex items-center justify-between">
+                          <div className="flex items-center gap-2 font-semibold text-slate-900">
+                            <Users className="h-5 w-5 text-[#D62E5E]" />
+                            Gênero
                           </div>
-                          <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
-                            Top 3
-                          </span>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">Percentual de seguidores por gênero</p>
-                        <div className="mt-4">
-                          <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
-                        </div>
-                        {hasMoreGender ? (
+                        <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
+                        {hasMoreGender && (
                           <button
                             type="button"
-                            className="mt-4 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+                            className="mt-6 text-sm font-medium text-[#D62E5E] hover:underline"
                             onClick={() => setGenderModalOpen(true)}
                           >
-                            Ver mais gêneros ▸
+                            Ver todos
                           </button>
-                        ) : null}
+                        )}
                       </div>
                     ) : null}
+
                     {ageBarData.length ? (
-                      <div className="rounded-3xl border border-slate-200 px-6 py-6">
-                        <div className="flex items-center justify-between text-sm font-semibold text-[#0F172A]">
-                          <div className="flex items-center gap-2">
-                            <CalendarDays className="h-4 w-4 text-[#6E1F93]" />
-                            Faixas etárias
+                      <div className="rounded-3xl bg-slate-50 p-6">
+                        <div className="mb-6 flex items-center justify-between">
+                          <div className="flex items-center gap-2 font-semibold text-slate-900">
+                            <CalendarDays className="h-5 w-5 text-[#6E1F93]" />
+                            Idade
                           </div>
-                          <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
-                            Top 3
-                          </span>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">Top audiências por idade</p>
-                        <div className="mt-4">
-                          <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
-                        </div>
-                        {hasMoreAgeGroups ? (
+                        <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
+                        {hasMoreAgeGroups && (
                           <button
                             type="button"
-                            className="mt-4 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+                            className="mt-6 text-sm font-medium text-[#6E1F93] hover:underline"
                             onClick={() => setAgeModalOpen(true)}
                           >
-                            Ver mais idades ▸
+                            Ver todas
                           </button>
-                        ) : null}
+                        )}
                       </div>
                     ) : null}
+
                     {topLocationBreakdown.length ? (
-                      <div className="rounded-3xl border border-slate-200 px-6 py-6">
-                        <div className="flex items-center justify-between text-sm font-semibold text-[#0F172A]">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-[#D62E5E]" />
-                            Principais cidades
+                      <div className="rounded-3xl bg-slate-50 p-6">
+                        <div className="mb-6 flex items-center justify-between">
+                          <div className="flex items-center gap-2 font-semibold text-slate-900">
+                            <MapPin className="h-5 w-5 text-[#D62E5E]" />
+                            Localização
                           </div>
-                          <span className="rounded-full bg-[#F4ECFB] px-3 py-0.5 text-[11px] font-semibold text-[#6E1F93]">
-                            Top 3
-                          </span>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">Onde estão os seguidores mais engajados</p>
-                        <div className="mt-4">
-                          <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
-                        </div>
-                        {hasMoreCities ? (
+                        <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
+                        {hasMoreCities && (
                           <button
                             type="button"
-                            className="mt-4 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
+                            className="mt-6 text-sm font-medium text-[#D62E5E] hover:underline"
                             onClick={() => setCitiesModalOpen(true)}
                           >
-                            Ver mais cidades ▸
+                            Ver todas
                           </button>
-                        ) : null}
+                        )}
                       </div>
                     ) : null}
                   </div>
-                  <p className="flex items-center gap-2 text-xs text-slate-500">
+
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
                     <Globe className="h-3.5 w-3.5" />
                     {demographySourceCopy}
-                  </p>
+                  </div>
                 </motion.section>
               </div>
             )}
 
-            <div className="pt-8">
+            <div className="pt-12">
               <motion.section
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"
                 custom={0.3}
-                className="space-y-6"
+                className="space-y-8"
               >
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
-                      Como ele performa
-                    </p>
-                    <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-                      Performance geral
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Resumo dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')}.
-                    </p>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Performance Geral</h2>
+                    <p className="mt-1 text-slate-500">Resumo dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')}</p>
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <label
-                      htmlFor="comparisonPeriod"
-                      className="text-xs font-semibold uppercase tracking-wide text-slate-500"
-                    >
-                      Período
-                    </label>
                     <select
                       id="comparisonPeriod"
                       value={comparisonPeriod}
                       onChange={(event) => setComparisonPeriod(normalizeComparisonPeriod(event.target.value))}
-                      className="rounded-full border border-white/60 bg-white/80 px-4 py-2 text-xs font-semibold text-[#0F172A] shadow-inner focus:border-[#6E1F93] focus:outline-none"
+                      className="cursor-pointer rounded-full border-0 bg-slate-100 py-2 pl-4 pr-10 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#6E1F93]"
                     >
                       {PERIOD_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -2407,136 +2376,117 @@ export default function MediaKitView({
                 </div>
 
                 {kpiError && (
-                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-600">
                     {kpiError}
                   </div>
                 )}
 
                 {isLoading ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-32 w-full rounded-2xl" />
-                    <MetricSkeletonRow />
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <Skeleton className="h-64 w-full rounded-3xl" />
+                    <Skeleton className="h-64 w-full rounded-3xl" />
                   </div>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-3xl border border-slate-200 px-6 py-6">
-                      <h3 className="text-sm font-semibold text-[#0F172A]">Médias por post</h3>
-                      <div className="mt-3 space-y-2">
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+                      <h3 className="mb-6 text-lg font-bold text-slate-900">Médias por post</h3>
+                      <div className="space-y-4">
                         <AverageMetricRow
-                          icon={<Eye className="h-4 w-4 text-[#6E1F93]" />}
+                          icon={<Eye className="h-5 w-5 text-slate-400" />}
                           label="Visualizações"
                           value={displayKpis?.avgViewsPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<Heart className="h-4 w-4 text-[#6E1F93]" />}
+                          icon={<Heart className="h-5 w-5 text-slate-400" />}
                           label="Curtidas"
                           value={displayKpis?.avgLikesPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<MessageSquare className="h-4 w-4 text-[#6E1F93]" />}
+                          icon={<MessageSquare className="h-5 w-5 text-slate-400" />}
                           label="Comentários"
                           value={displayKpis?.avgCommentsPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<Share2 className="h-4 w-4 text-[#6E1F93]" />}
+                          icon={<Share2 className="h-5 w-5 text-slate-400" />}
                           label="Compartilhamentos"
                           value={displayKpis?.avgSharesPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<Bookmark className="h-4 w-4 text-[#6E1F93]" />}
+                          icon={<Bookmark className="h-5 w-5 text-slate-400" />}
                           label="Salvos"
                           value={displayKpis?.avgSavesPerPost?.currentValue}
                         />
                       </div>
                     </div>
-                    <div className="rounded-3xl border border-slate-200 px-6 py-6">
-                      <div className="flex items-start justify-between gap-3">
+
+                    <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+                      <div className="mb-6 flex items-start justify-between">
                         <div>
-                          <h3 className="text-sm font-semibold text-[#0F172A]">Taxa de engajamento</h3>
-                          <div className="mt-2 flex items-baseline gap-2">
-                            <span className={`text-3xl font-bold ${engagementRateColor}`}>
+                          <h3 className="text-lg font-bold text-slate-900">Taxa de engajamento</h3>
+                          <div className="mt-2 flex items-baseline gap-3">
+                            <span className={`text-4xl font-bold ${engagementRateColor}`}>
                               {engagementRateDisplay}
                             </span>
                             <TrendIndicator value={displayKpis?.engagementRate?.percentageChange ?? null} />
                           </div>
                         </div>
-                        <span className="rounded-full bg-[#FFF1F4] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#D62E5E]">
-                          {selectedPeriodLabel}
-                        </span>
                       </div>
-                      <div className="mt-4 h-[70px] w-full overflow-hidden rounded-xl bg-[#FAFAFB]">
+
+                      <div className="h-24 w-full overflow-hidden rounded-2xl bg-slate-50">
                         <SparklineChart values={engagementSparklineValues} />
                       </div>
-                      <p className="mt-3 text-xs text-[#64748B]">
+
+                      <p className="mt-4 text-sm text-slate-500">
                         {engagementTrendNarrative}
                       </p>
-                      <div className="mt-4 rounded-xl border border-white/60 bg-white/80 p-3 shadow-inner">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Base atual</p>
-                        <p className="mt-1 text-sm font-semibold text-[#0F172A]">{followerCountDisplay}</p>
-                        <p className="text-[11px] text-slate-500">Seguidores totais no Instagram</p>
-                      </div>
                     </div>
                   </div>
                 )}
-
-                <p className="text-xs text-slate-500">
-                  Média dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')} via Data2Content AI.
-                </p>
               </motion.section>
             </div>
 
-            <div className="pt-8">
+            <div className="pt-12 pb-20">
               <motion.section
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"
                 custom={0.4}
-                className="space-y-6"
+                className="space-y-8"
               >
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
-                      Conteúdo real em destaque
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Conteúdo em Destaque</h2>
+                    <p className="mt-1 text-slate-500">
+                      {topPostsIntro || `Top posts dos ${selectedPeriodLabel.toLocaleLowerCase('pt-BR')}`}
                     </p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-                        Top posts
-                      </h2>
-                      <span className="mt-1 rounded-full bg-[#F4ECFB] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">
-                        {selectedPeriodLabel}
-                      </span>
-                    </div>
-                    {topPostsIntro ? <p className="mt-2 text-sm text-slate-600">{topPostsIntro}</p> : null}
                   </div>
-                  <div className="flex flex-wrap items-center gap-4 rounded-3xl border border-slate-200 px-6 py-6">
-                    <div className="flex-1 min-w-[200px] space-y-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ordenar por</p>
-                      <div className="inline-flex w-full flex-wrap items-center rounded-full border border-white/60 bg-white/80 p-1 text-xs font-semibold text-[#475569] shadow-inner">
-                        {topPostSortOptions.map((option) => {
-                          const isActive = topPostsSort === option.value;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => handleTopPostSortChange(option.value)}
-                              className={`flex-1 rounded-full px-3 py-1.5 transition ${isActive
-                                ? 'bg-white text-[#6E1F93] shadow-[0_8px_18px_rgba(15,23,42,0.12)]'
-                                : 'text-slate-500 hover:text-[#0F172A]'
-                                }`}
-                            >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+
+                  <div className="flex items-center gap-2 rounded-full bg-slate-100 p-1">
+                    {topPostSortOptions.map((option) => {
+                      const isActive = topPostsSort === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => handleTopPostSortChange(option.value)}
+                          className={`rounded-full px-4 py-2 text-sm font-medium transition ${isActive
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {videosWithCorrectStats.length === 0 ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-64 w-full rounded-3xl" />
-                    <Skeleton className="h-64 w-full rounded-3xl" />
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
+                    <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
+                    <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
+                    <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
                   </div>
                 ) : (
                   <div className="relative">
@@ -2748,9 +2698,11 @@ export default function MediaKitView({
                               const hasAdditionalDetailMetrics = additionalDetailMetrics.length > 0;
                               const hasDetailMetrics =
                                 hasSummaryMetrics || Boolean(interactionsSummaryMetric) || hasInteractionBreakdown || hasAdditionalDetailMetrics;
+
                               const hasThumbnail = Boolean(video.thumbnailUrl);
                               const isTopHighlight = index === 0;
                               const isClickable = (canViewCategories || isPublicView) && !isTopPostsLocked;
+
                               return (
                                 <article
                                   key={video._id}
@@ -2921,39 +2873,42 @@ export default function MediaKitView({
                                 </article>
                               );
                             })}
-                            {group.length === 1 ? <div className="invisible flex-1 basis-1/2" aria-hidden="true" /> : null}
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {isTopPostsLocked && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border border-white/60 bg-gradient-to-br from-white/95 via-white/90 to-[#FDECF4]/95 px-6 text-center shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
-                        <Lock className="h-6 w-6 text-[#6E1F93]" />
-                        <p className="mt-3 text-sm text-[#475569]">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white/80 p-6 text-center backdrop-blur-sm">
+                        <div className="rounded-full bg-slate-100 p-3 text-slate-400">
+                          <Lock className="h-6 w-6" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-bold text-slate-900">Análise Bloqueada</h3>
+                        <p className="mt-2 max-w-sm text-sm text-slate-500">
                           Desbloqueie para ver os insights completos e baixar o briefing pronto para marcas.
                         </p>
                         <ButtonPrimary
                           onClick={handleTopPostsCtaClick}
                           variant="brand"
                           size="md"
-                          className="mt-4"
+                          className="mt-6"
                         >
                           {categoryCtaLabel}
                         </ButtonPrimary>
-                        {categorySubtitle && <p className="mt-2 text-xs text-slate-500">{categorySubtitle}</p>}
                       </div>
                     )}
-                    {!isTopPostsLocked && visibleTopPosts.length > 1 ? (
-                      <div className="mt-3 flex justify-center gap-2">
+
+                    {!isTopPostsLocked && visibleTopPosts.length > 1 && (
+                      <div className="mt-6 flex justify-center gap-2">
                         {visibleTopPosts.map((video, index) => (
                           <span
                             key={`dot-${video._id}`}
-                            className={`h-1.5 w-5 rounded-full ${index === 0 ? 'bg-[#6E1F93]' : 'bg-[#E2E8F0]'}`}
+                            className={`h-1.5 rounded-full transition-all ${index === 0 ? 'w-6 bg-[#6E1F93]' : 'w-1.5 bg-slate-200'
+                              }`}
                           />
                         ))}
                       </div>
-                    ) : null}
+                    )}
                   </div>
                 )}
               </motion.section>

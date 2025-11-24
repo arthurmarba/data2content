@@ -81,9 +81,9 @@ export default function DiscoverCard({
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => {
-            try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch {}
+            try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch { }
           }}
-          className="relative block aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
+          className="relative block aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_4px_12px_rgba(15,23,42,0.08)]"
           aria-label="Abrir no Instagram"
         >
           {item.coverUrl ? (
@@ -121,7 +121,7 @@ export default function DiscoverCard({
           )}
         </a>
       ) : (
-        <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
           {item.coverUrl ? (
             <Image
               src={item.coverUrl}

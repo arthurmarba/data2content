@@ -264,20 +264,21 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
             <div
               className={`px-0 py-5 sm:px-0 sm:py-6 ${containerClass}`}
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+              <div className="flex flex-row items-center justify-between gap-4">
+                <h2 className="text-lg font-semibold text-gray-900 leading-tight">{title}</h2>
                 <button
                   type="button"
                   onClick={() => handleExpand(s.key)}
-                  className="inline-flex items-center gap-2 self-start rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-brand-magenta/40 hover:text-brand-magenta focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+                  className="shrink-0 inline-flex items-center gap-2 rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-brand-magenta/40 hover:text-brand-magenta focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
                 >
-                  {ctaLabel}
+                  <span className="hidden sm:inline">{ctaLabel}</span>
+                  <span className="sm:hidden">Ver tudo</span>
                   <span aria-hidden>→</span>
                 </button>
               </div>
-              {description && <p className="mt-1 text-xs text-gray-500 sm:text-sm">{description}</p>}
-              <div className="group relative mt-4 -mx-1 overflow-x-auto hide-scrollbar">
-                <div className="rail-scroll px-1 flex flex-nowrap gap-3 snap-x snap-mandatory scroll-px-2">
+              {description && <p className="mt-1 text-xs text-gray-500 sm:text-sm line-clamp-2">{description}</p>}
+              <div className="group relative mt-4 -mx-4 sm:-mx-1 overflow-x-auto hide-scrollbar">
+                <div className="rail-scroll px-4 sm:px-1 flex flex-nowrap gap-3 snap-x snap-mandatory scroll-px-4 sm:scroll-px-2">
                   {(s.items || []).map((it, idx) => (
                     <DiscoverCard
                       key={it.id}

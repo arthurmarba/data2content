@@ -941,20 +941,8 @@ export default function ProposalsClient() {
     <>
       <div className="px-6 py-8">
         <div className="w-full space-y-8">
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-600">
-                <Inbox className="h-4 w-4" />
-                Campanhas
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900">Central de propostas</h1>
-              <p className="text-sm text-gray-600">
-                Acompanhe mensagens de marcas, atualize o status e peça ajuda ao Mobi para negociar.
-              </p>
-              <p className="text-xs text-gray-500">
-                Assinantes do Plano Agência também recebem propostas enviadas direto pela plataforma quando o link do mídia kit está na bio.
-              </p>
-            </div>
+          <header className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">Central de propostas</h1>
             <button
               type="button"
               onClick={loadProposals}
@@ -965,105 +953,8 @@ export default function ProposalsClient() {
             </button>
           </header>
 
-          <section>
-            {isMediaKitLoading ? (
-              <div className="text-sm text-gray-500">Carregando link do mídia kit…</div>
-            ) : mediaKitUrl ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Link do seu mídia kit
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Coloque na bio do Instagram. Marcas enviam propostas por aqui.
-                  </p>
-                  <p className="mt-1 truncate text-sm font-semibold text-gray-900">{mediaKitUrl}</p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <button
-                    type="button"
-                    onClick={handleCopyMediaKitLink}
-                    disabled={isCopyingMediaKitLink}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
-                  >
-                    <ClipboardCopy className="h-4 w-4" />
-                    {isCopyingMediaKitLink ? 'Copiando…' : 'Copiar link'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleShareMediaKitLink}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 sm:ml-2"
-                  >
-                    Compartilhar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Conecte seu Instagram</p>
-                  <p className="text-xs text-gray-500">
-                    Gere o mídia kit para receber propostas diretamente pela bio.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => router.push('/dashboard/media-kit')}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
-                >
-                  Criar mídia kit
-                </button>
-              </div>
-            )}
-          </section>
-
-          <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
-            {summaryCards.map((card) => (
-              <div
-                key={card.label}
-                className={`min-w-[70%] snap-center rounded-2xl border border-gray-200 bg-white p-5 sm:min-w-0 ${card.highlight ? 'ring-2 ring-pink-100' : ''
-                  }`}
-              >
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {card.label}
-                </p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
-              </div>
-            ))}
-          </section>
 
           <section className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Pipeline financeiro</h2>
-                <p className="text-sm text-gray-500">
-                  Distribuição minimalista por etapa para decidir onde focar.
-                </p>
-              </div>
-              <div className="flex items-center justify-between gap-3 sm:justify-end">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Atualizado em tempo real
-                </span>
-                <div className="flex items-center gap-2 md:hidden">
-                  <button
-                    type="button"
-                    onClick={() => scrollPipeline('prev')}
-                    className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
-                    aria-label="Visualizar etapa anterior"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => scrollPipeline('next')}
-                    className="inline-flex items-center justify-center rounded-full border border-gray-200 p-2 text-gray-600 transition hover:border-gray-300 hover:bg-white"
-                    aria-label="Visualizar próxima etapa"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
             <div
               ref={pipelineCarouselRef}
               className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:pb-0 xl:grid-cols-4"

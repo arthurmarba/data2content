@@ -175,11 +175,11 @@ export default async function DiscoverContentPage({
   const exploredLabel = totalIdeas > 0 ? Math.min(totalIdeas, 48) : 0;
 
   return (
-    <main className="w-full max-w-none pb-10">
+    <main className="w-full max-w-none pb-24">
       <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 
-      <div className="space-y-8 px-6 py-8">
+      <div className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
         <DiscoverActionBar allowedPersonalized={allowedPersonalized} />
 
         <DiscoverExplorerSection sections={secondarySections} primaryKey={featuredSection?.key} />

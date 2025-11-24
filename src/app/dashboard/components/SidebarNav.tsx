@@ -108,7 +108,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   }, []);
 
   const asideBase =
-    "flex flex-col border-slate-200/80 text-slate-900 transition-transform duration-200 ease-out relative";
+    "flex flex-col border-slate-200/80 text-slate-900 transition-transform duration-200 ease-out";
 
   const mobileVisibility = isMobile
     ? isOpen

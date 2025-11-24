@@ -41,21 +41,33 @@ export const useSidebarViewport = () => {
 
 export const useBodyScrollLock = (enabled: boolean) => {
   const previousOverflow = useRef<string | null>(null);
+  const previousTouchAction = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
+    const body = document.body;
+
+    if (previousOverflow.current === null) {
+      previousOverflow.current = body.style.overflow;
+    }
+    if (previousTouchAction.current === null) {
+      previousTouchAction.current = body.style.touchAction;
+    }
 
     if (enabled) {
-      previousOverflow.current = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      body.style.touchAction = "none";
       return () => {
-        document.body.style.overflow = previousOverflow.current || "";
+        body.style.overflow = previousOverflow.current || "";
+        body.style.touchAction = previousTouchAction.current || "";
       };
     }
 
-    document.body.style.overflow = previousOverflow.current || "";
+    body.style.overflow = previousOverflow.current || "";
+    body.style.touchAction = previousTouchAction.current || "";
     return () => {
-      document.body.style.overflow = previousOverflow.current || "";
+      body.style.overflow = previousOverflow.current || "";
+      body.style.touchAction = previousTouchAction.current || "";
     };
   }, [enabled]);
 };
