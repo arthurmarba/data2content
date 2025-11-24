@@ -84,7 +84,7 @@ export const Composer = React.memo(function Composer({
             {/* Gradient Fade - Positioned absolutely above the composer */}
             <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/60 to-transparent pointer-events-none" />
 
-            <div className="mx-auto max-w-3xl relative">
+            <div className="mx-auto max-w-6xl relative">
                 <ToolsDrawer
                     isOpen={isToolsOpen}
                     onClose={onCloseTools}

@@ -28,6 +28,8 @@ import {
   FaGlobe,
   FaWhatsapp,
   FaTimes,
+  FaCheckCircle,
+  FaChevronRight,
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import { INSTAGRAM_READ_ONLY_COPY } from "@/app/constants/trustCopy";
@@ -959,62 +961,62 @@ export default function HomeClientPage() {
     const iaActive = whatsappLinked || whatsappTrialActive;
     const iaStatus: StepStatus = iaActive ? "done" : "todo";
     const proStatus: StepStatus = planIsPro ? "done" : trialExpired ? "todo" : whatsappTrialActive ? "in-progress" : "todo";
-    const mentorshipStatus: StepStatus =
-      communityVipMember ? "done" : communityVipHasAccess || communityFreeMember ? "in-progress" : "todo";
+    const mentorshipStatus: StepStatus = communityVipMember ? "done" : "todo";
+    const communityFreeStatus: StepStatus = communityFreeMember ? "done" : "todo";
 
     return [
       {
         id: "progress-instagram",
-        title: "Instagram conectado",
+        title: "Vincular Instagram",
         description: isInstagramConnected
           ? "Relatório gratuito renovado toda semana com horários e tendências personalizadas."
           : "Conecte em poucos cliques para liberar diagnóstico com horários e formatos vencedores.",
-        icon: <FaLink />,
+        icon: <FaInstagram />,
         status: instagramStatus,
-        actionLabel: isInstagramConnected ? "Conectado" : "Conectar Instagram",
+        actionLabel: isInstagramConnected ? "Conectado" : "Vincular Instagram",
         action: handleHeaderConnectInstagram,
         variant: "secondary",
         disabled: isInstagramConnected,
       },
       {
-        id: "progress-ai",
-        title: "IA no WhatsApp",
-        description: iaActive
-          ? "Receba roteiros, alertas de horários quentes e análises direto no WhatsApp."
-          : "Ative o Plano Agência para descobrir ideias, horários e alertas automáticos no WhatsApp.",
-        icon: <FaWhatsapp />,
-        status: iaStatus,
-        actionLabel: iaActive ? "Ver alertas da IA" : "Ativar IA no WhatsApp",
-        action: iaActive ? handleOpenWhatsApp : handleHeaderStartTrial,
-        variant: "whatsapp",
+        id: "progress-community-free",
+        title: "Acessar comunidade gratuita",
+        description: communityFreeMember
+          ? "Você já faz parte da comunidade gratuita."
+          : "Entre para destravar desafios guiados e feedback de outros criadores.",
+        icon: <FaGlobe />,
+        status: communityFreeStatus,
+        actionLabel: communityFreeMember ? "Acessar comunidade" : "Entrar na comunidade",
+        action: () => handleJoinFreeCommunity("progress"),
+        variant: "secondary",
         disabled: false,
       },
       {
         id: "progress-pro",
-        title: "Plano Agência",
+        title: "Assinar Plano Agência",
         description: planIsPro
           ? "IA ilimitada, alertas constantes, convites de publicidade sem comissão e relatórios automáticos já estão ativos."
           : "Assine o Plano Agência para manter a IA ligada, liberar oportunidades com marcas e receber suporte direto da equipe.",
         icon: <FaGem />,
         status: proStatus,
-        actionLabel: planIsPro ? "Ver painel Agência" : "Assinar Plano Agência",
+        actionLabel: planIsPro ? "Ver painel Agência" : "Assinar agora",
         action: planIsPro ? () => handleNavigate("/dashboard") : handleHeaderSubscribe,
         variant: "pro",
         disabled: planIsPro,
       },
       {
-        id: "progress-community",
-        title: "Mentorias e comunidade",
+        id: "progress-community-vip",
+        title: "Acessar grupo VIP (Consultoria)",
         description: communityVipMember
           ? "Participando das mentorias semanais e trocas com outros criadores."
-          : "Entre para destravar mentorias, desafios guiados e feedback de outros criadores.",
+          : "Entre para destravar mentorias semanais e networking exclusivo.",
         icon: <FaUsers />,
         status: mentorshipStatus,
         actionLabel: communityVipMember
           ? "Mentoria ativa"
           : communityVipHasAccess
             ? "Entrar no grupo VIP"
-            : "Abrir comunidade",
+            : "Assinar para entrar",
         action: () => {
           if (communityVipMember) {
             handleMentorshipAction("whatsapp_reminder");
@@ -1024,9 +1026,9 @@ export default function HomeClientPage() {
             handleJoinVip();
             return;
           }
-          handleJoinFreeCommunity("progress");
+          handleHeaderSubscribe();
         },
-        variant: "secondary",
+        variant: "vip",
         disabled: false,
       },
     ];
@@ -1035,17 +1037,14 @@ export default function HomeClientPage() {
     communityVipHasAccess,
     communityVipMember,
     handleHeaderConnectInstagram,
-    handleHeaderStartTrial,
     handleHeaderSubscribe,
     handleJoinFreeCommunity,
     handleNavigate,
     handleJoinVip,
     handleMentorshipAction,
-    handleOpenWhatsApp,
     isInstagramConnected,
     planIsPro,
     trialExpired,
-    whatsappLinked,
     whatsappTrialActive,
   ]);
 
@@ -1793,16 +1792,126 @@ export default function HomeClientPage() {
   if (tutorialHomeEnabled) {
     return (
       <div className="w-full space-y-8 px-4 pt-4 pb-8 sm:px-6">
-        <TutorialProgress
-          progress={journeyProgress ?? null}
-          loading={tutorialLoading}
-          steps={tutorialSteps}
-          proActive={hasPremiumAccessPlan}
-          primaryLabel={journeyProgress ? tutorialCtaLabel : undefined}
-          onPrimaryAction={journeyProgress ? handleContinueJourney : undefined}
-          primaryDisabled={loading}
-        />
-        {mentorshipStrip}
+        <section
+          id="home-progress-section"
+          className="mt-2"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+                Etapa {journeyStageInfo.step} de {journeyStageInfo.total}
+              </p>
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                {progressHeading}
+              </h2>
+              {isNewUser ? (
+                <p className="mt-1 text-sm font-semibold text-slate-500">{progressDescription}</p>
+              ) : null}
+            </div>
+            <div className="text-left text-sm font-semibold text-slate-500 sm:text-right">
+              <p>{journeyStageInfo.label}</p>
+              {isNewUser ? (
+                <p className="text-xs text-slate-400">
+                  {progressCompletedCount}/{progressTotalCount} passos concluídos
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-[#F6007B] transition-[width]"
+              style={{ width: `${stageProgressPercent}%` }}
+            />
+          </div>
+          <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
+            <span>
+              {progressCompletedCount}/{progressTotalCount} etapas concluídas
+            </span>
+            <span>{stageProgressPercent}% da jornada</span>
+          </div>
+          <div className="mt-5 flex flex-col gap-3">
+            {progressItems.map((item) => {
+              const statusEmoji = STEP_STATUS_ICONS[item.status];
+              const statusLabel = STEP_STATUS_LABELS[item.status];
+              const disabled = item.disabled || item.status === "loading";
+              const isHighlighted = highlightedJourneyId === item.id;
+
+              // Media Kit inspired card style
+              const cardClassName = [
+                "group relative flex w-full items-center gap-4 rounded-3xl border p-5 text-left transition-all duration-200",
+                isHighlighted
+                  ? "border-[#F6007B]/30 bg-white shadow-[0_8px_30px_rgba(246,0,123,0.12)] ring-1 ring-[#F6007B]/20"
+                  : "border-slate-100 bg-white shadow-sm hover:border-slate-200 hover:shadow-md",
+                disabled
+                  ? "cursor-not-allowed opacity-60 bg-slate-50"
+                  : "hover:-translate-y-0.5",
+              ].join(" ");
+
+              const iconContainerClass = [
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl transition-colors",
+                item.status === "done"
+                  ? "bg-emerald-50 text-emerald-600"
+                  : isHighlighted
+                    ? "bg-[#F6007B]/10 text-[#F6007B]"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-slate-200",
+              ].join(" ");
+
+              return (
+                <button
+                  key={`${item.id}-summary`}
+                  type="button"
+                  onClick={() => {
+                    if (disabled) return;
+                    item.action();
+                  }}
+                  disabled={disabled}
+                  className={cardClassName}
+                  data-highlight={isHighlighted ? "true" : undefined}
+                >
+                  <div className={iconContainerClass}>
+                    {item.status === "done" ? <FaCheckCircle className="h-5 w-5" /> : item.icon}
+                  </div>
+
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-slate-900">{item.title}</p>
+                      {item.status === "done" && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                          Concluído
+                        </span>
+                      )}
+                      {isHighlighted && item.status !== "done" && (
+                        <span className="inline-flex items-center rounded-full bg-[#F6007B]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#F6007B]">
+                          Próximo passo
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500 leading-relaxed max-w-2xl">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  <div className="hidden sm:block">
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${disabled
+                        ? "bg-slate-100 text-slate-400"
+                        : isHighlighted
+                          ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f]"
+                          : "bg-slate-50 text-slate-700 group-hover:bg-slate-100"
+                        }`}
+                    >
+                      {item.actionLabel}
+                      {!disabled && (
+                        <FaChevronRight className="h-3 w-3" aria-hidden="true" />
+                      )}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <div className="pt-4">
           <CreatorToolsGrid
             tools={creatorTools}
@@ -1965,21 +2074,33 @@ export default function HomeClientPage() {
             </span>
             <span>{stageProgressPercent}% da jornada</span>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 flex flex-col gap-3">
             {progressItems.map((item) => {
               const statusEmoji = STEP_STATUS_ICONS[item.status];
               const statusLabel = STEP_STATUS_LABELS[item.status];
               const disabled = item.disabled || item.status === "loading";
               const isHighlighted = highlightedJourneyId === item.id;
+
+              // Media Kit inspired card style
               const cardClassName = [
-                "flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2",
+                "group relative flex w-full items-center gap-4 rounded-3xl border p-5 text-left transition-all duration-200",
                 isHighlighted
-                  ? "border-[#F6007B]/50 bg-white shadow-[0_22px_48px_rgba(246,0,123,0.12)] ring-2 ring-[#F6007B]/20"
-                  : "border-slate-100 bg-slate-50",
+                  ? "border-[#F6007B]/30 bg-white shadow-[0_8px_30px_rgba(246,0,123,0.12)] ring-1 ring-[#F6007B]/20"
+                  : "border-slate-100 bg-white shadow-sm hover:border-slate-200 hover:shadow-md",
                 disabled
-                  ? "cursor-not-allowed opacity-60"
-                  : "hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(15,23,42,0.08)]",
+                  ? "cursor-not-allowed opacity-60 bg-slate-50"
+                  : "hover:-translate-y-0.5",
               ].join(" ");
+
+              const iconContainerClass = [
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl transition-colors",
+                item.status === "done"
+                  ? "bg-emerald-50 text-emerald-600"
+                  : isHighlighted
+                    ? "bg-[#F6007B]/10 text-[#F6007B]"
+                    : "bg-slate-100 text-slate-500 group-hover:bg-slate-200",
+              ].join(" ");
+
               return (
                 <button
                   key={`${item.id}-summary`}
@@ -1992,23 +2113,42 @@ export default function HomeClientPage() {
                   className={cardClassName}
                   data-highlight={isHighlighted ? "true" : undefined}
                 >
-                  <span className="text-xl" aria-hidden="true">
-                    {statusEmoji}
-                  </span>
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      {statusLabel}
+                  <div className={iconContainerClass}>
+                    {item.status === "done" ? <FaCheckCircle className="h-5 w-5" /> : item.icon}
+                  </div>
+
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-slate-900">{item.title}</p>
+                      {item.status === "done" && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                          Concluído
+                        </span>
+                      )}
+                      {isHighlighted && item.status !== "done" && (
+                        <span className="inline-flex items-center rounded-full bg-[#F6007B]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#F6007B]">
+                          Próximo passo
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500 leading-relaxed max-w-2xl">
+                      {item.description}
                     </p>
-                    <p className="text-xs text-slate-500">{item.description}</p>
+                  </div>
+
+                  <div className="hidden sm:block">
                     <span
-                      className={`mt-1 inline-flex items-center gap-1 text-[11px] font-semibold ${disabled ? "text-slate-400" : "text-[#F6007B]"
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${disabled
+                        ? "bg-slate-100 text-slate-400"
+                        : isHighlighted
+                          ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f]"
+                          : "bg-slate-50 text-slate-700 group-hover:bg-slate-100"
                         }`}
                     >
                       {item.actionLabel}
-                      {!disabled ? (
-                        <FaChevronDown className="-rotate-90" aria-hidden="true" />
-                      ) : null}
+                      {!disabled && (
+                        <FaChevronRight className="h-3 w-3" aria-hidden="true" />
+                      )}
                     </span>
                   </div>
                 </button>
@@ -2126,28 +2266,34 @@ export default function HomeClientPage() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {toolCards.map((card) => (
-              <div
+              <button
                 key={card.key}
-                className="flex flex-col gap-4"
+                type="button"
+                onClick={card.onAction}
+                className="group relative flex flex-col items-start justify-between gap-4 rounded-3xl border border-slate-100 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2"
               >
-                <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B]">
-                    {card.icon}
-                  </span>
+                <div className="w-full space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-xl text-[#F6007B] transition-colors group-hover:bg-[#F6007B]/10">
+                      {card.icon}
+                    </span>
+                    <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      {card.status}
+                    </span>
+                  </div>
                   <div className="space-y-1">
-                    <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
-                    <p className="text-sm text-slate-600">{card.description}</p>
+                    <h3 className="text-lg font-semibold text-slate-900">{card.title}</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed">{card.description}</p>
                   </div>
                 </div>
-                <p className="text-xs font-semibold text-slate-500">{card.status}</p>
-                <button
-                  type="button"
-                  onClick={card.onAction}
-                  className="inline-flex items-center justify-center rounded-full bg-[#F6007B] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-                >
-                  {card.actionLabel}
-                </button>
-              </div>
+
+                <div className="mt-2 w-full">
+                  <span className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors group-hover:bg-slate-100 group-hover:text-slate-900">
+                    {card.actionLabel}
+                    <FaChevronRight className="h-3 w-3 text-slate-400 transition-colors group-hover:text-slate-600" />
+                  </span>
+                </div>
+              </button>
             ))}
           </div>
         </section>

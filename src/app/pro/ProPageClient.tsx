@@ -50,32 +50,32 @@ const BENEFITS = [
   {
     title: "Negociação com IA",
     description: "Faixa justa automática + recomendações para aceitar, ajustar ou pedir extra em cada proposta.",
-    icon: <Sparkles className="h-5 w-5 text-brand-magenta" />,
+    icon: <Sparkles className="h-6 w-6" />,
   },
   {
     title: "Campanhas inbound",
     description: "Inbox direto no seu nome: as marcas chegam, você responde com IA e conduz a negociação.",
-    icon: <Mail className="h-5 w-5 text-brand-magenta" />,
+    icon: <Mail className="h-6 w-6" />,
   },
   {
     title: "Calculadora + Diagnóstico",
     description: "Valores estratégicos, justos e premium com base nas suas métricas e histórico em segundos.",
-    icon: <Calculator className="h-5 w-5 text-brand-magenta" />,
+    icon: <Calculator className="h-6 w-6" />,
   },
   {
     title: "Planejamento Agência",
     description: "Slots guiados por IA, alertas no WhatsApp e referências da comunidade para subir sua autoridade.",
-    icon: <Calendar className="h-5 w-5 text-brand-magenta" />,
+    icon: <Calendar className="h-6 w-6" />,
   },
   {
     title: "Mentorias + WhatsApp IA",
     description: "Mentoria estratégica semanal + IA 24/7 no WhatsApp para alinhar posicionamento e constância.",
-    icon: <MessageCircle className="h-5 w-5 text-brand-magenta" />,
+    icon: <MessageCircle className="h-6 w-6" />,
   },
   {
     title: "Comissão zero",
     description: "Agências cobram 10%–30% e exigem exclusividade; no Plano Agência você paga só a assinatura e fica com todo o valor das publis.",
-    icon: <Shield className="h-5 w-5 text-brand-magenta" />,
+    icon: <Shield className="h-6 w-6" />,
   },
 ];
 
@@ -308,7 +308,7 @@ export default function ProPageClient({
     <>
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-16">
         <section className="space-y-6 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-pink-600">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#F6007B]/20 bg-[#F6007B]/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#F6007B]">
             <Sparkles className="h-4 w-4" /> Plano Agência
           </div>
           <h1 className="text-4xl font-bold text-slate-900 sm:text-5xl">{HERO_COPY.title}</h1>
@@ -319,14 +319,14 @@ export default function ProPageClient({
               <button
                 type="button"
                 onClick={() => handleOpenModal("hero")}
-                className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-pink-600/40 transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+                className="inline-flex items-center gap-2 rounded-full bg-[#F6007B] px-6 py-3 text-base font-semibold text-white shadow-lg shadow-[#F6007B]/30 transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40"
               >
                 Ativar Plano Agência
                 <ArrowRight className="h-5 w-5" />
               </button>
               <Link
                 href="#faq"
-                className="text-sm font-semibold text-pink-700 underline-offset-4 hover:underline"
+                className="text-sm font-semibold text-[#F6007B] underline-offset-4 hover:underline"
               >
                 Tirar dúvidas
               </Link>
@@ -347,16 +347,16 @@ export default function ProPageClient({
           {UNLOCKED_SURFACES.map((surface) => (
             <article
               key={surface.title}
-              className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm"
+              className="group flex h-full flex-col rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-pink-50 text-pink-600">
-                <Compass className="h-5 w-5" />
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B] transition-colors group-hover:bg-[#F6007B] group-hover:text-white">
+                <Compass className="h-6 w-6" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900">{surface.title}</h3>
-              <p className="mt-2 text-sm text-slate-600">{surface.description}</p>
+              <h3 className="text-lg font-semibold text-slate-900">{surface.title}</h3>
+              <p className="mt-2 text-sm text-slate-600 leading-relaxed">{surface.description}</p>
               <Link
                 href={surface.href}
-                className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-pink-600 hover:text-pink-700"
+                className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#F6007B] hover:text-[#e2006f]"
               >
                 Abrir agora
                 <ArrowUpRight className="h-4 w-4" />
@@ -369,71 +369,68 @@ export default function ProPageClient({
           {BENEFITS.map((benefit) => (
             <article
               key={benefit.title}
-              className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="flex h-full flex-col rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-pink-50">
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-[#F6007B]">
                 {benefit.icon}
               </div>
               <h3 className="text-lg font-semibold text-slate-900">{benefit.title}</h3>
-              <p className="mt-2 text-sm text-slate-600">{benefit.description}</p>
+              <p className="mt-2 text-sm text-slate-600 leading-relaxed">{benefit.description}</p>
             </article>
           ))}
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 shadow-inner">
-          <header className="mb-6 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-pink-600">Fluxo Plano Agência</p>
-            <h2 className="text-2xl font-bold text-slate-900">Como a IA guia sua semana</h2>
-            <p className="text-sm text-slate-600">Descubra, planeje e responda como um agenciado — mantendo sua autonomia.</p>
+        <section className="rounded-3xl border border-slate-100 bg-slate-50/50 p-8 shadow-sm">
+          <header className="mb-8 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#F6007B]">Fluxo Plano Agência</p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-900">Como a IA guia sua semana</h2>
+            <p className="mt-2 text-sm text-slate-600">Descubra, planeje e responda como um agenciado — mantendo sua autonomia.</p>
           </header>
           <div className="grid gap-4 md:grid-cols-3">
             {FLOW_STEPS.map((step, index) => (
-              <div key={step.title} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-pink-50 text-pink-600 font-semibold">
+              <div key={step.title} className="relative rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#F6007B]/10 text-lg font-bold text-[#F6007B]">
                   {index + 1}
                 </div>
-                <h3 className="text-base font-semibold text-slate-900">{step.title}</h3>
-                <p className="mt-2 text-sm text-slate-600">{step.description}</p>
+                <h3 className="text-lg font-semibold text-slate-900">{step.title}</h3>
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed">{step.description}</p>
               </div>
             ))}
           </div>
         </section>
 
         <section className="space-y-8">
-          <header>
+          <header className="text-center sm:text-left">
             <h2 className="text-2xl font-bold text-slate-900">Compare Free vs Plano Agência</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-slate-600">
               Sem pegadinhas: veja o que é liberado em cada plano.
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Agências costumam reter 10%–30% por publi; no Plano Agência você paga só a assinatura e segue fechando com 100% do fee.
-            </p>
           </header>
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-slate-100 text-left text-sm text-slate-700">
+              <thead className="bg-slate-50/50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Recurso</th>
-                  <th className="px-4 py-3 font-semibold text-center">Free</th>
-                  <th className="px-4 py-3 font-semibold text-center text-pink-600">Plano Agência</th>
+                  <th className="px-6 py-4 font-semibold">Recurso</th>
+                  <th className="px-6 py-4 font-semibold text-center">Free</th>
+                  <th className="px-6 py-4 font-semibold text-center text-[#F6007B]">Plano Agência</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {COMPARISON.map((row) => (
-                  <tr key={row.feature}>
-                    <td className="px-4 py-4 text-sm font-semibold text-slate-800">{row.feature}</td>
-                    <td className="px-4 py-4 text-center">
+                  <tr key={row.feature} className="transition-colors hover:bg-slate-50/50">
+                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{row.feature}</td>
+                    <td className="px-6 py-4 text-center">
                       {row.free ? (
-                        <Check className="mx-auto h-5 w-5 text-emerald-600" />
+                        <Check className="mx-auto h-5 w-5 text-emerald-500" />
                       ) : (
-                        <span className="text-xs font-medium text-slate-400">—</span>
+                        <span className="text-xs font-medium text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-center">
+                    <td className="px-6 py-4 text-center">
                       {row.pro ? (
-                        <Check className="mx-auto h-5 w-5 text-pink-600" />
+                        <Check className="mx-auto h-5 w-5 text-[#F6007B]" />
                       ) : (
-                        <span className="text-xs font-medium text-slate-400">—</span>
+                        <span className="text-xs font-medium text-slate-300">—</span>
                       )}
                     </td>
                   </tr>
@@ -444,120 +441,146 @@ export default function ProPageClient({
         </section>
 
         {!hasProAccess && (
-        <section className="grid gap-8 md:grid-cols-5 md:items-center" id="pricing">
-          <div className="md:col-span-2 space-y-3">
-            <h2 className="text-2xl font-bold text-slate-900">Escolha como quer assinar</h2>
-            <p className="text-sm text-slate-600">
-              Defina período e moeda. Annual traz economia; mensal mantém flexibilidade.
-            </p>
-            {pricesError && (
-              <p className="text-sm font-semibold text-red-600">{pricesError}</p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1">
-                <button
-                  type="button"
-                  onClick={() => handlePeriodToggle("monthly")}
-                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
-                    period === "monthly" ? "bg-pink-50 text-pink-700" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Mensal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePeriodToggle("annual")}
-                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
-                    period === "annual" ? "bg-pink-50 text-pink-700" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Anual {savingsPct > 0 && <span className="text-xs text-emerald-600">–{savingsPct}%</span>}
-                </button>
-              </div>
-              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1">
-                <button
-                  type="button"
-                  onClick={() => handleCurrencyToggle("brl")}
-                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
-                    currency === "brl" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  BRL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleCurrencyToggle("usd")}
-                  className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
-                    currency === "usd" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  USD
-                </button>
+          <section className="grid gap-8 md:grid-cols-5 md:items-start" id="pricing">
+            <div className="md:col-span-2 space-y-4">
+              <h2 className="text-2xl font-bold text-slate-900">Escolha como quer assinar</h2>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Defina período e moeda. Annual traz economia; mensal mantém flexibilidade.
+              </p>
+              {pricesError && (
+                <p className="text-sm font-semibold text-red-600">{pricesError}</p>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center md:flex-col md:items-start">
+                <div className="inline-flex rounded-full border border-slate-200 p-1">
+                  <button
+                    type="button"
+                    onClick={() => handlePeriodToggle("monthly")}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${period === "monthly" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    Mensal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePeriodToggle("annual")}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${period === "annual" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    Anual {savingsPct > 0 && <span className={`ml-1 text-xs ${period === "annual" ? "text-emerald-300" : "text-emerald-600"}`}>-{savingsPct}%</span>}
+                  </button>
+                </div>
+                <div className="inline-flex rounded-full border border-slate-200 p-1">
+                  <button
+                    type="button"
+                    onClick={() => handleCurrencyToggle("brl")}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${currency === "brl" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    BRL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCurrencyToggle("usd")}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${currency === "usd" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    USD
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="md:col-span-3">
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              {pricesLoading ? (
-                <div className="animate-pulse space-y-4">
-                  <div className="h-10 w-40 rounded-lg bg-slate-100" />
-                  <div className="h-6 w-64 rounded bg-slate-100" />
-                  <div className="h-6 w-52 rounded bg-slate-100" />
-                </div>
-              ) : prices ? (
-                <div className="space-y-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-slate-900">
-                      {formatCurrency(activePrice, currency)}
-                    </span>
-                    <span className="text-sm text-slate-600">
-                      /{period === "annual" ? "ano" : "mês"}
-                    </span>
-                  </div>
-                  {period === "annual" && (
+            <div className="md:col-span-3">
+              <div className="relative overflow-hidden rounded-3xl border border-[#F6007B]/20 bg-white p-8 shadow-lg shadow-[#F6007B]/5">
+                <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#F6007B]/5 blur-3xl" />
+                <div className="relative">
+                  {pricesLoading ? (
+                    <div className="animate-pulse space-y-6">
+                      <div className="h-12 w-48 rounded-xl bg-slate-100" />
+                      <div className="h-6 w-64 rounded bg-slate-100" />
+                      <div className="space-y-3 pt-4">
+                        <div className="h-5 w-full rounded bg-slate-100" />
+                        <div className="h-5 w-full rounded bg-slate-100" />
+                        <div className="h-5 w-3/4 rounded bg-slate-100" />
+                      </div>
+                    </div>
+                  ) : prices ? (
+                    <div className="space-y-6">
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-5xl font-bold text-slate-900 tracking-tight">
+                            {formatCurrency(activePrice, currency)}
+                          </span>
+                          <span className="text-lg font-medium text-slate-500">
+                            /{period === "annual" ? "ano" : "mês"}
+                          </span>
+                        </div>
+                        {period === "annual" && (
+                          <p className="mt-2 text-sm font-medium text-emerald-600">
+                            Equivale a <strong>{formatCurrency(monthlyEquivalent, currency)}</strong> por
+                            mês.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="h-px w-full bg-slate-100" />
+
+                      <ul className="space-y-4">
+                        <li className="flex items-start gap-3 text-sm text-slate-600">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                            <Check className="h-3.5 w-3.5" />
+                          </div>
+                          <span>Acesso imediato ao Planner, WhatsApp IA e discovery da comunidade.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-sm text-slate-600">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                            <Check className="h-3.5 w-3.5" />
+                          </div>
+                          <span>Mentorias semanais do Grupo VIP para ajustar conteúdo, pricing e pitch.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-sm text-slate-600">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                            <Check className="h-3.5 w-3.5" />
+                          </div>
+                          <span>Inbox de oportunidades e respostas com IA para negociar direto com as marcas.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-sm text-slate-600">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                            <Check className="h-3.5 w-3.5" />
+                          </div>
+                          <span>Cancelamento simples direto no app.</span>
+                        </li>
+                        <li className="flex items-start gap-3 text-sm text-slate-600">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                            <Check className="h-3.5 w-3.5" />
+                          </div>
+                          <span>Nota fiscal e recibos automáticos por e-mail.</span>
+                        </li>
+                      </ul>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenModal("pricing_card")}
+                        className="w-full rounded-xl bg-[#F6007B] px-6 py-4 text-base font-bold text-white shadow-lg shadow-[#F6007B]/25 transition hover:bg-[#e2006f] hover:shadow-[#F6007B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+                      >
+                        Assinar agora
+                      </button>
+                    </div>
+                  ) : (
                     <p className="text-sm text-slate-500">
-                      Equivale a <strong>{formatCurrency(monthlyEquivalent, currency)}</strong> por
-                      mês.
+                      Não foi possível carregar os valores agora. Tente novamente mais tarde.
                     </p>
                   )}
-                  <ul className="space-y-2 text-sm text-slate-600">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      Acesso imediato ao Planner, WhatsApp IA e discovery da comunidade.
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      Mentorias semanais do Grupo VIP para ajustar conteúdo, pricing e pitch.
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      Inbox de oportunidades e respostas com IA para negociar direto com as marcas.
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      Cancelamento simples direto no app.
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      Nota fiscal e recibos automáticos por e-mail.
-                    </li>
-                  </ul>
                 </div>
-              ) : (
-                <p className="text-sm text-slate-500">
-                  Não foi possível carregar os valores agora. Tente novamente mais tarde.
-                </p>
-              )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
         )}
 
-        <section className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-inner">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-sm font-semibold text-slate-700">Que telas eu libero com o Plano Agência?</p>
-              <p className="text-sm text-slate-500">
+        <section className="rounded-3xl border border-slate-100 bg-slate-50/50 p-8 shadow-sm">
+          <div className="grid gap-8 md:grid-cols-2 md:items-center">
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-slate-900">Que telas eu libero com o Plano Agência?</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
                 Planejamento com IA, descoberta da comunidade e inbox de oportunidades — tudo pronto para você negociar direto.
               </p>
             </div>
@@ -572,59 +595,59 @@ export default function ProPageClient({
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900 hover:shadow-md"
                 >
                   {link.label}
-                  <ArrowUpRight className="h-4 w-4" />
+                  <ArrowUpRight className="h-3.5 w-3.5 text-slate-400" />
                 </Link>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="faq" className="space-y-6">
-          <header>
+        <section id="faq" className="space-y-8">
+          <header className="text-center">
             <h2 className="text-2xl font-bold text-slate-900">Perguntas frequentes</h2>
-            <p className="text-sm text-slate-600">
+            <p className="mt-2 text-sm text-slate-600">
               Se ainda ficou alguma dúvida, fale com a gente pelo chat ou WhatsApp.
             </p>
           </header>
-          <div className="space-y-4">
+          <div className="mx-auto max-w-3xl space-y-4">
             {FAQS.map((faq) => (
               <details
                 key={faq.question}
-                className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                className="group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md"
               >
-                <summary className="flex cursor-pointer items-center justify-between gap-3 text-left text-base font-semibold text-slate-800 marker:hidden">
+                <summary className="flex cursor-pointer items-center justify-between gap-4 text-left text-base font-semibold text-slate-800 marker:hidden">
                   {faq.question}
-                  <span className="text-sm text-pink-600 transition group-open:rotate-45">+</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition group-open:rotate-45 group-open:bg-[#F6007B]/10 group-open:text-[#F6007B]">+</span>
                 </summary>
-                <p className="mt-3 text-sm text-slate-600">{faq.answer}</p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-600">{faq.answer}</p>
               </details>
             ))}
           </div>
         </section>
 
         {!hasProAccess && (
-          <section className="rounded-3xl border border-pink-200 bg-gradient-to-br from-pink-50 via-white to-pink-100 p-8 text-center shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900">
+          <section className="rounded-3xl border border-[#F6007B]/20 bg-gradient-to-br from-[#F6007B]/5 via-white to-[#F6007B]/10 p-10 text-center shadow-sm">
+            <h2 className="mx-auto max-w-2xl text-3xl font-bold text-slate-900">
               Pronto para responder com IA e fechar sua próxima campanha?
             </h2>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">
               Ative o Plano Agência para liberar análise, e-mail, calculadora e planejamento em um só clique.
             </p>
-            <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <button
                 type="button"
                 onClick={() => handleOpenModal("bottom")}
-                className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-pink-600/40 transition hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+                className="inline-flex items-center gap-2 rounded-full bg-[#F6007B] px-8 py-4 text-base font-bold text-white shadow-lg shadow-[#F6007B]/30 transition hover:bg-[#e2006f] hover:shadow-[#F6007B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40"
               >
                 Ativar Plano Agência
                 <ArrowRight className="h-5 w-5" />
               </button>
               <a
                 href="mailto:arthur@data2content.ai"
-                className="text-sm font-semibold text-pink-700 underline-offset-4 hover:underline"
+                className="text-sm font-semibold text-[#F6007B] underline-offset-4 hover:underline"
               >
                 Falar com vendas
               </a>
@@ -632,7 +655,6 @@ export default function ProPageClient({
           </section>
         )}
       </main>
-
     </>
   );
 }

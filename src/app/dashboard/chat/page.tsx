@@ -169,7 +169,7 @@ export default function ChatHomePage() {
       className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden flex-1 min-h-0"
     >
       {/* Card de conexão IG quando voltamos do OAuth */}
-      <div className="mx-auto max-w-4xl w-full px-4 pt-2 space-y-2">
+      <div className="mx-auto max-w-6xl w-full px-4 pt-2 space-y-2">
         {showIgConnect && (
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <InstagramConnectCard

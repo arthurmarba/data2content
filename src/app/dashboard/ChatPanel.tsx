@@ -340,7 +340,7 @@ export default function ChatPanel({
       >
         {isWelcome ? (
           <div className="h-full flex flex-col items-center justify-center pb-10">
-            <div className="w-full max-w-3xl text-center px-4">
+            <div className="w-full max-w-6xl text-center px-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -377,7 +377,7 @@ export default function ChatPanel({
             </div>
           </div>
         ) : (
-          <div className="relative mx-auto max-w-3xl w-full pb-4">
+          <div className="relative mx-auto max-w-6xl w-full pb-4">
             <ul role="list" aria-live="polite" className="space-y-6">
               {messages.map((msg, idx) => (
                 <MessageBubble
@@ -417,7 +417,7 @@ export default function ChatPanel({
 
       {pendingAction ? (
         <div className="px-4 pb-2">
-          <div className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm">
+          <div className="mx-auto max-w-6xl rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm">
             <p className="text-sm font-semibold text-gray-800">
               {pendingActionLabel || 'A IA deixou uma pergunta em aberto.'}
             </p>
@@ -450,7 +450,7 @@ export default function ChatPanel({
 
       {currentTaskLabel ? (
         <div className="px-4 pb-2">
-          <div className="mx-auto max-w-3xl rounded-2xl border border-dashed border-brand-primary/40 bg-white/80 px-4 py-3 shadow-sm">
+          <div className="mx-auto max-w-6xl rounded-2xl border border-dashed border-brand-primary/40 bg-white/80 px-4 py-3 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary">Modo tarefa</p>
             <p className="text-sm font-semibold text-gray-800">{currentTaskLabel}</p>
             {currentTask?.objective ? (
