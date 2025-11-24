@@ -67,7 +67,7 @@ interface AskLLMResult {
  * Preenche o system prompt com métricas e estatísticas recentes.
  * Exportada para facilitar testes unitários.
  */
-const SYSTEM_PROMPT_CACHE_VERSION = 'v2.37';
+const SYSTEM_PROMPT_CACHE_VERSION = 'v2.39';
 
 export async function populateSystemPrompt(
     user: IUser,

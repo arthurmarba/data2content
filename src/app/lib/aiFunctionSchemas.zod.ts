@@ -5,37 +5,37 @@ import { z } from 'zod';
 import { Types } from 'mongoose';
 import { CategoryRankingMetricEnum } from '@/app/lib/dataService/marketAnalysis/types';
 import {
-    VALID_FORMATS,
-    VALID_PROPOSALS,
-    VALID_CONTEXTS,
-    VALID_QUALITATIVE_OBJECTIVES,
-    VALID_TONES,
-    VALID_REFERENCES,
-    FormatType,
-    ProposalType,
-    ContextType,
-    ToneType,
-    ReferenceType,
-    QualitativeObjectiveType
+  VALID_FORMATS,
+  VALID_PROPOSALS,
+  VALID_CONTEXTS,
+  VALID_QUALITATIVE_OBJECTIVES,
+  VALID_TONES,
+  VALID_REFERENCES,
+  FormatType,
+  ProposalType,
+  ContextType,
+  ToneType,
+  ReferenceType,
+  QualitativeObjectiveType
 } from '@/app/lib/constants/communityInspirations.constants';
 
 // --- CORREÇÃO: DEFINIR A CONSTANTE FALTANTE ---
 const ALLOWED_TIME_PERIODS = [
-    "all_time",
-    "last_7_days",
-    "last_30_days",
-    "last_90_days",
-    "last_6_months",
-    "last_12_months"
+  "all_time",
+  "last_7_days",
+  "last_30_days",
+  "last_90_days",
+  "last_6_months",
+  "last_12_months"
 ] as const;
 // ---------------------------------------------
 
 // Schema para getAggregatedReport
 export const GetAggregatedReportArgsSchema = z.object({
   analysisPeriod: z.number({
-      invalid_type_error: "O período de análise deve ser um número de dias.",
-      description: "O número de dias a serem considerados para a análise do relatório (ex: 7, 30, 40, 90, 180). Use 180 como padrão se nenhum período específico for solicitado. Use 0 para 'todo o período disponível'."
-    })
+    invalid_type_error: "O período de análise deve ser um número de dias.",
+    description: "O número de dias a serem considerados para a análise do relatório (ex: 7, 30, 40, 90, 180). Use 180 como padrão se nenhum período específico for solicitado. Use 0 para 'todo o período disponível'."
+  })
     .int({ message: "O período de análise deve ser um número inteiro de dias." })
     .min(0, { message: "O período de análise não pode ser negativo. Use 0 para 'todo o período'." })
     .optional()
@@ -46,12 +46,12 @@ export const GetAggregatedReportArgsSchema = z.object({
 // Schema para getTopPosts
 export const GetTopPostsArgsSchema = z.object({
   metric: z.enum(['shares', 'saved', 'likes', 'comments', 'reach', 'views'])
-            .optional()
-            .default('shares'),
+    .optional()
+    .default('shares'),
   limit: z.number().int()
-           .min(1).max(10)
-           .optional()
-           .default(3),
+    .min(1).max(10)
+    .optional()
+    .default(3),
 }).strict();
 
 // --- (NOVO) Schema para a função getCategoryRanking ---
@@ -75,7 +75,14 @@ export const GetCategoryRankingArgsSchema = z.object({
 // --- FIM DO NOVO SCHEMA ---
 
 // Schema para getDayPCOStats
-export const GetDayPCOStatsArgsSchema = z.object({}).strict();
+export const GetDayPCOStatsArgsSchema = z.object({
+  metric: z.enum(['shares', 'saved', 'likes', 'comments', 'reach', 'views', 'total_interactions'])
+    .optional()
+    .default('shares')
+    .describe("A métrica para ordenar o ranking (padrão: shares)."),
+  limit: z.number().int().min(1).max(20).optional().default(5)
+    .describe("Número máximo de itens a retornar (padrão: 5).")
+}).strict();
 
 // Schema para getMetricDetailsById
 export const GetMetricDetailsByIdArgsSchema = z.object({
@@ -88,21 +95,21 @@ const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de dat
 export const FindPostsByCriteriaArgsSchema = z.object({
   criteria: z.object({
     format: z.enum(VALID_FORMATS, {
-        invalid_type_error: "Formato inválido. Por favor, use um dos valores de formato conhecidos."
-      })
+      invalid_type_error: "Formato inválido. Por favor, use um dos valores de formato conhecidos."
+    })
       .optional(),
     proposal: z.enum(VALID_PROPOSALS, {
-        invalid_type_error: "Proposta inválida. Por favor, use um dos valores de proposta conhecidos."
-      })
+      invalid_type_error: "Proposta inválida. Por favor, use um dos valores de proposta conhecidos."
+    })
       .optional(),
     context: z.enum(VALID_CONTEXTS, {
-        invalid_type_error: "Contexto inválido. Por favor, use um dos valores de contexto conhecidos."
-      })
+      invalid_type_error: "Contexto inválido. Por favor, use um dos valores de contexto conhecidos."
+    })
       .optional(),
     dateRange: z.object({
-        start: dateStringSchema.optional(),
-        end: dateStringSchema.optional(),
-      }).optional(),
+      start: dateStringSchema.optional(),
+      end: dateStringSchema.optional(),
+    }).optional(),
     minLikes: z.number().int().nonnegative("minLikes deve ser um inteiro não-negativo (0 ou mais).").optional(),
     minShares: z.number().int().positive("minShares deve ser um inteiro positivo.").optional(),
   }).strict("Apenas critérios definidos (format, proposal, etc.) são permitidos."),
@@ -133,7 +140,7 @@ export const GetFpcTrendHistoryArgsSchema = z.object({
   proposal: z.enum(VALID_PROPOSALS),
   context: z.enum(VALID_CONTEXTS),
   timePeriod: z.enum(ALLOWED_TIME_PERIODS).default('last_90_days'),
-  granularity: z.enum(['weekly','monthly']).default('weekly')
+  granularity: z.enum(['weekly', 'monthly']).default('weekly')
 }).strict();
 
 // Schema para getConsultingKnowledge
@@ -173,33 +180,33 @@ export const GetLatestAudienceDemographicsArgsSchema = z
 // Schema para FetchCommunityInspirationsArgsSchema
 export const FetchCommunityInspirationsArgsSchema = z.object({
   proposal: z.enum(VALID_PROPOSALS, {
-      invalid_type_error: "Proposta inválida. Por favor, use um dos valores de proposta conhecidos.",
-      required_error: "O campo 'proposal' é obrigatório para buscar inspirações."
-    })
+    invalid_type_error: "Proposta inválida. Por favor, use um dos valores de proposta conhecidos.",
+    required_error: "O campo 'proposal' é obrigatório para buscar inspirações."
+  })
     .describe(`A proposta/tema do conteúdo para o qual se busca inspiração. Valores válidos: ${VALID_PROPOSALS.join(', ')}`),
   context: z.enum(VALID_CONTEXTS, {
-      invalid_type_error: "Contexto inválido. Por favor, use um dos valores de contexto conhecidos.",
-      required_error: "O campo 'context' é obrigatório para buscar inspirações."
-    })
+    invalid_type_error: "Contexto inválido. Por favor, use um dos valores de contexto conhecidos.",
+    required_error: "O campo 'context' é obrigatório para buscar inspirações."
+  })
     .describe(`O contexto específico dentro da proposta. Valores válidos: ${VALID_CONTEXTS.join(', ')}`),
   format: z.enum(VALID_FORMATS, {
-      invalid_type_error: "Formato inválido. Por favor, use um dos valores de formato conhecidos."
-    })
+    invalid_type_error: "Formato inválido. Por favor, use um dos valores de formato conhecidos."
+  })
     .optional()
     .describe(`Opcional. Formato do post (ex: Reels, Foto, Carrossel) para refinar a busca. Valores válidos: ${VALID_FORMATS.join(', ')}`),
   tone: z.enum(VALID_TONES, {
-      invalid_type_error: "Tom inválido. Use um dos valores de tom conhecidos."
-    })
+    invalid_type_error: "Tom inválido. Use um dos valores de tom conhecidos."
+  })
     .optional()
     .describe(`Opcional. Tom predominante do post. Valores válidos: ${VALID_TONES.join(', ')}`),
   reference: z.enum(VALID_REFERENCES, {
-      invalid_type_error: "Referência inválida. Use um dos valores de referência conhecidos."
-    })
+    invalid_type_error: "Referência inválida. Use um dos valores de referência conhecidos."
+  })
     .optional()
     .describe(`Opcional. Referência ou elemento utilizado. Valores válidos: ${VALID_REFERENCES.join(', ')}`),
   primaryObjectiveAchieved_Qualitative: z.enum(VALID_QUALITATIVE_OBJECTIVES, {
-      invalid_type_error: "Objetivo qualitativo inválido. Por favor, use um dos valores de objetivo conhecidos."
-    })
+    invalid_type_error: "Objetivo qualitativo inválido. Por favor, use um dos valores de objetivo conhecidos."
+  })
     .optional()
     .describe(`Opcional. O objetivo qualitativo principal que a inspiração deve ter demonstrado. Valores válidos: ${VALID_QUALITATIVE_OBJECTIVES.join(', ')}`),
   count: z.number().int().min(1).max(3).optional().default(2)

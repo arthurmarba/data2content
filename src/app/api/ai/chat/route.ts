@@ -39,16 +39,6 @@ function isTableStart(lines: string[], index: number) {
   return /---/.test(second);
 }
 
-function parseRow(raw: string): string[] {
-  const normalized = raw.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
-  return normalized.split('|').map((c) => c.trim());
-}
-
-function isEmptyCell(value?: string) {
-  const normalized = (value ?? '').replace(/[–—-]/g, '').trim();
-  return normalized.length === 0;
-}
-
 export function sanitizeTables(markdown: string): string {
   const lines = markdown.split('\n');
   const output: string[] = [];
@@ -70,52 +60,8 @@ export function sanitizeTables(markdown: string): string {
       j += 1;
     }
 
-    const header = parseRow(tableLines[0] ?? '');
-    const rows: string[][] = tableLines
-      .slice(2)
-      .map(parseRow)
-      .filter((r): r is string[] => Array.isArray(r) && r.length > 0);
-    const colCount = header.length;
-    const totalCells = rows.length * colCount || 1;
-
-    const emptyCounts: number[] = Array(colCount).fill(0);
-    for (const row of rows) {
-      for (let c = 0; c < colCount; c++) {
-        const cell = row[c] ?? '';
-        if (isEmptyCell(cell)) emptyCounts[c] = (emptyCounts[c] ?? 0) + 1;
-      }
-    }
-    const emptyRatio = emptyCounts.reduce((sum, val) => sum + (val ?? 0), 0) / totalCells;
-    const hasSparseColumn = emptyCounts.some((cnt) => rows.length > 0 && ((cnt ?? 0) / rows.length) > 0.3);
-    const isWide = colCount > 4;
-    const shouldCondense = isWide || emptyRatio > 0.3 || hasSparseColumn;
-
-    if (!shouldCondense) {
-      output.push(...tableLines);
-    } else {
-      const bulletLines: string[] = [];
-      rows.forEach((row) => {
-        const title = (row?.[0] ?? '').trim();
-        const details: string[] = [];
-        for (let c = 1; c < colCount; c++) {
-          const cell = row?.[c] ?? '';
-          if (isEmptyCell(cell)) continue;
-          const label = header[c] || `Col ${c + 1}`;
-          details.push(`  - ${label}: ${cell}`);
-        }
-        if (title && details.length > 0) {
-          bulletLines.push(`- **${title}**`);
-          bulletLines.push(...details);
-        } else if (details.length > 0) {
-          bulletLines.push(...details.map((d) => d.replace(/^  - /, '- ')));
-        }
-      });
-      if (bulletLines.length === 0) {
-        bulletLines.push(...tableLines);
-      }
-      output.push(...bulletLines);
-    }
-
+    // Preserve tables exactly as returned by the LLM, even if they are wide or sparse.
+    output.push(...tableLines);
     i = j;
   }
 

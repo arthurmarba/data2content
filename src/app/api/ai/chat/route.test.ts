@@ -138,7 +138,7 @@ it('retorna mensagem amigável quando LLM falha', async () => {
   expect(String(json.answer)).toMatch(/problema técnico|tentar novamente/i);
 });
 
-it('converte tabela esparsa em lista', () => {
+it('mantém tabelas, mesmo que esparsas', () => {
   const input = [
     '| Item | Col1 | Col2 |',
     '| --- | --- | --- |',
@@ -147,8 +147,6 @@ it('converte tabela esparsa em lista', () => {
   ].join('\n');
 
   const sanitized = sanitizeTables(input);
-  expect(sanitized).toContain('- **A**');
-  expect(sanitized).toContain('  - Col1: valor');
-  expect(sanitized).not.toContain('| ---');
-  expect(sanitized).not.toContain('| Col2 |');
+  expect(sanitized).toEqual(input);
+  expect(sanitized).not.toContain('- **A**');
 });
