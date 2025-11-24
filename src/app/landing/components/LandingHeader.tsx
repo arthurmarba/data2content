@@ -25,6 +25,8 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const ctaButtonRef = useRef<HTMLButtonElement>(null);
+  const previousBodyOverflow = useRef<string | null>(null);
+  const previousBodyTouchAction = useRef<string | null>(null);
   const { appendUtm, utm } = useUtmAttribution();
 
   const navLinks = [
@@ -78,6 +80,51 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handleChange = () => {
+      if (mq.matches) setIsMenuOpen(false);
+    };
+    handleChange();
+    mq.addEventListener?.('change', handleChange);
+    return () => mq.removeEventListener?.('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const body = document.body;
+
+    if (previousBodyOverflow.current === null) {
+      previousBodyOverflow.current = body.style.overflow;
+    }
+    if (previousBodyTouchAction.current === null) {
+      previousBodyTouchAction.current = body.style.touchAction;
+    }
+
+    if (isMenuOpen) {
+      body.style.overflow = 'hidden';
+      body.style.touchAction = 'none';
+    } else {
+      body.style.overflow = previousBodyOverflow.current || '';
+      body.style.touchAction = previousBodyTouchAction.current || '';
+    }
+
+    return () => {
+      body.style.overflow = previousBodyOverflow.current || '';
+      body.style.touchAction = previousBodyTouchAction.current || '';
+    };
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMenuOpen]);
+
+  useEffect(() => {
     if (isMenuOpen) {
       if (!session) {
         firstLinkRef.current?.focus();
@@ -105,7 +152,7 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
           : undefined
       }
     >
-      <Container className="relative flex h-16 items-center justify-between transition-all duration-300 ease-out md:h-[4.5rem]">
+      <Container className="relative z-[55] flex h-16 items-center justify-between transition-all duration-300 ease-out md:h-[4.5rem]">
         <Link href="/" className="group flex items-center gap-2 text-2xl font-bold text-brand-dark">
           <div className="relative h-8 w-8 overflow-hidden">
             <Image
@@ -151,7 +198,7 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
           <button
             ref={menuButtonRef}
             className="p-2 text-brand-dark md:hidden"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            onClick={() => setIsMenuOpen((prev) => !prev)}
             aria-label="Menu"
             aria-controls="mobile-menu"
             aria-expanded={isMenuOpen}
@@ -163,47 +210,54 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
             )}
           </button>
         </div>
-        {isMenuOpen && (
-          <div className="absolute top-20 right-0 w-full rounded-2xl border border-[#E7EBF6] bg-white/95 shadow-[0_18px_38px_rgba(15,23,42,0.12)] md:hidden">
-            <nav id="mobile-menu" className="flex flex-col p-2">
-              {navLinks.map((link, index) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-xl px-4 py-3 text-sm font-medium text-brand-text-secondary/90 hover:bg-brand-light"
-                  onClick={() => setIsMenuOpen(false)}
-                  ref={!session && index === 0 ? firstLinkRef : undefined}
-                >
-                  {link.label}
-                </a>
-              ))}
-              <button
-                onClick={() => {
-                  handleBrands();
-                  setIsMenuOpen(false);
-                }}
-                className="mt-1 rounded-xl border border-brand-primary/40 px-4 py-3 text-left text-sm font-semibold text-brand-primary hover:bg-brand-primary/10"
-              >
-                Sou marca
-              </button>
-              <button
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  if (session) {
-                    window.location.assign(MAIN_DASHBOARD_ROUTE);
-                  } else {
-                    handleJoinCommunity();
-                  }
-                }}
-                className="mt-1 rounded-xl px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light"
-                ref={session ? ctaButtonRef : undefined}
-              >
-                {session ? 'Ir para o painel' : 'Criar conta gratuita'}
-              </button>
-            </nav>
-          </div>
-        )}
       </Container>
+      {isMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] md:hidden"
+          aria-hidden="true"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
+      {isMenuOpen && (
+        <div className="fixed inset-x-4 top-[calc(var(--landing-header-h,4.5rem)+0.75rem)] z-[60] max-h-[calc(100vh-var(--landing-header-h,4.5rem)-1.5rem)] overflow-y-auto rounded-2xl border border-[#E7EBF6] bg-white/95 shadow-[0_18px_38px_rgba(15,23,42,0.12)] md:hidden">
+          <nav id="mobile-menu" className="flex flex-col p-2">
+            {navLinks.map((link, index) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="rounded-xl px-4 py-3 text-sm font-medium text-brand-text-secondary/90 hover:bg-brand-light"
+                onClick={() => setIsMenuOpen(false)}
+                ref={!session && index === 0 ? firstLinkRef : undefined}
+              >
+                {link.label}
+              </a>
+            ))}
+            <button
+              onClick={() => {
+                handleBrands();
+                setIsMenuOpen(false);
+              }}
+              className="mt-1 rounded-xl border border-brand-primary/40 px-4 py-3 text-left text-sm font-semibold text-brand-primary hover:bg-brand-primary/10"
+            >
+              Sou marca
+            </button>
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                if (session) {
+                  window.location.assign(MAIN_DASHBOARD_ROUTE);
+                } else {
+                  handleJoinCommunity();
+                }
+              }}
+              className="mt-1 rounded-xl px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light"
+              ref={session ? ctaButtonRef : undefined}
+            >
+              {session ? 'Ir para o painel' : 'Criar conta gratuita'}
+            </button>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
