@@ -40,7 +40,9 @@ const contentFiltersSchema = z.object({
 
 const creatorFiltersSchema = z.object({
   planStatus: z.array(z.string()).optional(),
-  inferredExpertiseLevel: z.array(z.string()).optional()
+  inferredExpertiseLevel: z.array(z.string()).optional(),
+  context: z.string().optional(),
+  creatorContext: z.string().optional(),
 }).optional();
 
 const topMoverMetricLiterals: [TopMoverMetric, ...TopMoverMetric[]] = [

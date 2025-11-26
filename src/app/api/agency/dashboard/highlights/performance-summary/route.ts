@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
   }
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
+  const creatorContext = searchParams.get('creatorContext') || undefined;
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam) ? timePeriodParam! : 'last_90_days';
   if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
@@ -58,8 +59,21 @@ export async function GET(request: NextRequest) {
   const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
   const periodInDaysValue = timePeriodToDays(timePeriod);
   const [aggResult, dayAgg] = await Promise.all([
-    aggregatePlatformPerformanceHighlights(periodInDaysValue, performanceMetricField, session.user.agencyId),
-    aggregatePlatformDayPerformance(periodInDaysValue, performanceMetricField, {}, session.user.agencyId)
+    aggregatePlatformPerformanceHighlights(
+      periodInDaysValue,
+      performanceMetricField,
+      session.user.agencyId,
+      new Date(),
+      false,
+      undefined,
+      creatorContext
+    ),
+    aggregatePlatformDayPerformance(
+      periodInDaysValue,
+      performanceMetricField,
+      { creatorContext: creatorContext || undefined },
+      session.user.agencyId
+    )
   ]);
   const bestDay = dayAgg.bestDays[0] || null;
   const response: PlatformPerformanceSummaryResponse = {

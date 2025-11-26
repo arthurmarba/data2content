@@ -38,11 +38,17 @@ const timePeriodToDataWindowDays = (timePeriod: string): number => {
 interface PlatformMovingAverageEngagementChartProps {
   initialAvgWindow?: string;
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngagementChartProps> = ({
   initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0]?.value ?? "7",
-  apiPrefix = '/api/admin'
+  apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformMovingAverageResponse['series']>([]);
@@ -67,7 +73,14 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     }
 
     try {
-      const apiUrl = `${apiPrefix}/dashboard/trends/moving-average-engagement?dataWindowInDays=${dataWindowInDays}&movingAverageWindowInDays=${currentAvgWindowDays}`;
+      const params = new URLSearchParams({
+        dataWindowInDays: String(dataWindowInDays),
+        movingAverageWindowInDays: String(currentAvgWindowDays),
+      });
+      if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+      if (contextFilter) params.append('context', contextFilter);
+      if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+      const apiUrl = `${apiPrefix}/dashboard/trends/moving-average-engagement?${params.toString()}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -83,7 +96,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     } finally {
       setLoading(false);
     }
-  }, [dataWindowInDays, avgWindow, apiPrefix]);
+  }, [dataWindowInDays, avgWindow, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchData();

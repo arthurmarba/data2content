@@ -37,6 +37,7 @@ const querySchema = z.object({
   minTotalPosts: z.coerce.number().int().min(0).optional(),
   startDate: z.string().datetime({ offset: true, message: "Formato de startDate inválido." }).optional(),
   endDate: z.string().datetime({ offset: true, message: "Formato de endDate inválido." }).optional(),
+  onlyActiveSubscribers: z.enum(['true', 'false']).optional().transform(val => val === 'true'),
 }).refine(data => {
   if (data.startDate && data.endDate) {
     return new Date(data.startDate) <= new Date(data.endDate);
@@ -87,26 +88,50 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { nameSearch, planStatus, expertiseLevel, minTotalPosts, startDate, endDate, ...paginationAndSort } = validationResult.data;
+    const { nameSearch, planStatus, expertiseLevel, minTotalPosts, startDate, endDate, onlyActiveSubscribers, ...paginationAndSort } = validationResult.data;
+
+    let finalPlanStatus = planStatus;
+    if (onlyActiveSubscribers) {
+      if (finalPlanStatus) {
+        if (!finalPlanStatus.includes('active')) {
+          finalPlanStatus.push('active');
+        }
+        // If user selected other plans but also checked "Only Active", logic is tricky.
+        // Usually "Only Active" implies filtering ONLY active.
+        // If user selected "Free" AND "Only Active", it's contradictory or intersection.
+        // Let's assume "Only Active" enforces active.
+        // If planStatus was provided, we should probably intersect?
+        // But if planStatus is ['free'] and onlyActive is true, intersection is empty.
+        // Let's assume onlyActiveSubscribers overrides or intersects.
+        // Simplest: if onlyActiveSubscribers is true, we force planStatus to be ['active'] or intersect with ['active'].
+        finalPlanStatus = finalPlanStatus.filter(p => p === 'active');
+        if (finalPlanStatus.length === 0) finalPlanStatus = ['active']; // Fallback if intersection empty? Or maybe empty is correct.
+        // Actually, if user selected 'free' and 'active', and checked 'only active', result is 'active'.
+        // If user selected 'free' and checked 'only active', result is empty (no free user is active).
+        // So intersection is correct.
+      } else {
+        finalPlanStatus = ['active'];
+      }
+    }
 
     const params: IFetchDashboardCreatorsListParams = {
       ...paginationAndSort,
       filters: {
         nameSearch,
-        planStatus,
+        planStatus: finalPlanStatus,
         expertiseLevel,
         minTotalPosts,
         startDate,
         endDate,
       },
     };
-    
+
     // Remove filtros indefinidos para manter a chamada ao serviço limpa
     Object.keys(params.filters!).forEach(key => {
-        const filterKey = key as keyof typeof params.filters;
-        if (params.filters![filterKey] === undefined) {
-            delete params.filters![filterKey];
-        }
+      const filterKey = key as keyof typeof params.filters;
+      if (params.filters![filterKey] === undefined) {
+        delete params.filters![filterKey];
+      }
     });
 
     logger.info(`${TAG} A chamar fetchDashboardCreatorsList com parâmetros: ${JSON.stringify(params)}`);
@@ -121,7 +146,7 @@ export async function GET(req: NextRequest) {
       return apiError(`Erro de base de dados: ${error.message}`, 500);
     }
     if (error instanceof z.ZodError) {
-        return apiError(`Erro de validação: ${error.errors.map(e => e.message).join(', ')}`, 400);
+      return apiError(`Erro de validação: ${error.errors.map(e => e.message).join(', ')}`, 400);
     }
     return apiError('Ocorreu um erro interno no servidor.', 500);
   }

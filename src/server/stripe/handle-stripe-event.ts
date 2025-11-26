@@ -195,15 +195,15 @@ function getInvoiceIdFromCharge(charge: Stripe.Charge): string | null {
 
 type Normalized = {
   planStatus:
-    | "active"
-    | "trialing"
-    | "past_due"
-    | "incomplete"
-    | "incomplete_expired"
-    | "unpaid"
-    | "canceled"
-    | "inactive"
-    | "non_renewing";
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid"
+  | "canceled"
+  | "inactive"
+  | "non_renewing";
   planInterval: "month" | "year" | undefined;
   planExpiresAt: Date | null;
   cancelAtPeriodEnd: boolean;
@@ -911,7 +911,40 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
       if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
-      if (isSubscriptionMismatch(user, subEventObj.id, event)) return;
+      const mismatch = isSubscriptionMismatch(user, subEventObj.id, event);
+      if (mismatch) {
+        // Self-healing: se o status atual é "ruim" (incomplete_expired, canceled, etc)
+        // e o novo é "bom" (active, trialing), permitimos a troca de assinatura.
+        // Isso corrige casos onde o usuário tenta assinar (falha -> incomplete),
+        // tenta de novo (sucesso -> active), mas o webhook da falha travou o ID no banco.
+        const currentStatus = (user as any).planStatus;
+        const newStatus = subEventObj.status;
+
+        // Importamos dinamicamente ou usamos lógica local para evitar dependência circular se houver
+        // Mas como isPlanActiveLike está em utils, podemos usar (se importado) ou replicar a lógica simples:
+        const isActiveLike = (s: string) => ["active", "trialing"].includes(s);
+
+        // O status do banco pode vir como "trial" (legacy) ou "trialing"
+        const isCurrentActive =
+          currentStatus === "active" ||
+          currentStatus === "trial" ||
+          currentStatus === "trialing";
+
+        const isNewActive = isActiveLike(newStatus);
+
+        if (!isCurrentActive && isNewActive) {
+          logger.info("stripe_subscription_mismatch_override", {
+            userId: user._id,
+            oldSub: user.stripeSubscriptionId,
+            newSub: subEventObj.id,
+            oldStatus: currentStatus,
+            newStatus: newStatus,
+          });
+          // Prossegue para atualizar o usuário com a nova assinatura
+        } else {
+          return;
+        }
+      }
 
       // Rebusca com expansões necessárias para decidir heurística
       const sub = await withRetries(
@@ -1018,8 +1051,8 @@ export async function handleStripeEvent(event: Stripe.Event) {
           user.planExpiresAt instanceof Date
             ? user.planExpiresAt
             : (user as any).planExpiresAt instanceof Date
-            ? (user as any).planExpiresAt
-            : null;
+              ? (user as any).planExpiresAt
+              : null;
         try {
           await sendSubscriptionCanceledEmail(userEmail, {
             name: userName,

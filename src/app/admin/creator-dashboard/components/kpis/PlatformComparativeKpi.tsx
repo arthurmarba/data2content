@@ -41,6 +41,9 @@ interface PlatformComparativeKpiProps {
   comparisonPeriod: string;
   tooltip?: string;
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
@@ -49,6 +52,9 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   comparisonPeriod,
   tooltip,
   apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const [kpiData, setKpiData] = useState<KPIComparisonData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -59,7 +65,11 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `${apiPrefix}/dashboard/platform-kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`;
+      const params = new URLSearchParams({ comparisonPeriod });
+      if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+      if (contextFilter) params.append('context', contextFilter);
+      if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+      const apiUrl = `${apiPrefix}/dashboard/platform-kpis/periodic-comparison?${params.toString()}`;
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
@@ -89,7 +99,7 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [comparisonPeriod, kpiName, apiPrefix]);
+  }, [comparisonPeriod, kpiName, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchData();
@@ -134,4 +144,3 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
 };
 
 export default memo(PlatformComparativeKpi);
-

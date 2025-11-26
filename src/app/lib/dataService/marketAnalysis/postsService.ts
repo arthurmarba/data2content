@@ -18,6 +18,7 @@ import { TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getInstagramConnectionDetails } from '@/app/lib/instagram/db/userActions';
 import fetch from 'node-fetch';
 import UserModel from '@/app/models/User';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 
 const SERVICE_TAG = '[dataService][postsService]';
 
@@ -38,7 +39,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
   const {
     context, proposal, format, tone, references, searchText, minInteractions = 0,
     page = 1, limit = 10,
-    sortBy = 'stats.total_interactions', sortOrder = 'desc', dateRange,
+    sortBy = 'stats.total_interactions', sortOrder = 'desc', dateRange, creatorContext,
   } = args;
 
   try {
@@ -46,7 +47,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     const matchStage: PipelineStage.Match['$match'] = {};
 
     // Filtros de classificação mais assertivos (ID exato + inclusão de subcategorias; aceita labels como fallback)
-    const buildClassFilter = (value: string, type: 'format'|'proposal'|'context'|'tone'|'reference') => {
+    const buildClassFilter = (value: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
       const ids = getCategoryWithSubcategoryIds(value, type);
       const labels = ids
         .map((id) => getCategoryById(id, type)?.label)
@@ -54,7 +55,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
       // Nome do campo no banco
       const field = type === 'reference' ? 'references' : type;
       // Match se QUALQUER um dos IDs OU labels existir no array armazenado
-      return { $or: [ { [field]: { $in: ids } }, { [field]: { $in: labels } } ] } as any;
+      return { $or: [{ [field]: { $in: ids } }, { [field]: { $in: labels } }] } as any;
     };
 
     const normalizeValues = (v?: string | string[]): string[] => {
@@ -75,11 +76,13 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     const refVals = normalizeValues(references);
     if (refVals.length) andClauses.push({ $or: refVals.map(v => buildClassFilter(v, 'reference')) });
     if (searchText) {
-      andClauses.push({ $or: [
-        { text_content: { $regex: searchText, $options: 'i' } },
-        { description: { $regex: searchText, $options: 'i' } },
-        { creatorName: { $regex: searchText, $options: 'i' } },
-      ]});
+      andClauses.push({
+        $or: [
+          { text_content: { $regex: searchText, $options: 'i' } },
+          { description: { $regex: searchText, $options: 'i' } },
+          { creatorName: { $regex: searchText, $options: 'i' } },
+        ]
+      });
     }
     if (minInteractions > 0) andClauses.push({ 'stats.total_interactions': { $gte: minInteractions } });
     if (dateRange?.startDate) andClauses.push({ postDate: { $gte: dateRange.startDate } });
@@ -90,6 +93,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
       else (matchStage as any).$and = andClauses;
     }
 
+    let allowedUserIds: Types.ObjectId[] | null = null;
     if (args.agencyId) {
       const agencyUserIds = await UserModel.find({ agency: args.agencyId }).select('_id').lean();
       const userMongoIds = agencyUserIds.map(u => u._id);
@@ -98,7 +102,22 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         return { posts: [], totalPosts: 0, page, limit };
       }
 
-      matchStage.user = { $in: userMongoIds };
+      allowedUserIds = userMongoIds as Types.ObjectId[];
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: args.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map((id) => new Types.ObjectId(id));
+      if (!contextObjectIds.length) {
+        return { posts: [], totalPosts: 0, page, limit };
+      }
+      allowedUserIds = allowedUserIds
+        ? allowedUserIds.filter((id) => contextObjectIds.some((cid) => cid.equals(id)))
+        : contextObjectIds;
+    }
+
+    if (allowedUserIds) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const baseAggregation: PipelineStage[] = [
@@ -106,6 +125,8 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
       { $addFields: { creatorName: '$creatorInfo.name', creatorAvatarUrl: '$creatorInfo.profile_picture_url' } },
       // Se solicitado, filtra apenas criadores com opt-in de comunidade
       ...(args.onlyOptIn ? [{ $match: { 'creatorInfo.communityInspirationOptIn': true } }] as PipelineStage[] : []),
+      // Se solicitado, filtra apenas assinantes ativos
+      ...(args.onlyActiveSubscribers ? [{ $match: { 'creatorInfo.planStatus': 'active' } }] as PipelineStage[] : []),
       { $project: { creatorInfo: 0 } },
       { $match: matchStage },
     ];
@@ -359,12 +380,12 @@ export async function findUserPosts({ // ALTERADO
         $addFields: {
           viewsSortable: {
             $ifNull: [
-              { $first: { $filter: { input: [ '$stats.video_views', '$stats.reach', '$stats.views', '$stats.impressions' ], as: 'viewValue', cond: { $gt: ['$$viewValue', 0] } } } },
+              { $first: { $filter: { input: ['$stats.video_views', '$stats.reach', '$stats.views', '$stats.impressions'], as: 'viewValue', cond: { $gt: ['$$viewValue', 0] } } } },
               0,
             ],
           },
           thumbFromDoc: {
-            $ifNull: [ '$coverUrl', { $ifNull: [ '$thumbnailUrl', { $ifNull: [ '$thumbnail_url', { $ifNull: [ '$mediaUrl', { $ifNull: [ '$media_url', { $ifNull: [ '$previewImageUrl', { $ifNull: [ '$preview_image_url', { $ifNull: ['$displayUrl', '$display_url'] } ] } ] } ] } ] } ] } ] } ]
+            $ifNull: ['$coverUrl', { $ifNull: ['$thumbnailUrl', { $ifNull: ['$thumbnail_url', { $ifNull: ['$mediaUrl', { $ifNull: ['$media_url', { $ifNull: ['$previewImageUrl', { $ifNull: ['$preview_image_url', { $ifNull: ['$displayUrl', '$display_url'] }] }] }] }] }] }] }]
           }
         },
       },
@@ -380,12 +401,12 @@ export async function findUserPosts({ // ALTERADO
           postDate: 1,
           format: 1,
           proposal: 1,
-        context: 1,
-        tone: 1,
-        references: 1,
-        type: 1, // Adicionado para referência, se necessário no futuro
-        coverUrl: 1,
-        thumbnailUrl: '$thumbFromDoc',
+          context: 1,
+          tone: 1,
+          references: 1,
+          type: 1, // Adicionado para referência, se necessário no futuro
+          coverUrl: 1,
+          thumbnailUrl: '$thumbFromDoc',
           stats: {
             views: '$viewsSortable',
             likes: '$stats.likes',

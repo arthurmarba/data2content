@@ -6,6 +6,7 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getAgencySession } from '@/lib/getAgencySession';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 export const dynamic = 'force-dynamic';
 
 
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
   const granularityParam = searchParams.get('granularity');
+  const creatorContextParam = searchParams.get('creatorContext');
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam) ? timePeriodParam! : 'last_30_days';
   const granularity = granularityParam && ALLOWED_GRANULARITIES.includes(granularityParam) ? (granularityParam as 'daily' | 'weekly') : 'daily';
   if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
@@ -32,7 +34,16 @@ export async function GET(request: NextRequest) {
   }
   try {
     await connectToDatabase();
-    const agencyUsers = await UserModel.find({ agency: new Types.ObjectId(session.user.agencyId), planStatus: 'active' }).select('_id').lean();
+    const userQuery: any = { agency: new Types.ObjectId(session.user.agencyId), planStatus: 'active' };
+    if (creatorContextParam) {
+      const ctxIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers: true });
+      const ctxObjectIds = ctxIds.map((id) => new Types.ObjectId(id));
+      if (!ctxObjectIds.length) {
+        return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado na agência para agregar dados.' }, { status: 200 });
+      }
+      userQuery._id = { $in: ctxObjectIds };
+    }
+    const agencyUsers = await UserModel.find(userQuery).select('_id').lean();
     if (!agencyUsers || agencyUsers.length === 0) {
       return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado na agência para agregar dados.' }, { status: 200 });
     }

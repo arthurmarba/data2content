@@ -23,6 +23,7 @@ const querySchema = z.object({
   format: z.string().optional(),
   tone: z.string().optional(),
   references: z.string().optional(),
+  creatorContext: z.string().optional(),
   searchText: z.string().optional(),
   minInteractions: z.coerce.number().int().min(0).optional(),
   startDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),

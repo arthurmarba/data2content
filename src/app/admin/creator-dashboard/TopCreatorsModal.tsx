@@ -13,11 +13,14 @@ interface TopCreatorsModalProps {
   onClose: () => void;
   title: string;
   context?: string;
+  creatorContext?: string;
   metric?: TopCreatorMetric;
   timePeriod: TimePeriod;
   metricLabel?: string;
   compositeRanking?: boolean;
   limit?: number;
+  apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
 }
 
 interface TopCreatorItem {
@@ -33,11 +36,14 @@ const TopCreatorsModal: React.FC<TopCreatorsModalProps> = ({
   onClose,
   title,
   context,
+  creatorContext,
   metric = 'total_interactions',
   timePeriod,
   metricLabel = '',
   compositeRanking = false,
   limit = 20,
+  apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
 }) => {
   const [rankingData, setRankingData] = useState<TopCreatorItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,9 +68,11 @@ const TopCreatorsModal: React.FC<TopCreatorsModalProps> = ({
       params.append('metric', metric);
     }
     if (context) params.append('context', context);
+    if (creatorContext) params.append('creatorContext', creatorContext);
+    if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
 
     try {
-      const response = await fetch(`/api/admin/dashboard/rankings/top-creators?${params.toString()}`);
+      const response = await fetch(`${apiPrefix}/dashboard/rankings/top-creators?${params.toString()}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Failed to fetch ${title}`);
@@ -77,7 +85,7 @@ const TopCreatorsModal: React.FC<TopCreatorsModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [context, metric, days, limit, page, compositeRanking, title]);
+  }, [context, creatorContext, metric, days, limit, page, compositeRanking, title, apiPrefix, onlyActiveSubscribers]);
 
   useEffect(() => {
     if (isOpen) {
@@ -87,7 +95,7 @@ const TopCreatorsModal: React.FC<TopCreatorsModalProps> = ({
 
   useEffect(() => {
     setPage(0);
-  }, [context, metric, timePeriod]);
+  }, [context, creatorContext, metric, timePeriod, onlyActiveSubscribers]);
 
   const formatMetricValue = (value: number): string => {
     if (compositeRanking) {

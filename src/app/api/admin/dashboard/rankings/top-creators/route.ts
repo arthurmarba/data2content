@@ -9,11 +9,13 @@ const SERVICE_TAG = '[api/admin/dashboard/rankings/top-creators]';
 
 const querySchema = z.object({
   context: z.string().optional(),
+  creatorContext: z.string().optional(),
   metric: TopCreatorMetricEnum.optional().default('total_interactions'),
   days: z.coerce.number().int().positive().max(365).optional().default(30),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
   composite: z.coerce.boolean().optional().default(false),
   offset: z.coerce.number().int().min(0).optional().default(0),
+  onlyActiveSubscribers: z.enum(['true', 'false']).optional().transform(val => val === 'true'),
 });
 
 async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { context, metric, days, limit, composite, offset } = validationResult.data;
+    const { context, creatorContext, metric, days, limit, composite, offset, onlyActiveSubscribers } = validationResult.data;
     let results;
     if (composite) {
       results = await fetchTopCreatorsWithScore({
@@ -59,6 +61,8 @@ export async function GET(req: NextRequest) {
         days,
         limit,
         offset,
+        ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+        ...(creatorContext ? { creatorContext } : {}),
       });
     } else {
       results = await fetchTopCreators({
@@ -67,6 +71,8 @@ export async function GET(req: NextRequest) {
         days,
         limit,
         offset,
+        ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+        ...(creatorContext ? { creatorContext } : {}),
       });
     }
 

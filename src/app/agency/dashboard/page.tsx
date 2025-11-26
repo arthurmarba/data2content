@@ -18,6 +18,7 @@ import UserDetailView from '@/app/admin/creator-dashboard/components/views/UserD
 import CreatorQuickSearch from '@/app/admin/creator-dashboard/components/CreatorQuickSearch';
 import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 import GlobalPostsExplorer from '@/app/admin/creator-dashboard/GlobalPostsExplorer';
+import { contextCategories } from '@/app/lib/classification';
 
 
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }) => (
@@ -50,6 +51,7 @@ const AgencyDashboardContent: React.FC = () => {
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
   const [selectedUserPhotoUrl, setSelectedUserPhotoUrl] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [selectedCreatorContext, setSelectedCreatorContext] = useState<string>('');
   const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
   const router = useRouter();
   const pathname = usePathname();
@@ -141,6 +143,22 @@ const AgencyDashboardContent: React.FC = () => {
                     { value: 'last_90_days', label: 'Últimos 90 dias' },
                   ]}
                 />
+                <div className="min-w-[200px]">
+                  <label htmlFor="creator-context" className="block text-xs font-semibold text-gray-600 mb-1">
+                    Nicho do criador
+                  </label>
+                  <select
+                    id="creator-context"
+                    value={selectedCreatorContext}
+                    onChange={(e) => setSelectedCreatorContext(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+                  >
+                    <option value="">Todos os nichos</option>
+                    {contextCategories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   onClick={handleRefresh}
                   className="px-3 py-1 text-sm bg-brand-pink text-white rounded"
@@ -200,17 +218,43 @@ const AgencyDashboardContent: React.FC = () => {
             )}
           </section>
           <section id="platform-summary" className="mb-8">
-            <PlatformSummaryKpis apiPrefix={apiPrefix} startDate={startDate} endDate={endDate} />
+            <PlatformSummaryKpis
+              apiPrefix={apiPrefix}
+              startDate={startDate}
+              endDate={endDate}
+              creatorContextFilter={selectedCreatorContext || undefined}
+            />
           </section>
 
           <AnimatePresence>
             {!selectedUserId && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-                <CreatorRankingSection apiPrefix={apiPrefix} rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
-                <PlatformContentAnalysisSection apiPrefix={apiPrefix} startDate={startDate} endDate={endDate} />
-                <PlatformOverviewSection apiPrefix={apiPrefix} followerTrendTitle="Evolução de Seguidores da Agência" />
-                <TopMoversSection apiPrefix={apiPrefix} />
-                <GlobalPostsExplorer apiPrefix={apiPrefix} dateRangeFilter={{ startDate, endDate }} />
+                <CreatorRankingSection
+                  apiPrefix={apiPrefix}
+                  rankingDateRange={rankingDateRange}
+                  rankingDateLabel={rankingDateLabel}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                <PlatformContentAnalysisSection
+                  apiPrefix={apiPrefix}
+                  startDate={startDate}
+                  endDate={endDate}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                <PlatformOverviewSection
+                  apiPrefix={apiPrefix}
+                  followerTrendTitle="Evolução de Seguidores da Agência"
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                <TopMoversSection
+                  apiPrefix={apiPrefix}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                <GlobalPostsExplorer
+                  apiPrefix={apiPrefix}
+                  dateRangeFilter={{ startDate, endDate }}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
               </motion.div>
             )}
           </AnimatePresence>

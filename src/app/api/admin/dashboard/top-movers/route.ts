@@ -27,8 +27,8 @@ const periodSchema = z.object({
   startDate: z.string().datetime({ message: "Invalid startDate format. Expected ISO datetime string." }).transform(val => new Date(val)),
   endDate: z.string().datetime({ message: "Invalid endDate format. Expected ISO datetime string." }).transform(val => new Date(val))
 }).refine(data => data.startDate <= data.endDate, {
-    message: "startDate in a period cannot be after its endDate.",
-    path: ["endDate"],
+  message: "startDate in a period cannot be after its endDate.",
+  path: ["endDate"],
 });
 
 // ATUALIZADO: Filtros de conteúdo agora incluem as 5 dimensões
@@ -42,7 +42,9 @@ const contentFiltersSchema = z.object({
 
 const creatorFiltersSchema = z.object({
   planStatus: z.array(z.string()).optional(),
-  inferredExpertiseLevel: z.array(z.string()).optional()
+  inferredExpertiseLevel: z.array(z.string()).optional(),
+  context: z.string().optional(),
+  creatorContext: z.string().optional(),
 }).optional();
 
 const topMoverMetricLiterals: [TopMoverMetric, ...TopMoverMetric[]] = [
@@ -69,7 +71,8 @@ const requestBodySchema = z.object({
   topN: z.number().int().positive().min(1).max(50).optional(),
   sortBy: topMoverSortByEnum.optional(),
   contentFilters: contentFiltersSchema,
-  creatorFilters: creatorFiltersSchema
+  creatorFilters: creatorFiltersSchema,
+  onlyActiveSubscribers: z.boolean().optional(),
 }).refine(data => data.previousPeriod.endDate < data.currentPeriod.startDate, {
   message: "Previous period must end before the current period starts.",
   path: ["currentPeriod", "startDate"],
@@ -130,7 +133,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof DatabaseError) {
       return apiError(`Erro de banco de dados: ${error.message}`, 500);
     } else if (error instanceof z.ZodError) {
-        return apiError(`Erro de validação Zod inesperado: ${error.message}`, 400);
+      return apiError(`Erro de validação Zod inesperado: ${error.message}`, 400);
     }
     return apiError('Ocorreu um erro interno no servidor.', 500);
   }

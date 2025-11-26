@@ -109,9 +109,12 @@ interface TimePerformanceHeatmapProps {
   /** Se fornecido, filtra os dados para o usuário indicado */
   userId?: string | null;
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
+  forcedContext?: string;
+  forcedCreatorContext?: string;
 }
 
-const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId, apiPrefix = '/api/admin' }) => {
+const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId, apiPrefix = '/api/admin', onlyActiveSubscribers = false, forcedContext, forcedCreatorContext }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<TimePerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -132,6 +135,8 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
       if (format) params.set('format', format);
       if (proposal) params.set('proposal', proposal);
       if (context) params.set('context', context);
+      if (onlyActiveSubscribers) params.set('onlyActiveSubscribers', 'true');
+      if (forcedCreatorContext) params.set('creatorContext', forcedCreatorContext);
 
       const baseUrl = userId
         ? `${apiPrefix}/dashboard/users/${userId}/performance/time-distribution`
@@ -147,7 +152,13 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, format, proposal, context, metric, userId, apiPrefix]);
+  }, [timePeriod, format, proposal, context, metric, userId, apiPrefix, onlyActiveSubscribers, forcedCreatorContext]);
+
+  useEffect(() => {
+    if (forcedContext) {
+      setContext(forcedContext);
+    }
+  }, [forcedContext]);
 
   useEffect(() => {
     fetchData();
@@ -287,7 +298,7 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
         onClose={() => setSelectedSlot(null)}
         dayOfWeek={selectedSlot?.dayOfWeek || 0}
         hour={selectedSlot?.hour || 0}
-        filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric }}
+        filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric, onlyActiveSubscribers }}
         userId={userId || undefined}
       />
     </>

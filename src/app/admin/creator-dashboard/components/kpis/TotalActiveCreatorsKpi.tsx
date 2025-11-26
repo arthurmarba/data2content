@@ -13,7 +13,7 @@ const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
   all_time: "month_vs_previous",
 };
 
-const TotalActiveCreatorsKpi: React.FC<{ apiPrefix?: string }> = ({ apiPrefix = '/api/admin' }) => {
+const TotalActiveCreatorsKpi: React.FC<{ apiPrefix?: string; onlyActiveSubscribers?: boolean; contextFilter?: string; creatorContextFilter?: string }> = ({ apiPrefix = '/api/admin', onlyActiveSubscribers = false, contextFilter, creatorContextFilter }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const comparisonPeriod = TIME_PERIOD_TO_COMPARISON[timePeriod] || "month_vs_previous";
 
@@ -24,9 +24,11 @@ const TotalActiveCreatorsKpi: React.FC<{ apiPrefix?: string }> = ({ apiPrefix = 
       title="Total de Criadores Ativos"
       comparisonPeriod={comparisonPeriod}
       tooltip="Número total de criadores considerados ativos na plataforma comparado ao período anterior."
+      onlyActiveSubscribers={onlyActiveSubscribers}
+      contextFilter={contextFilter}
+      creatorContextFilter={creatorContextFilter}
     />
   );
 };
 
 export default memo(TotalActiveCreatorsKpi);
-

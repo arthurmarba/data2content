@@ -4,7 +4,13 @@ import Image from 'next/image';
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
-import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  MagnifyingGlassIcon,
+  DocumentMagnifyingGlassIcon,
+  XMarkIcon,
+  ArrowRightIcon,
+  ChartBarIcon, // Added
+} from '@heroicons/react/24/outline';
 import {
   Category,
   formatCategories,
@@ -101,6 +107,7 @@ interface IGlobalPostResult {
   description?: string;
   coverUrl?: string;
   creatorName?: string;
+  creatorAvatarUrl?: string; // Added
   postDate?: Date | string;
   format?: string[] | string;
   proposal?: string[] | string;
@@ -115,13 +122,13 @@ interface IGlobalPostResult {
 }
 
 // CORRIGIDO: Adicionado apiPrefix para futuras chamadas de API
-interface ContentTrendChartProps { 
-  postId: string; 
-  apiPrefix: string; 
+interface ContentTrendChartProps {
+  postId: string;
+  apiPrefix: string;
 }
-const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId, apiPrefix }) => { 
-  /* ... Implementação do Gráfico usaria apiPrefix aqui ... */ 
-  return <div className="p-4">Gráfico de Tendência para o Post ID: {postId}</div>; 
+const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId, apiPrefix }) => {
+  /* ... Implementação do Gráfico usaria apiPrefix aqui ... */
+  return <div className="p-4">Gráfico de Tendência para o Post ID: {postId}</div>;
 };
 
 interface PostDetailResponse {
@@ -134,11 +141,11 @@ interface PostDetailResponse {
 }
 
 // CORRIGIDO: Componente agora aceita e usa a prop 'apiPrefix'
-const PostDetailModal = ({ isOpen, onClose, postId, apiPrefix }: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  postId: string | null; 
-  apiPrefix: string; 
+const PostDetailModal = ({ isOpen, onClose, postId, apiPrefix }: {
+  isOpen: boolean;
+  onClose: () => void;
+  postId: string | null;
+  apiPrefix: string;
 }) => {
   const [data, setData] = useState<PostDetailResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -209,6 +216,9 @@ interface GlobalPostsExplorerProps {
     startDate: string;
     endDate: string;
   };
+  forceOnlyActiveSubscribers?: boolean;
+  forceContext?: string[];
+  creatorContextFilter?: string;
 }
 
 interface SortConfig {
@@ -224,10 +234,17 @@ interface ActiveFilters {
   references?: string[];
   searchText?: string;
   minInteractions?: number;
+  onlyActiveSubscribers?: boolean; // NEW
 }
 
 
-const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/api/admin', dateRangeFilter }: GlobalPostsExplorerProps) {
+const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
+  apiPrefix = '/api/admin',
+  dateRangeFilter,
+  forceOnlyActiveSubscribers = false,
+  forceContext,
+  creatorContextFilter,
+}: GlobalPostsExplorerProps) {
   const [selectedContext, setSelectedContext] = useState<string[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<string[]>([]);
   const [selectedFormat, setSelectedFormat] = useState<string[]>([]);
@@ -238,7 +255,9 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
 
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [viewMode, setViewMode] = useState<'explorer' | 'analysis'>('explorer'); // NEW: View mode state
 
+  // Explorer State
   const [posts, setPosts] = useState<IGlobalPostResult[]>([]);
   const [totalPosts, setTotalPosts] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -246,26 +265,62 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'postDate', sortOrder: 'desc' });
+
+  // Analysis State
+  const [bestPosts, setBestPosts] = useState<IGlobalPostResult[]>([]);
+  const [worstPosts, setWorstPosts] = useState<IGlobalPostResult[]>([]);
+  const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
+  const [onlyActiveSubscribers, setOnlyActiveSubscribers] = useState(false); // Controlled by props
+
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
 
   const [isPostDetailModalOpen, setIsPostDetailModalOpen] = useState(false);
   const [selectedPostIdForModal, setSelectedPostIdForModal] = useState<string | null>(null);
   const [isTrendChartOpen, setIsTrendChartOpen] = useState(false);
   const [selectedPostIdForTrend, setSelectedPostIdForTrend] = useState<string | null>(null);
+  useEffect(() => {
+    if (forceOnlyActiveSubscribers) {
+      setOnlyActiveSubscribers(true);
+      setActiveFilters(prev => ({ ...prev, onlyActiveSubscribers: true }));
+      setCurrentPage(1);
+    } else {
+      setOnlyActiveSubscribers(false);
+      setActiveFilters(prev => {
+        const next = { ...prev };
+        if (next.onlyActiveSubscribers) delete next.onlyActiveSubscribers;
+        return next;
+      });
+    }
+  }, [forceOnlyActiveSubscribers]);
+
+  useEffect(() => {
+    if (forceContext && forceContext.length) {
+      setSelectedContext(forceContext);
+      setActiveFilters(prev => ({ ...prev, context: forceContext }));
+      setCurrentPage(1);
+    } else if (!forceContext) {
+      setSelectedContext([]);
+      setActiveFilters(prev => {
+        const next = { ...prev };
+        delete next.context;
+        return next;
+      });
+    }
+  }, [forceContext]);
 
   const createOptionsFromCategories = (categories: Category[]) => {
-      const options: { value: string; label: string }[] = [];
-      const traverse = (cats: Category[], prefix = '') => {
-          cats.forEach(cat => {
-              const label = prefix ? `${prefix} > ${cat.label}` : cat.label;
-              options.push({ value: cat.id, label });
-              if (cat.subcategories && cat.subcategories.length > 0) {
-                  traverse(cat.subcategories, label);
-              }
-          });
-      };
-      traverse(categories);
-      return options;
+    const options: { value: string; label: string }[] = [];
+    const traverse = (cats: Category[], prefix = '') => {
+      cats.forEach(cat => {
+        const label = prefix ? `${prefix} > ${cat.label}` : cat.label;
+        options.push({ value: cat.id, label });
+        if (cat.subcategories && cat.subcategories.length > 0) {
+          traverse(cat.subcategories, label);
+        }
+      });
+    };
+    traverse(categories);
+    return options;
   };
 
   const formatOptions = useMemo(() => createOptionsFromCategories(formatCategories), []);
@@ -279,27 +334,36 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
   const handleOpenTrendChart = useCallback((postId: string) => { setSelectedPostIdForTrend(postId); setIsTrendChartOpen(true); }, []);
   const handleCloseTrendChart = useCallback(() => { setIsTrendChartOpen(false); setSelectedPostIdForTrend(null); }, []);
 
-  const fetchPosts = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
+  const buildQueryParams = useCallback((filters: ActiveFilters, sort: SortConfig, pageLimit: { page: number, limit: number }) => {
     const params = new URLSearchParams({
-      page: String(currentPage),
-      limit: String(limit),
-      sortBy: sortConfig.sortBy,
-      sortOrder: sortConfig.sortOrder,
+      page: String(pageLimit.page),
+      limit: String(pageLimit.limit),
+      sortBy: sort.sortBy,
+      sortOrder: sort.sortOrder,
     });
 
-    if (activeFilters.context && activeFilters.context.length) params.append('context', activeFilters.context.join(','));
-    if (activeFilters.proposal && activeFilters.proposal.length) params.append('proposal', activeFilters.proposal.join(','));
-    if (activeFilters.format && activeFilters.format.length) params.append('format', activeFilters.format.join(','));
-    if (activeFilters.tone && activeFilters.tone.length) params.append('tone', activeFilters.tone.join(','));
-    if (activeFilters.references && activeFilters.references.length) params.append('references', activeFilters.references.join(','));
-    if (activeFilters.minInteractions) params.append('minInteractions', String(activeFilters.minInteractions));
-    if (activeFilters.searchText) params.append('searchText', activeFilters.searchText);
+    if (filters.context && filters.context.length) params.append('context', filters.context.join(','));
+    if (filters.proposal && filters.proposal.length) params.append('proposal', filters.proposal.join(','));
+    if (filters.format && filters.format.length) params.append('format', filters.format.join(','));
+    if (filters.tone && filters.tone.length) params.append('tone', filters.tone.join(','));
+    if (filters.references && filters.references.length) params.append('references', filters.references.join(','));
+    if (filters.minInteractions) params.append('minInteractions', String(filters.minInteractions));
+    if (filters.searchText) params.append('searchText', filters.searchText);
+    if (filters.onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true'); // NEW
+    if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
 
     if (dateRangeFilter?.startDate) params.append('startDate', new Date(dateRangeFilter.startDate).toISOString());
     if (dateRangeFilter?.endDate) params.append('endDate', new Date(dateRangeFilter.endDate).toISOString());
+
+    return params;
+  }, [dateRangeFilter, creatorContextFilter]);
+
+  const fetchPosts = useCallback(async () => {
+    // REMOVED: if (viewMode !== 'explorer') return;  <-- Now runs in both modes
+    setIsLoading(true);
+    setError(null);
+
+    const params = buildQueryParams(activeFilters, sortConfig, { page: currentPage, limit });
 
     try {
       const postsUrl = `${apiPrefix}/dashboard/posts?${params.toString()}`;
@@ -316,9 +380,39 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, limit, sortConfig, activeFilters, dateRangeFilter, apiPrefix]);
+  }, [currentPage, limit, sortConfig, activeFilters, apiPrefix, buildQueryParams]); // Removed viewMode dependency
 
-  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+  const fetchAnalysis = useCallback(async () => {
+    if (viewMode !== 'analysis') return;
+    setIsAnalysisLoading(true);
+    setError(null);
+
+    try {
+      // Fetch Best
+      const bestParams = buildQueryParams(activeFilters, { sortBy: 'stats.total_interactions', sortOrder: 'desc' }, { page: 1, limit: 3 });
+      const bestRes = await fetch(`${apiPrefix}/dashboard/posts?${bestParams.toString()}`);
+      const bestData = await bestRes.json();
+      setBestPosts(bestData.posts || []);
+
+      // Fetch Worst
+      // For worst, we might want to filter out posts with 0 interactions if that's too common/uninteresting, 
+      // but for now let's just take the lowest.
+      const worstParams = buildQueryParams(activeFilters, { sortBy: 'stats.total_interactions', sortOrder: 'asc' }, { page: 1, limit: 3 });
+      const worstRes = await fetch(`${apiPrefix}/dashboard/posts?${worstParams.toString()}`);
+      const worstData = await worstRes.json();
+      setWorstPosts(worstData.posts || []);
+
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setIsAnalysisLoading(false);
+    }
+  }, [activeFilters, apiPrefix, viewMode, buildQueryParams]);
+
+  useEffect(() => {
+    fetchPosts();
+    if (viewMode === 'analysis') fetchAnalysis();
+  }, [fetchPosts, fetchAnalysis, viewMode]);
 
   const handleApplyLocalFilters = useCallback(() => {
     setCurrentPage(1);
@@ -330,8 +424,9 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
       references: selectedReferences.length ? selectedReferences : undefined,
       searchText: textSearch || undefined,
       minInteractions: minInteractionsValue ? parseInt(minInteractionsValue) : undefined,
+      onlyActiveSubscribers: onlyActiveSubscribers, // NEW
     });
-  }, [selectedContext, selectedProposal, selectedFormat, selectedTone, selectedReferences, minInteractionsValue, textSearch]);
+  }, [selectedContext, selectedProposal, selectedFormat, selectedTone, selectedReferences, minInteractionsValue, textSearch, onlyActiveSubscribers]);
 
   const handleSort = useCallback((columnKey: string) => {
     setSortConfig(prev => ({ sortBy: columnKey, sortOrder: prev.sortBy === columnKey && prev.sortOrder === 'asc' ? 'desc' : 'asc' }));
@@ -349,7 +444,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
   const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A') => path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? defaultValue;
   const formatNumberStd = (val: any) => !isNaN(parseFloat(String(val))) ? parseFloat(String(val)).toLocaleString('pt-BR') : 'N/A';
 
-  const formatClassValue = (val: string[] | string | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference') => {
+  const formatClassValue = (val: string[] | string | undefined, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
     if (!val) return 'N/A';
     if (Array.isArray(val)) {
       const labels = idsToLabels(val, type);
@@ -358,11 +453,11 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
     const labels = commaSeparatedIdsToLabels(val, type);
     return labels || 'N/A';
   };
-  
+
   // Etiquetas (chips) combinadas para otimizar espaço
   const getTagLabels = (post: IGlobalPostResult) => {
     const items: { label: string; color: string; title: string }[] = [];
-    const push = (labels: string[] | string | undefined, color: string, titlePrefix: string, type: 'format'|'proposal'|'context'|'tone'|'reference') => {
+    const push = (labels: string[] | string | undefined, color: string, titlePrefix: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
       if (!labels) return;
       const arr = Array.isArray(labels) ? labels : (labels ? String(labels).split(',') : []);
       const resolved = idsToLabels(arr, type).filter(Boolean);
@@ -399,154 +494,326 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center', getVal: () => null },
   ], []);
 
+  const AnalysisCard = ({ post, type }: { post: IGlobalPostResult, type: 'best' | 'worst' }) => (
+    <div className={`group relative flex flex-col bg-white rounded-2xl shadow-sm border transition-all duration-300 hover:shadow-md ${type === 'best' ? 'border-green-100 hover:border-green-300' : 'border-red-100 hover:border-red-300'}`}>
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-50">
+        <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden ring-2 ring-white shadow-sm shrink-0">
+          {post.creatorAvatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={post.creatorAvatarUrl} alt={post.creatorName} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-400 bg-gray-50">{post.creatorName?.charAt(0)}</div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-900 truncate">{post.creatorName}</p>
+          <p className="text-[10px] text-gray-500">{formatDate(post.postDate)}</p>
+        </div>
+      </div>
+
+      {/* Large Image */}
+      <div className="relative w-full aspect-[4/5] bg-gray-100 overflow-hidden cursor-pointer" onClick={() => handleOpenPostDetailModal(post._id!.toString())}>
+        {post.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.coverUrl}
+            alt="capa"
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/400x500?text=Sem+Imagem'; }}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">
+            <DocumentMagnifyingGlassIcon className="w-12 h-12 opacity-50" />
+            <span className="text-xs font-medium">Sem visualização</span>
+          </div>
+        )}
+        {/* Badges */}
+        <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+          {post.format && <span className="px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-lg shadow-sm uppercase tracking-wider">{post.format}</span>}
+        </div>
+      </div>
+
+      {/* Metrics Strip */}
+      <div className={`grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 ${type === 'best' ? 'bg-green-50/50' : 'bg-red-50/50'}`}>
+        <div className="p-3 text-center">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-0.5">Interações</p>
+          <p className={`text-lg font-bold ${type === 'best' ? 'text-green-700' : 'text-red-700'}`}>{formatNumberStd(post.stats?.total_interactions)}</p>
+        </div>
+        <div className="p-3 text-center">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-0.5">Likes</p>
+          <p className="text-base font-semibold text-gray-700">{formatNumberStd(post.stats?.likes)}</p>
+        </div>
+        <div className="p-3 text-center">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-0.5">Shares</p>
+          <p className="text-base font-semibold text-gray-700">{formatNumberStd(post.stats?.shares)}</p>
+        </div>
+      </div>
+
+      {/* Content Body */}
+      <div className="p-4 flex flex-col gap-3 flex-1">
+        <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed min-h-[4.5em]">
+          {post.text_content || post.description || <span className="italic text-gray-400">Sem legenda...</span>}
+        </p>
+
+        <div className="mt-auto pt-2 flex flex-wrap gap-1.5">
+          {getTagLabels(post).slice(0, 4).map((t, i) => <TagChip key={i} label={t.label} color={t.color} title={t.title} />)}
+        </div>
+
+        <button
+          onClick={() => handleOpenPostDetailModal(post._id!.toString())}
+          className="mt-2 w-full py-2.5 text-xs font-semibold text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-gray-200 hover:border-indigo-200 transition-all flex items-center justify-center gap-2 group-hover:shadow-sm"
+        >
+          Ver Análise Completa
+          <ArrowRightIcon className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800">Explorador de Posts Globais</h3>
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-indigo-700"
-        >
-          {isCollapsed ? 'Expandir' : 'Recolher'}
-        </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800">Explorador de Posts Globais</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            {viewMode === 'explorer'
+              ? 'Filtre e explore todos os posts da plataforma.'
+              : 'Analise os melhores e piores desempenhos para o nicho selecionado.'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="bg-gray-100 p-1 rounded-lg flex text-sm font-medium">
+            <button
+              onClick={() => setViewMode('explorer')}
+              className={`px-3 py-1.5 rounded-md transition-all ${viewMode === 'explorer' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Explorador
+            </button>
+            <button
+              onClick={() => setViewMode('analysis')}
+              className={`px-3 py-1.5 rounded-md transition-all ${viewMode === 'analysis' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Análise Estratégica
+            </button>
+          </div>
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-md shadow-sm hover:bg-gray-50 ml-2"
+          >
+            {isCollapsed ? 'Expandir' : 'Recolher'}
+          </button>
+        </div>
       </div>
+
       {!isCollapsed && (
         <>
-          <p className="text-sm text-gray-500 mt-1 mb-4">Filtre e explore todos os posts da plataforma com base em diversos critérios.</p>
-      
-      <div className="mb-2 sm:mb-4">
-        <button onClick={() => setFiltersOpen(!filtersOpen)} className="text-sm text-indigo-600 sm:hidden">
-          {filtersOpen ? 'Esconder filtros' : 'Mostrar filtros'}
-        </button>
-      </div>
-      {filtersOpen && (
-      <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <MultiSelectBox id="gpe-format" label="Formato" options={formatOptions} selected={selectedFormat} onChange={setSelectedFormat} />
-          <MultiSelectBox id="gpe-proposal" label="Proposta" options={proposalOptions} selected={selectedProposal} onChange={setSelectedProposal} />
-          <MultiSelectBox id="gpe-context" label="Contexto" options={contextOptions} selected={selectedContext} onChange={setSelectedContext} />
-          <MultiSelectBox id="gpe-tone" label="Tom" options={toneOptions} selected={selectedTone} onChange={setSelectedTone} />
-          <MultiSelectBox id="gpe-references" label="Referências" options={referenceOptions} selected={selectedReferences} onChange={setSelectedReferences} />
-          <div><label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 mb-1">Min. Interações</label><input type="number" id="gpe-minInteractions" value={minInteractionsValue} onChange={(e) => setMinInteractionsValue(e.target.value)} placeholder="Ex: 100" min="0" className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"/></div>
-          <div><label htmlFor="gpe-textSearch" className="block text-xs font-medium text-gray-600 mb-1">Buscar texto</label><input id="gpe-textSearch" type="text" value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="Buscar texto..." className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]" /></div>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <button onClick={handleApplyLocalFilters} className="h-[38px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 text-sm disabled:bg-gray-300" disabled={isLoading}><MagnifyingGlassIcon className="w-5 h-5 mr-2" />{isLoading ? 'Buscando...' : 'Filtrar Posts'}</button>
-        </div>
-      </div>
-      )}
-
-      <div className="mt-6">
-        {isLoading ? (
-          <div className="text-center py-10"><SkeletonBlock width="w-48" height="h-6" className="mx-auto" /></div>
-        ) : error ? (
-          <div className="text-center py-10"><p className="text-red-500">Erro ao carregar posts: {error}</p></div>
-        ) : posts.length === 0 ? (
-          <div className="py-10"><EmptyState icon={<DocumentMagnifyingGlassIcon className="w-12 h-12"/>} title="Nenhum Post Encontrado" message="Experimente alterar os filtros."/></div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-100">
-                  <tr>{columns.map((col) => (<th key={col.key} scope="col" className={`px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:bg-gray-200' : ''}`} onClick={() => col.sortable && handleSort(col.key)}>{col.label} {col.sortable && renderSortIcon(col.key)}</th>))}</tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {posts.map((post) => (
-                    <tr key={post._id?.toString()} className="hover:bg-gray-50">
-                      {columns.map(col => {
-                          const rawValue = col.getVal(post);
-                          let displayValue: React.ReactNode = rawValue;
-                          if (col.key.startsWith('stats.')) displayValue = (
-                            <span title={String(rawValue)} className="tabular-nums">{formatNumberStd(rawValue)}</span>
-                          );
-                          if (col.key === 'cover') {
-                            return (
-                              <td key="cover" className="px-3 py-2 whitespace-nowrap">
-                                {rawValue ? ( // eslint-disable-next-line @next/next/no-img-element
-                                  <Image
-                                    src={rawValue}
-                                    alt="capa"
-                                    width={160}
-                                    height={160}
-                                    className="w-40 h-40 object-cover rounded" // eslint-disable-line @next/next/no-img-element
-                                    onError={(e) => {
-                                      const t = e.currentTarget as HTMLImageElement;
-                                      t.onerror = null;
-                                      t.src = 'https://placehold.co/160x160?text=%3F';
-                                    }} 
-                                  />
-                                ) : (
-                                  '–'
-                                )}
-                              </td>
-                            );
-                          }
-                          if (col.key === 'tags') {
-                            const chips = rawValue as ReturnType<typeof getTagLabels>;
-                            const MAX = 6;
-                            const shown = chips.slice(0, MAX);
-                            const extra = chips.length - shown.length;
-                            return (
-                              <td key="tags" className="px-4 py-3 whitespace-nowrap text-left">
-                                <div className="max-w-[300px] flex flex-wrap">
-                                  {shown.map((c, i) => <TagChip key={`${c.label}_${i}`} label={c.label} color={c.color} title={c.title} />)}
-                                  {extra > 0 && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200">+{extra}</span>
-                                  )}
-                                </div>
-                              </td>
-                            );
-                          }
-                          if (col.key === 'actions') {
-                            return (
-                              <td key={col.key} className="px-4 py-3 whitespace-nowrap text-center flex items-center justify-center space-x-1">
-                                <button onClick={() => handleOpenPostDetailModal(post._id!.toString())} className="text-indigo-600 hover:text-indigo-800 p-1 flex items-center" title="Ver detalhes">
-                                  <DocumentMagnifyingGlassIcon className="w-5 h-5" />
-                                  <span className="sr-only lg:not-sr-only lg:ml-1">Detalhes</span>
-                                </button>
-                                <button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-green-600 hover:text-green-800 p-1 flex items-center" title="Ver tendência">
-                                  <ChartBarIcon className="w-5 h-5" />
-                                  <span className="sr-only lg:not-sr-only lg:ml-1">Tendência</span>
-                                </button>
-                              </td>
-                            );
-                          }
-                          return (
-                            <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'}`}> 
-                              <span title={String(rawValue)} className="block max-w-[150px] truncate">{displayValue}</span>
-                            </td>
-                          );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={() => setFiltersOpen(!filtersOpen)} className="text-sm font-medium text-indigo-600 flex items-center gap-1">
+                {filtersOpen ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                {filtersOpen ? 'Esconder filtros' : 'Mostrar filtros'}
+              </button>
+              {Object.values(activeFilters).some(v => v !== undefined) && (
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Filtros ativos</span>
+              )}
             </div>
-            <div className="py-3 flex items-center justify-between border-t border-gray-200 mt-4 text-sm">
-              <p className="text-gray-700">Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span> ({totalPosts} posts)</p>
-              <div className="flex-1 flex justify-end space-x-2"><button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1.5 border border-gray-300 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 text-xs">Anterior</button><button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-gray-300 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 text-xs">Próxima</button></div>
-            </div>
-          </>
-        )}
-      </div>
 
-      {/* CORRIGIDO: Passando apiPrefix para o componente */}
-      <PostDetailModal 
-        isOpen={isPostDetailModalOpen} 
-        onClose={handleClosePostDetailModal} 
-        postId={selectedPostIdForModal} 
-        apiPrefix={apiPrefix} 
-      />
-      
-      {isTrendChartOpen && selectedPostIdForTrend && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl relative">
-            <button onClick={handleCloseTrendChart} aria-label="Fechar" className="absolute top-2 right-2 p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"><XMarkIcon className="w-5 h-5" /></button>
-            {/* CORRIGIDO: Passando apiPrefix para o componente */}
-            <ContentTrendChart postId={selectedPostIdForTrend} apiPrefix={apiPrefix} />
+            {filtersOpen && (
+      <div className="p-5 border border-gray-200 rounded-lg bg-gray-50/50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {forceContext ? null : (
+                    <MultiSelectBox id="gpe-context" label="Nicho / Contexto" options={contextOptions} selected={selectedContext} onChange={setSelectedContext} />
+                  )}
+                  <MultiSelectBox id="gpe-format" label="Formato" options={formatOptions} selected={selectedFormat} onChange={setSelectedFormat} />
+                  <MultiSelectBox id="gpe-proposal" label="Proposta" options={proposalOptions} selected={selectedProposal} onChange={setSelectedProposal} />
+                  <MultiSelectBox id="gpe-tone" label="Tom" options={toneOptions} selected={selectedTone} onChange={setSelectedTone} />
+                  <MultiSelectBox id="gpe-references" label="Referências" options={referenceOptions} selected={selectedReferences} onChange={setSelectedReferences} />
+                  <div><label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 mb-1">Min. Interações</label><input type="number" id="gpe-minInteractions" value={minInteractionsValue} onChange={(e) => setMinInteractionsValue(e.target.value)} placeholder="Ex: 100" min="0" className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]" /></div>
+                  <div className="md:col-span-2"><label htmlFor="gpe-textSearch" className="block text-xs font-medium text-gray-600 mb-1">Buscar texto</label><input id="gpe-textSearch" type="text" value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="Palavras-chave no conteúdo..." className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]" /></div>
+                  {/* Filtro de assinantes agora controlado globalmente; seletor removido */}
+                </div>
+                <div className="mt-4 flex justify-end pt-4 border-t border-gray-200">
+                  <button onClick={handleApplyLocalFilters} className="h-[38px] flex items-center justify-center px-6 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 text-sm disabled:bg-indigo-400 transition-colors" disabled={isLoading || isAnalysisLoading}>
+                    <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
+                    {isLoading || isAnalysisLoading ? 'Buscando...' : 'Aplicar Filtros'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+
+          {/* ANALYSIS HIGHLIGHTS SECTION */}
+          {viewMode === 'analysis' && (
+            <div className="mt-8 mb-12 space-y-10">
+              {isAnalysisLoading ? (
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <SkeletonBlock height="h-96" />
+                    <SkeletonBlock height="h-96" />
+                    <SkeletonBlock height="h-96" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <SkeletonBlock height="h-96" />
+                    <SkeletonBlock height="h-96" />
+                    <SkeletonBlock height="h-96" />
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="text-center py-10"><p className="text-red-500">Erro ao carregar análise: {error}</p></div>
+              ) : (bestPosts.length === 0 && worstPosts.length === 0) ? (
+                <div className="py-10 bg-gray-50 rounded-lg border border-gray-100"><EmptyState icon={<ChartBarIcon className="w-12 h-12" />} title="Sem dados para análise" message="Tente ajustar os filtros para encontrar posts." /></div>
+              ) : (
+                <>
+                  {/* BEST PERFORMING */}
+                  <div className="bg-green-50/30 rounded-2xl p-6 border border-green-100">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2.5 bg-green-100 rounded-xl text-green-700 shadow-sm">
+                        <ChevronUpIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">Melhores Conteúdos</h4>
+                        <p className="text-sm text-gray-500">Top 3 por interações totais</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {bestPosts.map(post => <AnalysisCard key={post._id?.toString()} post={post} type="best" />)}
+                      {bestPosts.length === 0 && <p className="text-sm text-gray-500 italic col-span-full py-8 text-center">Nenhum post encontrado.</p>}
+                    </div>
+                  </div>
+
+                  {/* WORST PERFORMING */}
+                  <div className="bg-red-50/30 rounded-2xl p-6 border border-red-100">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2.5 bg-red-100 rounded-xl text-red-700 shadow-sm">
+                        <ChevronDownIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">Piores Conteúdos</h4>
+                        <p className="text-sm text-gray-500">Bottom 3 por interações totais</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {worstPosts.map(post => <AnalysisCard key={post._id?.toString()} post={post} type="worst" />)}
+                      {worstPosts.length === 0 && <p className="text-sm text-gray-500 italic col-span-full py-8 text-center">Nenhum post encontrado.</p>}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* MAIN POSTS TABLE (Visible in both modes) */}
+          <div className="mt-6">
+            {viewMode === 'analysis' && <h4 className="text-lg font-semibold text-gray-800 mb-4">Todos os Posts</h4>}
+            {isLoading ? (
+              <div className="text-center py-10"><SkeletonBlock width="w-48" height="h-6" className="mx-auto" /></div>
+            ) : error ? (
+              <div className="text-center py-10"><p className="text-red-500">Erro ao carregar posts: {error}</p></div>
+            ) : posts.length === 0 ? (
+              <div className="py-10"><EmptyState icon={<DocumentMagnifyingGlassIcon className="w-12 h-12" />} title="Nenhum Post Encontrado" message="Experimente alterar os filtros para encontrar resultados." /></div>
+            ) : (
+              <>
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>{columns.map((col) => (<th key={col.key} scope="col" className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:bg-gray-100 select-none' : ''}`} onClick={() => col.sortable && handleSort(col.key)}>{col.label} {col.sortable && renderSortIcon(col.key)}</th>))}</tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {posts.map((post) => (
+                        <tr key={post._id?.toString()} className="hover:bg-gray-50 transition-colors">
+                          {columns.map(col => {
+                            const rawValue = col.getVal(post);
+                            let displayValue: React.ReactNode = rawValue;
+                            if (col.key.startsWith('stats.')) displayValue = (
+                              <span title={String(rawValue)} className="tabular-nums font-medium text-gray-700">{formatNumberStd(rawValue)}</span>
+                            );
+                            if (col.key === 'cover') {
+                              return (
+                                <td key="cover" className="px-3 py-2 whitespace-nowrap w-20">
+                                  {rawValue ? ( // eslint-disable-next-line @next/next/no-img-element
+                                    <Image
+                                      src={rawValue}
+                                      alt="capa"
+                                      width={64}
+                                      height={64}
+                                      className="w-16 h-16 object-cover rounded border border-gray-100" // eslint-disable-line @next/next/no-img-element
+                                      onError={(e) => {
+                                        const t = e.currentTarget as HTMLImageElement;
+                                        t.onerror = null;
+                                        t.src = 'https://placehold.co/64x64?text=%3F';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Sem img</div>
+                                  )}
+                                </td>
+                              );
+                            }
+                            if (col.key === 'tags') {
+                              const chips = rawValue as ReturnType<typeof getTagLabels>;
+                              const MAX = 3;
+                              const shown = chips.slice(0, MAX);
+                              const extra = chips.length - shown.length;
+                              return (
+                                <td key="tags" className="px-4 py-3 text-left max-w-xs">
+                                  <div className="flex flex-wrap gap-1">
+                                    {shown.map((c, i) => <TagChip key={`${c.label}_${i}`} label={c.label} color={c.color} title={c.title} />)}
+                                    {extra > 0 && (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200">+{extra}</span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (col.key === 'actions') {
+                              return (
+                                <td key={col.key} className="px-4 py-3 whitespace-nowrap text-center">
+                                  <div className="flex items-center justify-center space-x-2">
+                                    <button onClick={() => handleOpenPostDetailModal(post._id!.toString())} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Ver detalhes">
+                                      <DocumentMagnifyingGlassIcon className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-gray-400 hover:text-green-600 transition-colors" title="Ver tendência">
+                                      <ChartBarIcon className="w-5 h-5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'}`}>
+                                <span title={String(rawValue)} className="block max-w-[200px] truncate">{displayValue}</span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="py-3 flex items-center justify-between border-t border-gray-200 mt-4 text-sm">
+                  <p className="text-gray-700">Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span> ({totalPosts} posts)</p>
+                  <div className="flex-1 flex justify-end space-x-2"><button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1.5 border border-gray-300 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 text-xs">Anterior</button><button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1.5 border border-gray-300 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 text-xs">Próxima</button></div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <PostDetailModal
+            isOpen={isPostDetailModalOpen}
+            onClose={handleClosePostDetailModal}
+            postId={selectedPostIdForModal}
+            apiPrefix={apiPrefix}
+          />
+
+          {isTrendChartOpen && selectedPostIdForTrend && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl relative">
+                <button onClick={handleCloseTrendChart} aria-label="Fechar" className="absolute top-2 right-2 p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"><XMarkIcon className="w-5 h-5" /></button>
+                <ContentTrendChart postId={selectedPostIdForTrend} apiPrefix={apiPrefix} />
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

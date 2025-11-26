@@ -6,6 +6,9 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getAdminSession } from '@/lib/getAdminSession';
+import MetricModel from '@/app/models/Metric';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 export const dynamic = 'force-dynamic';
 
 
@@ -29,6 +32,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
   const granularityParam = searchParams.get('granularity');
+  const contextParam = searchParams.get('context');
+  const creatorContextParam = searchParams.get('creatorContext');
+  const onlyActiveSubscribers = searchParams.get('onlyActiveSubscribers') === 'true';
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
@@ -60,7 +66,45 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const users = await UserModel.find({ planStatus: 'active' })
+    const userQuery: any = {};
+    if (onlyActiveSubscribers) {
+      userQuery.planStatus = 'active';
+    }
+    if (contextParam) {
+      const ids = getCategoryWithSubcategoryIds(contextParam, 'context');
+      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+      const contextUsers = await MetricModel.distinct('user', { context: { $in: [...ids, ...labels] } });
+      if (!contextUsers.length) {
+        return NextResponse.json(
+          {
+            chartData: [],
+            insightSummary: 'Nenhum usuário encontrado para o nicho selecionado.',
+          },
+          { status: 200 }
+        );
+      }
+      userQuery._id = { $in: contextUsers };
+    }
+    if (creatorContextParam) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map((id) => new Types.ObjectId(id));
+      if (!contextObjectIds.length) {
+        return NextResponse.json(
+          {
+            chartData: [],
+            insightSummary: 'Nenhum usuário encontrado para o nicho selecionado.',
+          },
+          { status: 200 }
+        );
+      }
+      if (userQuery._id && userQuery._id.$in) {
+        const existing = userQuery._id.$in as Types.ObjectId[];
+        userQuery._id = { $in: existing.filter((id) => contextObjectIds.some((cid) => cid.equals(id))) };
+      } else {
+        userQuery._id = { $in: contextObjectIds };
+      }
+    }
+    const users = await UserModel.find(userQuery)
       .select('_id')
       .lean();
 

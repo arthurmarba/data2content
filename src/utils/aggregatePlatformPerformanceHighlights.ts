@@ -4,6 +4,8 @@ import { PipelineStage, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
+import { getCategoryWithSubcategoryIds, getCategoryById } from "@/app/lib/classification";
+import { resolveCreatorIdsByContext } from "@/app/lib/creatorContextHelper";
 
 export interface AggregatedHighlight {
   name: string | null;
@@ -24,7 +26,10 @@ async function aggregatePlatformPerformanceHighlights(
   periodInDays: number,
   metricField: string,
   agencyId?: string,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  onlyActiveSubscribers?: boolean,
+  contextFilter?: string,
+  creatorContext?: string
 ): Promise<PlatformPerformanceHighlightsAggregation> {
   const today = new Date(referenceDate);
   const endDate = new Date(
@@ -54,12 +59,30 @@ async function aggregatePlatformPerformanceHighlights(
     await connectToDatabase();
 
     let userFilter: any = {};
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      if (!agencyUserIds.length) {
+    if (agencyId || onlyActiveSubscribers) {
+      const query: any = {};
+      if (agencyId) query.agency = new Types.ObjectId(agencyId);
+      if (onlyActiveSubscribers) query.planStatus = 'active';
+      const filteredUserIds = await UserModel.find(query).distinct('_id');
+      if (!filteredUserIds.length) {
         return initial;
       }
-      userFilter = { user: { $in: agencyUserIds } };
+      userFilter = { user: { $in: filteredUserIds } };
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map((id) => new Types.ObjectId(id));
+      if (!contextObjectIds.length) {
+        return initial;
+      }
+
+      if (userFilter.user && userFilter.user.$in) {
+        const existingIds = userFilter.user.$in as Types.ObjectId[];
+        userFilter.user = { $in: existingIds.filter((id) => contextObjectIds.some((cid) => cid.equals(id))) };
+      } else {
+        userFilter.user = { $in: contextObjectIds };
+      }
     }
 
     const matchStage: PipelineStage.Match = {
@@ -68,6 +91,12 @@ async function aggregatePlatformPerformanceHighlights(
         ...userFilter,
       },
     };
+
+    if (contextFilter) {
+      const ids = getCategoryWithSubcategoryIds(contextFilter, 'context');
+      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+      (matchStage.$match as any).context = { $in: [...ids, ...labels] };
+    }
 
     const projectStage: PipelineStage.Project = {
       $project: {

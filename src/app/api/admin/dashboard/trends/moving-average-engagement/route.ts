@@ -6,6 +6,8 @@ import { logger } from '@/app/lib/logger';
 import { addDays, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import { Types } from 'mongoose';
 import { getAdminSession } from '@/lib/getAdminSession';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 export const dynamic = 'force-dynamic';
 
 
@@ -23,6 +25,9 @@ export async function GET(request: NextRequest) {
   }
   const { searchParams } = new URL(request.url);
   let dataWindowInDays = DEFAULT_DATA_WINDOW_DAYS;
+  const onlyActiveSubscribers = searchParams.get('onlyActiveSubscribers') === 'true';
+  const contextParam = searchParams.get('context');
+  const creatorContextParam = searchParams.get('creatorContext');
   const dwParam = searchParams.get('dataWindowInDays');
   if (dwParam) {
     const parsed = parseInt(dwParam,10);
@@ -45,7 +50,31 @@ export async function GET(request: NextRequest) {
   }
   try {
     await connectToDatabase();
-    const agencyUsers = await UserModel.find({ planStatus: 'active' }).select('_id').lean();
+    const userQuery: any = {};
+    if (onlyActiveSubscribers) userQuery.planStatus = 'active';
+    if (contextParam) {
+      const ids = getCategoryWithSubcategoryIds(contextParam, 'context');
+      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+      const ctxUsers = await MetricModel.distinct('user', { context: { $in: [...ids, ...labels] } });
+      if (!ctxUsers.length) {
+        return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para o nicho selecionado.' }, { status: 200 });
+      }
+      userQuery._id = { $in: ctxUsers };
+    }
+    if (creatorContextParam) {
+      const ctxIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers });
+      const ctxObjectIds = ctxIds.map((id) => new Types.ObjectId(id));
+      if (!ctxObjectIds.length) {
+        return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para o nicho selecionado.' }, { status: 200 });
+      }
+      if (userQuery._id && userQuery._id.$in) {
+        const existing = userQuery._id.$in as Types.ObjectId[];
+        userQuery._id = { $in: existing.filter((id) => ctxObjectIds.some((cid) => cid.equals(id))) };
+      } else {
+        userQuery._id = { $in: ctxObjectIds };
+      }
+    }
+    const agencyUsers = await UserModel.find(userQuery).select('_id').lean();
     if (!agencyUsers.length) {
       return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado.' }, { status: 200 });
     }

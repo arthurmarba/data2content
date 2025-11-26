@@ -6,6 +6,7 @@ import { logger } from '@/app/lib/logger';
 import { addDays, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import { Types } from 'mongoose';
 import { getAgencySession } from '@/lib/getAgencySession';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 export const dynamic = 'force-dynamic';
 
 
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
   }
   const { searchParams } = new URL(request.url);
   let dataWindowInDays = DEFAULT_DATA_WINDOW_DAYS;
+  const creatorContextParam = searchParams.get('creatorContext');
   const dwParam = searchParams.get('dataWindowInDays');
   if (dwParam) {
     const parsed = parseInt(dwParam,10);
@@ -45,7 +47,16 @@ export async function GET(request: NextRequest) {
   }
   try {
     await connectToDatabase();
-    const agencyUsers = await UserModel.find({ agency: new Types.ObjectId(session.user.agencyId), planStatus: 'active' }).select('_id').lean();
+    const userQuery: any = { agency: new Types.ObjectId(session.user.agencyId), planStatus: 'active' };
+    if (creatorContextParam) {
+      const ctxIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers: true });
+      const ctxObjectIds = ctxIds.map((id) => new Types.ObjectId(id));
+      if (!ctxObjectIds.length) {
+        return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para a agência.' }, { status: 200 });
+      }
+      userQuery._id = { $in: ctxObjectIds };
+    }
+    const agencyUsers = await UserModel.find(userQuery).select('_id').lean();
     if (!agencyUsers.length) {
       return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para a agência.' }, { status: 200 });
     }

@@ -12,6 +12,8 @@ import {
   EngagementMetricField,
 } from '@/app/lib/constants/timePeriods';
 import { getAdminSession } from '@/lib/getAdminSession';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
+import { Types } from 'mongoose';
 export const dynamic = 'force-dynamic';
 
 
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
   const groupByParam = searchParams.get('groupBy') as GroupingType | null;
   // ✅ PASSO 1: LER O NOVO PARÂMETRO 'limit' DA URL
   const limitParam = searchParams.get('limit');
+  const creatorContextParam = searchParams.get('creatorContext');
 
   // Validar timePeriod
   const timePeriod: TimePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
@@ -60,7 +63,17 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const activeUsers = await UserModel.find({ planStatus: 'active' }).select('_id').lean();
+    const userQuery: any = { planStatus: 'active' };
+    if (creatorContextParam) {
+      const ctxIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers: true });
+      const ctxObjectIds = ctxIds.map((id) => new Types.ObjectId(id));
+      if (!ctxObjectIds.length) {
+        return NextResponse.json({ chartData: [], metricUsed: engagementMetric, groupBy }, { status: 200 });
+      }
+      userQuery._id = { $in: ctxObjectIds };
+    }
+
+    const activeUsers = await UserModel.find(userQuery).select('_id').lean();
     const activeIds = activeUsers.map(u => u._id);
 
     const today = new Date();

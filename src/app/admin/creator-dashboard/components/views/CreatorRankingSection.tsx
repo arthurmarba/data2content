@@ -11,12 +11,18 @@ interface Props {
   rankingDateRange: { startDate: string; endDate: string };
   rankingDateLabel: string;
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 const CreatorRankingSection: React.FC<Props> = ({
   rankingDateRange,
   rankingDateLabel,
   apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   
@@ -43,6 +49,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               metricLabel="%"
               tooltip="Taxa de engajamento média: interações divididas pelo alcance total do período."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -53,6 +62,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeLabel={rankingDateLabel}
               tooltip="Soma de todas as interações (curtidas, comentários, etc.) no período."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -63,6 +75,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeLabel={rankingDateLabel}
               tooltip="Média de interações por post; considera apenas criadores com 3 ou mais posts."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -74,6 +89,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               metricLabel="%"
               tooltip="Diferença percentual do engajamento total em relação ao período anterior equivalente."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -84,6 +102,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeLabel={rankingDateLabel}
               tooltip="Avalia a regularidade do engajamento por post; exige ao menos 5 posts relevantes."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="col-span-full mt-4">
@@ -97,6 +118,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeLabel={rankingDateLabel}
               tooltip="Quantidade total de conteúdos publicados no período selecionado."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -107,6 +131,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeLabel={rankingDateLabel}
               tooltip="Total de compartilhamentos obtidos pelos posts no período."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -117,6 +144,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeLabel={rankingDateLabel}
               tooltip="Média de alcance por post; inclui criadores com pelo menos 3 posts."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -127,6 +157,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeLabel={rankingDateLabel}
               tooltip="Relação entre alcance total e seguidores; mede eficiência de distribuição."
               limit={5}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              contextFilter={contextFilter}
+              creatorContextFilter={creatorContextFilter}
             />
           </div>
           <div className="inline-flex md:block">
@@ -136,6 +169,9 @@ const CreatorRankingSection: React.FC<Props> = ({
             timePeriod={validatedTimePeriod}
             limit={5}
             compositeRanking={true}
+            onlyActiveSubscribers={onlyActiveSubscribers}
+            context={contextFilter}
+            creatorContext={creatorContextFilter}
             tooltip="Score composto: 40% engajamento médio, 30% interações/post, 20% alcance/seguidor e 10% crescimento de seguidores"
           />
           </div>

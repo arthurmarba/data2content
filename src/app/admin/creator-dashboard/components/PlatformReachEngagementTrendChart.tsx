@@ -25,11 +25,17 @@ const GRANULARITY_OPTIONS = [
 interface PlatformReachEngagementTrendChartProps {
   initialGranularity?: string;
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendChartProps> = ({
   initialGranularity = GRANULARITY_OPTIONS[0]!.value,
-  apiPrefix = '/api/admin'
+  apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformChartResponse['chartData']>([]);
@@ -42,7 +48,11 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `${apiPrefix}/dashboard/trends/reach-engagement?timePeriod=${timePeriod}&granularity=${granularity}`;
+      const params = new URLSearchParams({ timePeriod, granularity });
+      if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+      if (contextFilter) params.append('context', contextFilter);
+      if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+      const apiUrl = `${apiPrefix}/dashboard/trends/reach-engagement?${params.toString()}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -58,7 +68,7 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity, apiPrefix]);
+  }, [timePeriod, granularity, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchData();

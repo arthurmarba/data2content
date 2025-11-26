@@ -69,6 +69,7 @@ export async function GET(
   try {
     const { searchParams } = new URL(request.url);
     const timePeriodParam = searchParams.get('timePeriod');
+    const creatorContext = searchParams.get('creatorContext') || undefined;
     
     const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
       ? timePeriodParam
@@ -83,8 +84,8 @@ export async function GET(
     const periodInDaysValue = timePeriodToDays(timePeriod);
 
     const [aggResult, dayAgg] = await Promise.all([
-        aggregatePlatformPerformanceHighlights(periodInDaysValue, performanceMetricField),
-        aggregatePlatformDayPerformance(periodInDaysValue, performanceMetricField)
+        aggregatePlatformPerformanceHighlights(periodInDaysValue, performanceMetricField, undefined, new Date(), undefined, undefined, creatorContext),
+        aggregatePlatformDayPerformance(periodInDaysValue, performanceMetricField, { creatorContext: creatorContext || undefined })
     ]);
 
     const bestDay = dayAgg.bestDays[0] || null;

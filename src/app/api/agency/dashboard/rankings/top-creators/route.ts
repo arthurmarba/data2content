@@ -12,10 +12,13 @@ const SERVICE_TAG = '[api/agency/dashboard/rankings/top-creators]';
 
 const querySchema = z.object({
   context: z.string().optional(),
+  creatorContext: z.string().optional(),
   metric: TopCreatorMetricEnum.optional().default('total_interactions'),
   days: z.coerce.number().int().positive().max(365).optional().default(30),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
   composite: z.coerce.boolean().optional().default(false),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  onlyActiveSubscribers: z.enum(['true', 'false']).optional().transform(val => val === 'true'),
 });
 
 function apiError(message: string, status: number): NextResponse {
@@ -45,27 +48,31 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { context, metric, days, limit, composite } = validationResult.data;
+    const { context, creatorContext, metric, days, limit, composite, offset, onlyActiveSubscribers } = validationResult.data;
     let results;
 
     // A partir daqui, TypeScript sabe que session.user.agencyId é uma string.
     if (composite) {
-      // Usamos 'as any' como uma medida temporária para permitir a compilação.
       results = await fetchTopCreatorsWithScore({
         context: context ?? 'geral',
         days,
         limit,
         agencyId: session.user.agencyId,
-      } as any);
+        offset,
+        ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+        ...(creatorContext ? { creatorContext } : {}),
+      });
     } else {
-      // Usamos 'as any' como uma medida temporária para permitir a compilação.
       results = await fetchTopCreators({
         context: context ?? 'geral',
         metricToSortBy: metric,
         days,
         limit,
         agencyId: session.user.agencyId,
-      } as any);
+        offset,
+        ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+        ...(creatorContext ? { creatorContext } : {}),
+      });
     }
 
     return NextResponse.json(results, { status: 200 });

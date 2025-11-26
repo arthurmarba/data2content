@@ -341,6 +341,11 @@ export interface IUser extends Document {
   userKeyFacts?: IUserKeyFact[];
   totalMessages?: number;
   alertHistory?: IAlertHistoryEntry[];
+  creatorContext?: {
+    id: string;
+    confidence: number;
+    updatedAt: Date;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -394,9 +399,9 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   profile_picture_url: { type: String },
 }, { _id: false });
 
-const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/});
-const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/});
-const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/});
+const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/ }, {/*...*/ });
+const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/ }, {/*...*/ });
+const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/ }, {/*...*/ });
 
 const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
   type: { type: String, required: true },
@@ -466,14 +471,14 @@ const userSchema = new Schema<IUser>(
     lastProcessedEventId: { type: String },
     lastStripeEventAt: { type: Date, default: null },
     lastSubscriptionEventId: { type: String, default: null },
-    
+
     inferredExpertiseLevel: {
       type: String,
       enum: ['iniciante', 'intermediario', 'avancado'],
       default: 'iniciante',
       index: true
     },
-    
+
     image: { type: String },
     googleId: { type: String },
     provider: { type: String, index: true },
@@ -587,6 +592,11 @@ const userSchema = new Schema<IUser>(
     userKeyFacts: { type: [UserKeyFactSchema], default: [] },
     totalMessages: { type: Number, default: 0 },
     alertHistory: { type: [AlertHistoryEntrySchema], default: [] },
+    creatorContext: {
+      id: { type: String, index: true },
+      confidence: { type: Number },
+      updatedAt: { type: Date }
+    },
   },
   { timestamps: true }
 );

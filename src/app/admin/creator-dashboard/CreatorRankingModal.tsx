@@ -15,6 +15,9 @@ interface CreatorRankingModalProps {
   dateRangeLabel?: string;
   metricLabel?: string;
   limit?: number;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
@@ -26,6 +29,9 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
   dateRangeLabel,
   metricLabel = "",
   limit = 20,
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const [rankingData, setRankingData] = useState<ICreatorMetricRankItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,6 +63,15 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
       const utcEnd = new Date(Date.UTC(le.getFullYear(), le.getMonth(), le.getDate(), 23, 59, 59, 999));
       params.append("endDate", utcEnd.toISOString());
     }
+    if (onlyActiveSubscribers) {
+      params.append('onlyActiveSubscribers', 'true');
+    }
+    if (contextFilter) {
+      params.append('context', contextFilter);
+    }
+    if (creatorContextFilter) {
+      params.append('creatorContext', creatorContextFilter);
+    }
 
     try {
       const response = await fetch(`${apiEndpoint}?${params.toString()}`);
@@ -72,7 +87,7 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [apiEndpoint, dateRangeFilter, limit, title, page]);
+  }, [apiEndpoint, dateRangeFilter, limit, title, page, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     if (isOpen) {
@@ -82,7 +97,10 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
 
   useEffect(() => {
     setPage(0);
-  }, [dateRangeFilter]);
+  }, [dateRangeFilter, onlyActiveSubscribers]);
+  useEffect(() => {
+    setPage(0);
+  }, [contextFilter, creatorContextFilter]);
 
   const formatMetricValue = (value: number): string => {
     if (Number.isInteger(value)) {

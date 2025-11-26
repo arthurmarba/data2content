@@ -17,11 +17,13 @@ const SERVICE_TAG = '[api/admin/dashboard/content-stats]';
 const querySchema = z.object({
   startDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),
+  onlyActiveSubscribers: z.enum(['true', 'false']).optional().transform(val => val === 'true'),
+  context: z.string().optional(),
 }).refine(data => {
-    if (data.startDate && data.endDate && data.startDate > data.endDate) {
-        return false;
-    }
-    return true;
+  if (data.startDate && data.endDate && data.startDate > data.endDate) {
+    return false;
+  }
+  return true;
 }, { message: "startDate cannot be after endDate" });
 
 // Real Admin Session Validation
@@ -69,13 +71,19 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { startDate, endDate } = validationResult.data;
+    const { startDate, endDate, context } = validationResult.data;
 
     const filters: IFetchDashboardOverallContentStatsFilters = {};
     if (startDate || endDate) {
-        filters.dateRange = {};
-        if (startDate) filters.dateRange.startDate = startDate;
-        if (endDate) filters.dateRange.endDate = endDate;
+      filters.dateRange = {};
+      if (startDate) filters.dateRange.startDate = startDate;
+      if (endDate) filters.dateRange.endDate = endDate;
+    }
+    if (validationResult.data.onlyActiveSubscribers) {
+      filters.onlyActiveSubscribers = true;
+    }
+    if (context) {
+      filters.context = context;
     }
 
     logger.info(`${TAG} Calling fetchDashboardOverallContentStats with filters: ${JSON.stringify(filters)}`);
@@ -90,7 +98,7 @@ export async function GET(req: NextRequest) {
       return apiError(`Erro de banco de dados: ${error.message}`, 500);
     }
     if (error instanceof z.ZodError) {
-        return apiError(`Erro de validação: ${error.errors.map(e => e.message).join(', ')}`, 400);
+      return apiError(`Erro de validação: ${error.errors.map(e => e.message).join(', ')}`, 400);
     }
     return apiError('Ocorreu um erro interno no servidor.', 500);
   }

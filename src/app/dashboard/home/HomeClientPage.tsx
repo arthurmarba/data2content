@@ -1045,6 +1045,7 @@ export default function HomeClientPage() {
     isInstagramConnected,
     planIsPro,
     trialExpired,
+    whatsappLinked,
     whatsappTrialActive,
   ]);
 

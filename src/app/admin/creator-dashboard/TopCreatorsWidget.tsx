@@ -28,6 +28,7 @@ const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
 interface TopCreatorsWidgetProps {
   title: string;
   context?: string;
+  creatorContext?: string;
   metric?: TopCreatorMetric;
   timePeriod?: TimePeriod;
   limit?: number;
@@ -35,6 +36,7 @@ interface TopCreatorsWidgetProps {
   compositeRanking?: boolean;
   tooltip?: string;
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
 }
 
 const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
@@ -47,6 +49,8 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   compositeRanking = false,
   tooltip,
   apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  creatorContext,
 }) => {
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const effectiveTimePeriod: TimePeriod = timePeriod || (globalTimePeriod as TimePeriod);
@@ -71,7 +75,10 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
     } else {
       params.append('metric', metric);
     }
-    if (context) params.append('context', context);
+    const effectiveContext = context;
+    if (effectiveContext) params.append('context', effectiveContext);
+    if (creatorContext) params.append('creatorContext', creatorContext);
+    if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
 
     try {
       const response = await fetch(`${apiPrefix}/dashboard/rankings/top-creators?${params.toString()}`);
@@ -87,7 +94,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [context, metric, days, limit, compositeRanking, apiPrefix]);
+  }, [context, creatorContext, metric, days, limit, compositeRanking, apiPrefix, onlyActiveSubscribers]);
 
   useEffect(() => {
     fetchData();
@@ -200,11 +207,14 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
             onClose={() => setIsModalOpen(false)}
             title={compositeRanking ? 'Top Criadores (Score)' : title}
             context={context}
+            creatorContext={creatorContext}
             metric={metric}
             timePeriod={effectiveTimePeriod}
             metricLabel={metricLabel}
             compositeRanking={compositeRanking}
             limit={20}
+            apiPrefix={apiPrefix}
+            onlyActiveSubscribers={onlyActiveSubscribers}
           />
         </>
       )}

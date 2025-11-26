@@ -5,7 +5,7 @@ import TopCreatorsWidget from '../TopCreatorsWidget';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { TimePeriod } from '@/app/lib/constants/timePeriods'; // Importa o tipo específico
 
-const CreatorHighlightsTables: React.FC = () => {
+const CreatorHighlightsTables: React.FC<{ creatorContextFilter?: string }> = ({ creatorContextFilter }) => {
   const { timePeriod } = useGlobalTimePeriod();
   
   // A correção é aplicar uma asserção de tipo para garantir ao TypeScript
@@ -19,6 +19,7 @@ const CreatorHighlightsTables: React.FC = () => {
         metric="total_interactions"
         timePeriod={validatedTimePeriod}
         limit={5}
+        creatorContext={creatorContextFilter}
       />
       <TopCreatorsWidget
         title="Maior Engajamento"
@@ -26,18 +27,21 @@ const CreatorHighlightsTables: React.FC = () => {
         metricLabel="%"
         timePeriod={validatedTimePeriod}
         limit={5}
+        creatorContext={creatorContextFilter}
       />
       <TopCreatorsWidget
         title="Mais Curtidas"
         metric="likes"
         timePeriod={validatedTimePeriod}
         limit={5}
+        creatorContext={creatorContextFilter}
       />
       <TopCreatorsWidget
         title="Mais Compartilhamentos"
         metric="shares"
         timePeriod={validatedTimePeriod}
         limit={5}
+        creatorContext={creatorContextFilter}
       />
     </div>
   );

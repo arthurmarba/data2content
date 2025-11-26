@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   const formatParam = searchParams.get('format');
   const proposalParam = searchParams.get('proposal');
   const contextParam = searchParams.get('context');
+  const creatorContextParam = searchParams.get('creatorContext');
   const metricParam = searchParams.get('metric');
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
       format: formatParam || undefined,
       proposal: proposalParam || undefined,
       context: contextParam || undefined,
+      creatorContext: creatorContextParam || undefined,
     },
     session.user.agencyId
   );

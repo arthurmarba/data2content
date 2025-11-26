@@ -35,6 +35,9 @@ const querySchema = z.object({
   endDate: z.string().datetime({ message: 'Formato de data inválido para endDate.' }).transform(val => new Date(val)),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
   userId: z.string().optional(),
+  onlyActiveSubscribers: z.enum(['true', 'false']).optional().transform(val => val === 'true'),
+  context: z.string().optional(),
+  creatorContext: z.string().optional(),
 }).refine(data => data.startDate <= data.endDate, {
   message: 'A data de início não pode ser posterior à data de término.',
   path: ['endDate'],
@@ -76,7 +79,7 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { category, metric, startDate, endDate, limit, userId } = validationResult.data;
+    const { category, metric, startDate, endDate, limit, userId, onlyActiveSubscribers, context, creatorContext } = validationResult.data;
 
     // 3. Chamada ao serviço com os parâmetros validados
     const results = await fetchTopCategories({
@@ -85,6 +88,9 @@ export async function GET(req: NextRequest) {
       metric,
       limit,
       userId,
+      ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+      ...(context ? { context } : {}),
+      ...(creatorContext ? { creatorContext } : {}),
     });
 
     // 4. Retorno dos resultados com sucesso

@@ -11,7 +11,9 @@ import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
 import { IFetchTopMoversArgs, ITopMoverResult } from './types';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
 import { mapMetricToDbField } from './helpers';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 
 const SERVICE_TAG = '[dataService][moversService]';
 
@@ -37,10 +39,16 @@ export async function fetchTopMoversData(
       previousPeriod,
       topN = 10,
       sortBy = 'absoluteChange_decrease',
-      creatorFilters,
+      creatorFilters = {},
       contentFilters,
       agencyId,
+      onlyActiveSubscribers,
     } = args;
+
+    // Apply active subscriber filter if requested
+    if (onlyActiveSubscribers) {
+      creatorFilters.planStatus = ['active'];
+    }
 
     const mappedMetricField = mapMetricToDbField(metric);
     let results: ITopMoverResult[] = [];
@@ -48,9 +56,12 @@ export async function fetchTopMoversData(
     if (entityType === 'content') {
       let preFilteredPostIds: Types.ObjectId[] | null = null;
       let userMongoIds: Types.ObjectId[] | null = null;
-      if (agencyId) {
-        const agencyUsers = await UserModel.find({ agency: agencyId }).select('_id').lean();
-        userMongoIds = agencyUsers.map(u => u._id);
+      if (onlyActiveSubscribers || agencyId) {
+        const userQuery: any = {};
+        if (agencyId) userQuery.agency = agencyId;
+        if (onlyActiveSubscribers) userQuery.planStatus = 'active';
+        const filteredUsers = await UserModel.find(userQuery).select('_id').lean();
+        userMongoIds = filteredUsers.map(u => u._id);
         if (userMongoIds.length === 0) return [];
       }
 
@@ -79,16 +90,20 @@ export async function fetchTopMoversData(
         { $match: snapshotMatch },
         { $sort: { metric: 1, date: 1 } },
         { $group: { _id: "$metric", values: { $push: { date: "$date", val: `$${mappedMetricField}` } } } },
-        { $addFields: {
+        {
+          $addFields: {
             previousValueData: { $arrayElemAt: [{ $filter: { input: "$values", cond: { $eq: ["$$this.date", previousPeriod.endDate] } } }, 0] },
             currentValueData: { $arrayElemAt: [{ $filter: { input: "$values", cond: { $eq: ["$$this.date", currentPeriod.endDate] } } }, 0] }
-        }},
-        { $addFields: { previousValue: { $ifNull: ["$previousValueData.val", 0] }, currentValue: { $ifNull: ["$currentValueData.val", 0] }}},
+          }
+        },
+        { $addFields: { previousValue: { $ifNull: ["$previousValueData.val", 0] }, currentValue: { $ifNull: ["$currentValueData.val", 0] } } },
         { $match: { $expr: { $ne: ["$previousValue", "$currentValue"] } } },
-        { $addFields: {
+        {
+          $addFields: {
             absoluteChange: { $subtract: ["$currentValue", "$previousValue"] },
             percentageChange: { $cond: [{ $eq: ["$previousValue", 0] }, null, { $divide: [{ $subtract: ["$currentValue", "$previousValue"] }, "$previousValue"] }] }
-        }},
+          }
+        },
       ];
 
       const sortOrder = sortBy.includes('_increase') ? -1 : 1;
@@ -97,12 +112,12 @@ export async function fetchTopMoversData(
 
       pipeline.push(
         { $limit: topN },
-        { $lookup: { from: 'metrics', localField: '_id', foreignField: '_id', as: 'metricInfo' }},
+        { $lookup: { from: 'metrics', localField: '_id', foreignField: '_id', as: 'metricInfo' } },
         { $unwind: { path: '$metricInfo', preserveNullAndEmptyArrays: true } }
       );
 
       const aggregatedMovers = await DailyMetricSnapshotModel.aggregate(pipeline);
-      
+
       // MODIFICAÇÃO: Adicionado 'coverUrl' ao mapeamento.
       results = aggregatedMovers.map(mover => ({
         entityId: mover._id.toString(),
@@ -117,11 +132,41 @@ export async function fetchTopMoversData(
 
     } else { // entityType === 'creator'
       let preFilteredCreatorIds: Types.ObjectId[] | null = null;
-      if (creatorFilters || agencyId) {
+      if (creatorFilters || agencyId || onlyActiveSubscribers) {
         const userQuery: any = {};
         if (creatorFilters?.planStatus) userQuery.planStatus = { $in: creatorFilters.planStatus };
         if (creatorFilters?.inferredExpertiseLevel) userQuery.inferredExpertiseLevel = { $in: creatorFilters.inferredExpertiseLevel };
         if (agencyId) userQuery.agency = agencyId;
+        if (onlyActiveSubscribers) {
+          userQuery.planStatus = { $in: ['active'] };
+        }
+        if (creatorFilters?.context) {
+          const ids = getCategoryWithSubcategoryIds(creatorFilters.context, 'context');
+          const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+          const ctxUsers = await MetricModel.distinct('user', { context: { $in: [...ids, ...labels] } });
+          if (!ctxUsers.length) return [];
+
+          if (userQuery._id) {
+            const existingIds = (userQuery._id as any).$in;
+            userQuery._id = { $in: existingIds.filter((id: any) => ctxUsers.some((cid: any) => cid.equals ? cid.equals(id) : cid === id)) };
+          } else {
+            userQuery._id = { $in: ctxUsers };
+          }
+        }
+
+        if (creatorFilters?.creatorContext) {
+          const contextIds = await resolveCreatorIdsByContext(creatorFilters.creatorContext, { onlyActiveSubscribers });
+          const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+          if (contextObjectIds.length === 0) return [];
+
+          if (userQuery._id) {
+            const existingIds = (userQuery._id as any).$in;
+            userQuery._id = { $in: existingIds.filter((id: any) => contextObjectIds.some(cid => cid.equals(id))) };
+          } else {
+            userQuery._id = { $in: contextObjectIds };
+          }
+        }
         const matchingUsers = await UserModel.find(userQuery).select('_id').lean();
         preFilteredCreatorIds = matchingUsers.map(u => u._id);
         if (preFilteredCreatorIds.length === 0) return [];
@@ -145,16 +190,20 @@ export async function fetchTopMoversData(
       pipeline.push(
         { $group: { _id: { creatorId: '$metricInfo.user', date: '$date' }, value: { $sum: `$${mappedMetricField}` } } },
         { $group: { _id: '$_id.creatorId', periodValues: { $push: { date: '$_id.date', val: '$value' } } } },
-        { $addFields: {
+        {
+          $addFields: {
             previousValueData: { $arrayElemAt: [{ $filter: { input: '$periodValues', cond: { $eq: ['$$this.date', previousPeriod.endDate] } } }, 0] },
             currentValueData: { $arrayElemAt: [{ $filter: { input: '$periodValues', cond: { $eq: ['$$this.date', currentPeriod.endDate] } } }, 0] }
-        }},
+          }
+        },
         { $addFields: { previousValue: { $ifNull: ['$previousValueData.val', 0] }, currentValue: { $ifNull: ['$currentValueData.val', 0] } } },
         { $match: { $expr: { $ne: ['$previousValue', '$currentValue'] } } },
-        { $addFields: {
+        {
+          $addFields: {
             absoluteChange: { $subtract: ['$currentValue', '$previousValue'] },
             percentageChange: { $cond: [{ $eq: ['$previousValue', 0] }, null, { $divide: [{ $subtract: ['$currentValue', '$previousValue'] }, '$previousValue'] }] }
-        } }
+          }
+        }
       );
 
       const sortOrder = sortBy.includes('_increase') ? -1 : 1;

@@ -12,6 +12,9 @@ interface Props {
   apiPrefix?: string;
   limit?: number;
   selectedUserId?: string | null;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 interface RankItem { category: string; value: number; }
@@ -25,7 +28,10 @@ const MetricCard: React.FC<{
   apiPrefix: string;
   limit: number;
   userId?: string | null;
-}> = ({ title, category, metric, startDate, endDate, apiPrefix, limit, userId }) => {
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
+}> = ({ title, category, metric, startDate, endDate, apiPrefix, limit, userId, onlyActiveSubscribers = false, contextFilter, creatorContextFilter }) => {
   const [items, setItems] = useState<RankItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,6 +48,9 @@ const MetricCard: React.FC<{
           limit: String(limit),
         });
         if (userId) params.append('userId', userId);
+        if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+        if (contextFilter) params.append('context', contextFilter);
+        if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
         const url = `${apiPrefix}/dashboard/rankings/categories?${params.toString()}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error((await res.json()).error || 'Falha ao carregar ranking');
@@ -53,7 +62,7 @@ const MetricCard: React.FC<{
       } finally { setLoading(false); }
     };
     run();
-  }, [category, metric, startDate, endDate, apiPrefix, limit, userId]);
+  }, [category, metric, startDate, endDate, apiPrefix, limit, userId, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -82,7 +91,16 @@ const MetricCard: React.FC<{
   );
 };
 
-const CategoryRankingsSection: React.FC<Props> = ({ startDate, endDate, apiPrefix = '/api/admin', limit = 5, selectedUserId }) => {
+const CategoryRankingsSection: React.FC<Props> = ({
+  startDate,
+  endDate,
+  apiPrefix = '/api/admin',
+  limit = 5,
+  selectedUserId,
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
+}) => {
   const [scope, setScope] = useState<'global' | 'creator'>('global');
   const effectiveUserId = scope === 'creator' ? (selectedUserId ?? undefined) : undefined;
   return (
@@ -104,40 +122,40 @@ const CategoryRankingsSection: React.FC<Props> = ({ startDate, endDate, apiPrefi
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Formato</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="format" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
-            <MetricCard title="Maior Média de Interações" category="format" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
+            <MetricCard title="Mais Publicados" category="format" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Maior Média de Interações" category="format" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
           </div>
         </div>
         {/* Proposta */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Proposta</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="proposal" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
-            <MetricCard title="Maior Média de Interações" category="proposal" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
+            <MetricCard title="Mais Publicados" category="proposal" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Maior Média de Interações" category="proposal" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
           </div>
         </div>
         {/* Contexto */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Contexto</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="context" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
-            <MetricCard title="Maior Média de Interações" category="context" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
+            <MetricCard title="Mais Publicados" category="context" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Maior Média de Interações" category="context" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
           </div>
         </div>
         {/* Tom */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Tom</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="tone" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
-            <MetricCard title="Maior Média de Interações" category="tone" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
+            <MetricCard title="Mais Publicados" category="tone" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Maior Média de Interações" category="tone" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
           </div>
         </div>
         {/* Referências */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Referências</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="references" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
-            <MetricCard title="Maior Média de Interações" category="references" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} />
+            <MetricCard title="Mais Publicados" category="references" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Maior Média de Interações" category="references" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
           </div>
         </div>
       </div>

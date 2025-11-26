@@ -34,6 +34,9 @@ interface PerformanceSummaryResponse {
 interface PlatformPerformanceHighlightsProps {
   sectionTitle?: string;
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): PerformanceHighlightItem | null {
@@ -50,7 +53,10 @@ function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): Performance
 
 const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps> = ({
   sectionTitle = "Destaques de Performance da Plataforma",
-  apiPrefix = '/api/admin'
+  apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(null);
@@ -61,7 +67,11 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `${apiPrefix}/dashboard/highlights/performance-summary?timePeriod=${timePeriod}`;
+      const params = new URLSearchParams({ timePeriod });
+      if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+      if (contextFilter) params.append('context', contextFilter);
+      if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+      const apiUrl = `${apiPrefix}/dashboard/highlights/performance-summary?${params.toString()}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -92,7 +102,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, apiPrefix]);
+  }, [timePeriod, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchData();

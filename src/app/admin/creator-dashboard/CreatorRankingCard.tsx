@@ -18,6 +18,9 @@ interface CreatorRankingCardProps {
   metricLabel?: string;
   limit?: number;
   tooltip?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -45,6 +48,9 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   metricLabel = '',
   limit = 5,
   tooltip,
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const [rankingData, setRankingData] = useState<ICreatorMetricRankItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,6 +86,16 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
       params.append('endDate', utcEndDate.toISOString());
     }
 
+    if (onlyActiveSubscribers) {
+      params.append('onlyActiveSubscribers', 'true');
+    }
+    if (contextFilter) {
+      params.append('context', contextFilter);
+    }
+    if (creatorContextFilter) {
+      params.append('creatorContext', creatorContextFilter);
+    }
+
     try {
       const response = await fetch(`${apiEndpoint}?${params.toString()}`);
       if (!response.ok) {
@@ -94,7 +110,7 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [apiEndpoint, dateRangeFilter, limit, title]);
+  }, [apiEndpoint, dateRangeFilter, limit, title, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchData();
@@ -212,6 +228,9 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
         dateRangeFilter={dateRangeFilter}
         dateRangeLabel={dateRangeLabel}
         metricLabel={metricLabel}
+        onlyActiveSubscribers={onlyActiveSubscribers}
+        contextFilter={contextFilter}
+        creatorContextFilter={creatorContextFilter}
       />
     </div>
   );

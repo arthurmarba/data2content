@@ -3,6 +3,14 @@ import { NextRequest } from 'next/server';
 import { fetchTopCreators, fetchTopCreatorsWithScore } from '@/app/lib/dataService/marketAnalysis/profilesService';
 import { DatabaseError } from '@/app/lib/errors';
 
+jest.mock('@/app/lib/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 jest.mock('@/app/lib/dataService/marketAnalysis/profilesService', () => ({
   fetchTopCreators: jest.fn(),
   fetchTopCreatorsWithScore: jest.fn(),
@@ -41,7 +49,13 @@ describe('API Route: top-creators', () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body).toEqual(sampleData);
-    expect(fetchTopCreators).toHaveBeenCalledWith({ context: 'tech', metricToSortBy: 'shares', days: 30, limit: 1 });
+    expect(fetchTopCreators).toHaveBeenCalledWith({
+      context: 'tech',
+      metricToSortBy: 'shares',
+      days: 30,
+      limit: 1,
+      offset: 0,
+    });
   });
 
   it('returns 400 on invalid metric', async () => {
@@ -58,7 +72,12 @@ describe('API Route: top-creators', () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body).toEqual(sampleScoreData);
-    expect(fetchTopCreatorsWithScore).toHaveBeenCalledWith({ context: 'geral', days: 30, limit: 1 });
+    expect(fetchTopCreatorsWithScore).toHaveBeenCalledWith({
+      context: 'geral',
+      days: 30,
+      limit: 1,
+      offset: 0,
+    });
     expect(fetchTopCreators).not.toHaveBeenCalled();
   });
 

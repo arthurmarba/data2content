@@ -22,9 +22,19 @@ interface PlatformSummaryKpisProps {
   apiPrefix?: string;
   startDate: string;
   endDate: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
-const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '/api/admin', startDate, endDate }) => {
+const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({
+  apiPrefix = '/api/admin',
+  startDate,
+  endDate,
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
+}) => {
   const [data, setData] = useState<PlatformSummaryData | null>(null);
   const [prevData, setPrevData] = useState<PlatformSummaryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -36,6 +46,9 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '
       setError(null);
       try {
         const params = new URLSearchParams({ startDate, endDate });
+        if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+        if (contextFilter) params.append('context', contextFilter);
+        if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
 
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -46,6 +59,9 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '
           startDate: prevStart.toISOString(),
           endDate: prevEnd.toISOString(),
         });
+        if (onlyActiveSubscribers) prevParams.append('onlyActiveSubscribers', 'true');
+        if (contextFilter) prevParams.append('context', contextFilter);
+        if (creatorContextFilter) prevParams.append('creatorContext', creatorContextFilter);
 
         const [response, prevResponse] = await Promise.all([
           fetch(`${apiPrefix}/dashboard/platform-summary?${params.toString()}`, { cache: 'no-store' }),
@@ -75,7 +91,7 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '
     };
 
     fetchData();
-  }, [startDate, endDate, apiPrefix]);
+  }, [startDate, endDate, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   const formatPercentage = (num?: number | null) => {
     if (num === null || typeof num === 'undefined') return null;

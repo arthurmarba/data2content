@@ -9,7 +9,7 @@ interface TimeSlotTopPostsModalProps {
   onClose: () => void;
   dayOfWeek: number;
   hour: number; // hora exata selecionada
-  filters: { timePeriod: string; format?: string; proposal?: string; context?: string; metric: string };
+  filters: { timePeriod: string; format?: string; proposal?: string; context?: string; metric: string; onlyActiveSubscribers?: boolean };
   userId?: string;
 }
 
@@ -94,6 +94,7 @@ const TimeSlotTopPostsModal: React.FC<TimeSlotTopPostsModalProps> = ({ isOpen, o
         if (filters.format) params.append('format', filters.format);
         if (filters.proposal) params.append('proposal', filters.proposal);
         if (filters.context) params.append('context', filters.context);
+        if (filters.onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
         const base = userId
           ? `/api/v1/users/${userId}/performance/time-distribution/posts`
           : '/api/v1/platform/performance/time-distribution/posts';

@@ -17,8 +17,22 @@ import {
   RankableCategory,
   CategoryRankingMetric
 } from './types';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 
 const SERVICE_TAG = '[dataService][rankingsService]';
+
+const resolveContextValues = (ctx?: string | string[]) => {
+  if (!ctx) return null;
+  const arr = Array.isArray(ctx) ? ctx : ctx.split(',').map(v => v.trim()).filter(Boolean);
+  const values: string[] = [];
+  arr.forEach(v => {
+    const ids = getCategoryWithSubcategoryIds(v, 'context');
+    const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+    values.push(...ids, ...labels);
+  });
+  return values.length ? Array.from(new Set(values)) : null;
+};
 
 // ... (as outras funções de ranking de criadores permanecem inalteradas) ...
 
@@ -32,7 +46,7 @@ export async function fetchTopEngagingCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchTopEngagingCreators]`;
-  const { dateRange, limit = 5, offset = 0, agencyId } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -42,9 +56,31 @@ export async function fetchTopEngagingCreators(
       'stats.reach': { $exists: true, $ne: null, $gt: 0 },
       'stats.total_interactions': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
@@ -105,22 +141,44 @@ export async function fetchMostProlificCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchMostProlificCreators]`;
-  const { dateRange, limit = 5, offset = 0, agencyId } = params;
-   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
     const matchStage: PipelineStage.Match['$match'] = {
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
       { $match: matchStage },
-      { $group: { _id: '$user', metricValue: { $sum: 1 } }},
+      { $group: { _id: '$user', metricValue: { $sum: 1 } } },
       {
         $lookup: {
           from: 'users',
@@ -163,9 +221,9 @@ export async function fetchMostProlificCreators(
 export async function fetchTopInteractionCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
-    const TAG = `${SERVICE_TAG}[fetchTopInteractionCreators]`;
-    const { dateRange, limit = 5, offset = 0, agencyId } = params;
-    logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+  const TAG = `${SERVICE_TAG}[fetchTopInteractionCreators]`;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
@@ -173,14 +231,36 @@ export async function fetchTopInteractionCreators(
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
       'stats.total_interactions': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
       { $match: matchStage },
-      { $group: { _id: '$user', metricValue: { $sum: '$stats.total_interactions' } }},
+      { $group: { _id: '$user', metricValue: { $sum: '$stats.total_interactions' } } },
       {
         $lookup: {
           from: 'users',
@@ -223,9 +303,9 @@ export async function fetchTopInteractionCreators(
 export async function fetchTopSharingCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
-    const TAG = `${SERVICE_TAG}[fetchTopSharingCreators]`;
-    const { dateRange, limit = 5, offset = 0, agencyId } = params;
-    logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+  const TAG = `${SERVICE_TAG}[fetchTopSharingCreators]`;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
@@ -233,14 +313,36 @@ export async function fetchTopSharingCreators(
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
       'stats.shares': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
       { $match: matchStage },
-      { $group: { _id: '$user', metricValue: { $sum: '$stats.shares' } }},
+      { $group: { _id: '$user', metricValue: { $sum: '$stats.shares' } } },
       {
         $lookup: {
           from: 'users',
@@ -282,7 +384,7 @@ export async function fetchAvgEngagementPerPostCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchAvgEngagementPerPostCreators]`;
-  const { dateRange, limit = 5, offset = 0, agencyId } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -291,9 +393,31 @@ export async function fetchAvgEngagementPerPostCreators(
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
       'stats.total_interactions': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
@@ -352,7 +476,7 @@ export async function fetchAvgReachPerPostCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchAvgReachPerPostCreators]`;
-  const { dateRange, limit = 5, offset = 0, agencyId } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -361,9 +485,31 @@ export async function fetchAvgReachPerPostCreators(
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
       'stats.reach': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
@@ -422,7 +568,7 @@ export async function fetchEngagementVariationCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchEngagementVariationCreators]`;
-  const { dateRange, limit = 5, offset = 0, agencyId } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   const periodMs = dateRange.endDate.getTime() - dateRange.startDate.getTime();
@@ -435,9 +581,29 @@ export async function fetchEngagementVariationCreators(
       postDate: { $gte: previousStart, $lte: dateRange.endDate },
       'stats.total_interactions': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
@@ -448,7 +614,7 @@ export async function fetchEngagementVariationCreators(
           currentTotal: {
             $sum: {
               $cond: [
-                { $and: [ { $gte: ['$postDate', dateRange.startDate] }, { $lte: ['$postDate', dateRange.endDate] } ] },
+                { $and: [{ $gte: ['$postDate', dateRange.startDate] }, { $lte: ['$postDate', dateRange.endDate] }] },
                 '$stats.total_interactions',
                 0
               ]
@@ -457,7 +623,7 @@ export async function fetchEngagementVariationCreators(
           previousTotal: {
             $sum: {
               $cond: [
-                { $and: [ { $gte: ['$postDate', previousStart] }, { $lte: ['$postDate', previousEnd] } ] },
+                { $and: [{ $gte: ['$postDate', previousStart] }, { $lte: ['$postDate', previousEnd] }] },
                 '$stats.total_interactions',
                 0
               ]
@@ -514,7 +680,7 @@ export async function fetchPerformanceConsistencyCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchPerformanceConsistencyCreators]`;
-  const { dateRange, limit = 5, offset = 0, agencyId } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -523,9 +689,31 @@ export async function fetchPerformanceConsistencyCreators(
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
       'stats.total_interactions': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
@@ -541,12 +729,12 @@ export async function fetchPerformanceConsistencyCreators(
       { $match: { postCount: { $gte: 5 }, avgInteractions: { $gte: 50 } } },
       {
         $addFields: {
-          cv: { $cond: [ { $eq: ['$avgInteractions', 0] }, null, { $divide: ['$stdDevInteractions', '$avgInteractions'] } ] }
+          cv: { $cond: [{ $eq: ['$avgInteractions', 0] }, null, { $divide: ['$stdDevInteractions', '$avgInteractions'] }] }
         }
       },
       {
         $addFields: {
-          metricValue: { $cond: [ { $eq: ['$cv', null] }, 0, { $divide: [1, { $add: ['$cv', 1] }] } ] }
+          metricValue: { $cond: [{ $eq: ['$cv', null] }, 0, { $divide: [1, { $add: ['$cv', 1] }] }] }
         }
       },
       {
@@ -590,7 +778,7 @@ export async function fetchReachPerFollowerCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchReachPerFollowerCreators]`;
-  const { dateRange, limit = 5, offset = 0, agencyId } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId, context, creatorContext } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -599,9 +787,31 @@ export async function fetchReachPerFollowerCreators(
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
       'stats.reach': { $exists: true, $ne: null }
     };
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    const contextVals = resolveContextValues(context);
+    if (contextVals) matchStage.context = { $in: contextVals };
+    const userQuery: any = {};
+    if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+    if (params.onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    let allowedUserIds: Types.ObjectId[] | null = null;
+
+    if (Object.keys(userQuery).length > 0) {
+      allowedUserIds = await UserModel.find(userQuery).distinct('_id');
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (allowedUserIds) {
+        allowedUserIds = allowedUserIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+      } else {
+        allowedUserIds = contextObjectIds;
+      }
+    }
+
+    if (allowedUserIds !== null) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const pipeline: PipelineStage[] = [
@@ -667,9 +877,11 @@ export async function fetchTopCategories(params: {
   category: RankableCategory;
   metric: CategoryRankingMetric;
   limit?: number;
+  onlyActiveSubscribers?: boolean;
+  context?: string | string[];
 }): Promise<ICategoryMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchTopCategories]`;
-  const { userId, dateRange, category, metric, limit = 5 } = params;
+  const { userId, dateRange, category, metric, limit = 5, onlyActiveSubscribers, context } = params;
   logger.info(`${TAG} Fetching top ${limit} for category '${category}' by metric '${metric}'. User filter: ${userId || 'Global'}`);
 
   try {
@@ -698,6 +910,40 @@ export async function fetchTopCategories(params: {
     // Adiciona o filtro de usuário apenas se um userId for fornecido
     if (userId) {
       matchFilter.user = new Types.ObjectId(userId);
+    } else if (onlyActiveSubscribers) {
+      const activeUserIds = await UserModel.find({ planStatus: 'active' }).distinct('_id');
+      matchFilter.user = { $in: activeUserIds };
+    }
+
+    if (!userId && context) {
+      const ctxArr = Array.isArray(context) ? context : [context];
+      const ctxVals: string[] = [];
+      ctxArr.forEach((ctx) => {
+        const ids = getCategoryWithSubcategoryIds(ctx, 'context');
+        const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+        ctxVals.push(...ids, ...labels);
+      });
+      const contextUsers = await MetricModel.distinct('user', { context: { $in: ctxVals } });
+      if (contextUsers.length === 0) {
+        return [];
+      }
+      matchFilter.user = matchFilter.user
+        ? { $in: (matchFilter.user as any).$in.filter((id: any) => contextUsers.some((c: any) => c.equals ? c.equals(id) : c === id)) }
+        : { $in: contextUsers };
+    }
+
+    if (!userId && (params as any).creatorContext) {
+      const cContext = (params as any).creatorContext;
+      const contextIds = await resolveCreatorIdsByContext(cContext, { onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (matchFilter.user) {
+        // Intersection
+        const existingIds = (matchFilter.user as any).$in;
+        matchFilter.user = { $in: existingIds.filter((id: any) => contextObjectIds.some(cid => cid.equals(id))) };
+      } else {
+        matchFilter.user = { $in: contextObjectIds };
+      }
     }
 
     // Define o acumulador de forma tipada para evitar erro de TS ao usar chave dinâmica

@@ -28,12 +28,18 @@ interface PlatformFollowerTrendChartProps {
   initialGranularity?: string;
   apiPrefix?: string;
   title?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
 const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
   initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily",
   apiPrefix = '/api/admin',
-  title = 'Evolução de Seguidores da Plataforma'
+  title = 'Evolução de Seguidores da Plataforma',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformFollowerTrendResponse['chartData']>([]);
@@ -48,7 +54,11 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
     setError(null);
     try {
       // Usa timePeriod do contexto e granularity do estado local
-      const apiUrl = `${apiPrefix}/dashboard/trends/followers?timePeriod=${timePeriod}&granularity=${granularity}`;
+      const params = new URLSearchParams({ timePeriod, granularity });
+      if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+      if (contextFilter) params.append('context', contextFilter);
+      if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+      const apiUrl = `${apiPrefix}/dashboard/trends/followers?${params.toString()}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -64,7 +74,7 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity, apiPrefix]); // Adicionado timePeriod às dependências
+  }, [timePeriod, granularity, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchData();

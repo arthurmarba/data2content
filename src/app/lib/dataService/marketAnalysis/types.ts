@@ -19,11 +19,11 @@ export interface ICategoryMetricRankItem {
 // --- Validação de Schema e Tipos de Contrato ---
 
 export const TopCreatorMetricEnum = z.enum([
-    'total_interactions',
-    'engagement_rate_on_reach',
-    'likes',
-    'shares',
-    'comments'
+  'total_interactions',
+  'engagement_rate_on_reach',
+  'likes',
+  'shares',
+  'comments'
 ]);
 export type TopCreatorMetric = z.infer<typeof TopCreatorMetricEnum>;
 
@@ -51,30 +51,30 @@ export type CategoryRankingMetric = z.infer<typeof CategoryRankingMetricEnum>;
 // --- Interfaces de Contrato ---
 
 export interface IMarketPerformanceResult {
-    avgEngagementRate?: number;
-    avgShares?: number;
-    avgLikes?: number;
-    postCount: number;
+  avgEngagementRate?: number;
+  avgShares?: number;
+  avgLikes?: number;
+  postCount: number;
 }
 
 export interface ITopCreatorResult {
-    creatorId: string;
-    creatorName?: string;
-    profilePictureUrl?: string;
-    metricValue: number;
-    totalInteractions: number;
-    postCount: number;
+  creatorId: string;
+  creatorName?: string;
+  profilePictureUrl?: string;
+  metricValue: number;
+  totalInteractions: number;
+  postCount: number;
 }
 
 export interface ICreatorProfile {
-    creatorId: string;
-    creatorName: string;
-    postCount: number;
-    avgLikes: number;
-    avgShares: number;
-    avgEngagementRate: number;
-    topPerformingContext: string;
-    profilePictureUrl?: string;
+  creatorId: string;
+  creatorName: string;
+  postCount: number;
+  avgLikes: number;
+  avgShares: number;
+  avgEngagementRate: number;
+  topPerformingContext: string;
+  profilePictureUrl?: string;
 }
 
 export interface IFetchMultipleCreatorProfilesArgs {
@@ -82,25 +82,27 @@ export interface IFetchMultipleCreatorProfilesArgs {
 }
 
 export interface FindGlobalPostsArgs {
-    context?: string | string[];
-    proposal?: string | string[];
-    format?: string | string[];
-    tone?: string | string[];
-    references?: string | string[];
-    /** Quando true, só retorna posts de criadores com opt-in da comunidade */
-    onlyOptIn?: boolean;
-    /** Texto de busca para título, descrição ou nome do criador */
-    searchText?: string;
-    minInteractions?: number;
-    limit?: number;
-    page?: number;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    dateRange?: {
-        startDate?: Date;
-        endDate?: Date;
-    };
-    agencyId?: string;
+  context?: string | string[];
+  proposal?: string | string[];
+  format?: string | string[];
+  tone?: string | string[];
+  references?: string | string[];
+  creatorContext?: string;
+  /** Quando true, só retorna posts de criadores com opt-in da comunidade */
+  onlyOptIn?: boolean;
+  /** Texto de busca para título, descrição ou nome do criador */
+  searchText?: string;
+  minInteractions?: number;
+  limit?: number;
+  page?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  dateRange?: {
+    startDate?: Date;
+    endDate?: Date;
+  };
+  agencyId?: string;
+  onlyActiveSubscribers?: boolean;
 }
 
 export interface IGlobalPostResult {
@@ -132,10 +134,10 @@ export interface IGlobalPostResult {
 }
 
 export interface IGlobalPostsPaginatedResult {
-    posts: IGlobalPostResult[];
-    totalPosts: number;
-    page: number;
-    limit: number;
+  posts: IGlobalPostResult[];
+  totalPosts: number;
+  page: number;
+  limit: number;
 }
 
 export interface IFetchDashboardCreatorsListParams {
@@ -152,6 +154,7 @@ export interface IFetchDashboardCreatorsListParams {
     minFollowers?: number;
     startDate?: string;
     endDate?: string;
+    creatorContext?: string;
   };
 }
 
@@ -176,6 +179,9 @@ export interface IFetchDashboardOverallContentStatsFilters {
     endDate?: Date;
   };
   agencyId?: string;
+  onlyActiveSubscribers?: boolean;
+  context?: string | string[];
+  creatorContext?: string;
 }
 
 export interface IDashboardOverallStats {
@@ -192,29 +198,29 @@ export interface IDashboardOverallStats {
 
 
 export interface IFetchTucaRadarEffectivenessArgs {
-    alertType?: string;
-    periodDays: number;
+  alertType?: string;
+  periodDays: number;
 }
 
 export interface ITucaRadarEffectivenessResult {
-    alertType: string;
-    positiveInteractionRate: number;
-    totalAlerts: number;
+  alertType: string;
+  positiveInteractionRate: number;
+  totalAlerts: number;
 }
 
 export interface IFetchCohortComparisonArgs {
-    metric: string;
-    cohorts: { filterBy: 'planStatus' | 'inferredExpertiseLevel'; value: string }[];
-    dateRange?: {
-        startDate: Date;
-        endDate: Date;
-    };
+  metric: string;
+  cohorts: { filterBy: 'planStatus' | 'inferredExpertiseLevel'; value: string }[];
+  dateRange?: {
+    startDate: Date;
+    endDate: Date;
+  };
 }
 
 export interface ICohortComparisonResult {
-    cohortName: string;
-    avgMetricValue: number;
-    userCount: number;
+  cohortName: string;
+  avgMetricValue: number;
+  userCount: number;
 }
 
 export interface IRankingCreatorInfo {
@@ -242,6 +248,9 @@ export interface IFetchCreatorRankingParams {
   limit?: number;
   offset?: number;
   agencyId?: string;
+  onlyActiveSubscribers?: boolean;
+  context?: string | string[];
+  creatorContext?: string;
 }
 
 export interface IFetchCreatorTimeSeriesArgs {
@@ -294,8 +303,10 @@ export type TopMoverSortBy =
   | 'percentageChange_decrease';
 
 export interface ITopMoverCreatorFilters {
-    planStatus?: string[];
-    inferredExpertiseLevel?: string[];
+  planStatus?: string[];
+  inferredExpertiseLevel?: string[];
+  context?: string;
+  creatorContext?: string;
 }
 
 export interface IFetchTopMoversArgs {
@@ -308,6 +319,7 @@ export interface IFetchTopMoversArgs {
   creatorFilters?: ITopMoverCreatorFilters;
   contentFilters?: ISegmentDefinition;
   agencyId?: string;
+  onlyActiveSubscribers?: boolean;
 }
 
 export interface ITopMoverResult {
@@ -340,4 +352,23 @@ export interface IPlatformConversionMetrics {
   numberOfPostsConsideredForRate: number;
   accountsEngagedInPeriod: number;
   followersGainedInPeriod: number;
+}
+
+export interface IPlatformSummaryArgs {
+  dateRange?: {
+    startDate: Date;
+    endDate: Date;
+  };
+  agencyId?: string;
+  onlyActiveSubscribers?: boolean;
+  context?: string | string[];
+  creatorContext?: string;
+}
+
+export interface IPlatformSummaryData {
+  totalCreators: number;
+  pendingCreators: number;
+  activeCreatorsInPeriod: number;
+  averageEngagementRateInPeriod: number;
+  averageReachInPeriod: number;
 }

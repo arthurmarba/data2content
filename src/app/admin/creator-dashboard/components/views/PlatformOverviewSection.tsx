@@ -24,9 +24,18 @@ const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
 interface Props {
   apiPrefix?: string;
   followerTrendTitle?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
-const PlatformOverviewSection: React.FC<Props> = ({ apiPrefix = '/api/admin', followerTrendTitle = 'Evolução de Seguidores da Plataforma' }) => {
+const PlatformOverviewSection: React.FC<Props> = ({
+  apiPrefix = '/api/admin',
+  followerTrendTitle = 'Evolução de Seguidores da Plataforma',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
+}) => {
   const { timePeriod } = useGlobalTimePeriod();
   const comparisonPeriod = TIME_PERIOD_TO_COMPARISON[timePeriod] || "month_vs_previous";
 
@@ -36,13 +45,16 @@ const PlatformOverviewSection: React.FC<Props> = ({ apiPrefix = '/api/admin', fo
       Visão Geral da Plataforma <GlobalPeriodIndicator />
     </h2>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-      <TotalActiveCreatorsKpi apiPrefix={apiPrefix} />
+      <TotalActiveCreatorsKpi apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
       <PlatformComparativeKpi
         apiPrefix={apiPrefix}
         kpiName="platformFollowerGrowth"
         title="Crescimento de Seguidores"
         comparisonPeriod={comparisonPeriod}
         tooltip="Crescimento total de seguidores na plataforma comparado ao período anterior selecionado."
+        onlyActiveSubscribers={onlyActiveSubscribers}
+        contextFilter={contextFilter}
+        creatorContextFilter={creatorContextFilter}
       />
       <PlatformComparativeKpi
         apiPrefix={apiPrefix}
@@ -50,15 +62,18 @@ const PlatformOverviewSection: React.FC<Props> = ({ apiPrefix = '/api/admin', fo
         title="Engajamento Total"
         comparisonPeriod={comparisonPeriod}
         tooltip="Soma total de interações em todos os posts da plataforma comparado ao período anterior selecionado."
+        onlyActiveSubscribers={onlyActiveSubscribers}
+        contextFilter={contextFilter}
+        creatorContextFilter={creatorContextFilter}
       />
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-      <PlatformFollowerTrendChart apiPrefix={apiPrefix} title={followerTrendTitle} />
-      <PlatformFollowerChangeChart apiPrefix={apiPrefix} />
+      <PlatformFollowerTrendChart apiPrefix={apiPrefix} title={followerTrendTitle} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+      <PlatformFollowerChangeChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-      <PlatformReachEngagementTrendChart apiPrefix={apiPrefix} />
-      <PlatformMovingAverageEngagementChart apiPrefix={apiPrefix} />
+      <PlatformReachEngagementTrendChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+      <PlatformMovingAverageEngagementChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
     </div>
 
     {/* --- CORREÇÃO APLICADA AQUI --- */}

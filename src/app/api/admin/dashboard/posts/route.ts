@@ -25,15 +25,17 @@ const querySchema = z.object({
   format: z.string().optional(),
   tone: z.string().optional(), // NOVO: Filtro por tom
   references: z.string().optional(), // NOVO: Filtro por referências
+  creatorContext: z.string().optional(),
   searchText: z.string().optional(),
   minInteractions: z.coerce.number().int().min(0).optional(),
+  onlyActiveSubscribers: z.enum(['true', 'false']).optional().transform(val => val === 'true'),
   startDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),
 }).refine(data => {
-    if (data.startDate && data.endDate && data.startDate > data.endDate) {
-        return false;
-    }
-    return true;
+  if (data.startDate && data.endDate && data.startDate > data.endDate) {
+    return false;
+  }
+  return true;
 }, { message: "startDate cannot be after endDate" });
 
 // Real Admin Session Validation
@@ -85,15 +87,15 @@ export async function GET(req: NextRequest) {
     // e passados para o serviço de busca.
     const serviceArgs: FindGlobalPostsArgs = { ...otherParams };
     if (startDate || endDate) {
-        serviceArgs.dateRange = {};
-        if (startDate) serviceArgs.dateRange.startDate = startDate;
-        if (endDate) serviceArgs.dateRange.endDate = endDate;
+      serviceArgs.dateRange = {};
+      if (startDate) serviceArgs.dateRange.startDate = startDate;
+      if (endDate) serviceArgs.dateRange.endDate = endDate;
     }
-    
+
     Object.keys(serviceArgs).forEach(key => {
-        if (serviceArgs[key as keyof FindGlobalPostsArgs] === undefined) {
-            delete serviceArgs[key as keyof FindGlobalPostsArgs];
-        }
+      if (serviceArgs[key as keyof FindGlobalPostsArgs] === undefined) {
+        delete serviceArgs[key as keyof FindGlobalPostsArgs];
+      }
     });
 
 
@@ -111,7 +113,7 @@ export async function GET(req: NextRequest) {
       return apiError(`Erro de banco de dados: ${error.message}`, 500);
     }
     if (error instanceof z.ZodError) {
-        return apiError(`Erro de validação: ${error.errors.map(e => e.message).join(', ')}`, 400);
+      return apiError(`Erro de validação: ${error.errors.map(e => e.message).join(', ')}`, 400);
     }
     return apiError('Ocorreu um erro interno no servidor.', 500);
   }

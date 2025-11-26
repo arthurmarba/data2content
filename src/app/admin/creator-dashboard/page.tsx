@@ -17,6 +17,8 @@ import UserDetailView from './components/views/UserDetailView';
 import CreatorQuickSearch from './components/CreatorQuickSearch';
 import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 import GlobalPostsExplorer from './GlobalPostsExplorer';
+import CreatorHighlightsSection from './components/views/CreatorHighlightsSection';
+import { contextCategories } from '@/app/lib/classification';
 
 // --- Tipos e Funções Auxiliares ---
 type TimePeriod = 'last_7_days' | 'last_30_days' | 'last_90_days';
@@ -38,6 +40,9 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
   const [selectedUserPhotoUrl, setSelectedUserPhotoUrl] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [onlyActiveSubscribers, setOnlyActiveSubscribers] = useState(false);
+  const [selectedContext, setSelectedContext] = useState<string>('');
+  const [selectedCreatorContext, setSelectedCreatorContext] = useState<string>('');
   const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
   const router = useRouter();
   const pathname = usePathname();
@@ -116,6 +121,47 @@ const AdminCreatorDashboardContent: React.FC = () => {
                     { value: "last_90_days", label: "Últimos 90 dias" },
                   ]}
                 />
+                <div className="min-w-[180px]">
+                  <label htmlFor="global-context" className="block text-xs font-semibold text-gray-600 mb-1">
+                    Nicho (Contexto)
+                  </label>
+                  <select
+                    id="global-context"
+                    value={selectedContext}
+                    onChange={(e) => setSelectedContext(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+                  >
+                    <option value="">Todos os nichos</option>
+                    {contextCategories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="min-w-[200px]">
+                  <label htmlFor="creator-context" className="block text-xs font-semibold text-gray-600 mb-1">
+                    Nicho do criador
+                  </label>
+                  <select
+                    id="creator-context"
+                    value={selectedCreatorContext}
+                    onChange={(e) => setSelectedCreatorContext(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white shadow-sm"
+                  >
+                    <option value="">Todos os nichos</option>
+                    {contextCategories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={onlyActiveSubscribers}
+                    onChange={(e) => setOnlyActiveSubscribers(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Apenas assinantes ativos (Stripe)
+                </label>
               </div>
             </div>
           </div>
@@ -123,7 +169,13 @@ const AdminCreatorDashboardContent: React.FC = () => {
 
         <main className="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <section id="platform-summary" className="mb-8">
-              <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
+              <PlatformSummaryKpis
+                startDate={startDate}
+                endDate={endDate}
+                onlyActiveSubscribers={onlyActiveSubscribers}
+                contextFilter={selectedContext || undefined}
+                creatorContextFilter={selectedCreatorContext || undefined}
+              />
             </section>
 
             <AnimatePresence>
@@ -134,12 +186,45 @@ const AdminCreatorDashboardContent: React.FC = () => {
                   exit={{ opacity: 0 }}
                   className="space-y-8"
                 >
-                  <CreatorRankingSection rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
-                  <PlatformContentAnalysisSection startDate={startDate} endDate={endDate} />
-                  <CategoryRankingsSection startDate={startDate} endDate={endDate} selectedUserId={selectedUserId} />
-                  <PlatformOverviewSection />
-                  <TopMoversSection />
-                  <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />
+                  <CreatorRankingSection
+                  rankingDateRange={rankingDateRange}
+                  rankingDateLabel={rankingDateLabel}
+                  onlyActiveSubscribers={onlyActiveSubscribers}
+                  contextFilter={selectedContext || undefined}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                <PlatformContentAnalysisSection
+                  startDate={startDate}
+                  endDate={endDate}
+                  onlyActiveSubscribers={onlyActiveSubscribers}
+                  contextFilter={selectedContext || undefined}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                <CategoryRankingsSection
+                  startDate={startDate}
+                  endDate={endDate}
+                  selectedUserId={selectedUserId}
+                  onlyActiveSubscribers={onlyActiveSubscribers}
+                  contextFilter={selectedContext || undefined}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                <CreatorHighlightsSection creatorContextFilter={selectedCreatorContext || undefined} />
+                <PlatformOverviewSection
+                  onlyActiveSubscribers={onlyActiveSubscribers}
+                  contextFilter={selectedContext || undefined}
+                  creatorContextFilter={selectedCreatorContext || undefined}
+                />
+                  <TopMoversSection
+                    onlyActiveSubscribers={onlyActiveSubscribers}
+                    contextFilter={selectedContext || undefined}
+                    creatorContextFilter={selectedCreatorContext || undefined}
+                  />
+                  <GlobalPostsExplorer
+                    dateRangeFilter={{ startDate, endDate }}
+                    forceOnlyActiveSubscribers={onlyActiveSubscribers}
+                    forceContext={selectedContext ? [selectedContext] : undefined}
+                    creatorContextFilter={selectedCreatorContext || undefined}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>

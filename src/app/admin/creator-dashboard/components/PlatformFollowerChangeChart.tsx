@@ -19,9 +19,12 @@ interface PlatformFollowerChangeResponse {
 
 interface PlatformFollowerChangeChartProps {
   apiPrefix?: string;
+  onlyActiveSubscribers?: boolean;
+  contextFilter?: string;
+  creatorContextFilter?: string;
 }
 
-const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = ({ apiPrefix = '/api/admin' }) => {
+const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = ({ apiPrefix = '/api/admin', onlyActiveSubscribers = false, contextFilter, creatorContextFilter }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformFollowerChangeResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
@@ -32,7 +35,11 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `${apiPrefix}/dashboard/trends/follower-change?timePeriod=${timePeriod}`;
+      const params = new URLSearchParams({ timePeriod });
+      if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+      if (contextFilter) params.append('context', contextFilter);
+      if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+      const apiUrl = `${apiPrefix}/dashboard/trends/follower-change?${params.toString()}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -48,7 +55,7 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, apiPrefix]);
+  }, [timePeriod, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchData();

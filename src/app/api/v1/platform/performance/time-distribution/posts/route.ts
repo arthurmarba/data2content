@@ -4,6 +4,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
+import UserModel from '@/app/models/User';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
   const hourParam = searchParams.get('hour');
   const hour = hourParam !== null ? parseInt(hourParam, 10) : NaN;
   const limit = parseInt(searchParams.get('limit') || '5', 10);
+  const onlyActiveSubscribers = searchParams.get('onlyActiveSubscribers') === 'true';
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
@@ -44,20 +46,24 @@ export async function GET(request: Request) {
     const match: any = {
       postDate: { $gte: startDate, $lte: endDate },
     };
+    if (onlyActiveSubscribers) {
+      const activeUserIds = await UserModel.find({ planStatus: 'active' }).distinct('_id');
+      match.user = { $in: activeUserIds };
+    }
     if (format) {
       const ids = getCategoryWithSubcategoryIds(format, 'format');
       const labels = ids.map(id => getCategoryById(id, 'format')?.label || id);
-      match.format = { $in: labels };
+      match.format = { $in: [...ids, ...labels] };
     }
     if (proposal) {
       const ids = getCategoryWithSubcategoryIds(proposal, 'proposal');
       const labels = ids.map(id => getCategoryById(id, 'proposal')?.label || id);
-      match.proposal = { $in: labels };
+      match.proposal = { $in: [...ids, ...labels] };
     }
     if (context) {
       const ids = getCategoryWithSubcategoryIds(context, 'context');
       const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
-      match.context = { $in: labels };
+      match.context = { $in: [...ids, ...labels] };
     }
 
     const pipeline: any[] = [

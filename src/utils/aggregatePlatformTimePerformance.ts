@@ -13,6 +13,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
 import { getCategoryWithSubcategoryIds, getCategoryById } from "@/app/lib/classification";
+import { resolveCreatorIdsByContext } from "@/app/lib/creatorContextHelper";
 
 export interface TimeBucket {
   dayOfWeek: number;
@@ -31,6 +32,7 @@ export interface PerformanceFilters {
   format?: string;
   proposal?: string;
   context?: string;
+  creatorContext?: string;
 }
 
 export async function aggregatePlatformTimePerformance(
@@ -38,7 +40,8 @@ export async function aggregatePlatformTimePerformance(
   metricField: string,
   filters: PerformanceFilters = {},
   agencyId?: string,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  onlyActiveSubscribers?: boolean
 ): Promise<PlatformTimePerformance> {
   const today = new Date(referenceDate);
   const endDate = new Date(
@@ -66,12 +69,31 @@ export async function aggregatePlatformTimePerformance(
       },
     };
 
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      if (agencyUserIds.length === 0) {
+    if (agencyId || onlyActiveSubscribers) {
+      const query: any = {};
+      if (agencyId) query.agency = new Types.ObjectId(agencyId);
+      if (onlyActiveSubscribers) query.planStatus = 'active';
+      const userIds = await UserModel.find(query).distinct('_id');
+      if (userIds.length === 0) {
         return result;
       }
-      (matchStage.$match as any).user = { $in: agencyUserIds };
+      (matchStage.$match as any).user = { $in: userIds };
+    }
+
+    if (filters.creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(filters.creatorContext, { onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map((id) => new Types.ObjectId(id));
+      if (!contextObjectIds.length) {
+        return result;
+      }
+
+      const currentUserFilter = (matchStage.$match as any).user;
+      if (currentUserFilter && currentUserFilter.$in) {
+        const existingIds = currentUserFilter.$in as Types.ObjectId[];
+        (matchStage.$match as any).user = { $in: existingIds.filter((id) => contextObjectIds.some((cid) => cid.equals(id))) };
+      } else {
+        (matchStage.$match as any).user = { $in: contextObjectIds };
+      }
     }
 
     // Filtros traduzidos de IDs para Labels (compatível com arrays)

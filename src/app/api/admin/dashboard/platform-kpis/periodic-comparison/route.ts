@@ -7,6 +7,7 @@ import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneri
 import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { getAdminSession } from '@/lib/getAdminSession';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
 export const dynamic = 'force-dynamic';
 
 
@@ -88,6 +89,8 @@ export async function GET(
   }
   const { searchParams } = new URL(request.url);
   const comparisonPeriodParam = searchParams.get('comparisonPeriod');
+  const onlyActiveSubscribers = searchParams.get('onlyActiveSubscribers') === 'true';
+  const contextParam = searchParams.get('context');
 
   const comparisonConfig = comparisonPeriodParam && ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
     ? ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
@@ -110,7 +113,32 @@ export async function GET(
 
   try {
     await connectToDatabase();
-    const platformUsers = await UserModel.find().select('_id').lean();
+    const userQuery: any = {};
+    if (onlyActiveSubscribers) userQuery.planStatus = 'active';
+
+    if (contextParam) {
+      const ids = getCategoryWithSubcategoryIds(contextParam, 'context');
+      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+      const userIdsFromContext = await MetricModel.distinct('user', { context: { $in: [...ids, ...labels] } });
+      if (userIdsFromContext.length === 0) {
+        const emptyKpi: KPIComparisonData = { currentValue: 0, previousValue: 0, percentageChange: 0, chartData: [{ name: periodNamePrevious, value:0}, { name: periodNameCurrent, value:0}]};
+        return NextResponse.json({
+          platformFollowerGrowth: emptyKpi,
+          platformTotalEngagement: emptyKpi,
+          platformPostingFrequency: emptyKpi,
+          platformActiveCreators: emptyKpi,
+          insightSummary: {
+              platformFollowerGrowth: "Nenhum usuário encontrado para o nicho selecionado.",
+              platformTotalEngagement: "Nenhum usuário encontrado para o nicho selecionado.",
+              platformPostingFrequency: "Nenhum usuário encontrado para o nicho selecionado.",
+              platformActiveCreators: "Nenhum usuário encontrado para o nicho selecionado."
+          }
+        }, { status: 200 });
+      }
+      userQuery._id = { $in: userIdsFromContext };
+    }
+
+    const platformUsers = await UserModel.find(userQuery).select('_id').lean();
 
     if (!platformUsers || platformUsers.length === 0) {
       const emptyKpi: KPIComparisonData = { currentValue: 0, previousValue: 0, percentageChange: 0, chartData: [{name: periodNamePrevious, value:0}, {name: periodNameCurrent, value:0}]};
@@ -245,4 +273,3 @@ export async function GET(
      }, { status: 500 });
   }
 }
-

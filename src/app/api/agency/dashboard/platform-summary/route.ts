@@ -13,6 +13,7 @@ const TAG = '/api/agency/dashboard/platform-summary';
 const querySchema = z.object({
   startDate: z.string().datetime({ message: 'Invalid start date format. Expected ISO 8601 string.' }).optional(),
   endDate: z.string().datetime({ message: 'Invalid end date format. Expected ISO 8601 string.' }).optional(),
+  creatorContext: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.startDate && !data.endDate) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'endDate is required if startDate is provided.', path: ['endDate'] });
@@ -45,10 +46,12 @@ export async function GET(req: NextRequest) {
   const queryParamsFromUrl = {
     startDate: searchParams.get('startDate') || undefined,
     endDate: searchParams.get('endDate') || undefined,
+    creatorContext: searchParams.get('creatorContext') || undefined,
   };
   const definedQueryParams: any = {};
   if (queryParamsFromUrl.startDate) definedQueryParams.startDate = queryParamsFromUrl.startDate;
   if (queryParamsFromUrl.endDate) definedQueryParams.endDate = queryParamsFromUrl.endDate;
+  if (queryParamsFromUrl.creatorContext) definedQueryParams.creatorContext = queryParamsFromUrl.creatorContext;
 
   const validationResult = querySchema.safeParse(definedQueryParams);
   if (!validationResult.success) {
@@ -68,7 +71,11 @@ export async function GET(req: NextRequest) {
 
   try {
     // A partir daqui, o TypeScript sabe que session.user.agencyId é uma string.
-    const summaryData = await fetchPlatformSummary({ dateRange, agencyId: session.user.agencyId });
+    const summaryData = await fetchPlatformSummary({
+      dateRange,
+      agencyId: session.user.agencyId,
+      ...(validationResult.data.creatorContext ? { creatorContext: validationResult.data.creatorContext } : {}),
+    });
     return NextResponse.json(summaryData, { status: 200, headers: noStore });
   } catch (error: any) {
     logger.error(`${TAG} Error in request handler:`, { message: error.message, stack: error.stack });

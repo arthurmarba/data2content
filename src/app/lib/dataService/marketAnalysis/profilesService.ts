@@ -12,6 +12,8 @@ import { DatabaseError } from '@/app/lib/errors';
 import { ICreatorProfile, ITopCreatorResult, TopCreatorMetric } from './types';
 import { createBasePipeline } from './helpers';
 import { subDays } from 'date-fns';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 
 const SERVICE_TAG = '[dataService][profilesService]';
 
@@ -87,8 +89,17 @@ export async function getCreatorProfile(args: { name: string }): Promise<ICreato
  * @param args - Arguments for fetching top creators.
  * @returns {Promise<ITopCreatorResult[]>} A list of top creators.
  */
-export async function fetchTopCreators(args: { context: string, metricToSortBy: TopCreatorMetric, days: number, limit: number, offset?: number, agencyId?: string }): Promise<ITopCreatorResult[]> {
-  const { context, metricToSortBy, days, limit, offset = 0, agencyId } = args;
+export async function fetchTopCreators(args: {
+  context: string;
+  metricToSortBy: TopCreatorMetric;
+  days: number;
+  limit: number;
+  offset?: number;
+  agencyId?: string;
+  onlyActiveSubscribers?: boolean;
+  creatorContext?: string;
+}): Promise<ITopCreatorResult[]> {
+  const { context, metricToSortBy, days, limit, offset = 0, agencyId, onlyActiveSubscribers, creatorContext } = args;
   const TAG = `${SERVICE_TAG}[fetchTopCreators]`;
   try {
     await connectToDatabase();
@@ -96,11 +107,31 @@ export async function fetchTopCreators(args: { context: string, metricToSortBy: 
     const sortField = `stats.${metricToSortBy}`;
     const matchStage: PipelineStage.Match['$match'] = { postDate: { $gte: sinceDate }, [sortField]: { $exists: true, $ne: null, $gt: 0 } };
     if (context && !['geral', 'todos', 'all'].includes(context.toLowerCase())) {
-        matchStage.context = { $regex: context, $options: 'i' };
+        const ids = getCategoryWithSubcategoryIds(context, 'context');
+        const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+        matchStage.context = { $in: [...ids, ...labels] };
     }
-    if (agencyId) {
-        const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-        matchStage.user = { $in: agencyUserIds };
+    let allowedUserIds: Types.ObjectId[] | null = null;
+    if (onlyActiveSubscribers || agencyId) {
+      const userQuery: any = {};
+      if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+      if (onlyActiveSubscribers) userQuery.planStatus = 'active';
+      const filteredUserIds = await UserModel.find(userQuery).distinct('_id');
+      if (!filteredUserIds.length) return [];
+      allowedUserIds = filteredUserIds as Types.ObjectId[];
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map((id) => new Types.ObjectId(id));
+      if (!contextObjectIds.length) return [];
+      allowedUserIds = allowedUserIds
+        ? allowedUserIds.filter((id) => contextObjectIds.some((cid) => cid.equals(id)))
+        : contextObjectIds;
+    }
+
+    if (allowedUserIds) {
+      matchStage.user = { $in: allowedUserIds };
     }
     const aggregationPipeline: PipelineStage[] = [
       { $match: matchStage },
@@ -131,8 +162,16 @@ export async function fetchTopCreators(args: { context: string, metricToSortBy: 
 /**
  * Aggregates multiple engagement metrics to compute a composite score for each creator.
  */
-export async function fetchTopCreatorsWithScore(args: { context?: string; days: number; limit: number; offset?: number; agencyId?: string }) {
-  const { context, days, limit, offset = 0, agencyId } = args;
+export async function fetchTopCreatorsWithScore(args: {
+  context?: string;
+  days: number;
+  limit: number;
+  offset?: number;
+  agencyId?: string;
+  onlyActiveSubscribers?: boolean;
+  creatorContext?: string;
+}) {
+  const { context, days, limit, offset = 0, agencyId, onlyActiveSubscribers, creatorContext } = args;
   const TAG = `${SERVICE_TAG}[fetchTopCreatorsWithScore]`;
 
   try {
@@ -141,11 +180,31 @@ export async function fetchTopCreatorsWithScore(args: { context?: string; days: 
 
     const matchStage: PipelineStage.Match['$match'] = { postDate: { $gte: sinceDate } };
     if (context && !['geral', 'todos', 'all'].includes(context.toLowerCase())) {
-      matchStage.context = { $regex: context, $options: 'i' };
+      const ids = getCategoryWithSubcategoryIds(context, 'context');
+      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+      matchStage.context = { $in: [...ids, ...labels] };
     }
-    if (agencyId) {
-      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      matchStage.user = { $in: agencyUserIds };
+    let allowedUserIds: Types.ObjectId[] | null = null;
+    if (onlyActiveSubscribers || agencyId) {
+      const userQuery: any = {};
+      if (agencyId) userQuery.agency = new Types.ObjectId(agencyId);
+      if (onlyActiveSubscribers) userQuery.planStatus = 'active';
+      const filteredUserIds = await UserModel.find(userQuery).distinct('_id');
+      if (!filteredUserIds.length) return [];
+      allowedUserIds = filteredUserIds as Types.ObjectId[];
+    }
+
+    if (creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map((id) => new Types.ObjectId(id));
+      if (!contextObjectIds.length) return [];
+      allowedUserIds = allowedUserIds
+        ? allowedUserIds.filter((id) => contextObjectIds.some((cid) => cid.equals(id)))
+        : contextObjectIds;
+    }
+
+    if (allowedUserIds) {
+      matchStage.user = { $in: allowedUserIds };
     }
 
     const aggregationPipeline: PipelineStage[] = [

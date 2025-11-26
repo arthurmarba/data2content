@@ -17,6 +17,8 @@ const querySchema = z.object({
   endDate: z.string().datetime({ message: 'Invalid endDate format.' }).transform(val => new Date(val)),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
   offset: z.coerce.number().int().min(0).optional().default(0),
+  onlyActiveSubscribers: z.enum(['true', 'false']).optional().transform(val => val === 'true'),
+  context: z.string().optional(),
 }).refine(data => data.startDate <= data.endDate, {
   message: 'startDate cannot be after endDate.',
   path: ['endDate'],
@@ -55,12 +57,14 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { startDate, endDate, limit, offset } = validationResult.data;
+    const { startDate, endDate, limit, offset, onlyActiveSubscribers, context } = validationResult.data;
 
     const params: IFetchCreatorRankingParams = {
       dateRange: { startDate, endDate },
       limit,
       offset,
+      ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+      ...(context ? { context } : {}),
     };
 
     const results = await fetchPerformanceConsistencyCreators(params);

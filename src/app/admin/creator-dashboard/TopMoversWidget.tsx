@@ -84,7 +84,12 @@ const formatDisplayPercentageTM = (num?: number | null): string => {
 };
 
 
-export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefix?: string }) {
+export default function TopMoversWidget({
+  apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContext,
+}: { apiPrefix?: string; onlyActiveSubscribers?: boolean; contextFilter?: string; creatorContext?: string }) {
   const [entityType, setEntityType] = useState<TopMoverEntityType>('content');
   const [metric, setMetric] = useState<TopMoverMetric>('cumulativeViews');
   const [previousPeriod, setPreviousPeriod] = useState<PeriodState>(initialPeriodState);
@@ -189,12 +194,16 @@ export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefi
       },
       topN,
       sortBy,
+      ...(onlyActiveSubscribers ? { onlyActiveSubscribers: true } : {}),
     };
 
-    if (entityType === 'content' && Object.keys(contentFilters).length > 0) {
-      apiPayload.contentFilters = contentFilters;
+    if (entityType === 'content') {
+      apiPayload.contentFilters = { ...contentFilters };
+      if (contextFilter) apiPayload.contentFilters.context = contextFilter;
     } else if (entityType === 'creator') {
-      apiPayload.creatorFilters = undefined;
+      apiPayload.creatorFilters = {};
+      if (contextFilter) apiPayload.creatorFilters.context = contextFilter;
+      if (creatorContext) apiPayload.creatorFilters.creatorContext = creatorContext;
     }
 
     try {
@@ -217,7 +226,7 @@ export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefi
     } finally {
       setIsLoading(false);
     }
-  }, [entityType, metric, previousPeriod, currentPeriod, topN, sortBy, contentFilters, apiPrefix]);
+  }, [entityType, metric, previousPeriod, currentPeriod, topN, sortBy, contentFilters, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContext]);
 
   useEffect(() => {
     if (!previousPeriod.startDate || !currentPeriod.startDate) return;

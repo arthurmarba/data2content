@@ -11,11 +11,15 @@ import UserModel from '@/app/models/User';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
 import {
-    IFetchDashboardCreatorsListParams,
-    IDashboardCreator,
-    IFetchDashboardOverallContentStatsFilters,
-    IDashboardOverallStats
+  IFetchDashboardCreatorsListParams,
+  IDashboardCreator,
+  IFetchDashboardOverallContentStatsFilters,
+  IDashboardOverallStats,
+  IPlatformSummaryArgs,
+  IPlatformSummaryData
 } from './types';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 
 const SERVICE_TAG = '[dataService][dashboardService]';
 
@@ -63,9 +67,17 @@ export async function fetchDashboardCreatorsList(
     if (filters.expertiseLevel && Array.isArray(filters.expertiseLevel) && filters.expertiseLevel.length > 0) {
       userMatchStage.inferredExpertiseLevel = { $in: filters.expertiseLevel };
     }
-    
+    if (filters.creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(filters.creatorContext, { onlyActiveSubscribers: false });
+      if (contextIds.length === 0) {
+        userMatchStage._id = { $in: [] };
+      } else {
+        userMatchStage._id = { $in: contextIds.map(id => new Types.ObjectId(id)) };
+      }
+    }
+
     if (Object.keys(userMatchStage).length > 0) {
-        aggregationPipeline.push({ $match: userMatchStage });
+      aggregationPipeline.push({ $match: userMatchStage });
     }
 
     aggregationPipeline.push(
@@ -104,10 +116,10 @@ export async function fetchDashboardCreatorsList(
 
     const postMetricsMatchStage: PipelineStage.Match['$match'] = {};
     if (typeof filters.minTotalPosts === 'number') {
-        postMetricsMatchStage.totalPosts = { $gte: filters.minTotalPosts };
+      postMetricsMatchStage.totalPosts = { $gte: filters.minTotalPosts };
     }
     if (Object.keys(postMetricsMatchStage).length > 0) {
-        aggregationPipeline.push({ $match: postMetricsMatchStage });
+      aggregationPipeline.push({ $match: postMetricsMatchStage });
     }
 
     const countPipeline = [...aggregationPipeline, { $count: 'totalCreators' }];
@@ -192,13 +204,74 @@ export async function fetchDashboardOverallContentStats(
 
   try {
     await connectToDatabase();
-    const { dateRange, agencyId } = params;
+    const { dateRange, agencyId, context } = params;
 
     const matchStage: PipelineStage.Match['$match'] = {};
     let agencyUserIds: Types.ObjectId[] | undefined;
     if (agencyId) {
       agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
       matchStage.user = { $in: agencyUserIds };
+    }
+    if (context) {
+      const ctxArr = Array.isArray(context) ? context : [context];
+      const ctxVals: string[] = [];
+      ctxArr.forEach(ctx => {
+        const ids = getCategoryWithSubcategoryIds(ctx, 'context');
+        const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+        ctxVals.push(...ids, ...labels);
+      });
+      const metricContextUsers = await (agencyUserIds
+        ? MetricModel.distinct('user', { user: { $in: agencyUserIds }, context: { $in: ctxVals } })
+        : MetricModel.distinct('user', { context: { $in: ctxVals } }));
+      const finalUserIds = metricContextUsers as Types.ObjectId[];
+      if (!finalUserIds.length) {
+        return {
+          totalPlatformPosts: 0,
+          averagePlatformEngagementRate: 0,
+          totalContentCreators: 0,
+          breakdownByFormat: [],
+          breakdownByProposal: [],
+          breakdownByContext: [],
+          breakdownByTone: [],
+          breakdownByReferences: [],
+        };
+      }
+      matchStage.user = { $in: finalUserIds };
+      (matchStage as any).context = { $in: ctxVals };
+    }
+
+    if (params.onlyActiveSubscribers) {
+      const activeUserIds = await UserModel.find({ planStatus: 'active' }).distinct('_id');
+      // Se já existe filtro de agência, fazemos a interseção
+      if (matchStage.user && matchStage.user['$in']) {
+        const existingIds = matchStage.user['$in'] as Types.ObjectId[];
+        const intersection = existingIds.filter(id => activeUserIds.some((aid: Types.ObjectId) => aid.equals(id)));
+        matchStage.user = { $in: intersection };
+      } else {
+        matchStage.user = { $in: activeUserIds };
+      }
+    }
+    if (params.creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(params.creatorContext, { onlyActiveSubscribers: params.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (matchStage.user && (matchStage.user as any).$in) {
+        const existingIds = (matchStage.user as any).$in as Types.ObjectId[];
+        const intersection = existingIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+        matchStage.user = { $in: intersection };
+      } else {
+        matchStage.user = { $in: contextObjectIds };
+      }
+    }
+    if (context) {
+      const ctxArr = Array.isArray(context) ? context : [context];
+      const ctxVals: string[] = [];
+      ctxArr.forEach(ctx => {
+        const ids = getCategoryWithSubcategoryIds(ctx, 'context');
+        const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+        ctxVals.push(...ids, ...labels);
+      });
+      (matchStage as any).context = { $in: ctxVals };
     }
     if (dateRange?.startDate) {
       matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
@@ -209,7 +282,7 @@ export async function fetchDashboardOverallContentStats(
 
     const aggregationPipeline: PipelineStage[] = [];
     if (Object.keys(matchStage).length > 0) {
-        aggregationPipeline.push({ $match: matchStage });
+      aggregationPipeline.push({ $match: matchStage });
     }
 
     aggregationPipeline.push({
@@ -287,22 +360,6 @@ export async function fetchDashboardOverallContentStats(
 
 // --- Platform Summary KPI Service ---
 
-export interface IPlatformSummaryArgs {
-  dateRange?: {
-    startDate: Date;
-    endDate: Date;
-  };
-  agencyId?: string;
-}
-
-export interface IPlatformSummaryData {
-  totalCreators: number;
-  pendingCreators: number;
-  activeCreatorsInPeriod: number;
-  averageEngagementRateInPeriod: number;
-  averageReachInPeriod: number;
-}
-
 const PLATFORM_SUMMARY_TAG = `${SERVICE_TAG}[fetchPlatformSummary]`;
 
 export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Promise<IPlatformSummaryData> {
@@ -310,12 +367,61 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
 
   try {
     await connectToDatabase();
-    const { dateRange, agencyId } = args;
+    const { dateRange, agencyId, context } = args;
 
     // --- Parte 1: Filtro de usuários por agência ---
     const userFilter: any = {};
     if (agencyId) {
       userFilter.agency = new Types.ObjectId(agencyId);
+    }
+    if (args.onlyActiveSubscribers) {
+      userFilter.planStatus = 'active';
+    }
+    let contextUserIds: Types.ObjectId[] | undefined;
+    if (context) {
+      const ctxArr = Array.isArray(context) ? context : [context];
+      const allVals: string[] = [];
+      ctxArr.forEach((ctx) => {
+        const ids = getCategoryWithSubcategoryIds(ctx, 'context');
+        const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+        allVals.push(...ids, ...labels);
+      });
+      const distinctUsers = await MetricModel.distinct('user', { context: { $in: allVals } });
+      contextUserIds = distinctUsers.map((id: any) => new Types.ObjectId(id));
+      if (contextUserIds.length === 0) {
+        return {
+          totalCreators: 0,
+          pendingCreators: 0,
+          activeCreatorsInPeriod: 0,
+          averageEngagementRateInPeriod: 0,
+          averageReachInPeriod: 0,
+        };
+      }
+      userFilter._id = { $in: contextUserIds };
+      userFilter._id = { $in: contextUserIds };
+    }
+
+    if (args.creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(args.creatorContext, { onlyActiveSubscribers: args.onlyActiveSubscribers });
+      const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
+
+      if (contextObjectIds.length === 0) {
+        return {
+          totalCreators: 0,
+          pendingCreators: 0,
+          activeCreatorsInPeriod: 0,
+          averageEngagementRateInPeriod: 0,
+          averageReachInPeriod: 0,
+        };
+      }
+
+      if (userFilter._id && userFilter._id.$in) {
+        const existingIds = userFilter._id.$in as Types.ObjectId[];
+        const intersection = existingIds.filter(id => contextObjectIds.some(cid => cid.equals(id)));
+        userFilter._id = { $in: intersection };
+      } else {
+        userFilter._id = { $in: contextObjectIds };
+      }
     }
 
     // 1. Total Creators
@@ -336,6 +442,8 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
     if (agencyId) {
       agencyUserIds = await UserModel.find(userFilter).distinct('_id');
       dateMatchCriteria.user = { $in: agencyUserIds };
+    } else if (contextUserIds) {
+      dateMatchCriteria.user = { $in: contextUserIds };
     }
     if (dateRange?.startDate && dateRange?.endDate) {
       const endOfDay = new Date(dateRange.endDate);
