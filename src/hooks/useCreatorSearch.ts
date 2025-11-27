@@ -30,6 +30,7 @@ export function useCreatorSearch(
     if (query.length < minChars) {
       setResults([]);
       setError(null);
+      setIsLoading(false);
       abortRef.current?.abort();
       return;
     }
@@ -49,7 +50,7 @@ export function useCreatorSearch(
       setError(null);
       try {
         const encodedQuery = encodeURIComponent(query);
-        const resp = await fetch(`${apiPrefix}/users/search?name=${encodedQuery}`, { signal: controller.signal });
+        const resp = await fetch(`${apiPrefix}/dashboard/creators?nameSearch=${encodedQuery}&limit=${limit}&page=1&sortBy=totalPosts&sortOrder=desc`, { signal: controller.signal });
         
         if (!resp.ok) {
           const data = await resp.json().catch(() => ({}));
@@ -57,16 +58,15 @@ export function useCreatorSearch(
         }
         
         const data = await resp.json();
-        const creators: AdminCreatorListItem[] = Array.isArray(data)
-          ? data.map((c: any) => ({
-              _id: c.id,
-              name: c.name,
-              email: c.email ?? '',
-              profilePictureUrl: c.profilePictureUrl,
-              adminStatus: 'active',
-              registrationDate: new Date().toISOString(),
-            }))
-          : [];
+        const sourceList = Array.isArray(data?.creators) ? data.creators : Array.isArray(data) ? data : [];
+        const creators: AdminCreatorListItem[] = sourceList.map((c: any) => ({
+          _id: c._id?.toString?.() || c.id || '',
+          name: c.name,
+          email: c.email ?? '',
+          profilePictureUrl: c.profilePictureUrl,
+          adminStatus: c.adminStatus || 'active',
+          registrationDate: c.registrationDate || new Date().toISOString(),
+        })).filter((creator: AdminCreatorListItem) => Boolean(creator._id) && Boolean(creator.name));
 
         // 2. Otimização: Implementa política de limpeza de cache (LRU simples).
         if (resultCache.size >= MAX_CACHE_SIZE) {
@@ -83,6 +83,8 @@ export function useCreatorSearch(
         if (err.name !== 'AbortError') {
           setError(err.message);
           setResults([]);
+        } else {
+          setIsLoading(false);
         }
       } finally {
         if (!controller.signal.aborted) {

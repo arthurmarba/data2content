@@ -144,9 +144,9 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   }
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm mt-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
-        <h3 className="text-md font-semibold text-gray-700 mb-2 sm:mb-0">
+        <h3 className="text-base font-semibold text-slate-900">
           {sectionTitle}
         </h3>
         {/* período controlado globalmente */}

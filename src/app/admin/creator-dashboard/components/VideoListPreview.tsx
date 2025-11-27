@@ -43,12 +43,12 @@ const labelConfig: {
   property: string;
   className: string;
 }[] = [
-  { type: "format", property: "format", className: "bg-gray-100 text-gray-800" },
-  { type: "proposal", property: "proposal", className: "bg-blue-100 text-blue-800" },
-  { type: "context", property: "context", className: "bg-indigo-100 text-indigo-800" },
-  { type: "tone", property: "tone", className: "bg-amber-100 text-amber-800" },
-  { type: "reference", property: "references", className: "bg-emerald-100 text-emerald-800" },
-];
+    { type: "format", property: "format", className: "bg-gray-100 text-gray-800" },
+    { type: "proposal", property: "proposal", className: "bg-blue-100 text-blue-800" },
+    { type: "context", property: "context", className: "bg-indigo-100 text-indigo-800" },
+    { type: "tone", property: "tone", className: "bg-amber-100 text-amber-800" },
+    { type: "reference", property: "references", className: "bg-emerald-100 text-emerald-800" },
+  ];
 
 const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand, onRowClick }) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
@@ -70,7 +70,7 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
           throw new Error(data.error || response.statusText);
         }
         const data = await response.json();
-        setVideos(data.videos || []);
+        setVideos(data.posts || data.videos || []);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -154,9 +154,9 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
           {onExpand && (
             <button
               onClick={onExpand}
-              className="w-full mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-semibold py-2 rounded-lg hover:bg-indigo-50 transition-colors"
+              className="w-full mt-2 text-sm bg-indigo-600 text-white hover:bg-indigo-700 font-semibold py-2 rounded-lg transition-colors shadow-sm"
             >
-              Ver tabela completa
+              Ver Todos os Vídeos
             </button>
           )}
         </div>

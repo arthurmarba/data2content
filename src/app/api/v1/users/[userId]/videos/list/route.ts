@@ -58,7 +58,7 @@ export async function GET(
     const mappedSort = mapMetricToDbField(sortByParam) || DEFAULT_SORT_BY;
     const sortOrder: 'asc' | 'desc' = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
     const page = toInt(searchParams.get('page'), 1);
-    const limit = Math.min( toInt(searchParams.get('limit'), 10), 50 );
+    const limit = Math.min(toInt(searchParams.get('limit'), 10), 50);
 
     const filters = {
       proposal: searchParams.get('proposal') || undefined,
@@ -66,6 +66,7 @@ export async function GET(
       format: searchParams.get('format') || undefined,
       linkSearch: searchParams.get('linkSearch') || undefined,
       minViews: searchParams.has('minViews') ? toInt(searchParams.get('minViews'), 0) : undefined,
+      types: ['VIDEO', 'REEL'],
     };
 
     const timePeriod: TimePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
@@ -79,6 +80,11 @@ export async function GET(
       );
     }
 
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+    const startDate = startDateParam ? new Date(startDateParam) : undefined;
+    const endDate = endDateParam ? new Date(endDateParam) : undefined;
+
     // ALTERADO: Chama a função correta
     const result = await findUserPosts({
       userId,
@@ -88,6 +94,8 @@ export async function GET(
       page,
       limit,
       filters,
+      startDate,
+      endDate,
     });
 
     // ALTERADO: Usa result.posts, que é a nova propriedade de retorno

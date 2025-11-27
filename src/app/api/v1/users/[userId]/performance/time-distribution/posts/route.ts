@@ -76,8 +76,8 @@ export async function GET(
       { $match: match },
       {
         $addFields: {
-          dayOfWeek: { $dayOfWeek: '$postDate' },
-          hour: { $hour: '$postDate' },
+          dayOfWeek: { $dayOfWeek: { date: '$postDate', timezone: 'America/Sao_Paulo' } },
+          hour: { $hour: { date: '$postDate', timezone: 'America/Sao_Paulo' } },
         },
       },
       {

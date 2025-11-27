@@ -260,15 +260,14 @@ const AgencyDashboardContent: React.FC = () => {
           </AnimatePresence>
 
           <div id="user-detail-view-container">
-            {selectedUserId && (
-              <UserDetailView
-                userId={selectedUserId}
-                userName={selectedUserName ?? undefined}
-                userPhotoUrl={selectedUserPhotoUrl ?? undefined}
-                onClear={handleClearSelection}
-                apiPrefix={apiPrefix}
-              />
-            )}
+              {selectedUserId && (
+                <UserDetailView
+                  userId={selectedUserId}
+                  userName={selectedUserName ?? `Criador ID: ${selectedUserId.slice(0, 8)}...`}
+                  userPhotoUrl={selectedUserPhotoUrl ?? undefined}
+                  onBack={handleClearSelection}
+                />
+              )}
           </div>
           <ScrollToTopButton />
         </main>

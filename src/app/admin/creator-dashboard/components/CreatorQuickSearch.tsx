@@ -35,14 +35,14 @@ const CreatorBadge = ({
 
 const ResultItem = ({ creator, highlight, isHighlighted, ...props }: any) => (
   <motion.button
+    type="button"
     layout
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
     transition={{ duration: 0.2 }}
-    className={`flex items-center w-full text-left px-3 py-2.5 rounded-md transition-colors duration-150 ${
-      isHighlighted ? 'bg-indigo-600 text-white' : 'hover:bg-gray-100'
-    }`}
+    className={`flex items-center w-full text-left px-3 py-2.5 rounded-md transition-colors duration-150 ${isHighlighted ? 'bg-indigo-600 text-white' : 'hover:bg-gray-100'
+      }`}
     {...props}
   >
     <UserAvatar name={creator.name} src={creator.profilePictureUrl} size={32} />
@@ -133,7 +133,7 @@ export default function CreatorQuickSearch({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showDropdown, creators, highlightIndex, handleSelect]);
-  
+
   const showResults = showDropdown && searchTerm.length >= 2;
 
   return (
@@ -176,7 +176,7 @@ export default function CreatorQuickSearch({
             {isLoading && <div className="p-2 text-sm text-center text-gray-500">Carregando...</div>}
             {error && <p className="p-3 text-sm text-red-600 font-medium">{error}</p>}
             {!isLoading && !error && creators.length === 0 && <EmptyState />}
-            
+
             <AnimatePresence>
               {!isLoading && !error && creators.map((creator, index) => (
                 <ResultItem
@@ -184,7 +184,10 @@ export default function CreatorQuickSearch({
                   creator={creator}
                   highlight={searchTerm}
                   isHighlighted={highlightIndex === index}
-                  onClick={() => handleSelect(creator)}
+                  onMouseDown={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    handleSelect(creator);
+                  }}
                   onMouseMove={() => setHighlightIndex(index)}
                 />
               ))}

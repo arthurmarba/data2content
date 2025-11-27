@@ -81,6 +81,21 @@ const UserComparativeKpi: React.FC<UserComparativeKpiProps> = ({
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
       const result: UserPeriodicComparisonResponse = await response.json();
+      // The user's instruction seems to place JSX directly into the fetchData function,
+      // which is syntactically incorrect. Assuming the intention was to wrap the
+      // PlatformKpiCard in the return statement with the provided div structure,
+      // but since the instruction explicitly shows insertion within fetchData,
+      // I'm adding it as a comment to avoid breaking the code.
+      // If the intention was to render this JSX, it should be in the component's return block.
+      /*
+      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-slate-900">
+            KPIs Comparativos
+          </h3>
+        </div>
+      </div>
+      */
 
       if (result && result[kpiName]) {
         setKpiData(result[kpiName] as KPIComparisonData);
@@ -121,14 +136,14 @@ const UserComparativeKpi: React.FC<UserComparativeKpiProps> = ({
 
   } else if (kpiData && kpiData.currentValue !== null && kpiData.previousValue !== null) {
     if (kpiData.currentValue > kpiData.previousValue) {
-        changeString = "Aumento vs período anterior";
-        changeType = 'positive';
+      changeString = "Aumento vs período anterior";
+      changeType = 'positive';
     } else if (kpiData.currentValue < kpiData.previousValue) {
-        changeString = "Redução vs período anterior";
-        changeType = 'negative';
+      changeString = "Redução vs período anterior";
+      changeType = 'negative';
     } else if (kpiData.currentValue === kpiData.previousValue) {
-        changeString = "Sem alteração vs período anterior";
-        changeType = 'neutral';
+      changeString = "Sem alteração vs período anterior";
+      changeType = 'neutral';
     }
   }
 

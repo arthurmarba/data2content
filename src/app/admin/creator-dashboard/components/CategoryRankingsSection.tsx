@@ -105,10 +105,15 @@ const CategoryRankingsSection: React.FC<Props> = ({
   const effectiveUserId = scope === 'creator' ? (selectedUserId ?? undefined) : undefined;
   return (
     <section id="category-rankings" className="mb-10">
-      <div className="flex items-center justify-between mb-6 pb-2 border-b border-gray-300">
-        <h2 className="text-xl md:text-2xl font-semibold text-gray-700">
-          Rankings por Categorias <GlobalPeriodIndicator />
-        </h2>
+      <div className="flex items-end justify-between mb-6">
+        <div className="flex flex-col gap-1">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <GlobalPeriodIndicator />
+          </div>
+          <h2 className="text-2xl font-semibold text-slate-900">
+            Rankings por Categorias
+          </h2>
+        </div>
         <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-xs">
           <button onClick={() => setScope('global')} className={`px-3 py-1.5 ${scope === 'global' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'}`}>Global</button>
           <button onClick={() => setScope('creator')} className={`px-3 py-1.5 ${scope === 'creator' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'}`}>Por Criador</button>

@@ -24,9 +24,14 @@ const PlatformContentAnalysisSection: React.FC<Props> = ({
   creatorContextFilter,
 }) => (
   <section id="platform-content-analysis" className="mb-10">
-    <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-      Destaques de Performance da Plataforma <GlobalPeriodIndicator />
-    </h2>
+    <div className="mb-6 flex flex-col gap-1">
+      <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <GlobalPeriodIndicator />
+      </div>
+      <h2 className="text-2xl font-semibold text-slate-900">
+        Destaques de Performance da Plataforma
+      </h2>
+    </div>
     <PlatformPerformanceHighlights
       apiPrefix={apiPrefix}
       onlyActiveSubscribers={onlyActiveSubscribers}

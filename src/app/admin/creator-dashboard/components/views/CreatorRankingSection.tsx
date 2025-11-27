@@ -25,16 +25,21 @@ const CreatorRankingSection: React.FC<Props> = ({
   creatorContextFilter,
 }) => {
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
-  
+
   // A correção é aplicar uma asserção de tipo para garantir ao TypeScript
   // que a string 'globalTimePeriod' é um dos valores permitidos.
   const validatedTimePeriod = globalTimePeriod as TimePeriod;
 
   return (
     <section id="creator-rankings" className="mb-10">
-      <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-        Rankings de Criadores <GlobalPeriodIndicator />
-      </h2>
+      <div className="mb-6 flex flex-col gap-1">
+        <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <GlobalPeriodIndicator />
+        </div>
+        <h2 className="text-2xl font-semibold text-slate-900">
+          Rankings de Criadores
+        </h2>
+      </div>
       <div className="overflow-x-auto">
         <div className="flex md:grid md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="col-span-full">
@@ -163,17 +168,17 @@ const CreatorRankingSection: React.FC<Props> = ({
             />
           </div>
           <div className="inline-flex md:block">
-          <TopCreatorsWidget
-            title="Top Criadores"
-            apiPrefix={apiPrefix}
-            timePeriod={validatedTimePeriod}
-            limit={5}
-            compositeRanking={true}
-            onlyActiveSubscribers={onlyActiveSubscribers}
-            context={contextFilter}
-            creatorContext={creatorContextFilter}
-            tooltip="Score composto: 40% engajamento médio, 30% interações/post, 20% alcance/seguidor e 10% crescimento de seguidores"
-          />
+            <TopCreatorsWidget
+              title="Top Criadores"
+              apiPrefix={apiPrefix}
+              timePeriod={validatedTimePeriod}
+              limit={5}
+              compositeRanking={true}
+              onlyActiveSubscribers={onlyActiveSubscribers}
+              context={contextFilter}
+              creatorContext={creatorContextFilter}
+              tooltip="Score composto: 40% engajamento médio, 30% interações/post, 20% alcance/seguidor e 10% crescimento de seguidores"
+            />
           </div>
         </div>
       </div>

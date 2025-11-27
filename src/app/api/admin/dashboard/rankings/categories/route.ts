@@ -10,6 +10,7 @@ import { logger } from '@/app/lib/logger';
 // CORREÇÃO: Removido 'RankingMetric' da importação, pois ele não é exportado.
 import { fetchTopCategories } from '@/app/lib/dataService/marketAnalysis/rankingsService';
 import { DatabaseError } from '@/app/lib/errors';
+import { dashboardCache, DEFAULT_DASHBOARD_TTL_MS } from '@/app/lib/cache/dashboardCache';
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/categories]';
@@ -61,6 +62,7 @@ async function getAdminSession(req: NextRequest): Promise<{ user: { name: string
 
 export async function GET(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[GET]`;
+  const start = performance.now ? performance.now() : Date.now();
   logger.info(`${TAG} Requisição recebida.`);
 
   try {
@@ -81,17 +83,35 @@ export async function GET(req: NextRequest) {
 
     const { category, metric, startDate, endDate, limit, userId, onlyActiveSubscribers, context, creatorContext } = validationResult.data;
 
-    // 3. Chamada ao serviço com os parâmetros validados
-    const results = await fetchTopCategories({
-      dateRange: { startDate, endDate },
+    const cacheKey = `${SERVICE_TAG}:${JSON.stringify({
       category,
       metric,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       limit,
-      userId,
-      ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
-      ...(context ? { context } : {}),
-      ...(creatorContext ? { creatorContext } : {}),
-    });
+      userId: userId || '',
+      onlyActiveSubscribers: Boolean(onlyActiveSubscribers),
+      context: context || '',
+      creatorContext: creatorContext || '',
+    })}`;
+
+    const { value: results, hit } = await dashboardCache.wrap(
+      cacheKey,
+      () => fetchTopCategories({
+        dateRange: { startDate, endDate },
+        category,
+        metric,
+        limit,
+        userId,
+        ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+        ...(context ? { context } : {}),
+        ...(creatorContext ? { creatorContext } : {}),
+      }),
+      DEFAULT_DASHBOARD_TTL_MS
+    );
+
+    const duration = Math.round((performance.now ? performance.now() : Date.now()) - start);
+    logger.info(`${TAG} Responded in ${duration}ms (cacheHit=${hit})`);
 
     // 4. Retorno dos resultados com sucesso
     return NextResponse.json(results, { status: 200 });

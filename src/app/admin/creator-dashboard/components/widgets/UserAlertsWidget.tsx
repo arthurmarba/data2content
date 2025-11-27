@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Info, Zap, ChevronDown, ChevronUp } from 'lucide-react'; // Usando lucide-react para ícones
-import { LightBulbIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle, Info, Zap, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
+import { LightBulbIcon, BellAlertIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from '../filters/GlobalTimePeriodContext';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 
@@ -16,7 +16,7 @@ enum AlertTypeEnum {
 
 interface AlertResponseItem {
   alertId: string;
-  type: AlertTypeEnum | string; // string para flexibilidade se novos tipos surgirem
+  type: AlertTypeEnum | string;
   date: string; // YYYY-MM-DD
   title: string;
   finalUserMessage: string;
@@ -34,22 +34,67 @@ interface UserAlertsWidgetProps {
   initialLimit?: number;
 }
 
-const AlertIcon: React.FC<{type: AlertTypeEnum | string}> = ({ type }) => {
-    switch(type) {
-        case AlertTypeEnum.FOLLOWER_STAGNATION:
-            return <AlertTriangle className="text-yellow-500 mr-3 flex-shrink-0" size={20} />;
-        case AlertTypeEnum.FORGOTTEN_FORMAT:
-            return <Info className="text-blue-500 mr-3 flex-shrink-0" size={20} />;
-        case AlertTypeEnum.CONTENT_PERFORMANCE_DROP:
-            return <Zap className="text-red-500 mr-3 flex-shrink-0" size={20} />;
-        default:
-            return <Info className="text-gray-500 mr-3 flex-shrink-0" size={20} />;
-    }
+const getAlertStyle = (type: AlertTypeEnum | string) => {
+  switch (type) {
+    case AlertTypeEnum.FOLLOWER_STAGNATION:
+      return {
+        icon: <AlertTriangle className="text-amber-500" size={20} />,
+        borderClass: "border-l-amber-500",
+        bgClass: "bg-amber-50",
+        textClass: "text-amber-900"
+      };
+    case AlertTypeEnum.FORGOTTEN_FORMAT:
+      return {
+        icon: <Info className="text-blue-500" size={20} />,
+        borderClass: "border-l-blue-500",
+        bgClass: "bg-blue-50",
+        textClass: "text-blue-900"
+      };
+    case AlertTypeEnum.CONTENT_PERFORMANCE_DROP:
+      return {
+        icon: <Zap className="text-red-500" size={20} />,
+        borderClass: "border-l-red-500",
+        bgClass: "bg-red-50",
+        textClass: "text-red-900"
+      };
+    default:
+      return {
+        icon: <CheckCircle className="text-gray-500" size={20} />,
+        borderClass: "border-l-gray-400",
+        bgClass: "bg-gray-50",
+        textClass: "text-gray-900"
+      };
+  }
+};
+
+const formatDetailKey = (key: string) => {
+  return key
+    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+    .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
+    .replace(/_/g, ' '); // Replace underscores with spaces
+};
+
+const renderDetails = (details: any) => {
+  if (!details || typeof details !== 'object') return null;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
+      {Object.entries(details).map(([key, value]) => {
+        if (value === null || value === undefined || typeof value === 'object') return null;
+        return (
+          <div key={key} className="flex justify-between border-b border-gray-100 pb-1 last:border-0">
+            <span className="text-gray-500 font-medium">{formatDetailKey(key)}:</span>
+            <span className="text-gray-800 font-semibold text-right">{String(value)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
   userId,
-  initialLimit = 3, // Mostrar 3 alertas inicialmente
+  initialLimit = 3,
 }) => {
   const [alertsResponse, setAlertsResponse] = useState<UserAlertsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -69,7 +114,6 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
     setError(null);
     try {
       const apiUrl = `/api/v1/users/${userId}/alerts/active?limit=${limit}&dedupeNoEventAlerts=true&timePeriod=${globalTimePeriod}`;
-      // Adicionar filtros de tipo se necessário no futuro: &types=Type1&types=Type2
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -98,7 +142,7 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
       setAlertsResponse(null);
       setLoading(false);
     }
-  }, [userId, fetchData]); // fetchData já tem limit como dependência
+  }, [userId, fetchData]);
 
   const toggleAlertExpansion = (alertId: string) => {
     setExpandedAlerts(prev => {
@@ -113,90 +157,108 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
   };
 
   const showMoreAlerts = () => {
-      setLimit(prevLimit => prevLimit + 3); // Mostrar mais 3 alertas
+    setLimit(prevLimit => prevLimit + 3);
   }
 
   if (!userId) {
-    // Não renderizar nada ou uma mensagem placeholder se o widget for sempre visível
-    // return <div className="text-center p-4 text-gray-500">Selecione um criador para ver os alertas.</div>;
-    return null; // Ou um placeholder mais discreto se estiver dentro de um modal
+    return null;
   }
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-      <h2 className="text-lg md:text-xl font-semibold mb-1 text-gray-700">Alertas Recentes do Criador</h2>
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm h-full">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <BellAlertIcon className="h-5 w-5 text-slate-500" />
+          <h3 className="text-base font-semibold text-slate-900">
+            Alertas Recentes
+          </h3>
+        </div>{alertsResponse && alertsResponse.alerts.length > 0 && (
+          <label className="text-xs text-gray-500 flex items-center space-x-1 cursor-pointer hover:text-gray-700">
+            <input
+              type="checkbox"
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              checked={hideNoEventAlerts}
+              onChange={(e) => setHideNoEventAlerts(e.target.checked)}
+            />
+            <span>Ocultar vazios</span>
+          </label>
+        )}
+      </div>
+
       {alertsResponse?.insightSummary && (
-        <p className="text-xs text-gray-500 mb-4 flex items-start">
-          <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
-          {alertsResponse.insightSummary}
-        </p>
+        <div className="bg-yellow-50 border border-yellow-100 rounded-md p-3 mb-4 flex items-start gap-2">
+          <LightBulbIcon className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-yellow-800">{alertsResponse.insightSummary}</p>
+        </div>
       )}
 
-      {loading && <div className="flex justify-center items-center py-4"><p className="text-gray-500">Carregando alertas...</p></div>}
-      {error && <div className="flex justify-center items-center py-4"><p className="text-red-500">Erro: {error}</p></div>}
+      {loading && <div className="flex justify-center items-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}
+      {error && <div className="text-center py-4 text-red-500 text-sm">Erro: {error}</div>}
 
       {!loading && !error && alertsResponse && alertsResponse.alerts.length > 0 && (
-        <>
-          <div className="flex items-center mb-2">
-            <label className="text-xs text-gray-600 flex items-center space-x-1">
-              <input
-                type="checkbox"
-                className="mr-1"
-                checked={hideNoEventAlerts}
-                onChange={(e) => setHideNoEventAlerts(e.target.checked)}
-              />
-              <span>Ocultar alertas de nenhum evento</span>
-            </label>
-          </div>
-          <ul className="space-y-3">
+        <div className="space-y-3">
           {alertsResponse.alerts
             .filter(alert => !hideNoEventAlerts || alert.type !== AlertTypeEnum.NO_EVENT_FOUND_TODAY_WITH_INSIGHT)
-            .map((alert) => (
-            <li key={alert.alertId} className="border border-gray-200 rounded-md">
-              <button
-                onClick={() => toggleAlertExpansion(alert.alertId)}
-                className="w-full p-3 text-left focus:outline-none hover:bg-gray-50 transition-colors duration-150"
-              >
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                        <AlertIcon type={alert.type} />
-                        <div>
-                            <h4 className="font-medium text-sm text-gray-800">{alert.title}</h4>
-                            <p className="text-xs text-gray-500">{new Date(alert.date + "T00:00:00Z").toLocaleDateString()}</p> {/* Ajusta para data local */}
-                        </div>
+            .map((alert) => {
+              const style = getAlertStyle(alert.type);
+              const isExpanded = expandedAlerts.has(alert.alertId);
+
+              return (
+                <div
+                  key={alert.alertId}
+                  className={`border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md ${style.borderClass} border-l-4`}
+                >
+                  <button
+                    onClick={() => toggleAlertExpansion(alert.alertId)}
+                    className="w-full p-4 text-left focus:outline-none bg-white flex items-start gap-3"
+                  >
+                    <div className="mt-0.5">{style.icon}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-semibold text-gray-900 text-sm">{alert.title}</h4>
+                        <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
+                          {new Date(alert.date + "T00:00:00Z").toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <p className={`text-sm text-gray-600 mt-1 ${!isExpanded ? 'line-clamp-2' : ''}`}>
+                        {alert.finalUserMessage}
+                      </p>
                     </div>
-                    {expandedAlerts.has(alert.alertId) ? <ChevronUp size={18} className="text-gray-500"/> : <ChevronDown size={18} className="text-gray-500"/>}
+                    <div className="ml-2 text-gray-400">
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-0 bg-white">
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <h5 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Detalhes Técnicos</h5>
+                        <div className="bg-gray-50 rounded-md p-3">
+                          {renderDetails(alert.details)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {!expandedAlerts.has(alert.alertId) && (
-                     <p className="text-xs text-gray-600 mt-1 ml-8 truncate">{alert.finalUserMessage}</p>
-                )}
-              </button>
-              {expandedAlerts.has(alert.alertId) && (
-                <div className="p-3 border-t border-gray-200 bg-gray-50">
-                  <p className="text-sm text-gray-700 mb-2">{alert.finalUserMessage}</p>
-                  <div className="text-xs text-gray-600 bg-white p-2 rounded border border-gray-300">
-                    <pre className="whitespace-pre-wrap break-all">{JSON.stringify(alert.details, null, 2)}</pre>
-                  </div>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-        </>
+              );
+            })}
+        </div>
       )}
 
       {!loading && !error && alertsResponse && alertsResponse.alerts.length === 0 && (
-        <div className="flex justify-center items-center py-4"><p className="text-gray-500">Nenhum alerta recente para este criador.</p></div>
+        <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+          <p className="text-sm text-gray-500">Nenhum alerta recente encontrado.</p>
+        </div>
       )}
 
       {!loading && !error && alertsResponse && alertsResponse.totalAlerts > alertsResponse.alerts.length && (
         <div className="mt-4 text-center">
-            <button
-                onClick={showMoreAlerts}
-                className="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-100 rounded-md hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            >
-                Mostrar Mais ({alertsResponse.totalAlerts - alertsResponse.alerts.length} restantes)
-            </button>
+          <button
+            onClick={showMoreAlerts}
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+          >
+            Carregar mais alertas ({alertsResponse.totalAlerts - alertsResponse.alerts.length} restantes)
+          </button>
         </div>
       )}
     </div>

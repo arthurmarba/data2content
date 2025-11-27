@@ -122,9 +122,9 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
     }
     // Format to 2 decimal places for non-integers, unless it's a very small number that would become 0.00
     if (value !== 0 && Math.abs(value) < 0.01 && Math.abs(value) > 0.000001) { // Avoid scientific notation for very small non-zero
-        return value.toFixed(Math.max(2, -Math.floor(Math.log10(Math.abs(value))) + 1)).replace('.', ',');
+      return value.toFixed(Math.max(2, -Math.floor(Math.log10(Math.abs(value))) + 1)).replace('.', ',');
     }
-    return parseFloat(value.toFixed(2)).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    return parseFloat(value.toFixed(2)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const renderSkeleton = () => (
@@ -142,9 +142,9 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   );
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow border border-gray-200 h-full flex flex-col">
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm h-full flex flex-col">
       <div className="flex items-center justify-between mb-1">
-        <h4 className="text-md font-semibold text-gray-700 truncate" title={title}>
+        <h4 className="text-base font-semibold text-slate-900 truncate" title={title}>
           {title}
         </h4>
         {tooltip && (
@@ -205,11 +205,11 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
         </ol>
       )}
       {!isLoading && !error && (!rankingData || rankingData.length === 0) && (
-         <div className="text-center py-4 text-xs text-gray-400 flex-grow flex flex-col justify-center items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-1">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-            </svg>
-            Nenhum dado disponível para o período selecionado.
+        <div className="text-center py-4 text-xs text-gray-400 flex-grow flex flex-col justify-center items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-1">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+          </svg>
+          Nenhum dado disponível para o período selecionado.
         </div>
       )}
       <div className="mt-3 text-right">

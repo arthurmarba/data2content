@@ -21,6 +21,7 @@ import {
   idsToLabels,
   commaSeparatedIdsToLabels,
 } from '../../lib/classification';
+import { ArrowTopRightOnSquareIcon, ClipboardIcon } from '@heroicons/react/24/outline';
 
 
 // --- Componentes de Apoio (Definidos localmente para autonomia) ---
@@ -109,6 +110,8 @@ interface IGlobalPostResult {
   creatorName?: string;
   creatorAvatarUrl?: string; // Added
   postDate?: Date | string;
+  postLink?: string;
+  instagramMediaId?: string;
   format?: string[] | string;
   proposal?: string[] | string;
   context?: string[] | string;
@@ -333,8 +336,25 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
   const handleClosePostDetailModal = useCallback(() => { setIsPostDetailModalOpen(false); setSelectedPostIdForModal(null); }, []);
   const handleOpenTrendChart = useCallback((postId: string) => { setSelectedPostIdForTrend(postId); setIsTrendChartOpen(true); }, []);
   const handleCloseTrendChart = useCallback(() => { setIsTrendChartOpen(false); setSelectedPostIdForTrend(null); }, []);
+  const handleOpenExternalLink = useCallback((post: IGlobalPostResult) => {
+    const link = post.postLink || (post.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
+    if (link) window.open(link, '_blank', 'noopener,noreferrer');
+  }, []);
+
+  const handleCopyLink = useCallback(async (post: IGlobalPostResult) => {
+    const link = post.postLink || (post.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
+    if (!link || !navigator?.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      /* no-op */
+    }
+  }, []);
 
   const buildQueryParams = useCallback((filters: ActiveFilters, sort: SortConfig, pageLimit: { page: number, limit: number }) => {
+    const mergedContext = forceContext && forceContext.length ? forceContext : filters.context;
+    const mergedOnlyActive = forceOnlyActiveSubscribers || filters.onlyActiveSubscribers;
+
     const params = new URLSearchParams({
       page: String(pageLimit.page),
       limit: String(pageLimit.limit),
@@ -342,21 +362,21 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
       sortOrder: sort.sortOrder,
     });
 
-    if (filters.context && filters.context.length) params.append('context', filters.context.join(','));
+    if (mergedContext && mergedContext.length) params.append('context', mergedContext.join(','));
     if (filters.proposal && filters.proposal.length) params.append('proposal', filters.proposal.join(','));
     if (filters.format && filters.format.length) params.append('format', filters.format.join(','));
     if (filters.tone && filters.tone.length) params.append('tone', filters.tone.join(','));
     if (filters.references && filters.references.length) params.append('references', filters.references.join(','));
     if (filters.minInteractions) params.append('minInteractions', String(filters.minInteractions));
     if (filters.searchText) params.append('searchText', filters.searchText);
-    if (filters.onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true'); // NEW
+    if (mergedOnlyActive) params.append('onlyActiveSubscribers', 'true');
     if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
 
     if (dateRangeFilter?.startDate) params.append('startDate', new Date(dateRangeFilter.startDate).toISOString());
     if (dateRangeFilter?.endDate) params.append('endDate', new Date(dateRangeFilter.endDate).toISOString());
 
     return params;
-  }, [dateRangeFilter, creatorContextFilter]);
+  }, [dateRangeFilter, creatorContextFilter, forceContext, forceOnlyActiveSubscribers]);
 
   const fetchPosts = useCallback(async () => {
     // REMOVED: if (viewMode !== 'explorer') return;  <-- Now runs in both modes
@@ -730,22 +750,22 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
                             );
                             if (col.key === 'cover') {
                               return (
-                                <td key="cover" className="px-3 py-2 whitespace-nowrap w-20">
+                                <td key="cover" className="px-3 py-2 whitespace-nowrap w-24">
                                   {rawValue ? ( // eslint-disable-next-line @next/next/no-img-element
                                     <Image
                                       src={rawValue}
                                       alt="capa"
-                                      width={64}
-                                      height={64}
-                                      className="w-16 h-16 object-cover rounded border border-gray-100" // eslint-disable-line @next/next/no-img-element
+                                      width={96}
+                                      height={96}
+                                      className="w-24 h-24 object-cover rounded border border-gray-100" // eslint-disable-line @next/next/no-img-element
                                       onError={(e) => {
                                         const t = e.currentTarget as HTMLImageElement;
                                         t.onerror = null;
-                                        t.src = 'https://placehold.co/64x64?text=%3F';
+                                        t.src = 'https://placehold.co/96x96?text=%3F';
                                       }}
                                     />
                                   ) : (
-                                    <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Sem img</div>
+                                    <div className="w-24 h-24 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Sem img</div>
                                   )}
                                 </td>
                               );
@@ -767,6 +787,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
                               );
                             }
                             if (col.key === 'actions') {
+                              const externalLink = post.postLink || (post.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
                               return (
                                 <td key={col.key} className="px-4 py-3 whitespace-nowrap text-center">
                                   <div className="flex items-center justify-center space-x-2">
@@ -775,6 +796,22 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
                                     </button>
                                     <button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-gray-400 hover:text-green-600 transition-colors" title="Ver tendência">
                                       <ChartBarIcon className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                      onClick={() => externalLink && handleOpenExternalLink(post)}
+                                      className={`text-gray-400 transition-colors ${externalLink ? 'hover:text-blue-600' : 'opacity-40 cursor-not-allowed'}`}
+                                      title={externalLink ? 'Abrir post original' : 'Link indisponível'}
+                                      disabled={!externalLink}
+                                    >
+                                      <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                      onClick={() => externalLink && handleCopyLink(post)}
+                                      className={`text-gray-400 transition-colors ${externalLink ? 'hover:text-amber-600' : 'opacity-40 cursor-not-allowed'}`}
+                                      title={externalLink ? 'Copiar link' : 'Link indisponível'}
+                                      disabled={!externalLink}
+                                    >
+                                      <ClipboardIcon className="w-5 h-5" />
                                     </button>
                                   </div>
                                 </td>

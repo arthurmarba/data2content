@@ -92,7 +92,7 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
         <div className="mt-3 overflow-x-auto">
             <div className="w-max min-w-full rounded-xl border border-slate-200 bg-white shadow-sm">
                 {/* Header */}
-                <div className="grid grid-cols-[90px,60px,100px,130px,130px,110px,110px,75px,75px,75px,75px,75px] items-center gap-3 bg-slate-50/90 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 sticky top-0 z-10 border-b border-slate-200">
+                <div className="grid grid-cols-[90px,80px,110px,140px,140px,110px,110px,75px,75px,75px,75px,75px] items-center gap-3 bg-slate-50/90 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 sticky top-0 z-10 border-b border-slate-200">
                     <div>Data</div>
                     <div>Post</div>
                     <div>Formato</div>
@@ -112,7 +112,7 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                     {sortedPosts.map((post, idx) => (
                         <div
                             key={post.id || idx}
-                            className="grid grid-cols-[90px,60px,100px,130px,130px,110px,110px,75px,75px,75px,75px,75px] items-center gap-3 px-4 py-2.5 hover:bg-slate-50/70 transition-colors odd:bg-slate-50/30"
+                            className="grid grid-cols-[90px,80px,110px,140px,140px,110px,110px,75px,75px,75px,75px,75px] items-center gap-3 px-4 py-2.5 hover:bg-slate-50/70 transition-colors odd:bg-slate-50/30"
                         >
                             {/* Date Column */}
                             <div className="text-xs font-medium text-slate-900">
@@ -120,9 +120,9 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                             </div>
 
                             {/* Post Column (Photo only) */}
-                            <div className="relative h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                            <div className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
                                 {post.thumbnail ? (
-                                    <Image src={post.thumbnail} alt={post.caption} fill className="object-cover" sizes="48px" />
+                                    <Image src={post.thumbnail} alt={post.caption} fill className="object-cover" sizes="64px" />
                                 ) : (
                                     <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
                                         Sem img
@@ -228,4 +228,3 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
         </div>
     );
 }
-

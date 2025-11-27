@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchTopCreators, fetchTopCreatorsWithScore, TopCreatorMetricEnum } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
+import { dashboardCache, DEFAULT_DASHBOARD_TTL_MS } from '@/app/lib/cache/dashboardCache';
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/top-creators]';
@@ -35,6 +36,7 @@ function apiError(message: string, status: number): NextResponse {
 
 export async function GET(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[GET]`;
+  const start = performance.now ? performance.now() : Date.now();
   logger.info(`${TAG} Received request.`);
 
   try {
@@ -54,28 +56,42 @@ export async function GET(req: NextRequest) {
     }
 
     const { context, creatorContext, metric, days, limit, composite, offset, onlyActiveSubscribers } = validationResult.data;
-    let results;
-    if (composite) {
-      results = await fetchTopCreatorsWithScore({
-        context: context ?? 'geral',
-        days,
-        limit,
-        offset,
-        ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
-        ...(creatorContext ? { creatorContext } : {}),
-      });
-    } else {
-      results = await fetchTopCreators({
-        context: context ?? 'geral',
-        metricToSortBy: metric,
-        days,
-        limit,
-        offset,
-        ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
-        ...(creatorContext ? { creatorContext } : {}),
-      });
-    }
+    const cacheKey = `${SERVICE_TAG}:${JSON.stringify({
+      context: context ?? 'geral',
+      creatorContext: creatorContext ?? '',
+      metric,
+      days,
+      limit,
+      offset,
+      composite,
+      onlyActiveSubscribers: Boolean(onlyActiveSubscribers),
+    })}`;
 
+    const { value: results, hit } = await dashboardCache.wrap<any>(
+      cacheKey,
+      () => composite
+        ? fetchTopCreatorsWithScore({
+            context: context ?? 'geral',
+            days,
+            limit,
+            offset,
+            ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+            ...(creatorContext ? { creatorContext } : {}),
+          })
+        : fetchTopCreators({
+            context: context ?? 'geral',
+            metricToSortBy: metric,
+            days,
+            limit,
+            offset,
+            ...(onlyActiveSubscribers ? { onlyActiveSubscribers } : {}),
+            ...(creatorContext ? { creatorContext } : {}),
+          }),
+      DEFAULT_DASHBOARD_TTL_MS
+    );
+
+    const duration = Math.round((performance.now ? performance.now() : Date.now()) - start);
+    logger.info(`${TAG} Responded in ${duration}ms (cacheHit=${hit})`);
     return NextResponse.json(results, { status: 200 });
   } catch (error: any) {
     logger.error(`${TAG} Unexpected error:`, error);

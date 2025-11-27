@@ -4,6 +4,7 @@ import { logger } from '@/app/lib/logger';
 import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAdminSession } from '@/lib/getAdminSession';
+import { dashboardCache, DEFAULT_DASHBOARD_TTL_MS } from '@/app/lib/cache/dashboardCache';
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store' };
 
@@ -29,6 +30,7 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const start = performance.now ? performance.now() : Date.now();
   logger.info(`${TAG} Request received`);
 
   const session = await getAdminSession(req);
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  let dateRange;
+  let dateRange: { startDate: Date; endDate: Date } | undefined;
   if (validationResult.data.startDate && validationResult.data.endDate) {
     dateRange = { startDate: new Date(validationResult.data.startDate), endDate: new Date(validationResult.data.endDate) };
   }
@@ -70,12 +72,26 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Query parameters validated. Date range: ${dateRange ? JSON.stringify(dateRange) : 'Not provided'}`);
 
   try {
-    const summaryData = await fetchPlatformSummary({
-      dateRange,
-      onlyActiveSubscribers: validationResult.data.onlyActiveSubscribers,
-      context: validationResult.data.context,
-      creatorContext: validationResult.data.creatorContext
-    });
+    const cacheKey = `${TAG}:${JSON.stringify({
+      startDate: dateRange?.startDate?.toISOString() ?? null,
+      endDate: dateRange?.endDate?.toISOString() ?? null,
+      onlyActiveSubscribers: validationResult.data.onlyActiveSubscribers ?? false,
+      context: validationResult.data.context ?? '',
+      creatorContext: validationResult.data.creatorContext ?? '',
+    })}`;
+
+    const { value: summaryData, hit } = await dashboardCache.wrap(
+      cacheKey,
+      () => fetchPlatformSummary({
+        dateRange,
+        onlyActiveSubscribers: validationResult.data.onlyActiveSubscribers,
+        context: validationResult.data.context,
+        creatorContext: validationResult.data.creatorContext
+      }),
+      DEFAULT_DASHBOARD_TTL_MS
+    );
+    const duration = Math.round((performance.now ? performance.now() : Date.now()) - start);
+    logger.info(`${TAG} Responded in ${duration}ms (cacheHit=${hit})`);
     return NextResponse.json(summaryData, { status: 200, headers: noStore });
   } catch (error: any) {
     logger.error(`${TAG} Error in request handler:`, { message: error.message, stack: error.stack });

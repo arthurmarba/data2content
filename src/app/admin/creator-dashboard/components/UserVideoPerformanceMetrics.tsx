@@ -75,7 +75,7 @@ const MetricDisplay: React.FC<{
   unit?: string;
   tooltip?: string;
 }> = ({ label, value, unit, tooltip }) => (
-  <div className="p-3 bg-gray-50 rounded-lg text-center">
+  <div className="p-3 bg-white border border-slate-100 rounded-lg text-center shadow-sm">
     <div className="text-xs text-gray-500 mb-1 relative group">
       {label}
       {tooltip && (
@@ -111,9 +111,9 @@ const UserVideoPerformanceMetrics: React.FC<
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const [timePeriod, setTimePeriod] = useState<string>(
     globalTimePeriod ||
-      TIME_PERIOD_OPTIONS[1]?.value ||
-      TIME_PERIOD_OPTIONS[0]?.value ||
-      "last_90_days",
+    TIME_PERIOD_OPTIONS[1]?.value ||
+    TIME_PERIOD_OPTIONS[0]?.value ||
+    "last_90_days",
   );
 
   useEffect(() => {
@@ -192,9 +192,9 @@ const UserVideoPerformanceMetrics: React.FC<
   }
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm mt-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-md font-semibold text-gray-700">{chartTitle}</h3>
+        <h3 className="text-base font-semibold text-slate-900">{chartTitle}</h3>
         <div className="flex items-center gap-2">
           <label
             htmlFor={`timePeriodUserVideo-${userId || "default"}`}
@@ -316,17 +316,7 @@ const UserVideoPerformanceMetrics: React.FC<
               setIsModalOpen(true);
             }}
           />
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                setDrillDownMetric('views');
-                setIsModalOpen(true);
-              }}
-              className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700"
-            >
-              Ver Todos os Vídeos
-            </button>
-          </div>
+
           {insightSummary && (
             <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-gray-100 flex items-start">
               <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />

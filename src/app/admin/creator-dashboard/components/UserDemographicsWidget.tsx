@@ -76,9 +76,9 @@ const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId 
   }, [data]);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-md font-semibold text-gray-700">Demografia de Seguidores</h3>
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm h-full">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-slate-900">Demografia de Seguidores</h3>
         {!loading && !error && userId && (
           <button onClick={refresh} className="text-xs text-indigo-600 hover:underline">Atualizar</button>
         )}

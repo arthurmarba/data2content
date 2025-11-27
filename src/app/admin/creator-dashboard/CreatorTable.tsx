@@ -54,17 +54,17 @@ interface IDashboardCreator {
 }
 
 const CREATOR_STATUS_MAPPINGS = {
-  Pro:   { label: 'Pro',    bgColor: 'bg-green-100',  textColor: 'text-green-800',  borderColor: 'border-green-200' },
-  Free:  { label: 'Free',   bgColor: 'bg-blue-100',   textColor: 'text-blue-800',   borderColor: 'border-blue-200' },
-  Trial: { label: 'Trial',  bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
+  Pro: { label: 'Pro', bgColor: 'bg-green-100', textColor: 'text-green-800', borderColor: 'border-green-200' },
+  Free: { label: 'Free', bgColor: 'bg-blue-100', textColor: 'text-blue-800', borderColor: 'border-blue-200' },
+  Trial: { label: 'Trial', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
   // Mapeamentos para status de aprovação
-  pending:  { label: 'Pendente', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
-  approved: { label: 'Aprovado', bgColor: 'bg-blue-100',   textColor: 'text-blue-800',   borderColor: 'border-blue-200' },
-  active:   { label: 'Ativo',    bgColor: 'bg-green-100',  textColor: 'text-green-800',  borderColor: 'border-green-200' },
+  pending: { label: 'Pendente', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
+  approved: { label: 'Aprovado', bgColor: 'bg-blue-100', textColor: 'text-blue-800', borderColor: 'border-blue-200' },
+  active: { label: 'Ativo', bgColor: 'bg-green-100', textColor: 'text-green-800', borderColor: 'border-green-200' },
 };
 
 type UpdateStatusState = {
-    [key: string]: 'approving' | 'idle';
+  [key: string]: 'approving' | 'idle';
 };
 
 
@@ -89,23 +89,23 @@ const CreatorDetailModal = ({ isOpen, onClose, creator, dateRangeFilter }: { isO
 
 // Modal de Comparação de Criadores (Versão Simples)
 const CreatorComparisonModal = ({ isOpen, onClose, creatorIdsToCompare }: any) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-gray-800">Comparando Criadores</h2>
-                    <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
-                      <XMarkIcon className="w-6 h-6" />
-                    </button>
-                </div>
-                <div className="text-gray-700">
-                    <p>IDs a serem comparados: {creatorIdsToCompare.join(', ')}</p>
-                    <p className="mt-4"><i>(Gráficos de comparação viriam aqui)</i></p>
-                </div>
-            </div>
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Comparando Criadores</h2>
+          <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
+            <XMarkIcon className="w-6 h-6" />
+          </button>
         </div>
-    );
+        <div className="text-gray-700">
+          <p>IDs a serem comparados: {creatorIdsToCompare.join(', ')}</p>
+          <p className="mt-4"><i>(Gráficos de comparação viriam aqui)</i></p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 
@@ -160,7 +160,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
     if (nameSearch) query.search = nameSearch;
     if (sortConfig.sortBy !== 'totalPosts') query.sortBy = sortConfig.sortBy;
     if (sortConfig.sortOrder !== 'desc') query.sortOrder = sortConfig.sortOrder;
-    
+
     const newUrl = new URL(window.location.href);
     newUrl.search = new URLSearchParams(query).toString();
 
@@ -227,26 +227,26 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
   }, []);
 
   const handleUpdateCreatorStatus = async (creatorId: string, newStatus: 'approved') => {
-      setUpdateStatus(prev => ({ ...prev, [creatorId]: 'approving' }));
-      try {
-          const response = await fetch(`/api/admin/creators/${creatorId}/status`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: newStatus }),
-          });
+    setUpdateStatus(prev => ({ ...prev, [creatorId]: 'approving' }));
+    try {
+      const response = await fetch(`/api/admin/creators/${creatorId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
 
-          if (!response.ok) {
-              const data = await response.json().catch(() => ({}));
-              throw new Error(data.error || 'Erro ao atualizar status do criador.');
-          }
-
-          toast.success('Criador aprovado com sucesso!');
-          fetchData();
-      } catch (error: any) {
-          toast.error(error.message || 'Falha ao aprovar o criador.');
-      } finally {
-          setUpdateStatus(prev => ({ ...prev, [creatorId]: 'idle' }));
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Erro ao atualizar status do criador.');
       }
+
+      toast.success('Criador aprovado com sucesso!');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Falha ao aprovar o criador.');
+    } finally {
+      setUpdateStatus(prev => ({ ...prev, [creatorId]: 'idle' }));
+    }
   };
 
   const totalPages = Math.ceil(totalCreators / limit);
@@ -255,7 +255,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
       setCurrentPage(newPage);
     }
   }, [totalPages]);
-  
+
   const formatDate = (date?: Date) => date ? new Date(date).toLocaleDateString('pt-BR') : 'N/A';
   const formatEngagement = (rate?: number) => typeof rate === 'number' ? `${(rate * 100).toFixed(2)}%` : 'N/A';
   const formatNumber = (num?: number) => typeof num === 'number' ? num.toLocaleString('pt-BR') : 'N/A';
@@ -272,10 +272,10 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-800">Lista de Criadores</h3>
+            <h3 className="text-base font-semibold text-slate-900">Lista de Criadores</h3>
             <p className="text-sm text-gray-500 mt-1">Visão geral dos criadores. Clique para detalhes ou selecione para comparar.</p>
           </div>
           <SearchBar
@@ -298,19 +298,19 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
         {isLoading ? (
           <SkeletonTable rows={limit} cols={columns.length} />
         ) : error ? (
-            <div className="text-center py-10 bg-white rounded-lg">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600">
-                    <ExclamationTriangleIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-2 text-lg font-semibold text-gray-900">Falha ao Carregar Dados</h3>
-                <p className="mt-1 text-sm text-gray-500">{error}</p>
-                <button
-                    onClick={() => fetchData()}
-                    className="mt-4 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-                >
-                    Tentar Novamente
-                </button>
+          <div className="text-center py-10 bg-white rounded-lg">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600">
+              <ExclamationTriangleIcon className="h-6 w-6" />
             </div>
+            <h3 className="mt-2 text-lg font-semibold text-gray-900">Falha ao Carregar Dados</h3>
+            <p className="mt-1 text-sm text-gray-500">{error}</p>
+            <button
+              onClick={() => fetchData()}
+              className="mt-4 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              Tentar Novamente
+            </button>
+          </div>
         ) : (
           <>
             <div className="overflow-x-auto">
@@ -335,15 +335,15 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                         <tr key={id} className={`hover:bg-gray-50 ${isSelected ? 'bg-indigo-50' : ''}`}>
                           <td className="px-6 py-4 text-center">
                             <input type="checkbox" checked={isSelected} onChange={() => {
-                                setSelectedForComparison(prev => isSelected ? prev.filter(i => i !== id) : [...prev, id]);
+                              setSelectedForComparison(prev => isSelected ? prev.filter(i => i !== id) : [...prev, id]);
                             }} disabled={!isSelected && selectedForComparison.length >= MAX_CREATORS_TO_COMPARE} className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                                <UserAvatar name={creator.name} src={creator.profilePictureUrl} size={32} />
-                                <button onClick={() => { setSelectedCreatorForModal(creator); setIsDetailModalOpen(true); }} className="text-indigo-600 hover:underline cursor-pointer font-medium text-left">
-                                    {creator.name}
-                                </button>
+                              <UserAvatar name={creator.name} src={creator.profilePictureUrl} size={32} />
+                              <button onClick={() => { setSelectedCreatorForModal(creator); setIsDetailModalOpen(true); }} className="text-indigo-600 hover:underline cursor-pointer font-medium text-left">
+                                {creator.name}
+                              </button>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">{formatNumber(creator.totalPosts)}</td>
@@ -353,16 +353,16 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                             <StatusBadge status={creator.status} mappings={CREATOR_STATUS_MAPPINGS} />
                           </td>
                           <td className="px-6 py-4 text-center">
-                             {creator.status === 'pending' && (
-                                <button
-                                    onClick={() => handleUpdateCreatorStatus(id, 'approved')}
-                                    disabled={updateStatus[id] === 'approving'}
-                                    className="px-2.5 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-wait flex items-center gap-1 transition-colors"
-                                >
-                                    {updateStatus[id] === 'approving' ? <FaSpinner className="animate-spin w-3 h-3"/> : <FaCheckCircle className="w-3 h-3"/>}
-                                    Aprovar
-                                </button>
-                             )}
+                            {creator.status === 'pending' && (
+                              <button
+                                onClick={() => handleUpdateCreatorStatus(id, 'approved')}
+                                disabled={updateStatus[id] === 'approving'}
+                                className="px-2.5 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-wait flex items-center gap-1 transition-colors"
+                              >
+                                {updateStatus[id] === 'approving' ? <FaSpinner className="animate-spin w-3 h-3" /> : <FaCheckCircle className="w-3 h-3" />}
+                                Aprovar
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -374,17 +374,17 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
 
             <div className="py-3 flex items-center justify-between border-t border-gray-200 mt-4">
               <div className="flex items-center gap-2">
-                    <label htmlFor="itemsPerPage" className="text-sm text-gray-600">Itens/pág:</label>
-                    <select
-                        id="itemsPerPage"
-                        value={limit}
-                        onChange={(e) => handleLimitChange(Number(e.target.value))}
-                        className="block py-1 px-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                    </select>
+                <label htmlFor="itemsPerPage" className="text-sm text-gray-600">Itens/pág:</label>
+                <select
+                  id="itemsPerPage"
+                  value={limit}
+                  onChange={(e) => handleLimitChange(Number(e.target.value))}
+                  className="block py-1 px-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
               </div>
               <nav className="flex items-center gap-2">
                 <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-4 py-2 border text-sm rounded-md">Anterior</button>

@@ -127,6 +127,24 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
       ...(args.onlyOptIn ? [{ $match: { 'creatorInfo.communityInspirationOptIn': true } }] as PipelineStage[] : []),
       // Se solicitado, filtra apenas assinantes ativos
       ...(args.onlyActiveSubscribers ? [{ $match: { 'creatorInfo.planStatus': 'active' } }] as PipelineStage[] : []),
+      {
+        // Mantém as métricas originais e calcula total_interactions apenas se ausente
+        $addFields: {
+          computedTotalInteractions: {
+            $ifNull: [
+              '$stats.total_interactions',
+              {
+                $add: [
+                  { $ifNull: ['$stats.likes', 0] },
+                  { $ifNull: ['$stats.comments', 0] },
+                  { $ifNull: ['$stats.shares', 0] },
+                  { $ifNull: ['$stats.saved', 0] },
+                ],
+              },
+            ],
+          },
+        },
+      },
       { $project: { creatorInfo: 0 } },
       { $match: matchStage },
     ];
@@ -146,7 +164,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
         creatorAvatarUrl: 1,
         format: 1, proposal: 1, context: 1, tone: 1, references: 1,
-        'stats.total_interactions': '$stats.total_interactions',
+        'stats.total_interactions': '$computedTotalInteractions',
         'stats.likes': '$stats.likes',
         'stats.comments': '$stats.comments',
         'stats.shares': '$stats.shares',
@@ -254,12 +272,15 @@ export interface IFindUserPostsArgs { // ALTERADO
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+  startDate?: Date;
+  endDate?: Date;
   filters?: {
     proposal?: string;
     context?: string;
     format?: string;
     linkSearch?: string;
     minViews?: number;
+    types?: string[];
   };
 }
 
@@ -334,6 +355,8 @@ export async function findUserPosts({ // ALTERADO
   sortOrder = 'desc',
   page = 1,
   limit = 10,
+  startDate: customStartDate,
+  endDate: customEndDate,
   filters = {},
 }: IFindUserPostsArgs): Promise<IUserPostsPaginatedResult> { // ALTERADO
   const TAG = `${SERVICE_TAG}[findUserPosts]`; // ALTERADO
@@ -345,13 +368,14 @@ export async function findUserPosts({ // ALTERADO
 
     const userObjectId = new Types.ObjectId(userId);
     const today = new Date();
-    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    const startDate = timePeriod === 'all_time' ? new Date(0) : getStartDateFromTimePeriod(today, timePeriod);
 
-    // ALTERADO: Inclui IMAGE e CAROUSEL_ALBUM na busca de posts
+    let endDate = customEndDate || new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    let startDate = customStartDate || (timePeriod === 'all_time' ? new Date(0) : getStartDateFromTimePeriod(today, timePeriod));
+
+    // ALTERADO: Usa filtro de tipos se fornecido, senão usa todos
     const matchStage: PipelineStage.Match['$match'] = {
       user: userObjectId,
-      type: { $in: ['REEL', 'VIDEO', 'IMAGE', 'CAROUSEL_ALBUM'] }
+      type: { $in: filters.types || ['REEL', 'VIDEO', 'IMAGE', 'CAROUSEL_ALBUM'] }
     };
 
     if (timePeriod !== 'all_time') matchStage.postDate = { $gte: startDate, $lte: endDate };

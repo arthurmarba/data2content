@@ -40,50 +40,55 @@ const PlatformOverviewSection: React.FC<Props> = ({
   const comparisonPeriod = TIME_PERIOD_TO_COMPARISON[timePeriod] || "month_vs_previous";
 
   return (
-  <section id="platform-overview" className="mb-10">
-    <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-      Visão Geral da Plataforma <GlobalPeriodIndicator />
-    </h2>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-      <TotalActiveCreatorsKpi apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-      <PlatformComparativeKpi
-        apiPrefix={apiPrefix}
-        kpiName="platformFollowerGrowth"
-        title="Crescimento de Seguidores"
-        comparisonPeriod={comparisonPeriod}
-        tooltip="Crescimento total de seguidores na plataforma comparado ao período anterior selecionado."
-        onlyActiveSubscribers={onlyActiveSubscribers}
-        contextFilter={contextFilter}
-        creatorContextFilter={creatorContextFilter}
-      />
-      <PlatformComparativeKpi
-        apiPrefix={apiPrefix}
-        kpiName="platformTotalEngagement"
-        title="Engajamento Total"
-        comparisonPeriod={comparisonPeriod}
-        tooltip="Soma total de interações em todos os posts da plataforma comparado ao período anterior selecionado."
-        onlyActiveSubscribers={onlyActiveSubscribers}
-        contextFilter={contextFilter}
-        creatorContextFilter={creatorContextFilter}
-      />
-    </div>
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-      <PlatformFollowerTrendChart apiPrefix={apiPrefix} title={followerTrendTitle} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-      <PlatformFollowerChangeChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-    </div>
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-      <PlatformReachEngagementTrendChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-      <PlatformMovingAverageEngagementChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-    </div>
+    <section id="platform-overview" className="mb-10">
+      <div className="mb-6 flex flex-col gap-1">
+        <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <GlobalPeriodIndicator />
+        </div>
+        <h2 className="text-2xl font-semibold text-slate-900">
+          Visão Geral da Plataforma
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+        <TotalActiveCreatorsKpi apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+        <PlatformComparativeKpi
+          apiPrefix={apiPrefix}
+          kpiName="platformFollowerGrowth"
+          title="Crescimento de Seguidores"
+          comparisonPeriod={comparisonPeriod}
+          tooltip="Crescimento total de seguidores na plataforma comparado ao período anterior selecionado."
+          onlyActiveSubscribers={onlyActiveSubscribers}
+          contextFilter={contextFilter}
+          creatorContextFilter={creatorContextFilter}
+        />
+        <PlatformComparativeKpi
+          apiPrefix={apiPrefix}
+          kpiName="platformTotalEngagement"
+          title="Engajamento Total"
+          comparisonPeriod={comparisonPeriod}
+          tooltip="Soma total de interações em todos os posts da plataforma comparado ao período anterior selecionado."
+          onlyActiveSubscribers={onlyActiveSubscribers}
+          contextFilter={contextFilter}
+          creatorContextFilter={creatorContextFilter}
+        />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
+        <PlatformFollowerTrendChart apiPrefix={apiPrefix} title={followerTrendTitle} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+        <PlatformFollowerChangeChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
+        <PlatformReachEngagementTrendChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+        <PlatformMovingAverageEngagementChart apiPrefix={apiPrefix} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+      </div>
 
-    {/* --- CORREÇÃO APLICADA AQUI --- */}
-    {/* Colocamos o widget de demografia e o mapa lado a lado em um grid para controlar o tamanho. */}
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-      <PlatformDemographicsWidget apiPrefix={apiPrefix} />
-      <CreatorBrazilMap apiPrefix={apiPrefix} />
-    </div>
+      {/* --- CORREÇÃO APLICADA AQUI --- */}
+      {/* Colocamos o widget de demografia e o mapa lado a lado em um grid para controlar o tamanho. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <PlatformDemographicsWidget apiPrefix={apiPrefix} />
+        <CreatorBrazilMap apiPrefix={apiPrefix} />
+      </div>
 
-  </section>
+    </section>
   );
 };
 

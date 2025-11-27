@@ -128,9 +128,9 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   );
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow border border-gray-200 h-full flex flex-col">
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm h-full flex flex-col">
       <div className="flex items-center justify-between mb-1">
-        <h4 className="text-md font-semibold text-gray-700 truncate" title={title}>
+        <h4 className="text-base font-semibold text-slate-900 truncate" title={title}>
           {compositeRanking ? 'Top Criadores (Score)' : title}
         </h4>
         {tooltip && (

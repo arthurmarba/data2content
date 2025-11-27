@@ -5,8 +5,11 @@ import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPer
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 import { aggregatePlatformDayPerformance } from '@/utils/aggregatePlatformDayPerformance';
 import { getAdminSession } from '@/lib/getAdminSession';
+import { dashboardCache, DEFAULT_DASHBOARD_TTL_MS } from '@/app/lib/cache/dashboardCache';
+import { logger } from '@/app/lib/logger';
 export const dynamic = 'force-dynamic';
 
+const SERVICE_TAG = '[api/admin/dashboard/highlights/performance-summary]';
 
 interface PerformanceHighlight {
   name: string;
@@ -44,6 +47,7 @@ function getPortugueseWeekdayNameForSummary(day: number): string {
 }
 
 export async function GET(request: NextRequest) {
+  const start = performance.now ? performance.now() : Date.now();
   const session = await getAdminSession(request);
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -60,25 +64,37 @@ export async function GET(request: NextRequest) {
   const performanceMetricField = 'stats.total_interactions';
   const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
   const periodInDaysValue = timePeriodToDays(timePeriod);
-  const [aggResult, dayAgg] = await Promise.all([
-    aggregatePlatformPerformanceHighlights(
-      periodInDaysValue,
-      performanceMetricField,
-      undefined,
-      new Date(),
-      onlyActiveSubscribers,
-      contextFilter,
-      creatorContext
-    ),
-    aggregatePlatformDayPerformance(
-      periodInDaysValue,
-      performanceMetricField,
-      { context: contextFilter || undefined, creatorContext: creatorContext || undefined },
-      undefined,
-      new Date(),
-      onlyActiveSubscribers
-    )
-  ]);
+  const cacheKey = `${SERVICE_TAG}:${JSON.stringify({
+    periodInDaysValue,
+    performanceMetricField,
+    onlyActiveSubscribers,
+    contextFilter: contextFilter || '',
+    creatorContext: creatorContext || '',
+  })}`;
+
+  const { value: [aggResult, dayAgg], hit } = await dashboardCache.wrap(
+    cacheKey,
+    () => Promise.all([
+      aggregatePlatformPerformanceHighlights(
+        periodInDaysValue,
+        performanceMetricField,
+        undefined,
+        new Date(),
+        onlyActiveSubscribers,
+        contextFilter,
+        creatorContext
+      ),
+      aggregatePlatformDayPerformance(
+        periodInDaysValue,
+        performanceMetricField,
+        { context: contextFilter || undefined, creatorContext: creatorContext || undefined },
+        undefined,
+        new Date(),
+        onlyActiveSubscribers
+      )
+    ]),
+    DEFAULT_DASHBOARD_TTL_MS
+  );
   const bestDay = dayAgg.bestDays[0] || null;
   const response: PlatformPerformanceSummaryResponse = {
     topPerformingFormat: aggResult.topFormat ? { name: aggResult.topFormat.name as string, metricName: performanceMetricLabel, value: aggResult.topFormat.average, valueFormatted: formatPerformanceValue(aggResult.topFormat.average, performanceMetricField), postsCount: aggResult.topFormat.count } : null,
@@ -105,5 +121,7 @@ export async function GET(request: NextRequest) {
   if (insights.length === 0) {
     response.insightSummary = 'Não há dados suficientes para gerar insights de performance no período selecionado.';
   }
+  const duration = Math.round((performance.now ? performance.now() : Date.now()) - start);
+  logger.info(`${SERVICE_TAG} Responded in ${duration}ms (cacheHit=${hit})`);
   return NextResponse.json(camelizeKeys(response), { status: 200 });
 }

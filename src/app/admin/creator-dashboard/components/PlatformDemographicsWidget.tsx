@@ -81,9 +81,9 @@ const PlatformDemographicsWidget: React.FC<{ apiPrefix?: string }> = ({ apiPrefi
   const handleCloseModal = useCallback(() => setModalType(null), []);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200 h-full">
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm h-full">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-md font-semibold text-gray-700">Demografia de Seguidores</h3>
+        <h3 className="text-base font-semibold text-slate-900">Demografia de Seguidores</h3>
         {!loading && !error && (
           <button onClick={refresh} className="text-xs text-indigo-600 hover:text-indigo-800 transition-colors">
             Atualizar
@@ -91,21 +91,21 @@ const PlatformDemographicsWidget: React.FC<{ apiPrefix?: string }> = ({ apiPrefi
         )}
       </div>
       {error && <div className="text-center py-2 text-xs text-red-500">Erro: {error}</div>}
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8 text-sm">
         {(Object.keys(MODAL_TITLES) as ModalType[]).map((key) => {
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold text-gray-800 capitalize">{MODAL_TITLES[key].split(" ").pop()}</h4>
-                  <button className="text-xs text-indigo-600 hover:text-indigo-800" onClick={() => setModalType(key)}>Ver todos</button>
+                <h4 className="text-sm font-semibold text-gray-800 capitalize">{MODAL_TITLES[key].split(" ").pop()}</h4>
+                <button className="text-xs text-indigo-600 hover:text-indigo-800" onClick={() => setModalType(key)}>Ver todos</button>
               </div>
               <BarList data={data?.follower_demographics[key]} loading={loading} type={key} />
             </div>
           );
         })}
       </div>
-      
+
       {!loading && !error && !data && (
         <p className="text-xs text-gray-400 mt-4">Nenhum dado demográfico disponível.</p>
       )}

@@ -8,7 +8,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 // O nome do hook foi atualizado para refletir a sua função
-import useAudienceRegionSummary, { StateBreakdown } from "@/hooks/useCreatorRegionSummary"; 
+import useAudienceRegionSummary, { StateBreakdown } from "@/hooks/useCreatorRegionSummary";
 import { BRAZIL_REGION_STATES } from "@/data/brazilRegions";
 
 const BRAZIL_GEO_URL = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson";
@@ -16,7 +16,7 @@ const COLORS = ["#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c"];
 
 function getHeatmapColor(value: number, max: number): string {
   if (max === 0 || value === 0) return "#f7fafc";
-  
+
   const percentage = value / max;
   const colorIndex = Math.floor(percentage * (COLORS.length - 1));
   const finalIndex = Math.min(colorIndex, COLORS.length - 1);
@@ -42,7 +42,7 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin' }: { apiPref
   const [gender, setGender] = useState<string>("");
   const [ageRange, setAgeRange] = useState<string>("");
   const [viewMode, setViewMode] = useState<'count' | 'density'>('count');
-  
+
   const [tooltipContent, setTooltipContent] = useState<StateBreakdown | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -67,15 +67,15 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin' }: { apiPref
   }, []);
 
   return (
-    <div className="relative bg-white p-4 rounded-lg shadow-md border border-gray-200" onMouseMove={handleMouseMove}>
+    <div className="relative rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm" onMouseMove={handleMouseMove}>
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-md font-semibold text-gray-700">Distribuição da Audiência por Estado</h3>
+        <h3 className="text-base font-semibold text-slate-900">Distribuição da Audiência por Estado</h3>
         <div className="flex items-center space-x-1 rounded-md bg-gray-100 p-1">
-            <button onClick={() => setViewMode('count')} className={`px-2 py-1 text-xs rounded-md transition-colors ${viewMode === 'count' ? 'bg-white shadow-sm' : 'bg-transparent text-gray-500 hover:bg-gray-200'}`}>Absoluto</button>
-            <button onClick={() => setViewMode('density')} className={`px-2 py-1 text-xs rounded-md transition-colors ${viewMode === 'density' ? 'bg-white shadow-sm' : 'bg-transparent text-gray-500 hover:bg-gray-200'}`}>Densidade</button>
+          <button onClick={() => setViewMode('count')} className={`px-2 py-1 text-xs rounded-md transition-colors ${viewMode === 'count' ? 'bg-white shadow-sm' : 'bg-transparent text-gray-500 hover:bg-gray-200'}`}>Absoluto</button>
+          <button onClick={() => setViewMode('density')} className={`px-2 py-1 text-xs rounded-md transition-colors ${viewMode === 'density' ? 'bg-white shadow-sm' : 'bg-transparent text-gray-500 hover:bg-gray-200'}`}>Densidade</button>
         </div>
       </div>
-      
+
       {/* --- PASSO 3: Adicionar os novos seletores de filtro à UI --- */}
       <div className="flex items-end space-x-2 mb-4 flex-wrap gap-y-2">
         <select className="border p-1 text-sm rounded" value={region} onChange={e => setRegion(e.target.value)}>
@@ -89,20 +89,20 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin' }: { apiPref
           <option value="U">Desconhecido</option>
         </select>
         <select className="border p-1 text-sm rounded" value={ageRange} onChange={e => setAgeRange(e.target.value)}>
-            <option value="">Todas as Idades</option>
-            <option value="13-17">13-17</option>
-            <option value="18-24">18-24</option>
-            <option value="25-34">25-34</option>
-            <option value="35-44">35-44</option>
-            <option value="45-54">45-54</option>
-            <option value="55-64">55-64</option>
-            <option value="65+">65+</option>
+          <option value="">Todas as Idades</option>
+          <option value="13-17">13-17</option>
+          <option value="18-24">18-24</option>
+          <option value="25-34">25-34</option>
+          <option value="35-44">35-44</option>
+          <option value="45-54">45-54</option>
+          <option value="55-64">55-64</option>
+          <option value="65+">65+</option>
         </select>
       </div>
 
       {loading && <p className="text-center text-sm text-gray-500 py-4">Carregando mapa...</p>}
       {!loading && error && <p className="text-center text-sm text-red-500 py-4">Erro ao carregar dados: {error}</p>}
-      
+
       <div className="border border-gray-300 rounded-md p-2">
         <ComposableMap
           projection="geoMercator"
@@ -137,7 +137,7 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin' }: { apiPref
           </Geographies>
         </ComposableMap>
       </div>
-      
+
       <MapLegend mode={viewMode} />
 
       {!loading && !error && Object.keys(data || {}).length === 0 && (
