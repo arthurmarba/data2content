@@ -13,8 +13,10 @@ import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 type CalculatorParams = {
   format: "post" | "reels" | "stories" | "pacote";
   exclusivity: "nenhuma" | "7d" | "15d" | "30d";
+
   usageRights: "organico" | "midiapaga" | "global";
   complexity: "simples" | "roteiro" | "profissional";
+  authority: "padrao" | "ascensao" | "autoridade" | "celebridade";
 };
 
 type CalculationResult = {
@@ -38,7 +40,9 @@ type CalculationResult = {
 const FORMAT_VALUES: CalculatorParams["format"][] = ["reels", "post", "stories", "pacote"];
 const EXCLUSIVITY_VALUES: CalculatorParams["exclusivity"][] = ["nenhuma", "7d", "15d", "30d"];
 const USAGE_VALUES: CalculatorParams["usageRights"][] = ["organico", "midiapaga", "global"];
+
 const COMPLEXITY_VALUES: CalculatorParams["complexity"][] = ["simples", "roteiro", "profissional"];
+const AUTHORITY_VALUES: CalculatorParams["authority"][] = ["padrao", "ascensao", "autoridade", "celebridade"];
 
 const FORMAT_OPTIONS: { value: CalculatorParams["format"]; label: string; helper: string }[] = [
   { value: "reels", label: "Reels", helper: "Formato em vídeo curto" },
@@ -64,6 +68,13 @@ const COMPLEXITY_OPTIONS: { value: CalculatorParams["complexity"]; label: string
   { value: "simples", label: "Simples", helper: "Execução rápida, sem roteiro" },
   { value: "roteiro", label: "Com roteiro", helper: "Necessita pré-aprovação de roteiro" },
   { value: "profissional", label: "Produção profissional", helper: "Inclui edição avançada/equipe" },
+];
+
+const AUTHORITY_OPTIONS: { value: CalculatorParams["authority"]; label: string; helper: string }[] = [
+  { value: "padrao", label: "Padrão", helper: "Criador iniciante ou sem histórico relevante" },
+  { value: "ascensao", label: "Em ascensão", helper: "Crescimento rápido e boa reputação" },
+  { value: "autoridade", label: "Autoridade", helper: "Referência no nicho de atuação" },
+  { value: "celebridade", label: "Celebridade", helper: "Fama mainstream ou alta demanda" },
 ];
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -93,8 +104,8 @@ export default function CalculatorClient() {
   const planStatusSession = (session?.user as any)?.planStatus;
   const resolvedPlanAccess = Boolean(
     billingStatus.hasPremiumAccess ||
-      billingStatus.isTrialActive ||
-      isPlanActiveLike(planStatusSession)
+    billingStatus.isTrialActive ||
+    isPlanActiveLike(planStatusSession)
   );
   const canAccessFeatures = !billingStatus.isLoading && resolvedPlanAccess;
   const showLockedMessage = !billingStatus.isLoading && !resolvedPlanAccess;
@@ -109,7 +120,9 @@ export default function CalculatorClient() {
     format: "reels",
     exclusivity: "nenhuma",
     usageRights: "organico",
+
     complexity: "simples",
+    authority: "padrao",
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
@@ -232,6 +245,9 @@ export default function CalculatorClient() {
         complexity: COMPLEXITY_VALUES.includes((parsed.params as any)?.complexity)
           ? ((parsed.params as any).complexity as CalculatorParams["complexity"])
           : calcParams.complexity,
+        authority: AUTHORITY_VALUES.includes((parsed.params as any)?.authority)
+          ? ((parsed.params as any).authority as CalculatorParams["authority"])
+          : calcParams.authority,
       };
 
       const sanitized: CalculationResult = {
@@ -288,22 +304,22 @@ export default function CalculatorClient() {
 
   const statsCards = calculation
     ? [
-        {
-          label: "Faixa estratégica",
-          value: formatCurrency(calculation.estrategico),
-          description: "Oferta para abrir relacionamento e fechar pacotes futuros.",
-        },
-        {
-          label: "Faixa justa",
-          value: formatCurrency(calculation.justo),
-          description: "Preço recomendado para equilíbrio entre entrega e retorno.",
-        },
-        {
-          label: "Faixa premium",
-          value: formatCurrency(calculation.premium),
-          description: "Valor para entregas com maior exposição e recursos extras.",
-        },
-      ]
+      {
+        label: "Valor Estratégico (Total)",
+        value: formatCurrency(calculation.estrategico),
+        description: "Oferta para abrir relacionamento e fechar pacotes futuros.",
+      },
+      {
+        label: "Valor Justo (Total)",
+        value: formatCurrency(calculation.justo),
+        description: "Preço recomendado para equilíbrio entre entrega e retorno.",
+      },
+      {
+        label: "Valor Premium (Total)",
+        value: formatCurrency(calculation.premium),
+        description: "Valor para entregas com maior exposição e recursos extras.",
+      },
+    ]
     : null;
 
   return (
@@ -320,7 +336,8 @@ export default function CalculatorClient() {
           Descubra o valor ideal das suas entregas publicitárias
         </h1>
         <p className="max-w-2xl text-gray-600">
-          Combinamos métricas reais do seu perfil, histórico de publis e multiplicadores de mercado para sugerir três faixas de preço.
+
+          Combinamos métricas reais do seu perfil, histórico de publis e multiplicadores de mercado para sugerir o VALOR TOTAL (não é CPM).
           Use o resultado estratégico para abrir conversas, o justo para propostas equilibradas e o premium para entregas de alto impacto.
         </p>
       </header>
@@ -442,6 +459,25 @@ export default function CalculatorClient() {
               {COMPLEXITY_OPTIONS.find((option) => option.value === calcParams.complexity)?.helper}
             </p>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Nível de Autoridade</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+              value={calcParams.authority}
+              onChange={(event) => handleChange("authority", event.target.value as CalculatorParams["authority"])}
+              disabled={disableInputs}
+            >
+              {AUTHORITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500">
+              {AUTHORITY_OPTIONS.find((option) => option.value === calcParams.authority)?.helper}
+            </p>
+          </div>
         </div>
 
         {error && (
@@ -540,6 +576,10 @@ export default function CalculatorClient() {
                   <dd>{findOptionLabel(COMPLEXITY_OPTIONS, calculation.params.complexity)}</dd>
                 </div>
                 <div className="flex justify-between">
+                  <dt>Autoridade</dt>
+                  <dd>{findOptionLabel(AUTHORITY_OPTIONS, calculation.params.authority)}</dd>
+                </div>
+                <div className="flex justify-between">
                   <dt>Publis analisadas</dt>
                   <dd>{calculation.totalDeals}</dd>
                 </div>
@@ -557,7 +597,15 @@ export default function CalculatorClient() {
                 <FaChartPie className="h-4 w-4 text-pink-500" />
                 Como chegamos nesses números
               </div>
-              <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+              <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-700 font-mono border border-gray-200">
+                <p className="mb-1 font-semibold text-gray-900">Fórmula base:</p>
+                <p>(Alcance / 1.000) × CPM × Fatores = Valor Total</p>
+                <div className="my-2 border-t border-gray-200"></div>
+                <p>
+                  ({calculation.metrics.reach.toLocaleString("pt-BR")} / 1.000) × {formatCurrency(calculation.cpm)} × ...
+                </p>
+              </div>
+              <p className="mt-3 text-sm text-gray-600 leading-relaxed">
                 {calculation.explanation}
               </p>
             </div>

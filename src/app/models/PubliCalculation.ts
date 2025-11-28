@@ -13,6 +13,7 @@ export interface IPubliCalculationParams {
   exclusivity: string;
   usageRights: string;
   complexity: string;
+  authority: string;
 }
 
 export interface IPubliCalculationResult {
@@ -52,6 +53,7 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
       exclusivity: { type: String, required: true, trim: true },
       usageRights: { type: String, required: true, trim: true },
       complexity: { type: String, required: true, trim: true },
+      authority: { type: String, required: true, trim: true },
     },
     result: {
       estrategico: { type: Number, required: true },

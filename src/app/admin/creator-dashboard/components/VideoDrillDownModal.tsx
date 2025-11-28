@@ -232,6 +232,7 @@ interface VideoDrillDownModalProps {
   drillDownMetric: string | null;
   startDate?: string;
   endDate?: string;
+  initialFilters?: Partial<FilterState>;
 }
 
 const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
@@ -242,6 +243,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   drillDownMetric,
   startDate,
   endDate,
+  initialFilters,
 }) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [totalVideos, setTotalVideos] = useState(0);
@@ -257,6 +259,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
 
   const [filters, setFilters] = useState<FilterState>({
     proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '',
+    ...initialFilters
   });
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
 
@@ -316,8 +319,8 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
         throw new Error(data.error || response.statusText);
       }
       const data = await response.json();
-      setVideos(data.videos || []);
-      setTotalVideos(data.pagination?.totalVideos || 0);
+      setVideos(data.videos || []); // Fallback to empty array if undefined
+      setTotalVideos(data.pagination?.totalPosts || data.pagination?.totalVideos || 0); // Handle both field names
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -334,14 +337,19 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
 
   useEffect(() => {
     if (isOpen && userId) {
+      // Reset filters when opening, applying initialFilters
+      setFilters({
+        proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '',
+        ...initialFilters
+      });
       fetchVideos();
     } else if (!isOpen) {
       setVideos([]);
       setError(null);
       setIsLoading(false);
-      setFilters({ proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '' });
+      // We don't necessarily need to reset filters on close if we reset on open
     }
-  }, [isOpen, userId, fetchVideos]);
+  }, [isOpen, userId, initialFilters]); // Added initialFilters to dependency array
 
   if (!isOpen) return null;
 

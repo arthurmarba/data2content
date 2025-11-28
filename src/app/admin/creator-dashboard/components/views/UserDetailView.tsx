@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import UserComparativeKpiSection from "../kpis/UserComparativeKpiSection";
 import UserPerformanceHighlights from "../UserPerformanceHighlights";
@@ -40,11 +41,15 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           </button>
           <div className="flex items-center gap-3">
             {userPhotoUrl ? (
-              <img
-                src={userPhotoUrl}
-                alt={userName}
-                className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm"
-              />
+              <div className="relative w-12 h-12 rounded-full overflow-hidden border border-slate-200 shadow-sm">
+                <Image
+                  src={userPhotoUrl}
+                  alt={userName}
+                  fill
+                  sizes="48px"
+                  className="object-cover"
+                />
+              </div>
             ) : (
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border border-indigo-200">
                 {userName.charAt(0).toUpperCase()}

@@ -847,6 +847,7 @@ type CategoryRankingsSummaryProps = {
   lockedCtaLabel: string;
   lockedSubtitle?: string;
   onLockedAction?: () => void;
+  isPublicView?: boolean;
 };
 
 const CategoryRankingsSummary = ({
@@ -857,6 +858,7 @@ const CategoryRankingsSummary = ({
   lockedCtaLabel,
   lockedSubtitle,
   onLockedAction,
+  isPublicView,
 }: CategoryRankingsSummaryProps) => {
   const summaryCards = [
     {
@@ -950,7 +952,7 @@ const CategoryRankingsSummary = ({
   const helperClass = 'mt-1 text-xs text-slate-500';
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-3'}`}>
       {loading
         ? Array.from({ length: skeletonCount }).map((_, index) => (
           <div
@@ -1085,6 +1087,8 @@ export default function MediaKitView({
     hidden: { opacity: 0, y: 20 },
     visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5, ease: 'easeOut' } }),
   } as const;
+
+  const isPublicView = !showOwnerCtas;
   const comparisonToTimePeriod = COMPARISON_TO_TIME_PERIOD;
   const normalizedInitialComparisonPeriod = normalizeComparisonPeriod(initialKpis?.comparisonPeriod);
   const PERIOD_OPTIONS = useMemo<Array<{ value: ComparisonPeriodKey; label: string }>>(
@@ -1144,9 +1148,11 @@ export default function MediaKitView({
 
   const cardStyle = 'space-y-6';
   const innerCardStyle = 'space-y-6';
-  const containerClass = compactPadding
-    ? 'mx-auto w-full px-6 py-8'
-    : 'mx-auto w-full px-6 py-8';
+  const containerClass = isPublicView
+    ? 'mx-auto w-full max-w-3xl px-4 py-8'
+    : compactPadding
+      ? 'mx-auto w-full px-6 py-8'
+      : 'mx-auto w-full px-6 py-8';
   const sectionsWrapperClass = 'flex flex-col space-y-10';
   const compactNumberFormat = (num: number | null | undefined) =>
     num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
@@ -1372,7 +1378,8 @@ export default function MediaKitView({
     [heroKpiCards]
   );
 
-  const isPublicView = !showOwnerCtas;
+
+
   useEffect(() => {
     if (!isPublicView) {
       setHasPassedStickyStart(false);
@@ -2108,9 +2115,9 @@ export default function MediaKitView({
               initial="hidden"
               animate="visible"
               custom={0}
-              className="flex flex-col items-center text-center sm:items-start sm:text-left"
+              className={`flex flex-col items-center text-center ${isPublicView ? '' : 'sm:items-start sm:text-left'}`}
             >
-              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
+              <div className={`flex flex-col items-center gap-6 ${isPublicView ? '' : 'sm:flex-row sm:items-start sm:gap-8'}`}>
                 <div className="relative">
                   <div className="rounded-full p-1 ring-1 ring-slate-200">
                     <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={120} />
@@ -2190,7 +2197,7 @@ export default function MediaKitView({
                 initial="hidden"
                 animate="visible"
                 custom={0.1}
-                className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-4"
+                className={`mt-12 grid grid-cols-2 gap-4 ${isPublicView ? '' : 'lg:grid-cols-4'}`}
               >
                 {heroMetricCardsData.map((metric) => (
                   <div key={metric.key} className="flex flex-col rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition hover:shadow-md">
@@ -2240,6 +2247,7 @@ export default function MediaKitView({
                     lockedCtaLabel={categoryCtaLabel}
                     lockedSubtitle={lockedSubtitle}
                     onLockedAction={() => handleLockedCtaClick('media_kit_categories_summary')}
+                    isPublicView={isPublicView}
                   />
                 </motion.section>
               </div>
@@ -2272,7 +2280,7 @@ export default function MediaKitView({
                     <p className="mt-1 text-slate-500">{demographicSummary}</p>
                   </div>
 
-                  <div className="grid gap-6 lg:grid-cols-3">
+                  <div className={`grid gap-6 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-3'}`}>
                     {genderBarData.length ? (
                       <div className="rounded-3xl bg-slate-50 p-6">
                         <div className="mb-6 flex items-center justify-between">
@@ -2482,7 +2490,7 @@ export default function MediaKitView({
                 </div>
 
                 {videosWithCorrectStats.length === 0 ? (
-                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className={`grid gap-6 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-4'}`}>
                     <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
                     <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
                     <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
@@ -2500,7 +2508,7 @@ export default function MediaKitView({
                         {groupedTopPosts.map((group, groupIndex) => (
                           <div
                             key={`top-post-group-${groupIndex}`}
-                            className="flex min-w-[65%] flex-none snap-start gap-2 sm:min-w-[45%] lg:min-w-[35%]"
+                            className={`flex min-w-[65%] flex-none snap-start gap-2 sm:min-w-[45%] ${isPublicView ? '' : 'lg:min-w-[35%]'}`}
                           >
                             {group.map((video, groupOffset) => {
                               const index = groupIndex * 2 + groupOffset;

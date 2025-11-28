@@ -416,8 +416,7 @@ export default function HomeClientPage() {
   const defaultCommunityFreeUrl =
     process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/planning/discover";
   const defaultCommunityVipUrl =
-    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ??
-    "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
+    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? null;
   const communityFreeMember = summary?.community?.free?.isMember ?? false;
   const communityFreeInviteUrl =
     summary?.community?.free?.inviteUrl ?? defaultCommunityFreeUrl;
@@ -787,8 +786,8 @@ export default function HomeClientPage() {
   ]);
 
   const handleJoinVip = React.useCallback(() => {
-    if (!communityVipInviteUrl) return;
     if (canAccessVipCommunity) {
+      if (!communityVipInviteUrl) return;
       trackCardAction("mentorship", "vip_click", { surface: "mentorship_strip", access: "allowed" });
       handleNavigate(communityVipInviteUrl);
       return;
@@ -1751,20 +1750,18 @@ export default function HomeClientPage() {
         </p>
       </div>
       <div className="mt-3 flex flex-col gap-2 sm:mt-0 sm:flex-row sm:items-center">
-        {communityVipInviteUrl ? (
-          <button
-            type="button"
-            onClick={handleJoinVip}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            {canAccessVipCommunity ? "Abrir grupo VIP" : "Assinar para entrar"}
-            {!canAccessVipCommunity ? (
-              <FaLock className="h-4 w-4" />
-            ) : (
-              <FaExternalLinkAlt className="h-4 w-4" />
-            )}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={handleJoinVip}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+        >
+          {canAccessVipCommunity ? "Abrir grupo VIP" : "Assinar para entrar"}
+          {!canAccessVipCommunity ? (
+            <FaLock className="h-4 w-4" />
+          ) : (
+            <FaExternalLinkAlt className="h-4 w-4" />
+          )}
+        </button>
         {communityFreeInviteUrl ? (
           <button
             type="button"
@@ -1776,7 +1773,7 @@ export default function HomeClientPage() {
           </button>
         ) : null}
       </div>
-    </div>
+    </div >
   ) : null;
 
   const affiliateFootnote = hasMediaKit

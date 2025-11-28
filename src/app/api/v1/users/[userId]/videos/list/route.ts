@@ -85,6 +85,10 @@ export async function GET(
     const startDate = startDateParam ? new Date(startDateParam) : undefined;
     const endDate = endDateParam ? new Date(endDateParam) : undefined;
 
+    if (endDate) {
+      endDate.setUTCHours(23, 59, 59, 999);
+    }
+
     // ALTERADO: Chama a função correta
     const result = await findUserPosts({
       userId,

@@ -48,26 +48,27 @@ const getWeekKey = (d: string | Date) => {
 const getWeekRange = (weekKey?: string | null) => {
   if (!weekKey) return null;
   const [yearStr, weekStr] = weekKey.split("-W");
-  const year = parseInt(yearStr || "0", 10);
-  const week = parseInt(weekStr || "0", 10);
+  const year = parseInt(yearStr ?? "0", 10);
+  const week = parseInt(weekStr ?? "0", 10);
   if (!year || !week) return null;
 
-  const simple = new Date(year, 0, 1 + (week - 1) * 7);
-  const dow = simple.getDay();
-  const ISOweekStart = new Date(simple);
-  if (dow <= 4) {
-    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-  } else {
-    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-  }
+  const oneJan = new Date(year, 0, 1);
+  const daysOffset = oneJan.getDay();
 
-  const start = new Date(ISOweekStart);
+  const start = new Date(year, 0, 1 - daysOffset + (week - 1) * 7);
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
 
+  const toISODate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   return {
-    start: start.toLocaleDateString("pt-BR"),
-    end: end.toLocaleDateString("pt-BR"),
+    start: toISODate(start),
+    end: toISODate(end),
   };
 };
 
@@ -83,6 +84,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
   // Modal States
   const [weeklyModalOpen, setWeeklyModalOpen] = useState(false);
   const [selectedWeekRange, setSelectedWeekRange] = useState<{ start: string; end: string } | null>(null);
+  const [selectedFilters, setSelectedFilters] = useState<any>({});
 
   const [timeSlotModalOpen, setTimeSlotModalOpen] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ day: number; hour: number } | null>(null);
@@ -589,7 +591,19 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={contextBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                <BarChart
+                  data={contextBars}
+                  layout="vertical"
+                  margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const context = data.activePayload[0].payload.name;
+                      setSelectedFilters({ context });
+                      setWeeklyModalOpen(true);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                   <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <YAxis
@@ -626,7 +640,19 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={proposalBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                <BarChart
+                  data={proposalBars}
+                  layout="vertical"
+                  margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const proposal = data.activePayload[0].payload.name;
+                      setSelectedFilters({ proposal });
+                      setWeeklyModalOpen(true);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                   <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <YAxis
@@ -665,7 +691,19 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={toneBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                <BarChart
+                  data={toneBars}
+                  layout="vertical"
+                  margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const tone = data.activePayload[0].payload.name;
+                      setSelectedFilters({ tone });
+                      setWeeklyModalOpen(true);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                   <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <YAxis
@@ -702,7 +740,19 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem referências registradas no período.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={referenceBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                <BarChart
+                  data={referenceBars}
+                  layout="vertical"
+                  margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const references = data.activePayload[0].payload.name;
+                      setSelectedFilters({ references });
+                      setWeeklyModalOpen(true);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                   <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <YAxis
@@ -794,7 +844,18 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={formatBars} margin={{ top: 6, right: 8, left: -6, bottom: 0 }}>
+                <AreaChart
+                  data={formatBars}
+                  margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const format = data.activePayload[0].payload.name;
+                      setSelectedFilters({ format });
+                      setWeeklyModalOpen(true);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <defs>
                     <linearGradient id="formatGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
@@ -983,12 +1044,17 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
       {/* Modals */}
       <VideoDrillDownModal
         isOpen={weeklyModalOpen}
-        onClose={() => setWeeklyModalOpen(false)}
+        onClose={() => {
+          setWeeklyModalOpen(false);
+          setSelectedWeekRange(null);
+          setSelectedFilters({});
+        }}
         userId={userId}
         timePeriod={TIME_PERIOD}
         drillDownMetric="postDate"
         startDate={selectedWeekRange?.start}
         endDate={selectedWeekRange?.end}
+        initialFilters={selectedFilters}
       />
 
       {selectedTimeSlot && (

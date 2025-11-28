@@ -18,13 +18,17 @@ const ROUTE_TAG = '[POST /api/calculator]';
 const VALID_FORMATS = new Set(['post', 'reels', 'stories', 'pacote']);
 const VALID_EXCLUSIVITIES = new Set(['nenhuma', '7d', '15d', '30d']);
 const VALID_USAGE_RIGHTS = new Set(['organico', 'midiapaga', 'global']);
+
 const VALID_COMPLEXITIES = new Set(['simples', 'roteiro', 'profissional']);
+const VALID_AUTHORITIES = new Set(['padrao', 'ascensao', 'autoridade', 'celebridade']);
 
 interface CalculatorPayload {
   format?: string;
   exclusivity?: string;
   usageRights?: string;
+
   complexity?: string;
+  authority?: string;
   periodDays?: number;
   explanation?: string;
 }
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Corpo da requisição inválido' }, { status: 400 });
   }
 
-  const { format, exclusivity, usageRights, complexity } = payload;
+  const { format, exclusivity, usageRights, complexity, authority } = payload;
 
   if (
     !format ||
@@ -64,7 +68,10 @@ export async function POST(request: NextRequest) {
     !VALID_FORMATS.has(format) ||
     !VALID_EXCLUSIVITIES.has(exclusivity) ||
     !VALID_USAGE_RIGHTS.has(usageRights) ||
-    !VALID_COMPLEXITIES.has(complexity)
+
+    !VALID_COMPLEXITIES.has(complexity) ||
+    !authority ||
+    !VALID_AUTHORITIES.has(authority)
   ) {
     return NextResponse.json({ error: 'Parâmetros inválidos para cálculo.' }, { status: 400 });
   }
@@ -96,8 +103,8 @@ export async function POST(request: NextRequest) {
       typeof overallStats.avgEngagementRate === 'number'
         ? overallStats.avgEngagementRate
         : typeof overallStats.avgEngagement === 'number'
-        ? overallStats.avgEngagement
-        : 0;
+          ? overallStats.avgEngagement
+          : 0;
 
     if (!Number.isFinite(reachAvgRaw) || reachAvgRaw <= 0) {
       return NextResponse.json({ error: 'Métricas insuficientes para calcular o valor sugerido. Registre novos conteúdos e tente novamente.' }, { status: 422 });
@@ -134,18 +141,26 @@ export async function POST(request: NextRequest) {
         roteiro: 1.1,
         profissional: 1.3,
       },
+      autoridade: {
+        padrao: 1.0,
+        ascensao: 1.2,
+        autoridade: 1.5,
+        celebridade: 2.0,
+      },
     } as const;
 
     const formatKey = format as keyof typeof multiplicadores.formato;
     const exclusivityKey = exclusivity as keyof typeof multiplicadores.exclusividade;
     const usageRightsKey = usageRights as keyof typeof multiplicadores.usoImagem;
     const complexityKey = complexity as keyof typeof multiplicadores.complexidade;
+    const authorityKey = authority as keyof typeof multiplicadores.autoridade;
 
     const ajuste =
       multiplicadores.formato[formatKey] *
       multiplicadores.exclusividade[exclusivityKey] *
       multiplicadores.usoImagem[usageRightsKey] *
       multiplicadores.complexidade[complexityKey] *
+      multiplicadores.autoridade[authorityKey] *
       engagementFactor;
 
     const valorJusto = roundCurrency(valorBase * ajuste);
@@ -179,6 +194,7 @@ export async function POST(request: NextRequest) {
         exclusivity,
         usageRights,
         complexity,
+        authority,
       },
       result: {
         estrategico: valorEstrategico,
@@ -204,6 +220,7 @@ export async function POST(request: NextRequest) {
           exclusivity: calculation.params?.exclusivity,
           usageRights: calculation.params?.usageRights,
           complexity: calculation.params?.complexity,
+          authority: calculation.params?.authority,
         },
         metrics: {
           reach: reachAvg,
