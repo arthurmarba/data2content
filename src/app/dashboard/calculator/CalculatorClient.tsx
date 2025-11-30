@@ -6,17 +6,17 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
-import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie } from "react-icons/fa";
+import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, FaVideo, FaImage, FaLayerGroup, FaCalendarCheck, FaCalendarAlt, FaCalendarTimes, FaGlobeAmericas, FaBullhorn, FaUser, FaUserCheck, FaUserTie, FaStar, FaSnowflake, FaSun, FaCloudSun } from "react-icons/fa";
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
 type CalculatorParams = {
   format: "post" | "reels" | "stories" | "pacote";
   exclusivity: "nenhuma" | "7d" | "15d" | "30d";
-
   usageRights: "organico" | "midiapaga" | "global";
   complexity: "simples" | "roteiro" | "profissional";
   authority: "padrao" | "ascensao" | "autoridade" | "celebridade";
+  seasonality: "normal" | "alta" | "baixa";
 };
 
 type CalculationResult = {
@@ -40,41 +40,47 @@ type CalculationResult = {
 const FORMAT_VALUES: CalculatorParams["format"][] = ["reels", "post", "stories", "pacote"];
 const EXCLUSIVITY_VALUES: CalculatorParams["exclusivity"][] = ["nenhuma", "7d", "15d", "30d"];
 const USAGE_VALUES: CalculatorParams["usageRights"][] = ["organico", "midiapaga", "global"];
-
 const COMPLEXITY_VALUES: CalculatorParams["complexity"][] = ["simples", "roteiro", "profissional"];
 const AUTHORITY_VALUES: CalculatorParams["authority"][] = ["padrao", "ascensao", "autoridade", "celebridade"];
+const SEASONALITY_VALUES: CalculatorParams["seasonality"][] = ["normal", "alta", "baixa"];
 
-const FORMAT_OPTIONS: { value: CalculatorParams["format"]; label: string; helper: string }[] = [
-  { value: "reels", label: "Reels", helper: "Formato em vídeo curto" },
-  { value: "post", label: "Post no feed", helper: "Imagem ou carrossel" },
-  { value: "stories", label: "Stories", helper: "Sequências éphemeras" },
-  { value: "pacote", label: "Pacote multiformato", helper: "Combinação personalizada" },
+const FORMAT_OPTIONS = [
+  { value: "reels", label: "Reels", icon: FaVideo, helper: "Vídeo curto (até 90s)" },
+  { value: "post", label: "Post no Feed", icon: FaImage, helper: "Foto única ou carrossel" },
+  { value: "stories", label: "Stories", icon: FaInstagram, helper: "Sequência de 3 stories" },
+  { value: "pacote", label: "Pacote", icon: FaLayerGroup, helper: "Combo personalizado" },
 ];
 
-const EXCLUSIVITY_OPTIONS: { value: CalculatorParams["exclusivity"]; label: string }[] = [
-  { value: "nenhuma", label: "Sem exclusividade" },
-  { value: "7d", label: "7 dias" },
-  { value: "15d", label: "15 dias" },
-  { value: "30d", label: "30 dias" },
+const EXCLUSIVITY_OPTIONS = [
+  { value: "nenhuma", label: "Sem Exclusividade", icon: FaCalendarTimes },
+  { value: "7d", label: "7 Dias", icon: FaCalendarCheck },
+  { value: "15d", label: "15 Dias", icon: FaCalendarCheck },
+  { value: "30d", label: "30 Dias", icon: FaCalendarAlt },
 ];
 
-const USAGE_OPTIONS: { value: CalculatorParams["usageRights"]; label: string }[] = [
-  { value: "organico", label: "Uso orgânico" },
-  { value: "midiapaga", label: "Mídia paga" },
-  { value: "global", label: "Global / perpétuo" },
+const USAGE_OPTIONS = [
+  { value: "organico", label: "Orgânico", icon: FaUser, helper: "Apenas no seu perfil" },
+  { value: "midiapaga", label: "Mídia Paga", icon: FaBullhorn, helper: "Impulsionamento (Ads)" },
+  { value: "global", label: "Global", icon: FaGlobeAmericas, helper: "Uso irrestrito/TV" },
 ];
 
-const COMPLEXITY_OPTIONS: { value: CalculatorParams["complexity"]; label: string; helper: string }[] = [
-  { value: "simples", label: "Simples", helper: "Execução rápida, sem roteiro" },
-  { value: "roteiro", label: "Com roteiro", helper: "Necessita pré-aprovação de roteiro" },
-  { value: "profissional", label: "Produção profissional", helper: "Inclui edição avançada/equipe" },
+const COMPLEXITY_OPTIONS = [
+  { value: "simples", label: "Simples", icon: FaUser, helper: "Sem roteiro prévio" },
+  { value: "roteiro", label: "Com Roteiro", icon: FaUserCheck, helper: "Roteiro aprovado" },
+  { value: "profissional", label: "Pro", icon: FaUserTie, helper: "Edição avançada" },
 ];
 
-const AUTHORITY_OPTIONS: { value: CalculatorParams["authority"]; label: string; helper: string }[] = [
-  { value: "padrao", label: "Padrão", helper: "Criador iniciante ou sem histórico relevante" },
-  { value: "ascensao", label: "Em ascensão", helper: "Crescimento rápido e boa reputação" },
-  { value: "autoridade", label: "Autoridade", helper: "Referência no nicho de atuação" },
-  { value: "celebridade", label: "Celebridade", helper: "Fama mainstream ou alta demanda" },
+const AUTHORITY_OPTIONS = [
+  { value: "padrao", label: "Padrão", icon: FaUser, helper: "Iniciante" },
+  { value: "ascensao", label: "Em Ascensão", icon: FaChartLine, helper: "Crescendo" },
+  { value: "autoridade", label: "Autoridade", icon: FaStar, helper: "Referência" },
+  { value: "celebridade", label: "Celebridade", icon: FaStar, helper: "Famoso" },
+];
+
+const SEASONALITY_OPTIONS = [
+  { value: "normal", label: "Normal", icon: FaCloudSun, helper: "Dias comuns" },
+  { value: "alta", label: "Alta Demanda", icon: FaSun, helper: "Black Friday, Natal" },
+  { value: "baixa", label: "Baixa", icon: FaSnowflake, helper: "Pós-datas festivas" },
 ];
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -120,13 +126,14 @@ export default function CalculatorClient() {
     format: "reels",
     exclusivity: "nenhuma",
     usageRights: "organico",
-
     complexity: "simples",
     authority: "padrao",
+    seasonality: "normal",
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (showLockedMessage) {
@@ -161,6 +168,12 @@ export default function CalculatorClient() {
     }
   }, [billingStatus.isLoading, canAccessFeatures]);
 
+  useEffect(() => {
+    if (!calculation) return;
+    if (!resultsSectionRef.current) return;
+    resultsSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [calculation]);
+
   const handleLockedAccess = (source: string = "cta") => {
     toast({
       variant: "info",
@@ -192,8 +205,6 @@ export default function CalculatorClient() {
 
   const formatCurrency = (value: number) => currencyFormatter.format(value);
   const formatPercent = (value: number) => `${percentFormatter.format(value)}%`;
-  const findOptionLabel = (options: { value: string; label: string }[], value?: string | null) =>
-    options.find((option) => option.value === value)?.label ?? (value ?? '—');
   const formatDateTime = (iso?: string | null) => {
     if (!iso) return '—';
     const parsed = new Date(iso);
@@ -232,6 +243,7 @@ export default function CalculatorClient() {
       if (typeof parsed?.justo !== "number" || typeof parsed?.estrategico !== "number" || typeof parsed?.premium !== "number") {
         throw new Error("Resposta inválida do servidor.");
       }
+
       const sanitizedParams = {
         format: FORMAT_VALUES.includes((parsed.params as any)?.format)
           ? ((parsed.params as any).format as CalculatorParams["format"])
@@ -248,6 +260,9 @@ export default function CalculatorClient() {
         authority: AUTHORITY_VALUES.includes((parsed.params as any)?.authority)
           ? ((parsed.params as any).authority as CalculatorParams["authority"])
           : calcParams.authority,
+        seasonality: SEASONALITY_VALUES.includes((parsed.params as any)?.seasonality)
+          ? ((parsed.params as any).seasonality as CalculatorParams["seasonality"])
+          : calcParams.seasonality,
       };
 
       const sanitized: CalculationResult = {
@@ -302,206 +317,209 @@ export default function CalculatorClient() {
 
   const disableInputs = isCalculating || !canAccessFeatures;
 
+  const calculateEffectiveCpm = (totalValue: number, reach: number) => {
+    if (reach <= 0) return 0;
+    return (totalValue / reach) * 1000;
+  };
+
   const statsCards = calculation
     ? [
       {
-        label: "Valor Estratégico (Total)",
+        label: "Estratégico (Mínimo)",
         value: formatCurrency(calculation.estrategico),
-        description: "Oferta para abrir relacionamento e fechar pacotes futuros.",
+        cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
+        description: "Para abrir portas e fechar pacotes.",
+        badgeClass: "bg-blue-50 text-blue-700",
+        accentDot: "bg-blue-500",
       },
       {
-        label: "Valor Justo (Total)",
+        label: "Valor Justo (Sugerido)",
         value: formatCurrency(calculation.justo),
-        description: "Preço recomendado para equilíbrio entre entrega e retorno.",
+        cpm: formatCurrency(calculateEffectiveCpm(calculation.justo, calculation.metrics.reach)),
+        description: "Equilíbrio ideal entre esforço e retorno.",
+        badgeClass: "bg-emerald-50 text-emerald-700",
+        accentDot: "bg-emerald-500",
       },
       {
-        label: "Valor Premium (Total)",
+        label: "Premium (Alto Valor)",
         value: formatCurrency(calculation.premium),
-        description: "Valor para entregas com maior exposição e recursos extras.",
+        cpm: formatCurrency(calculateEffectiveCpm(calculation.premium, calculation.metrics.reach)),
+        description: "Para alta demanda e entregas complexas.",
+        badgeClass: "bg-amber-50 text-amber-700",
+        accentDot: "bg-amber-500",
       },
     ]
     : null;
 
-  return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10 space-y-8">
-      <header className="space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full bg-pink-50 px-3 py-1 text-sm font-medium text-pink-600">
-          <FaChartLine className="h-3.5 w-3.5" />
-          Calculadora de Publi
-          <span className="inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pink-700">
-            AGÊNCIA
-          </span>
-        </div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          Descubra o valor ideal das suas entregas publicitárias
-        </h1>
-        <p className="max-w-2xl text-gray-600">
+  const SelectionGroup = ({ label, options, value, onChange, disabled }: any) => (
+    <div className="space-y-3">
+      <label className="text-sm font-semibold text-slate-800">{label}</label>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {options.map((option: any) => {
+          const Icon = option.icon;
+          const isSelected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              disabled={disabled}
+              className={`group relative flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all sm:p-5 ${isSelected
+                  ? "border-[#F6007B]/50 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] ring-2 ring-[#F6007B]/25"
+                  : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+                } ${disabled ? "cursor-not-allowed opacity-60 hover:translate-y-0 hover:shadow-none" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/25 focus-visible:ring-offset-1"}`}
+            >
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg transition-colors ${isSelected ? "bg-[#F6007B]/10 text-[#F6007B]" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"}`}>
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                {option.helper && <p className="text-xs text-slate-500">{option.helper}</p>}
+              </div>
+              {isSelected ? (
+                <span className="absolute right-3 top-3 rounded-full bg-[#F6007B]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#F6007B]">
+                  Selecionado
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
-          Combinamos métricas reais do seu perfil, histórico de publis e multiplicadores de mercado para sugerir o VALOR TOTAL (não é CPM).
-          Use o resultado estratégico para abrir conversas, o justo para propostas equilibradas e o premium para entregas de alto impacto.
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 py-10 space-y-10 sm:px-6">
+      <header className="space-y-4 text-center sm:text-left">
+        <div className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-600">
+          <FaChartLine className="h-3.5 w-3.5 text-[#F6007B]" />
+          Calculadora inteligente · Agência
+        </div>
+        <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+          Quanto cobrar pela sua publi?
+        </h1>
+        <p className="max-w-2xl text-base text-slate-600 sm:text-lg">
+          Nossa IA analisa seu engajamento, nicho e histórico para sugerir o preço ideal.
+          Personalize os detalhes abaixo para um cálculo preciso.
         </p>
       </header>
 
       {billingStatus.isLoading && (
-        <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 text-gray-600 shadow-sm">
-          <FaSpinner className="h-4 w-4 animate-spin" />
-          Carregando status da sua assinatura...
+        <div className="flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white p-6 text-slate-600 shadow-sm sm:p-8">
+          <FaSpinner className="h-5 w-5 animate-spin text-[#F6007B]" />
+          <span className="font-medium">Carregando seus dados...</span>
         </div>
       )}
 
       {showLockedMessage && (
-        <div className="rounded-xl border border-dashed border-pink-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="mt-1 rounded-full bg-pink-100 p-2 text-pink-600">
-                <FaLock className="h-4 w-4" />
-              </div>
-              <div>
-                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
-                  <span aria-hidden>📊</span>
-                  Recurso exclusivo Plano Agência
-                </span>
-                <h2 className="mt-2 text-lg font-semibold text-gray-900">
-                  Calculadora de Publi liberada apenas para assinantes do Plano Agência
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Descubra o valor ideal da sua publi com base nas suas métricas reais e histórico de contratos, com sugestão automática do Mobi.
-                </p>
-              </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col items-center gap-6 text-center md:flex-row md:text-left">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B]">
+              <FaLock className="h-5 w-5" />
             </div>
-            <div className="flex flex-col items-stretch gap-2 md:items-end">
-              <button
-                type="button"
-                onClick={() => handleLockedAccess("banner")}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
-              >
-                Desbloquear IA
-                <FaArrowRight className="h-3 w-3" />
-              </button>
-              <p className="text-xs text-gray-500 text-left md:text-right max-w-xs">
-                {upgradeSubtitle}
+            <div className="flex-1 space-y-2">
+              <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+                Desbloqueie o poder da precificação inteligente
+              </h2>
+              <p className="text-slate-600">
+                Assinantes do Plano Agência têm acesso ilimitado à calculadora, com sugestões baseadas em dados reais de mercado.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => handleLockedAccess("banner")}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+            >
+              Quero acesso agora
+              <FaArrowRight className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Formato da entrega</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+          <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">1</span>
+            Detalhes da Entrega
+          </h3>
+          <div className="space-y-8">
+            <SelectionGroup
+              label="Qual o formato do conteúdo?"
+              options={FORMAT_OPTIONS}
               value={calcParams.format}
-              onChange={(event) => handleChange("format", event.target.value as CalculatorParams["format"])}
+              onChange={(v: any) => handleChange("format", v)}
               disabled={disableInputs}
-            >
-              {FORMAT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">
-              {FORMAT_OPTIONS.find((option) => option.value === calcParams.format)?.helper}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Exclusividade</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:cursor-not-allowed disabled:bg-gray-100"
-              value={calcParams.exclusivity}
-              onChange={(event) => handleChange("exclusivity", event.target.value as CalculatorParams["exclusivity"])}
-              disabled={disableInputs}
-            >
-              {EXCLUSIVITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">Tempo que você fica sem divulgar marcas concorrentes.</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Uso de imagem</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:cursor-not-allowed disabled:bg-gray-100"
-              value={calcParams.usageRights}
-              onChange={(event) => handleChange("usageRights", event.target.value as CalculatorParams["usageRights"])}
-              disabled={disableInputs}
-            >
-              {USAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">Define se a marca pode impulsionar, veicular anúncios ou usar globalmente.</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Complexidade da produção</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+            />
+            <SelectionGroup
+              label="Qual a complexidade da produção?"
+              options={COMPLEXITY_OPTIONS}
               value={calcParams.complexity}
-              onChange={(event) => handleChange("complexity", event.target.value as CalculatorParams["complexity"])}
+              onChange={(v: any) => handleChange("complexity", v)}
               disabled={disableInputs}
-            >
-              {COMPLEXITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">
-              {COMPLEXITY_OPTIONS.find((option) => option.value === calcParams.complexity)?.helper}
-            </p>
+            />
+            <SelectionGroup
+              label="Qual o momento (Sazonalidade)?"
+              options={SEASONALITY_OPTIONS}
+              value={calcParams.seasonality}
+              onChange={(v: any) => handleChange("seasonality", v)}
+              disabled={disableInputs}
+            />
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Nível de Autoridade</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 disabled:cursor-not-allowed disabled:bg-gray-100"
-              value={calcParams.authority}
-              onChange={(event) => handleChange("authority", event.target.value as CalculatorParams["authority"])}
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+          <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">2</span>
+            Direitos e Prazos
+          </h3>
+          <div className="space-y-8">
+            <SelectionGroup
+              label="Exclusividade exigida"
+              options={EXCLUSIVITY_OPTIONS}
+              value={calcParams.exclusivity}
+              onChange={(v: any) => handleChange("exclusivity", v)}
               disabled={disableInputs}
-            >
-              {AUTHORITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">
-              {AUTHORITY_OPTIONS.find((option) => option.value === calcParams.authority)?.helper}
-            </p>
+            />
+            <SelectionGroup
+              label="Direitos de uso de imagem"
+              options={USAGE_OPTIONS}
+              value={calcParams.usageRights}
+              onChange={(v: any) => handleChange("usageRights", v)}
+              disabled={disableInputs}
+            />
+            <SelectionGroup
+              label="Seu nível de autoridade atual"
+              options={AUTHORITY_OPTIONS}
+              value={calcParams.authority}
+              onChange={(v: any) => handleChange("authority", v)}
+              disabled={disableInputs}
+            />
           </div>
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex justify-end">
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-200"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F6007B] px-8 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white disabled:shadow-none"
             disabled={disableInputs}
             ref={submitButtonRef}
           >
             {isCalculating ? (
               <>
-                <FaSpinner className="h-4 w-4 animate-spin" />
-                Calculando...
+                <FaSpinner className="h-5 w-5 animate-spin" />
+                Calculando Melhor Preço...
               </>
             ) : (
               <>
-                Calcular valores
-                <FaArrowRight className="h-3 w-3" />
+                Calcular Valor da Publi
+                <FaArrowRight className="h-4 w-4" />
               </>
             )}
           </button>
@@ -509,124 +527,95 @@ export default function CalculatorClient() {
       </form>
 
       {calculation && statsCards && (
-        <section className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
+        <section
+          ref={resultsSectionRef}
+          className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-8"
+        >
+          <div className="grid gap-6 md:grid-cols-3">
             {statsCards.map((card) => (
               <div
                 key={card.label}
-                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+                className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md"
               >
-                <span className="text-xs font-semibold uppercase tracking-wide text-pink-500">
-                  {card.label}
-                </span>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
-                <p className="mt-3 text-sm text-gray-600">{card.description}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
+                    <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
+                    {card.label}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    CPM aprox. {card.cpm}
+                  </span>
+                </div>
+                <div className="mt-4 space-y-1">
+                  <p className="text-3xl font-semibold text-slate-900">{card.value}</p>
+                </div>
+                <p className="mt-3 text-sm text-slate-600 leading-relaxed">{card.description}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700">Métricas base consideradas</h3>
-              <dl className="mt-3 space-y-2 text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <dt>Alcance médio recente</dt>
-                  <dd>{calculation.metrics.reach.toLocaleString("pt-BR")} pessoas</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Engajamento médio</dt>
-                  <dd>{formatPercent(calculation.metrics.engagement)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Nicho detectado</dt>
-                  <dd className="capitalize">{formatSegmentLabel(calculation.metrics.profileSegment)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>CPM aplicado</dt>
-                  <dd>{formatCurrency(calculation.cpm)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Calculado em</dt>
-                  <dd>{formatDateTime(calculation.createdAt)}</dd>
-                </div>
-              </dl>
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="rounded-full bg-pink-100 p-2 text-pink-600">
+                <FaChartPie className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Entenda o cálculo</h3>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700">Histórico comercial</h3>
-              <dl className="mt-3 space-y-2 text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <dt>Ticket médio recente</dt>
-                  <dd>{calculation.avgTicket ? formatCurrency(calculation.avgTicket) : "—"}</dd>
+            <div className="grid gap-8 lg:grid-cols-2">
+              <div className="space-y-4">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <h4 className="mb-3 text-sm font-semibold text-slate-900">Fatores de impacto</h4>
+                  <ul className="space-y-2 text-sm text-slate-600">
+                    <li className="flex justify-between">
+                      <span>Alcance Base</span>
+                      <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Engajamento</span>
+                      <span className="font-medium text-green-600">+{formatPercent(calculation.metrics.engagement)} (Bônus)</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Sazonalidade</span>
+                      <span className="font-medium text-slate-900 capitalize">{calculation.params.seasonality || "Normal"}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>CPM do Nicho</span>
+                      <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span>
+                    </li>
+                  </ul>
+                  <div className="mt-3 border-t border-gray-200 pt-3 text-xs text-slate-500">
+                    <p>Fórmula simplificada: (Alcance / 1.000) x CPM Ajustado = Valor Total</p>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <dt>Formato considerado</dt>
-                  <dd>{findOptionLabel(FORMAT_OPTIONS, calculation.params.format)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Exclusividade</dt>
-                  <dd>{findOptionLabel(EXCLUSIVITY_OPTIONS, calculation.params.exclusivity)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Uso de imagem</dt>
-                  <dd>{findOptionLabel(USAGE_OPTIONS, calculation.params.usageRights)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Complexidade</dt>
-                  <dd>{findOptionLabel(COMPLEXITY_OPTIONS, calculation.params.complexity)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Autoridade</dt>
-                  <dd>{findOptionLabel(AUTHORITY_OPTIONS, calculation.params.authority)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Publis analisadas</dt>
-                  <dd>{calculation.totalDeals}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>ID do cálculo</dt>
-                  <dd className="font-mono text-xs text-gray-500">{calculation.calculationId}</dd>
-                </div>
-              </dl>
+                <p className="text-sm leading-relaxed text-slate-500">
+                  {calculation.explanation}
+                </p>
+              </div>
+
+              <div className="flex flex-col justify-center gap-4 border-t pt-6 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
+                <button
+                  type="button"
+                  onClick={handleAddToMediaKit}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-pink-100 bg-white px-6 py-4 text-sm font-bold text-pink-600 transition hover:border-pink-200 hover:bg-pink-50"
+                >
+                  <FaBullhorn className="h-4 w-4" />
+                  Adicionar ao Media Kit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenChat}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-4 text-sm font-bold text-white transition hover:bg-gray-800"
+                >
+                  <FaArrowRight className="h-4 w-4" />
+                  Pedir Ajuda à IA para Negociar
+                </button>
+              </div>
             </div>
           </div>
 
-          {calculation.explanation && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <FaChartPie className="h-4 w-4 text-pink-500" />
-                Como chegamos nesses números
-              </div>
-              <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-700 font-mono border border-gray-200">
-                <p className="mb-1 font-semibold text-gray-900">Fórmula base:</p>
-                <p>(Alcance / 1.000) × CPM × Fatores = Valor Total</p>
-                <div className="my-2 border-t border-gray-200"></div>
-                <p>
-                  ({calculation.metrics.reach.toLocaleString("pt-BR")} / 1.000) × {formatCurrency(calculation.cpm)} × ...
-                </p>
-              </div>
-              <p className="mt-3 text-sm text-gray-600 leading-relaxed">
-                {calculation.explanation}
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleAddToMediaKit}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-pink-200 bg-white px-5 py-3 text-sm font-semibold text-pink-600 shadow-sm transition hover:border-pink-400 hover:bg-pink-50 sm:w-auto"
-            >
-              Adicionar ao MediaKit
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenChat}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 sm:w-auto"
-            >
-              Ver no Chat IA
-              <FaArrowRight className="h-3 w-3" />
-            </button>
+          <div className="text-center text-xs text-slate-400">
+            Cálculo ID: <span className="font-mono">{calculation.calculationId}</span> • Gerado em {formatDateTime(calculation.createdAt)}
           </div>
         </section>
       )}

@@ -21,6 +21,7 @@ const VALID_USAGE_RIGHTS = new Set(['organico', 'midiapaga', 'global']);
 
 const VALID_COMPLEXITIES = new Set(['simples', 'roteiro', 'profissional']);
 const VALID_AUTHORITIES = new Set(['padrao', 'ascensao', 'autoridade', 'celebridade']);
+const VALID_SEASONALITIES = new Set(['normal', 'alta', 'baixa']);
 
 interface CalculatorPayload {
   format?: string;
@@ -29,6 +30,7 @@ interface CalculatorPayload {
 
   complexity?: string;
   authority?: string;
+  seasonality?: string;
   periodDays?: number;
   explanation?: string;
 }
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Corpo da requisição inválido' }, { status: 400 });
   }
 
-  const { format, exclusivity, usageRights, complexity, authority } = payload;
+  const { format, exclusivity, usageRights, complexity, authority, seasonality = 'normal' } = payload;
 
   if (
     !format ||
@@ -71,7 +73,8 @@ export async function POST(request: NextRequest) {
 
     !VALID_COMPLEXITIES.has(complexity) ||
     !authority ||
-    !VALID_AUTHORITIES.has(authority)
+    !VALID_AUTHORITIES.has(authority) ||
+    !VALID_SEASONALITIES.has(seasonality)
   ) {
     return NextResponse.json({ error: 'Parâmetros inválidos para cálculo.' }, { status: 400 });
   }
@@ -147,6 +150,11 @@ export async function POST(request: NextRequest) {
         autoridade: 1.5,
         celebridade: 2.0,
       },
+      sazonalidade: {
+        normal: 1.0,
+        alta: 1.2,
+        baixa: 0.9,
+      },
     } as const;
 
     const formatKey = format as keyof typeof multiplicadores.formato;
@@ -154,6 +162,7 @@ export async function POST(request: NextRequest) {
     const usageRightsKey = usageRights as keyof typeof multiplicadores.usoImagem;
     const complexityKey = complexity as keyof typeof multiplicadores.complexidade;
     const authorityKey = authority as keyof typeof multiplicadores.autoridade;
+    const seasonalityKey = seasonality as keyof typeof multiplicadores.sazonalidade;
 
     const ajuste =
       multiplicadores.formato[formatKey] *
@@ -161,6 +170,7 @@ export async function POST(request: NextRequest) {
       multiplicadores.usoImagem[usageRightsKey] *
       multiplicadores.complexidade[complexityKey] *
       multiplicadores.autoridade[authorityKey] *
+      multiplicadores.sazonalidade[seasonalityKey] *
       engagementFactor;
 
     const valorJusto = roundCurrency(valorBase * ajuste);
@@ -176,6 +186,7 @@ export async function POST(request: NextRequest) {
       `CPM base aplicado: R$ ${cpmValue.toFixed(2)}.`,
       `Alcance médio considerado: ${reachAvg.toLocaleString('pt-BR')} pessoas.`,
       `Fator de engajamento: ${engagementFactor.toFixed(2)}x.`,
+      seasonalityKey !== 'normal' ? `Sazonalidade (${seasonalityKey}): ${multiplicadores.sazonalidade[seasonalityKey]}x.` : null,
       avgTicketValue ? `Ticket médio de publis recentes: R$ ${avgTicketValue.toFixed(2)}.` : null,
       totalDeals > 0 ? `Total de publis analisadas: ${totalDeals}.` : null,
     ].filter(Boolean);
@@ -195,6 +206,7 @@ export async function POST(request: NextRequest) {
         usageRights,
         complexity,
         authority,
+        seasonality,
       },
       result: {
         estrategico: valorEstrategico,
@@ -221,6 +233,7 @@ export async function POST(request: NextRequest) {
           usageRights: calculation.params?.usageRights,
           complexity: calculation.params?.complexity,
           authority: calculation.params?.authority,
+          seasonality: calculation.params?.seasonality,
         },
         metrics: {
           reach: reachAvg,

@@ -70,13 +70,13 @@ test('free user sees calculator lock and triggers upgrade tracking', () => {
   render(<CalculatorClient />);
 
   expect(
-    screen.getByText('Calculadora de Publi liberada apenas para assinantes do Plano Agência')
+    screen.getByText('Desbloqueie o poder da precificação inteligente')
   ).toBeInTheDocument();
   expect(track).toHaveBeenCalledWith('pro_feature_locked_viewed', {
     feature: 'calculator',
   });
 
-  fireEvent.click(screen.getByRole('button', { name: /Desbloquear IA/i }));
+  fireEvent.click(screen.getByRole('button', { name: /Quero Acesso Agora/i }));
 
   expect(track).toHaveBeenCalledWith('pro_feature_upgrade_clicked', {
     feature: 'calculator',
@@ -104,6 +104,7 @@ test('pro user can submit calculator and view results', async () => {
       exclusivity: 'nenhuma',
       usageRights: 'organico',
       complexity: 'simples',
+      seasonality: 'normal',
     },
     metrics: {
       reach: 25000,
@@ -135,10 +136,10 @@ test('pro user can submit calculator and view results', async () => {
   render(<CalculatorClient />);
 
   expect(
-    screen.queryByText('Calculadora de Publi liberada apenas para assinantes do Plano Agência')
+    screen.queryByText('Desbloqueie o poder da precificação inteligente')
   ).toBeNull();
 
-  fireEvent.submit(screen.getByRole('button', { name: /Calcular valores/i }).closest('form')!);
+  fireEvent.click(screen.getByRole('button', { name: /Calcular Valor da Publi/i }));
 
   await waitFor(() =>
     expect(global.fetch).toHaveBeenCalledWith(
@@ -147,8 +148,8 @@ test('pro user can submit calculator and view results', async () => {
     )
   );
 
-  expect(await screen.findByText('Faixa estratégica')).toBeInTheDocument();
-  expect(screen.getByText('Faixa justa')).toBeInTheDocument();
-  expect(screen.getByText('Faixa premium')).toBeInTheDocument();
+  expect(await screen.findByText('Estratégico (Mínimo)')).toBeInTheDocument();
+  expect(screen.getByText('Valor Justo (Sugerido)')).toBeInTheDocument();
+  expect(screen.getByText('Premium (Alto Valor)')).toBeInTheDocument();
   expect(track).not.toHaveBeenCalledWith('pro_feature_locked_viewed', expect.anything());
 });

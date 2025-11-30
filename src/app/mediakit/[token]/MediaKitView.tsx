@@ -22,11 +22,20 @@ import {
   Globe,
   Volume2,
 } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { motion } from 'framer-motion';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
-import { MediaKitViewProps, VideoListItem } from '@/types/mediakit';
+import { MediaKitViewProps, VideoListItem, MediaKitPricing } from '@/types/mediakit';
 import { useGlobalTimePeriod, GlobalTimePeriodProvider } from '@/app/admin/creator-dashboard/components/filters/GlobalTimePeriodContext';
 import { getCategoryById, commaSeparatedIdsToLabels } from '@/app/lib/classification';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
@@ -117,6 +126,17 @@ const normalizeComparisonPeriod = (period?: string): ComparisonPeriodKey => {
   return DEFAULT_COMPARISON_PERIOD;
 };
 
+const currencyFormatterBRL = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  maximumFractionDigits: 0,
+});
+
+const formatCurrencyLabel = (value?: number | null) => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return currencyFormatterBRL.format(value);
+};
+
 const TOP_POSTS_MAX_ITEMS = 10;
 const LOCKED_TOP_POSTS_PREVIEW_COUNT = 3;
 const HERO_METRIC_ACCENTS: Record<string, string> = {
@@ -125,8 +145,9 @@ const HERO_METRIC_ACCENTS: Record<string, string> = {
   engagement: '#D62E5E',
   frequency: '#9446B0',
 };
-const landingSunriseBackground = '';
-const glassCardBaseClass = '';
+const landingSunriseBackground = '#FFFFFF';
+const glassCardBaseClass = 'backdrop-blur-xl bg-white/70 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)]';
+const highlightCardClass = 'rounded-[28px] border border-white/60 bg-white/95 shadow-[0_2px_10px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,23,42,0.16)]';
 const chipHighlightClass = 'landing-chip text-brand-primary border-brand-primary/20 bg-white/80';
 const textSecondaryClass = 'text-[#475569]';
 const textMutedClass = 'text-slate-500';
@@ -151,6 +172,7 @@ type PublicProposalFormProps = {
   onSubmitSuccess?: () => void;
   onSubmitError?: (error: Error) => void;
   utmContext?: UtmContext | null;
+  pricing?: MediaKitPricing | null;
 };
 
 const PublicProposalForm = ({
@@ -158,6 +180,7 @@ const PublicProposalForm = ({
   onSubmitSuccess,
   onSubmitError,
   utmContext,
+  pricing,
 }: PublicProposalFormProps) => {
   const formId = useId();
   const [form, setForm] = useState<ProposalFormState>({
@@ -178,6 +201,34 @@ const PublicProposalForm = ({
   useEffect(() => {
     setUtmSnapshot(utmContext ?? null);
   }, [utmContext]);
+
+  const pricingChips = useMemo(() => {
+    if (!pricing) return [];
+    const chips = [
+      {
+        key: 'justo',
+        label: 'Valor Justo (Sugerido)',
+        value: formatCurrencyLabel(pricing.justo),
+        dot: 'bg-emerald-500',
+        badgeClass: 'bg-emerald-50 text-emerald-700',
+      },
+      {
+        key: 'estrategico',
+        label: 'Estratégico (Mínimo)',
+        value: formatCurrencyLabel(pricing.estrategico),
+        dot: 'bg-blue-500',
+        badgeClass: 'bg-blue-50 text-blue-700',
+      },
+      {
+        key: 'premium',
+        label: 'Premium (Alto Valor)',
+        value: formatCurrencyLabel(pricing.premium),
+        dot: 'bg-amber-500',
+        badgeClass: 'bg-amber-50 text-amber-700',
+      },
+    ];
+    return chips.filter((chip) => Boolean(chip.value));
+  }, [pricing]);
 
   if (!mediaKitSlug) return null;
 
@@ -343,6 +394,27 @@ const PublicProposalForm = ({
             className={formInputClass}
           />
         </div>
+        {pricingChips.length ? (
+          <div className="sm:col-span-2 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-inner">
+            <p className={formLabelClass}>Valores de referência</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {pricingChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${chip.badgeClass}`}
+                >
+                  <span className={`h-2 w-2 rounded-full ${chip.dot}`} aria-hidden />
+                  {chip.label}: {chip.value}
+                </span>
+              ))}
+            </div>
+            {pricing?.reach ? (
+              <p className="mt-2 text-[11px] text-[#94A3B8]">
+                Baseado no alcance médio de {pricing.reach.toLocaleString('pt-BR')} pessoas.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <div>
           <label htmlFor={`${formId}-budget`} className={formLabelClass}>
             Orçamento disponível
@@ -423,7 +495,7 @@ const PublicProposalForm = ({
       <button
         type="submit"
         disabled={submitting}
-        className="inline-flex w-full justify-center rounded-full bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="inline-flex w-full justify-center rounded-full bg-[#6E1F93] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:bg-[#5b1a7a] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {submitting ? 'Enviando...' : 'Enviar proposta'}
         <Send className="h-4 w-4" />
@@ -580,14 +652,28 @@ type CategoryKey = 'format' | 'proposal' | 'context' | 'tone' | 'references';
 const idToLabel = (id: string | number, type: CategoryKey) => {
   const rawId = String(id ?? '').trim();
   if (!rawId) return '—';
+
+  // Tenta encontrar pelo ID exato
   try {
     const found = (getCategoryById as any)?.(rawId, type);
     if (found?.label) return String(found.label);
   } catch { }
+
+  // Se tiver ponto (ex: lifestyle_and_wellbeing.food_culinary), tenta pelo último segmento
+  if (rawId.includes('.')) {
+    const parts = rawId.split('.');
+    const lastPart = parts[parts.length - 1];
+    try {
+      const foundSub = (getCategoryById as any)?.(lastPart, type);
+      if (foundSub?.label) return String(foundSub.label);
+    } catch { }
+  }
+
   try {
     const viaComma = (commaSeparatedIdsToLabels as any)?.(rawId, type);
     if (viaComma && String(viaComma).length > 0) return String(viaComma);
   } catch { }
+
   return rawId
     .replace(/_/g, ' ')
     .toLowerCase()
@@ -946,7 +1032,7 @@ const CategoryRankingsSummary = ({
 
   const hasData = renderableCategoryCards.length > 0;
   const skeletonCount = 3;
-  const cardShellClass = 'flex flex-col justify-between rounded-3xl bg-slate-50 p-6 transition hover:bg-slate-100';
+  const cardShellClass = `${highlightCardClass} flex flex-col justify-between p-5`;
   const titleClass = 'text-xs font-bold uppercase tracking-wider text-slate-500';
   const valueClass = 'mt-4 text-xl font-bold text-slate-900';
   const helperClass = 'mt-1 text-xs text-slate-500';
@@ -1082,6 +1168,7 @@ export default function MediaKitView({
   publicUrlForCopy,
   mediaKitSlug,
   premiumAccess,
+  pricing,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -1168,6 +1255,57 @@ export default function MediaKitView({
     if (value === null || value === undefined || Number.isNaN(value)) return '—';
     return value.toLocaleString('pt-BR');
   };
+  const pricingCards = useMemo(() => {
+    if (!pricing) return [];
+
+    const calculateCpm = (val: number) => {
+      if (!pricing.reach || pricing.reach <= 0) return 0;
+      return (val / pricing.reach) * 1000;
+    };
+
+    const cards = [
+      {
+        key: 'estrategico',
+        label: 'Estratégico (Mínimo)',
+        value: formatCurrencyLabel(pricing.estrategico),
+        cpm: formatCurrencyLabel(calculateCpm(pricing.estrategico)),
+        helper: 'Para abrir portas e fechar pacotes.',
+        badgeClass: 'bg-blue-50 text-blue-700',
+        accentDot: 'bg-blue-500',
+      },
+      {
+        key: 'justo',
+        label: 'Valor Justo (Sugerido)',
+        value: formatCurrencyLabel(pricing.justo),
+        cpm: formatCurrencyLabel(calculateCpm(pricing.justo)),
+        helper: 'Equilíbrio ideal entre esforço e retorno.',
+        badgeClass: 'bg-emerald-50 text-emerald-700',
+        accentDot: 'bg-emerald-500',
+      },
+      {
+        key: 'premium',
+        label: 'Premium (Alto Valor)',
+        value: formatCurrencyLabel(pricing.premium),
+        cpm: formatCurrencyLabel(calculateCpm(pricing.premium)),
+        helper: 'Para alta demanda e entregas complexas.',
+        badgeClass: 'bg-amber-50 text-amber-700',
+        accentDot: 'bg-amber-500',
+      },
+    ] as const;
+    return cards.filter((card) => Boolean(card.value));
+  }, [pricing]);
+  const pricingReachLabel = useMemo(() => {
+    if (typeof pricing?.reach === 'number' && Number.isFinite(pricing.reach) && pricing.reach > 0) {
+      return `${pricing.reach.toLocaleString('pt-BR')} de alcance médio por post`;
+    }
+    return null;
+  }, [pricing]);
+  const pricingUpdatedLabel = useMemo(() => {
+    if (!pricing?.createdAt) return null;
+    const parsed = new Date(pricing.createdAt);
+    if (!Number.isFinite(parsed.getTime())) return null;
+    return parsed.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  }, [pricing?.createdAt]);
   const displayKpis = kpiData as any;
   const initialTrendPeriod =
     comparisonToTimePeriod[normalizedInitialComparisonPeriod] ?? 'last_30_days';
@@ -2115,18 +2253,18 @@ export default function MediaKitView({
               initial="hidden"
               animate="visible"
               custom={0}
-              className={`flex flex-col items-center text-center ${isPublicView ? '' : 'sm:items-start sm:text-left'}`}
+              className="flex flex-col items-center text-center sm:items-start sm:text-left"
             >
-              <div className={`flex flex-col items-center gap-6 ${isPublicView ? '' : 'sm:flex-row sm:items-start sm:gap-8'}`}>
+              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
                 <div className="relative">
-                  <div className="rounded-full p-1 ring-1 ring-slate-200">
-                    <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={120} />
+                  <div className="rounded-full bg-white p-1.5 shadow-xl ring-1 ring-slate-900/5">
+                    <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={160} />
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                    <h1 className="text-4xl font-black tracking-tight text-slate-900 drop-shadow-[0_6px_20px_rgba(12,12,16,0.12)] sm:text-5xl">
                       {user.name || 'Criador'}
                     </h1>
                     <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
@@ -2153,7 +2291,7 @@ export default function MediaKitView({
                   </div>
 
                   {heroBio && (
-                    <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
+                    <p className="max-w-2xl text-lg leading-relaxed text-slate-700">
                       {heroBio}
                     </p>
                   )}
@@ -2169,24 +2307,23 @@ export default function MediaKitView({
                       </span>
                     )}
                   </div>
+                  <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                    <ButtonPrimary
+                      onClick={handleShareClick}
+                      variant="outline"
+                      size="md"
+                      className="w-full justify-center rounded-full border-slate-200 shadow-sm hover:bg-slate-50 sm:w-auto"
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Compartilhar
+                    </ButtonPrimary>
+                    {hasCopiedLink && (
+                      <span className="animate-fade-in ml-3 flex items-center text-xs font-medium text-emerald-600">
+                        Link copiado!
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-
-              <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-                <ButtonPrimary
-                  onClick={handleShareClick}
-                  variant="outline"
-                  size="md"
-                  className="w-full justify-center rounded-full border-slate-200 shadow-sm hover:bg-slate-50 sm:w-auto"
-                >
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Compartilhar
-                </ButtonPrimary>
-                {hasCopiedLink && (
-                  <span className="animate-fade-in ml-3 flex items-center text-xs font-medium text-emerald-600">
-                    Link copiado!
-                  </span>
-                )}
               </div>
             </motion.section>
 
@@ -2197,10 +2334,14 @@ export default function MediaKitView({
                 initial="hidden"
                 animate="visible"
                 custom={0.1}
-                className={`mt-12 grid grid-cols-2 gap-4 ${isPublicView ? '' : 'lg:grid-cols-4'}`}
+                className="mt-12 grid grid-cols-2 gap-4"
               >
                 {heroMetricCardsData.map((metric) => (
-                  <div key={metric.key} className="flex flex-col rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition hover:shadow-md">
+                  <div
+                    key={metric.key}
+                    className={`${highlightCardClass} flex flex-col p-5`}
+                    style={{ borderLeftColor: `${metric.accent}40`, borderLeftWidth: '1px' }}
+                  >
                     <div className="mb-4 flex items-center gap-3 text-slate-500">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-[#6E1F93]">
                         {metric.icon}
@@ -2208,7 +2349,7 @@ export default function MediaKitView({
                       <span className="text-xs font-bold uppercase tracking-wider">{metric.title}</span>
                     </div>
                     <div className="mt-auto">
-                      <span className="block text-3xl font-bold text-slate-900">{metric.value}</span>
+                      <span className="block text-2xl font-bold leading-tight text-slate-900 break-words">{metric.value}</span>
                       {metric.change !== undefined && metric.change !== null && (
                         <div className="mt-2">
                           <DeltaPill value={metric.change} />
@@ -2220,6 +2361,54 @@ export default function MediaKitView({
                     </div>
                   </div>
                 ))}
+              </motion.section>
+            )}
+
+            {pricingCards.length > 0 && (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.15}
+                className="mt-10 space-y-4"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
+                    <p className="text-sm text-slate-500">
+                      Valores de referência calculados pela IA para propostas rápidas.
+                    </p>
+                    {pricingReachLabel ? (
+                      <p className="text-xs text-slate-500">{pricingReachLabel}</p>
+                    ) : null}
+                  </div>
+                  {pricingUpdatedLabel ? (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-white/60">
+                      Atualizado {pricingUpdatedLabel}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {pricingCards.map((card) => (
+                    <div key={card.key} className={`${highlightCardClass} flex flex-col justify-between p-5`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
+                          <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
+                          {card.label}
+                        </span>
+                        {card.cpm ? (
+                          <span className="text-xs font-semibold text-slate-500">
+                            CPM aprox. {card.cpm}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-4 space-y-1">
+                        <p className="text-3xl font-bold text-slate-900 leading-tight">{card.value}</p>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-500 leading-relaxed">{card.helper}</p>
+                    </div>
+                  ))}
+                </div>
               </motion.section>
             )}
 
@@ -2282,7 +2471,7 @@ export default function MediaKitView({
 
                   <div className={`grid gap-6 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-3'}`}>
                     {genderBarData.length ? (
-                      <div className="rounded-3xl bg-slate-50 p-6">
+                      <div className={`${highlightCardClass} p-6`}>
                         <div className="mb-6 flex items-center justify-between">
                           <div className="flex items-center gap-2 font-semibold text-slate-900">
                             <Users className="h-5 w-5 text-[#D62E5E]" />
@@ -2303,7 +2492,7 @@ export default function MediaKitView({
                     ) : null}
 
                     {ageBarData.length ? (
-                      <div className="rounded-3xl bg-slate-50 p-6">
+                      <div className={`${highlightCardClass} p-6`}>
                         <div className="mb-6 flex items-center justify-between">
                           <div className="flex items-center gap-2 font-semibold text-slate-900">
                             <CalendarDays className="h-5 w-5 text-[#6E1F93]" />
@@ -2324,7 +2513,7 @@ export default function MediaKitView({
                     ) : null}
 
                     {topLocationBreakdown.length ? (
-                      <div className="rounded-3xl bg-slate-50 p-6">
+                      <div className={`${highlightCardClass} p-6`}>
                         <div className="mb-6 flex items-center justify-between">
                           <div className="flex items-center gap-2 font-semibold text-slate-900">
                             <MapPin className="h-5 w-5 text-[#D62E5E]" />
@@ -2396,7 +2585,7 @@ export default function MediaKitView({
                   </div>
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+                    <div className={`${highlightCardClass} p-8`}>
                       <h3 className="mb-6 text-lg font-bold text-slate-900">Médias por post</h3>
                       <div className="space-y-4">
                         <AverageMetricRow
@@ -2427,7 +2616,7 @@ export default function MediaKitView({
                       </div>
                     </div>
 
-                    <div className="rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+                    <div className={`${highlightCardClass} p-8`}>
                       <div className="mb-6 flex items-start justify-between">
                         <div>
                           <h3 className="text-lg font-bold text-slate-900">Taxa de engajamento</h3>
@@ -2440,8 +2629,44 @@ export default function MediaKitView({
                         </div>
                       </div>
 
-                      <div className="h-24 w-full overflow-hidden rounded-2xl bg-slate-50">
-                        <SparklineChart values={engagementSparklineValues} />
+                      <div className="h-64 w-full overflow-hidden rounded-2xl bg-white pt-4 pr-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={engagementSparklineData} margin={{ top: 5, right: 0, left: -24, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="engagementGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6E1F93" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#6E1F93" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis
+                              dataKey="date"
+                              tickLine={false}
+                              axisLine={false}
+                              tick={{ fill: '#94a3b8', fontSize: 11 }}
+                              tickFormatter={(val) => new Date(val).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            />
+                            <YAxis
+                              tickLine={false}
+                              axisLine={false}
+                              tick={{ fill: '#94a3b8', fontSize: 11 }}
+                              tickFormatter={(val) => `${val.toFixed(1)}%`}
+                            />
+                            <Tooltip
+                              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.12)' }}
+                              formatter={(value: number) => [`${value.toFixed(2)}%`, 'Engajamento']}
+                              labelFormatter={(label) => new Date(label).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="rate"
+                              stroke="#6E1F93"
+                              strokeWidth={3}
+                              fillOpacity={1}
+                              fill="url(#engagementGradient)"
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       </div>
 
                       <p className="mt-4 text-sm text-slate-500">
@@ -2988,6 +3213,7 @@ export default function MediaKitView({
                       mediaKitSlug={mediaKitSlug}
                       onSubmitSuccess={handleProposalSuccess}
                       utmContext={utm}
+                      pricing={pricing}
                     />
                   </div>
                 </div>
@@ -3159,7 +3385,7 @@ export default function MediaKitView({
             publicMode
           />
         </div>
-      </div>
-    </GlobalTimePeriodProvider>
+      </div >
+    </GlobalTimePeriodProvider >
   );
 }

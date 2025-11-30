@@ -56,6 +56,18 @@ export interface EngagementTrendData {
   averageInteractions?: number;
 }
 
+// --- Valores sugeridos de publi ---
+export interface MediaKitPricing {
+  estrategico: number;
+  justo: number;
+  premium: number;
+  cpm?: number | null;
+  reach?: number | null;
+  engagement?: number | null;
+  calculationId?: string | null;
+  createdAt?: string | null;
+}
+
 // --- Resumo de performance (cards de destaque) ---
 export interface PerformanceSummary {
   topPerformingFormat?: { name: string; metricName: string; valueFormatted: string } | null;
@@ -130,6 +142,7 @@ export interface MediaKitViewProps {
   publicUrlForCopy?: string;
   mediaKitSlug?: string;
   premiumAccess?: MediaKitPremiumAccessConfig;
+  pricing?: MediaKitPricing | null;
 }
 
 export interface MediaKitPremiumAccessConfig {

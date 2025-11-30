@@ -7,6 +7,7 @@ import type { Metadata } from 'next';
 
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
+import PubliCalculation from '@/app/models/PubliCalculation';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
 
@@ -219,12 +220,13 @@ export default async function MediaKitPage(
   const host = reqHeaders.get('host') || 'localhost:3000';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
 
-  let [summary, videos, kpis, demographics, engagementTrend] = await Promise.all([
+  let [summary, videos, kpis, demographics, engagementTrend, latestCalculation] = await Promise.all([
     fetchSummary(baseUrl, (user as any)._id.toString()),
     fetchTopPosts(baseUrl, (user as any)._id.toString()), // ALTERADO
     fetchKpis(baseUrl, (user as any)._id.toString()),
     fetchDemographics(baseUrl, (user as any)._id.toString()),
     fetchEngagementTrend(baseUrl, (user as any)._id.toString()),
+    PubliCalculation.findOne({ userId: (user as any)._id }).sort({ createdAt: -1 }).lean().exec(),
   ]);
 
   const normalizeCategoryField = (value: unknown): string[] => {
@@ -288,6 +290,19 @@ export default async function MediaKitPage(
     };
   }
 
+  const pricing = latestCalculation
+    ? {
+      estrategico: typeof latestCalculation?.result?.estrategico === 'number' ? latestCalculation.result.estrategico : 0,
+      justo: typeof latestCalculation?.result?.justo === 'number' ? latestCalculation.result.justo : 0,
+      premium: typeof latestCalculation?.result?.premium === 'number' ? latestCalculation.result.premium : 0,
+      cpm: typeof latestCalculation?.cpmApplied === 'number' ? latestCalculation.cpmApplied : null,
+      reach: typeof latestCalculation?.metrics?.reach === 'number' ? latestCalculation.metrics.reach : null,
+      engagement: typeof latestCalculation?.metrics?.engagement === 'number' ? latestCalculation.metrics.engagement : null,
+      calculationId: latestCalculation?._id?.toString?.() ?? null,
+      createdAt: latestCalculation?.createdAt ? new Date(latestCalculation.createdAt).toISOString() : null,
+    }
+    : null;
+
   return (
         <MediaKitView
           user={plainUser}
@@ -299,6 +314,7 @@ export default async function MediaKitPage(
           showOwnerCtas={false}
           mediaKitSlug={params.token}
           premiumAccess={premiumAccessConfig}
+          pricing={pricing}
         />
   );
 }

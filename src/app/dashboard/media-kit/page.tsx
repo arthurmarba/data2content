@@ -11,7 +11,7 @@ import WhatsAppConnectInline from '../WhatsAppConnectInline';
 import { useHeaderSetup } from '../context/HeaderContext';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
-import type { MediaKitPremiumAccessConfig } from '@/types/mediakit';
+import type { MediaKitPremiumAccessConfig, MediaKitPricing } from '@/types/mediakit';
 import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 import { openPaywallModal } from '@/utils/paywallModal';
 
@@ -228,6 +228,7 @@ function SelfMediaKitContent({
   const [demographics, setDemographics] = useState<Demographics | null>(null);
   const [engagementTrend, setEngagementTrend] = useState<any | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<any | null>(null);
+  const [pricing, setPricing] = useState<MediaKitPricing | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -249,13 +250,14 @@ function SelfMediaKitContent({
       setLoading(true);
       setError(null);
 
-      const [summaryData, videosPayload, kpisData, demographicsData, engagementTrendData, ownerProfileData] = await Promise.all([
+      const [summaryData, videosPayload, kpisData, demographicsData, engagementTrendData, ownerProfileData, pricingData] = await Promise.all([
         safeFetch(`/api/v1/users/${userId}/highlights/performance-summary`),
         safeFetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=10`),
         safeFetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`),
         safeFetch(`/api/demographics/${userId}`),
         safeFetch(`/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`),
         safeFetch(`/api/mediakit/self/user`),
+        safeFetch(`/api/mediakit/self/pricing`),
       ]);
 
       if (cancelled) return;
@@ -277,6 +279,7 @@ function SelfMediaKitContent({
       setDemographics(demographicsData);
       setEngagementTrend(engagementTrendData);
       setOwnerProfile(ownerProfileData?.user ?? null);
+      setPricing(pricingData?.pricing ?? null);
 
       if (!summaryData && videosList.length === 0 && !kpisData && !demographicsData && !engagementTrendData) {
         setError('Não foi possível carregar dados recentes do Mídia Kit. Tente novamente em instantes.');
@@ -357,6 +360,7 @@ function SelfMediaKitContent({
       compactPadding={compactPadding}
       publicUrlForCopy={publicUrlForCopy || undefined}
       premiumAccess={premiumAccess}
+      pricing={pricing}
     />
   );
 }

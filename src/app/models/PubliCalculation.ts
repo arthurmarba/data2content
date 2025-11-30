@@ -14,6 +14,7 @@ export interface IPubliCalculationParams {
   usageRights: string;
   complexity: string;
   authority: string;
+  seasonality?: string;
 }
 
 export interface IPubliCalculationResult {
@@ -54,6 +55,7 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
       usageRights: { type: String, required: true, trim: true },
       complexity: { type: String, required: true, trim: true },
       authority: { type: String, required: true, trim: true },
+      seasonality: { type: String, trim: true },
     },
     result: {
       estrategico: { type: Number, required: true },

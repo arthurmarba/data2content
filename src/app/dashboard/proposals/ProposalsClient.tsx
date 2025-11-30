@@ -12,6 +12,7 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
+  MailOpen,
 } from 'lucide-react';
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
@@ -647,16 +648,19 @@ export default function ProposalsClient() {
       {
         label: 'Em aberto',
         value: currencyFormatter(collectCurrency(openStages.flatMap((stage) => stage.items))).format(openAmount),
+        helper: `${openStages.reduce((acc, stage) => acc + stage.count, 0)} propostas ativas`,
         highlight: openAmount > 0,
       },
       {
         label: 'Fechado',
         value: currencyFormatter(collectCurrency(wonStage?.items ?? [])).format(wonAmount),
+        helper: `${wonStage?.count ?? 0} propostas aceitas`,
         highlight: wonAmount > 0,
       },
       {
         label: 'Perdido',
         value: currencyFormatter(collectCurrency(lostStage?.items ?? [])).format(lostAmount),
+        helper: `${lostStage?.count ?? 0} propostas recusadas`,
         highlight: lostAmount > 0,
       },
     ];
@@ -939,19 +943,24 @@ export default function ProposalsClient() {
 
   return (
     <>
-      <div className="px-6 py-8">
-        <div className="w-full space-y-8">
-          <header className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Central de propostas</h1>
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl space-y-8">
+          <header className="flex items-center justify-between border-b border-gray-100 pb-6">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Campanhas & Propostas</h1>
+              <p className="text-sm text-slate-500">Gerencie suas negociações em andamento.</p>
+            </div>
             <button
               type="button"
               onClick={loadProposals}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
             >
-              <RefreshCcw className="h-4 w-4" />
+              <RefreshCcw className="h-3.5 w-3.5" />
               Atualizar
             </button>
           </header>
+
+
 
 
           <section className="space-y-6">
@@ -982,21 +991,26 @@ export default function ProposalsClient() {
                   role="list"
                   aria-labelledby={`stage-${stage.key}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p
-                        id={`stage-${stage.key}`}
-                        className="text-xs font-semibold uppercase tracking-wide text-gray-500"
-                      >
-                        {stage.label}
-                      </p>
-                      <p className="mt-1 text-2xl font-bold text-gray-900">
-                        {currencyFormatter(stage.currency).format(stage.amount)}
-                      </p>
+                  <div className="mb-4 flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${stage.key === 'incoming' ? 'bg-amber-100 text-amber-700' :
+                            stage.key === 'negotiation' ? 'bg-blue-100 text-blue-700' :
+                              stage.key === 'won' ? 'bg-emerald-100 text-emerald-700' :
+                                'bg-red-100 text-red-700'
+                          }`}>
+                          {stage.label}
+                        </span>
+                        <span className="text-xs font-medium text-slate-400">
+                          {stage.count}
+                        </span>
+                      </div>
                     </div>
-                    <span className="rounded-full bg-white/70 px-2 py-1 text-[11px] font-semibold text-gray-600">
-                      {stage.count} {stage.count === 1 ? 'proposta' : 'propostas'}
-                    </span>
+                    {stage.amount > 0 && (
+                      <span className="text-2xl font-bold text-slate-900">
+                        {currencyFormatter(stage.currency).format(stage.amount)}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-4 space-y-3" role="presentation">
                     {stage.items.length === 0 ? (
@@ -1019,30 +1033,43 @@ export default function ProposalsClient() {
                               handleProposalSelect(proposal.id, true);
                             }
                           }}
-                          className={`w-full rounded-xl border bg-white px-4 py-3 text-left text-sm transition hover:-translate-y-0.5 hover:border-pink-200 ${selectedId === proposal.id
-                            ? 'border-pink-300 ring-1 ring-pink-100'
-                            : 'border-transparent'
+                          className={`group w-full cursor-pointer rounded-2xl border bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-md ${selectedId === proposal.id
+                            ? 'border-pink-500 ring-1 ring-pink-500'
+                            : 'border-slate-200 hover:border-pink-200'
                             }`}
                           aria-grabbed={draggedProposalId === proposal.id}
                         >
-                          <div className="font-semibold text-gray-900">{proposal.brandName}</div>
-                          <p className="text-xs text-gray-500">{proposal.campaignTitle}</p>
-                          <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                            <span className="font-semibold text-gray-700">
-                              {proposal.budget != null
-                                ? currencyFormatter(proposal.currency).format(proposal.budget)
-                                : '—'}
-                            </span>
-                            <span>{formatDate(proposal.createdAt)}</span>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-bold text-slate-900 line-clamp-1">{proposal.brandName}</div>
+                            {proposal.status === 'novo' && (
+                              <span className="h-2 w-2 rounded-full bg-pink-500 ring-2 ring-white" />
+                            )}
                           </div>
-                          <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 sm:hidden">
-                            <span>Mover estágio</span>
+                          <p className="mt-0.5 text-xs font-medium text-slate-500 line-clamp-1">{proposal.campaignTitle}</p>
+
+                          <div className="mt-4 flex items-end justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Orçamento</span>
+                              <span className="text-sm font-bold text-slate-900">
+                                {proposal.budget != null
+                                  ? currencyFormatter(proposal.currency).format(proposal.budget)
+                                  : '—'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-medium text-slate-400 group-hover:text-pink-500 transition-colors">
+                              {formatDate(proposal.createdAt)}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-3 text-[10px] text-slate-400 sm:hidden">
+                            <span>Mover para:</span>
                             <select
-                              className="rounded-full border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-600"
+                              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 focus:border-pink-500 focus:outline-none"
                               value={stage.key}
                               onChange={(event) =>
                                 handleMoveViaSelect(proposal.id, event.target.value as PipelineStageKey)
                               }
+                              onClick={(e) => e.stopPropagation()}
                             >
                               {PIPELINE_STAGES.map((option) => (
                                 <option key={option.key} value={option.key}>
@@ -1075,19 +1102,20 @@ export default function ProposalsClient() {
           </section>
 
           {noData ? (
-            <section className="rounded-3xl border border-dashed border-gray-200 p-8 text-center">
-              <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <Inbox className="h-4 w-4" />
-                  {emptyStates.campaigns.title}
-                </span>
-                <p className="text-sm text-slate-600">{emptyStates.campaigns.description}</p>
+            <section className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-100">
+                <MailOpen className="h-8 w-8 text-slate-300" />
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">{emptyStates.campaigns.title}</h3>
+              <p className="mt-2 max-w-sm text-sm text-slate-500">{emptyStates.campaigns.description}</p>
+
+              <div className="mt-8">
                 {mediaKitUrl ? (
                   <button
                     type="button"
                     onClick={handleCopyMediaKitLink}
                     disabled={isCopyingMediaKitLink}
-                    className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-400"
+                    className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-pink-700 disabled:opacity-70"
                   >
                     <ClipboardCopy className="h-4 w-4" />
                     {isCopyingMediaKitLink ? 'Copiando...' : emptyStates.campaigns.ctaLabel}
@@ -1096,9 +1124,9 @@ export default function ProposalsClient() {
                   <button
                     type="button"
                     onClick={() => router.push('/dashboard/media-kit')}
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+                    className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-pink-700"
                   >
-                    Criar mídia kit
+                    Criar meu Mídia Kit
                   </button>
                 )}
               </div>
@@ -1106,21 +1134,21 @@ export default function ProposalsClient() {
           ) : null}
 
           {!canInteract && !isBillingLoading ? (
-            <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-pink-600">
-                    <span aria-hidden>🤖</span>
-                    Recurso exclusivo Plano Agência
+            <section className="relative overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-white to-pink-50/50 p-6 shadow-sm">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-pink-700">
+                    <span aria-hidden>✨</span>
+                    Plano Agência
                   </span>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-bold text-slate-900">
                     Responda e negocie direto pela plataforma
                   </h2>
-                  <p className="text-sm text-gray-600">
+                  <p className="max-w-xl text-sm leading-relaxed text-slate-600">
                     Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o Plano Agência.
                   </p>
                 </div>
-                <div className="flex w-full flex-col sm:w-auto sm:items-end">
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
                   <button
                     type="button"
                     onClick={() => {
@@ -1130,11 +1158,11 @@ export default function ProposalsClient() {
                         proposalId: selectedProposal?.id ?? null,
                       });
                     }}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-pink-700"
                   >
                     Desbloquear IA
                   </button>
-                  <p className="mt-2 text-xs text-gray-500 text-left sm:text-right max-w-xs">
+                  <p className="text-xs font-medium text-slate-400">
                     {upgradeSubtitle}
                   </p>
                 </div>
@@ -1144,45 +1172,59 @@ export default function ProposalsClient() {
 
 
           {selectedProposal ? (
-            <section ref={detailsSectionRef}>
-              <div className="space-y-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Campanha</p>
-                    <div className="flex flex-wrap items-center gap-3">
+            <section ref={detailsSectionRef} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="mx-auto w-full space-y-8">
+                {/* Header */}
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <span className="font-medium text-slate-900">{selectedProposal.brandName}</span>
+                        <span>•</span>
+                        <span>Recebida em {formatDate(selectedProposal.createdAt)}</span>
+                      </div>
                       <h2
                         ref={detailsHeadingRef}
                         tabIndex={-1}
-                        className="text-2xl font-semibold text-gray-900 focus:outline-none"
+                        className="text-3xl font-bold text-slate-900 focus:outline-none"
                       >
                         {selectedProposal.campaignTitle}
                       </h2>
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${STATUS_COLORS[selectedProposal.status]}`}
-                      >
-                        {STATUS_LABELS[selectedProposal.status]}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                      <span className="font-semibold text-gray-900">{selectedProposal.brandName}</span>
-                      <span aria-hidden="true">•</span>
-                      <span>Recebida em {formatDate(selectedProposal.createdAt)}</span>
-                      {lastActionDate ? (
-                        <>
-                          <span aria-hidden="true">•</span>
-                          <span>Última ação {formatDate(lastActionDate)}</span>
-                        </>
-                      ) : null}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1 sm:text-right">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Status</span>
+
+                  {/* Summary Tiles */}
+                  {summaryTiles.length ? (
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      {summaryTiles.map((tile) => (
+                        <div key={tile.key} className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-slate-50">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{tile.label}</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-900">{tile.value}</p>
+                          {tile.helper ? <p className="mt-1 text-[10px] text-slate-500">{tile.helper}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Actions Section (Moved Up) */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Status Card */}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Status da Proposta
+                    </label>
                     <select
                       value={selectedProposal.status}
                       onChange={(event) =>
                         updateProposalStatus(selectedProposal.id, event.target.value as ProposalStatus)
                       }
-                      className="min-w-[180px] rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                      className={`w-full rounded-xl border-0 px-4 py-3 text-sm font-semibold ring-1 ring-inset focus:ring-2 focus:ring-inset ${selectedProposal.status === 'novo' ? 'bg-amber-50 text-amber-700 ring-amber-200 focus:ring-amber-300' :
+                          selectedProposal.status === 'visto' ? 'bg-slate-50 text-slate-700 ring-slate-200 focus:ring-slate-300' :
+                            selectedProposal.status === 'respondido' ? 'bg-sky-50 text-sky-700 ring-sky-200 focus:ring-sky-300' :
+                              selectedProposal.status === 'aceito' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 focus:ring-emerald-300' :
+                                'bg-red-50 text-red-700 ring-red-200 focus:ring-red-300'
+                        }`}
                     >
                       {(['novo', 'visto', 'respondido', 'aceito', 'rejeitado'] as ProposalStatus[]).map((status) => (
                         <option key={status} value={status}>
@@ -1191,200 +1233,223 @@ export default function ProposalsClient() {
                       ))}
                     </select>
                   </div>
+
+                  {/* Quick Actions / AI Status */}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Assistente de Negociação
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white">
+                        <MessageSquare className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          {canInteract ? 'IA Ativa' : 'IA Bloqueada'}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {canInteract ? 'Pronto para analisar e responder.' : 'Upgrade para desbloquear.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {summaryTiles.length ? (
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    {summaryTiles.map((tile) => (
-                      <div key={tile.key} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{tile.label}</p>
-                        <p className="mt-1 text-xl font-semibold text-gray-900">{tile.value}</p>
-                        {tile.helper ? <p className="text-xs text-gray-500">{tile.helper}</p> : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
+                {/* Briefing Section */}
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                  <h3 className="mb-6 text-lg font-semibold text-slate-900">Briefing da Campanha</h3>
 
-                {selectedProposal.originIp ? (
-                  <p className="text-xs text-gray-400">
-                    Origem: {selectedProposal.originIp}
-                    {selectedProposal.userAgent ? ` • ${selectedProposal.userAgent}` : ''}
-                  </p>
-                ) : null}
+                  <div className="space-y-8">
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Descrição / Objetivo</p>
+                      <p className="whitespace-pre-line text-base leading-relaxed text-slate-700">
+                        {selectedProposal.campaignDescription || 'A marca não enviou briefing detalhado.'}
+                      </p>
+                    </div>
 
-                <details className="rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-700" role="group">
-                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-gray-900">
-                    Briefing e referências
-                    <span className="text-xs font-normal text-gray-400">
-                      {deliverablesCount ? `${deliverablesCount} entregável${deliverablesCount > 1 ? 's' : ''}` : 'Sem entregáveis'}
-                      {' · '}
-                      {referenceLinksCount
-                        ? `${referenceLinksCount} link${referenceLinksCount > 1 ? 's' : ''}`
-                        : 'Sem links'}
-                    </span>
-                  </summary>
-                  <div className="mt-3 space-y-4">
-                    <p className="whitespace-pre-line rounded-xl border border-gray-50 bg-gray-50 p-3 text-gray-700">
-                      {selectedProposal.campaignDescription || 'A marca não enviou briefing detalhado.'}
-                    </p>
-                    {selectedProposal.deliverables.length > 0 ? (
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Entregáveis detalhados</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedProposal.deliverables.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Entregáveis Solicitados</p>
+                        <div className="flex flex-wrap gap-2">
                           {selectedProposal.deliverables.map((item) => (
                             <span
                               key={item}
-                              className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1 text-xs font-semibold text-pink-700"
+                              className="inline-flex items-center rounded-xl bg-pink-50 px-3 py-1.5 text-sm font-medium text-pink-700 ring-1 ring-inset ring-pink-100"
                             >
                               {item}
                             </span>
                           ))}
                         </div>
                       </div>
-                    ) : null}
-                    {selectedProposal.referenceLinks.length > 0 ? (
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Links de referência</p>
-                        <ul className="mt-2 space-y-2">
+                    )}
+
+                    {selectedProposal.referenceLinks.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Referências</p>
+                        <ul className="space-y-2">
                           {selectedProposal.referenceLinks.map((link) => (
                             <li key={link}>
                               <a
                                 href={link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-sm font-medium text-[#6E1F93] hover:underline"
+                                className="group inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-pink-600"
                               >
-                                {link}
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-400 transition group-hover:bg-pink-100 group-hover:text-pink-600">
+                                  <ClipboardCopy className="h-3 w-3" />
+                                </span>
+                                <span className="underline decoration-slate-200 underline-offset-4 transition group-hover:decoration-pink-300">
+                                  {link}
+                                </span>
                               </a>
                             </li>
                           ))}
                         </ul>
                       </div>
-                    ) : null}
-                  </div>
-                </details>
-
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Assistente IA</p>
-                    <p className="text-xs text-gray-500">Peça um diagnóstico rápido antes de responder.</p>
-                  </div>
-                  <button
-                    ref={analyzeButtonRef}
-                    type="button"
-                    onClick={handleAnalyze}
-                    disabled={analysisLoading}
-                    className={
-                      !canInteract && !isBillingLoading
-                        ? 'mt-3 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-500 shadow-sm transition hover:border-gray-400 hover:bg-gray-50 sm:mt-0'
-                        : 'mt-3 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-500 sm:mt-0'
-                    }
-                    title={!canInteract && !isBillingLoading ? tooltipAnalyzePro : undefined}
-                    aria-disabled={analysisLoading || !canInteract}
-                  >
-                    {canInteract ? (
-                      <MessageSquare className="h-4 w-4" />
-                    ) : (
-                      <Lock className="h-4 w-4" />
                     )}
-                    {canInteract
-                      ? analysisLoading
-                        ? 'Consultando Mobi...'
-                        : 'Analisar com IA'
-                      : 'Analisar com IA (Plano Agência)'}
-                  </button>
+                  </div>
                 </div>
 
-                {analysisMessage && canInteract ? (
-                  <div className="rounded-2xl border border-pink-200 bg-pink-50 p-5 text-sm text-pink-900 shadow-sm">
+                {/* Unified AI Workspace */}
+                <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                  <div className="border-b border-slate-100 bg-slate-50/50 px-5 py-4">
                     <div className="flex items-center gap-2">
-                      <Send className="h-4 w-4" />
-                      <span className="font-semibold">Diagnóstico do Mobi</span>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 text-pink-600">
+                        <Send className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Área de Resposta</h3>
+                        <p className="text-[10px] text-slate-500">Analise a proposta e gere uma resposta persuasiva</p>
+                      </div>
                     </div>
-                    <p className="mt-2 whitespace-pre-line leading-relaxed">{analysisMessage}</p>
                   </div>
-                ) : null}
 
-                <div className="h-px w-full bg-gray-100" />
-
-                {canInteract ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-semibold text-gray-900">Responder com IA</span>
-                        <p className="text-xs text-gray-500">
-                          Enviaremos para {selectedProposal.contactEmail} com cabeçalho Data2Content.
+                  <div className="p-5 space-y-5">
+                    {/* Analysis Section */}
+                    {!analysisMessage && (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
+                        <p className="text-xs text-slate-500 mb-3">
+                          Receba um diagnóstico do orçamento e uma sugestão de resposta persuasiva.
                         </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
                         <button
+                          ref={analyzeButtonRef}
                           type="button"
-                          onClick={handleRefreshReply}
-                          disabled={replyRegenerating}
-                          className="inline-flex items-center gap-2 rounded-full border border-pink-200 px-3 py-1.5 text-xs font-semibold text-pink-600 transition hover:border-pink-400 hover:bg-pink-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                          onClick={handleAnalyze}
+                          disabled={analysisLoading}
+                          className={
+                            !canInteract && !isBillingLoading
+                              ? 'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50'
+                              : 'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-70'
+                          }
                         >
-                          <RefreshCcw className="h-4 w-4" />
-                          {replyRegenerating ? 'Gerando...' : 'Nova sugestão'}
-                        </button>
-                        <button
-                          ref={sendReplyButtonRef}
-                          type="button"
-                          onClick={handleSendReply}
-                          disabled={replySending || !replyDraft.trim()}
-                          className="inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:bg-pink-300"
-                        >
-                          <Send className="h-4 w-4" />
-                          {replySending ? 'Enviando...' : 'Enviar resposta'}
+                          {canInteract ? (
+                            analysisLoading ? (
+                              <>
+                                <RefreshCcw className="h-4 w-4 animate-spin" />
+                                Analisando...
+                              </>
+                            ) : (
+                              <>
+                                <MessageSquare className="h-4 w-4" />
+                                Analisar Proposta
+                              </>
+                            )
+                          ) : (
+                            <>
+                              <Lock className="h-4 w-4" />
+                              Desbloquear Análise
+                            </>
+                          )}
                         </button>
                       </div>
-                    </div>
-                    <textarea
-                      ref={replyTextareaRef}
-                      value={replyDraft}
-                      onChange={(event) => setReplyDraft(event.target.value)}
-                      rows={12}
-                      placeholder="Oi, tudo bem? Recebi a proposta e posso te ajudar com…"
-                      className="w-full min-h-[300px] rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100"
-                    />
-                    <div className="flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-                      {selectedProposal.lastResponseAt ? (
-                        <span>Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}</span>
+                    )}
+
+                    {analysisMessage && canInteract && (
+                      <div className="rounded-xl bg-pink-50 p-4 text-sm text-pink-900">
+                        <p className="font-semibold mb-1">Diagnóstico do Mobi:</p>
+                        <p className="whitespace-pre-line leading-relaxed text-pink-800/90">{analysisMessage}</p>
+                      </div>
+                    )}
+
+                    <div className="h-px bg-slate-100" />
+
+                    {/* Reply Section */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Sua Resposta</label>
+                        {canInteract && (
+                          <button
+                            type="button"
+                            onClick={handleRefreshReply}
+                            disabled={replyRegenerating}
+                            className="text-[10px] font-semibold text-pink-600 hover:underline disabled:opacity-50"
+                          >
+                            {replyRegenerating ? 'Gerando...' : 'Gerar nova sugestão'}
+                          </button>
+                        )}
+                      </div>
+
+                      {canInteract ? (
+                        <>
+                          <textarea
+                            ref={replyTextareaRef}
+                            value={replyDraft}
+                            onChange={(event) => setReplyDraft(event.target.value)}
+                            rows={8}
+                            placeholder="Escreva sua resposta ou use a IA para gerar..."
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-pink-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-500"
+                          />
+                          <div className="flex items-center justify-between gap-3 pt-2">
+                            <span className="text-[10px] text-slate-400">
+                              {selectedProposal.lastResponseAt
+                                ? `Último envio: ${formatDate(selectedProposal.lastResponseAt)}`
+                                : 'Nenhuma resposta enviada'}
+                            </span>
+                            <button
+                              ref={sendReplyButtonRef}
+                              type="button"
+                              onClick={handleSendReply}
+                              disabled={replySending || !replyDraft.trim()}
+                              className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                              {replySending ? 'Enviando...' : 'Enviar'}
+                            </button>
+                          </div>
+                        </>
                       ) : (
-                        <span>Pronto para enviar em 1 clique.</span>
+                        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
+                          <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px]" />
+                          <div className="relative z-10 flex flex-col items-center gap-3">
+                            <Lock className="h-5 w-5 text-slate-400" />
+                            <p className="text-sm text-slate-600">
+                              Assine o Plano Agência para desbloquear respostas assistidas por IA.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openPaywall('reply_cta', 'reply_email', {
+                                  returnTo: buildReturnTo(selectedProposal.id),
+                                  proposalId: selectedProposal.id,
+                                })
+                              }
+                              className="mt-1 inline-flex items-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-pink-700"
+                            >
+                              Quero Desbloquear
+                            </button>
+                          </div>
+                        </div>
                       )}
-                      <span>{replyDraft.length} caracteres</span>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                        <Lock className="h-4 w-4 text-gray-500" />
-                        Responder com IA (Plano Agência)
-                      </div>
-                      {selectedProposal.lastResponseAt ? (
-                        <span className="text-xs text-gray-500">
-                          Última resposta enviada em {formatDate(selectedProposal.lastResponseAt)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Assine o Plano Agência para liberar texto sugerido e envio direto para {selectedProposal.contactEmail}.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openPaywall('reply_cta', 'reply_email', {
-                          returnTo: buildReturnTo(selectedProposal.id),
-                          proposalId: selectedProposal.id,
-                        })
-                      }
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700"
-                    >
-                      Desbloquear resposta com IA
-                    </button>
-                  </div>
-                )}
+                </div>
+
+                {selectedProposal.originIp ? (
+                  <p className="text-xs text-slate-300">
+                    Metadados: {selectedProposal.originIp}
+                    {selectedProposal.userAgent ? ` • ${selectedProposal.userAgent}` : ''}
+                  </p>
+                ) : null}
               </div>
             </section>
           ) : detailLoading ? (
