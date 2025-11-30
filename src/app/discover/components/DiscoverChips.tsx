@@ -223,7 +223,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   }, [currentCategory, currentView]);
 
   return (
-    <div className="filter-container flex flex-nowrap overflow-x-auto hide-scrollbar items-center gap-2 p-1 sm:flex-wrap sm:overflow-visible sm:p-2">
+    <div className="filter-container flex flex-nowrap overflow-x-auto hide-scrollbar items-center gap-1.5 p-1 sm:flex-wrap sm:overflow-visible sm:p-2">
       <style jsx global>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -233,7 +233,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
           type="button"
           onClick={handleBack}
           aria-label="Voltar para categorias"
-          className="filter-button-back inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+          className="filter-button-back inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
         >
           <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -248,12 +248,12 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={category.id}
                 type="button"
                 onClick={() => handleMasterClick(category.id)}
-                className={`filter-button-master inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${hasSelection
+                className={`filter-button-master inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${hasSelection
                     ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                   }`}
               >
-                <span className="flex items-center gap-1 truncate">
+                <span className="flex items-center gap-1">
                   <span>{category.label}</span>
                   {hasSelection && (
                     <span className="text-base leading-none text-brand-magenta" aria-hidden="true">
@@ -274,7 +274,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
 
       {currentView !== "master" && currentCategory && (
         <>
-          <span className="inline-flex items-center rounded-full bg-brand-magenta/10 px-4 py-2 text-sm font-semibold text-brand-magenta">
+          <span className="inline-flex items-center rounded-full bg-brand-magenta/10 px-3 py-1.5 text-sm font-semibold text-brand-magenta">
             {currentCategory.label}
           </span>
           {currentCategory.options.map((option) => {
@@ -284,7 +284,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={option.id}
                 type="button"
                 onClick={() => toggleFilter(currentCategory.id, option.id)}
-                className={`filter-button-child inline-flex min-w-0 items-center justify-start gap-2 rounded-full border px-4 py-2 text-sm font-medium text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${isSelected
+                className={`filter-button-child inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-medium text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${isSelected
                     ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                   }`}
@@ -295,7 +295,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                     }`}
                   aria-hidden="true"
                 />
-                <span className="truncate">{option.label}</span>
+                <span>{option.label}</span>
               </button>
             );
           })}
@@ -303,12 +303,12 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
       )}
 
       {(hasPendingChanges || hasSelections) && (
-        <div className="ml-auto flex w-full flex-wrap items-center gap-2 justify-end sm:w-auto sm:flex-nowrap">
+        <div className="ml-auto flex w-full flex-wrap items-center gap-1.5 justify-end sm:w-auto sm:flex-nowrap">
           {hasPendingChanges && (
             <button
               type="button"
               onClick={handleApplyFilters}
-              className="inline-flex items-center rounded-full border border-brand-magenta/30 bg-brand-magenta px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+              className="inline-flex items-center rounded-full border border-brand-magenta/30 bg-brand-magenta px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
             >
               Aplicar filtros
             </button>
@@ -317,7 +317,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
             <button
               type="button"
               onClick={handleClearAll}
-              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
             >
               Limpar filtros
             </button>

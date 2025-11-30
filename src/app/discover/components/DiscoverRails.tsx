@@ -187,7 +187,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
     const title = TITLE_OVERRIDES[expandedSectionMeta.key] || expandedSectionMeta.title;
     const description = DESCRIPTIONS[expandedSectionMeta.key];
     return (
-      <div className="space-y-6">
+      <div className="space-y-3 sm:space-y-5">
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -201,17 +201,17 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
           </span>
         </div>
         <section aria-label={title} className="w-full">
-          <div className="mb-3">
+          <div className="mb-2.5">
             <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
+            {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
           </div>
           {expandedError && (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {expandedError}
             </div>
           )}
           {expandedLoading && (
-            <div className="mb-4 rounded-xl border border-brand-magenta/30 bg-brand-magenta/5 px-4 py-3 text-sm text-brand-magenta">
+            <div className="mb-3 rounded-xl border border-brand-magenta/30 bg-brand-magenta/5 px-4 py-3 text-sm text-brand-magenta">
               Carregando mais conteúdos…
             </div>
           )}
@@ -237,9 +237,9 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4">
       {(missingThumbs > 0 || hiddenIds.size > 0) && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm text-amber-900 shadow-sm">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-2.5 text-sm text-amber-900 shadow-sm">
           <p className="font-medium">
             Removemos {missingThumbs} conteúdo(s) sem capa recente
             {hiddenIds.size ? ` e ocultamos ${hiddenIds.size} indisponível(eis)` : ""}.
@@ -262,9 +262,9 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
         return (
           <section key={s.key} aria-label={title} className="w-full">
             <div
-              className={`px-0 py-5 sm:px-0 sm:py-6 ${containerClass}`}
+              className={`py-1 sm:py-2 ${containerClass}`}
             >
-              <div className="flex flex-row items-center justify-between gap-4">
+              <div className="flex flex-row items-center justify-between gap-2 sm:gap-3">
                 <h2 className="text-lg font-semibold text-gray-900 leading-tight">{title}</h2>
                 <button
                   type="button"
@@ -276,9 +276,9 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
                   <span aria-hidden>→</span>
                 </button>
               </div>
-              {description && <p className="mt-1 text-xs text-gray-500 sm:text-sm line-clamp-2">{description}</p>}
-              <div className="group relative mt-4 -mx-4 sm:-mx-1 overflow-x-auto hide-scrollbar">
-                <div className="rail-scroll px-4 sm:px-1 flex flex-nowrap gap-3 snap-x snap-mandatory scroll-px-4 sm:scroll-px-2">
+              {description && <p className="mt-0.5 sm:mt-1 text-xs text-gray-500 sm:text-sm line-clamp-2">{description}</p>}
+              <div className="group relative mt-0 -mx-4 sm:-mx-1 overflow-x-auto hide-scrollbar">
+                <div className="rail-scroll px-4 sm:px-1 py-3 sm:py-5 flex flex-nowrap gap-4 snap-x snap-mandatory scroll-px-4 sm:scroll-px-2">
                   {(s.items || []).map((it, idx) => (
                     <DiscoverCard
                       key={it.id}
@@ -289,7 +289,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
                     />
                   ))}
                   {(s.items || []).length === 0 && (
-                    <div className="px-2 py-6 text-sm text-gray-500">
+                    <div className="px-2 py-3 text-sm text-gray-500">
                       Nenhum resultado para esta seção. Dica: remova 1 filtro ou experimente outra guia.
                     </div>
                   )}

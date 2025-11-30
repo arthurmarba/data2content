@@ -366,9 +366,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             limit: limitPerRow * 2,
             minInteractions: 10,
             onlyOptIn: true,
-            format: mergeCsv(formatFilter, expFilters.format),
-            proposal: mergeCsv(proposalFilter, expFilters.proposal),
-            context: mergeCsv(contextFilter, expFilters.context),
+            format: formatFilter || expFilters.format,
+            proposal: proposalFilter || expFilters.proposal,
+            context: contextFilter || expFilters.context,
             tone: toneFilter,
             references: referencesFilter,
           });
@@ -564,9 +564,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             page: 1,
             limit: limitPerRow * 4, // margem para filtragem por duração
             onlyOptIn: true,
-            format: mergeCsv(formatFilter, expFilters.format),
-            proposal: mergeCsv(proposalFilter, expFilters.proposal),
-            context: mergeCsv(contextFilter, expFilters.context),
+            format: formatFilter || expFilters.format,
+            proposal: proposalFilter || expFilters.proposal,
+            context: contextFilter || expFilters.context,
             tone: toneFilter,
             references: referencesFilter,
             minInteractions: 0,
@@ -622,17 +622,20 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         const t0 = Date.now();
         const weekendStart = new Date(endDate);
         weekendStart.setDate(weekendStart.getDate() - 16);
+        // Se o filtro de dias for mais restritivo (ex: 7 dias), respeitar o startDate global
+        const effectiveWeekendStart = (limitByDays && startDate > weekendStart) ? startDate : weekendStart;
+
         const raw = await findGlobalPostsByCriteria({
-          dateRange: { startDate: weekendStart, endDate },
+          dateRange: { startDate: effectiveWeekendStart, endDate },
           sortBy: 'stats.total_interactions',
           sortOrder: 'desc',
           page: 1,
           limit: limitPerRow * 3,
           minInteractions: 5,
           onlyOptIn: true,
-          format: mergeCsv(formatFilter, expFilters.format),
-          proposal: mergeCsv(proposalFilter, expFilters.proposal),
-          context: mergeCsv(contextFilter, expFilters.context),
+          format: formatFilter || expFilters.format,
+          proposal: proposalFilter || expFilters.proposal,
+          context: contextFilter || expFilters.context,
           tone: toneFilter,
           references: referencesFilter,
         });
@@ -692,7 +695,10 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             topProp = await fetchTopCategories({ category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 });
             logger.info('[discover/user_suggested] cats_fallback', { ctx: (topCtx || []).length, prop: (topProp || []).length });
           }
-          const cats = [...(topCtx || []), ...(topProp || [])].slice(0, 3);
+          const cats = [
+            ...(contextFilter ? [] : (topCtx || [])),
+            ...(proposalFilter ? [] : (topProp || []))
+          ].slice(0, 3);
           const pool: PostCard[] = [];
           for (const c of cats) {
             try {
@@ -766,7 +772,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           if (!topFormats || topFormats.length === 0) {
             topFormats = await fetchTopCategories({ category: 'format', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
           }
-          const ids = (topFormats || []).map((x: any) => String(x.category)).filter(Boolean);
+          const allowedFormats = formatFilter ? formatFilter.split(',').map(s => s.trim().toLowerCase()) : null;
+          const ids = (topFormats || [])
+            .map((x: any) => String(x.category))
+            .filter(Boolean)
+            .filter((fmt: string) => !allowedFormats || allowedFormats.includes(fmt.toLowerCase()));
           const pool: PostCard[] = [];
           for (const fmt of ids) {
             try {
@@ -854,39 +864,40 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             { $unwind: { path: '$creatorInfo', preserveNullAndEmptyArrays: true } },
             { $match: { 'creatorInfo.communityInspirationOptIn': true } },
             { $sort: { 'stats.total_interactions': -1 } },
-          { $limit: limitPerRow * 2 },
-          { $project: {
-            description: 1,
-            postDate: 1,
-            coverUrl: 1,
-            postLink: 1,
-            'creatorInfo.username': 1,
-            'creatorInfo.profile_picture_url': 1,
-            'stats.total_interactions': 1,
-            'stats.likes': 1,
-            'stats.comments': 1,
-            'stats.shares': 1,
-            'stats.views': 1,
-            'stats.video_duration_seconds': 1,
-            'stats.saved': 1,
-            format: 1,
-            proposal: 1,
-            context: 1,
-            tone: 1,
-            references: 1,
-          }
-        },
-        ]).exec();
-        items = rows.map((r: any) => ({
-          id: String(r._id),
-          coverUrl: toProxyUrl(r.coverUrl || null),
-          caption: r.description || '',
-          postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
-          creatorName: r?.creatorInfo?.username,
-          creatorAvatarUrl: toProxyUrl(r?.creatorInfo?.profile_picture_url || null) || null,
-          postLink: r.postLink || undefined,
-          stats: {
-            total_interactions: r?.stats?.total_interactions,
+            { $limit: limitPerRow * 2 },
+            {
+              $project: {
+                description: 1,
+                postDate: 1,
+                coverUrl: 1,
+                postLink: 1,
+                'creatorInfo.username': 1,
+                'creatorInfo.profile_picture_url': 1,
+                'stats.total_interactions': 1,
+                'stats.likes': 1,
+                'stats.comments': 1,
+                'stats.shares': 1,
+                'stats.views': 1,
+                'stats.video_duration_seconds': 1,
+                'stats.saved': 1,
+                format: 1,
+                proposal: 1,
+                context: 1,
+                tone: 1,
+                references: 1,
+              }
+            },
+          ]).exec();
+          items = rows.map((r: any) => ({
+            id: String(r._id),
+            coverUrl: toProxyUrl(r.coverUrl || null),
+            caption: r.description || '',
+            postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
+            creatorName: r?.creatorInfo?.username,
+            creatorAvatarUrl: toProxyUrl(r?.creatorInfo?.profile_picture_url || null) || null,
+            postLink: r.postLink || undefined,
+            stats: {
+              total_interactions: r?.stats?.total_interactions,
               likes: r?.stats?.likes,
               comments: r?.stats?.comments,
               shares: r?.stats?.shares,
@@ -936,7 +947,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           { $match: { 'creatorInfo.communityInspirationOptIn': true } },
           { $sort: { postDate: -1 } },
           { $limit: limitPerRow * 2 },
-          { $project: {
+          {
+            $project: {
               description: 1,
               postDate: 1,
               coverUrl: 1,

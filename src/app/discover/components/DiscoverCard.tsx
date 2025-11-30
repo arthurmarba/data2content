@@ -59,6 +59,9 @@ export default function DiscoverCard({
   // Modal removido: abrimos direto no Instagram
 
   const isGrid = variant === 'grid';
+  const formats = item.categories?.format?.map(f => f.toLowerCase()) || [];
+  const isReel = formats.some(f => f.includes('reel'));
+  const aspectClass = isReel ? 'aspect-[9/16]' : 'aspect-[4/5]';
 
   useEffect(() => {
     if (imgFailed && onUnavailable) {
@@ -72,7 +75,7 @@ export default function DiscoverCard({
 
   return (
     <article
-      className={`${isGrid ? 'w-full' : 'flex-shrink-0 w-[240px] snap-start'} select-none`}
+      className={`${isGrid ? 'w-full' : 'flex-shrink-0 h-[250px] w-auto snap-start'} relative select-none transition-all duration-300 ease-out hover:z-20 hover:scale-110 hover:ring-4 hover:ring-white rounded-lg`}
       aria-label={short || 'Post'}
     >
       {item.postLink ? (
@@ -83,7 +86,7 @@ export default function DiscoverCard({
           onClick={() => {
             try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch { }
           }}
-          className="relative block aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_4px_12px_rgba(15,23,42,0.08)]"
+          className={`relative block h-full ${aspectClass} overflow-hidden rounded-lg bg-gray-100 shadow-sm`}
           aria-label="Abrir no Instagram"
         >
           {item.coverUrl ? (
@@ -98,30 +101,29 @@ export default function DiscoverCard({
               onError={() => setImgFailed(true)}
             />
           ) : null}
-          {/* Overlay de gradiente + linhas breves */}
-          {(short || metrics) && (
-            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 via-black/65 to-transparent">
-              {metrics && (
-                <div
-                  className="inline-block rounded-md bg-black/90 px-1.5 py-0.5 text-[13px] font-bold text-white"
-                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
-                >
-                  {metrics}
-                </div>
-              )}
-              {short && (
-                <div
-                  className="mt-1 text-[12px] leading-snug text-white/95 line-clamp-2"
-                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
-                >
-                  {short}
-                </div>
-              )}
-            </div>
-          )}
+
+          {/* Overlay: Gradiente mais suave e informações internas */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+
+          <div className="absolute top-2 right-2">
+            {metrics && (
+              <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                {metrics}
+              </div>
+            )}
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+            <p className="text-[10px] font-medium opacity-90 mb-0.5">{item.creatorName}</p>
+            {short && (
+              <p className="text-[11px] leading-tight line-clamp-2 font-semibold text-shadow-sm">
+                {short}
+              </p>
+            )}
+          </div>
         </a>
       ) : (
-        <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
+        <div className={`relative h-full ${aspectClass} overflow-hidden rounded-lg bg-gray-100 shadow-sm`}>
           {item.coverUrl ? (
             <Image
               src={item.coverUrl}
@@ -134,35 +136,27 @@ export default function DiscoverCard({
               onError={() => setImgFailed(true)}
             />
           ) : null}
-          {(short || metrics) && (
-            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 via-black/65 to-transparent">
-              {metrics && (
-                <div
-                  className="inline-block rounded-md bg-black/90 px-1.5 py-0.5 text-[13px] font-bold text-white"
-                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
-                >
-                  {metrics}
-                </div>
-              )}
-              {short && (
-                <div
-                  className="mt-1 text-[12px] leading-snug text-white/95 line-clamp-2"
-                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
-                >
-                  {short}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Overlay: Gradiente mais suave e informações internas */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+
+          <div className="absolute top-2 right-2">
+            {metrics && (
+              <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                {metrics}
+              </div>
+            )}
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+            <p className="text-[10px] font-medium opacity-90 mb-0.5">{item.creatorName}</p>
+            {short && (
+              <p className="text-[11px] leading-tight line-clamp-2 font-semibold text-shadow-sm">
+                {short}
+              </p>
+            )}
+          </div>
         </div>
       )}
-
-      {/* Rodapé com autor (sem botão de salvar) */}
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-[11px] text-gray-500 truncate max-w-full" title={item.creatorName || ''}>
-          {item.creatorName || ''}
-        </span>
-      </div>
 
     </article>
   );
