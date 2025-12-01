@@ -70,7 +70,7 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
           creatorRank: creator.rank,
           mediaKitSlug: creator.mediaKitSlug ?? null,
         });
-      } catch {}
+      } catch { }
 
       if (creator.mediaKitSlug) {
         const targetUrl = `/mediakit/${creator.mediaKitSlug}`;
@@ -93,29 +93,29 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
             Comunidade em movimento
           </span>
           <h2 className="text-display-lg text-brand-dark">
-            Comunidade de Criadores
+            Criadores em evolução dentro da agência.
           </h2>
           <p className="text-body-md font-normal text-brand-text-secondary/90">
-            Selecionamos quem abriu dashboards e mídia kits neste momento.
+            Mostramos aqui os criadores que estão ativos na plataforma, treinando posicionamento, refinando suas narrativas e se preparando para campanhas com suporte estratégico da D2C.
           </p>
         </header>
 
         <div className="relative mx-auto w-full max-w-5xl">
-        <div className="pointer-events-none absolute inset-0 -z-10 rounded-[36px] bg-[radial-gradient(70%_120%_at_15%_0%,rgba(255,44,126,0.15),transparent_55%),radial-gradient(80%_120%_at_85%_10%,rgba(36,107,253,0.18),transparent_60%)]" />
+          <div className="pointer-events-none absolute inset-0 -z-10 rounded-[36px] bg-[radial-gradient(70%_120%_at_15%_0%,rgba(255,44,126,0.15),transparent_55%),radial-gradient(80%_120%_at_85%_10%,rgba(36,107,253,0.18),transparent_60%)]" />
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5">
             {loading
               ? skeletonCards.map((_, index) => (
-                  <div
-                    key={`skeleton-${index}`}
-                    className="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                  >
+                <div
+                  key={`skeleton-${index}`}
+                  className="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                >
                   <div className="aspect-square w-full rounded-lg bg-neutral-200" />
                   <div className="h-3 w-3/4 rounded bg-neutral-200" />
                   <div className="h-3 w-1/2 rounded bg-neutral-200" />
                   <div className="h-3 w-4/5 rounded bg-neutral-200" />
                 </div>
               ))
-            : visibleCreators.map((creator) => {
+              : visibleCreators.map((creator) => {
                 const followers = creator.followers ?? 0;
                 const averageInteractions = creator.avgInteractionsPerPost ?? 0;
                 const engagementRate =

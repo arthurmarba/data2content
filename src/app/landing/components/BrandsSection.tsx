@@ -115,10 +115,10 @@ const BrandsSection: React.FC<BrandsSectionProps> = ({ onCreateCampaign }) => {
       <div className="landing-section__inner landing-section__inner--wide text-center">
         <span className="landing-chip mx-auto md:text-sm">Para marcas</span>
         <h2 className="mt-6 text-display-lg text-brand-dark">
-          Encontre os criadores ideais para sua próxima campanha.
+          Indicação de criadores com precisão — baseada em IA e curadoria humana.
         </h2>
         <p className="mt-4 text-body-lg font-normal text-brand-text-secondary">
-          A mesma IA que orienta os creators ajuda marcas a planejar com precisão. Compare audiência, engajamento e custo antes mesmo de enviar sua proposta.
+          A D2C treina criadores com estratégia + IA, formando um casting preparado para campanhas. Quando uma marca chega com um briefing, analisamos narrativas, público, valores e formatos para indicar os criadores que realmente entregam o que sua campanha exige.
         </p>
 
         <div className="mt-14 grid gap-6 text-left sm:grid-cols-2 lg:grid-cols-3">

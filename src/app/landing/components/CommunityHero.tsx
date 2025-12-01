@@ -120,11 +120,20 @@ const formatTimeFromIso = (iso?: string | null) => {
   }
 };
 
+type ChatMeta = {
+  label: string;
+  value: string;
+};
+
 type ChatMessage = {
   id: string;
   sender: "mobi" | "user";
   heading: string;
   text: string;
+  meta?: ChatMeta[];
+  bullets?: string[];
+  schedule?: { label: string; items: string[] };
+  footer?: string;
 };
 
 const HERO_CHAT_MESSAGES: ChatMessage[] = [
@@ -132,19 +141,64 @@ const HERO_CHAT_MESSAGES: ChatMessage[] = [
     id: "m1",
     sender: "mobi",
     heading: "Mobi",
-    text: "Bom dia! Seu último Reels recebeu 28% mais salvamentos que a média. Sugestão: publique um conteúdo no mesmo formato amanhã às 12h.",
+    text: "Puxei seus últimos 12 posts de estética facial e benchmarks da comunidade. Recomendação rápida para manter o ritmo e aumentar salvamentos com CTA de consulta teste.",
+    meta: [
+      { label: "Formato", value: "Reels 30s + carrossel 5p" },
+      { label: "Proposta", value: "Gerar 15 consultas/mês" },
+      { label: "Contexto", value: "Clínica de pele - Zona Oeste SP" },
+      { label: "Tom", value: "Acolhedor com autoridade" },
+      { label: "Referência", value: "Case Julia Skin Lab (save rate 7,4%)" },
+      { label: "Budget", value: "R$1.2k/mês mídia paga" },
+    ],
+    schedule: {
+      label: "Melhores dias e horários",
+      items: ["Ter 12h-14h", "Qui 12h-14h", "Dom 18h-21h"],
+    },
   },
   {
     id: "u1",
     sender: "user",
     heading: "Você",
-    text: "Perfeito. Me manda três ideias nesse estilo pra eu manter o ritmo amanhã.",
+    text: "Tenho teto de R$900 pra ads. Quero dividir entre descoberta e remarketing sem perder o orgânico. Dá pra caber?",
   },
   {
     id: "m2",
     sender: "mobi",
     heading: "Mobi",
-    text: "Separando referências reais da comunidade com foco em salvamentos. Quer priorizar ideias para comentários ou seguimos com salvamentos?",
+    text: "Cabe sim. Plano de mídia para 4 semanas (ajusto conforme as primeiras 72h).",
+    meta: [
+      { label: "Budget", value: "R$900 pago + orgânico diário" },
+      { label: "Formato", value: "Reels 30s, stories em sequência" },
+      { label: "Proposta", value: "Avaliação de pele com CTA direto" },
+      { label: "Referência", value: "CPV médio 0,03 em creators SP" },
+    ],
+    bullets: [
+      "Pago 60% descoberta: prova social + CTA consulta teste. Previsão: 12k-16k alcance, CTR 1,8%-2,4%.",
+      "Pago 40% remarketing: bastidor + depoimento curto. Meta de salvamentos 4%-5% e mensagens a R$4-R$6.",
+      "Orgânico 3x/sem: dor -> antes/depois -> CTA agenda, variando capa A/B.",
+    ],
+  },
+  {
+    id: "u2",
+    sender: "user",
+    heading: "Você",
+    text: "Quero exemplos reais da comunidade pra esse tom e CTA.",
+  },
+  {
+    id: "m3",
+    sender: "mobi",
+    heading: "Mobi",
+    text: "Referências próximas do seu perfil. Posso gerar os roteiros e capas com seu sotaque.",
+    meta: [
+      { label: "Tom", value: "Acolhedor + prova" },
+      { label: "Contexto", value: "Clínicas e grooming SP/RJ" },
+      { label: "Budget", value: "Até R$900/mês" },
+    ],
+    bullets: [
+      'Creator Ana (estética RJ): Reels "3 sinais de pele desidratada" + CTA consulta express. Ter 12h performou melhor. CTR 2,3% e 18 consultas no mês.',
+      'Creator Leo (barbearia SP): Carrossel 5p "roteiro da primeira visita" + CTA orçamento direto no WhatsApp. Dom 19h com salvamentos 6,1%.',
+    ],
+    footer: "Gero variações prontas e agendadas nesses horários para testar rápido.",
   },
 ];
 
@@ -399,6 +453,9 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
                 <p className="mt-1 text-xs text-[#777777]">
                   <strong className="font-semibold text-[#1A1A1A]">Alertas acionáveis</strong>, leituras de desempenho e <strong className="font-semibold text-[#1A1A1A]">ideias prontas</strong> para publicação.
                 </p>
+                <p className="mt-2 text-[0.78rem] text-[#555555]">
+                  Teste sugestões reais de campanhas em minutos depois do login/cadastro.
+                </p>
               </div>
               <div className="mt-7 space-y-3 text-sm leading-relaxed text-[#1A1A1A]">
                 {HERO_CHAT_MESSAGES.map((message, index) => {
@@ -418,6 +475,53 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
                           {message.heading}
                         </div>
                         <p className="mt-2 text-sm leading-relaxed text-[#444444]">{message.text}</p>
+
+                        {message.meta?.length ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {message.meta.map((meta) => (
+                              <span
+                                key={`${message.id}-${meta.label}`}
+                                className="inline-flex items-center gap-2 rounded-full border border-[#EAEAEA] bg-white/80 px-3 py-[6px] text-[0.78rem] font-medium text-[#1A1A1A] shadow-[0_6px_14px_rgba(0,0,0,0.04)]"
+                              >
+                                <span className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#777777]">
+                                  {meta.label}
+                                </span>
+                                <span className="font-semibold text-[#1A1A1A]">{meta.value}</span>
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {message.schedule ? (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-[#EAEAEA] bg-[#F7F7F7] px-3 py-3 text-[0.82rem] text-[#333333] shadow-[0_6px_14px_rgba(0,0,0,0.03)]">
+                            <span className="rounded-md bg-white/90 px-2 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#555555]">
+                              {message.schedule.label}
+                            </span>
+                            {message.schedule.items.map((item) => (
+                              <span
+                                key={`${message.id}-${item}`}
+                                className="rounded-full bg-white px-3 py-[6px] text-[0.8rem] font-semibold text-[#1A1A1A] shadow-[0_6px_14px_rgba(0,0,0,0.04)]"
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {message.bullets?.length ? (
+                          <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[#444444]">
+                            {message.bullets.map((bullet, bulletIndex) => (
+                              <li key={`${message.id}-bullet-${bulletIndex}`} className="flex gap-2">
+                                <span aria-hidden="true" className="mt-[6px] h-[6px] w-[6px] rounded-full bg-[#F6007B]" />
+                                <span>{bullet}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+
+                        {message.footer ? (
+                          <p className="mt-3 text-[0.78rem] text-[#666666]">{message.footer}</p>
+                        ) : null}
                       </div>
                     </div>
                   );

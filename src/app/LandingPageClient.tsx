@@ -22,6 +22,7 @@ import BrandsSection from "./landing/components/BrandsSection";
 import TestimonialSpotlight from "./landing/components/TestimonialSpotlight";
 import MobileStickyCta from "./landing/components/MobileStickyCta";
 import CoverageHighlights from "./landing/components/CoverageHighlights";
+import AiFeatureSection from "./landing/components/AiFeatureSection";
 
 const FALLBACK_METRICS = {
   activeCreators: 130,
@@ -417,7 +418,7 @@ export default function LandingPageClient() {
   const handleCreatorCta = React.useCallback(() => {
     try {
       track("landing_creator_cta_click");
-    } catch {}
+    } catch { }
 
     const fallbackToLogin = () => window.location.assign("/login");
 
@@ -472,7 +473,7 @@ export default function LandingPageClient() {
   const handleBrandsCta = React.useCallback(() => {
     try {
       track("landing_brand_cta_click");
-    } catch {}
+    } catch { }
     const overrides: Partial<UtmContext> = { utm_content: "landing_hero_button" };
     if (!utm.utm_source) overrides.utm_source = "landing";
     if (!utm.utm_medium) overrides.utm_medium = "hero_cta";
@@ -618,11 +619,11 @@ export default function LandingPageClient() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.35em]">Data2Content</p>
-                  <p className="text-sm">IA para criadores e marcas.</p>
+                  <p className="text-sm">A agência moderna que treina criadores e conecta marcas aos talentos certos com IA.</p>
                 </div>
               </div>
               <p className="text-sm">
-                Insights confiáveis, mídia kit vivo e oportunidades reais em um único ecossistema.
+                Insights confiáveis, mídia kit vivo, suporte estratégico e oportunidades reais — tudo em um único ecossistema.
               </p>
             </div>
 

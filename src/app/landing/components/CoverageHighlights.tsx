@@ -73,10 +73,10 @@ export default function CoverageHighlights({
             Cobertura ativa
           </span>
           <h2 className="text-display-lg text-brand-dark">
-            Onde focar agora
+            Sua evolução guiada por dados.
           </h2>
           <p className="text-body-md font-normal text-brand-text-secondary">
-            Dados semanais das contas conectadas.
+            A D2C analisa suas métricas semanais para indicar onde sua narrativa tem mais força — e onde existem maiores chances de atrair oportunidades com marcas.
           </p>
         </header>
 
@@ -89,36 +89,35 @@ export default function CoverageHighlights({
             <div className="flex flex-col gap-2">
               {loading
                 ? Array.from({ length: 5 }, (_, index) => (
-                    <div key={`segment-skeleton-${index}`} className="h-12 rounded-xl bg-neutral-100" />
-                  ))
+                  <div key={`segment-skeleton-${index}`} className="h-12 rounded-xl bg-neutral-100" />
+                ))
                 : topSegments.map((segment, index) => {
-                    const sharePercent = Math.min(Math.max((segment.share ?? 0) * 100, 0), 100);
-                    const metrics = `Alc ${formatNumber(segment.reach)} · Int ${formatNumber(
-                      segment.interactions,
-                    )} · Eng ${
-                      segment.engagementRate != null ? `${segment.engagementRate.toFixed(1)}%` : "—"
+                  const sharePercent = Math.min(Math.max((segment.share ?? 0) * 100, 0), 100);
+                  const metrics = `Alc ${formatNumber(segment.reach)} · Int ${formatNumber(
+                    segment.interactions,
+                  )} · Eng ${segment.engagementRate != null ? `${segment.engagementRate.toFixed(1)}%` : "—"
                     }`;
-                    return (
-                      <article
-                        key={segment.id ?? `segment-${index}`}
-                        className="rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="truncate text-sm font-semibold text-brand-dark">{segment.label}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cardTokens.primary.pill}`}>
-                            {formatPercent(segment.share)}
-                          </span>
-                        </div>
-                        <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-neutral-100">
-                          <span
-                            className="absolute inset-y-0 left-0 rounded-full"
-                            style={{ width: `${sharePercent}%`, backgroundColor: "rgba(255,44,126,0.85)" }}
-                          />
-                        </div>
-                        <p className="mt-2 text-sm text-neutral-600">{metrics}</p>
-                      </article>
-                    );
-                  })}
+                  return (
+                    <article
+                      key={segment.id ?? `segment-${index}`}
+                      className="rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate text-sm font-semibold text-brand-dark">{segment.label}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cardTokens.primary.pill}`}>
+                          {formatPercent(segment.share)}
+                        </span>
+                      </div>
+                      <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-neutral-100">
+                        <span
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{ width: `${sharePercent}%`, backgroundColor: "rgba(255,44,126,0.85)" }}
+                        />
+                      </div>
+                      <p className="mt-2 text-sm text-neutral-600">{metrics}</p>
+                    </article>
+                  );
+                })}
             </div>
           </section>
 
@@ -130,38 +129,37 @@ export default function CoverageHighlights({
             <div className="flex flex-col gap-2">
               {loading
                 ? Array.from({ length: 5 }, (_, index) => (
-                    <div key={`region-skeleton-${index}`} className="h-12 rounded-xl bg-neutral-100" />
-                  ))
+                  <div key={`region-skeleton-${index}`} className="h-12 rounded-xl bg-neutral-100" />
+                ))
                 : topRegions.map((region, index) => {
-                    const sharePercent = Math.min(Math.max((region.share ?? 0) * 100, 0), 100);
-                    const metrics = `Seg ${formatNumber(region.followers)}${
-                      region.engagedFollowers
-                        ? ` · Eng ${formatNumber(region.engagedFollowers)} (${formatPercent(
-                            region.engagedShare ?? 0,
-                          )})`
-                        : ""
+                  const sharePercent = Math.min(Math.max((region.share ?? 0) * 100, 0), 100);
+                  const metrics = `Seg ${formatNumber(region.followers)}${region.engagedFollowers
+                      ? ` · Eng ${formatNumber(region.engagedFollowers)} (${formatPercent(
+                        region.engagedShare ?? 0,
+                      )})`
+                      : ""
                     }`;
-                    return (
-                      <article
-                        key={`${region.code}-${index}`}
-                        className="rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="truncate text-sm font-semibold text-brand-dark">{region.label}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cardTokens.neutral.pill}`}>
-                            {formatPercent(region.share)}
-                          </span>
-                        </div>
-                        <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-neutral-100">
-                          <span
-                            className="absolute inset-y-0 left-0 rounded-full"
-                            style={{ width: `${sharePercent}%`, backgroundColor: "rgba(28,35,52,0.35)" }}
-                          />
-                        </div>
-                        <p className="mt-2 text-sm text-neutral-600">{metrics}</p>
-                      </article>
-                    );
-                  })}
+                  return (
+                    <article
+                      key={`${region.code}-${index}`}
+                      className="rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate text-sm font-semibold text-brand-dark">{region.label}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cardTokens.neutral.pill}`}>
+                          {formatPercent(region.share)}
+                        </span>
+                      </div>
+                      <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-neutral-100">
+                        <span
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{ width: `${sharePercent}%`, backgroundColor: "rgba(28,35,52,0.35)" }}
+                        />
+                      </div>
+                      <p className="mt-2 text-sm text-neutral-600">{metrics}</p>
+                    </article>
+                  );
+                })}
             </div>
           </section>
         </div>

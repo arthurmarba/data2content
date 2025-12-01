@@ -342,14 +342,19 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
         proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '',
         ...initialFilters
       });
-      fetchVideos();
     } else if (!isOpen) {
       setVideos([]);
       setError(null);
       setIsLoading(false);
       // We don't necessarily need to reset filters on close if we reset on open
     }
-  }, [isOpen, userId, initialFilters]); // Added initialFilters to dependency array
+  }, [isOpen, userId, initialFilters]);
+
+  useEffect(() => {
+    if (isOpen && userId) {
+      fetchVideos();
+    }
+  }, [isOpen, userId, fetchVideos]);
 
   if (!isOpen) return null;
 

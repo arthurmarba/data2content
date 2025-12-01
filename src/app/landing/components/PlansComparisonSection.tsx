@@ -30,13 +30,13 @@ const features: FeatureRow[] = [
     pro: { status: "yes", label: "Sim" },
   },
   {
-    feature: "Receber propostas de marcas",
+    feature: "Comunidade gratuita de networking",
     free: { status: "yes", label: "Sim" },
     pro: { status: "yes", label: "Sim" },
   },
   {
-    feature: "Comunidade gratuita de networking",
-    free: { status: "yes", label: "Sim" },
+    feature: "Receber propostas de marcas",
+    free: { status: "no", label: "Não disponível" },
     pro: { status: "yes", label: "Sim" },
   },
   {
@@ -159,10 +159,10 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
         <div className="text-center">
           <span className="landing-chip mx-auto md:text-sm">Planos D2C</span>
           <h2 className="mt-6 text-display-lg text-brand-dark">
-            Evolua no seu ritmo com o ecossistema D2C.
+            O novo modelo de agência para criadores.
           </h2>
           <p className="mt-4 text-body-md font-normal text-brand-text-secondary">
-            Estruture sua carreira com dados, orientação e propostas qualificadas em um só lugar — pagando só a assinatura (agências tradicionais ficam com 10–30% de comissão).
+            A D2C une IA, estratégia de imagem e treinamento para transformar criadores em marcas profissionais — formando um casting preparado para campanhas reais.
           </p>
         </div>
 
@@ -266,9 +266,8 @@ const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreat
                       return (
                         <td
                           key={`${item.feature}-${isPro ? "pro" : "free"}`}
-                          className={`px-6 py-5 text-center align-top text-base leading-normal text-brand-dark md:px-8 ${
-                            isPro ? "bg-white/50" : ""
-                          }`}
+                          className={`px-6 py-5 text-center align-top text-base leading-normal text-brand-dark md:px-8 ${isPro ? "bg-white/50" : ""
+                            }`}
                         >
                           <div className="flex flex-col items-center gap-3">
                             <StatusBadge status={cell.status} label={cell.label} />
