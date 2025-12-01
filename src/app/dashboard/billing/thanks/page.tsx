@@ -3,14 +3,21 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { FaCheckCircle, FaWhatsapp, FaArrowRight, FaComments } from 'react-icons/fa';
 
 export default function SubscriptionThanksPage() {
   const router = useRouter();
+  const { update } = useSession();
   const vipGroupUrl =
     process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
     process.env.NEXT_PUBLIC_COMMUNITY_URL ||
     "/planning/whatsapp";
+
+  // Atualiza a sessão para garantir que o status de assinatura esteja correto
+  useEffect(() => {
+    update();
+  }, [update]);
 
   // Redireciona o usuário para o chat após alguns segundos
   useEffect(() => {

@@ -18,5 +18,12 @@ export default async function PlanningWhatsAppPage() {
     return <PlanningLockedView variant="whatsapp" returnTo="/planning/whatsapp" />;
   }
 
+  // Se o usuário tem acesso, redireciona para o grupo VIP ou exibe o upsell se não houver URL
+  const vipUrl = process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL;
+  if (vipUrl) {
+    redirect(vipUrl);
+  }
+
+  // Fallback: se não tiver URL configurada, mostra a página de upsell (ou poderia ser uma página de "Em breve")
   return <WhatsAppUpsellPage />;
 }
