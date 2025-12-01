@@ -10,7 +10,7 @@ no final do arquivo. Essa função é essencial para a correção no back-end.
 export interface Category {
   id: string;
   label: string;
-  description:string;
+  description: string;
   keywords?: string[];
   subcategories?: Category[];
   examples?: string[];
@@ -29,25 +29,25 @@ export const formatCategories: Category[] = [
 
 // --- Dimensão 2: Proposal ---
 export const proposalCategories: Category[] = [
-    { id: 'announcement', label: 'Anúncio', description: 'Comunica uma novidade importante, lançamento ou evento futuro.', keywords: ['anúncio', 'novidade', 'save the date', 'em breve', 'comunicado'], examples: ["Anúncio especial: estou grávida!", "Save the date para o nosso próximo lançamento."] },
-    { id: 'behind_the_scenes', label: 'Bastidores', description: 'Mostra os bastidores de um projeto, evento ou da vida do criador.', keywords: ['bastidores', 'making of', 'por trás das câmeras'], examples: ["Os bastidores da gravação de hoje.", "Como foi organizar o evento."] },
-    { id: 'call_to_action', label: 'Chamada', description: 'Incentiva o usuário a realizar uma ação específica (comprar, inscrever-se, comentar).', keywords: ['chamada', 'cta', 'link na bio', 'inscreva-se', 'compre agora'], examples: ["Clique no link da bio para garantir o seu!", "Comente aqui o que você achou."] },
-    { id: 'clip', label: 'Clipe', description: 'Trecho ou clipe de um conteúdo maior, como um podcast ou vídeo.', keywords: ['clipe', 'trecho', 'corte', 'podcast'], examples: ["O melhor momento do nosso último podcast.", "Um corte da live de ontem."] },
-    { id: 'comparison', label: 'Comparação', description: 'Compara dois ou mais produtos, serviços, ideias ou métodos.', keywords: ['comparação', 'vs', 'versus', 'qual é melhor'], examples: ["iPhone vs Android: qual escolher?", "Comparando os dois cremes mais famosos."] },
-    { id: 'giveaway', label: 'Sorteio/Giveaway', description: 'Anúncio e regras de um sorteio ou concurso para a audiência.', keywords: ['sorteio', 'giveaway', 'concurso', 'prêmio'], examples: ["FOTO OFICIAL: Sorteio de um kit de maquiagem!", "Regras para participar do nosso giveaway."] },
-    { id: 'humor_scene', label: 'Humor/Cena', description: 'Conteúdo cômico, esquete ou cena engraçada.', keywords: ['humor', 'comédia', 'engraçado', 'piada'], examples: ["Aquela situação quando você esquece o que ia dizer.", "Uma paródia da minha série favorita."], conflictsWith: ['positioning_authority', 'tips'] },
-    { id: 'lifestyle', label: 'LifeStyle', description: 'Mostra o dia a dia, rotina e estilo de vida do criador.', keywords: ['lifestyle', 'rotina', 'dia a dia', 'vlog'], examples: ["Um pouco da minha rotina matinal.", "Vlog do meu final de semana."] },
-    { id: 'message_motivational', label: 'Mensagem/Motivacional', description: 'Conteúdo inspirador, reflexivo ou com uma mensagem positiva.', keywords: ['motivação', 'inspiração', 'reflexão', 'mensagem'], examples: ["Uma mensagem para começar bem o dia.", "Reflexão sobre a importância de persistir."], conflictsWith: ['humor_scene', 'tips'] },
-    { id: 'news', label: 'Notícia', description: 'Informa sobre um acontecimento ou novidade relevante.', keywords: ['notícia', 'novidade', 'últimas', 'aconteceu'], examples: ["Últimas notícias sobre o mundo da tecnologia.", "Fique por dentro do que aconteceu."] },
-    { id: 'participation', label: 'Participação', description: 'Conteúdo que envolve a participação em eventos, colaborações ou projetos de outros.', keywords: ['participação', 'collab', 'feat', 'convidado'], examples: ["Participei do podcast do Fulano!", "Fui convidado para o evento da marca X."] },
-    { id: 'positioning_authority', label: 'Posicionamento/Autoridade', description: 'Demonstra conhecimento e expertise em um tópico para construir autoridade.', keywords: ['autoridade', 'especialista', 'posicionamento', 'conhecimento'], examples: ["A verdade sobre o mercado de ações que ninguém te conta.", "Análise aprofundada das novas diretrizes de marketing."], conflictsWith: ['humor_scene', 'lifestyle'] },
-    { id: 'publi_divulgation', label: 'Publi/Divulgação', description: 'Publicidade paga ou divulgação de uma marca, produto ou serviço.', keywords: ['publi', 'publicidade', '#ad', 'parceria paga'], examples: ["Recebidos de hoje da marca X.", "Essa dica é uma #publi, mas é de coração!"] },
-    { id: 'q&a', label: 'Perguntas e Respostas', description: 'Sessão dedicada a responder perguntas enviadas pela audiência.', keywords: ['q&a', 'perguntas e respostas', 'perguntinhas', 'caixinha de perguntas'], examples: ["Respondendo as perguntas da caixinha de ontem.", "Q&A especial de 100k seguidores."] },
-    { id: 'react', label: 'React', description: 'Reação a outro vídeo, notícia ou conteúdo.', keywords: ['react', 'reagindo', 'minha reação'], examples: ["Reagindo aos vídeos mais engraçados da semana.", "Minha reação ao novo trailer do filme."] },
-    { id: 'review', label: 'Review', description: 'Análise ou avaliação de um produto, serviço ou experiência.', keywords: ['review', 'análise', 'avaliação', 'minha opinião'], examples: ["Minha opinião sincera sobre o novo celular X.", "Fui no restaurante Y e aqui está minha avaliação."] },
-    { id: 'tips', label: 'Dicas', description: 'Fornece conselhos práticos, tutoriais ou "como fazer".', keywords: ['dica', 'tutorial', 'como fazer', 'passo a passo'], examples: ["3 dicas para organizar sua rotina.", "Passo a passo de como fazer uma maquiagem rápida."], conflictsWith: ['humor_scene', 'message_motivational'] },
-    { id: 'trend', label: 'Trend', description: 'Participação em um desafio, meme ou tópico viral do momento.', keywords: ['trend', 'viral', 'desafio', 'challenge'], examples: ["Entrando na trend do momento.", "Fiz o desafio da dança!"] },
-    { id: 'unboxing', label: 'Unboxing', description: 'Mostra a experiência de abrir um produto novo pela primeira vez.', keywords: ['unboxing', 'abrindo', 'recebidos'], examples: ["Unboxing do meu novo computador!", "Abrindo os recebidos da semana."] },
+  { id: 'announcement', label: 'Anúncio', description: 'Comunica uma novidade importante, lançamento ou evento futuro.', keywords: ['anúncio', 'novidade', 'save the date', 'em breve', 'comunicado'], examples: ["Anúncio especial: estou grávida!", "Save the date para o nosso próximo lançamento."] },
+  { id: 'behind_the_scenes', label: 'Bastidores', description: 'Mostra os bastidores de um projeto, evento ou da vida do criador.', keywords: ['bastidores', 'making of', 'por trás das câmeras'], examples: ["Os bastidores da gravação de hoje.", "Como foi organizar o evento."] },
+  { id: 'call_to_action', label: 'Chamada', description: 'Incentiva o usuário a realizar uma ação específica (comprar, inscrever-se, comentar).', keywords: ['chamada', 'cta', 'link na bio', 'inscreva-se', 'compre agora'], examples: ["Clique no link da bio para garantir o seu!", "Comente aqui o que você achou."] },
+  { id: 'clip', label: 'Clipe', description: 'Trecho ou clipe de um conteúdo maior, como um podcast ou vídeo.', keywords: ['clipe', 'trecho', 'corte', 'podcast'], examples: ["O melhor momento do nosso último podcast.", "Um corte da live de ontem."] },
+  { id: 'comparison', label: 'Comparação', description: 'Compara dois ou mais produtos, serviços, ideias ou métodos.', keywords: ['comparação', 'vs', 'versus', 'qual é melhor'], examples: ["iPhone vs Android: qual escolher?", "Comparando os dois cremes mais famosos."] },
+  { id: 'giveaway', label: 'Sorteio/Giveaway', description: 'Anúncio e regras de um sorteio ou concurso para a audiência.', keywords: ['sorteio', 'giveaway', 'concurso', 'prêmio'], examples: ["FOTO OFICIAL: Sorteio de um kit de maquiagem!", "Regras para participar do nosso giveaway."] },
+  { id: 'humor_scene', label: 'Humor/Cena', description: 'Conteúdo cômico, esquete ou cena engraçada.', keywords: ['humor', 'comédia', 'engraçado', 'piada'], examples: ["Aquela situação quando você esquece o que ia dizer.", "Uma paródia da minha série favorita."], conflictsWith: ['positioning_authority', 'tips'] },
+  { id: 'lifestyle', label: 'LifeStyle', description: 'Mostra o dia a dia, rotina e estilo de vida do criador.', keywords: ['lifestyle', 'rotina', 'dia a dia', 'vlog'], examples: ["Um pouco da minha rotina matinal.", "Vlog do meu final de semana."] },
+  { id: 'message_motivational', label: 'Mensagem/Motivacional', description: 'Conteúdo inspirador, reflexivo ou com uma mensagem positiva.', keywords: ['motivação', 'inspiração', 'reflexão', 'mensagem'], examples: ["Uma mensagem para começar bem o dia.", "Reflexão sobre a importância de persistir."], conflictsWith: ['humor_scene', 'tips'] },
+  { id: 'news', label: 'Notícia', description: 'Informa sobre um acontecimento ou novidade relevante.', keywords: ['notícia', 'novidade', 'últimas', 'aconteceu'], examples: ["Últimas notícias sobre o mundo da tecnologia.", "Fique por dentro do que aconteceu."] },
+  { id: 'participation', label: 'Participação', description: 'Conteúdo que envolve a participação em eventos, colaborações ou projetos de outros.', keywords: ['participação', 'collab', 'feat', 'convidado'], examples: ["Participei do podcast do Fulano!", "Fui convidado para o evento da marca X."] },
+  { id: 'positioning_authority', label: 'Posicionamento/Autoridade', description: 'Demonstra conhecimento e expertise em um tópico para construir autoridade.', keywords: ['autoridade', 'especialista', 'posicionamento', 'conhecimento'], examples: ["A verdade sobre o mercado de ações que ninguém te conta.", "Análise aprofundada das novas diretrizes de marketing."], conflictsWith: ['humor_scene', 'lifestyle'] },
+  { id: 'publi_divulgation', label: 'Publi/Divulgação', description: 'Publicidade paga ou divulgação de uma marca, produto ou serviço.', keywords: ['publi', 'publicidade', '#ad', 'parceria paga'], examples: ["Recebidos de hoje da marca X.", "Essa dica é uma #publi, mas é de coração!"] },
+  { id: 'q&a', label: 'Perguntas e Respostas', description: 'Sessão dedicada a responder perguntas enviadas pela audiência.', keywords: ['q&a', 'perguntas e respostas', 'perguntinhas', 'caixinha de perguntas'], examples: ["Respondendo as perguntas da caixinha de ontem.", "Q&A especial de 100k seguidores."] },
+  { id: 'react', label: 'React', description: 'Reação a outro vídeo, notícia ou conteúdo.', keywords: ['react', 'reagindo', 'minha reação'], examples: ["Reagindo aos vídeos mais engraçados da semana.", "Minha reação ao novo trailer do filme."] },
+  { id: 'review', label: 'Review', description: 'Análise ou avaliação de um produto, serviço ou experiência.', keywords: ['review', 'análise', 'avaliação', 'minha opinião'], examples: ["Minha opinião sincera sobre o novo celular X.", "Fui no restaurante Y e aqui está minha avaliação."] },
+  { id: 'tips', label: 'Dicas', description: 'Fornece conselhos práticos, tutoriais ou "como fazer".', keywords: ['dica', 'tutorial', 'como fazer', 'passo a passo'], examples: ["3 dicas para organizar sua rotina.", "Passo a passo de como fazer uma maquiagem rápida."], conflictsWith: ['humor_scene', 'message_motivational'] },
+  { id: 'trend', label: 'Trend', description: 'Participação em um desafio, meme ou tópico viral do momento.', keywords: ['trend', 'viral', 'desafio', 'challenge'], examples: ["Entrando na trend do momento.", "Fiz o desafio da dança!"] },
+  { id: 'unboxing', label: 'Unboxing', description: 'Mostra a experiência de abrir um produto novo pela primeira vez.', keywords: ['unboxing', 'abrindo', 'recebidos'], examples: ["Unboxing do meu novo computador!", "Abrindo os recebidos da semana."] },
 ];
 
 // --- Dimensão 3: Context ---
@@ -75,6 +75,7 @@ export const contextCategories: Category[] = [
       { id: 'finance', label: 'Finanças', description: 'Investimentos, finanças pessoais, economia.', keywords: ['dinheiro', 'investimento', 'finanças', 'economia'], examples: ["Onde investir 1000 reais em 2025.", "Como organizar suas finanças pessoais."] },
       { id: 'personal_development', label: 'Desenvolvimento Pessoal', description: 'Autoconhecimento, produtividade, habilidades.', keywords: ['desenvolvimento', 'hábito', 'leitura', 'autoconhecimento'], examples: ["Livros que mudaram minha vida.", "Como criar um novo hábito."] },
       { id: 'education', label: 'Educação/Estudos', description: 'Conteúdo focado em aprendizado, vida acadêmica, dicas de estudo.', keywords: ['estudos', 'vestibular', 'faculdade', 'aprender idioma', 'concurso'], examples: ["Minha rotina de estudos para o vestibular.", "Como aprender inglês sozinho."] },
+      { id: 'personal_and_professional_relationships_family', label: 'Relacionamentos e Família', description: 'Tópicos sobre família e relacionamentos.', keywords: ['família', 'relacionamento'] },
     ]
   },
   {
@@ -97,9 +98,9 @@ export const contextCategories: Category[] = [
     label: 'Ciência e Conhecimento',
     description: 'Abrange tópicos sobre divulgação científica, fatos históricos e curiosidades.',
     subcategories: [
-        { id: 'science_communication', label: 'Divulgação Científica', description: 'Explicação de conceitos científicos de forma acessível.', keywords: ['ciência', 'física', 'biologia', 'química', 'astronomia'], examples: ["Como funcionam os buracos negros?", "A ciência por trás das vacinas."] },
-        { id: 'history', label: 'História', description: 'Fatos, eventos e narrativas sobre o passado.', keywords: ['história', 'histórico', 'antiguidade', 'guerras mundiais'], examples: ["A história da Roma Antiga em 5 minutos.", "Como a Segunda Guerra Mundial começou."] },
-        { id: 'curiosities', label: 'Curiosidades', description: 'Fatos interessantes, "você sabia?" e conhecimentos gerais.', keywords: ['curiosidades', 'você sabia', 'fatos', 'conhecimento geral'], examples: ["5 curiosidades aleatórias que vão explodir sua mente.", "Você sabia que os polvos têm três corações?"] }
+      { id: 'science_communication', label: 'Divulgação Científica', description: 'Explicação de conceitos científicos de forma acessível.', keywords: ['ciência', 'física', 'biologia', 'química', 'astronomia'], examples: ["Como funcionam os buracos negros?", "A ciência por trás das vacinas."] },
+      { id: 'history', label: 'História', description: 'Fatos, eventos e narrativas sobre o passado.', keywords: ['história', 'histórico', 'antiguidade', 'guerras mundiais'], examples: ["A história da Roma Antiga em 5 minutos.", "Como a Segunda Guerra Mundial começou."] },
+      { id: 'curiosities', label: 'Curiosidades', description: 'Fatos interessantes, "você sabia?" e conhecimentos gerais.', keywords: ['curiosidades', 'você sabia', 'fatos', 'conhecimento geral'], examples: ["5 curiosidades aleatórias que vão explodir sua mente.", "Você sabia que os polvos têm três corações?"] }
     ]
   },
   {
@@ -219,11 +220,11 @@ export const isValidCategoryId = (
   return Boolean(getCategoryByValue(id, type));
 };
 
-export function idsToLabels(ids: string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string[] {
+export function idsToLabels(ids: string[] | undefined, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'): string[] {
   return (ids ?? []).map(id => getCategoryById(id, type)?.label ?? id);
 }
 
-export function commaSeparatedIdsToLabels(ids: string | string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string {
+export function commaSeparatedIdsToLabels(ids: string | string[] | undefined, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'): string {
   if (!ids) return '';
   const idList = Array.isArray(ids) ? ids : ids.split(',');
   return idList
@@ -254,10 +255,10 @@ export const getCategoryWithSubcategoryIds = (
   // Define a lista de categorias de nível raiz com base no tipo
   const categories =
     type === 'context' ? contextCategories :
-    type === 'proposal' ? proposalCategories :
-    type === 'format' ? formatCategories :
-    type === 'tone' ? toneCategories :
-    referenceCategories;
+      type === 'proposal' ? proposalCategories :
+        type === 'format' ? formatCategories :
+          type === 'tone' ? toneCategories :
+            referenceCategories;
 
   // Função recursiva para encontrar a categoria pelo ID em uma árvore
   const findCategory = (cats: Category[], catId: string): Category | undefined => {
@@ -275,7 +276,7 @@ export const getCategoryWithSubcategoryIds = (
   if (!rootCategory) {
     return [id]; // Se não encontrar a categoria (fallback), retorna o próprio ID em um array
   }
-  
+
   // Se encontrou a categoria, retorna todos os seus IDs descendentes
   return getAllCategoryIds(rootCategory);
 };

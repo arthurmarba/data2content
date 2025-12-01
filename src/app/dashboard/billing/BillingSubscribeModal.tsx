@@ -240,9 +240,9 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     const getFocusable = () =>
       dialogRef.current
         ? Array.from(dialogRef.current.querySelectorAll<HTMLElement>(focusableSelectors.join(","))).filter((el) => {
-            if (el.hasAttribute("disabled") || el.getAttribute("aria-hidden") === "true") return false;
-            return isElementVisible(el);
-          })
+          if (el.hasAttribute("disabled") || el.getAttribute("aria-hidden") === "true") return false;
+          return isElementVisible(el);
+        })
         : [];
 
     const focusInitial = () => {
@@ -418,9 +418,21 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
         body: JSON.stringify(payload),
       });
       const body = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        // Redireciona para login se não estiver autenticado
+        const callbackUrl = encodeURIComponent(window.location.href);
+        window.location.href = `/login?callbackUrl=${callbackUrl}`;
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(body?.error || body?.message || "Não foi possível iniciar o checkout.");
       }
+
+      // Fecha o modal antes de redirecionar para garantir que não bloqueie a tela
+      onClose();
+
       if (body?.clientSecret) {
         router.push(buildCheckoutUrl(body.clientSecret, body.subscriptionId));
         return;
@@ -435,8 +447,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       throw new Error("Não foi possível iniciar o checkout. Tente novamente em instantes.");
     } catch (e: any) {
       setError(e?.message || "Erro ao redirecionar para o checkout.");
-    } finally {
-      setLoadingRedirect(false);
+      setLoadingRedirect(false); // Só para o loading se der erro, se der sucesso vai navegar
     }
   };
 
@@ -722,12 +733,12 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
               <button
                 type="button"
                 onClick={() => {
-                    track("dashboard_cta_clicked", {
-                      creator_id: null,
-                      target: "activate_pro",
-                      surface: "upsell_block",
-                      context: "learn_more",
-                    });
+                  track("dashboard_cta_clicked", {
+                    creator_id: null,
+                    target: "activate_pro",
+                    surface: "upsell_block",
+                    context: "learn_more",
+                  });
                   window.open("/pro", "_blank", "noopener,noreferrer");
                 }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"

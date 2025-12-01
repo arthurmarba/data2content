@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import type { PaywallContext, PaywallEventDetail } from "@/types/paywall";
@@ -18,6 +18,7 @@ const ALLOWED_CONTEXTS: PaywallContext[] = [
 
 export default function PaywallModalProvider() {
   const router = useRouter();
+  const pathname = usePathname();
   const { enabled: paywallModalEnabled } = useFeatureFlag("paywall.modal_enabled", true);
   const [isOpen, setIsOpen] = useState(false);
   const [context, setContext] = useState<PaywallContext>("default");
@@ -76,6 +77,11 @@ export default function PaywallModalProvider() {
       setIsOpen(false);
     }
   }, [paywallModalEnabled, isOpen]);
+
+  // Fecha o modal ao mudar de rota (ex: redirecionamento para checkout)
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
 
   if (!paywallModalEnabled) {
     return null;
