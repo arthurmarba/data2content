@@ -51,8 +51,8 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
     const isInverse = theme === 'inverse';
     const hrClass = isInverse ? 'my-6 border-t border-white/30' : 'my-6 border-t border-gray-200/80';
     const blockquoteClass = isInverse
-        ? 'border-l border-white/40 pl-3 italic text-[14px] leading-6 opacity-90 my-4 text-white'
-        : 'border-l border-current/25 pl-3 italic text-[14px] leading-6 opacity-90 my-4';
+        ? 'border-l-4 border-white/40 pl-4 italic text-[14px] leading-6 opacity-90 my-4 text-white'
+        : 'border-l-4 border-gray-300 pl-4 italic text-[14px] leading-6 text-gray-600 my-4';
     const h1Class = `text-2xl leading-tight font-bold mt-8 mb-4 tracking-tight ${isInverse ? 'text-white' : 'text-gray-900'}`;
     const h2Class = `text-xl leading-snug font-bold mt-6 mb-2 tracking-tight ${isInverse ? 'text-white' : 'text-gray-800'}`;
     const h3Class = `text-lg leading-snug font-bold mt-5 mb-2 tracking-tight ${isInverse ? 'text-white' : 'text-gray-800'}`;
@@ -65,10 +65,33 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
     const labelClass = isInverse ? 'font-semibold text-white' : 'font-semibold text-gray-900';
     const valueClass = isInverse ? 'text-white/90' : 'text-gray-800';
 
+    // Alert Styles
+    const alertBaseClass = "my-4 rounded-md p-4 text-sm border-l-4";
+    const alertStyles = {
+        NOTE: isInverse
+            ? 'bg-blue-900/30 border-blue-400 text-blue-100'
+            : 'bg-blue-50 border-blue-500 text-blue-800',
+        TIP: isInverse
+            ? 'bg-emerald-900/30 border-emerald-400 text-emerald-100'
+            : 'bg-emerald-50 border-emerald-500 text-emerald-800',
+        IMPORTANT: isInverse
+            ? 'bg-violet-900/30 border-violet-400 text-violet-100'
+            : 'bg-violet-50 border-violet-500 text-violet-800',
+        WARNING: isInverse
+            ? 'bg-amber-900/30 border-amber-400 text-amber-100'
+            : 'bg-amber-50 border-amber-500 text-amber-800',
+        CAUTION: isInverse
+            ? 'bg-red-900/30 border-red-400 text-red-100'
+            : 'bg-red-50 border-red-500 text-red-800',
+    };
+
+    type AlertType = keyof typeof alertStyles;
+
     type Block =
         | { type: 'heading'; level: 1 | 2 | 3; content: string }
         | { type: 'hr' }
         | { type: 'blockquote'; content: string }
+        | { type: 'alert'; alertType: AlertType; title?: string; content: string }
         | { type: 'paragraph'; content: string }
         | { type: 'table'; headers: string[]; rows: string[][] }
         | { type: 'tableFromDl'; titleLabel: string; labels: string[]; rows: { title: string; values: string[] }[]; topValues?: Record<string, string> }
@@ -119,13 +142,12 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
             flushParagraph();
             const level = Math.min(h[1].length, 3);
             const headingText = h[2] ?? "";
-            const content = applyInlineMarkup(escapeHtml(headingText), theme);
 
             blocks.push({ type: 'heading', level: level as 1 | 2 | 3, content: headingText });
             continue;
         }
 
-        // Blockquote (linhas que começam com '>')
+        // Blockquote or Alert (lines starting with '>')
         if (/^>\s?/.test(line)) {
             flushParagraph();
             const quoteLines: string[] = [];
@@ -137,7 +159,50 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
                 j++;
             }
             i = j - 1;
-            blocks.push({ type: 'blockquote', content: quoteLines.join(" ") });
+
+            const fullContent = quoteLines.join("\n");
+            // Check for Alert syntax: [!TYPE]
+            const alertMatch = fullContent.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)/i);
+
+            if (alertMatch && alertMatch[1]) {
+                const typeKey = alertMatch[1].toUpperCase() as AlertType;
+                const matchedPrefix = alertMatch[0] ?? '';
+                // The rest of the first line is the title (optional), subsequent lines are content
+                // Actually, standard GFM alerts don't have a title on the same line usually, 
+                // but let's handle: > [!TIP] Title \n Content
+                // or just > [!TIP] \n Content
+
+                let remainingContent = fullContent.substring(matchedPrefix.length).trim();
+                // If the first line had text after [!TYPE], treat as title or start of content?
+                // Standard GFM: > [!NOTE]
+                // > Highlights information that users should take into account.
+
+                // Let's treat text immediately after [!TYPE] as part of content if it exists, 
+                // but usually it's empty.
+
+                // Re-parsing to separate title logic if we want custom titles? 
+                // For now, let's just strip the [!TYPE] marker and render the rest.
+
+                // Let's try to support a title if provided on the same line? 
+                // No, let's stick to standard GFM: [!TYPE] is the header.
+                // We'll just render the content.
+
+                // But wait, our `quoteLines` array has the lines.
+                // quoteLines[0] is "[!NOTE]" or "[!NOTE] Title"
+
+                const firstLine = quoteLines[0] ?? '';
+                const firstLineContent = firstLine.replace(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i, '').trim();
+                const otherLines = quoteLines.slice(1).join("\n");
+                const finalContent = firstLineContent ? `${firstLineContent}\n${otherLines}` : otherLines;
+
+                blocks.push({
+                    type: 'alert',
+                    alertType: typeKey,
+                    content: finalContent.trim()
+                });
+            } else {
+                blocks.push({ type: 'blockquote', content: quoteLines.join(" ") });
+            }
             continue;
         }
 
@@ -281,7 +346,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
 
     // Agrupa headings + dls em tabela se possível (union de labels, admite faltas)
     const normalizedBlocks: Block[] = [];
-    for (let i = 0; i < blocks.length; ) {
+    for (let i = 0; i < blocks.length;) {
         const b = blocks[i];
         const next = blocks[i + 1];
         if (b?.type === 'heading' && next?.type === 'dl') {
@@ -364,8 +429,8 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
         if (isPriority) {
             const tone =
                 /alta/i.test(cleanValue) ? (isInverse ? 'bg-amber-400 text-slate-900' : 'bg-amber-100 text-amber-900') :
-                /m[eé]dia/i.test(cleanValue) ? (isInverse ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-800') :
-                isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-800';
+                    /m[eé]dia/i.test(cleanValue) ? (isInverse ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-800') :
+                        isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-800';
             return (
                 <span className={`inline-flex items-center rounded px-2 py-0.5 text-[13px] font-semibold ${tone}`}>
                     {cleanValue}
@@ -420,6 +485,27 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
         } else if (block.type === 'blockquote') {
             const html = applyInlineMarkup(escapeHtml(block.content), theme);
             elements.push(<blockquote key={`bq-${idx}`} className={blockquoteClass} dangerouslySetInnerHTML={{ __html: html }} />);
+        } else if (block.type === 'alert') {
+            const style = alertStyles[block.alertType] || alertStyles.NOTE;
+            const titleMap: Record<string, string> = {
+                NOTE: 'Nota',
+                TIP: 'Dica',
+                IMPORTANT: 'Importante',
+                WARNING: 'Atenção',
+                CAUTION: 'Cuidado'
+            };
+            const title = block.title || titleMap[block.alertType];
+            const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
+
+            elements.push(
+                <div key={`alert-${idx}`} className={`${alertBaseClass} ${style}`}>
+                    <div className="font-bold mb-1 flex items-center gap-2">
+                        {/* Optional: Add icons here if desired */}
+                        {title}
+                    </div>
+                    <div dangerouslySetInnerHTML={{ __html: html }} />
+                </div>
+            );
         } else if (block.type === 'paragraph') {
             const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
             elements.push(<p key={`p-${idx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);

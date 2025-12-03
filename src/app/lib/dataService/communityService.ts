@@ -175,11 +175,11 @@ export async function addInspiration(
 
         const upsertedInspiration = await CommunityInspirationModel.findOneAndUpdate(
             { postId_Instagram: inspirationData.postId_Instagram }, // Filtro para encontrar o documento
-            { 
+            {
                 $set: updateFields, // Campos a serem atualizados se encontrado
                 $setOnInsert: { addedToCommunityAt: inspirationData.addedToCommunityAt || new Date() } // Campo a ser definido apenas na inserção
             },
-            { 
+            {
                 new: true, // Retorna o documento modificado (ou o novo, se criado)
                 upsert: true, // Cria o documento se não for encontrado
                 runValidators: true, // Roda validadores do schema
@@ -188,11 +188,11 @@ export async function addInspiration(
         );
 
         if (!upsertedInspiration) {
-             // Este caso não deveria acontecer com upsert:true, a menos que haja um erro muito específico.
-             logger.error(`${TAG} Falha ao criar/atualizar inspiração com postId_Instagram ${inspirationData.postId_Instagram} usando findOneAndUpdate.`);
-             throw new DatabaseError(`Falha ao criar/atualizar inspiração com postId_Instagram ${inspirationData.postId_Instagram}`);
+            // Este caso não deveria acontecer com upsert:true, a menos que haja um erro muito específico.
+            logger.error(`${TAG} Falha ao criar/atualizar inspiração com postId_Instagram ${inspirationData.postId_Instagram} usando findOneAndUpdate.`);
+            throw new DatabaseError(`Falha ao criar/atualizar inspiração com postId_Instagram ${inspirationData.postId_Instagram}`);
         }
-        
+
         logger.info(`${TAG} Inspiração ID: ${upsertedInspiration._id} (PostId Instagram: ${upsertedInspiration.postId_Instagram}) criada/atualizada com sucesso.`);
         return upsertedInspiration as ICommunityInspiration;
 
@@ -283,6 +283,150 @@ export async function getInspirations(
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar inspirações:`, error);
         throw new DatabaseError(`Erro ao buscar inspirações: ${error.message}`);
+    }
+}
+
+/**
+ * Busca inspirações usando uma query ponderada para encontrar o melhor match possível em uma única consulta.
+ * Substitui a lógica de fallback sequencial.
+ */
+export async function getInspirationsWeighted(
+    filters: CommunityInspirationFilters,
+    limit: number = 3,
+    excludeIds?: string[],
+    excludeCreatorId?: string
+): Promise<{ inspiration: ICommunityInspiration, matchType: string, score: number }[]> {
+    const TAG = `${SERVICE_TAG}[getInspirationsWeighted]`;
+    logger.info(`${TAG} Buscando inspirações ponderadas. Filtros: ${JSON.stringify(filters)}, limite: ${limit}`);
+
+    try {
+        await connectToDatabase();
+
+        const matchStage: any = { status: 'active' };
+
+        // Exclusões
+        if (excludeIds && excludeIds.length > 0) {
+            const validObjectIds = excludeIds
+                .filter(id => mongoose.isValidObjectId(id))
+                .map(id => new Types.ObjectId(id));
+            if (validObjectIds.length > 0) {
+                matchStage._id = { $nin: validObjectIds };
+            }
+        }
+        if (excludeCreatorId && mongoose.isValidObjectId(excludeCreatorId)) {
+            matchStage.originalCreatorId = { $ne: new Types.ObjectId(excludeCreatorId) };
+        }
+
+        // Filtro Base: Deve ter pelo menos a Proposta OU o Contexto (se fornecidos)
+        // Isso garante que não retornamos coisas totalmente aleatórias.
+        const orConditions = [];
+        if (filters.proposal) orConditions.push({ proposal: filters.proposal });
+        if (filters.context) orConditions.push({ context: filters.context });
+
+        if (orConditions.length > 0) {
+            matchStage.$or = orConditions;
+        }
+
+        // Filtros adicionais que não entram na pontuação ponderada
+        if (filters.reference) {
+            matchStage.reference = filters.reference;
+        }
+        if (filters.primaryObjectiveAchieved_Qualitative) {
+            matchStage.primaryObjectiveAchieved_Qualitative = filters.primaryObjectiveAchieved_Qualitative;
+        }
+        if (filters.performanceHighlights_Qualitative_INCLUDES_ANY && filters.performanceHighlights_Qualitative_INCLUDES_ANY.length > 0) {
+            matchStage.performanceHighlights_Qualitative = { $in: filters.performanceHighlights_Qualitative_INCLUDES_ANY };
+        } else if (filters.performanceHighlights_Qualitative_CONTAINS) {
+            matchStage.performanceHighlights_Qualitative = {
+                $regex: filters.performanceHighlights_Qualitative_CONTAINS,
+                $options: 'i'
+            };
+        }
+        if (filters.tags_IA && filters.tags_IA.length > 0) {
+            matchStage.tags_IA = { $in: filters.tags_IA };
+        }
+
+        const hasProposal = Boolean(filters.proposal);
+        const hasContext = Boolean(filters.context);
+        const hasFormat = Boolean(filters.format);
+        const hasTone = Boolean(filters.tone);
+
+        const exactConditions: any[] = [];
+        if (hasProposal) exactConditions.push('$proposalMatch');
+        if (hasContext) exactConditions.push('$contextMatch');
+        if (hasFormat) exactConditions.push('$formatMatch');
+        if (hasTone) exactConditions.push('$toneMatch');
+
+        const matchTypeBranches: any[] = [];
+        if (exactConditions.length > 0) {
+            matchTypeBranches.push({ case: { $and: exactConditions }, then: "exact" });
+        }
+        if (hasProposal && hasContext) {
+            matchTypeBranches.push({ case: { $and: ['$proposalMatch', '$contextMatch'] }, then: "broad_context" });
+        }
+        if (hasProposal) {
+            matchTypeBranches.push({
+                case: hasContext ? { $and: ['$proposalMatch', { $not: ['$contextMatch'] }] } : '$proposalMatch',
+                then: "proposal_only"
+            });
+        }
+        if (hasContext) {
+            matchTypeBranches.push({
+                case: hasProposal ? { $and: ['$contextMatch', { $not: ['$proposalMatch'] }] } : '$contextMatch',
+                then: "context_only"
+            });
+        }
+
+        const pipeline: PipelineStage[] = [
+            { $match: matchStage },
+            {
+                $addFields: {
+                    proposalMatch: hasProposal ? { $eq: ["$proposal", filters.proposal] } : false,
+                    contextMatch: hasContext ? { $eq: ["$context", filters.context] } : false,
+                    formatMatch: hasFormat ? { $eq: ["$format", filters.format] } : false,
+                    toneMatch: hasTone ? { $eq: ["$tone", filters.tone] } : false
+                }
+            },
+            {
+                $addFields: {
+                    matchScore: {
+                        $add: [
+                            hasProposal ? { $cond: ["$proposalMatch", 10, 0] } : 0,
+                            hasContext ? { $cond: ["$contextMatch", 8, 0] } : 0,
+                            hasFormat ? { $cond: ["$formatMatch", 3, 0] } : 0,
+                            hasTone ? { $cond: ["$toneMatch", 2, 0] } : 0
+                        ]
+                    }
+                }
+            },
+            { $sort: { matchScore: -1, 'internalMetricsSnapshot.saveRate': -1 } },
+            { $limit: limit },
+            {
+                $project: {
+                    inspiration: "$$ROOT",
+                    matchScore: 1,
+                    matchType: {
+                        $switch: {
+                            branches: matchTypeBranches,
+                            default: "partial"
+                        }
+                    }
+                }
+            }
+        ];
+
+        const results = await CommunityInspirationModel.aggregate(pipeline).exec();
+
+        logger.info(`${TAG} Encontradas ${results.length} inspirações ponderadas.`);
+        return results.map(r => ({
+            inspiration: r.inspiration,
+            matchType: r.matchType,
+            score: r.matchScore
+        }));
+
+    } catch (error: any) {
+        logger.error(`${TAG} Erro ao buscar inspirações ponderadas:`, error);
+        throw new DatabaseError(`Erro ao buscar inspirações ponderadas: ${error.message}`);
     }
 }
 
@@ -440,7 +584,7 @@ export async function findUserPostsEligibleForCommunity(
         if (eligiblePosts.length === 0) {
             logger.debug(`${TAG} Query final para zero resultados: ${JSON.stringify(fullQueryForDebug)}`);
             logger.debug(`${TAG} sinceDate utilizado: ${criteria.sinceDate.toISOString()}`);
-            
+
             // DEBUG FINAL: Se não encontrou nada, loga uma amostra dos posts que passaram na baseQuery mas falharam na performance.
             try {
                 const diagnosticPipeline: PipelineStage[] = [
@@ -457,7 +601,7 @@ export async function findUserPostsEligibleForCommunity(
                         }
                     },
                     { $limit: 5 },
-                    { 
+                    {
                         $project: {
                             _id: 0,
                             postId_Instagram: 1,

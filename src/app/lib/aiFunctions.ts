@@ -46,7 +46,8 @@ import {
   getMetricsHistory as getMetricsHistoryFromDataService,
   getFollowerTrend,
   getReachEngagementTrend,
-  getFpcTrend
+  getFpcTrend,
+  getInspirationsWeighted
 } from './dataService';
 import { CategoryRankingMetricEnum } from './dataService/marketAnalysis/types';
 import { subDays, subYears, startOfDay } from 'date-fns';
@@ -97,7 +98,7 @@ export const functionSchemas = [
   },
   {
     name: 'fetchCommunityInspirations',
-    description: "Busca exemplos de posts da Comunidade de Inspiração IA Mobi que tiveram bom desempenho qualitativo. Use quando o usuário pedir explicitamente por inspiração, ou para ilustrar sugestões de planejamento de conteúdo. Baseie-se na proposta e contexto fornecidos, e opcionalmente em um objetivo qualitativo de desempenho.",
+    description: "Busca exemplos de posts da Comunidade de Inspiração IA Mobi. Use PROATIVAMENTE para ilustrar sugestões, planos de conteúdo ou dicas que você der ao usuário (ex: 'Aqui está um exemplo real disso...'). Também use quando o usuário pedir explicitamente por inspiração. Priorize a intenção do usuário (ex: se ele pedir humor, busque humor) sobre o histórico de performance.",
     parameters: {
       type: 'object',
       properties: {
@@ -498,7 +499,7 @@ const getLatestAudienceDemographics: ExecutorFn = async (_args: z.infer<typeof Z
 
 /* 2.X fetchCommunityInspirations */
 const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FetchCommunityInspirationsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:fetchCommunityInspirations v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
+  const fnTag = '[fn:fetchCommunityInspirations v1.1.0]'; // Versão atualizada com fallback
   logger.info(`${fnTag} Executando para User ${loggedUser._id} com args: ${JSON.stringify(args)}`);
   try {
     if (!loggedUser.communityInspirationOptIn) {
@@ -509,7 +510,7 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       };
     }
 
-    const filters: CommunityInspirationFilters = {
+    const initialFilters: CommunityInspirationFilters = {
       proposal: args.proposal,
       context: args.context,
       format: args.format,
@@ -529,22 +530,34 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
         logger.debug(`${fnTag} Excluindo IDs de inspiração já mostrados hoje para User ${loggedUser._id}: ${excludeIds.join(', ')}`);
       }
     }
-    // Exclui conteúdos do próprio usuário da Comunidade de Inspiração
-    const inspirations = await getCommunityInspirationsDataService(
-      filters,
+
+    // --- Lógica de Fallback OTIMIZADA (Weighted Query) ---
+    // Substitui as múltiplas chamadas sequenciais por uma única query ponderada.
+    const weightedResults = await getInspirationsWeighted(
+      initialFilters,
       args.count ?? 2,
       excludeIds,
-      undefined,
       loggedUser._id.toString()
     );
 
-    if (!inspirations || inspirations.length === 0) {
-      logger.info(`${fnTag} Nenhuma inspiração encontrada para os critérios para User ${loggedUser._id}. Filtros: ${JSON.stringify(filters)}`);
+    if (!weightedResults || weightedResults.length === 0) {
+      logger.info(`${fnTag} Nenhuma inspiração encontrada mesmo com busca ponderada. Filtros iniciais: ${JSON.stringify(initialFilters)}`);
       return {
-        message: "Não encontrei nenhuma inspiração na comunidade para esses critérios no momento. Que tal explorarmos outra combinação, ou posso te dar algumas dicas gerais sobre esse tema?",
+        message: "Não encontrei nenhuma inspiração na comunidade para esses critérios no momento, nem mesmo buscando por temas similares. Que tal tentarmos algo diferente?",
         inspirations: []
       };
     }
+
+    // Processar resultados
+    const inspirations = weightedResults.map(r => r.inspiration);
+    const firstResult = weightedResults[0];
+    const matchType = firstResult ? firstResult.matchType : 'unknown';
+
+    // Logar métricas de match
+    if (firstResult) {
+      logger.info(`${fnTag} Melhor match encontrado: ${matchType} (Score: ${firstResult.score})`);
+    }
+
     const inspirationIds = inspirations.map(insp => insp._id.toString());
     try {
       await recordDailyInspirationShown(loggedUser._id.toString(), inspirationIds);
@@ -552,6 +565,7 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
     } catch (recordError) {
       logger.warn(`${fnTag} Falha ao registrar inspirações mostradas para User ${loggedUser._id}:`, recordError);
     }
+
     const formattedInspirations = inspirations.map(insp => ({
       id: insp._id.toString(),
       originalInstagramPostUrl: insp.originalInstagramPostUrl,
@@ -564,8 +578,23 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       performanceHighlights_Qualitative: insp.performanceHighlights_Qualitative,
       primaryObjectiveAchieved_Qualitative: insp.primaryObjectiveAchieved_Qualitative,
     }));
-    logger.info(`${fnTag} ${formattedInspirations.length} inspirações formatadas e seguras retornadas para User ${loggedUser._id}.`);
-    return { inspirations: formattedInspirations };
+
+    let fallbackMessage = "";
+    if (matchType !== 'exact') {
+      if (matchType === 'broad_context') fallbackMessage = `Não encontrei exemplos exatos com todos os detalhes (tom/formato), mas aqui estão alguns com a mesma Proposta e Contexto:`;
+      else if (matchType === 'proposal_only') fallbackMessage = `Não encontrei exemplos exatos para esse contexto específico, mas aqui estão ótimos exemplos dentro da mesma Proposta (${args.proposal}):`;
+      else if (matchType === 'context_only') fallbackMessage = `Não encontrei exemplos para essa proposta, mas aqui estão inspirações com o mesmo Contexto (${args.context}):`;
+      else fallbackMessage = `Encontrei algumas inspirações relacionadas que podem ajudar:`;
+    }
+
+    logger.info(`${fnTag} ${formattedInspirations.length} inspirações retornadas (MatchType: ${matchType}) para User ${loggedUser._id}.`);
+
+    return {
+      inspirations: formattedInspirations,
+      matchType,
+      fallbackMessage, // Mensagem sugerida para a IA usar se quiser explicar o fallback
+      usedFilters: initialFilters
+    };
   } catch (err: any) {
     logger.error(`${fnTag} Erro ao buscar inspirações da comunidade para User ${loggedUser._id}:`, err);
     return { error: "Desculpe, tive um problema ao buscar as inspirações da comunidade. Poderia tentar novamente em alguns instantes?" };

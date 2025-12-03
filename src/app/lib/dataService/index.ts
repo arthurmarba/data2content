@@ -37,6 +37,7 @@ export {
 
 // Funções relacionadas com a Comunidade de Inspiração
 export * from './communityService';
+export { getInspirationsWeighted } from './communityService';
 
 // Funções relacionadas com AdDeals (Negócios de Publicidade)
 export * from './adDealService';

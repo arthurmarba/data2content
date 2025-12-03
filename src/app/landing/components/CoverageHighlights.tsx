@@ -81,8 +81,8 @@ export default function CoverageHighlights({
         </header>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className={`flex flex-col gap-4 rounded-2xl border bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.08)] ${cardTokens.primary.border}`}>
-            <div className="flex items-center justify-between text-sm font-semibold text-brand-dark">
+          <section className={`flex flex-col gap-4 rounded-2xl border bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.08)] ${cardTokens.primary.border}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-brand-dark">
               <span className={cardTokens.primary.icon}>Nichos em destaque</span>
               <span className="text-xs font-medium uppercase tracking-[0.2em] text-brand-text-secondary/80">Atualizado</span>
             </div>
@@ -100,7 +100,7 @@ export default function CoverageHighlights({
                   return (
                     <article
                       key={segment.id ?? `segment-${index}`}
-                      className="rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
+                      className="min-w-0 rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate text-sm font-semibold text-brand-dark">{segment.label}</span>
@@ -121,8 +121,8 @@ export default function CoverageHighlights({
             </div>
           </section>
 
-          <section className={`flex flex-col gap-4 rounded-2xl border bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.08)] ${cardTokens.neutral.border}`}>
-            <div className="flex items-center justify-between text-sm font-semibold text-brand-dark">
+          <section className={`flex flex-col gap-4 rounded-2xl border bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.08)] ${cardTokens.neutral.border}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-brand-dark">
               <span className={cardTokens.neutral.icon}>Estados com maior share</span>
               <span className="text-xs font-medium uppercase tracking-[0.2em] text-brand-text-secondary/80">Top 5</span>
             </div>
@@ -134,15 +134,15 @@ export default function CoverageHighlights({
                 : topRegions.map((region, index) => {
                   const sharePercent = Math.min(Math.max((region.share ?? 0) * 100, 0), 100);
                   const metrics = `Seg ${formatNumber(region.followers)}${region.engagedFollowers
-                      ? ` · Eng ${formatNumber(region.engagedFollowers)} (${formatPercent(
-                        region.engagedShare ?? 0,
-                      )})`
-                      : ""
+                    ? ` · Eng ${formatNumber(region.engagedFollowers)} (${formatPercent(
+                      region.engagedShare ?? 0,
+                    )})`
+                    : ""
                     }`;
                   return (
                     <article
                       key={`${region.code}-${index}`}
-                      className="rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
+                      className="min-w-0 rounded-2xl border border-brand-glass bg-white px-4 py-3 shadow-sm"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate text-sm font-semibold text-brand-dark">{region.label}</span>

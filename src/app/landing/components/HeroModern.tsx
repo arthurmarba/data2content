@@ -168,7 +168,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
             </p>
           </div>
 
-          <div className="mt-2 flex w-full flex-col items-center gap-4 xs:flex-row xs:justify-center">
+          <div className="mt-2 flex w-full flex-col items-center gap-4 md:flex-row md:justify-center">
             <ButtonPrimary onClick={onCreatorCta} size="lg" variant="brand" className="min-w-[200px] shadow-lg shadow-brand-primary/20 transition-transform hover:scale-105">
               Sou Criador
             </ButtonPrimary>
