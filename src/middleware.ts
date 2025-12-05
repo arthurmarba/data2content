@@ -33,6 +33,14 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - api/public (public API routes)
+     * - publi-share (public share pages)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|api/public|publi-share|.*\\..*).*)",
   ],
 };

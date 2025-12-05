@@ -435,7 +435,7 @@ export default function HomeClientPage() {
   const iaEngaged = whatsappLinked || whatsappTrialActive || whatsappTrialStarted || planIsPro;
   const hasPremiumAccessPlan = summary?.plan?.hasPremiumAccess ?? false;
   const canAccessVipCommunity =
-    hasPremiumAccessPlan && communityVipHasAccess && Boolean(communityVipInviteUrl);
+    (hasPremiumAccessPlan || planIsPro) && Boolean(communityVipInviteUrl);
   const planTrialActive = summary?.plan?.trial?.active ?? false;
   const planTrialEligible = summary?.plan?.trial?.eligible ?? false;
   const planTrialStarted = summary?.plan?.trial?.started ?? false;

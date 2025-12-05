@@ -1,6 +1,6 @@
 import React from "react";
 import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard, FaComments, FaInstagram } from "react-icons/fa";
-import { Compass as CompassIcon, Calculator, Megaphone, Crown, LineChart } from "lucide-react";
+import { Compass as CompassIcon, Calculator, Megaphone, Crown, LineChart, Share2 } from "lucide-react";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
 import type {
@@ -116,6 +116,14 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         tooltip: navigationLabels.campaigns.tooltip,
         href: "/campaigns",
         icon: <Megaphone className="h-5 w-5" />,
+      },
+      {
+        type: "item",
+        key: "publis",
+        label: "Minhas Publis",
+        tooltip: "Gerencie e compartilhe suas publis",
+        href: "/dashboard/publis",
+        icon: <Share2 className="h-5 w-5" />,
       },
       {
         type: "item",

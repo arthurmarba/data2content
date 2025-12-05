@@ -41,6 +41,17 @@ export interface IMetricStats {
   [key: string]: unknown;
 }
 
+export interface ISnapshot {
+  date: Date;
+  dailyViews?: number;
+  dailyLikes?: number;
+  dailyComments?: number;
+  dailyShares?: number;
+  cumulativeViews?: number;
+  cumulativeLikes?: number;
+  [key: string]: any;
+}
+
 export interface IMetric extends Document {
   user: Types.ObjectId;
   postLink: string;
@@ -60,6 +71,7 @@ export interface IMetric extends Document {
   source: 'manual' | 'api' | 'document_ai';
   classificationStatus: 'pending' | 'completed' | 'failed';
   classificationError?: string | null;
+  dailySnapshots?: ISnapshot[];
   rawData: unknown[];
   stats: IMetricStats;
   createdAt: Date;
@@ -86,6 +98,7 @@ const metricSchema = new Schema<IMetric>(
     source: { type: String, enum: ['manual', 'api', 'document_ai'], required: true, default: 'manual', index: true },
     classificationStatus: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending', index: true },
     classificationError: { type: String, default: null },
+    dailySnapshots: { type: Array, default: [] },
     rawData: { type: Array, default: [] },
     stats: { type: Schema.Types.Mixed, default: {} },
   },
