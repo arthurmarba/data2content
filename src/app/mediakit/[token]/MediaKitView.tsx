@@ -21,6 +21,7 @@ import {
   Send,
   Globe,
   Volume2,
+  Trash2,
 } from 'lucide-react';
 import {
   Area,
@@ -35,7 +36,7 @@ import { motion } from 'framer-motion';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
-import { MediaKitViewProps, VideoListItem, MediaKitPricing } from '@/types/mediakit';
+import { MediaKitViewProps, VideoListItem, MediaKitPricing, MediaKitPackage } from '@/types/mediakit';
 import { useGlobalTimePeriod, GlobalTimePeriodProvider } from '@/app/admin/creator-dashboard/components/filters/GlobalTimePeriodContext';
 import { getCategoryById, commaSeparatedIdsToLabels } from '@/app/lib/classification';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
@@ -173,6 +174,8 @@ type PublicProposalFormProps = {
   onSubmitError?: (error: Error) => void;
   utmContext?: UtmContext | null;
   pricing?: MediaKitPricing | null;
+  onClearPricing?: () => void;
+  packages?: MediaKitPackage[];
 };
 
 const PublicProposalForm = ({
@@ -181,6 +184,8 @@ const PublicProposalForm = ({
   onSubmitError,
   utmContext,
   pricing,
+  onClearPricing,
+  packages = [],
 }: PublicProposalFormProps) => {
   const formId = useId();
   const [form, setForm] = useState<ProposalFormState>({
@@ -201,6 +206,17 @@ const PublicProposalForm = ({
   useEffect(() => {
     setUtmSnapshot(utmContext ?? null);
   }, [utmContext]);
+
+  // Helper to select a package
+  const handleSelectPackage = (pkg: MediaKitPackage) => {
+    setForm(prev => ({
+      ...prev,
+      deliverables: pkg.deliverables.join(', '),
+      budget: pkg.price.toString(),
+      currency: pkg.currency || 'BRL',
+      campaignDescription: prev.campaignDescription ? prev.campaignDescription : `Interesse no pacote: ${pkg.name}`,
+    }));
+  };
 
   const pricingChips = useMemo(() => {
     if (!pricing) return [];
@@ -394,9 +410,69 @@ const PublicProposalForm = ({
             className={formInputClass}
           />
         </div>
-        {pricingChips.length ? (
-          <div className="sm:col-span-2 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-inner">
-            <p className={formLabelClass}>Valores de referência</p>
+
+        {/* Packages Selection */}
+        {packages.length > 0 ? (
+          <div className="sm:col-span-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className={formLabelClass}>Investimento Sugerido (Pacotes)</p>
+              {onClearPricing && (
+                <button
+                  type="button"
+                  onClick={onClearPricing}
+                  className="p-1 text-slate-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
+                  title="Remover valores do Mídia Kit"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {packages.map((pkg) => (
+                <button
+                  key={pkg._id || pkg.name}
+                  type="button"
+                  onClick={() => handleSelectPackage(pkg)}
+                  className="group relative flex flex-col items-start gap-2 rounded-xl border border-white/60 bg-white/70 p-4 text-left shadow-sm transition hover:bg-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#6E1F93]/50"
+                >
+                  <div className="flex w-full items-start justify-between gap-2">
+                    <span className="font-semibold text-slate-900 line-clamp-1">{pkg.name}</span>
+                    <div className="opacity-0 transition group-hover:opacity-100">
+                      <span className="inline-flex items-center rounded-full bg-[#6E1F93]/10 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-[#6E1F93]">
+                        Selecionar
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-sm font-bold text-[#6E1F93]">
+                    {formatCurrencyLabel(pkg.price)}
+                  </span>
+                  {pkg.deliverables.length > 0 && (
+                    <ul className="text-xs text-slate-500 list-disc list-inside">
+                      {pkg.deliverables.slice(0, 2).map((d, i) => (
+                        <li key={i} className="line-clamp-1">{d}</li>
+                      ))}
+                      {pkg.deliverables.length > 2 && <li>...</li>}
+                    </ul>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : pricingChips.length ? (
+          <div className="sm:col-span-2 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-inner relative group">
+            <div className="flex items-center justify-between">
+              <p className={formLabelClass}>Investimento Sugerido</p>
+              {onClearPricing && (
+                <button
+                  type="button"
+                  onClick={onClearPricing}
+                  className="p-1 text-slate-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
+                  title="Remover valores do Mídia Kit"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {pricingChips.map((chip) => (
                 <span
@@ -1169,6 +1245,8 @@ export default function MediaKitView({
   mediaKitSlug,
   premiumAccess,
   pricing,
+  onClearPricing,
+  packages,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -2364,7 +2442,8 @@ export default function MediaKitView({
               </motion.section>
             )}
 
-            {pricingCards.length > 0 && (
+            {/* Pricing Section - Shows EITHER Packages OR Calculated Cards */}
+            {(packages && packages.length > 0) ? (
               <motion.section
                 variants={cardVariants}
                 initial="hidden"
@@ -2374,7 +2453,89 @@ export default function MediaKitView({
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
+                      {showOwnerCtas && onClearPricing && (
+                        <button
+                          type="button"
+                          onClick={onClearPricing}
+                          className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                          title="Remover valores do Mídia Kit"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Excluir valores
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      Pacotes especiais para sua marca.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {packages.map((pkg) => (
+                    <div key={pkg._id || pkg.name} className={`${highlightCardClass} flex flex-col p-6`}>
+                      <div className="mb-4">
+                        <div className="flex items-start justify-between">
+                          <h3 className="text-xl font-bold text-slate-900">{pkg.name}</h3>
+                          {pkg.type === 'ai_generated' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-600">
+                              <Sparkles className="h-3 w-3" />
+                              IA
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 text-3xl font-bold text-[#6E1F93]">
+                          {formatCurrencyLabel(pkg.price)}
+                        </p>
+                      </div>
+
+                      <div className="flex-1 space-y-4">
+                        {pkg.deliverables.length > 0 && (
+                          <ul className="space-y-2">
+                            {pkg.deliverables.map((item, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6E1F93]/40" />
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {pkg.description && (
+                          <p className="border-t border-slate-100 pt-3 text-sm text-slate-500">
+                            {pkg.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.section>
+            ) : pricingCards.length > 0 && (
+              <motion.section
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                custom={0.15}
+                className="mt-10 space-y-4"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
+                      {showOwnerCtas && onClearPricing && (
+                        <button
+                          type="button"
+                          onClick={onClearPricing}
+                          className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                          title="Remover valores do Mídia Kit"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Excluir valores
+                        </button>
+                      )}
+                    </div>
                     <p className="text-sm text-slate-500">
                       Valores de referência calculados pela IA para propostas rápidas.
                     </p>
@@ -2406,6 +2567,7 @@ export default function MediaKitView({
                         <p className="text-3xl font-bold text-slate-900 leading-tight">{card.value}</p>
                       </div>
                       <p className="mt-3 text-sm text-slate-500 leading-relaxed">{card.helper}</p>
+                      {/* ... legacy cards ... */}
                     </div>
                   ))}
                 </div>
@@ -3178,205 +3340,215 @@ export default function MediaKitView({
             affiliateHandleLabel={affiliateHandleLabel}
           />
 
-          {isProposalDrawerOpen ? (
-            <div
-              className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={proposalDrawerTitleId}
-            >
+          {
+            isProposalDrawerOpen ? (
               <div
-                className="absolute inset-0"
-                onClick={closeProposalDrawer}
-                aria-hidden="true"
-              />
-              <div className="relative z-[201] w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
-                <div className="flex max-h-[calc(100vh-1.5rem)] flex-col sm:max-h-none">
-                  <div className="flex items-start justify-between border-b border-[#F0F0F5] px-6 py-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Propostas</p>
-                      <h3 id={proposalDrawerTitleId} className="text-xl font-bold text-[#1C1C1E]">
-                        💼 Enviar proposta para {affiliateHandleLabel}
-                      </h3>
+                className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={proposalDrawerTitleId}
+              >
+                <div
+                  className="absolute inset-0"
+                  onClick={closeProposalDrawer}
+                  aria-hidden="true"
+                />
+                <div className="relative z-[201] w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+                  <div className="flex max-h-[calc(100vh-1.5rem)] flex-col sm:max-h-none">
+                    <div className="flex items-start justify-between border-b border-[#F0F0F5] px-6 py-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Propostas</p>
+                        <h3 id={proposalDrawerTitleId} className="text-xl font-bold text-[#1C1C1E]">
+                          💼 Enviar proposta para {affiliateHandleLabel}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={closeProposalDrawer}
+                        className="rounded-full p-2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                        aria-label="Fechar formulário de proposta"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={closeProposalDrawer}
-                      className="rounded-full p-2 text-[#94A3B8] transition hover:text-[#0F172A]"
-                      aria-label="Fechar formulário de proposta"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto px-6 py-6 sm:flex-none sm:overflow-visible sm:px-8">
-                    <PublicProposalForm
-                      mediaKitSlug={mediaKitSlug}
-                      onSubmitSuccess={handleProposalSuccess}
-                      utmContext={utm}
-                      pricing={pricing}
-                    />
+                    <div className="flex-1 overflow-y-auto px-6 py-6 sm:flex-none sm:overflow-visible sm:px-8">
+                      <PublicProposalForm
+                        mediaKitSlug={mediaKitSlug}
+                        onSubmitSuccess={handleProposalSuccess}
+                        utmContext={utm}
+                        pricing={pricing}
+                        onClearPricing={showOwnerCtas ? onClearPricing : undefined}
+                        packages={packages}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ) : null}
+            ) : null
+          }
 
-          {isCitiesModalOpen && fullLocationBreakdown.length > 0 && (
-            <div
-              className="fixed inset-0 z-[200] bg-black/40"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="cities-modal-title"
-            >
-              <div className="absolute inset-0 flex items-center justify-center p-4">
-                <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
-                    <h3 id="cities-modal-title" className="text-sm font-semibold text-[#0F172A]">
-                      Todas as cidades
-                    </h3>
-                    <button
-                      className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
-                      aria-label="Fechar"
-                      onClick={() => setCitiesModalOpen(false)}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                  <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
-                    <div className="space-y-3">
-                      {fullLocationBreakdown.map((item) => (
-                        <div key={item.label} className="text-sm font-medium text-[#475569]">
-                          <div className="flex items-center justify-between text-xs text-[#94A3B8]">
-                            <span>{item.label}</span>
-                            <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
-                          </div>
-                          <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
-                            <div
-                              className="h-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93]"
-                              style={{ width: `${Math.min(item.percentage, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+          {
+            isCitiesModalOpen && fullLocationBreakdown.length > 0 && (
+              <div
+                className="fixed inset-0 z-[200] bg-black/40"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cities-modal-title"
+              >
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
+                    <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
+                      <h3 id="cities-modal-title" className="text-sm font-semibold text-[#0F172A]">
+                        Todas as cidades
+                      </h3>
+                      <button
+                        className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
+                        aria-label="Fechar"
+                        onClick={() => setCitiesModalOpen(false)}
+                      >
+                        <X size={18} />
+                      </button>
                     </div>
-                  </div>
-                  <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
-                    <button
-                      className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
-                      onClick={() => setCitiesModalOpen(false)}
-                    >
-                      Fechar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          {isGenderModalOpen && fullGenderBreakdown.length > 0 && (
-            <div
-              className="fixed inset-0 z-[200] bg-black/40"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="gender-modal-title"
-            >
-              <div className="absolute inset-0 flex items-center justify-center p-4">
-                <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
-                    <h3 id="gender-modal-title" className="text-sm font-semibold text-[#0F172A]">
-                      Distribuição por gênero
-                    </h3>
-                    <button
-                      className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
-                      aria-label="Fechar"
-                      onClick={() => setGenderModalOpen(false)}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                  <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
-                    <div className="space-y-3">
-                      {fullGenderBreakdown.map((item) => {
-                        const label = genderLabelMap[item.label.toLowerCase()] || item.label;
-                        return (
+                    <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                      <div className="space-y-3">
+                        {fullLocationBreakdown.map((item) => (
                           <div key={item.label} className="text-sm font-medium text-[#475569]">
                             <div className="flex items-center justify-between text-xs text-[#94A3B8]">
-                              <span>{label}</span>
+                              <span>{item.label}</span>
                               <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
                             </div>
                             <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
                               <div
-                                className="h-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#F97316]"
+                                className="h-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#6E1F93]"
                                 style={{ width: `${Math.min(item.percentage, 100)}%` }}
                               />
                             </div>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
-                    <button
-                      className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
-                      onClick={() => setGenderModalOpen(false)}
-                    >
-                      Fechar
-                    </button>
+                    <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
+                      <button
+                        className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                        onClick={() => setCitiesModalOpen(false)}
+                      >
+                        Fechar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-          {isAgeModalOpen && fullAgeBreakdown.length > 0 && (
-            <div
-              className="fixed inset-0 z-[200] bg-black/40"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="age-modal-title"
-            >
-              <div className="absolute inset-0 flex items-center justify-center p-4">
-                <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
-                    <h3 id="age-modal-title" className="text-sm font-semibold text-[#0F172A]">
-                      Distribuição por idade
-                    </h3>
-                    <button
-                      className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
-                      aria-label="Fechar"
-                      onClick={() => setAgeModalOpen(false)}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                  <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
-                    <div className="space-y-3">
-                      {fullAgeBreakdown.map((item) => (
-                        <div key={item.label} className="text-sm font-medium text-[#475569]">
-                          <div className="flex items-center justify-between text-xs text-[#94A3B8]">
-                            <span>{item.label}</span>
-                            <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
-                          </div>
-                          <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
-                            <div
-                              className="h-2 rounded-full bg-gradient-to-r from-[#6E1F93] to-[#D62E5E]"
-                              style={{ width: `${Math.min(item.percentage, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+            )
+          }
+          {
+            isGenderModalOpen && fullGenderBreakdown.length > 0 && (
+              <div
+                className="fixed inset-0 z-[200] bg-black/40"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="gender-modal-title"
+              >
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
+                    <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
+                      <h3 id="gender-modal-title" className="text-sm font-semibold text-[#0F172A]">
+                        Distribuição por gênero
+                      </h3>
+                      <button
+                        className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
+                        aria-label="Fechar"
+                        onClick={() => setGenderModalOpen(false)}
+                      >
+                        <X size={18} />
+                      </button>
                     </div>
-                  </div>
-                  <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
-                    <button
-                      className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
-                      onClick={() => setAgeModalOpen(false)}
-                    >
-                      Fechar
-                    </button>
+                    <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                      <div className="space-y-3">
+                        {fullGenderBreakdown.map((item) => {
+                          const label = genderLabelMap[item.label.toLowerCase()] || item.label;
+                          return (
+                            <div key={item.label} className="text-sm font-medium text-[#475569]">
+                              <div className="flex items-center justify-between text-xs text-[#94A3B8]">
+                                <span>{label}</span>
+                                <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
+                              </div>
+                              <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
+                                <div
+                                  className="h-2 rounded-full bg-gradient-to-r from-[#D62E5E] to-[#F97316]"
+                                  style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
+                      <button
+                        className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                        onClick={() => setGenderModalOpen(false)}
+                      >
+                        Fechar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          }
+          {
+            isAgeModalOpen && fullAgeBreakdown.length > 0 && (
+              <div
+                className="fixed inset-0 z-[200] bg-black/40"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="age-modal-title"
+              >
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-xl">
+                    <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
+                      <h3 id="age-modal-title" className="text-sm font-semibold text-[#0F172A]">
+                        Distribuição por idade
+                      </h3>
+                      <button
+                        className="rounded-full p-1.5 text-[#94A3B8] transition hover:text-[#0F172A]"
+                        aria-label="Fechar"
+                        onClick={() => setAgeModalOpen(false)}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                      <div className="space-y-3">
+                        {fullAgeBreakdown.map((item) => (
+                          <div key={item.label} className="text-sm font-medium text-[#475569]">
+                            <div className="flex items-center justify-between text-xs text-[#94A3B8]">
+                              <span>{item.label}</span>
+                              <span className="font-semibold text-[#0F172A]">{Math.round(item.percentage)}%</span>
+                            </div>
+                            <div className="mt-2 h-2 rounded-full bg-[#F1F2F4]">
+                              <div
+                                className="h-2 rounded-full bg-gradient-to-r from-[#6E1F93] to-[#D62E5E]"
+                                style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-t border-[#EAEAEA] px-5 py-3 text-right">
+                      <button
+                        className="inline-flex items-center rounded-full border border-white/60 px-4 py-2 text-xs font-semibold text-[#475569] transition hover:border-[#6E1F93] hover:text-[#6E1F93]"
+                        onClick={() => setAgeModalOpen(false)}
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          }
 
           <PostDetailModal
             isOpen={selectedPostId !== null}
@@ -3385,7 +3557,7 @@ export default function MediaKitView({
             publicMode
           />
         </div>
-      </div >
-    </GlobalTimePeriodProvider >
+      </div>
+    </GlobalTimePeriodProvider>
   );
 }

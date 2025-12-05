@@ -10,11 +10,6 @@ type HeroModernProps = {
   metrics?: LandingCommunityMetrics | null;
 };
 
-const numberFormatter = new Intl.NumberFormat("pt-BR", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
-
 function easeOutCubic(x: number) {
   return 1 - Math.pow(1 - x, 3);
 }
@@ -23,6 +18,11 @@ function useCountUp(targetValue: number, duration = 1100) {
   const [value, setValue] = React.useState(0);
 
   React.useEffect(() => {
+    if (targetValue <= 0) {
+      setValue(0);
+      return;
+    }
+
     let frame: number;
     const start = performance.now();
     const animate = (timestamp: number) => {
@@ -39,6 +39,22 @@ function useCountUp(targetValue: number, duration = 1100) {
   }, [targetValue, duration]);
 
   return value;
+}
+
+function useClientNumberFormatter() {
+  const [formatter, setFormatter] = React.useState<Intl.NumberFormat | null>(null);
+
+  // Build the formatter on the client to avoid locale differences between SSR and the browser.
+  React.useEffect(() => {
+    setFormatter(
+      new Intl.NumberFormat("pt-BR", {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }),
+    );
+  }, []);
+
+  return formatter;
 }
 
 type AccentVariant = "primary" | "accent" | "sun";
@@ -58,8 +74,11 @@ const HighlightCard: React.FC<HighlightCardProps> = ({
   index,
   accent = "primary",
 }) => {
+  const formatter = useClientNumberFormatter();
   const countedValue = useCountUp(metricValue, 900 + index * 120);
-  const formatted = numberFormatter.format(countedValue || 0);
+  const formatted = formatter
+    ? formatter.format(countedValue || 0)
+    : `${Math.round(countedValue || 0)}`;
   const accentClasses: Record<
     AccentVariant,
     { border: string; shadow: string; tag: string; divider: string; iconBg: string }

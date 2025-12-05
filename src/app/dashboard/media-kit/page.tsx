@@ -11,9 +11,15 @@ import WhatsAppConnectInline from '../WhatsAppConnectInline';
 import { useHeaderSetup } from '../context/HeaderContext';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
-import type { MediaKitPremiumAccessConfig, MediaKitPricing } from '@/types/mediakit';
-import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
+import type {
+  MediaKitViewProps,
+  MediaKitPricing,
+  MediaKitPackage,
+  MediaKitPremiumAccessConfig,
+} from '@/types/mediakit';
+import { notFound } from 'next/navigation';
 import { openPaywallModal } from '@/utils/paywallModal';
+import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 
 type Summary = any;
 type VideoListItem = any;
@@ -229,6 +235,7 @@ function SelfMediaKitContent({
   const [engagementTrend, setEngagementTrend] = useState<any | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<any | null>(null);
   const [pricing, setPricing] = useState<MediaKitPricing | null>(null);
+  const [packages, setPackages] = useState<MediaKitPackage[]>([]);
 
   useEffect(() => {
     if (!userId) return;
@@ -250,7 +257,7 @@ function SelfMediaKitContent({
       setLoading(true);
       setError(null);
 
-      const [summaryData, videosPayload, kpisData, demographicsData, engagementTrendData, ownerProfileData, pricingData] = await Promise.all([
+      const [summaryData, videosPayload, kpisData, demographicsData, engagementTrendData, ownerProfileData, pricingData, packagesData] = await Promise.all([
         safeFetch(`/api/v1/users/${userId}/highlights/performance-summary`),
         safeFetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=10`),
         safeFetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`),
@@ -258,6 +265,7 @@ function SelfMediaKitContent({
         safeFetch(`/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`),
         safeFetch(`/api/mediakit/self/user`),
         safeFetch(`/api/mediakit/self/pricing`),
+        safeFetch(`/api/mediakit/self/packages`),
       ]);
 
       if (cancelled) return;
@@ -280,6 +288,7 @@ function SelfMediaKitContent({
       setEngagementTrend(engagementTrendData);
       setOwnerProfile(ownerProfileData?.user ?? null);
       setPricing(pricingData?.pricing ?? null);
+      setPackages(Array.isArray(packagesData?.packages) ? packagesData.packages : []);
 
       if (!summaryData && videosList.length === 0 && !kpisData && !demographicsData && !engagementTrendData) {
         setError('Não foi possível carregar dados recentes do Mídia Kit. Tente novamente em instantes.');
@@ -348,6 +357,32 @@ function SelfMediaKitContent({
     );
   }
 
+  const handleClearPricing = async () => {
+    if (!window.confirm('Tem certeza que deseja excluir os valores sugeridos do seu Mídia Kit? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      const [resPricing, resPackages] = await Promise.all([
+        fetch('/api/mediakit/self/pricing', { method: 'DELETE' }),
+        fetch('/api/mediakit/self/packages', { method: 'DELETE' }),
+      ]);
+
+      if (resPricing.ok) {
+        setPricing(null);
+      }
+      if (resPackages.ok) {
+        setPackages([]);
+      }
+
+      if (!resPricing.ok && !resPackages.ok) {
+        console.error('Falha ao limpar pricing/pacotes');
+      }
+    } catch (e) {
+      console.error('Erro ao limpar pricing', e);
+    }
+  };
+
   return (
     <MediaKitView
       user={user}
@@ -361,6 +396,8 @@ function SelfMediaKitContent({
       publicUrlForCopy={publicUrlForCopy || undefined}
       premiumAccess={premiumAccess}
       pricing={pricing}
+      onClearPricing={handleClearPricing}
+      packages={packages}
     />
   );
 }

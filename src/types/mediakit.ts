@@ -143,6 +143,19 @@ export interface MediaKitViewProps {
   mediaKitSlug?: string;
   premiumAccess?: MediaKitPremiumAccessConfig;
   pricing?: MediaKitPricing | null;
+  onClearPricing?: () => void;
+  packages?: MediaKitPackage[];
+}
+
+export interface MediaKitPackage {
+  _id?: string;
+  id?: string;
+  name: string;
+  price: number;
+  currency: string;
+  deliverables: string[];
+  description?: string;
+  type?: 'manual' | 'ai_generated';
 }
 
 export interface MediaKitPremiumAccessConfig {

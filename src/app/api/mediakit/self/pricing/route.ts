@@ -40,9 +40,28 @@ export async function GET() {
       .lean()
       .exec();
 
+
     return NextResponse.json({ pricing: serializePricing(calculation) });
   } catch (error) {
     logger.error('[GET /api/mediakit/self/pricing] Falha ao carregar pricing do mídia kit', error);
     return NextResponse.json({ error: 'Não foi possível carregar o valor sugerido.' }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  const session = await getServerSession(authOptions as any);
+  const userId = (session as any)?.user?.id;
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  }
+
+  try {
+    await connectToDatabase();
+    await PubliCalculation.deleteMany({ userId });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    logger.error('[DELETE /api/mediakit/self/pricing] Falha ao excluir pricing do mídia kit', error);
+    return NextResponse.json({ error: 'Não foi possível excluir o valor sugerido.' }, { status: 500 });
   }
 }

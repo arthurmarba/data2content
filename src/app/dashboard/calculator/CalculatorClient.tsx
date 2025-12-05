@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
-import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, FaVideo, FaImage, FaLayerGroup, FaCalendarCheck, FaCalendarAlt, FaCalendarTimes, FaGlobeAmericas, FaBullhorn, FaUser, FaUserCheck, FaUserTie, FaStar, FaSnowflake, FaSun, FaCloudSun } from "react-icons/fa";
+import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, FaVideo, FaImage, FaLayerGroup, FaCalendarCheck, FaCalendarAlt, FaCalendarTimes, FaGlobeAmericas, FaBullhorn, FaUser, FaUserCheck, FaUserTie, FaStar, FaSnowflake, FaSun, FaCloudSun, FaPlus, FaTrash, FaEdit, FaSave } from "react-icons/fa";
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
@@ -35,6 +35,16 @@ type CalculationResult = {
   calculationId: string;
   explanation: string | null;
   createdAt: string | null;
+};
+
+type MediaKitPackage = {
+  name: string;
+  price: number;
+  currency: string;
+  deliverables: string[];
+  description?: string;
+  type: 'manual' | 'ai_generated';
+  id?: string; // For internal UI keying
 };
 
 const FORMAT_VALUES: CalculatorParams["format"][] = ["reels", "post", "stories", "pacote"];
@@ -134,6 +144,24 @@ export default function CalculatorClient() {
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // Package Management State
+  const [packages, setPackages] = useState<MediaKitPackage[]>([]);
+  const [isSavingPackages, setIsSavingPackages] = useState(false);
+
+  useEffect(() => {
+    // Fetch existing packages on mount or when access is confirmed
+    if (canAccessFeatures) {
+      fetch('/api/mediakit/self/packages')
+        .then(res => res.json())
+        .then(data => {
+          if (data.packages) {
+            setPackages(data.packages.map((p: any) => ({ ...p, id: p._id || Math.random().toString(36).substr(2, 9) })));
+          }
+        })
+        .catch(err => console.error('Failed to load packages', err));
+    }
+  }, [canAccessFeatures]);
 
   useEffect(() => {
     if (showLockedMessage) {
@@ -305,9 +333,77 @@ export default function CalculatorClient() {
     await callCalculator();
   };
 
-  const handleAddToMediaKit = () => {
-    if (!calculation) return;
-    router.push(`/media-kit?fromCalc=${encodeURIComponent(calculation.calculationId)}`);
+  const handleAddPackage = (pkg?: Partial<MediaKitPackage>) => {
+    const newPackage: MediaKitPackage = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: pkg?.name || "Novo Pacote",
+      price: pkg?.price || 0,
+      currency: "BRL",
+      deliverables: pkg?.deliverables || ["1x Reels"],
+      description: pkg?.description || "",
+      type: "manual",
+    };
+    setPackages((prev) => [...prev, newPackage]);
+    toast({
+      variant: "success",
+      title: "Pacote adicionado",
+      description: "Edite os detalhes abaixo.",
+    });
+  };
+
+  const handleUpdatePackage = (id: string, updates: Partial<MediaKitPackage>) => {
+    setPackages((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+  };
+
+  const handleDeletePackage = (id: string) => {
+    if (confirm("Tem certeza que deseja remover este pacote?")) {
+      setPackages((prev) => prev.filter((p) => p.id !== id));
+    }
+  };
+
+  const handleAddToMediaKit = async () => {
+    if (isSavingPackages) return;
+    setIsSavingPackages(true);
+
+    try {
+      // 1. Save packages
+      // Sanitize deliverables before saving
+      const sanitizedPackages = packages.map(p => ({
+        ...p,
+        deliverables: p.deliverables.map(d => d.trim()).filter(Boolean)
+      }));
+
+      const res = await fetch('/api/mediakit/self/packages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packages: sanitizedPackages }),
+      });
+
+      if (!res.ok) throw new Error('Falha ao salvar pacotes');
+
+      // 2. Redirect
+      if (calculation) {
+        // Still track the calculation ID for legacy/fallback purposes if needed
+        router.push(`/media-kit?fromCalc=${encodeURIComponent(calculation.calculationId)}`);
+      } else {
+        router.push('/media-kit');
+      }
+
+      toast({
+        variant: "success",
+        title: "Sucesso!",
+        description: "Pacotes atualizados no seu Media Kit.",
+      });
+
+    } catch (err) {
+      toast({
+        variant: "error",
+        title: "Erro ao salvar",
+        description: "Não foi possível atualizar o Media Kit.",
+      });
+    } finally {
+      setIsSavingPackages(false);
+    }
   };
 
   const handleOpenChat = () => {
@@ -365,8 +461,8 @@ export default function CalculatorClient() {
               onClick={() => onChange(option.value)}
               disabled={disabled}
               className={`group relative flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all sm:p-5 ${isSelected
-                  ? "border-[#F6007B]/50 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] ring-2 ring-[#F6007B]/25"
-                  : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+                ? "border-[#F6007B]/50 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] ring-2 ring-[#F6007B]/25"
+                : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
                 } ${disabled ? "cursor-not-allowed opacity-60 hover:translate-y-0 hover:shadow-none" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/25 focus-visible:ring-offset-1"}`}
             >
               <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg transition-colors ${isSelected ? "bg-[#F6007B]/10 text-[#F6007B]" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"}`}>
@@ -537,21 +633,116 @@ export default function CalculatorClient() {
                 key={card.label}
                 className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
-                    <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
-                    {card.label}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500">
-                    CPM aprox. {card.cpm}
-                  </span>
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
+                      <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
+                      {card.label}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500">
+                      CPM aprox. {card.cpm}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-1">
+                    <p className="text-3xl font-semibold text-slate-900">{card.value}</p>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600 leading-relaxed">{card.description}</p>
                 </div>
-                <div className="mt-4 space-y-1">
-                  <p className="text-3xl font-semibold text-slate-900">{card.value}</p>
-                </div>
-                <p className="mt-3 text-sm text-slate-600 leading-relaxed">{card.description}</p>
+                <button
+                  onClick={() => {
+                    const labelText = typeof card?.label === 'string' ? card.label : '';
+                    const baseLabel = (labelText.split('(')[0] ?? '').trim() || 'Pacote';
+                    const priceLabel = typeof card?.value === 'string' ? card.value : '0';
+                    const parsedPrice = Number.parseFloat(priceLabel.replace(/[^0-9,]/g, '').replace(',', '.')) || 0;
+                    handleAddPackage({
+                      name: baseLabel || 'Pacote',
+                      price: parsedPrice,
+                      description: card?.description ?? '',
+                    });
+                  }}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                >
+                  <FaPlus className="h-3 w-3" />
+                  Usar como pacote
+                </button>
               </div>
             ))}
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-purple-100 p-2 text-purple-600">
+                  <FaLayerGroup className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Seus Pacotes</h3>
+                  <p className="text-sm text-slate-500">Estes pacotes aparecerão no seu Mídia Kit.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleAddPackage()}
+                className="group flex items-center gap-2 rounded-lg bg-purple-50 px-4 py-2 text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
+              >
+                <FaPlus className="h-3 w-3" />
+                Novo Pacote
+              </button>
+            </div>
+
+            {packages.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                <p className="text-slate-500">Nenhum pacote definido.</p>
+                <p className="text-sm text-slate-400">Adicione manualmente ou use as sugestões da IA acima.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {packages.map((pkg, idx) => (
+                  <div key={pkg.id} className="relative flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:flex-row sm:items-start">
+                    <div className="flex-1 space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-500">Nome do Pacote</label>
+                          <input
+                            type="text"
+                            value={pkg.name}
+                            onChange={(e) => handleUpdatePackage(pkg.id!, { name: e.target.value })}
+                            className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:ring-purple-500"
+                            placeholder="Ex: Combo Reels"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-500">Valor (R$)</label>
+                          <input
+                            type="number"
+                            value={pkg.price}
+                            onChange={(e) => handleUpdatePackage(pkg.id!, { price: parseFloat(e.target.value) })}
+                            className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:ring-purple-500"
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-500">Entregáveis (separados por vírgula)</label>
+                        <input
+                          type="text"
+                          value={pkg.deliverables.join(",")}
+                          onChange={(e) => handleUpdatePackage(pkg.id!, { deliverables: e.target.value.split(",") })}
+                          className="w-full rounded-lg border-slate-200 text-sm text-slate-600 placeholder:text-slate-400 focus:border-purple-500 focus:ring-purple-500"
+                          placeholder="Ex: 1 Reels, 3 Stories"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeletePackage(pkg.id!)}
+                      className="absolute right-2 top-2 rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 sm:static sm:mt-1"
+                      title="Remover pacote"
+                    >
+                      <FaTrash className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
