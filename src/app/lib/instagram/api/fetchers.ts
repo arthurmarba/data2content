@@ -42,7 +42,7 @@ export async function fetchInstagramMedia(
   if (pageUrl) {
     url = pageUrl;
     if (!url.includes('access_token=')) {
-        url += (url.includes('?') ? '&' : '?') + `access_token=${accessToken}`;
+      url += (url.includes('?') ? '&' : '?') + `access_token=${accessToken}`;
     }
   } else {
     const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,children{id,media_type,media_product_type,media_url,thumbnail_url},parent_id';
@@ -73,19 +73,55 @@ export async function fetchInstagramMedia(
   }
 }
 
+export async function fetchSingleInstagramMedia(
+  mediaId: string,
+  accessToken: string
+): Promise<FetchMediaResult> {
+  const logContext = 'fetchSingleInstagramMedia';
+  logger.debug(`[${logContext}] Buscando mídia individual ID: ${mediaId}...`);
+
+  if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' };
+  if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
+
+  const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,children{id,media_type,media_product_type,media_url,thumbnail_url},parent_id';
+  const url = `${BASE_URL}/${API_VERSION}/${mediaId}?fields=${fields}&access_token=${accessToken}`;
+
+  try {
+    const response = await graphApiNodeRequest<InstagramMedia>(url, undefined, logContext, accessToken);
+
+    if (response.error) {
+      const errorMsg = response.error.message || 'Erro desconhecido ao buscar mídia individual.';
+      logger.error(`[${logContext}] Erro da API ao buscar mídia ${mediaId}: ${errorMsg}`);
+      return { success: false, error: `Falha ao buscar mídia: ${errorMsg}` };
+    }
+
+    // Wrap single item in array to match FetchMediaResult type if desired, or return single
+    // But FetchMediaResult expects `data: InstagramMedia[]`. 
+    // Let's adjust or just return a single item array.
+    return {
+      success: true,
+      data: [response],
+      nextPageUrl: null,
+    };
+  } catch (error: any) {
+    logger.error(`[${logContext}] Erro final ao buscar mídia ${mediaId}:`, error);
+    return { success: false, error: `Erro interno ao buscar mídia: ${error.message}` };
+  }
+}
+
 export async function fetchMediaInsights(
   mediaId: string,
   accessToken: string,
   metricsToFetch: string
 ): Promise<FetchInsightsResult<IMetricStats>> {
   const logContext = 'fetchMediaInsights';
-  logger.debug(`[${logContext}] Buscando insights para Media ID: ${mediaId} (Métricas: ${metricsToFetch.substring(0,50)}... )`);
+  logger.debug(`[${logContext}] Buscando insights para Media ID: ${mediaId} (Métricas: ${metricsToFetch.substring(0, 50)}... )`);
 
-  if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' , requestedMetrics: metricsToFetch};
-  if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' , requestedMetrics: metricsToFetch};
+  if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.', requestedMetrics: metricsToFetch };
+  if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.', requestedMetrics: metricsToFetch };
   if (!metricsToFetch || metricsToFetch.trim() === '') {
     logger.warn(`[${logContext}] Lista de métricas para buscar não fornecida ou vazia para Media ID: ${mediaId}.`);
-    return { success: true, data: {} as IMetricStats, error: null, errorMessage: 'Nenhuma métrica solicitada.' , requestedMetrics: metricsToFetch};
+    return { success: true, data: {} as IMetricStats, error: null, errorMessage: 'Nenhuma métrica solicitada.', requestedMetrics: metricsToFetch };
   }
 
   const url = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${metricsToFetch}&access_token=${accessToken}`;
@@ -94,9 +130,9 @@ export async function fetchMediaInsights(
     const response = await graphApiRequest<InstagramApiInsightItem>(url, undefined, logContext, accessToken);
 
     const resultWithErrorContext: FetchInsightsResult<IMetricStats> = {
-        success: false,
-        error: 'Erro inicial',
-        requestedMetrics: metricsToFetch
+      success: false,
+      error: 'Erro inicial',
+      requestedMetrics: metricsToFetch
     };
 
     if (response.error) {
@@ -107,12 +143,12 @@ export async function fetchMediaInsights(
       resultWithErrorContext.error = `Falha API (${errorDetail.code}): ${errorMsg}`;
 
       if (errorDetail.code === 100 && errorMsg.toLowerCase().includes('metric')) {
-         resultWithErrorContext.error = `Métrica inválida para mídia ${mediaId} (API ${API_VERSION}): ${errorMsg}.`;
+        resultWithErrorContext.error = `Métrica inválida para mídia ${mediaId} (API ${API_VERSION}): ${errorMsg}.`;
       } else if (errorDetail.code === 10 || (errorDetail.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
-         resultWithErrorContext.error = `Permissão insuficiente para insights da mídia (${errorDetail.code}): ${errorMsg}`;
+        resultWithErrorContext.error = `Permissão insuficiente para insights da mídia (${errorDetail.code}): ${errorMsg}`;
       } else if (errorDetail.code === 80004 && errorMsg.toLowerCase().includes('not enough data')) {
-         logger.info(`[${logContext}] Dados insuficientes para insights da mídia ${mediaId} (Code: ${errorDetail.code}): ${errorMsg}. Considerado como sem dados.`);
-         return { success: true, data: {} as IMetricStats, error: null, errorMessage: `Dados insuficientes: ${errorMsg}`, requestedMetrics: metricsToFetch };
+        logger.info(`[${logContext}] Dados insuficientes para insights da mídia ${mediaId} (Code: ${errorDetail.code}): ${errorMsg}. Considerado como sem dados.`);
+        return { success: true, data: {} as IMetricStats, error: null, errorMessage: `Dados insuficientes: ${errorMsg}`, requestedMetrics: metricsToFetch };
       }
       return resultWithErrorContext;
     }
@@ -130,13 +166,13 @@ export async function fetchMediaInsights(
             } else if (typeof value === 'object' && value !== null) {
               insights[metricName] = value as any;
             } else {
-               logger.warn(`[${logContext}] Valor inesperado para métrica ${metricName} (Mídia ${mediaId}): `, value);
+              logger.warn(`[${logContext}] Valor inesperado para métrica ${metricName} (Mídia ${mediaId}): `, value);
             }
           } else {
-             logger.warn(`[${logContext}] Métrica ${metricName} (Mídia ${mediaId}) não continha 'value' em 'values[${item.values.length - 1}]'.`);
+            logger.warn(`[${logContext}] Métrica ${metricName} (Mídia ${mediaId}) não continha 'value' em 'values[${item.values.length - 1}]'.`);
           }
         } else {
-           logger.warn(`[${logContext}] Métrica ${metricName} (Mídia ${mediaId}) não continha 'values' ou 'values' estava vazio.`);
+          logger.warn(`[${logContext}] Métrica ${metricName} (Mídia ${mediaId}) não continha 'values' ou 'values' estava vazio.`);
         }
       });
     }
@@ -145,9 +181,9 @@ export async function fetchMediaInsights(
     logger.error(`[${logContext}] Erro final ao buscar insights para Mídia ${mediaId} (Métricas: ${metricsToFetch}):`, error);
     const message = error.message || String(error);
     return {
-        success: false,
-        error: `Erro interno ao buscar insights de mídia: ${message}`,
-        requestedMetrics: metricsToFetch
+      success: false,
+      error: `Erro interno ao buscar insights de mídia: ${message}`,
+      requestedMetrics: metricsToFetch
     };
   }
 }
@@ -213,7 +249,7 @@ export async function fetchAccountInsights(
               logger.warn(`[${logContext}] Valor para métrica '${metricNameInResponse}' (Conta ${accountId}) estava undefined.`);
             }
           } else {
-             logger.warn(`[${logContext}] Métrica '${metricNameInResponse}' (Conta ${accountId}) não continha 'values' ou 'values' estava vazio.`);
+            logger.warn(`[${logContext}] Métrica '${metricNameInResponse}' (Conta ${accountId}) não continha 'values' ou 'values' estava vazio.`);
           }
         });
       } else {
@@ -232,9 +268,9 @@ export async function fetchAccountInsights(
   if (!overallSuccess && errors.length > 0) {
     logger.error(`[${logContext}] Finalizado com erros ao buscar insights da conta ${accountId}. Erros: ${errors.join('; ')}`);
     return {
-        success: hasCollectedData,
-        data: hasCollectedData ? (aggregatedInsights as IAccountInsightsPeriod) : undefined,
-        error: `Falhas ao buscar algumas métricas de conta: ${errors.join('; ')}`
+      success: hasCollectedData,
+      data: hasCollectedData ? (aggregatedInsights as IAccountInsightsPeriod) : undefined,
+      error: `Falhas ao buscar algumas métricas de conta: ${errors.join('; ')}`
     };
   }
 
@@ -279,7 +315,7 @@ export async function fetchAudienceDemographics(
 ): Promise<FetchInsightsResult<IAudienceDemographics>> {
   const logContext = 'fetchAudienceDemographics v3.3 (direct axios)';
   logger.info(`[${logContext}] INICIANDO COLETA DEMOGRÁFICA COM AXIOS DIRETO`);
-  
+
   if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
   if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
@@ -299,7 +335,7 @@ export async function fetchAudienceDemographics(
       breakdown,
       access_token: accessToken,
     };
-    
+
     try {
       // ** CORREÇÃO FINAL: Usando axios.get diretamente para replicar o teste original **
       const response = await axios.get<{ data?: any[], error?: InstagramApiErrorDetail }>(baseUrl, { params });
@@ -321,10 +357,10 @@ export async function fetchAudienceDemographics(
           (aggregatedDemographics.follower_demographics as any)[breakdown] = transformedData;
           anyDataCollected = true;
         } else {
-            logger.warn(`[${logContext}] A transformação da resposta para '${breakdown}' resultou em dados vazios.`);
+          logger.warn(`[${logContext}] A transformação da resposta para '${breakdown}' resultou em dados vazios.`);
         }
       } else {
-          logger.warn(`[${logContext}] A resposta para '${breakdown}' não continha o campo 'data' ou ele estava vazio.`);
+        logger.warn(`[${logContext}] A resposta para '${breakdown}' não continha o campo 'data' ou ele estava vazio.`);
       }
     } catch (err: any) {
       const message = err.message || String(err);
@@ -364,9 +400,9 @@ export async function fetchBasicAccountData(
       const errorDetail: InstagramApiErrorDetail = responseNode.error;
       const errorMsg = errorDetail.message || 'Erro desconhecido ao buscar dados básicos da conta.';
       logger.error(`[${logContext}] Erro da API ao buscar dados básicos para Conta ${accountId}: ${errorMsg} (Code: ${errorDetail.code}, Type: ${errorDetail.type}, Subcode: ${errorDetail.error_subcode})`);
-       if (errorDetail.code === 10 || (errorDetail.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
-         return { success: false, error: `Permissão insuficiente para dados básicos (${errorDetail.code}): ${errorMsg}` };
-       }
+      if (errorDetail.code === 10 || (errorDetail.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
+        return { success: false, error: `Permissão insuficiente para dados básicos (${errorDetail.code}): ${errorMsg}` };
+      }
       return { success: false, error: `Falha ao buscar dados básicos da conta: ${errorMsg}` };
     }
 
@@ -374,7 +410,7 @@ export async function fetchBasicAccountData(
     const accountData: Partial<IUser> = {};
 
     if (accountDataFromApi.id) {
-        accountData.instagramAccountId = accountDataFromApi.id;
+      accountData.instagramAccountId = accountDataFromApi.id;
     }
     if (accountDataFromApi.username) accountData.username = accountDataFromApi.username;
     if (accountDataFromApi.name) accountData.name = accountDataFromApi.name;

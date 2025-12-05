@@ -35,11 +35,39 @@ export async function GET(
     SharedLink.updateOne({ _id: sharedLink._id }, { $inc: { clicks: 1 } }).exec();
 
     // 5. Fetch Metric data
-    // Note: If liveUpdate is true, we could fetch fresh data here. For now, we return database data.
-    const metric = await Metric.findById(sharedLink.metricId);
+    // 5. Fetch Metric data
+    let metric = await Metric.findById(sharedLink.metricId);
 
     if (!metric) {
         return NextResponse.json({ error: 'Conteúdo original não encontrado.' }, { status: 404 });
+    }
+
+    // Live Update Logic
+    if (sharedLink.config.liveUpdate) {
+        const lastUpdate = metric.updatedAt ? new Date(metric.updatedAt).getTime() : 0;
+        const now = Date.now();
+        const oneHour = 60 * 60 * 1000;
+
+        if (now - lastUpdate > oneHour && metric.instagramMediaId) {
+            try {
+                // Import dynamically to avoid circular deps if any (though structured well)
+                const { refreshSinglePubliMetric } = await import('@/app/lib/instagram/sync/singleMetricSync');
+
+                // Attempt refresh
+                const result = await refreshSinglePubliMetric(sharedLink.userId.toString(), metric.instagramMediaId);
+
+                if (result.success) {
+                    // Refetch updated metric
+                    const updatedMetric = await Metric.findById(sharedLink.metricId);
+                    if (updatedMetric) {
+                        metric = updatedMetric;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to live update metric:', err);
+                // Continue with existing data
+            }
+        }
     }
 
     // 6. Sanitize response (Public View)
