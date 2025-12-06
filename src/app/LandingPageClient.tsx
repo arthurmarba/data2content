@@ -12,7 +12,7 @@ import type {
   LandingCoverageRegion,
   LandingCoverageSegment,
 } from "@/types/landing";
-import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
+import { CASTING_ROUTE, MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 
 import LandingHeader from "./landing/components/LandingHeader";
 import HeroModern from "./landing/components/HeroModern";
@@ -369,7 +369,6 @@ const FOOTER_LINKS = [
   { label: "Central de suporte", href: "/dashboard/instagram/faq" },
 ];
 
-const BRAND_CAMPAIGN_PATH = "/campaigns/new";
 const BRT_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC-3
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -473,12 +472,14 @@ export default function LandingPageClient() {
   const handleBrandsCta = React.useCallback(() => {
     try {
       track("landing_brand_cta_click");
-    } catch { }
-    const overrides: Partial<UtmContext> = { utm_content: "landing_hero_button" };
+    } catch {
+      // non-blocking analytics
+    }
+    const overrides: Partial<UtmContext> = { utm_content: "landing_hero_casting_button" };
     if (!utm.utm_source) overrides.utm_source = "landing";
     if (!utm.utm_medium) overrides.utm_medium = "hero_cta";
-    if (!utm.utm_campaign) overrides.utm_campaign = "multi_creator";
-    const destination = appendUtm(BRAND_CAMPAIGN_PATH, overrides) ?? BRAND_CAMPAIGN_PATH;
+    if (!utm.utm_campaign) overrides.utm_campaign = "casting_page";
+    const destination = appendUtm(CASTING_ROUTE, overrides) ?? CASTING_ROUTE;
     window.location.assign(destination);
   }, [appendUtm, utm]);
 

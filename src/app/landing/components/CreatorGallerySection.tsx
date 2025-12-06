@@ -11,12 +11,55 @@ type CreatorGallerySectionProps = {
   onRequestMediaKit?: () => void;
   maxVisible?: number;
   maxVisibleDesktop?: number;
+  sectionId?: string;
+  headingEyebrow?: string;
+  headingTitle?: string;
+  headingDescription?: string;
+  showAll?: boolean;
+  topContent?: React.ReactNode;
+  bottomContent?: React.ReactNode;
+  showHeader?: boolean;
+  containerClassName?: string;
+  gridClassName?: string;
 };
 
 const numberFormatter = new Intl.NumberFormat("pt-BR", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
+
+const FALLBACK_COLORS = [
+  "bg-gradient-to-br from-brand-primary to-brand-accent",
+  "bg-gradient-to-br from-brand-accent to-brand-sun",
+  "bg-gradient-to-br from-brand-sun to-brand-primary",
+  "bg-gradient-to-br from-brand-dark/90 to-brand-primary",
+  "bg-gradient-to-br from-brand-dark/80 to-brand-accent",
+];
+
+function getInitials(name?: string | null, username?: string | null) {
+  const source = (name || username || "D2C").trim();
+  if (!source) return "D2C";
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    const clean = (parts[0] ?? "").replace(/^@/, "");
+    return clean.slice(0, 2).toUpperCase() || "D2C";
+  }
+  const first = parts[0]?.[0] ?? "";
+  const second = parts[1]?.[0] ?? "";
+  const initials = (first + second).trim();
+  return initials ? initials.toUpperCase() : "D2C";
+}
+
+function pickFallbackBg(seed?: string | null) {
+  const text = seed ?? "";
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash << 5) - hash + text.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % FALLBACK_COLORS.length;
+  return FALLBACK_COLORS[index];
+}
 
 const DEFAULT_MAX_VISIBLE_CREATORS = 12;
 
@@ -26,6 +69,16 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
   onRequestMediaKit,
   maxVisible = DEFAULT_MAX_VISIBLE_CREATORS,
   maxVisibleDesktop,
+  sectionId = "galeria",
+  headingEyebrow = "Comunidade em movimento",
+  headingTitle = "Criadores em evolução dentro da agência.",
+  headingDescription = "Mostramos aqui os criadores que estão ativos na plataforma, treinando posicionamento, refinando suas narrativas e se preparando para campanhas com suporte estratégico da D2C.",
+  showAll = false,
+  topContent = null,
+  bottomContent = null,
+  showHeader = true,
+  containerClassName = "",
+  gridClassName = "",
 }) => {
   const [isDesktop, setIsDesktop] = React.useState(false);
 
@@ -50,16 +103,21 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
     return undefined;
   }, []);
 
-  const resolvedMaxVisible = isDesktop ? maxVisibleDesktop ?? maxVisible : maxVisible;
+  const baseMaxVisible = isDesktop ? maxVisibleDesktop ?? maxVisible : maxVisible;
+  const resolvedMaxVisible = showAll ? creators.length || baseMaxVisible : baseMaxVisible;
+  const skeletonCountBase = resolvedMaxVisible || DEFAULT_MAX_VISIBLE_CREATORS;
+  const skeletonCount = loading
+    ? Math.max(DEFAULT_MAX_VISIBLE_CREATORS, Math.min(skeletonCountBase, 24))
+    : skeletonCountBase;
 
   const skeletonCards = React.useMemo(
-    () => Array.from({ length: resolvedMaxVisible }),
-    [resolvedMaxVisible],
+    () => Array.from({ length: skeletonCount }),
+    [skeletonCount],
   );
 
   const visibleCreators = React.useMemo(
-    () => creators.slice(0, resolvedMaxVisible),
-    [creators, resolvedMaxVisible],
+    () => (showAll ? creators : creators.slice(0, resolvedMaxVisible)),
+    [creators, resolvedMaxVisible, showAll],
   );
 
   const handleMediaKitClick = React.useCallback(
@@ -86,23 +144,27 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
   );
 
   return (
-    <section id="galeria" className="landing-section landing-section--muted landing-section--compact-top">
-      <div className="landing-section__inner landing-section__inner--wide">
-        <header className="mb-8 flex flex-col items-center gap-3 text-center md:mb-10">
-          <span className="landing-chip">
-            Comunidade em movimento
-          </span>
-          <h2 className="text-display-lg text-brand-dark">
-            Criadores em evolução dentro da agência.
-          </h2>
-          <p className="text-body-md font-normal text-brand-text-secondary/90">
-            Mostramos aqui os criadores que estão ativos na plataforma, treinando posicionamento, refinando suas narrativas e se preparando para campanhas com suporte estratégico da D2C.
-          </p>
-        </header>
+    <section id={sectionId} className="landing-section landing-section--muted landing-section--compact-top">
+      <div className={`landing-section__inner landing-section__inner--wide ${containerClassName}`.trim()}>
+        {showHeader ? (
+          <header className="mb-8 flex flex-col items-center gap-3 text-center md:mb-10">
+            <span className="landing-chip">
+              {headingEyebrow}
+            </span>
+            <h2 className="text-display-lg text-brand-dark">
+              {headingTitle}
+            </h2>
+            <p className="text-body-md font-normal text-brand-text-secondary/90">
+              {headingDescription}
+            </p>
+          </header>
+        ) : null}
+
+        {topContent}
 
         <div className="relative mx-auto w-full max-w-5xl">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-[36px] bg-[radial-gradient(70%_120%_at_15%_0%,rgba(255,44,126,0.15),transparent_55%),radial-gradient(80%_120%_at_85%_10%,rgba(36,107,253,0.18),transparent_60%)]" />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5">
+          <div className={`grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5 ${gridClassName}`.trim()}>
             {loading
               ? skeletonCards.map((_, index) => (
                 <div
@@ -124,6 +186,8 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
                   text: creator.rank <= 3 ? "text-brand-primary" : "text-brand-dark/80",
                   divider: creator.rank <= 3 ? "bg-brand-primary/20" : "bg-brand-dark/10",
                 } as const;
+                const initials = getInitials(creator.name, creator.username);
+                const fallbackBg = pickFallbackBg(creator.id || creator.username || creator.name);
 
                 return (
                   <article
@@ -145,8 +209,11 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-brand-magenta">
-                          D2C
+                        <div
+                          className={`flex h-full w-full items-center justify-center text-lg font-bold text-white ${fallbackBg}`}
+                          aria-label={`Avatar de ${creator.name}`}
+                        >
+                          {initials}
                         </div>
                       )}
                     </div>
@@ -192,6 +259,8 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
               })}
           </div>
         </div>
+
+        {bottomContent}
 
       </div>
     </section>

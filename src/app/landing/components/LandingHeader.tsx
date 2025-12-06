@@ -8,16 +8,21 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
 import { track } from '@/lib/track';
-import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
+import { CASTING_ROUTE, MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 import { useUtmAttribution } from '@/hooks/useUtmAttribution';
 import type { UtmContext } from '@/lib/analytics/utm';
 
 interface LandingHeaderProps {
   showLoginButton?: boolean;
   onCreatorCta?: () => void;
+  hideBrandCta?: boolean;
 }
 
-export default function LandingHeader({ showLoginButton = false, onCreatorCta }: LandingHeaderProps) {
+export default function LandingHeader({
+  showLoginButton = false,
+  onCreatorCta,
+  hideBrandCta = false,
+}: LandingHeaderProps) {
   const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -63,8 +68,8 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
     };
     if (!utm.utm_source) overrides.utm_source = 'landing';
     if (!utm.utm_medium) overrides.utm_medium = 'header_cta';
-    if (!utm.utm_campaign) overrides.utm_campaign = 'multi_creator';
-    const destination = appendUtm('/campaigns/new', overrides) || '/campaigns/new';
+    if (!utm.utm_campaign) overrides.utm_campaign = 'casting_page';
+    const destination = appendUtm(CASTING_ROUTE, overrides) || CASTING_ROUTE;
     window.location.assign(destination);
   };
 
@@ -176,14 +181,16 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
                 {link.label}
               </a>
             ))}
-            <ButtonPrimary
-              onClick={handleBrands}
-              size="sm"
-              variant="outline"
-              className="shadow-none"
-            >
-              Sou marca
-            </ButtonPrimary>
+            {hideBrandCta ? null : (
+              <ButtonPrimary
+                onClick={handleBrands}
+                size="sm"
+                variant="outline"
+                className="shadow-none"
+              >
+                Sou marca
+              </ButtonPrimary>
+            )}
             {session ? (
               <ButtonPrimary href={MAIN_DASHBOARD_ROUTE} size="sm" variant="brand" className="shadow-none">
                 Ir para o painel
@@ -232,15 +239,17 @@ export default function LandingHeader({ showLoginButton = false, onCreatorCta }:
                 {link.label}
               </a>
             ))}
-            <button
-              onClick={() => {
-                handleBrands();
-                setIsMenuOpen(false);
-              }}
-              className="mt-1 rounded-xl border border-brand-primary/40 px-4 py-3 text-left text-sm font-semibold text-brand-primary hover:bg-brand-primary/10"
-            >
-              Sou marca
-            </button>
+            {hideBrandCta ? null : (
+              <button
+                onClick={() => {
+                  handleBrands();
+                  setIsMenuOpen(false);
+                }}
+                className="mt-1 rounded-xl border border-brand-primary/40 px-4 py-3 text-left text-sm font-semibold text-brand-primary hover:bg-brand-primary/10"
+              >
+                Sou marca
+              </button>
+            )}
             <button
               onClick={() => {
                 setIsMenuOpen(false);

@@ -80,7 +80,7 @@ export default function CoverageHighlights({
           </p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section className={`flex flex-col gap-4 rounded-2xl border bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.08)] ${cardTokens.primary.border}`}>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-brand-dark">
               <span className={cardTokens.primary.icon}>Nichos em destaque</span>
