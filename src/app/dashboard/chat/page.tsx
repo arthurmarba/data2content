@@ -57,6 +57,8 @@ export default function ChatHomePage() {
   const openedAfterIgRef = useRef(false);
   const { toast } = useToast();
   const [calcContext, setCalcContext] = useState<ChatCalcContext | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+
 
   // Limpa o parâmetro ?instagramLinked=true do URL após a primeira renderização
   useEffect(() => {
@@ -164,30 +166,36 @@ export default function ChatHomePage() {
   }
 
   return (
-    // Offset do header fixo já é tratado pelo layout; aqui garantimos altura total da viewport
-    <div
-      className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden flex-1 min-h-0"
-    >
-      {/* Card de conexão IG quando voltamos do OAuth */}
-      <div className="mx-auto max-w-6xl w-full px-4 pt-2 space-y-2">
-        {showIgConnect && (
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <InstagramConnectCard
-              canAccessFeatures={true}
-              onActionRedirect={() => { }}
-              showToast={() => { }}
+    <div className="relative w-full bg-white text-gray-900 flex overflow-hidden flex-1 min-h-0">
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-col overflow-hidden w-full h-full flex">
+          {/* Card de conexão IG quando voltamos do OAuth */}
+          <div className="mx-auto max-w-6xl w-full px-4 pt-2 space-y-2">
+            {showIgConnect && (
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <InstagramConnectCard
+                  canAccessFeatures={true}
+                  onActionRedirect={() => { }}
+                  showToast={() => { }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Chat ocupa todo o restante */}
+          <div className="flex-1 w-full min-h-0 relative">
+            <ChatPanel
+              onUpsellClick={() => openPaywallModal({ context: "default", source: "chat_panel" })}
+              calculationContext={calcContext}
+              fullHeight
+              selectedThreadId={selectedThreadId}
+              onSelectThread={setSelectedThreadId}
+              onThreadCreated={(newId) => {
+                setSelectedThreadId(newId);
+              }}
             />
           </div>
-        )}
-      </div>
-
-      {/* Chat ocupa todo o restante */}
-      <div className="flex-1 w-full min-h-0">
-        <ChatPanel
-          onUpsellClick={() => openPaywallModal({ context: "default", source: "chat_panel" })}
-          calculationContext={calcContext}
-          fullHeight
-        />
+        </div>
       </div>
     </div>
   );

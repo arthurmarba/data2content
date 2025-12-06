@@ -17,6 +17,8 @@ import { useChat } from "./hooks/useChat";
 import { usePricingAnalysis } from "./hooks/usePricingAnalysis";
 import { useAlerts } from "./hooks/useAlerts";
 import { AlertsDrawer } from "./components/chat/AlertsDrawer";
+import { useChatThreads } from "./components/chat/useChatThreads";
+import { useThreadSelection } from "./components/chat/useThreadSelection";
 
 interface SessionUserWithId {
   id?: string;
@@ -31,10 +33,16 @@ export default function ChatPanel({
   onUpsellClick,
   calculationContext,
   fullHeight = false,
+  selectedThreadId,
+  onThreadCreated,
+  onSelectThread,
 }: {
   onUpsellClick?: () => void;
   calculationContext?: ChatCalculationContext | null;
   fullHeight?: boolean;
+  selectedThreadId?: string | null;
+  onThreadCreated?: (id: string) => void;
+  onSelectThread?: (id: string | null) => void;
 } = {}) {
   const { data: session } = useSession();
   const router = useRouter();
@@ -49,6 +57,24 @@ export default function ChatPanel({
 
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [skipAutoSelect, setSkipAutoSelect] = useState(false);
+  const { selectedThreadId: storedThreadId, setSelectedThreadId: setStoredThreadId } = useThreadSelection(selectedThreadId);
+  const effectiveThreadId = selectedThreadId ?? storedThreadId;
+
+  useEffect(() => {
+    // Keep local state in sync when parent controls a thread id.
+    if (selectedThreadId !== undefined) {
+      setStoredThreadId(selectedThreadId ?? null);
+    }
+  }, [selectedThreadId, setStoredThreadId]);
+
+  const selectThread = useCallback((id: string | null) => {
+    setStoredThreadId(id);
+    if (id) {
+      setSkipAutoSelect(false);
+    }
+    onSelectThread?.(id);
+  }, [onSelectThread, setStoredThreadId]);
 
   const userWithId = session?.user as SessionUserWithId | undefined;
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
@@ -59,6 +85,26 @@ export default function ChatPanel({
   const isActiveLikePlan = hasPremiumAccess;
   const [targetUserId, setTargetUserId] = useState<string>('');
   const [selectedTargetLabel, setSelectedTargetLabel] = useState<string>('');
+
+  const {
+    threads,
+    loading: threadsLoading,
+    loadingMore: threadsLoadingMore,
+    error: threadsError,
+    refresh: refreshThreads,
+    loadMore: loadMoreThreads,
+    toggleFavorite,
+    renameThread,
+    deleteThread,
+    hasMore,
+  } = useChatThreads({ autoLoad: true, limit: 50 });
+
+  const handleThreadCreated = useCallback((newId: string) => {
+    refreshThreads();
+    onThreadCreated?.(newId);
+    selectThread(newId);
+    setSkipAutoSelect(false);
+  }, [onThreadCreated, refreshThreads, selectThread]);
 
   const {
     messages,
@@ -78,7 +124,9 @@ export default function ChatPanel({
   } = useChat({
     userWithId,
     isAdmin,
-    targetUserId
+    targetUserId,
+    threadId: effectiveThreadId,
+    onThreadCreated: handleThreadCreated
   });
 
   const {
@@ -94,7 +142,6 @@ export default function ChatPanel({
     markAsRead: markAlertAsRead,
     refreshUnreadCount: refreshAlertsUnreadCount,
   } = useAlerts();
-
   const [isAlertsOpen, setAlertsOpen] = useState(false);
 
   const {
@@ -253,6 +300,16 @@ export default function ChatPanel({
     ensureAlertsLoaded();
   }, [ensureAlertsLoaded]);
 
+  // Seleciona automaticamente a thread mais recente caso nada esteja selecionado ao carregar a lista
+  useEffect(() => {
+    if (skipAutoSelect) return;
+    if (effectiveThreadId) return;
+    if (!threads.length) return;
+    const first = threads[0];
+    if (!first?._id) return;
+    selectThread(first._id);
+  }, [effectiveThreadId, threads, selectThread, skipAutoSelect]);
+
   useEffect(() => {
     refreshAlertsUnreadCount();
     const id = window.setInterval(() => {
@@ -261,9 +318,27 @@ export default function ChatPanel({
     return () => window.clearInterval(id);
   }, [refreshAlertsUnreadCount]);
 
+  // Auto-refresh alerts + threads ao abrir o sino (uma vez por abertura)
+  const refreshedOnOpenRef = useRef(false);
+  useEffect(() => {
+    if (!isAlertsOpen) {
+      refreshedOnOpenRef.current = false;
+      return;
+    }
+    if (refreshedOnOpenRef.current) return;
+    refreshedOnOpenRef.current = true;
+    refreshAlerts();
+    refreshThreads();
+  }, [isAlertsOpen, refreshAlerts, refreshThreads]);
+
   const handleSend = async () => {
     await sendPrompt(input);
   };
+  const handleNewChat = useCallback(() => {
+    setSkipAutoSelect(true);
+    selectThread(null);
+    clearChat();
+  }, [clearChat, selectThread]);
 
   const pendingActionLabel = (() => {
     if (!pendingAction?.type) return null;
@@ -415,50 +490,54 @@ export default function ChatPanel({
         )}
       </div>
 
-      {pendingAction ? (
-        <div className="px-4 pb-2">
-          <div className="mx-auto max-w-6xl rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm">
-            <p className="text-sm font-semibold text-gray-800">
-              {pendingActionLabel || 'A IA deixou uma pergunta em aberto.'}
-            </p>
-            {pendingAction?.context?.originalSuggestion ? (
-              <p className="mt-1 text-xs text-gray-500 line-clamp-2">
-                {pendingAction.context.originalSuggestion}
+      {
+        pendingAction ? (
+          <div className="px-4 pb-2">
+            <div className="mx-auto max-w-6xl rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm">
+              <p className="text-sm font-semibold text-gray-800">
+                {pendingActionLabel || 'A IA deixou uma pergunta em aberto.'}
               </p>
-            ) : null}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary-dark disabled:opacity-60"
-                onClick={() => sendPrompt('Sim, pode seguir com isso.', { skipInputReset: true })}
-                disabled={isSending}
-              >
-                Confirmar
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-brand-primary hover:text-brand-primary disabled:opacity-60"
-                onClick={() => sendPrompt('Prefiro não seguir com isso agora.', { skipInputReset: true })}
-                disabled={isSending}
-              >
-                Agora não
-              </button>
+              {pendingAction?.context?.originalSuggestion ? (
+                <p className="mt-1 text-xs text-gray-500 line-clamp-2">
+                  {pendingAction.context.originalSuggestion}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary-dark disabled:opacity-60"
+                  onClick={() => sendPrompt('Sim, pode seguir com isso.', { skipInputReset: true })}
+                  disabled={isSending}
+                >
+                  Confirmar
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-brand-primary hover:text-brand-primary disabled:opacity-60"
+                  onClick={() => sendPrompt('Prefiro não seguir com isso agora.', { skipInputReset: true })}
+                  disabled={isSending}
+                >
+                  Agora não
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null
+      }
 
-      {currentTaskLabel ? (
-        <div className="px-4 pb-2">
-          <div className="mx-auto max-w-6xl rounded-2xl border border-dashed border-brand-primary/40 bg-white/80 px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary">Modo tarefa</p>
-            <p className="text-sm font-semibold text-gray-800">{currentTaskLabel}</p>
-            {currentTask?.objective ? (
-              <p className="mt-1 text-xs text-gray-500 line-clamp-2">{currentTask.objective}</p>
-            ) : null}
+      {
+        currentTaskLabel ? (
+          <div className="px-4 pb-2">
+            <div className="mx-auto max-w-6xl rounded-2xl border border-dashed border-brand-primary/40 bg-white/80 px-4 py-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary">Modo tarefa</p>
+              <p className="text-sm font-semibold text-gray-800">{currentTaskLabel}</p>
+              {currentTask?.objective ? (
+                <p className="mt-1 text-xs text-gray-500 line-clamp-2">{currentTask.objective}</p>
+              ) : null}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null
+      }
 
       {/* Composer — Fixed at bottom */}
       <div ref={inputWrapperRef}>
@@ -508,6 +587,30 @@ export default function ChatPanel({
         onRefresh={() => refreshAlerts()}
         onLoadMore={loadMoreAlerts}
         onSelectAlert={handleAlertSelect}
+        threads={threads}
+        threadsLoading={threadsLoading}
+        threadsLoadingMore={threadsLoadingMore}
+        threadsError={threadsError}
+        threadsHasMore={hasMore}
+        onRefreshThreads={refreshThreads}
+        onLoadMoreThreads={loadMoreThreads}
+        onSelectThread={(id) => {
+          selectThread(id);
+          setAlertsOpen(false);
+        }}
+        onNewChat={() => {
+          handleNewChat();
+          setAlertsOpen(false);
+        }}
+        onToggleFavorite={(threadId, nextFavorite) => toggleFavorite(threadId, nextFavorite)}
+        onDeleteThread={(threadId) => {
+          deleteThread(threadId);
+          if (effectiveThreadId === threadId) {
+            handleNewChat();
+          }
+        }}
+        onRenameThread={(threadId, title) => renameThread(threadId, title)}
+        selectedThreadId={effectiveThreadId}
       />
 
       {/* Voltar ao fim */}
@@ -527,6 +630,6 @@ export default function ChatPanel({
         )}
       </AnimatePresence>
 
-    </div>
+    </div >
   );
 }

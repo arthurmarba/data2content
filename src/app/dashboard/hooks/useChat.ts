@@ -5,9 +5,12 @@ interface UseChatProps {
     userWithId?: { id?: string };
     isAdmin: boolean;
     targetUserId: string;
+    threadId?: string | null;  // [NEW]
+    onThreadCreated?: (newThreadId: string) => void;
 }
 
-export function useChat({ userWithId, isAdmin, targetUserId }: UseChatProps) {
+
+export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadCreated }: UseChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isSending, setIsSending] = useState(false);
@@ -28,6 +31,45 @@ export function useChat({ userWithId, isAdmin, targetUserId }: UseChatProps) {
             autoScrollOnNext.current = false;
         }
     }, [messages, scrollToBottom]);
+
+    const loadThreadHistory = useCallback(async (tId: string) => {
+        try {
+            setMessages([]); // Clear previous
+            const res = await fetch(`/api/ai/chat/threads/${tId}`);
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    setInlineAlert('Faça login para ver seu histórico.');
+                } else if (res.status === 404) {
+                    setInlineAlert('Conversa não encontrada ou removida.');
+                } else {
+                    setInlineAlert('Não foi possível carregar o histórico agora.');
+                }
+                return;
+            }
+            const data = await res.json();
+            if (data.messages) {
+                const mapped: Message[] = data.messages.map((m: any) => ({
+                    sender: m.role === 'user' ? 'user' : 'consultant',
+                    text: m.content
+                }));
+                setMessages(mapped);
+                setTimeout(scrollToBottom, 50);
+            } else {
+                setInlineAlert('Nenhuma mensagem encontrada para esta conversa.');
+            }
+        } catch (e) {
+            console.error("Failed to load history", e);
+            setInlineAlert('Não foi possível carregar o histórico agora.');
+        }
+    }, [scrollToBottom, setInlineAlert, setMessages]);
+
+    useEffect(() => {
+        if (threadId) {
+            loadThreadHistory(threadId);
+        } else {
+            setMessages([]);
+        }
+    }, [threadId, loadThreadHistory]);
 
     const sendPrompt = async (promptRaw: string, opts?: { skipInputReset?: boolean }) => {
         setInlineAlert(null);
@@ -57,7 +99,11 @@ export function useChat({ userWithId, isAdmin, targetUserId }: UseChatProps) {
 
         try {
             const payload: Record<string, unknown> = { query: prompt };
+            if (threadId) {
+                payload.threadId = threadId;
+            }
             if (isAdmin) {
+
                 const targetForPayload = trimmedTarget || userWithId?.id;
                 if (targetForPayload) {
                     payload.targetUserId = targetForPayload;
@@ -77,6 +123,10 @@ export function useChat({ userWithId, isAdmin, targetUserId }: UseChatProps) {
                 setCurrentTask(data.currentTask ?? null);
                 autoScrollOnNext.current = true;
                 setMessages(prev => [...prev, { sender: 'consultant', text: data.answer, cta: data.cta }]);
+
+                if (data.threadId && data.threadId !== threadId && onThreadCreated) {
+                    onThreadCreated(data.threadId);
+                }
             } else {
                 const errorText = data?.error || "Não foi possível obter resposta agora.";
                 autoScrollOnNext.current = true;

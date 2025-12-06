@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
       body = {};
     }
     const query = body?.query;
+    let threadId = body?.threadId;
     const requestedTargetId = typeof body?.targetUserId === 'string' ? String(body.targetUserId).trim() : undefined;
     if (!query || !String(query).trim()) {
       return NextResponse.json({ error: 'Falta query (pergunta do usuário)' }, { status: 400 });
@@ -168,6 +169,20 @@ export async function POST(request: NextRequest) {
 
     if (access.isAdmin && access.targetUserId !== actorId) {
       logger.info(`[ai/chat] admin ${actorId} consultando métricas de usuário ${access.targetUserId}`);
+    }
+
+    // Auto-create thread if not provided.
+    // Se admin e está falando com ele mesmo, também criamos thread para persistir histórico.
+    const isSelfChat = access?.targetUserId === actorId;
+    if (!threadId && (!requestedTargetId || (access.isAdmin && isSelfChat))) {
+      try {
+        // Create a thread com título provisório a partir da query
+        const newThread = await stateService.createThread(actorId, String(query).slice(0, 30) + '...');
+        threadId = String(newThread._id);
+      } catch (e) {
+        logger.error('[ai/chat] Failed to auto-create thread:', e);
+        // Fallback to legacy user-based key if DB fails
+      }
     }
 
     try {
@@ -186,7 +201,17 @@ export async function POST(request: NextRequest) {
     }
 
     const targetDisplayName = targetUser.name || 'criador';
-    const conversationKey = access.isAdmin ? `${actorId}:${access.targetUserId}` : access.targetUserId;
+
+    // If we have a threadId, use it as the key. Otherwise fallback to legacy logic.
+    // Logic: Admin looking at user -> key is "adminId:targetId". 
+    //        User looking at self -> key is "threadId" (preferred) or "userId" (legacy).
+    // Use threadId as canonical key when available, even em modo admin, para manter histórico consistente e recuperável
+    const conversationKey = threadId
+      ? threadId
+      : access.isAdmin
+        ? `${actorId}:${access.targetUserId}`
+        : access.targetUserId;
+
     const isTargetIgConnected = Boolean(targetUser.isInstagramConnected || targetUser.instagramAccountId);
     const firstName = targetDisplayName.split(' ')[0] || 'criador';
     const greeting = `Olá, ${firstName}`;
@@ -254,6 +279,15 @@ Pergunta: "${String(query)}"`;
           { role: 'assistant', content: answer } as ChatCompletionAssistantMessageParam,
         ].slice(-HISTORY_LIMIT_SAFE);
         await stateService.setConversationHistory(conversationKey, updated);
+
+        // PERSISTENCE: Save to MongoDB if we have a threadId (inclusive modo admin com thread)
+        if (threadId) {
+          // Save user message (fire and forget or await?)
+          await stateService.persistMessage(threadId, { role: 'user', content: String(query) });
+          // Save assistant message
+          await stateService.persistMessage(threadId, { role: 'assistant', content: answer });
+        }
+
         const counter = (dialogueState?.summaryTurnCounter ?? 0) + 1;
         const dialogueUpdate: Partial<IDialogueState> = {
           lastInteraction: Date.now(),
@@ -269,7 +303,7 @@ Pergunta: "${String(query)}"`;
         logger.error('[ai/chat] Failed to persist conversation (IG not connected):', error);
       }
 
-      return NextResponse.json({ answer, cta }, { status: 200 });
+      return NextResponse.json({ answer, cta, threadId }, { status: 200 });
     }
 
     let intentResult: any = null;
@@ -287,6 +321,12 @@ Pergunta: "${String(query)}"`;
           { role: 'assistant', content: specialAnswer } as ChatCompletionAssistantMessageParam,
         ].slice(-HISTORY_LIMIT_SAFE);
         await stateService.setConversationHistory(conversationKey, updated);
+
+        if (threadId) {
+          await stateService.persistMessage(threadId, { role: 'user', content: String(query) });
+          await stateService.persistMessage(threadId, { role: 'assistant', content: specialAnswer });
+        }
+
         const counter = (dialogueState?.summaryTurnCounter ?? 0) + 1;
         const dialogueUpdate: Partial<IDialogueState> = {
           lastInteraction: Date.now(),
@@ -298,7 +338,7 @@ Pergunta: "${String(query)}"`;
           dialogueUpdate.summaryTurnCounter = 0;
         }
         await stateService.updateDialogueState(conversationKey, dialogueUpdate);
-        return NextResponse.json({ answer: specialAnswer }, { status: 200 });
+        return NextResponse.json({ answer: specialAnswer, threadId }, { status: 200 });
       }
       if (intentResult?.type === 'intent_determined') {
         effectiveIntent = intentResult.intent || 'general';
@@ -354,6 +394,11 @@ Pergunta: "${String(query)}"`;
       ].slice(-HISTORY_LIMIT_SAFE);
       await stateService.setConversationHistory(conversationKey, updated);
 
+      if (threadId) {
+        await stateService.persistMessage(threadId, { role: 'user', content: String(query) });
+        await stateService.persistMessage(threadId, { role: 'assistant', content: sanitizedResponse });
+      }
+
       const extractedContext = await extractContextFromAIResponse(sanitizedResponse, access.targetUserId);
       const counter = (dialogueState?.summaryTurnCounter ?? 0) + 1;
       const dialogueUpdate: Partial<IDialogueState> = {
@@ -361,6 +406,12 @@ Pergunta: "${String(query)}"`;
         lastResponseContext: extractedContext,
         summaryTurnCounter: counter,
       };
+
+      // Auto-generate title if this is the start of a conversation
+      if (threadId && historyMessages.length === 0) {
+        // Fire and forget
+        stateService.generateThreadTitle(threadId, String(query));
+      }
       if (pendingActionInfo.suggests) {
         dialogueUpdate.lastAIQuestionType = pendingActionInfo.actionType;
         dialogueUpdate.pendingActionContext = pendingActionInfo.pendingActionContext;
@@ -407,7 +458,7 @@ Pergunta: "${String(query)}"`;
 
     const currentTaskResponse = currentTaskPayload || (COMPLEX_TASK_INTENTS.includes(effectiveIntent as any) ? dialogueState?.currentTask ?? null : null);
 
-    return NextResponse.json({ answer: sanitizedResponse, cta, pendingAction: pendingActionPayload, currentTask: currentTaskResponse }, { status: 200 });
+    return NextResponse.json({ answer: sanitizedResponse, cta, pendingAction: pendingActionPayload, currentTask: currentTaskResponse, threadId }, { status: 200 });
   } catch (error: unknown) {
     console.error("POST /api/ai/chat error:", error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido.';

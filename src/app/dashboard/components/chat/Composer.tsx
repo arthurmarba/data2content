@@ -133,13 +133,13 @@ export const Composer = React.memo(function Composer({
                                     onOpenAlerts();
                                 }
                             }}
-                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full transition-all ${isAlertsOpen ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
-                            aria-label="Abrir alertas"
-                            title="Alertas"
+                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-3 h-10 text-[13px] font-semibold transition-all border ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            aria-label="Abrir conversas"
+                            title="Conversas"
                         >
-                            <FaBell />
+                            Conversas
                             {alertsBadgeCount > 0 && (
-                                <span className="absolute -top-1 -right-1 min-w-[18px] rounded-full bg-red-500 px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
+                                <span className="ml-2 inline-flex min-w-[18px] rounded-full bg-red-500 px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
                                     {alertsBadgeCount > 99 ? '99+' : alertsBadgeCount}
                                 </span>
                             )}
