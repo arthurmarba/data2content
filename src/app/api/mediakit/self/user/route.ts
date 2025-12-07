@@ -41,6 +41,7 @@ function serializeUser(doc: any) {
       null,
     followers_count: resolvedFollowers,
     followersCount: resolvedFollowers,
+    mediaKitPricingPublished: Boolean(doc.mediaKitPricingPublished),
     instagramUsername: doc.instagramUsername ?? instagram.username ?? null,
     instagram: {
       username: instagram.username ?? null,
@@ -75,7 +76,7 @@ export async function GET() {
   await connectToDatabase();
   const user = await User.findById(userId)
     .select(
-      'name username handle email profile_picture_url biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count'
+      'name username handle email profile_picture_url biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count mediaKitPricingPublished'
     )
     .lean()
     .exec();

@@ -1246,7 +1246,9 @@ export default function MediaKitView({
   premiumAccess,
   pricing,
   onClearPricing,
-  packages,
+  packages = [],
+  pricingPublished = false,
+  onTogglePricingPublish,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -1333,8 +1335,9 @@ export default function MediaKitView({
     if (value === null || value === undefined || Number.isNaN(value)) return '—';
     return value.toLocaleString('pt-BR');
   };
+  const canDisplayPricing = Boolean(pricing && (!isPublicView || pricingPublished));
   const pricingCards = useMemo(() => {
-    if (!pricing) return [];
+    if (!canDisplayPricing || !pricing) return [];
 
     const calculateCpm = (val: number) => {
       if (!pricing.reach || pricing.reach <= 0) return 0;
@@ -1347,7 +1350,6 @@ export default function MediaKitView({
         label: 'Estratégico (Mínimo)',
         value: formatCurrencyLabel(pricing.estrategico),
         cpm: formatCurrencyLabel(calculateCpm(pricing.estrategico)),
-        helper: 'Para abrir portas e fechar pacotes.',
         badgeClass: 'bg-blue-50 text-blue-700',
         accentDot: 'bg-blue-500',
       },
@@ -1356,7 +1358,6 @@ export default function MediaKitView({
         label: 'Valor Justo (Sugerido)',
         value: formatCurrencyLabel(pricing.justo),
         cpm: formatCurrencyLabel(calculateCpm(pricing.justo)),
-        helper: 'Equilíbrio ideal entre esforço e retorno.',
         badgeClass: 'bg-emerald-50 text-emerald-700',
         accentDot: 'bg-emerald-500',
       },
@@ -1365,25 +1366,26 @@ export default function MediaKitView({
         label: 'Premium (Alto Valor)',
         value: formatCurrencyLabel(pricing.premium),
         cpm: formatCurrencyLabel(calculateCpm(pricing.premium)),
-        helper: 'Para alta demanda e entregas complexas.',
         badgeClass: 'bg-amber-50 text-amber-700',
         accentDot: 'bg-amber-500',
       },
     ] as const;
     return cards.filter((card) => Boolean(card.value));
-  }, [pricing]);
+  }, [pricing, canDisplayPricing]);
   const pricingReachLabel = useMemo(() => {
+    if (!canDisplayPricing) return null;
     if (typeof pricing?.reach === 'number' && Number.isFinite(pricing.reach) && pricing.reach > 0) {
       return `${pricing.reach.toLocaleString('pt-BR')} de alcance médio por post`;
     }
     return null;
-  }, [pricing]);
+  }, [pricing, canDisplayPricing]);
   const pricingUpdatedLabel = useMemo(() => {
+    if (!canDisplayPricing) return null;
     if (!pricing?.createdAt) return null;
     const parsed = new Date(pricing.createdAt);
     if (!Number.isFinite(parsed.getTime())) return null;
     return parsed.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  }, [pricing?.createdAt]);
+  }, [pricing?.createdAt, canDisplayPricing]);
   const displayKpis = kpiData as any;
   const initialTrendPeriod =
     comparisonToTimePeriod[normalizedInitialComparisonPeriod] ?? 'last_30_days';
@@ -2299,6 +2301,12 @@ export default function MediaKitView({
       affiliateCode,
     });
   }, [affiliateCode, affiliateHandle, affiliateLink, mediaKitSlug]);
+  const handlePricingPublishChange = useCallback(
+    (nextPublished: boolean) => {
+      onTogglePricingPublish?.(nextPublished);
+    },
+    [onTogglePricingPublish],
+  );
   useEffect(() => {
     if (shouldHidePremiumSections || shouldLockPremiumSections) return;
     if (!hasCategorySummaryData) return;
@@ -2542,6 +2550,27 @@ export default function MediaKitView({
                     {pricingReachLabel ? (
                       <p className="text-xs text-slate-500">{pricingReachLabel}</p>
                     ) : null}
+                    {showOwnerCtas ? (
+                      <div className="mt-2 flex flex-col gap-2">
+                        <span
+                          className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                            pricingPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {pricingPublished ? 'Publicado no Mídia Kit público' : 'Oculto no Mídia Kit público'}
+                        </span>
+                        <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-[#6E1F93] focus:ring-[#6E1F93]"
+                            checked={pricingPublished}
+                            onChange={(event) => handlePricingPublishChange(event.target.checked)}
+                            disabled={!onTogglePricingPublish}
+                          />
+                          <span>{pricingPublished ? 'Não exibir no público' : 'Exibir no Mídia Kit público'}</span>
+                        </label>
+                      </div>
+                    ) : null}
                   </div>
                   {pricingUpdatedLabel ? (
                     <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-white/60">
@@ -2566,7 +2595,6 @@ export default function MediaKitView({
                       <div className="mt-4 space-y-1">
                         <p className="text-3xl font-bold text-slate-900 leading-tight">{card.value}</p>
                       </div>
-                      <p className="mt-3 text-sm text-slate-500 leading-relaxed">{card.helper}</p>
                       {/* ... legacy cards ... */}
                     </div>
                   ))}

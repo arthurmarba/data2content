@@ -8,6 +8,7 @@ import type { Metadata } from 'next';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import PubliCalculation from '@/app/models/PubliCalculation';
+import MediaKitPackage from '@/app/models/MediaKitPackage';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
 
@@ -220,13 +221,14 @@ export default async function MediaKitPage(
   const host = reqHeaders.get('host') || 'localhost:3000';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
 
-  let [summary, videos, kpis, demographics, engagementTrend, latestCalculation] = await Promise.all([
+  let [summary, videos, kpis, demographics, engagementTrend, latestCalculation, packages] = await Promise.all([
     fetchSummary(baseUrl, (user as any)._id.toString()),
     fetchTopPosts(baseUrl, (user as any)._id.toString()), // ALTERADO
     fetchKpis(baseUrl, (user as any)._id.toString()),
     fetchDemographics(baseUrl, (user as any)._id.toString()),
     fetchEngagementTrend(baseUrl, (user as any)._id.toString()),
     PubliCalculation.findOne({ userId: (user as any)._id }).sort({ createdAt: -1 }).lean().exec(),
+    MediaKitPackage.find({ userId: (user as any)._id }).sort({ order: 1, createdAt: 1 }).lean().exec(),
   ]);
 
   const normalizeCategoryField = (value: unknown): string[] => {
@@ -302,6 +304,20 @@ export default async function MediaKitPage(
       createdAt: latestCalculation?.createdAt ? new Date(latestCalculation.createdAt).toISOString() : null,
     }
     : null;
+  const pricingPublished = Boolean((plainUser as any)?.mediaKitPricingPublished);
+
+  const normalizedPackages = Array.isArray(packages)
+    ? packages.map((pkg: any) => ({
+      ...pkg,
+      _id: pkg?._id?.toString?.() ?? pkg?._id,
+      id: pkg?._id?.toString?.() ?? pkg?.id,
+      deliverables: Array.isArray(pkg?.deliverables) ? pkg.deliverables : [],
+      price: typeof pkg?.price === 'number' ? pkg.price : 0,
+      currency: pkg?.currency || 'BRL',
+      createdAt: pkg?.createdAt ? new Date(pkg.createdAt).toISOString() : undefined,
+      updatedAt: pkg?.updatedAt ? new Date(pkg.updatedAt).toISOString() : undefined,
+    }))
+    : [];
 
   return (
         <MediaKitView
@@ -314,7 +330,9 @@ export default async function MediaKitPage(
           showOwnerCtas={false}
           mediaKitSlug={params.token}
           premiumAccess={premiumAccessConfig}
-          pricing={pricing}
+          pricing={pricingPublished ? pricing : null}
+          pricingPublished={pricingPublished}
+          packages={normalizedPackages}
         />
   );
 }

@@ -235,6 +235,7 @@ function SelfMediaKitContent({
   const [engagementTrend, setEngagementTrend] = useState<any | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<any | null>(null);
   const [pricing, setPricing] = useState<MediaKitPricing | null>(null);
+  const [pricingPublished, setPricingPublished] = useState(false);
   const [packages, setPackages] = useState<MediaKitPackage[]>([]);
 
   useEffect(() => {
@@ -288,6 +289,7 @@ function SelfMediaKitContent({
       setEngagementTrend(engagementTrendData);
       setOwnerProfile(ownerProfileData?.user ?? null);
       setPricing(pricingData?.pricing ?? null);
+      setPricingPublished(Boolean(pricingData?.published));
       setPackages(Array.isArray(packagesData?.packages) ? packagesData.packages : []);
 
       if (!summaryData && videosList.length === 0 && !kpisData && !demographicsData && !engagementTrendData) {
@@ -363,23 +365,35 @@ function SelfMediaKitContent({
     }
 
     try {
-      const [resPricing, resPackages] = await Promise.all([
-        fetch('/api/mediakit/self/pricing', { method: 'DELETE' }),
-        fetch('/api/mediakit/self/packages', { method: 'DELETE' }),
-      ]);
+      const resPricing = await fetch('/api/mediakit/self/pricing', { method: 'DELETE' });
 
       if (resPricing.ok) {
         setPricing(null);
-      }
-      if (resPackages.ok) {
-        setPackages([]);
-      }
-
-      if (!resPricing.ok && !resPackages.ok) {
-        console.error('Falha ao limpar pricing/pacotes');
+        setPricingPublished(false);
+      } else {
+        console.error('Falha ao limpar pricing');
       }
     } catch (e) {
       console.error('Erro ao limpar pricing', e);
+    }
+  };
+
+  const handleTogglePricingPublish = async (nextPublished: boolean) => {
+    try {
+      const res = await fetch('/api/mediakit/self/pricing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: nextPublished }),
+      });
+
+      if (!res.ok) {
+        console.error('Falha ao atualizar publicação do pricing');
+        return;
+      }
+
+      setPricingPublished(nextPublished);
+    } catch (e) {
+      console.error('Erro ao atualizar publicação do pricing', e);
     }
   };
 
@@ -397,6 +411,8 @@ function SelfMediaKitContent({
       premiumAccess={premiumAccess}
       pricing={pricing}
       onClearPricing={handleClearPricing}
+      pricingPublished={pricingPublished}
+      onTogglePricingPublish={handleTogglePricingPublish}
       packages={packages}
     />
   );

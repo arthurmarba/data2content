@@ -145,6 +145,8 @@ export interface MediaKitViewProps {
   pricing?: MediaKitPricing | null;
   onClearPricing?: () => void;
   packages?: MediaKitPackage[];
+  pricingPublished?: boolean;
+  onTogglePricingPublish?: (nextPublished: boolean) => void;
 }
 
 export interface MediaKitPackage {

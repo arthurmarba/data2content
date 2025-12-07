@@ -249,6 +249,7 @@ export interface IUser extends Document {
   linkTokenExpiresAt?: Date;
   mediaKitToken?: string;
   mediaKitSlug?: string;
+  mediaKitPricingPublished?: boolean;
   role: UserRole;
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
@@ -508,6 +509,7 @@ const userSchema = new Schema<IUser>(
     linkTokenExpiresAt: { type: Date },
     mediaKitToken: { type: String, unique: true, sparse: true },
     mediaKitSlug: { type: String, unique: true, sparse: true },
+    mediaKitPricingPublished: { type: Boolean, default: false },
     role: { type: String, enum: USER_ROLES, default: "user" },
     agency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
