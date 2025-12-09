@@ -3,6 +3,7 @@
 import React from "react";
 import type { LandingCommunityMetrics } from "@/types/landing";
 import ButtonPrimary from "./ButtonPrimary";
+import OnboardingSurveyStepper from "./OnboardingSurveyStepper";
 
 type HeroModernProps = {
   onCreatorCta: () => void;
@@ -223,6 +224,8 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
             <HighlightCard key={item.metricLabel} index={index} {...item} />
           ))}
         </div>
+
+        <OnboardingSurveyStepper metrics={metrics} />
       </div>
     </section>
   );

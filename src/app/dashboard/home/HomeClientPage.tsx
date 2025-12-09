@@ -46,6 +46,7 @@ import { useHeaderSetup } from "../context/HeaderContext";
 import TutorialProgress, { type TutorialProgressStep } from "./tutorial/TutorialProgress";
 import CreatorToolsGrid from "./tutorial/CreatorToolsGrid";
 import type { CreatorToolCardProps } from "./tutorial/CreatorToolCard";
+import SurveyModal from "./minimal/SurveyModal";
 
 type Period = CommunityMetricsCardData["period"];
 const DEFAULT_PERIOD: Period = "30d";
@@ -107,6 +108,7 @@ const TUTORIAL_STEP_ICONS: Record<JourneyStepId, IconType> = {
   connect_instagram: FaInstagram,
   create_media_kit: FaMagic,
   publish_media_kit_link: FaLink,
+  personalize_support: FaRobot,
   activate_pro: FaGem,
 };
 
@@ -125,6 +127,10 @@ const JOURNEY_STEP_COPY: Record<
   publish_media_kit_link: {
     stepHelper: "Adicione o link do kit na bio e em propostas para provar sua autoridade automaticamente.",
     ctaLabel: "Copiar link do kit",
+  },
+  personalize_support: {
+    stepHelper: "Responda a pesquisa de personalização (2 min) para ajustar IA e suporte ao seu momento.",
+    ctaLabel: "Personalizar suporte",
   },
   activate_pro: {
     stepHelper:
@@ -179,6 +185,7 @@ export default function HomeClientPage() {
   const [showWelcomeCard, setShowWelcomeCard] = React.useState(false);
   const [isHydrated, setIsHydrated] = React.useState(false);
   const onboardingCompletionRequested = React.useRef(false);
+  const [showSurveyModal, setShowSurveyModal] = React.useState(false);
   const isNewUser = Boolean(session?.user?.isNewUserForOnboarding);
   const focusIntent = searchParams?.get("intent")?.toLowerCase() ?? null;
   const sessionUserId = session?.user?.id ?? null;
@@ -955,6 +962,14 @@ export default function HomeClientPage() {
 
   const isCommunityMember = communityVipHasAccess ? communityVipMember : communityFreeMember;
 
+  const surveyCompleted = React.useMemo(() => {
+    const journeyStep = summary?.journeyProgress?.steps?.find((s) => s.id === "personalize_support");
+    if (journeyStep) return journeyStep.status === "done";
+    return Boolean(
+      summary?.journeyProgress?.steps?.some((s) => s.id === "personalize_support" && s.status === "done"),
+    );
+  }, [summary?.journeyProgress?.steps]);
+
   const progressItems = React.useMemo<JourneyStep[]>(() => {
     const instagramStatus: StepStatus = isInstagramConnected ? "done" : "todo";
     const iaActive = whatsappLinked || whatsappTrialActive;
@@ -962,6 +977,7 @@ export default function HomeClientPage() {
     const proStatus: StepStatus = planIsPro ? "done" : trialExpired ? "todo" : whatsappTrialActive ? "in-progress" : "todo";
     const mentorshipStatus: StepStatus = communityVipMember ? "done" : "todo";
     const communityFreeStatus: StepStatus = communityFreeMember ? "done" : "todo";
+    const surveyStatus: StepStatus = surveyCompleted ? "done" : "todo";
 
     return [
       {
@@ -1030,6 +1046,19 @@ export default function HomeClientPage() {
         variant: "vip",
         disabled: false,
       },
+      {
+        id: "progress-personalize-support",
+        title: "Personalizar IA e suporte",
+        description: surveyCompleted
+          ? "Preferências salvas. Atualize quando seu foco ou dores mudarem."
+          : "Responda em 2 minutos para ajustar IA, UX e notificações ao seu momento.",
+        icon: <FaRobot />,
+        status: surveyStatus,
+        actionLabel: surveyCompleted ? "Revisar respostas" : "Responder pesquisa",
+        action: () => setShowSurveyModal(true),
+        variant: "secondary",
+        disabled: false,
+      },
     ];
   }, [
     communityFreeMember,
@@ -1044,6 +1073,7 @@ export default function HomeClientPage() {
     isInstagramConnected,
     planIsPro,
     trialExpired,
+    surveyCompleted,
     whatsappLinked,
     whatsappTrialActive,
   ]);
@@ -1057,11 +1087,12 @@ export default function HomeClientPage() {
     if (focusIntent) {
       const intentMap: Record<string, string> = {
         instagram: "progress-instagram",
-        community: "progress-community",
+        community: "progress-community-free",
         whatsapp: "progress-ai",
         ia: "progress-ai",
         plan: "progress-pro",
         subscription: "progress-pro",
+        survey: "progress-personalize-support",
       };
       const mapped = intentMap[focusIntent];
       if (mapped) return mapped;
@@ -1702,6 +1733,7 @@ export default function HomeClientPage() {
       connect_instagram: "connect_ig",
       create_media_kit: "create_media_kit",
       publish_media_kit_link: "edit_kit",
+      personalize_support: "open_creator_survey",
       activate_pro: "activate_pro",
     };
     const target = targetByStep[stepId] ?? "open_proposals";
@@ -1720,6 +1752,9 @@ export default function HomeClientPage() {
         } else {
           handleNavigate(mediaKitShareIntentUrl);
         }
+        break;
+      case "personalize_support":
+        handleNavigate("/#etapa-5-pesquisa");
         break;
       case "activate_pro":
         if (hasPremiumAccessPlan) {
@@ -1919,6 +1954,14 @@ export default function HomeClientPage() {
           />
         </div>
         {connectBanner}
+        <SurveyModal
+          open={showSurveyModal}
+          onClose={() => setShowSurveyModal(false)}
+          onSaved={() => {
+            setShowSurveyModal(false);
+            void refreshProposalsSummary();
+          }}
+        />
       </div>
     );
   }

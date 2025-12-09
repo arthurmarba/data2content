@@ -24,7 +24,8 @@ export type DashboardCtaTarget =
   | "copy_kit_link"
   | "view_as_brand"
   | "edit_kit"
-  | "activate_pro";
+  | "activate_pro"
+  | "open_creator_survey";
 
 export type DashboardCtaSurface =
   | "flow_checklist"

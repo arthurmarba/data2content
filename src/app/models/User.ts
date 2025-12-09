@@ -196,6 +196,63 @@ export interface IUserKeyFact {
   mentionedAt?: Date;
 }
 
+export type CreatorStage = 'iniciante' | 'hobby' | 'renda-extra' | 'full-time' | 'empresa';
+export type CreatorHelper = 'solo' | 'edicao-design' | 'social-media' | 'agencia';
+export type MainGoal3m = 'crescer-seguidores' | 'aumentar-engajamento' | 'profissionalizar-publis' | 'organizar-rotina' | 'aumentar-faturamento' | 'outro';
+export type HardestStage = 'planejar' | 'produzir' | 'postar' | 'analisar' | 'negociar';
+export type MonetizationStatus = 'varias' | 'poucas' | 'nunca-quero' | 'nunca-sem-interesse';
+export type PriceRange =
+  | 'permuta'
+  | '0-500'
+  | '500-1500'
+  | '1500-3000'
+  | '3000-5000'
+  | '5000-8000'
+  | '8000-plus'
+  | '3000-plus' // legado
+  | null;
+export type PricingMethod = 'chute' | 'seguidores' | 'esforco' | 'agencia' | 'calculadora' | null;
+export type PricingFear = 'caro' | 'barato' | 'justificar' | 'amador' | 'outro' | null;
+export type PlatformReason =
+  | 'metricas'
+  | 'media-kit'
+  | 'planejar'
+  | 'negociar'
+  | 'oportunidades'
+  | 'mentorias'
+  | 'posicionamento-marcas'
+  | 'outro';
+export type LearningStyle = 'videos' | 'texto' | 'checklist' | 'aula';
+export type NotificationPref = 'email' | 'whatsapp' | 'in-app' | null;
+export type NextPlatform = 'tiktok' | 'youtube' | 'outra' | 'nenhuma' | null;
+
+export interface ICreatorProfileExtended {
+  stage: CreatorStage[];
+  brandTerritories: string[];
+  niches: string[];
+  hasHelp: CreatorHelper[];
+  dreamBrands: string[];
+  mainGoal3m: MainGoal3m | null;
+  mainGoalOther?: string | null;
+  success12m: string;
+  mainPains: string[];
+  otherPain?: string | null;
+  hardestStage: HardestStage[];
+  hasDoneSponsoredPosts: MonetizationStatus | null;
+  avgPriceRange: PriceRange;
+  bundlePriceRange: PriceRange;
+  pricingMethod: PricingMethod;
+  pricingFear: PricingFear;
+  pricingFearOther?: string | null;
+  mainPlatformReasons: PlatformReason[];
+  reasonOther?: string | null;
+  dailyExpectation: string;
+  nextPlatform: NextPlatform[];
+  learningStyles: LearningStyle[];
+  notificationPref: NotificationPref[];
+  updatedAt?: Date;
+}
+
 export interface IUserLocation {
   country?: string;
   state?: string;
@@ -342,6 +399,7 @@ export interface IUser extends Document {
   userKeyFacts?: IUserKeyFact[];
   totalMessages?: number;
   alertHistory?: IAlertHistoryEntry[];
+  creatorProfileExtended?: ICreatorProfileExtended | null;
   creatorContext?: {
     id: string;
     confidence: number;
@@ -594,6 +652,52 @@ const userSchema = new Schema<IUser>(
     userKeyFacts: { type: [UserKeyFactSchema], default: [] },
     totalMessages: { type: Number, default: 0 },
     alertHistory: { type: [AlertHistoryEntrySchema], default: [] },
+    creatorProfileExtended: {
+      stage: { type: [String], enum: ['iniciante', 'hobby', 'renda-extra', 'full-time', 'empresa'], default: [] },
+      brandTerritories: { type: [String], default: [] },
+      niches: { type: [String], default: [] },
+      hasHelp: { type: [String], enum: ['solo', 'edicao-design', 'social-media', 'agencia'], default: [] },
+      dreamBrands: { type: [String], default: [] },
+      mainGoal3m: {
+        type: String,
+        enum: ['crescer-seguidores', 'aumentar-engajamento', 'profissionalizar-publis', 'organizar-rotina', 'aumentar-faturamento', 'outro', null],
+        default: null
+      },
+      mainGoalOther: { type: String, default: "" },
+      success12m: { type: String, default: "" },
+      mainPains: { type: [String], default: [] },
+      otherPain: { type: String, default: "" },
+      hardestStage: { type: [String], enum: ['planejar', 'produzir', 'postar', 'analisar', 'negociar'], default: [] },
+      hasDoneSponsoredPosts: {
+        type: String,
+        enum: ['varias', 'poucas', 'nunca-quero', 'nunca-sem-interesse', null],
+        default: null
+      },
+      avgPriceRange: {
+        type: String,
+        enum: ['permuta', '0-500', '500-1500', '1500-3000', '3000-5000', '5000-8000', '8000-plus', '3000-plus', null],
+        default: null
+      },
+       bundlePriceRange: {
+        type: String,
+        enum: ['permuta', '0-500', '500-1500', '1500-3000', '3000-5000', '5000-8000', '8000-plus', '3000-plus', null],
+        default: null
+      },
+      pricingMethod: { type: String, enum: ['chute', 'seguidores', 'esforco', 'agencia', 'calculadora', null], default: null },
+      pricingFear: { type: String, enum: ['caro', 'barato', 'justificar', 'amador', 'outro', null], default: null },
+      pricingFearOther: { type: String, default: "" },
+      mainPlatformReasons: {
+        type: [String],
+        enum: ['metricas', 'media-kit', 'planejar', 'negociar', 'oportunidades', 'mentorias', 'posicionamento-marcas', 'outro'],
+        default: []
+      },
+      reasonOther: { type: String, default: "" },
+      dailyExpectation: { type: String, default: "" },
+      nextPlatform: { type: [String], enum: ['tiktok', 'youtube', 'outra', 'nenhuma'], default: [] },
+      learningStyles: { type: [String], enum: ['videos', 'texto', 'checklist', 'aula'], default: [] },
+      notificationPref: { type: [String], enum: ['email', 'whatsapp', 'in-app'], default: [] },
+      updatedAt: { type: Date },
+    },
     creatorContext: {
       id: { type: String, index: true },
       confidence: { type: Number },

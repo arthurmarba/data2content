@@ -13,6 +13,7 @@ import MediaKitSnapshot from "./MediaKitSnapshot";
 import ProUpsellCard from "./ProUpsellCard";
 import MinimalSkeleton from "./MinimalSkeleton";
 import { track } from "@/lib/track";
+import SurveyModal from "./SurveyModal";
 
 const AUTO_REFRESH_INTERVAL_MS = 90_000;
 const CTA_TARGET_VALUES: DashboardCtaTarget[] = [
@@ -24,6 +25,7 @@ const CTA_TARGET_VALUES: DashboardCtaTarget[] = [
   "view_as_brand",
   "edit_kit",
   "activate_pro",
+  "open_creator_survey",
 ];
 
 const CTA_TARGET_SET = new Set<string>(CTA_TARGET_VALUES);
@@ -33,6 +35,7 @@ const STEP_TARGET_FALLBACK: Record<DashboardChecklistStep["id"], DashboardCtaTar
   create_media_kit: "create_media_kit",
   receive_proposals: "open_proposals",
   respond_with_ai: "analyze_with_ai",
+  personalize_support: "open_creator_survey",
 };
 
 function resolveTarget(step: DashboardChecklistStep): DashboardCtaTarget {
@@ -75,6 +78,12 @@ export default function MinimalDashboard({
 
   const handleStepAction = React.useCallback(
     (step: DashboardChecklistStep) => {
+      if (step.id === "personalize_support") {
+        trackCta("open_creator_survey", "flow_checklist", { step_id: step.id });
+        setShowSurveyModal(true);
+        return;
+      }
+
       if (!step.actionHref) return;
 
       if (step.id === "respond_with_ai" && summary?.plan && !summary.plan.hasPremiumAccess) {
@@ -91,6 +100,12 @@ export default function MinimalDashboard({
 
   const handleStepShortcut = React.useCallback(
     (step: DashboardChecklistStep) => {
+      if (step.id === "personalize_support") {
+        trackCta("open_creator_survey", "flow_checklist", { step_id: step.id, shortcut: true });
+        setShowSurveyModal(true);
+        return;
+      }
+
       if (!step.completedHref) return;
       trackCta(resolveTarget(step), "flow_checklist", {
         step_id: step.id,
@@ -162,80 +177,93 @@ export default function MinimalDashboard({
     [onNavigate, trackCta]
   );
 
+  const [showSurveyModal, setShowSurveyModal] = React.useState(false);
+
   if (!summary && loading) {
     return <MinimalSkeleton />;
   }
 
   return (
-    <div className="grid w-full grid-cols-1 gap-6 pb-8 lg:grid-cols-2 xl:grid-cols-3">
-      <section className="xl:col-span-3">
-        <FlowChecklist
-          loading={loading && !flowChecklist}
-          checklist={flowChecklist}
-          plan={plan}
-          onStepAction={handleStepAction}
-          onStepShortcut={handleStepShortcut}
-        />
-      </section>
+    <>
+      <div className="grid w-full grid-cols-1 gap-6 pb-8 lg:grid-cols-2 xl:grid-cols-3">
+        <section className="xl:col-span-3">
+          <FlowChecklist
+            loading={loading && !flowChecklist}
+            checklist={flowChecklist}
+            plan={plan}
+            onStepAction={handleStepAction}
+            onStepShortcut={handleStepShortcut}
+          />
+        </section>
 
-      <section className="lg:col-span-2 xl:col-span-2">
-        <ProposalsPanel
-          loading={loading && !proposalsSummary}
-          summary={proposalsSummary}
-          onOpenProposals={() => {
-            trackCta("open_proposals", "proposals_block");
-            onNavigate("/dashboard/proposals");
-          }}
-          onRespondNow={() => {
-            if (plan && plan.hasPremiumAccess) {
-              trackCta("analyze_with_ai", "proposals_block");
-              onNavigate("/dashboard/proposals?status=novo");
-              return;
-            }
-            onTriggerPaywall("analyze_with_ai");
-            trackCta("activate_pro", "proposals_block", { origin: "pending_banner" });
-          }}
-          onRefresh={() => {
-            trackCta("open_proposals", "proposals_block", { intent: "refresh" });
-            Promise.resolve(onRefresh({ silent: false })).catch(() => {
-              // feedback de erro já tratado via toast no handler superior
-            });
-          }}
-          plan={plan}
-          checklistSummary={flowChecklist?.summary ?? null}
-          onConnectInstagram={() => goToConnectInstagram("proposals_block")}
-          onCreateMediaKit={() => goToCreateMediaKit("proposals_block")}
-          onCopyMediaKitLink={() => copyMediaKitLink("proposals_block")}
-        />
-      </section>
+        <section className="lg:col-span-2 xl:col-span-2">
+          <ProposalsPanel
+            loading={loading && !proposalsSummary}
+            summary={proposalsSummary}
+            onOpenProposals={() => {
+              trackCta("open_proposals", "proposals_block");
+              onNavigate("/dashboard/proposals");
+            }}
+            onRespondNow={() => {
+              if (plan && plan.hasPremiumAccess) {
+                trackCta("analyze_with_ai", "proposals_block");
+                onNavigate("/dashboard/proposals?status=novo");
+                return;
+              }
+              onTriggerPaywall("analyze_with_ai");
+              trackCta("activate_pro", "proposals_block", { origin: "pending_banner" });
+            }}
+            onRefresh={() => {
+              trackCta("open_proposals", "proposals_block", { intent: "refresh" });
+              Promise.resolve(onRefresh({ silent: false })).catch(() => {
+                // feedback de erro já tratado via toast no handler superior
+              });
+            }}
+            plan={plan}
+            checklistSummary={flowChecklist?.summary ?? null}
+            onConnectInstagram={() => goToConnectInstagram("proposals_block")}
+            onCreateMediaKit={() => goToCreateMediaKit("proposals_block")}
+            onCopyMediaKitLink={() => copyMediaKitLink("proposals_block")}
+          />
+        </section>
 
-      <section className="lg:col-span-2 xl:col-span-1">
-        <MediaKitSnapshot
-          loading={loading && !mediaKitCard}
-          mediaKit={mediaKitCard}
-          onCopyLink={() => copyMediaKitLink("media_kit_block")}
-          creatorId={creatorId ?? null}
-          onViewAsBrand={() => {
-            trackCta("view_as_brand", "media_kit_block");
-          }}
-          onEdit={() => {
-            trackCta("edit_kit", "media_kit_block");
-            onNavigate("/dashboard/media-kit");
-          }}
-        />
-      </section>
+        <section className="lg:col-span-2 xl:col-span-1">
+          <MediaKitSnapshot
+            loading={loading && !mediaKitCard}
+            mediaKit={mediaKitCard}
+            onCopyLink={() => copyMediaKitLink("media_kit_block")}
+            creatorId={creatorId ?? null}
+            onViewAsBrand={() => {
+              trackCta("view_as_brand", "media_kit_block");
+            }}
+            onEdit={() => {
+              trackCta("edit_kit", "media_kit_block");
+              onNavigate("/dashboard/media-kit");
+            }}
+          />
+        </section>
 
-      <section className="xl:col-span-1">
-        <ProUpsellCard
-          plan={plan}
-          onActivate={() => {
-            trackCta("activate_pro", "upsell_block");
-            onTriggerPaywall("activate_pro");
-          }}
-          onNavigate={onNavigate}
-          loading={loading && !plan}
-        />
-      </section>
-    </div>
+        <section className="xl:col-span-1">
+          <ProUpsellCard
+            plan={plan}
+            onActivate={() => {
+              trackCta("activate_pro", "upsell_block");
+              onTriggerPaywall("activate_pro");
+            }}
+            onNavigate={onNavigate}
+            loading={loading && !plan}
+          />
+        </section>
+      </div>
+
+      <SurveyModal
+        open={showSurveyModal}
+        onClose={() => setShowSurveyModal(false)}
+        onSaved={() => {
+          setShowSurveyModal(false);
+          Promise.resolve(onRefresh({ silent: false })).catch(() => undefined);
+        }}
+      />
+    </>
   );
 }

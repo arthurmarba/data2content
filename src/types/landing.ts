@@ -74,3 +74,67 @@ export interface LandingCommunityStatsResponse {
   categories: LandingCategoryInsight[];
   lastUpdatedIso: string | null;
 }
+
+export type SurveyStepId = "niche" | "about" | "goals" | "publis" | "support";
+
+export type CreatorStage = "iniciante" | "hobby" | "renda-extra" | "full-time" | "empresa";
+export type CreatorHelper = "solo" | "edicao-design" | "social-media" | "agencia";
+export type MainGoal3m =
+  | "crescer-seguidores"
+  | "aumentar-engajamento"
+  | "profissionalizar-publis"
+  | "organizar-rotina"
+  | "aumentar-faturamento"
+  | "outro";
+export type HardestStage = "planejar" | "produzir" | "postar" | "analisar" | "negociar";
+export type MonetizationStatus = "varias" | "poucas" | "nunca-quero" | "nunca-sem-interesse";
+export type PriceRange =
+  | "permuta"
+  | "0-500"
+  | "500-1500"
+  | "1500-3000"
+  | "3000-5000"
+  | "5000-8000"
+  | "8000-plus"
+  | "3000-plus" // legado
+  | null;
+export type PricingMethod = "chute" | "seguidores" | "esforco" | "agencia" | "calculadora" | null;
+export type PricingFear = "caro" | "barato" | "justificar" | "amador" | "outro" | null;
+export type PlatformReason =
+  | "metricas"
+  | "media-kit"
+  | "planejar"
+  | "negociar"
+  | "oportunidades"
+  | "mentorias"
+  | "posicionamento-marcas"
+  | "outro";
+export type LearningStyle = "videos" | "texto" | "checklist" | "aula";
+export type NotificationPref = "email" | "whatsapp" | "in-app" | null;
+export type NextPlatform = "tiktok" | "youtube" | "outra" | "nenhuma" | null;
+
+export interface CreatorProfileExtended {
+  stage: CreatorStage[];
+  brandTerritories: string[];
+  niches: string[];
+  hasHelp: CreatorHelper[];
+  dreamBrands: string[];
+  mainGoal3m: MainGoal3m | null;
+  mainGoalOther?: string | null;
+  success12m: string;
+  mainPains: string[]; // already multi, keep
+  otherPain?: string | null;
+  hardestStage: HardestStage[];
+  hasDoneSponsoredPosts: MonetizationStatus | null;
+  avgPriceRange: PriceRange;
+  bundlePriceRange: PriceRange;
+  pricingMethod: PricingMethod;
+  pricingFear: PricingFear;
+  pricingFearOther?: string | null;
+  mainPlatformReasons: PlatformReason[];
+  reasonOther?: string | null;
+  dailyExpectation: string;
+  nextPlatform: NextPlatform[];
+  learningStyles: LearningStyle[];
+  notificationPref: NotificationPref[];
+}

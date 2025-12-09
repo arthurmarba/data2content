@@ -35,7 +35,7 @@ function TutorialProgressSkeleton() {
       <div className="mt-2 h-4 w-72 animate-pulse rounded bg-slate-200" />
       <div className="mt-6 h-3 w-full animate-pulse rounded-full bg-slate-200" />
       <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({ length: 5 }).map((_, index) => (
           <div key={index} className="rounded-2xl border border-slate-100 p-4">
             <div className="h-10 w-10 rounded-2xl bg-slate-200" />
             <div className="mt-4 h-4 w-2/3 rounded bg-slate-200" />

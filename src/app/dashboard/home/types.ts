@@ -78,7 +78,8 @@ export type DashboardChecklistStepId =
   | "connect_ig"
   | "create_media_kit"
   | "receive_proposals"
-  | "respond_with_ai";
+  | "respond_with_ai"
+  | "personalize_support";
 
 export type DashboardChecklistStepStatus = "done" | "in_progress" | "todo";
 
@@ -153,6 +154,7 @@ export type JourneyStepId =
   | "connect_instagram"
   | "create_media_kit"
   | "publish_media_kit_link"
+  | "personalize_support"
   | "activate_pro";
 
 export type JourneyStepStatus = "done" | "in_progress" | "todo";
