@@ -5,6 +5,12 @@ import { FilterQuery } from 'mongoose';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric, { IMetric } from '@/app/models/Metric';
+import { getCategoryById } from '@/app/lib/classification';
+
+const PUBLI_PROPOSAL_LABEL = getCategoryById('publi_divulgation', 'proposal')?.label ?? 'Publi/Divulgação';
+const PROMOTIONAL_TONE_LABEL = getCategoryById('promotional', 'tone')?.label ?? 'Promocional/Comercial';
+const PUBLI_PROPOSAL_VALUES = [PUBLI_PROPOSAL_LABEL, 'publi_divulgation', 'Publi/Divulgacao'];
+const PROMOTIONAL_TONE_VALUES = [PROMOTIONAL_TONE_LABEL, 'promotional', 'Promocional/Comercial'];
 
 export const runtime = 'nodejs';
 
@@ -30,7 +36,11 @@ export async function GET(request: NextRequest) {
 
     const query: FilterQuery<IMetric> = {
         user: session.user.id,
-        proposal: 'publi_divulgation'
+        // Posts de publi podem ser marcados tanto pela proposta quanto pelo tom promocional.
+        $or: [
+            { proposal: { $in: PUBLI_PROPOSAL_VALUES } },
+            { tone: { $in: PROMOTIONAL_TONE_VALUES } },
+        ],
     };
 
     if (category) {
