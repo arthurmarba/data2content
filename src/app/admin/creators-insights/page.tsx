@@ -14,6 +14,7 @@ import {
   ClipboardDocumentListIcon,
   AdjustmentsHorizontalIcon,
   ClockIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import {
   BarChart,
@@ -37,6 +38,10 @@ import {
   AdminCreatorSurveyDetail,
   AdminCreatorSurveyListItem,
   AdminCreatorSurveyListParams,
+  AdminCreatorSurveyOpenResponse,
+  CategoryMetricBreakdown,
+  CityMetric,
+  CityPricingBySize,
   DistributionEntry,
 } from '@/types/admin/creatorSurvey';
 import {
@@ -102,6 +107,20 @@ const platformReasonsOptions = [
   { value: 'mentorias', label: 'Mentorias/suporte' },
   { value: 'posicionamento-marcas', label: 'Posicionar para marcas' },
   { value: 'outro', label: 'Outro' },
+];
+
+const openQuestionOptions = [
+  { value: '', label: 'Todas as perguntas abertas' },
+  { value: 'success12m', label: 'História de sucesso (12m)' },
+  { value: 'dailyExpectation', label: 'Expectativa diária' },
+  { value: 'mainGoalOther', label: 'Objetivo (outro)' },
+  { value: 'otherPain', label: 'Outra dor' },
+  { value: 'pricingFearOther', label: 'Medo de precificar (outro)' },
+  { value: 'reasonOther', label: 'Motivo para usar (outro)' },
+  { value: 'dreamBrands', label: 'Marcas dos sonhos' },
+  { value: 'brandTerritories', label: 'Territórios de marca' },
+  { value: 'niches', label: 'Niches/temas' },
+  { value: 'hasHelp', label: 'Tem ajuda' },
 ];
 
 const chartColors = ['#4F46E5', '#22C55E', '#F59E0B', '#EF4444', '#0EA5E9', '#8B5CF6'];
@@ -266,13 +285,26 @@ export default function CreatorsInsightsPage() {
   const [analytics, setAnalytics] = useState<AdminCreatorSurveyAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
+  const [openResponses, setOpenResponses] = useState<AdminCreatorSurveyOpenResponse[]>([]);
+  const [openResponsesLoading, setOpenResponsesLoading] = useState(false);
+  const [openResponsesError, setOpenResponsesError] = useState<string | null>(null);
+  const [openResponsesPage, setOpenResponsesPage] = useState(1);
+  const [openResponsesHasMore, setOpenResponsesHasMore] = useState(false);
+  const [openResponsesTotal, setOpenResponsesTotal] = useState(0);
+  const [openResponsesSearch, setOpenResponsesSearch] = useState('');
+  const [openResponsesQuestion, setOpenResponsesQuestion] = useState<string>('');
+  const [openResponsesExpanded, setOpenResponsesExpanded] = useState<Record<string, boolean>>({});
+  const [openResponsesLoaded, setOpenResponsesLoaded] = useState(0);
+  const openResponsesSearchTimer = useRef<NodeJS.Timeout | null>(null);
+
   const [exporting, setExporting] = useState(false);
   const [exportModal, setExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
   const [exportColumns, setExportColumns] = useState<string[]>([]);
+  const [exportIncludeHistory, setExportIncludeHistory] = useState(false);
   const [nicheInput, setNicheInput] = useState('');
   const [brandInput, setBrandInput] = useState('');
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(['name', 'email', 'niche', 'stage', 'monetization', 'pain', 'followers', 'reach', 'engaged', 'country', 'gender', 'updatedAt']);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(['name', 'email', 'niche', 'stage', 'monetization', 'pain', 'followers', 'reach', 'engaged', 'city', 'country', 'gender', 'updatedAt']);
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [userSearch, setUserSearch] = useState('');
@@ -280,6 +312,7 @@ export default function CreatorsInsightsPage() {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const userSearchTimer = useRef<NodeJS.Timeout | null>(null);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const sortConfig = useMemo(
     () => ({ sortBy: filters.sortBy ?? 'updatedAt', sortOrder: filters.sortOrder ?? 'desc' }),
@@ -344,7 +377,16 @@ export default function CreatorsInsightsPage() {
       try {
         const params = buildParams(filters);
         const res = await fetch(`/api/admin/creators-survey?${params.toString()}`);
-        if (!res.ok) throw new Error('Falha ao carregar criadores');
+        if (!res.ok) {
+          let message = 'Falha ao carregar criadores';
+          try {
+            const data = await res.json();
+            message = data?.error || data?.message || message;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(message);
+        }
         const data = await res.json();
         setList(data.items || []);
         setTotal(data.total || 0);
@@ -369,7 +411,16 @@ export default function CreatorsInsightsPage() {
         params.delete('sortBy');
         params.delete('sortOrder');
         const res = await fetch(`/api/admin/creators-survey/analytics?${params.toString()}`);
-        if (!res.ok) throw new Error('Falha ao carregar analytics');
+        if (!res.ok) {
+          let message = 'Falha ao carregar analytics';
+          try {
+            const data = await res.json();
+            message = data?.error || data?.message || message;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(message);
+        }
         const data = await res.json();
         setAnalytics(data);
       } catch (e) {
@@ -380,6 +431,64 @@ export default function CreatorsInsightsPage() {
     };
     if (activeTab === 'overview') fetchAnalytics();
   }, [filters, activeTab]);
+
+  const fetchOpenResponses = async (pageToLoad = 1, reset = false) => {
+    if (activeTab !== 'overview') return;
+    setOpenResponsesLoading(true);
+    if (reset) {
+      setOpenResponsesPage(1);
+      setOpenResponsesExpanded({});
+    }
+    try {
+      const params = buildParams(filters);
+      params.set('page', String(pageToLoad));
+      params.set('pageSize', '30');
+      if (openResponsesQuestion) params.set('question', openResponsesQuestion);
+      if (openResponsesSearch.trim()) params.set('q', openResponsesSearch.trim());
+      const res = await fetch(`/api/admin/creators-survey/open-responses?${params.toString()}`);
+      if (!res.ok) {
+        let message = 'Falha ao carregar respostas abertas';
+        try {
+          const data = await res.json();
+          message = data?.error || data?.message || message;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
+      const data = await res.json();
+      setOpenResponses((prev) => (reset ? data.responses || [] : [...prev, ...(data.responses || [])]));
+      setOpenResponsesTotal(data.total || 0);
+      setOpenResponsesHasMore(Boolean(data.hasMore));
+      setOpenResponsesPage(data.page || pageToLoad);
+      setOpenResponsesLoaded((prev) => (reset ? (data.responses?.length || 0) : prev + (data.responses?.length || 0)));
+      setOpenResponsesError(null);
+    } catch (e: any) {
+      if (reset) setOpenResponses([]);
+      setOpenResponsesError(e.message || 'Erro ao carregar respostas abertas');
+    } finally {
+      setOpenResponsesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'overview') return;
+    fetchOpenResponses(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, activeTab, openResponsesQuestion]);
+
+  useEffect(() => {
+    if (activeTab !== 'overview') return;
+    if (openResponsesSearchTimer.current) clearTimeout(openResponsesSearchTimer.current);
+    openResponsesSearchTimer.current = setTimeout(() => {
+      setOpenResponsesLoaded(0);
+      fetchOpenResponses(1, true);
+    }, 400);
+    return () => {
+      if (openResponsesSearchTimer.current) clearTimeout(openResponsesSearchTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openResponsesSearch, activeTab]);
 
   const handleSort = (columnKey: string) => {
     let sortOrder: 'asc' | 'desc' = 'asc';
@@ -402,6 +511,10 @@ export default function CreatorsInsightsPage() {
       const next = exists ? current.filter((v) => v !== value) : [...current, value];
       return { ...prev, [key]: next, page: 1 };
     });
+  };
+
+  const toggleOpenResponseExpansion = (id: string) => {
+    setOpenResponsesExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleDatePreset = (preset: 'all' | '7d' | '30d' | '90d') => {
@@ -603,6 +716,7 @@ export default function CreatorsInsightsPage() {
     try {
       const params = buildParams(filters);
       params.set('format', exportFormat);
+      if (exportIncludeHistory) params.set('includeHistory', 'true');
       if (exportColumns.length) params.set('columns', exportColumns.join(','));
       const res = await fetch(`/api/admin/creators-survey/export?${params.toString()}`);
       const blob = await res.blob();
@@ -685,10 +799,25 @@ export default function CreatorsInsightsPage() {
         ),
       },
       {
-        key: 'country',
-        label: 'País',
+        key: 'city',
+        label: 'Cidade',
         sortable: false,
-        render: (item: AdminCreatorSurveyListItem) => <span className="text-sm text-gray-700">{item.country || '—'}</span>,
+        render: (item: AdminCreatorSurveyListItem) => (
+          <span className="text-sm text-gray-700">
+            {item.city || 'Sem dado'}
+          </span>
+        ),
+      },
+      {
+        key: 'country',
+        label: 'Cidade · País',
+        sortable: false,
+        render: (item: AdminCreatorSurveyListItem) => (
+          <span className="text-sm text-gray-700">
+            {item.city || 'Sem dado'}
+            {item.country ? ` · ${item.country}` : ''}
+          </span>
+        ),
       },
       {
         key: 'gender',
@@ -884,6 +1013,17 @@ export default function CreatorsInsightsPage() {
                   </div>
                 </div>
               </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Use os filtros essenciais acima. Ative os avançados para combinar mais critérios.</p>
+                <button
+                  onClick={() => setShowAdvancedFilters((prev) => !prev)}
+                  className="px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {showAdvancedFilters ? 'Ocultar filtros avançados' : 'Mostrar filtros avançados'}
+                </button>
+              </div>
+              {showAdvancedFilters && (
+              <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-gray-600">Etapa com mais dificuldade (P8)</label>
@@ -1156,6 +1296,7 @@ export default function CreatorsInsightsPage() {
                       setDetail(null);
                       setUserSearch('');
                       setSuggestionsOpen(false);
+                      setShowAdvancedFilters(false);
                     }}
                     className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-300 text-sm rounded-md hover:bg-gray-100"
                   >
@@ -1164,6 +1305,8 @@ export default function CreatorsInsightsPage() {
                   </button>
                 </div>
               </div>
+              </>
+              )}
             </div>
             {activeFilterChips.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -1234,7 +1377,17 @@ export default function CreatorsInsightsPage() {
                   <SkeletonBlock height="h-10" />
                 </div>
               ) : listError ? (
-                <div className="p-6 text-red-600">{listError}</div>
+                <div className="p-6 text-red-600">
+                  {listError}
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setFilters((prev) => ({ ...prev }))}
+                      className="text-sm text-indigo-700 font-semibold hover:text-indigo-900"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                </div>
               ) : list.length === 0 ? (
                 <div className="p-6 text-gray-500">Nenhum criador encontrado.</div>
               ) : (
@@ -1335,27 +1488,156 @@ export default function CreatorsInsightsPage() {
                 isLoading={analyticsLoading}
                 formatAs="percentage"
               />
-              <KpiCard
-                label="Seguidores médios"
-                value={analytics?.metrics?.avgFollowers ?? undefined}
-                icon={UsersIcon}
-                isLoading={analyticsLoading}
-              />
-              <KpiCard
-                label="Ticket médio (estimado)"
-                value={analytics?.metrics?.avgTicket ?? undefined}
-                icon={CurrencyDollarIcon}
-                isLoading={analyticsLoading}
-                formatAs="currency"
-              />
-            </div>
-
-            <QuickInsights
-              analytics={analytics}
+            <KpiCard
+              label="Seguidores médios"
+              value={analytics?.metrics?.avgFollowers ?? undefined}
+              icon={UsersIcon}
               isLoading={analyticsLoading}
             />
+            <KpiCard
+              label="Cidade mais frequente"
+              value={analytics?.distributions.city?.[0]?.value || '—'}
+              icon={UsersIcon}
+              isLoading={analyticsLoading}
+            />
+            <KpiCard
+              label="Ticket médio (estimado)"
+              value={analytics?.metrics?.avgTicket ?? undefined}
+              icon={CurrencyDollarIcon}
+              isLoading={analyticsLoading}
+              formatAs="currency"
+            />
+          </div>
+
+          <TopCitiesPercentList
+            data={analytics?.cityMetrics}
+            total={analytics?.totalRespondents}
+            onSelect={(value) => applyChartFilter('city', value)}
+          />
+
+          <QuickInsights
+            analytics={analytics}
+            isLoading={analyticsLoading}
+          />
 
             <TimeSeriesChart data={analytics?.timeSeries || []} />
+
+            <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <ChatBubbleLeftRightIcon className="w-5 h-5 text-gray-600" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Respostas abertas completas</h3>
+                    <p className="text-xs text-gray-500">Leitura integral com busca e filtro por pergunta.</p>
+                  </div>
+                </div>
+                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                  <div className="flex-1">
+                    <label className="text-xs font-semibold text-gray-600">Buscar termo</label>
+                    <input
+                      type="text"
+                      value={openResponsesSearch}
+                      onChange={(e) => setOpenResponsesSearch(e.target.value)}
+                      className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      placeholder="Ex: autenticidade, humor..."
+                    />
+                  </div>
+                  <div className="w-full md:w-60">
+                    <label className="text-xs font-semibold text-gray-600">Pergunta</label>
+                    <select
+                      value={openResponsesQuestion}
+                      onChange={(e) => setOpenResponsesQuestion(e.target.value)}
+                      className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                    >
+                      {openQuestionOptions.map((opt) => (
+                        <option key={opt.value || 'all'} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-500">
+                {openResponsesLoading && openResponsesLoaded === 0
+                  ? 'Carregando respostas...'
+                  : `${openResponsesLoaded}/${openResponsesTotal} respostas carregadas`}
+              </div>
+
+              {openResponsesError ? (
+                <div className="text-sm text-red-600">{openResponsesError}</div>
+              ) : openResponsesLoading && openResponses.length === 0 ? (
+                <SkeletonBlock height="h-16" />
+              ) : openResponses.length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhuma resposta encontrada com esses filtros.</p>
+              ) : (
+                <div className="space-y-3">
+                  {openResponses.map((resp) => {
+                    const expanded = openResponsesExpanded[resp.id];
+                    const shouldTruncate = resp.text.length > 220;
+                    const renderText = () => {
+                      if (!openResponsesSearch.trim()) return resp.text;
+                      const regex = new RegExp(`(${openResponsesSearch.trim()})`, 'gi');
+                      const parts = resp.text.split(regex);
+                      return parts.map((part, idx) =>
+                        idx % 2 === 1 ? (
+                          <mark key={idx} className="bg-yellow-200 text-gray-900 px-0.5 rounded">
+                            {part}
+                          </mark>
+                        ) : (
+                          <span key={idx}>{part}</span>
+                        ),
+                      );
+                    };
+                    return (
+                      <div key={resp.id} className="border border-gray-200 rounded-md p-3 shadow-sm hover:border-indigo-200">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold text-indigo-700">{resp.questionLabel}</p>
+                            <p className="text-sm font-semibold text-gray-900">{resp.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {resp.email}
+                              {resp.username ? ` · @${resp.username}` : ''} · {formatDate(resp.updatedAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <div
+                          className={`mt-2 text-sm text-gray-800 whitespace-pre-line ${
+                            expanded || !shouldTruncate ? '' : 'max-h-24 overflow-hidden'
+                          }`}
+                        >
+                          {renderText()}
+                        </div>
+                        {shouldTruncate && (
+                          <button
+                            onClick={() => toggleOpenResponseExpansion(resp.id)}
+                            className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                          >
+                            {expanded ? 'Ver menos' : 'Ver mais'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-gray-500">
+                  {openResponsesLoading && openResponses.length > 0 ? 'Carregando...' : ''}
+                </span>
+                {openResponsesHasMore && (
+                  <button
+                    onClick={() => fetchOpenResponses(openResponsesPage + 1)}
+                    disabled={openResponsesLoading}
+                    className="px-3 py-2 text-sm rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Ver mais respostas
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <DistributionChart
@@ -1397,14 +1679,14 @@ export default function CreatorsInsightsPage() {
                 data={analytics?.distributions.gender || []}
               />
               <DistributionChart
-                title="País"
-                data={analytics?.distributions.country || []}
-                onClick={(value) => applyChartFilter('country', value)}
-              />
-              <DistributionChart
                 title="Cidade"
                 data={analytics?.distributions.city || []}
                 onClick={(value) => applyChartFilter('city', value)}
+              />
+              <DistributionChart
+                title="País"
+                data={analytics?.distributions.country || []}
+                onClick={(value) => applyChartFilter('country', value)}
               />
               <DistributionChart
                 title="Engajamento %"
@@ -1455,6 +1737,34 @@ export default function CreatorsInsightsPage() {
                   </div>
                 </div>
               ) : null}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <CorrelationTable
+                title="Dores x métricas"
+                data={analytics?.metricByCategory?.pains}
+                onSelect={(value) => applyChartFilter('pains', value)}
+              />
+              <CorrelationTable
+                title="Etapa difícil x métricas"
+                data={analytics?.metricByCategory?.hardestStage}
+                onSelect={(value) => applyChartFilter('hardestStage', value)}
+              />
+              <CorrelationTable
+                title="Próximas plataformas x métricas"
+                data={analytics?.metricByCategory?.nextPlatform}
+                onSelect={(value) => applyChartFilter('nextPlatform', value)}
+              />
+              <CorrelationTable
+                title="Estágio x métricas"
+                data={analytics?.metricByCategory?.stage}
+                onSelect={(value) => applyChartFilter('stage', value as any)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <CityRanking data={analytics?.cityMetrics} onSelect={(value) => applyChartFilter('city', value)} />
+              <CityPricingMatrix data={analytics?.cityPricingBySize} onSelect={(value) => applyChartFilter('city', value)} />
             </div>
 
             <div className="mt-6">
@@ -1523,7 +1833,7 @@ export default function CreatorsInsightsPage() {
                   <span className="font-semibold">Posts</span>
                   <span>{detail.mediaCount ?? '—'}</span>
                   <span className="font-semibold">Localização</span>
-                  <span>{`${detail.country || '—'}${detail.city ? ` · ${detail.city}` : ''}`}</span>
+                  <span>{`${detail.city || 'Sem dado'}${detail.country ? ` · ${detail.country}` : ''}`}</span>
                   <span className="font-semibold">Gênero</span>
                   <span>{detail.gender || '—'}</span>
                   <span className="font-semibold">Última atualização</span>
@@ -1534,6 +1844,34 @@ export default function CreatorsInsightsPage() {
                   <MetricCard label="Alcance (últ. período)" value={detail.reach} />
                   <MetricCard label="Contas engajadas" value={detail.engaged} />
                 </div>
+
+                {detail.insightsHistory && detail.insightsHistory.length > 1 && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                    <p className="text-sm font-semibold text-gray-900 mb-2">Evolução recente (alcance / engajamento / seguidores)</p>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={[...detail.insightsHistory].reverse().map((d) => ({
+                            date: d.recordedAt ? new Date(d.recordedAt).toLocaleDateString('pt-BR') : '',
+                            reach: d.reach ?? 0,
+                            engaged: d.engaged ?? 0,
+                            followers: d.followers ?? 0,
+                          }))}
+                          margin={{ left: 0, right: 10, top: 10, bottom: 10 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <RechartsTooltip />
+                          <Line type="monotone" dataKey="reach" stroke="#4F46E5" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="engaged" stroke="#22C55E" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="followers" stroke="#0EA5E9" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Baseado nos últimos registros coletados.</p>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-gray-900">Quem é esse criador</h4>
@@ -1647,6 +1985,18 @@ export default function CreatorsInsightsPage() {
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Deixe em branco para exportar todas as colunas.</p>
               </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="export-history"
+                  type="checkbox"
+                  className="rounded text-indigo-600 border-gray-300"
+                  checked={exportIncludeHistory}
+                  onChange={(e) => setExportIncludeHistory(e.target.checked)}
+                />
+                <label htmlFor="export-history" className="text-sm text-gray-700">
+                  Incluir histórico recente de métricas (JSON)
+                </label>
+              </div>
               <div className="text-sm text-gray-600">
                 <p>Serão exportados os criadores de acordo com os filtros aplicados.</p>
                 {activeFilterChips.length > 0 && (
@@ -1683,7 +2033,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs font-semibold text-gray-600">{label}</p>
-      <p className="text-sm text-gray-800">{value || '—'}</p>
+      <p className="text-sm text-gray-800 whitespace-pre-line break-words">{value || '—'}</p>
     </div>
   );
 }
@@ -1720,6 +2070,14 @@ function QuickInsights({ analytics, isLoading }: { analytics: AdminCreatorSurvey
   if (analytics.topPain?.value) {
     insights.push(`Dor mais citada: ${analytics.topPain.value}.`);
   }
+  const topCity = analytics.distributions.city?.[0];
+  if (topCity) {
+    insights.push(`Cidade mais recorrente: ${topCity.value}.`);
+  }
+  const cityTicketLeader = analytics.cityMetrics?.find((c) => c.avgTicket != null);
+  if (cityTicketLeader) {
+    insights.push(`Cidade com maior ticket médio: ${cityTicketLeader.value} (R$ ${Math.round(cityTicketLeader.avgTicket || 0).toLocaleString('pt-BR')}).`);
+  }
 
   if (!insights.length) return null;
 
@@ -1731,6 +2089,247 @@ function QuickInsights({ analytics, isLoading }: { analytics: AdminCreatorSurvey
           <li key={idx}>{insight}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function TopCitiesPercentList({
+  data,
+  total,
+  onSelect,
+}: {
+  data?: CityMetric[];
+  total?: number;
+  onSelect?: (value: string) => void;
+}) {
+  if (!data || !data.length || !total) return null;
+  const top = data.slice(0, 5);
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-semibold text-gray-900">Top 5 cidades (%)</h4>
+        {onSelect && <span className="text-xs text-gray-400">Clique aplica filtro</span>}
+      </div>
+      <div className="space-y-2">
+        {top.map((row) => {
+          const pct = Math.round((row.count / total) * 100);
+          return (
+            <button
+              key={row.value}
+              onClick={onSelect ? () => onSelect(row.value) : undefined}
+              className="w-full text-left"
+            >
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-gray-900">{row.value}</span>
+                <span className="text-xs text-gray-600">{pct}% ({row.count})</span>
+              </div>
+              <div className="w-full h-2 bg-gray-100 rounded">
+                <div
+                  className="h-2 bg-indigo-500 rounded"
+                  style={{ width: `${Math.min(100, pct)}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CorrelationTable({
+  title,
+  data,
+  onSelect,
+}: {
+  title: string;
+  data?: CategoryMetricBreakdown[];
+  onSelect?: (value: string) => void;
+}) {
+  if (!data || data.length === 0) return null;
+  const maxEngagement = Math.max(...data.map((d) => d.avgEngagement || 0), 1);
+  const maxReach = Math.max(...data.map((d) => d.avgReach || 0), 1);
+  const maxGrowth = Math.max(...data.map((d) => d.avgGrowth || 0), 1);
+  const maxFollowers = Math.max(...data.map((d) => d.avgFollowers || 0), 1);
+  const formatPct = (v?: number | null) => (v != null ? `${v.toFixed(2)}%` : '—');
+  const formatNum = (v?: number | null) => (v != null ? Math.round(v).toLocaleString('pt-BR') : '—');
+
+  const Bar = ({ value, max, className }: { value?: number | null; max: number; className: string }) => {
+    if (value == null) return <div className="h-2 bg-gray-100 rounded" />;
+    const pct = Math.min(100, (value / max) * 100);
+    return (
+      <div className="h-2 bg-gray-100 rounded">
+        <div className={`h-2 rounded ${className}`} style={{ width: `${pct}%` }} />
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
+        {onSelect && <span className="text-xs text-gray-400">Clique para filtrar</span>}
+      </div>
+      <div className="space-y-3">
+        {data.slice(0, 8).map((row) => (
+          <button
+            key={row.value}
+            onClick={onSelect ? () => onSelect(row.value) : undefined}
+            className="w-full text-left group"
+          >
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-gray-800 group-hover:text-indigo-700">{row.value}</span>
+              <span className="text-xs text-gray-500">{row.count} resp.</span>
+            </div>
+            <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-600">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span>Engaj.</span>
+                  <span className="text-gray-700">{formatPct(row.avgEngagement)}</span>
+                </div>
+                <Bar value={row.avgEngagement ?? undefined} max={maxEngagement} className="bg-indigo-500" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span>Cresc.</span>
+                  <span className="text-gray-700">{formatPct(row.avgGrowth)}</span>
+                </div>
+                <Bar value={row.avgGrowth ?? undefined} max={maxGrowth} className="bg-emerald-500" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span>Alcance</span>
+                  <span className="text-gray-700">{formatNum(row.avgReach)}</span>
+                </div>
+                <Bar value={row.avgReach ?? undefined} max={maxReach} className="bg-blue-500" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span>Seguidores</span>
+                  <span className="text-gray-700">{formatNum(row.avgFollowers)}</span>
+                </div>
+                <Bar value={row.avgFollowers ?? undefined} max={maxFollowers} className="bg-slate-500" />
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CityRanking({
+  data,
+  onSelect,
+}: {
+  data?: CityMetric[];
+  onSelect?: (value: string) => void;
+}) {
+  if (!data || data.length === 0) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-semibold text-gray-900">Ranking de cidades</h4>
+        {onSelect && <span className="text-xs text-gray-400">Clique aplica filtro</span>}
+      </div>
+      <div className="divide-y divide-gray-100">
+        {data.slice(0, 10).map((row) => (
+          <button
+            key={row.value}
+            onClick={onSelect ? () => onSelect(row.value) : undefined}
+            className="w-full text-left py-2 group"
+          >
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-gray-800 group-hover:text-indigo-700">{row.value}</span>
+              <span className="text-xs text-gray-500">{row.count} criadores</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600 mt-1">
+              <div>
+                <p>Engaj.</p>
+                <p className="font-semibold text-gray-800">{row.avgEngagement != null ? `${row.avgEngagement.toFixed(2)}%` : '—'}</p>
+              </div>
+              <div>
+                <p>Alcance</p>
+                <p className="font-semibold text-gray-800">{row.avgReach != null ? Math.round(row.avgReach).toLocaleString('pt-BR') : '—'}</p>
+              </div>
+              <div>
+                <p>Seguidores</p>
+                <p className="font-semibold text-gray-800">{row.avgFollowers != null ? Math.round(row.avgFollowers).toLocaleString('pt-BR') : '—'}</p>
+              </div>
+              <div>
+                <p>Ticket</p>
+                <p className="font-semibold text-gray-800">
+                  {row.avgTicket != null ? `R$ ${Math.round(row.avgTicket).toLocaleString('pt-BR')}` : '—'}
+                </p>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CityPricingMatrix({
+  data,
+  onSelect,
+}: {
+  data?: CityPricingBySize[];
+  onSelect?: (city: string) => void;
+}) {
+  if (!data || data.length === 0) return null;
+  const sizes: Array<CityPricingBySize['size']> = ['micro', 'mid', 'macro'];
+  const grouped = data.reduce<Record<string, CityPricingBySize[]>>((acc, row) => {
+    const key = row.city || 'Sem dado';
+    acc[key] = acc[key] || [];
+    acc[key].push(row);
+    return acc;
+  }, {});
+  const topCities = Object.entries(grouped)
+    .sort((a, b) => (b[1].reduce((s, r) => s + r.count, 0)) - (a[1].reduce((s, r) => s + r.count, 0)))
+    .slice(0, 8);
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-semibold text-gray-900">Ticket médio por cidade x porte</h4>
+        {onSelect && <span className="text-xs text-gray-400">Clique filtra cidade</span>}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-left text-gray-600">
+              <th className="py-2 pr-3 font-semibold">Cidade</th>
+              {sizes.map((s) => (
+                <th key={s} className="py-2 pr-3 font-semibold capitalize">{s}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {topCities.map(([city, rows]) => (
+              <tr key={city} className="hover:bg-gray-50">
+                <td className="py-2 pr-3">
+                  <button
+                    onClick={onSelect ? () => onSelect(city) : undefined}
+                    className="text-gray-900 font-semibold hover:text-indigo-700"
+                  >
+                    {city}
+                  </button>
+                </td>
+                {sizes.map((s) => {
+                  const match = rows.find((r) => r.size === s);
+                  return (
+                    <td key={`${city}-${s}`} className="py-2 pr-3">
+                      {match?.avgTicket != null ? `R$ ${Math.round(match.avgTicket).toLocaleString('pt-BR')}` : '—'}
+                      {match?.count ? <span className="text-[11px] text-gray-500"> ({match.count})</span> : null}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

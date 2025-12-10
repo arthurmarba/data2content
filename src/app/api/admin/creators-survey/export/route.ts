@@ -15,6 +15,10 @@ const arrayTransform = z
 const querySchema = z.object({
   format: z.enum(['csv', 'json']).optional().default('csv'),
   scope: z.enum(['all', 'filtered']).optional().default('filtered'),
+  includeHistory: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
   search: z.string().optional(),
   userId: z.string().optional(),
   username: z.string().optional(),
@@ -71,15 +75,15 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const parseResult = querySchema.safeParse(Object.fromEntries(searchParams.entries()));
     if (!parseResult.success) {
-      return NextResponse.json({ error: parseResult.error.message }, { status: 400 });
-    }
+    return NextResponse.json({ error: parseResult.error.message }, { status: 400 });
+  }
 
-    const { format, scope, columns, ...rawFilters } = parseResult.data;
+  const { format, scope, columns, includeHistory, ...rawFilters } = parseResult.data;
 
-    const filters: AdminCreatorSurveyFilters =
-      scope === 'all'
-        ? {}
-        : {
+  const filters: AdminCreatorSurveyFilters =
+    scope === 'all'
+      ? {}
+      : {
             ...rawFilters,
             stage: rawFilters.stage as any,
             pains: rawFilters.pains as any,
@@ -94,7 +98,7 @@ export async function GET(req: NextRequest) {
             gender: rawFilters.gender as any,
           };
 
-    const rows = await exportCreatorSurveyResponses(filters, columns);
+  const rows = await exportCreatorSurveyResponses(filters, columns, includeHistory);
 
     if (format === 'json') {
       return NextResponse.json({ rows }, { status: 200 });

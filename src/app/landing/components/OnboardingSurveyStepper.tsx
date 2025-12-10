@@ -238,6 +238,37 @@ function normalizeCommaSeparated(value: string, limit = 5) {
     .slice(0, limit);
 }
 
+function splitByAltSeparators(value: string) {
+  return value
+    .split(/[\/|]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function uniqueOrdered(values: string[], limit?: number) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+    if (limit && result.length >= limit) break;
+  }
+  return limit ? result.slice(0, limit) : result;
+}
+
+function arraysEqual(a: string[], b: string[]) {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
+
+function parseCommaSeparatedInput(value: string, limit = 5) {
+  const values = normalizeCommaSeparated(value, limit);
+  const endsWithComma = value.trimEnd().endsWith(",");
+  const display = endsWithComma && values.length < limit ? `${values.join(", ")}${values.length ? ", " : ""}` : values.join(", ");
+  return { values, display };
+}
+
 function sanitizeProfile(data: Partial<CreatorProfileExtended> | null | undefined): CreatorProfileExtended {
   if (!data) return { ...DEFAULT_PROFILE };
   const legacyReason = (data as any).mainPlatformReason;
@@ -248,12 +279,21 @@ function sanitizeProfile(data: Partial<CreatorProfileExtended> | null | undefine
   const legacyNotification = (data as any).notificationPref && !Array.isArray((data as any).notificationPref)
     ? [(data as any).notificationPref]
     : undefined;
+  const normalizedBrandTerritories = uniqueOrdered((data.brandTerritories ?? []).flatMap(splitByAltSeparators), 6);
+  const normalizedDreamBrands = uniqueOrdered((data.dreamBrands ?? []).flatMap(splitByAltSeparators), 3);
+  const normalizeNiches = () => {
+    const source = data.niches ?? [];
+    const preset = source.filter((n) => nicheOptions.includes(n as (typeof nicheOptions)[number]));
+    const manual = source.filter((n) => !nicheOptions.includes(n as (typeof nicheOptions)[number]));
+    const normalizedManual = manual.flatMap(splitByAltSeparators);
+    return uniqueOrdered([...preset, ...normalizedManual], 5);
+  };
   return {
     ...DEFAULT_PROFILE,
     ...data,
-    brandTerritories: data.brandTerritories ?? [],
-    niches: data.niches ?? [],
-    dreamBrands: data.dreamBrands ?? [],
+    brandTerritories: normalizedBrandTerritories,
+    niches: normalizeNiches(),
+    dreamBrands: normalizedDreamBrands,
     mainPains: data.mainPains ?? [],
     stage: Array.isArray(data.stage) ? data.stage : legacyStage ?? [],
     hasHelp: Array.isArray(data.hasHelp) ? data.hasHelp : legacyHasHelp ?? [],
@@ -629,6 +669,9 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
   const [isSaving, setIsSaving] = React.useState(false);
   const [completedSteps, setCompletedSteps] = React.useState<Set<SurveyStepId>>(new Set());
   const [didBootstrap, setDidBootstrap] = React.useState(false);
+  const [brandTerritoriesInput, setBrandTerritoriesInput] = React.useState("");
+  const [dreamBrandsInput, setDreamBrandsInput] = React.useState("");
+  const [manualNichesInput, setManualNichesInput] = React.useState("");
 
   const updateField = <K extends keyof CreatorProfileExtended>(key: K, value: CreatorProfileExtended[K]) => {
     setProfile((prev) => {
@@ -670,10 +713,9 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
     });
   };
 
-  const mergeNiches = (current: string[], otherInput: string) => {
-    const manual = normalizeCommaSeparated(otherInput, 5);
+  const mergeNiches = (current: string[], manualValues: string[]) => {
     const filtered = current.filter((n) => nicheOptions.includes(n as (typeof nicheOptions)[number]));
-    const combined = [...filtered, ...manual].slice(0, 5);
+    const combined = [...filtered, ...manualValues].slice(0, 5);
     return combined;
   };
 
@@ -771,6 +813,32 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
     }
   }, [remoteProfile, hasHydrated, profile, persist, setProfile]);
 
+  const manualNiches = React.useMemo(
+    () => profile.niches.filter((n) => !nicheOptions.includes(n as (typeof nicheOptions)[number])),
+    [profile.niches],
+  );
+
+  React.useEffect(() => {
+    const normalized = normalizeCommaSeparated(brandTerritoriesInput, 6);
+    if (!arraysEqual(normalized, profile.brandTerritories)) {
+      setBrandTerritoriesInput(profile.brandTerritories.join(", "));
+    }
+  }, [brandTerritoriesInput, profile.brandTerritories]);
+
+  React.useEffect(() => {
+    const normalized = normalizeCommaSeparated(dreamBrandsInput, 3);
+    if (!arraysEqual(normalized, profile.dreamBrands)) {
+      setDreamBrandsInput(profile.dreamBrands.join(", "));
+    }
+  }, [dreamBrandsInput, profile.dreamBrands]);
+
+  React.useEffect(() => {
+    const normalized = normalizeCommaSeparated(manualNichesInput, 5);
+    if (!arraysEqual(normalized, manualNiches)) {
+      setManualNichesInput(manualNiches.join(", "));
+    }
+  }, [manualNichesInput, manualNiches]);
+
   const goToStep = (stepId: SurveyStepId) => {
     const targetIndex = steps.findIndex((s) => s.id === stepId);
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
@@ -861,10 +929,12 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
               </div>
               <InputField
                 label="Outro (digite se não encontrar na lista)"
-                value={profile.niches
-                  .filter((n) => !nicheOptions.includes(n as (typeof nicheOptions)[number]))
-                  .join(", ")}
-                onChange={(value) => updateField("niches", mergeNiches(profile.niches, value))}
+                value={manualNichesInput}
+                onChange={(value) => {
+                  const parsed = parseCommaSeparatedInput(value, 5);
+                  setManualNichesInput(parsed.display);
+                  updateField("niches", mergeNiches(profile.niches, parsed.values));
+                }}
                 placeholder="Ex.: jurídico tributário, odontologia estética, nichos regionais"
                 error={errors.niches}
                 optional
@@ -893,8 +963,12 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
             <QuestionBlock title="Com quais temas você quer ser reconhecido?" description="Separe por vírgula (máx. 6)" index={3}>
               <InputField
                 label=""
-                value={profile.brandTerritories.join(", ")}
-                onChange={(value) => updateField("brandTerritories", normalizeCommaSeparated(value, 6))}
+                value={brandTerritoriesInput}
+                onChange={(value) => {
+                  const parsed = parseCommaSeparatedInput(value, 6);
+                  setBrandTerritoriesInput(parsed.display);
+                  updateField("brandTerritories", parsed.values);
+                }}
                 placeholder="Ex.: fintech para autônomos, estilo de vida leve, marketing pessoal"
                 error={errors.brandTerritories}
               />
@@ -917,8 +991,12 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
             <QuestionBlock title="Quais 3 marcas você sonha em trabalhar?" required={false} description="Separe por vírgula (máx. 3)" index={5}>
               <InputField
                 label=""
-                value={profile.dreamBrands.join(", ")}
-                onChange={(value) => updateField("dreamBrands", normalizeCommaSeparated(value, 3))}
+                value={dreamBrandsInput}
+                onChange={(value) => {
+                  const parsed = parseCommaSeparatedInput(value, 3);
+                  setDreamBrandsInput(parsed.display);
+                  updateField("dreamBrands", parsed.values);
+                }}
                 placeholder="Ex.: Nike, Nubank, Netflix"
                 optional
               />

@@ -43,6 +43,32 @@ export interface AdminCreatorSurveyListParams extends AdminCreatorSurveyFilters 
   columns?: string[];
 }
 
+export interface CategoryMetricBreakdown {
+  value: string;
+  count: number;
+  avgEngagement?: number | null;
+  avgReach?: number | null;
+  avgGrowth?: number | null;
+  avgFollowers?: number | null;
+}
+
+export interface CityMetric {
+  value: string;
+  count: number;
+  avgEngagement?: number | null;
+  avgReach?: number | null;
+  avgGrowth?: number | null;
+  avgFollowers?: number | null;
+  avgTicket?: number | null;
+}
+
+export interface CityPricingBySize {
+  city: string;
+  size: 'micro' | 'mid' | 'macro' | 'sem-dado';
+  avgTicket?: number | null;
+  count: number;
+}
+
 export interface AdminCreatorSurveyListItem {
   id: string;
   name: string;
@@ -112,6 +138,12 @@ export interface AdminCreatorSurveyDetail {
     notificationPref: string[];
     adminNotes?: string;
   };
+  insightsHistory?: Array<{
+    recordedAt?: string;
+    reach?: number | null;
+    engaged?: number | null;
+    followers?: number | null;
+  }>;
 }
 
 export interface DistributionEntry {
@@ -154,10 +186,46 @@ export interface AdminCreatorSurveyAnalytics {
   timeSeries: { date: string; count: number }[];
   topSuccessStories: DistributionEntry[];
   monetizationByCountry?: Array<{ value: string; total: number; monetizing: number; pct: number }>;
+  metricByCategory?: {
+    pains?: CategoryMetricBreakdown[];
+    hardestStage?: CategoryMetricBreakdown[];
+    nextPlatform?: CategoryMetricBreakdown[];
+    stage?: CategoryMetricBreakdown[];
+  };
+  cityMetrics?: CityMetric[];
+  cityPricingBySize?: CityPricingBySize[];
 }
 
 export interface AdminCreatorSurveyExportParams extends AdminCreatorSurveyFilters {
   format?: 'csv' | 'json';
   scope?: 'all' | 'filtered';
   columns?: string[];
+  includeHistory?: boolean;
+}
+
+export interface AdminCreatorSurveyOpenResponse {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  username?: string | null;
+  question: string;
+  questionLabel: string;
+  text: string;
+  updatedAt?: string;
+}
+
+export interface AdminCreatorSurveyOpenResponseParams extends AdminCreatorSurveyFilters {
+  page?: number;
+  pageSize?: number;
+  question?: string;
+  q?: string;
+}
+
+export interface AdminCreatorSurveyOpenResponseResult {
+  responses: AdminCreatorSurveyOpenResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }
