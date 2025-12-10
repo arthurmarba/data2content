@@ -11,6 +11,7 @@ import { processMultipleImages } from "@/app/lib/parseMetrics";
 import mongoose from "mongoose";
 import { logger } from '@/app/lib/logger';
 import { Client } from "@upstash/qstash";
+import { getCategoryByValue } from "@/app/lib/classification";
 
 export const runtime = "nodejs"; 
 
@@ -53,6 +54,16 @@ const ensureStringArray = (value: unknown): string[] => {
         return [value];
     }
     return [];
+};
+
+const mapToCategoryIds = (
+    value: unknown,
+    type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+): string[] => {
+    return ensureStringArray(value).map(v => {
+        const match = getCategoryByValue(v, type);
+        return match?.id ?? v;
+    });
 };
 
 
@@ -107,11 +118,11 @@ export async function POST(request: NextRequest) {
       
       // ATUALIZADO: Campos de classificação salvos como arrays de strings
       type: mediaType, 
-      format: ensureStringArray(consolidatedTopLevel.format),
-      proposal: ensureStringArray(consolidatedTopLevel.proposal),
-      context: ensureStringArray(consolidatedTopLevel.context),
-      tone: ensureStringArray(consolidatedTopLevel.tone),
-      references: ensureStringArray(consolidatedTopLevel.references),
+      format: mapToCategoryIds(consolidatedTopLevel.format, 'format'),
+      proposal: mapToCategoryIds(consolidatedTopLevel.proposal, 'proposal'),
+      context: mapToCategoryIds(consolidatedTopLevel.context, 'context'),
+      tone: mapToCategoryIds(consolidatedTopLevel.tone, 'tone'),
+      references: mapToCategoryIds(consolidatedTopLevel.references, 'reference'),
       
       theme: consolidatedTopLevel.theme,
       collab: consolidatedTopLevel.collab, 

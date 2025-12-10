@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import { Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
 import { TopDiscoveryTable } from "./components/TopDiscoveryTable";
+import PostsBySliceModal from "./components/PostsBySliceModal";
 
 const cardBase = "rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
@@ -46,12 +47,122 @@ const getWeekKey = (d: string | Date) => {
   return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
 };
 
+const stripAccents = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const normalizeLabel = (value: string) => stripAccents(value).trim().toLowerCase();
+
+const toArray = (value: any): string[] => {
+  if (Array.isArray(value)) return value.filter(Boolean).map((v) => String(v));
+  if (value) return [String(value)];
+  return [];
+};
+
+const normalizeWeekKey = (value: string | Date | null) => {
+  if (!value) return null;
+  const direct = getWeekKey(value);
+  if (direct) return direct;
+  if (typeof value === "string") {
+    const match = value.match(/(\d{4}).*?W?(\d{1,2})/i);
+    if (match && match[1] && match[2]) return `${match[1]}-W${match[2].padStart(2, "0")}`;
+  }
+  return null;
+};
+
+const normalizePost = (post: any) => {
+  const formatRaw = toArray(post?.format).length ? toArray(post?.format) : toArray(post?.mediaType);
+  const format = formatRaw.map((f) => f.trim());
+  const proposal = toArray(post?.proposal);
+  const context = toArray(post?.context);
+  const tone = toArray(post?.tone);
+  const references = toArray(post?.references ?? post?.reference);
+  const metaLabel = [
+    format.length ? `Formato: ${format.join(", ")}` : null,
+    proposal.length ? `Proposta: ${proposal.join(", ")}` : null,
+    context.length ? `Contexto: ${context.join(", ")}` : null,
+    tone.length ? `Tom: ${tone.join(", ")}` : null,
+    references.length ? `Ref: ${references.join(", ")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
+  return {
+    ...post,
+    format,
+    proposal,
+    context,
+    tone,
+    references,
+    metaLabel,
+    postDate: post?.postDate,
+    stats: post?.stats ?? {},
+  };
+};
+
+const filterPostsByWeek = (posts: any[], weekKey: string | null) => {
+  const target = normalizeWeekKey(weekKey);
+  if (!target) return [];
+  return posts.filter((p) => p?.postDate && normalizeWeekKey(p.postDate) === target);
+};
+
+const filterPostsByHour = (posts: any[], hour: number) =>
+  posts.filter((p) => {
+    if (!p?.postDate) return false;
+    const d = new Date(p.postDate);
+    return !Number.isNaN(d.getTime()) && d.getHours() === hour;
+  });
+
+const filterPostsByDayHour = (posts: any[], day: number, startHour: number, endHour: number) =>
+  posts.filter((p) => {
+    if (!p?.postDate) return false;
+    const d = new Date(p.postDate);
+    if (Number.isNaN(d.getTime())) return false;
+    const dow = d.getDay() === 0 ? 7 : d.getDay();
+    const h = d.getHours();
+    return dow === day && h >= startHour && h <= endHour;
+  });
+
+const formatAliases: Record<string, string> = {
+  photo: "foto",
+  imagem: "foto",
+  image: "foto",
+  carousel: "carrossel",
+  carrossel: "carrossel",
+  reel: "reels",
+  reels: "reels",
+  video: "video",
+  "vídeo": "video",
+};
+
+const matchesValue = (list: string[], target: string) => {
+  const targetNorm = normalizeLabel(target);
+  return list.some((item) => {
+    const norm = normalizeLabel(item);
+    if (norm === targetNorm) return true;
+    const alias = formatAliases[norm];
+    const aliasTarget = formatAliases[targetNorm];
+    if (alias && alias === targetNorm) return true;
+    if (aliasTarget && aliasTarget === norm) return true;
+    return false;
+  });
+};
+
+const filterPostsByCategory = (posts: any[], field: "format" | "proposal" | "context" | "tone" | "references", value: string) =>
+  posts.filter((p) => Array.isArray(p?.[field]) && matchesValue(p[field], value));
+
+const sortPostsByDateDesc = (posts: any[]) =>
+  posts.slice().sort((a, b) => {
+    const aDate = a?.postDate ? new Date(a.postDate).getTime() : 0;
+    const bDate = b?.postDate ? new Date(b.postDate).getTime() : 0;
+    return bDate - aDate;
+  });
+
 export default function PlanningChartsPage() {
   const { data: session } = useSession();
   const userId = session?.user?.id;
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
+  const [autoPaginating, setAutoPaginating] = useState(false);
   const PAGE_LIMIT = 200;
+  const MAX_PAGES = 6; // evita loop infinito; 6*200 = 1200 posts em 90 dias
 
   const { data: trendData, isLoading: loadingTrend } = useSWR(
     userId ? `/api/v1/users/${userId}/trends/reach-engagement?granularity=weekly&timePeriod=${TIME_PERIOD}` : null,
@@ -124,7 +235,94 @@ export default function PlanningChartsPage() {
 
   const postsSource = postsCache;
 
-  // acumula posts paginados
+  const normalizedPosts = useMemo(
+    () => (Array.isArray(postsSource) ? postsSource.map((p) => normalizePost(p)) : []),
+    [postsSource]
+  );
+
+  const [sliceModal, setSliceModal] = useState<{ open: boolean; title: string; subtitle?: string; posts: any[] }>({
+    open: false,
+    title: "",
+    subtitle: "",
+    posts: [],
+  });
+
+  const openSliceModal = React.useCallback(
+    ({ title, subtitle, posts }: { title: string; subtitle?: string; posts: any[] }) => {
+      setSliceModal({ open: true, title, subtitle, posts });
+    },
+    []
+  );
+
+  const closeSliceModal = React.useCallback(() => {
+    setSliceModal((prev) => ({ ...prev, open: false }));
+  }, []);
+
+  const handleWeekClick = React.useCallback(
+    (weekKey: string | null, subtitle: string) => {
+      if (!weekKey) return;
+      const posts = sortPostsByDateDesc(filterPostsByWeek(normalizedPosts, weekKey));
+      openSliceModal({
+        title: `Posts da semana ${weekKey}`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
+
+  const handleHourClick = React.useCallback(
+    (hour: number, subtitle: string) => {
+      const posts = sortPostsByDateDesc(filterPostsByHour(normalizedPosts, hour));
+      openSliceModal({
+        title: `Posts no horário ${hour}h`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
+
+  const handleDayHourClick = React.useCallback(
+    (day: number, startHour: number, endHour: number, subtitle: string) => {
+      const posts = sortPostsByDateDesc(filterPostsByDayHour(normalizedPosts, day, startHour, endHour));
+      openSliceModal({
+        title: `Posts em ${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][day - 1]} entre ${startHour}h e ${endHour}h`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
+
+  const handleCategoryClick = React.useCallback(
+    (field: "format" | "proposal" | "context" | "tone" | "references", value: string, subtitle: string) => {
+      const posts = sortPostsByDateDesc(filterPostsByCategory(normalizedPosts, field, value));
+      openSliceModal({
+        title: `Posts com ${field}: ${value}`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
+
+  const mergePosts = (prev: any[], next: any[]) => {
+    const map = new Map<string, any>();
+    const all = [...prev, ...next];
+    all.forEach((p) => {
+      const key =
+        p?._id ||
+        p?.id ||
+        p?.instagramMediaId ||
+        (p?.postDate ? `${p.postDate}-${p?.caption || ""}` : null) ||
+        Math.random().toString(36);
+      map.set(key, { ...map.get(key), ...p });
+    });
+    return Array.from(map.values());
+  };
+
+  // acumula posts paginados automaticamente até MAX_PAGES ou até vir menos que PAGE_LIMIT
   useEffect(() => {
     const list = Array.isArray(postsData?.posts)
       ? postsData.posts
@@ -132,11 +330,22 @@ export default function PlanningChartsPage() {
         ? postsData.videos
         : [];
     if (!list.length) {
-      setPostsCache([]);
+      // se não houver posts na página 1, mantém cache vazio
+      if (page === 1) setPostsCache([]);
       return;
     }
-    setPostsCache(list);
-  }, [postsData]);
+
+    setPostsCache((prev) => mergePosts(prev, list));
+
+    const shouldLoadMore = list.length === PAGE_LIMIT && page < MAX_PAGES;
+    if (shouldLoadMore && !autoPaginating) {
+      setAutoPaginating(true);
+      setTimeout(() => {
+        setPage((p) => Math.min(p + 1, MAX_PAGES));
+        setAutoPaginating(false);
+      }, 0);
+    }
+  }, [postsData, page, autoPaginating]);
 
   const hourBars = useMemo(() => {
     const buckets: Array<{ hour: number; average: number }> = timeData?.buckets || [];
@@ -417,7 +626,11 @@ export default function PlanningChartsPage() {
     const posts = Array.isArray(postsSource) ? postsSource : [];
     const rows = posts
       .map((p: any) => {
-        const shares = toNumber(p?.stats?.shares) ?? 0;
+        const shares =
+          toNumber(p?.stats?.shares) ??
+          toNumber((p as any)?.stats?.share_count) ??
+          toNumber((p as any)?.stats?.share) ??
+          0;
         const visits = toNumber(p?.stats?.profile_visits) ?? 0;
         const reach = toNumber(p?.stats?.reach);
         const dateObj = p?.postDate ? new Date(p.postDate) : null;
@@ -466,18 +679,19 @@ export default function PlanningChartsPage() {
 
 
   return (
-    <main className="flex w-full justify-center px-4 pb-12 pt-8">
-      <div className="w-full max-w-6xl space-y-5">
-        <header className="flex flex-col gap-2">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            <LineChartIcon className="h-4 w-4" />
-            Gráficos do planejamento
-          </div>
-          <h1 className="text-2xl font-semibold text-slate-900">Leituras com dados reais</h1>
-          <p className="text-sm text-slate-600">
-            Atualizado para os últimos 90 dias. Use alcance, interações e horários reais para planejar sem canibalizar posts.
-          </p>
-        </header>
+    <>
+      <main className="flex w-full justify-center px-4 pb-12 pt-8">
+        <div className="w-full max-w-6xl space-y-5">
+          <header className="flex flex-col gap-2">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <LineChartIcon className="h-4 w-4" />
+              Gráficos do planejamento
+            </div>
+            <h1 className="text-2xl font-semibold text-slate-900">Leituras com dados reais</h1>
+            <p className="text-sm text-slate-600">
+              Atualizado para os últimos 90 dias. Use alcance, interações e horários reais para planejar sem canibalizar posts.
+            </p>
+          </header>
 
         <section className="grid gap-4 md:grid-cols-2">
           <article className={cardBase}>
@@ -495,7 +709,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem dados no período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendSeries} margin={{ top: 6, right: 8, left: -6, bottom: 0 }}>
+                  <LineChart
+                    data={trendSeries}
+                    margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Alcance x Interações")}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
@@ -529,7 +748,11 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem dados suficientes.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={hourBars} margin={{ top: 6, right: 8, left: -6, bottom: 0 }}>
+                  <BarChart
+                    data={hourBars}
+                    margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis
                       dataKey="hour"
@@ -544,7 +767,18 @@ export default function PlanningChartsPage() {
                       formatter={(value: number) => [`${Math.round(value)}`, "Interações"]}
                       labelFormatter={(label) => `${label}h`}
                     />
-                    <Bar dataKey="average" name="Interações" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="average"
+                      name="Interações"
+                      fill="#0ea5e9"
+                      radius={[6, 6, 0, 0]}
+                      onClick={({ payload }) => {
+                        const hour = typeof payload?.hour === "number" ? payload.hour : null;
+                        if (hour !== null) {
+                          handleHourClick(hour, "Entrega média por hora");
+                        }
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -568,7 +802,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={contextBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                  <BarChart
+                    data={contextBars}
+                    layout="vertical"
+                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                     <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <YAxis
@@ -583,7 +822,16 @@ export default function PlanningChartsPage() {
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
                     />
-                    <Bar dataKey="value" name="Interações" fill="#0ea5e9" radius={[0, 6, 6, 0]} />
+                    <Bar
+                      dataKey="value"
+                      name="Interações"
+                      fill="#0ea5e9"
+                      radius={[0, 6, 6, 0]}
+                      onClick={({ payload }) => {
+                        const value = payload?.name ? String(payload.name) : null;
+                        if (value) handleCategoryClick("context", value, "Interação média por contexto");
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -605,7 +853,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={proposalBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                  <BarChart
+                    data={proposalBars}
+                    layout="vertical"
+                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                     <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <YAxis
@@ -620,7 +873,16 @@ export default function PlanningChartsPage() {
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
                     />
-                    <Bar dataKey="value" name="Interações" fill="#6366f1" radius={[0, 6, 6, 0]} />
+                    <Bar
+                      dataKey="value"
+                      name="Interações"
+                      fill="#6366f1"
+                      radius={[0, 6, 6, 0]}
+                      onClick={({ payload }) => {
+                        const value = payload?.name ? String(payload.name) : null;
+                        if (value) handleCategoryClick("proposal", value, "Interação média por proposta");
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -644,7 +906,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={toneBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                  <BarChart
+                    data={toneBars}
+                    layout="vertical"
+                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                     <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <YAxis
@@ -659,7 +926,16 @@ export default function PlanningChartsPage() {
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
                     />
-                    <Bar dataKey="value" name="Interações" fill="#10b981" radius={[0, 6, 6, 0]} />
+                    <Bar
+                      dataKey="value"
+                      name="Interações"
+                      fill="#10b981"
+                      radius={[0, 6, 6, 0]}
+                      onClick={({ payload }) => {
+                        const value = payload?.name ? String(payload.name) : null;
+                        if (value) handleCategoryClick("tone", value, "Interação média por tom");
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -681,7 +957,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem referências registradas no período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={referenceBars} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                  <BarChart
+                    data={referenceBars}
+                    layout="vertical"
+                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                     <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <YAxis
@@ -696,7 +977,16 @@ export default function PlanningChartsPage() {
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
                     />
-                    <Bar dataKey="value" name="Interações" fill="#f59e0b" radius={[0, 6, 6, 0]} />
+                    <Bar
+                      dataKey="value"
+                      name="Interações"
+                      fill="#f59e0b"
+                      radius={[0, 6, 6, 0]}
+                      onClick={({ payload }) => {
+                        const value = payload?.name ? String(payload.name) : null;
+                        if (value) handleCategoryClick("references", value, "Interação média por referência");
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -730,6 +1020,8 @@ export default function PlanningChartsPage() {
                       <div className="pr-2 text-right">{["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]}</div>
                       {Array.from({ length: 7 }).map((_, hIdx) => {
                         const h = hIdx * 4;
+                        const startHour = Math.min(h, 23);
+                        const endHour = Math.min(h + 3, 23);
                         const match = heatmap.reduce((best, curr) => {
                           if (Math.abs(curr.hour - h) <= 1 && curr.day === dow) {
                             return curr.score > (best?.score ?? 0) ? curr : best;
@@ -738,7 +1030,16 @@ export default function PlanningChartsPage() {
                         }, null as any);
                         const score = match?.score ?? 0;
                         const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
-                        return <div key={hIdx} className="aspect-square rounded border border-slate-100" style={{ background: bg }} />;
+                        return (
+                          <button
+                            key={hIdx}
+                            type="button"
+                            className="aspect-square rounded border border-slate-100 transition hover:border-slate-300"
+                            style={{ background: bg }}
+                            onClick={() => handleDayHourClick(dow, startHour, endHour, "Heatmap de janelas")}
+                            aria-label={`Posts em ${["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][dow - 1]} entre ${startHour}h e ${endHour}h`}
+                          />
+                        );
                       })}
                     </React.Fragment>
                   ))}
@@ -762,7 +1063,18 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={formatBars} margin={{ top: 6, right: 8, left: -6, bottom: 0 }}>
+                  <AreaChart
+                    data={formatBars}
+                    margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                    onClick={(state: any) => {
+                      const name =
+                        state?.activeLabel ||
+                        state?.activePayload?.[0]?.payload?.name ||
+                        state?.activePayload?.[0]?.payload?.format;
+                      if (name) handleCategoryClick("format", String(name), "Distribuição de interações");
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <defs>
                       <linearGradient id="formatGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
@@ -804,7 +1116,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem posts suficientes no período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weeklyConsistency} margin={{ top: 6, right: 12, left: -6, bottom: 0 }}>
+                  <LineChart
+                    data={weeklyConsistency}
+                    margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Posts por semana vs. média de interações")}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
                     <YAxis
@@ -855,7 +1172,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem dados de salvos/compartilhamentos no período.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={deepEngagement} layout="vertical" margin={{ top: 6, right: 12, left: 40, bottom: 0 }}>
+                  <BarChart
+                    data={deepEngagement}
+                    layout="vertical"
+                    margin={{ top: 6, right: 12, left: 40, bottom: 0 }}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                     <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <YAxis
@@ -880,8 +1202,28 @@ export default function PlanningChartsPage() {
                         return [`${perK}`, name];
                       }}
                     />
-                    <Bar dataKey="savesPerThousand" name="Salvos" stackId="depth" fill="#22c55e" radius={[0, 6, 6, 0]} />
-                    <Bar dataKey="sharesPerThousand" name="Compartilhamentos" stackId="depth" fill="#0ea5e9" radius={[0, 6, 6, 0]} />
+                    <Bar
+                      dataKey="savesPerThousand"
+                      name="Salvos"
+                      stackId="depth"
+                      fill="#22c55e"
+                      radius={[0, 6, 6, 0]}
+                      onClick={({ payload }) => {
+                        const value = payload?.format ? String(payload.format) : null;
+                        if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
+                      }}
+                    />
+                    <Bar
+                      dataKey="sharesPerThousand"
+                      name="Compartilhamentos"
+                      stackId="depth"
+                      fill="#0ea5e9"
+                      radius={[0, 6, 6, 0]}
+                      onClick={({ payload }) => {
+                        const value = payload?.format ? String(payload.format) : null;
+                        if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -906,7 +1248,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem dados suficientes.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weeklyEngagementRate} margin={{ top: 6, right: 12, left: -6, bottom: 0 }}>
+                  <LineChart
+                    data={weeklyEngagementRate}
+                    margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Taxa média de engajamento por semana")}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
                     <YAxis
@@ -942,7 +1289,12 @@ export default function PlanningChartsPage() {
                 <p className="text-sm text-slate-500">Sem dados suficientes.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={shareVelocitySeries} margin={{ top: 6, right: 12, left: -6, bottom: 0 }}>
+                  <LineChart
+                    data={shareVelocitySeries}
+                    margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Compartilhamentos x Visitas")}
+                    style={{ cursor: "pointer" }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
                     <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
@@ -988,6 +1340,14 @@ export default function PlanningChartsPage() {
           )}
         </section>
       </div>
-    </main>
+      </main>
+      <PostsBySliceModal
+        isOpen={sliceModal.open}
+        title={sliceModal.title}
+        subtitle={sliceModal.subtitle}
+        posts={sliceModal.posts}
+        onClose={closeSliceModal}
+      />
+    </>
   );
 }

@@ -3,8 +3,6 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { getNestedValue } from './dataAccessHelpers';
-// Validador agora aceita IDs ou labels (ex: "Reel", "Foto")
-import { isValidCategoryId } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 
 export type GroupingType = 'format' | 'context' | 'proposal' | 'tone' | 'references';
@@ -46,7 +44,45 @@ async function getAverageEngagementByGrouping(
       return [];
     }
 
-    const aggregation: Record<string, { sum: number; count: number }> = {};
+    const aggregation: Record<
+      string,
+      { sum: number; count: number; originalKey: string }
+    > = {};
+
+    const normalize = (value: string) =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    const formatAliases: Record<string, string> = {
+      photo: 'foto',
+      imagem: 'foto',
+      image: 'foto',
+      carousel: 'carrossel',
+      carrossel: 'carrossel',
+      reel: 'reels',
+      reels: 'reels',
+      video: 'video',
+      'video curto': 'reels',
+      'shorts': 'reels',
+    };
+
+    const pushKey = (rawKey: string, value: number) => {
+      if (!rawKey) return;
+      const normalized = normalize(rawKey);
+      if (!normalized) return;
+      const canonical =
+        groupBy === 'format' && formatAliases[normalized]
+          ? formatAliases[normalized]
+          : normalized;
+      const current = aggregation[canonical] || { sum: 0, count: 0, originalKey: rawKey };
+      if (!current.originalKey) current.originalKey = rawKey;
+      current.sum += value;
+      current.count += 1;
+      aggregation[canonical] = current;
+    };
 
     for (const post of posts) {
       const metricValue = getNestedValue(post, performanceMetricField);
@@ -56,36 +92,30 @@ async function getAverageEngagementByGrouping(
       // propriedades de classificação (format, context, proposal) são arrays. A lógica foi
       // ajustada para iterar sobre cada item do array de classificação. Cada item (ex: 'Reel', 'Humor')
       // é então usado como uma chave para o objeto de agregação, resolvendo o erro de tipo.
-      const keys = post[groupBy];
+      const keys = (post as any)?.[groupBy] as unknown;
 
       if (Array.isArray(keys)) {
         for (const key of keys) {
-          if (!key) continue; // Pula chaves nulas ou vazias dentro do array
-
-          // Mapeia 'references' (campo do banco) para 'reference' (tipo da classificação)
-          const classificationType = groupBy === 'references' ? 'reference' : groupBy;
-          if (!isValidCategoryId(key, classificationType)) continue; // ignora IDs desconhecidos
-
-          if (!aggregation[key]) {
-            aggregation[key] = { sum: 0, count: 0 };
-          }
-          aggregation[key].sum += metricValue;
-          aggregation[key].count += 1;
+          pushKey(String(key), metricValue);
         }
+      } else if (typeof keys === 'string') {
+        const safeKey = keys.trim();
+        if (safeKey) pushKey(safeKey, metricValue);
       }
     }
 
     const results: AverageResult[] = [];
     for (const [key, data] of Object.entries(aggregation)) {
       if (data.count === 0) continue;
+      const displayKey = data.originalKey || key;
       const name =
         groupBy === 'format'
-          ? formatMapping?.[key] ||
-          key
-            .replace(/_/g, ' ')
-            .toLocaleLowerCase()
-            .replace(/\b\w/g, (l) => l.toUpperCase())
-          : key;
+          ? formatMapping?.[displayKey] ||
+            displayKey
+              .replace(/_/g, ' ')
+              .toLocaleLowerCase()
+              .replace(/\b\w/g, (l) => l.toUpperCase())
+          : displayKey;
       results.push({
         name,
         value: data.sum / data.count,

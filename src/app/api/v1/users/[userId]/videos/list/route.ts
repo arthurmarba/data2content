@@ -58,7 +58,12 @@ export async function GET(
     const mappedSort = mapMetricToDbField(sortByParam) || DEFAULT_SORT_BY;
     const sortOrder: 'asc' | 'desc' = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
     const page = toInt(searchParams.get('page'), 1);
-    const limit = Math.min(toInt(searchParams.get('limit'), 10), 50);
+    const limit = Math.min(toInt(searchParams.get('limit'), 10), 200);
+
+    const typesParam = searchParams.get('types');
+    const parsedTypes = typesParam
+      ? typesParam.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean)
+      : undefined;
 
     const filters = {
       proposal: searchParams.get('proposal') || undefined,
@@ -66,7 +71,8 @@ export async function GET(
       format: searchParams.get('format') || undefined,
       linkSearch: searchParams.get('linkSearch') || undefined,
       minViews: searchParams.has('minViews') ? toInt(searchParams.get('minViews'), 0) : undefined,
-      types: ['VIDEO', 'REEL'],
+      // se não houver filtro explícito, busca todos os tipos (não só vídeo/reel)
+      types: parsedTypes,
     };
 
     const timePeriod: TimePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)

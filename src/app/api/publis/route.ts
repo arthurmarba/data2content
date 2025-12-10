@@ -5,12 +5,15 @@ import { FilterQuery } from 'mongoose';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric, { IMetric } from '@/app/models/Metric';
-import { getCategoryById } from '@/app/lib/classification';
-
-const PUBLI_PROPOSAL_LABEL = getCategoryById('publi_divulgation', 'proposal')?.label ?? 'Publi/Divulgação';
-const PROMOTIONAL_TONE_LABEL = getCategoryById('promotional', 'tone')?.label ?? 'Promocional/Comercial';
-const PUBLI_PROPOSAL_VALUES = [PUBLI_PROPOSAL_LABEL, 'publi_divulgation', 'Publi/Divulgacao'];
-const PROMOTIONAL_TONE_VALUES = [PROMOTIONAL_TONE_LABEL, 'promotional', 'Promocional/Comercial'];
+import { getCategoryById, getCategoryWithSubcategoryIds } from '@/app/lib/classification';
+const normalizeValue = (value?: string | null) => {
+    if (!value) return [];
+    const trimmed = value.trim();
+    const lower = trimmed.toLowerCase();
+    const accentless = trimmed.normalize('NFD').replace(/\p{Diacritic}+/gu, '');
+    const accentlessLower = lower.normalize('NFD').replace(/\p{Diacritic}+/gu, '');
+    return Array.from(new Set([trimmed, lower, accentless, accentlessLower]));
+};
 
 export const runtime = 'nodejs';
 
@@ -34,12 +37,34 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
+    const buildClassFilter = (value: string, type: 'proposal' | 'tone') => {
+        const ids = getCategoryWithSubcategoryIds(value, type);
+        const labels = ids
+            .map(id => getCategoryById(id, type)?.label)
+            .filter((l): l is string => Boolean(l));
+
+        const variants = Array.from(
+            new Set(
+                [...ids, ...labels].flatMap(v => normalizeValue(v))
+            )
+        );
+
+        const field = type;
+        return { [field]: { $in: variants } } as FilterQuery<IMetric>;
+    };
+
+    const publiFilters: FilterQuery<IMetric>[] = [
+        buildClassFilter('publi_divulgation', 'proposal'),
+        buildClassFilter('promotional', 'tone'),
+    ];
+
     const query: FilterQuery<IMetric> = {
         user: session.user.id,
-        // Posts de publi podem ser marcados tanto pela proposta quanto pelo tom promocional.
-        $or: [
-            { proposal: { $in: PUBLI_PROPOSAL_VALUES } },
-            { tone: { $in: PROMOTIONAL_TONE_VALUES } },
+        $and: [
+            {
+                // Posts de publi podem ser marcados tanto pela proposta quanto pelo tom promocional.
+                $or: publiFilters,
+            }
         ],
     };
 
