@@ -33,6 +33,7 @@ function serializeUser(doc: any) {
     city: doc.city ?? null,
     state: doc.state ?? null,
     country: doc.country ?? null,
+    mediaKitDisplayName: doc.mediaKitDisplayName ?? null,
     biography: doc.biography ?? instagram.biography ?? null,
     profile_picture_url:
       doc.profile_picture_url ||
@@ -76,7 +77,7 @@ export async function GET() {
   await connectToDatabase();
   const user = await User.findById(userId)
     .select(
-      'name username handle email profile_picture_url biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count mediaKitPricingPublished'
+      'name mediaKitDisplayName username handle email profile_picture_url biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count mediaKitPricingPublished'
     )
     .lean()
     .exec();
@@ -87,5 +88,56 @@ export async function GET() {
 
   const payload = serializeUser(user);
 
+  return NextResponse.json({ user: payload });
+}
+
+export async function PATCH(req: Request) {
+  const session = (await getServerSession(authOptions as any)) as
+    | { user?: { id?: string | null } }
+    | null
+    | undefined;
+
+  const userId = session?.user?.id;
+  if (!userId) {
+    return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  }
+
+  let body: any = null;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Payload inválido.' }, { status: 400 });
+  }
+
+  const rawName =
+    typeof body?.mediaKitDisplayName === 'string'
+      ? body.mediaKitDisplayName
+      : typeof body?.displayName === 'string'
+        ? body.displayName
+        : typeof body?.name === 'string'
+          ? body.name
+          : '';
+
+  const normalizedName = rawName.replace(/\s+/g, ' ').trim();
+  if (normalizedName.length && (normalizedName.length < 2 || normalizedName.length > 80)) {
+    return NextResponse.json(
+      { error: 'Use entre 2 e 80 caracteres no nome exibido.' },
+      { status: 400 },
+    );
+  }
+
+  await connectToDatabase();
+  const user = await User.findById(userId)
+    .select('mediaKitDisplayName name username handle email profile_picture_url instagram instagramUsername followers_count')
+    .exec();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+  }
+
+  user.mediaKitDisplayName = normalizedName.length ? normalizedName : null;
+  await user.save();
+
+  const payload = serializeUser(user.toObject());
   return NextResponse.json({ user: payload });
 }

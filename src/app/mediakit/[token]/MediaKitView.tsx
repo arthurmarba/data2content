@@ -22,6 +22,7 @@ import {
   Globe,
   Volume2,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import {
   Area,
@@ -1249,6 +1250,7 @@ export default function MediaKitView({
   packages = [],
   pricingPublished = false,
   onTogglePricingPublish,
+  onEditName,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -2397,12 +2399,23 @@ export default function MediaKitView({
                     <ButtonPrimary
                       onClick={handleShareClick}
                       variant="outline"
-                      size="md"
-                      className="w-full justify-center rounded-full border-slate-200 shadow-sm hover:bg-slate-50 sm:w-auto"
+                      size="sm"
+                      className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
                     >
                       <Share2 className="mr-2 h-4 w-4" />
                       Compartilhar
                     </ButtonPrimary>
+                    {onEditName && showOwnerCtas && (
+                      <ButtonPrimary
+                        onClick={onEditName}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Editar nome
+                      </ButtonPrimary>
+                    )}
                     {hasCopiedLink && (
                       <span className="animate-fade-in ml-3 flex items-center text-xs font-medium text-emerald-600">
                         Link copiado!

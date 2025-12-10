@@ -58,7 +58,7 @@ export async function generateMetadata(
   await connectToDatabase();
 
   const user = await UserModel.findOne({ mediaKitSlug: params.token })
-    .select('name biography profile_picture_url profileCoverUrl profile_cover_url bannerUrl cover_url ogImage mediaKitCoverUrl')
+    .select('name mediaKitDisplayName biography profile_picture_url profileCoverUrl profile_cover_url bannerUrl cover_url ogImage mediaKitCoverUrl')
     .lean();
 
   if (!user) {
@@ -68,10 +68,11 @@ export async function generateMetadata(
     };
   }
 
-  const title = `Mídia Kit de ${user.name}`;
+  const displayName = (user as any)?.mediaKitDisplayName || user.name;
+  const title = `Mídia Kit de ${displayName}`;
   const description = user.biography
     ? String(user.biography).slice(0, 160)
-    : `Dados de desempenho e publicações de destaque de ${user.name}.`;
+    : `Dados de desempenho e publicações de destaque de ${displayName}.`;
   
   const rawImg =
     (user as any).profileCoverUrl ||
@@ -260,6 +261,13 @@ export default async function MediaKitPage(
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));
+  const displayName =
+    (plainUser as any)?.mediaKitDisplayName ||
+    (plainUser as any)?.name ||
+    null;
+  if (displayName) {
+    plainUser.name = displayName;
+  }
   if (
     plainUser &&
     typeof plainUser.followersCount !== 'number' &&

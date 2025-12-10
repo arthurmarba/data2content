@@ -276,6 +276,7 @@ export interface IAlertHistoryEntry {
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name?: string;
+  mediaKitDisplayName?: string | null;
   email: string;
   password?: string;
   image?: string;
@@ -484,6 +485,7 @@ const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, trim: true, text: true },
+    mediaKitDisplayName: { type: String, trim: true, default: null, maxlength: 80 },
     email: {
       type: String,
       required: [true, 'Email is required.'],

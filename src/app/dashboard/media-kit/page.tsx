@@ -237,6 +237,11 @@ function SelfMediaKitContent({
   const [pricing, setPricing] = useState<MediaKitPricing | null>(null);
   const [pricingPublished, setPricingPublished] = useState(false);
   const [packages, setPackages] = useState<MediaKitPackage[]>([]);
+  const [nameInput, setNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameSuccess, setNameSuccess] = useState<string | null>(null);
+  const [showNameModal, setShowNameModal] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -306,6 +311,28 @@ function SelfMediaKitContent({
     };
   }, [userId]);
 
+  useEffect(() => {
+    const resolvedName =
+      (ownerProfile?.mediaKitDisplayName as string | undefined) ??
+      (ownerProfile?.name as string | undefined) ??
+      (fallbackName as string | undefined) ??
+      '';
+    setNameInput(resolvedName);
+  }, [ownerProfile?.mediaKitDisplayName, ownerProfile?.name, fallbackName]);
+
+  useEffect(() => {
+    if (nameError) {
+      setNameError(null);
+    }
+  }, [nameInput, nameError]);
+
+  useEffect(() => {
+    if (!showNameModal) {
+      setNameError(null);
+      setNameSuccess(null);
+    }
+  }, [showNameModal]);
+
   const user = useMemo(() => {
     const profile = ownerProfile ?? {};
     const picture =
@@ -326,7 +353,7 @@ function SelfMediaKitContent({
 
     return {
       _id: profile._id || userId,
-      name: profile.name ?? fallbackName ?? 'Criador',
+      name: profile.mediaKitDisplayName ?? profile.name ?? fallbackName ?? 'Criador',
       username: profile.username ?? profile.instagramUsername ?? undefined,
       handle: profile.handle ?? undefined,
       email: fallbackEmail ?? profile.email ?? undefined,
@@ -347,6 +374,63 @@ function SelfMediaKitContent({
     } as any;
   }, [ownerProfile, userId, fallbackName, fallbackEmail, fallbackImage]);
 
+  const handleSaveDisplayName = useCallback(
+    async (forcedName?: string, opts?: { closeAfter?: boolean }) => {
+      const rawValue = typeof forcedName === 'string' ? forcedName : nameInput;
+      const normalized = rawValue.replace(/\s+/g, ' ').trim();
+
+      if (normalized && (normalized.length < 2 || normalized.length > 80)) {
+        setNameError('Use entre 2 e 80 caracteres.');
+        setNameSuccess(null);
+        return;
+      }
+
+      setSavingName(true);
+      setNameError(null);
+      setNameSuccess(null);
+
+      try {
+        const res = await fetch('/api/mediakit/self/user', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mediaKitDisplayName: normalized || null }),
+        });
+
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(payload?.error || 'Não foi possível salvar o nome.');
+        }
+
+        const updatedUser = payload?.user ?? null;
+        setOwnerProfile((prev: any) => {
+          const merged = { ...(prev ?? {}), ...(updatedUser ?? {}) };
+          merged.mediaKitDisplayName = updatedUser?.mediaKitDisplayName ?? (normalized ? normalized : null);
+          if (!merged.name && (prev?.name || fallbackName)) {
+            merged.name = merged.name ?? prev?.name ?? fallbackName ?? null;
+          }
+          merged.biography = updatedUser?.biography ?? prev?.biography ?? null;
+          merged.profile_picture_url = updatedUser?.profile_picture_url ?? prev?.profile_picture_url ?? null;
+          return merged;
+        });
+        setNameInput(normalized);
+        setNameSuccess('Nome atualizado no mídia kit.');
+        if (opts?.closeAfter) {
+          setShowNameModal(false);
+        }
+      } catch (err: any) {
+        setNameError(err?.message || 'Não foi possível salvar o nome.');
+      } finally {
+        setSavingName(false);
+      }
+    },
+    [fallbackName, nameInput],
+  );
+
+  const handleResetDisplayName = useCallback(() => {
+    setNameInput('');
+    void handleSaveDisplayName('', { closeAfter: true });
+  }, [handleSaveDisplayName]);
+
   if (loading) {
     return <MediaKitSkeleton compactPadding={compactPadding} />;
   }
@@ -358,6 +442,14 @@ function SelfMediaKitContent({
       </div>
     );
   }
+
+  const savedDisplayName = (ownerProfile?.mediaKitDisplayName as string | undefined) ?? '';
+  const savedDisplayNameNormalized = savedDisplayName.replace(/\s+/g, ' ').trim();
+  const normalizedInput = nameInput.replace(/\s+/g, ' ').trim();
+  const isNameDirty = normalizedInput !== savedDisplayNameNormalized;
+  const googleName = (fallbackName as string | undefined) ?? (ownerProfile?.name as string | undefined) ?? '';
+  const effectiveDisplayNamePreview = normalizedInput || savedDisplayName || googleName || 'Criador';
+  const canResetToGoogle = Boolean(savedDisplayNameNormalized || normalizedInput);
 
   const handleClearPricing = async () => {
     if (!window.confirm('Tem certeza que deseja excluir os valores sugeridos do seu Mídia Kit? Esta ação não pode ser desfeita.')) {
@@ -398,23 +490,122 @@ function SelfMediaKitContent({
   };
 
   return (
-    <MediaKitView
-      user={user}
-      summary={summary}
-      videos={videos}
-      kpis={kpis}
-      demographics={demographics}
-      engagementTrend={engagementTrend}
-      showOwnerCtas={true}
-      compactPadding={compactPadding}
-      publicUrlForCopy={publicUrlForCopy || undefined}
-      premiumAccess={premiumAccess}
-      pricing={pricing}
-      onClearPricing={handleClearPricing}
-      pricingPublished={pricingPublished}
-      onTogglePricingPublish={handleTogglePricingPublish}
-      packages={packages}
-    />
+    <>
+      <MediaKitView
+        user={user}
+        summary={summary}
+        videos={videos}
+        kpis={kpis}
+        demographics={demographics}
+        engagementTrend={engagementTrend}
+        showOwnerCtas={true}
+        compactPadding={compactPadding}
+        publicUrlForCopy={publicUrlForCopy || undefined}
+        premiumAccess={premiumAccess}
+        pricing={pricing}
+        onClearPricing={handleClearPricing}
+        pricingPublished={pricingPublished}
+        onTogglePricingPublish={handleTogglePricingPublish}
+        packages={packages}
+        onEditName={() => setShowNameModal(true)}
+      />
+
+      <AnimatePresence>
+        {showNameModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9998] bg-black/75 backdrop-blur-[2px]"
+              onClick={() => setShowNameModal(false)}
+            />
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+              className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Nome exibido no mídia kit</p>
+                    <p className="text-xs text-slate-500">
+                      Mostrado no topo do seu mídia kit. Deixe vazio para usar o nome da sua conta Google
+                      {googleName ? ` (${googleName})` : ''}.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowNameModal(false)}
+                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    aria-label="Fechar"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Nome
+                  </label>
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    placeholder={googleName || 'Nome da sua conta Google'}
+                    maxLength={80}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]/40"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Pré-visualização: <span className="font-semibold text-slate-800">{effectiveDisplayNamePreview}</span>
+                  </p>
+                </div>
+
+                {nameError && <p className="mt-2 text-xs text-red-600">{nameError}</p>}
+                {nameSuccess && <p className="mt-2 text-xs text-emerald-600">{nameSuccess}</p>}
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => void handleSaveDisplayName(undefined, { closeAfter: true })}
+                    disabled={savingName || !isNameDirty}
+                    className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition ${
+                      savingName || !isNameDirty
+                        ? 'cursor-not-allowed bg-slate-300'
+                        : 'bg-[#6E1F93] hover:bg-[#5B167B]'
+                    }`}
+                  >
+                    {savingName ? 'Salvando...' : 'Salvar nome'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetDisplayName}
+                    disabled={savingName || !canResetToGoogle}
+                    className={`inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                      savingName || !canResetToGoogle
+                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Usar nome do Google
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowNameModal(false)}
+                    className="inline-flex items-center justify-center rounded-xl border border-transparent px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                    disabled={savingName}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
