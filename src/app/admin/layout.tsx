@@ -34,6 +34,11 @@ const menuItems: MenuItem[] = [
       { label: 'Posts', href: '/admin/creator-dashboard#global-posts-explorer' },
     ],
   },
+  {
+    label: 'Insights Criadores',
+    href: '/admin/creators-insights',
+    icon: ChartBarIcon,
+  },
   { label: 'Afiliados', href: '/admin/affiliates', icon: UserGroupIcon },
   { label: 'Agências', href: '/admin/agencies', icon: UserGroupIcon },
   { label: 'Resgates', href: '/admin/redemptions', icon: CurrencyDollarIcon },

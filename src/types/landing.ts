@@ -137,4 +137,5 @@ export interface CreatorProfileExtended {
   nextPlatform: NextPlatform[];
   learningStyles: LearningStyle[];
   notificationPref: NotificationPref[];
+  adminNotes?: string;
 }

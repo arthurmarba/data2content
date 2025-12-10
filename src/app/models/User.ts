@@ -251,6 +251,7 @@ export interface ICreatorProfileExtended {
   learningStyles: LearningStyle[];
   notificationPref: NotificationPref[];
   updatedAt?: Date;
+  adminNotes?: string;
 }
 
 export interface IUserLocation {
@@ -695,7 +696,8 @@ const userSchema = new Schema<IUser>(
       dailyExpectation: { type: String, default: "" },
       nextPlatform: { type: [String], enum: ['tiktok', 'youtube', 'outra', 'nenhuma'], default: [] },
       learningStyles: { type: [String], enum: ['videos', 'texto', 'checklist', 'aula'], default: [] },
-      notificationPref: { type: [String], enum: ['email', 'whatsapp', 'in-app'], default: [] },
+    notificationPref: { type: [String], enum: ['email', 'whatsapp', 'in-app'], default: [] },
+      adminNotes: { type: String, default: "" },
       updatedAt: { type: Date },
     },
     creatorContext: {
@@ -726,6 +728,68 @@ userSchema.index(
 userSchema.index(
   { whatsappTrialActive: 1, whatsappTrialExpiresAt: 1 },
   { name: 'idx_whatsapp_trial_active_exp' }
+);
+
+// Índices para consultas do survey de criadores
+userSchema.index(
+  { 'creatorProfileExtended.updatedAt': -1 },
+  { name: 'idx_creator_survey_updated_at' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.stage': 1 },
+  { name: 'idx_creator_survey_stage' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.mainPains': 1 },
+  { name: 'idx_creator_survey_pains' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.hardestStage': 1 },
+  { name: 'idx_creator_survey_hardest' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.hasDoneSponsoredPosts': 1 },
+  { name: 'idx_creator_survey_monetization' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.nextPlatform': 1 },
+  { name: 'idx_creator_survey_next_platform' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.mainPlatformReasons': 1 },
+  { name: 'idx_creator_survey_platform_reasons' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.niches': 1 },
+  { name: 'idx_creator_survey_niches' }
+);
+userSchema.index(
+  { 'creatorProfileExtended.brandTerritories': 1 },
+  { name: 'idx_creator_survey_brand_territories' }
+);
+userSchema.index(
+  { name: 'text', email: 'text', username: 'text' },
+  { name: 'idx_creator_search_text' }
+);
+userSchema.index(
+  { followers_count: -1 },
+  { name: 'idx_creator_followers' }
+);
+userSchema.index(
+  { media_count: -1 },
+  { name: 'idx_creator_media_count' }
+);
+userSchema.index(
+  { 'location.country': 1 },
+  { name: 'idx_creator_country' }
+);
+userSchema.index(
+  { 'location.city': 1 },
+  { name: 'idx_creator_city' }
+);
+userSchema.index(
+  { gender: 1 },
+  { name: 'idx_creator_gender' }
 );
 
 userSchema.pre<IUser>("save", function (next) {
