@@ -25,7 +25,7 @@ const SERVICE_TAG = '[dataService][postsService]';
 // ----------------------------------------------
 // Utils
 // ----------------------------------------------
-function toProxyUrl(raw: string): string {
+export function toProxyUrl(raw: string): string {
   if (!raw) return raw;
   if (raw.startsWith('/api/proxy/thumbnail/')) return raw;
   return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
@@ -388,6 +388,9 @@ export async function findUserPosts({ // ALTERADO
         { 'stats.views': { $gte: filters.minViews } },
         { 'stats.video_views': { $gte: filters.minViews } }
       ];
+    }
+    if (typeof (filters as any).hour === 'number') {
+      matchStage.$expr = { $eq: [{ $hour: '$postDate' }, (filters as any).hour] };
     }
 
     const totalPosts = await MetricModel.countDocuments(matchStage); // ALTERADO

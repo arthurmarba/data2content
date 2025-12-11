@@ -72,7 +72,25 @@ export async function getUserReachInteractionTrendChartData(
 
     const aggregatedData = await MetricModel.aggregate([
       { $match: matchStage },
-      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$postDate" } }, totalReach: { $sum: { $ifNull: ["$stats.reach", 0] } }, totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$postDate" } },
+          totalReach: {
+            $sum: {
+              $ifNull: [
+                "$stats.reach",
+                {
+                  $ifNull: [
+                    "$stats.views",
+                    { $ifNull: ["$stats.impressions", 0] }
+                  ]
+                }
+              ]
+            }
+          },
+          totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } }
+        }
+      },
       { $sort: { _id: 1 } }
     ]);
     

@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 // ALTERADO: Importa a função com o novo nome
-import { findUserPosts } from '@/app/lib/dataService/marketAnalysis/postsService';
+import { findUserPosts, toProxyUrl } from '@/app/lib/dataService/marketAnalysis/postsService';
 import { mapMetricToDbField } from '@/app/lib/dataService/marketAnalysis/helpers';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
@@ -35,10 +35,23 @@ function extractThumbnail(v: any): string | undefined {
   );
 }
 
+function normalizeThumb(url?: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('/api/proxy/thumbnail/')) return url;
+  if (/^https?:\/\//i.test(url)) return toProxyUrl(url);
+  return url;
+}
+
 function toInt(value: string | null, fallback: number): number {
   const n = parseInt(String(value ?? ''), 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
+
+const toHour = (value: string | null): number | null => {
+  if (value === null || value === undefined) return null;
+  const n = parseInt(String(value), 10);
+  return Number.isInteger(n) && n >= 0 && n <= 23 ? n : null;
+};
 
 export async function GET(
   request: Request,
@@ -59,6 +72,7 @@ export async function GET(
     const sortOrder: 'asc' | 'desc' = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
     const page = toInt(searchParams.get('page'), 1);
     const limit = Math.min(toInt(searchParams.get('limit'), 10), 200);
+    const hourFilter = toHour(searchParams.get('hour'));
 
     const typesParam = searchParams.get('types');
     const parsedTypes = typesParam
@@ -95,6 +109,11 @@ export async function GET(
       endDate.setUTCHours(23, 59, 59, 999);
     }
 
+    if (hourFilter !== null) {
+      // Filtra por hora de publicação se solicitado
+      (filters as any).hour = hourFilter;
+    }
+
     // ALTERADO: Chama a função correta
     const result = await findUserPosts({
       userId,
@@ -111,10 +130,12 @@ export async function GET(
     // ALTERADO: Usa result.posts, que é a nova propriedade de retorno
     const normalizedPosts = (result.posts || []).map((p: any) => {
       const thumb = extractThumbnail(p);
+      const proxiedThumb = normalizeThumb(thumb ?? p.thumbnailUrl ?? null);
+      const proxiedCover = normalizeThumb(p.coverUrl ?? null);
       return {
         ...p,
-        coverUrl: p.coverUrl ?? null,
-        thumbnailUrl: thumb ?? p.thumbnailUrl ?? null,
+        coverUrl: proxiedCover,
+        thumbnailUrl: proxiedThumb,
       };
     });
 

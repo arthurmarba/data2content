@@ -1,8 +1,11 @@
 export const ALLOWED_TIME_PERIODS = [
   'all_time',
   'last_7_days',
+  'last_14_days',
   'last_30_days',
+  'last_60_days',
   'last_90_days',
+  'last_120_days',
   'last_180_days',
   'last_6_months',
   'last_12_months',

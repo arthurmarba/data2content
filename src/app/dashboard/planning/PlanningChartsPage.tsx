@@ -23,7 +23,15 @@ import PostsBySliceModal from "./components/PostsBySliceModal";
 
 const cardBase = "rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
-const TIME_PERIOD = "last_90_days";
+const DEFAULT_TIME_PERIOD = "last_90_days";
+const PERIOD_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: "Últimos 7 dias", value: "last_7_days" },
+  { label: "Últimos 14 dias", value: "last_14_days" },
+  { label: "Últimos 30 dias", value: "last_30_days" },
+  { label: "Últimos 60 dias", value: "last_60_days" },
+  { label: "Últimos 90 dias", value: "last_90_days" },
+  { label: "Últimos 120 dias", value: "last_120_days" },
+];
 const metricCellClass = "text-right tabular-nums text-slate-800 font-semibold";
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -65,6 +73,27 @@ const normalizeWeekKey = (value: string | Date | null) => {
     if (match && match[1] && match[2]) return `${match[1]}-W${match[2].padStart(2, "0")}`;
   }
   return null;
+};
+
+const formatWeekLabel = (weekKey?: string | null) => {
+  if (!weekKey) return "";
+  // Aceita tanto "YYYY-W##" quanto "YYYY-##"
+  const m = weekKey.match(/(\d{4})-W?(\d{1,2})/i);
+  if (!m) return weekKey;
+  const year = Number(m[1]);
+  const week = Number(m[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(week)) return weekKey;
+  // Calcula o primeiro dia da semana (considera semana começando em segunda-feira)
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dayOfWeek = simple.getDay(); // 0 = domingo
+  const ISOweekStart = new Date(simple);
+  if (dayOfWeek <= 4) {
+    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+  }
+  const month = ISOweekStart.toLocaleString("pt-BR", { month: "short" });
+  return `${month} W${String(week)}`;
 };
 
 const normalizePost = (post: any) => {
@@ -158,52 +187,59 @@ const sortPostsByDateDesc = (posts: any[]) =>
 export default function PlanningChartsPage() {
   const { data: session } = useSession();
   const userId = session?.user?.id;
+  const [timePeriod, setTimePeriod] = useState<string>(DEFAULT_TIME_PERIOD);
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const [autoPaginating, setAutoPaginating] = useState(false);
   const PAGE_LIMIT = 200;
   const MAX_PAGES = 6; // evita loop infinito; 6*200 = 1200 posts em 90 dias
 
+  const handleTimePeriodChange = (value: string) => {
+    setTimePeriod(value);
+    setPage(1);
+    setPostsCache([]);
+  };
+
   const { data: trendData, isLoading: loadingTrend } = useSWR(
-    userId ? `/api/v1/users/${userId}/trends/reach-engagement?granularity=weekly&timePeriod=${TIME_PERIOD}` : null,
+    userId ? `/api/v1/users/${userId}/trends/reach-engagement?granularity=weekly&timePeriod=${timePeriod}` : null,
     fetcher
   );
   const { data: timeData, isLoading: loadingTime } = useSWR(
-    userId ? `/api/v1/users/${userId}/performance/time-distribution?metric=stats.total_interactions&timePeriod=${TIME_PERIOD}` : null,
+    userId ? `/api/v1/users/${userId}/performance/time-distribution?metric=stats.total_interactions&timePeriod=${timePeriod}` : null,
     fetcher
   );
   const { data: formatData, isLoading: loadingFormat } = useSWR(
     userId
-      ? `/api/v1/users/${userId}/performance/engagement-distribution-format?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions`
+      ? `/api/v1/users/${userId}/performance/engagement-distribution-format?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions`
       : null,
     fetcher
   );
   const { data: proposalData, isLoading: loadingProposal } = useSWR(
     userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions&groupBy=proposal`
+      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions&groupBy=proposal`
       : null,
     fetcher
   );
   const { data: toneData, isLoading: loadingTone } = useSWR(
     userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions&groupBy=tone`
+      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions&groupBy=tone`
       : null,
     fetcher
   );
   const { data: referenceData, isLoading: loadingReference } = useSWR(
     userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions&groupBy=references`
+      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions&groupBy=references`
       : null,
     fetcher
   );
   const { data: postsData, isLoading: loadingPosts } = useSWR(
     userId
-      ? `/api/v1/users/${userId}/videos/list?timePeriod=${TIME_PERIOD}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
+      ? `/api/v1/users/${userId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
       : null,
     fetcher
   );
   const { data: videoMetrics } = useSWR(
-    userId ? `/api/v1/users/${userId}/performance/video-metrics?timePeriod=${TIME_PERIOD}` : null,
+    userId ? `/api/v1/users/${userId}/performance/video-metrics?timePeriod=${timePeriod}` : null,
     fetcher
   );
 
@@ -272,15 +308,50 @@ export default function PlanningChartsPage() {
   );
 
   const handleHourClick = React.useCallback(
-    (hour: number, subtitle: string) => {
+    async (hour: number, subtitle: string) => {
       const posts = sortPostsByDateDesc(filterPostsByHour(normalizedPosts, hour));
-      openSliceModal({
-        title: `Posts no horário ${hour}h`,
-        subtitle,
-        posts,
-      });
+      if (posts.length > 0) {
+        openSliceModal({
+          title: `Posts no horário ${hour}h`,
+          subtitle,
+          posts,
+        });
+        return;
+      }
+
+      // Fallback: busca posts do horário no back-end usando o período selecionado.
+      if (!userId) return;
+      try {
+        const res = await fetch(
+          `/api/v1/users/${userId}/videos/list?timePeriod=${timePeriod}&hour=${hour}&limit=200&page=1&sortBy=postDate&sortOrder=desc`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) {
+          openSliceModal({
+            title: `Posts no horário ${hour}h`,
+            subtitle,
+            posts: [],
+          });
+          return;
+        }
+        const data = await res.json();
+        const apiPosts = Array.isArray(data?.posts) ? data.posts : [];
+        const normalized = apiPosts.map((p: any) => normalizePost(p));
+        openSliceModal({
+          title: `Posts no horário ${hour}h`,
+          subtitle,
+          posts: sortPostsByDateDesc(normalized),
+        });
+      } catch (err) {
+        console.warn("[PlanningCharts] Falha ao buscar posts por hora", err);
+        openSliceModal({
+          title: `Posts no horário ${hour}h`,
+          subtitle,
+          posts: [],
+        });
+      }
     },
-    [normalizedPosts, openSliceModal]
+    [normalizedPosts, openSliceModal, timePeriod, userId]
   );
 
   const handleDayHourClick = React.useCallback(
@@ -688,9 +759,28 @@ export default function PlanningChartsPage() {
               Gráficos do planejamento
             </div>
             <h1 className="text-2xl font-semibold text-slate-900">Leituras com dados reais</h1>
-            <p className="text-sm text-slate-600">
-              Atualizado para os últimos 90 dias. Use alcance, interações e horários reais para planejar sem canibalizar posts.
-            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-600">
+                Atualizado para o período selecionado. Use alcance, interações e horários reais para planejar sem canibalizar posts.
+              </p>
+              <div className="flex items-center gap-2">
+                <label htmlFor="timePeriod" className="text-xs font-semibold text-slate-600">
+                  Período
+                </label>
+                <select
+                  id="timePeriod"
+                  value={timePeriod}
+                  onChange={(e) => handleTimePeriodChange(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  {PERIOD_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </header>
 
         <section className="grid gap-4 md:grid-cols-2">
@@ -716,10 +806,17 @@ export default function PlanningChartsPage() {
                     style={{ cursor: "pointer" }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={formatWeekLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                    />
                     <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <Tooltip
                       contentStyle={tooltipStyle}
+                      labelFormatter={(label) => formatWeekLabel(String(label))}
                       formatter={(value: number) => numberFormatter.format(Math.round(value))}
                     />
                     <Line type="monotone" dataKey="reach" name="Alcance médio" stroke="#2563eb" strokeWidth={3} dot={false} />
@@ -1123,7 +1220,13 @@ export default function PlanningChartsPage() {
                     style={{ cursor: "pointer" }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={formatWeekLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                    />
                     <YAxis
                       yAxisId="left"
                       tickLine={false}
@@ -1255,7 +1358,13 @@ export default function PlanningChartsPage() {
                     style={{ cursor: "pointer" }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={formatWeekLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                    />
                     <YAxis
                       tickFormatter={(v) => `${(v * 100).toFixed(1)}%`}
                       tickLine={false}
@@ -1264,6 +1373,7 @@ export default function PlanningChartsPage() {
                     />
                     <Tooltip
                       contentStyle={tooltipStyle}
+                      labelFormatter={(label) => formatWeekLabel(String(label))}
                       formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, "Taxa de engajamento (interações/alcance)"]}
                     />
                     <Line type="monotone" dataKey="avgRate" name="Engajamento semanal" stroke="#7c3aed" strokeWidth={3} dot />
@@ -1296,7 +1406,13 @@ export default function PlanningChartsPage() {
                     style={{ cursor: "pointer" }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={formatWeekLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                    />
                     <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                     <YAxis
                       yAxisId="right"
@@ -1307,6 +1423,7 @@ export default function PlanningChartsPage() {
                     />
                     <Tooltip
                       contentStyle={tooltipStyle}
+                      labelFormatter={(label) => formatWeekLabel(String(label))}
                       formatter={(value: number, name) =>
                         name === "shares"
                           ? [numberFormatter.format(Math.round(value)), "Compartilhamentos"]

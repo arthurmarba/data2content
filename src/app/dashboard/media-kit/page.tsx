@@ -7,7 +7,6 @@ import { useSession, signIn } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaWhatsapp, FaTimes } from 'react-icons/fa';
-import WhatsAppConnectInline from '../WhatsAppConnectInline';
 import { useHeaderSetup } from '../context/HeaderContext';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
@@ -666,15 +665,6 @@ export default function MediaKitSelfServePage() {
   }, [hasPremiumAccess, categoriesCtaLabel, categoriesSubtitle, handleUpgrade, trialState]);
 
   const [showCommunityModal, setShowCommunityModal] = useState(false);
-  // Lógica e Estado para o Modal do WhatsApp
-  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-  const handleWhatsAppLink = useCallback(() => {
-    if (!hasPremiumAccess) {
-      openPaywallModal({ context: 'whatsapp', source: 'media_kit_whatsapp' });
-      return;
-    }
-    setShowWhatsAppModal(true);
-  }, [hasPremiumAccess]);
 
   useHeaderSetup(
     {
@@ -913,39 +903,6 @@ export default function MediaKitSelfServePage() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showWhatsAppModal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowWhatsAppModal(false)}
-              className="fixed inset-0 bg-black/50 z-50"
-              aria-hidden="true"
-            />
-            <motion.div
-              initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 40 }}
-              className="fixed bottom-0 left-0 right-0 bg-gray-50 p-4 pt-5 rounded-t-2xl shadow-2xl z-[60] border-t"
-            >
-              <div className="max-w-2xl mx-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">Vincular com WhatsApp</h3>
-                  <button onClick={() => setShowWhatsAppModal(false)} className="p-1 rounded-full hover:bg-gray-200 text-gray-500"><FaTimes /></button>
-                </div>
-                <div className="p-4 bg-white rounded-lg border border-gray-200">
-                  {hasPremiumAccess ? (
-                    <WhatsAppConnectInline />
-                  ) : (
-                    <p className="text-sm text-gray-600">
-                      Ative ou renove seu plano para gerar o código de verificação do WhatsApp.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </>
   );
 }
