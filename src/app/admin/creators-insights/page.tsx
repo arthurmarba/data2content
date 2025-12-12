@@ -264,6 +264,49 @@ function TimeSeriesChart({ data }: { data: { date: string; count: number }[] }) 
   );
 }
 
+function NoDataBlock({ title, description, actionLabel, onAction }: { title: string; description: string; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <div className="bg-white border border-amber-200 rounded-lg p-4 shadow-sm flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
+        <div>
+          <p className="text-sm font-semibold text-gray-900">{title}</p>
+          <p className="text-xs text-gray-600">{description}</p>
+        </div>
+      </div>
+      {actionLabel && (
+        <div>
+          <button
+            onClick={onAction}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
+          >
+            {actionLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function isAllNoData(data?: DistributionEntry[]) {
+  return Boolean(data && data.length && data.every((d) => d.value === 'Sem dado'));
+}
+
+function Section({ title, description, children, actions }: { title: string; description?: string; children: React.ReactNode; actions?: React.ReactNode }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+          {description && <p className="text-xs text-gray-500">{description}</p>}
+        </div>
+        {actions}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function CreatorsInsightsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -313,6 +356,8 @@ export default function CreatorsInsightsPage() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const userSearchTimer = useRef<NodeJS.Timeout | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'visao' | 'diagnostico' | 'acao'>('visao');
+  const [openResponsesTheme, setOpenResponsesTheme] = useState<string>('');
 
   const sortConfig = useMemo(
     () => ({ sortBy: filters.sortBy ?? 'updatedAt', sortOrder: filters.sortOrder ?? 'desc' }),
@@ -866,6 +911,49 @@ export default function CreatorsInsightsPage() {
     setActiveTab('individual');
   };
 
+  const filledCityPct = useMemo(() => {
+    const totalResp = analytics?.totalRespondents || 0;
+    if (!totalResp || !analytics?.qualitySummary) return 1;
+    const filled = totalResp - analytics.qualitySummary.missingCity;
+    return filled / totalResp;
+  }, [analytics]);
+
+  const themeBuckets = useMemo(() => {
+    const themes = [
+      { key: 'roteiros', label: 'Roteiros/organização', keywords: ['roteiro', 'ideias', 'organiza', 'calendário', 'planejar'] },
+      { key: 'metricas', label: 'Métricas', keywords: ['métrica', 'metricas', 'analytics', 'alcance', 'engaj', 'dados'] },
+      { key: 'publis', label: 'Publis/negociação', keywords: ['publi', 'marca', 'negoci', 'proposta', 'preço', 'precificar'] },
+      { key: 'posicionamento', label: 'Posicionamento', keywords: ['posicion', 'nicho', 'imagem', 'marca pessoal'] },
+    ];
+    const counts: Record<string, number> = {};
+    openResponses.forEach((resp) => {
+      const text = resp.text.toLowerCase();
+      themes.forEach((t) => {
+        if (t.keywords.some((k) => text.includes(k))) {
+          counts[t.key] = (counts[t.key] || 0) + 1;
+        }
+      });
+    });
+    return themes.map((t) => ({ ...t, count: counts[t.key] || 0 }));
+  }, [openResponses]);
+
+  const recommendations = useMemo(() => {
+    const recs: string[] = [];
+    if (analytics?.monetizationComparison?.nonMonetizing?.count) {
+      recs.push(`${analytics.monetizationComparison.nonMonetizing.count} criadores com monetização baixa → priorizar orientação comercial`);
+    }
+    if (analytics?.metrics?.avgGrowth != null) {
+      recs.push(`Crescimento médio ${analytics.metrics.avgGrowth.toFixed(2)}% → ativar estratégia de descoberta`);
+    }
+    if (analytics?.topPain?.value) {
+      recs.push(`Dor nº1 = ${analytics.topPain.value} → criar rotina semanal de leitura de dados`);
+    }
+    if (recs.length === 0 && analytics?.qualitySummary) {
+      recs.push(`Faltando engajamento em ${analytics.qualitySummary.missingEngagement} perfis → conectar métricas`);
+    }
+    return recs.slice(0, 3);
+  }, [analytics]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -905,6 +993,18 @@ export default function CreatorsInsightsPage() {
             Visão geral
           </Tab>
         </Tab.List>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs text-gray-600">Modo:</span>
+          {(['visao', 'diagnostico', 'acao'] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-3 py-1 rounded-md text-xs border ${viewMode === mode ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'border-gray-200 text-gray-600'}`}
+            >
+              {mode === 'visao' ? 'Visão geral' : mode === 'diagnostico' ? 'Diagnóstico' : 'Ação'}
+            </button>
+          ))}
+        </div>
         <Tab.Panels className="mt-4">
           <Tab.Panel>
             <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4 space-y-3">
@@ -1441,7 +1541,36 @@ export default function CreatorsInsightsPage() {
             </div>
           </Tab.Panel>
           <Tab.Panel>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          {analytics?.qualitySummary && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Qualidade do dado</p>
+                    <h3 className="text-lg font-semibold text-gray-900">Respostas completas: {analytics.qualitySummary.completeResponses}/{analytics.totalRespondents}</h3>
+                    <p className="text-sm text-gray-600">Perfis com métricas conectadas: {analytics.qualitySummary.metricsConnected}/{analytics.totalRespondents}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-700">
+                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Cidade faltando: {analytics.qualitySummary.missingCity}</span>
+                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Seguidores faltando: {analytics.qualitySummary.missingFollowers}</span>
+                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Alcance faltando: {analytics.qualitySummary.missingReach}</span>
+                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Engajamento faltando: {analytics.qualitySummary.missingEngagement}</span>
+                  </div>
+                  <div>
+                    <button
+                      onClick={() => alert('Solicitar atualização de dados')}
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
+                    >
+                      Solicitar atualização
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <Section
+              title="KPIs principais"
+              description="Visão rápida do volume, monetização e métricas médias para o recorte atual."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <KpiCard
                 label="Total de criadores"
                 value={analytics?.totalRespondents}
@@ -1500,14 +1629,15 @@ export default function CreatorsInsightsPage() {
               icon={UsersIcon}
               isLoading={analyticsLoading}
             />
-            <KpiCard
-              label="Ticket médio (estimado)"
-              value={analytics?.metrics?.avgTicket ?? undefined}
-              icon={CurrencyDollarIcon}
-              isLoading={analyticsLoading}
-              formatAs="currency"
-            />
-          </div>
+              <KpiCard
+                label="Ticket médio (estimado)"
+                value={analytics?.metrics?.avgTicket ?? undefined}
+                icon={CurrencyDollarIcon}
+                isLoading={analyticsLoading}
+                formatAs="currency"
+              />
+              </div>
+            </Section>
 
           <TopCitiesPercentList
             data={analytics?.cityMetrics}
@@ -1515,22 +1645,115 @@ export default function CreatorsInsightsPage() {
             onSelect={(value) => applyChartFilter('city', value)}
           />
 
-          <QuickInsights
-            analytics={analytics}
-            isLoading={analyticsLoading}
-          />
+          {viewMode !== 'diagnostico' && (
+            <QuickInsights
+              analytics={analytics}
+              isLoading={analyticsLoading}
+            />
+          )}
+
+          {viewMode !== 'acao' &&
+            analytics?.monetizationComparison &&
+            !(
+              (analytics.monetizationComparison.monetizing?.count || 0) === 0 &&
+              (analytics.monetizationComparison.nonMonetizing?.count || 0) === (analytics?.totalRespondents || 0)
+            ) ? (
+            <Section
+              title="Monetiza vs Não monetiza"
+              description="Comportamento de quem já faz publis versus quem ainda não monetiza."
+              actions={<span className="text-xs text-gray-600">{analytics.monetizationYesPct}% monetizam</span>}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div className="border border-gray-100 rounded-lg p-3">
+                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">Monetiza (publis)</p>
+                  <p className="text-xs text-gray-500 mb-2">{analytics.monetizationComparison.monetizing?.count || 0} criadores</p>
+                  <p>Engajamento: {analytics.monetizationComparison.monetizing?.avgEngagement?.toFixed(2) ?? '—'}%</p>
+                  <p>Alcance: {analytics.monetizationComparison.monetizing?.avgReach?.toLocaleString('pt-BR') ?? '—'}</p>
+                  <p>Seguidores: {analytics.monetizationComparison.monetizing?.avgFollowers?.toLocaleString('pt-BR') ?? '—'}</p>
+                  <p>Ticket: {analytics.monetizationComparison.monetizing?.avgTicket ? `R$ ${Math.round(analytics.monetizationComparison.monetizing.avgTicket).toLocaleString('pt-BR')}` : '—'}</p>
+                </div>
+                <div className="border border-gray-100 rounded-lg p-3">
+                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">Não monetiza</p>
+                  <p className="text-xs text-gray-500 mb-2">{analytics.monetizationComparison.nonMonetizing?.count || 0} criadores</p>
+                  <p>Engajamento: {analytics.monetizationComparison.nonMonetizing?.avgEngagement?.toFixed(2) ?? '—'}%</p>
+                  <p>Alcance: {analytics.monetizationComparison.nonMonetizing?.avgReach?.toLocaleString('pt-BR') ?? '—'}</p>
+                  <p>Seguidores: {analytics.monetizationComparison.nonMonetizing?.avgFollowers?.toLocaleString('pt-BR') ?? '—'}</p>
+                  <p>Ticket: {analytics.monetizationComparison.nonMonetizing?.avgTicket ? `R$ ${Math.round(analytics.monetizationComparison.nonMonetizing.avgTicket).toLocaleString('pt-BR')}` : '—'}</p>
+                </div>
+              </div>
+            </Section>
+          ) : null}
+
+            {viewMode !== 'acao' && analytics?.subpricing && (
+              <Section
+                title="Possível subprecificação"
+                description="Regra: ticket abaixo do esperado para seguidores + alcance."
+                actions={<span className="text-xs text-gray-600">{analytics.subpricing.count} criadores</span>}
+              >
+                {analytics.subpricing.examples?.length ? (
+                  <div className="space-y-2">
+                    {analytics.subpricing.examples.map((ex, idx) => (
+                      <div key={idx} className="border border-gray-100 rounded-md p-2 text-sm flex justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900">{ex.name}</p>
+                          <p className="text-xs text-gray-500">{ex.email}</p>
+                        </div>
+                        <div className="text-xs text-right text-gray-700">
+                          <p>Seg: {ex.followers?.toLocaleString('pt-BR') ?? '—'}</p>
+                          <p>Alcance: {ex.reach?.toLocaleString('pt-BR') ?? '—'}</p>
+                          <p>Preço: {ex.priceRange || '—'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">Nenhum caso encontrado com os filtros atuais.</p>
+                )}
+              </Section>
+            )}
+
+            {analytics?.priorityList?.length ? (
+              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Criadores que precisam de ajuda agora</h3>
+                  <span className="text-xs text-gray-600">{analytics.priorityList.length} selecionados</span>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {analytics.priorityList.map((p) => (
+                    <div key={p.id} className="py-2 flex justify-between text-sm">
+                      <div>
+                        <p className="font-semibold text-gray-900">{p.name}</p>
+                        <p className="text-xs text-gray-500">{p.email}</p>
+                        <p className="text-xs text-indigo-700">Motivo: {p.reason}</p>
+                      </div>
+                      <div className="text-xs text-right text-gray-700">
+                        <p>Seg: {p.followers?.toLocaleString('pt-BR') ?? '—'}</p>
+                        <p>Alcance: {p.reach?.toLocaleString('pt-BR') ?? '—'}</p>
+                        <p>Eng: {p.engagementRate != null ? `${p.engagementRate.toFixed(2)}%` : '—'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {viewMode !== 'diagnostico' && recommendations.length > 0 && (
+              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">O que fazer agora</h3>
+                <ul className="list-disc list-inside text-sm text-gray-800 space-y-1">
+                  {recommendations.map((rec, idx) => (
+                    <li key={idx}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <TimeSeriesChart data={analytics?.timeSeries || []} />
 
-            <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <ChatBubbleLeftRightIcon className="w-5 h-5 text-gray-600" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900">Respostas abertas completas</h3>
-                    <p className="text-xs text-gray-500">Leitura integral com busca e filtro por pergunta.</p>
-                  </div>
-                </div>
+            <Section
+              title="Respostas abertas"
+              description="Leitura e cluster rápido. Clique nos temas para filtrar."
+              actions={
                 <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                   <div className="flex-1">
                     <label className="text-xs font-semibold text-gray-600">Buscar termo</label>
@@ -1557,69 +1780,94 @@ export default function CreatorsInsightsPage() {
                     </select>
                   </div>
                 </div>
-              </div>
-
-              <div className="text-xs text-gray-500">
-                {openResponsesLoading && openResponsesLoaded === 0
-                  ? 'Carregando respostas...'
-                  : `${openResponsesLoaded}/${openResponsesTotal} respostas carregadas`}
+              }
+            >
+              <div className="flex flex-wrap gap-2 mb-2">
+                {themeBuckets.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setOpenResponsesTheme(openResponsesTheme === t.key ? '' : t.key)}
+                    className={`px-3 py-1 rounded-md text-xs border ${
+                      openResponsesTheme === t.key ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {t.label} ({t.count})
+                  </button>
+                ))}
+                <span className="text-xs text-gray-500 ml-auto">
+                  {openResponsesLoading && openResponsesLoaded === 0
+                    ? 'Carregando respostas...'
+                    : `${openResponsesLoaded}/${openResponsesTotal} respostas carregadas`}
+                </span>
               </div>
 
               {openResponsesError ? (
                 <div className="text-sm text-red-600">{openResponsesError}</div>
               ) : openResponsesLoading && openResponses.length === 0 ? (
                 <SkeletonBlock height="h-16" />
-              ) : openResponses.length === 0 ? (
+              ) : openResponses.filter((resp) => {
+                if (!openResponsesTheme) return true;
+                const text = resp.text.toLowerCase();
+                const theme = themeBuckets.find((t) => t.key === openResponsesTheme);
+                return theme?.keywords.some((k) => text.includes(k));
+              }).length === 0 ? (
                 <p className="text-sm text-gray-500">Nenhuma resposta encontrada com esses filtros.</p>
               ) : (
                 <div className="space-y-3">
-                  {openResponses.map((resp) => {
-                    const expanded = openResponsesExpanded[resp.id];
-                    const shouldTruncate = resp.text.length > 220;
-                    const renderText = () => {
-                      if (!openResponsesSearch.trim()) return resp.text;
-                      const regex = new RegExp(`(${openResponsesSearch.trim()})`, 'gi');
-                      const parts = resp.text.split(regex);
-                      return parts.map((part, idx) =>
-                        idx % 2 === 1 ? (
-                          <mark key={idx} className="bg-yellow-200 text-gray-900 px-0.5 rounded">
-                            {part}
-                          </mark>
-                        ) : (
-                          <span key={idx}>{part}</span>
-                        ),
-                      );
-                    };
-                    return (
-                      <div key={resp.id} className="border border-gray-200 rounded-md p-3 shadow-sm hover:border-indigo-200">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-semibold text-indigo-700">{resp.questionLabel}</p>
-                            <p className="text-sm font-semibold text-gray-900">{resp.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {resp.email}
-                              {resp.username ? ` · @${resp.username}` : ''} · {formatDate(resp.updatedAt)}
-                            </p>
+                  {openResponses
+                    .filter((resp) => {
+                      if (!openResponsesTheme) return true;
+                      const text = resp.text.toLowerCase();
+                      const theme = themeBuckets.find((t) => t.key === openResponsesTheme);
+                      return theme?.keywords.some((k) => text.includes(k));
+                    })
+                    .map((resp) => {
+                      const expanded = openResponsesExpanded[resp.id];
+                      const shouldTruncate = resp.text.length > 220;
+                      const renderText = () => {
+                        if (!openResponsesSearch.trim()) return resp.text;
+                        const regex = new RegExp(`(${openResponsesSearch.trim()})`, 'gi');
+                        const parts = resp.text.split(regex);
+                        return parts.map((part, idx) =>
+                          idx % 2 === 1 ? (
+                            <mark key={idx} className="bg-yellow-200 text-gray-900 px-0.5 rounded">
+                              {part}
+                            </mark>
+                          ) : (
+                            <span key={idx}>{part}</span>
+                          ),
+                        );
+                      };
+                      return (
+                        <div key={resp.id} className="border border-gray-200 rounded-md p-3 shadow-sm hover:border-indigo-200">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold text-indigo-700">{resp.questionLabel}</p>
+                              <p className="text-sm font-semibold text-gray-900">{resp.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {resp.email}
+                                {resp.username ? ` · @${resp.username}` : ''} · {formatDate(resp.updatedAt)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div
-                          className={`mt-2 text-sm text-gray-800 whitespace-pre-line ${
-                            expanded || !shouldTruncate ? '' : 'max-h-24 overflow-hidden'
-                          }`}
-                        >
-                          {renderText()}
-                        </div>
-                        {shouldTruncate && (
-                          <button
-                            onClick={() => toggleOpenResponseExpansion(resp.id)}
-                            className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                          <div
+                            className={`mt-2 text-sm text-gray-800 whitespace-pre-line ${
+                              expanded || !shouldTruncate ? '' : 'max-h-24 overflow-hidden'
+                            }`}
                           >
-                            {expanded ? 'Ver menos' : 'Ver mais'}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+                            {renderText()}
+                          </div>
+                          {shouldTruncate && (
+                            <button
+                              onClick={() => toggleOpenResponseExpansion(resp.id)}
+                              className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                            >
+                              {expanded ? 'Ver menos' : 'Ver mais'}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
 
@@ -1637,8 +1885,14 @@ export default function CreatorsInsightsPage() {
                   </button>
                 )}
               </div>
-            </div>
+            </Section>
 
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900">Distribuições por perfil e performance</h3>
+                <p className="text-xs text-gray-500">Clique para aplicar filtros rápidos.</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <DistributionChart
                 title="Dores (P7)"
@@ -1666,41 +1920,113 @@ export default function CreatorsInsightsPage() {
                 title="Como precifica (P12)"
                 data={analytics?.distributions.pricingMethod || []}
               />
-              <DistributionChart
-                title="Formatos de aprendizado (P16)"
-                data={analytics?.distributions.learningStyles || []}
-              />
-              <DistributionChart
-                title="Faixa de seguidores"
-                data={analytics?.distributions.followers || []}
-              />
-              <DistributionChart
-                title="Gênero"
-                data={analytics?.distributions.gender || []}
-              />
-              <DistributionChart
-                title="Cidade"
-                data={analytics?.distributions.city || []}
-                onClick={(value) => applyChartFilter('city', value)}
-              />
-              <DistributionChart
-                title="País"
-                data={analytics?.distributions.country || []}
-                onClick={(value) => applyChartFilter('country', value)}
-              />
-              <DistributionChart
-                title="Engajamento %"
-                data={analytics?.distributions.engagement || []}
-                onClick={(value) => applyChartFilter('engagementMin', value)}
-              />
-              <DistributionChart
-                title="Alcance 30d"
-                data={analytics?.distributions.reach || []}
-              />
-              <DistributionChart
-                title="Crescimento seguidores"
-                data={analytics?.distributions.growth || []}
-              />
+              {isAllNoData(analytics?.distributions.learningStyles) ? (
+                <NoDataBlock
+                  title="Dado não coletado - Formatos de aprendizado"
+                  description="Coletar essa resposta para liberar análise de formatos preferidos."
+                  actionLabel="Solicitar atualização"
+                  onAction={() => alert('Solicitar atualização de dados')}
+                />
+              ) : (
+                <DistributionChart
+                  title="Formatos de aprendizado (P16)"
+                  data={analytics?.distributions.learningStyles || []}
+                />
+              )}
+              {isAllNoData(analytics?.distributions.followers) ? (
+                <NoDataBlock
+                  title="Dado não coletado - Faixa de seguidores"
+                  description="Conecte métricas ou peça ao criador para informar seguidores."
+                  actionLabel="Solicitar atualização"
+                  onAction={() => alert('Solicitar atualização de dados')}
+                />
+              ) : (
+                <DistributionChart
+                  title="Faixa de seguidores"
+                  data={analytics?.distributions.followers || []}
+                />
+              )}
+              {isAllNoData(analytics?.distributions.gender) ? (
+                <NoDataBlock
+                  title="Dado não coletado - Gênero"
+                  description="Recolha este campo para análises demográficas."
+                  actionLabel="Solicitar atualização"
+                  onAction={() => alert('Solicitar atualização de dados')}
+                />
+              ) : (
+                <DistributionChart
+                  title="Gênero"
+                  data={analytics?.distributions.gender || []}
+                />
+              )}
+              {isAllNoData(analytics?.distributions.city) || filledCityPct < 0.2 ? (
+                <NoDataBlock
+                  title="Dado não coletado - Cidade"
+                  description="Cidade ausente impacta análises geográficas e ticket."
+                  actionLabel="Solicitar atualização"
+                  onAction={() => alert('Solicitar atualização de dados')}
+                />
+              ) : (
+                <DistributionChart
+                  title="Cidade"
+                  data={analytics?.distributions.city || []}
+                  onClick={(value) => applyChartFilter('city', value)}
+                />
+              )}
+              {isAllNoData(analytics?.distributions.country) || filledCityPct < 0.2 ? (
+                <NoDataBlock
+                  title="Dado não coletado - País"
+                  description="Preencha país para cortes regionais e comparação."
+                  actionLabel="Solicitar atualização"
+                  onAction={() => alert('Solicitar atualização de dados')}
+                />
+              ) : (
+                <DistributionChart
+                  title="País"
+                  data={analytics?.distributions.country || []}
+                  onClick={(value) => applyChartFilter('country', value)}
+                />
+              )}
+              {isAllNoData(analytics?.distributions.engagement) ? (
+                <NoDataBlock
+                  title="Dado não coletado - Engajamento"
+                  description="Sem engajamento não conseguimos priorizar criadores."
+                  actionLabel="Conectar métricas"
+                  onAction={() => alert('Conectar métricas de engajamento')}
+                />
+              ) : (
+                <DistributionChart
+                  title="Engajamento %"
+                  data={analytics?.distributions.engagement || []}
+                  onClick={(value) => applyChartFilter('engagementMin', value)}
+                />
+              )}
+              {isAllNoData(analytics?.distributions.reach) ? (
+                <NoDataBlock
+                  title="Dado não coletado - Alcance 30d"
+                  description="Conecte a conta ou colete alcance para avaliar performance."
+                  actionLabel="Conectar métricas"
+                  onAction={() => alert('Conectar métricas de alcance')}
+                />
+              ) : (
+                <DistributionChart
+                  title="Alcance 30d"
+                  data={analytics?.distributions.reach || []}
+                />
+              )}
+              {isAllNoData(analytics?.distributions.growth) ? (
+                <NoDataBlock
+                  title="Dado não coletado - Crescimento"
+                  description="Precisamos da série de seguidores para medir crescimento."
+                  actionLabel="Conectar métricas"
+                  onAction={() => alert('Conectar métricas de seguidores')}
+                />
+              ) : (
+                <DistributionChart
+                  title="Crescimento seguidores"
+                  data={analytics?.distributions.growth || []}
+                />
+              )}
               <DistributionChart
                 title="Engajamento por estágio"
                 data={(analytics?.distributions.stageEngagement || []).map((d) => ({
@@ -2054,29 +2380,17 @@ function QuickInsights({ analytics, isLoading }: { analytics: AdminCreatorSurvey
   if (!analytics) return null;
 
   const insights: string[] = [];
-  if (analytics.metrics?.avgEngagement != null) {
-    insights.push(`Engajamento médio de ${analytics.metrics.avgEngagement.toFixed(2)}% entre os filtrados.`);
+  if (analytics.monetizationComparison?.nonMonetizing?.count && analytics.monetizationComparison.monetizing?.avgEngagement != null) {
+    insights.push(`${analytics.monetizationComparison.nonMonetizing.count} criadores com monetização baixa → priorizar orientação comercial`);
   }
-  if (analytics.metrics?.avgReach != null) {
-    insights.push(`Alcance médio de ${Math.round(analytics.metrics.avgReach).toLocaleString('pt-BR')} nas últimas leituras.`);
-  }
-  if (analytics.metrics?.avgTicket != null) {
-    insights.push(`Ticket médio estimado: R$ ${Math.round(analytics.metrics.avgTicket).toLocaleString('pt-BR')}.`);
-  }
-  const topCountry = analytics.monetizationByCountry?.[0];
-  if (topCountry) {
-    insights.push(`Em ${topCountry.value}, ${topCountry.pct}% monetizam (${topCountry.monetizing}/${topCountry.total}).`);
+  if (analytics.metrics?.avgGrowth != null) {
+    insights.push(`Crescimento médio ${analytics.metrics.avgGrowth.toFixed(2)}% → ativar estratégia de descoberta`);
   }
   if (analytics.topPain?.value) {
-    insights.push(`Dor mais citada: ${analytics.topPain.value}.`);
+    insights.push(`Dor nº1 = ${analytics.topPain.value} → iniciar rotina semanal de leitura de dados`);
   }
-  const topCity = analytics.distributions.city?.[0];
-  if (topCity) {
-    insights.push(`Cidade mais recorrente: ${topCity.value}.`);
-  }
-  const cityTicketLeader = analytics.cityMetrics?.find((c) => c.avgTicket != null);
-  if (cityTicketLeader) {
-    insights.push(`Cidade com maior ticket médio: ${cityTicketLeader.value} (R$ ${Math.round(cityTicketLeader.avgTicket || 0).toLocaleString('pt-BR')}).`);
+  if (insights.length === 0 && analytics.metrics?.avgEngagement != null) {
+    insights.push(`Engajamento médio ${analytics.metrics.avgEngagement.toFixed(2)}% → revisar consistência de conteúdo`);
   }
 
   if (!insights.length) return null;

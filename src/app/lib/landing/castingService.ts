@@ -46,10 +46,10 @@ export async function fetchCastingCreators(options: CastingFilters = {}) {
   let filtered = [...base];
 
   if (filters.search) {
-    const term = filters.search.toLowerCase();
+    const term = normalizeText(filters.search);
     filtered = filtered.filter((creator) => {
-      const name = creator.name?.toLowerCase() ?? "";
-      const username = creator.username?.toLowerCase() ?? "";
+      const name = normalizeText(creator.name ?? "");
+      const username = normalizeText(creator.username ?? "");
       return name.includes(term) || username.includes(term);
     });
   }
@@ -83,7 +83,8 @@ async function loadBaseList(forceRefresh: boolean): Promise<LandingCreatorHighli
 }
 
 function normalizeFilters(options: CastingFilters) {
-  const search = options.search?.trim() || null;
+  const searchRaw = options.search?.trim() || null;
+  const search = searchRaw?.startsWith("@") ? searchRaw.slice(1) : searchRaw;
   const minFollowers =
     options.minFollowers != null && Number.isFinite(options.minFollowers) && options.minFollowers >= 0
       ? Math.floor(options.minFollowers)
@@ -102,6 +103,13 @@ function normalizeFilters(options: CastingFilters) {
       : null;
 
   return { search, minFollowers, minAvgInteractions, sort, limit };
+}
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
 }
 
 function sortCreators(

@@ -5,6 +5,7 @@ import React from "react";
 import LandingHeader from "../landing/components/LandingHeader";
 import CreatorGallerySection from "../landing/components/CreatorGallerySection";
 import ButtonPrimary from "../landing/components/ButtonPrimary";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
 import { track } from "@/lib/track";
 import type { UtmContext } from "@/lib/analytics/utm";
@@ -50,6 +51,8 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
   const abortRef = React.useRef<AbortController | null>(null);
   const [showStickyBar, setShowStickyBar] = React.useState(false);
   const { appendUtm, utm } = useUtmAttribution();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   React.useEffect(() => {
     const root = document.documentElement;
@@ -73,6 +76,16 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
     }, 280);
     return () => window.clearTimeout(handle);
   }, [search]);
+
+  React.useEffect(() => {
+    const q = searchParams.get("search");
+    const followers = searchParams.get("minFollowers");
+    const interactions = searchParams.get("minAvgInteractions");
+    if (q) setSearch(q);
+    if (followers) setMinFollowers(followers);
+    if (interactions) setMinAvgInteractions(interactions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   React.useEffect(() => {
     const MIN_SCROLL = 280;
@@ -130,10 +143,18 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
     const controller = new AbortController();
     abortRef.current = controller;
     fetchCreators(controller.signal);
+
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    if (minFollowers) params.set("minFollowers", minFollowers);
+    if (minAvgInteractions) params.set("minAvgInteractions", minAvgInteractions);
+    const qs = params.toString();
+    const url = qs ? `?${qs}` : "";
+    router.replace(url);
     return () => {
       controller.abort();
     };
-  }, [fetchCreators]);
+  }, [fetchCreators, debouncedSearch, minFollowers, minAvgInteractions, router]);
 
   const handleBrandForm = React.useCallback(() => {
     try {
@@ -221,6 +242,10 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
             error ? (
               <div className="w-full rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm">
                 {error}
+              </div>
+            ) : !loading && creators.length === 0 ? (
+              <div className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 shadow-sm">
+                Nenhum criador encontrado com esses filtros. Tente outro termo ou reduza os filtros.
               </div>
             ) : null
           }

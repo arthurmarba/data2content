@@ -715,8 +715,7 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
 
   const mergeNiches = (current: string[], manualValues: string[]) => {
     const filtered = current.filter((n) => nicheOptions.includes(n as (typeof nicheOptions)[number]));
-    const combined = [...filtered, ...manualValues].slice(0, 5);
-    return combined;
+    return uniqueOrdered([...filtered, ...manualValues.map((n) => n.trim())].filter(Boolean), 5);
   };
 
   const handleMonetizationChange = (value: CreatorProfileExtended["hasDoneSponsoredPosts"]) => {
@@ -800,18 +799,15 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
   }, [completionSet, didBootstrap, hasHydrated]);
 
   React.useEffect(() => {
-    if (!remoteProfile || !hasHydrated) return;
+    if (!remoteProfile || !hasHydrated || didBootstrap) return;
     const sanitized = sanitizeProfile(remoteProfile);
-    const localString = JSON.stringify(profile);
-    const remoteString = JSON.stringify(sanitized);
-    if (localString !== remoteString) {
-      setProfile(() => {
-        persist(sanitized);
-        return sanitized;
-      });
-      setDidBootstrap(false);
-    }
-  }, [remoteProfile, hasHydrated, profile, persist, setProfile]);
+    setProfile(() => {
+      persist(sanitized);
+      return sanitized;
+    });
+    setDidBootstrap(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteProfile, hasHydrated]);
 
   const manualNiches = React.useMemo(
     () => profile.niches.filter((n) => !nicheOptions.includes(n as (typeof nicheOptions)[number])),

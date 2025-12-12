@@ -157,6 +157,44 @@ export interface AdminCreatorSurveyAnalytics {
   monetizationNoPct: number;
   topPain?: DistributionEntry;
   topNextPlatform?: DistributionEntry;
+  qualitySummary?: {
+    completeResponses: number;
+    metricsConnected: number;
+    missingCity: number;
+    missingFollowers: number;
+    missingReach: number;
+    missingEngagement: number;
+  };
+  monetizationComparison?: {
+    monetizing?: {
+      count: number;
+      avgEngagement?: number | null;
+      avgReach?: number | null;
+      avgFollowers?: number | null;
+      avgTicket?: number | null;
+    };
+    nonMonetizing?: {
+      count: number;
+      avgEngagement?: number | null;
+      avgReach?: number | null;
+      avgFollowers?: number | null;
+      avgTicket?: number | null;
+    };
+  };
+  subpricing?: {
+    count: number;
+    examples: Array<{ name: string; email?: string; followers?: number | null; reach?: number | null; priceRange?: string | null }>;
+  };
+  priorityList?: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    followers?: number | null;
+    reach?: number | null;
+    engagementRate?: number | null;
+    monetization?: string | null;
+    reason: string;
+  }>;
   metrics?: {
     avgEngagement?: number | null;
     avgReach?: number | null;
