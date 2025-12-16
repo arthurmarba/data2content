@@ -25,6 +25,15 @@ export interface LandingCreatorHighlight {
   username?: string | null;
   followers?: number | null;
   avatarUrl?: string | null;
+  niches?: string[] | null;
+  brandTerritories?: string[] | null;
+  contexts?: string[] | null;
+  formatsStrong?: string[] | null;
+  topPerformingContext?: string | null;
+  country?: string | null;
+  city?: string | null;
+  stage?: CreatorStage | null;
+  surveyCompleted?: boolean | null;
   totalInteractions: number;
   postCount: number;
   avgInteractionsPerPost: number;

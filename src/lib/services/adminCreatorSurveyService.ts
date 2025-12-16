@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import type { PipelineStage } from 'mongoose';
 import UserModel from '@/app/models/User';
 import AccountInsightModel from '@/app/models/AccountInsight';
+import PubliCalculationModel from '@/app/models/PubliCalculation';
 import AudienceDemographicSnapshotModel from '@/app/models/demographics/AudienceDemographicSnapshot';
 import { connectToDatabase } from '@/app/lib/dataService/connection';
 import { logger } from '@/app/lib/logger';
@@ -81,6 +82,27 @@ async function buildTopCityMap(userIds: Types.ObjectId[]): Promise<Map<string, s
         entries.sort((a: any, b: any) => (b[1] as number) - (a[1] as number));
         map.set(String(row._id), entries[0]![0]);
       }
+    }
+  });
+  return map;
+}
+
+async function buildPubliMetricsMap(userIds: Types.ObjectId[]): Promise<Map<string, any>> {
+  if (!userIds.length) return new Map();
+  const agg = await PubliCalculationModel.aggregate([
+    { $match: { userId: { $in: userIds } } },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: '$userId',
+        metrics: { $first: '$metrics' },
+      },
+    },
+  ]);
+  const map = new Map<string, any>();
+  agg.forEach((row: any) => {
+    if (row?._id) {
+      map.set(String(row._id), row.metrics || {});
     }
   });
   return map;
@@ -218,6 +240,8 @@ export async function listCreatorSurveyResponses(
   const match = buildSurveyMatch(filters);
   const skip = (page - 1) * pageSize;
   const direction = sortOrder === 'asc' ? 1 : -1;
+  const metricSortKeys = new Set(['reach', 'engaged', 'followers', 'followersCount', 'engagementRate']);
+  const isMetricSort = metricSortKeys.has(sortBy);
 
   const sort: Record<string, any> = {};
   if (sortBy === 'name') {
@@ -225,6 +249,16 @@ export async function listCreatorSurveyResponses(
   } else if (sortBy === 'monetization') {
     sort['creatorProfileExtended.hasDoneSponsoredPosts'] = direction;
     sort['creatorProfileExtended.avgPriceRange'] = direction;
+  } else if (sortBy === 'reach') {
+    sort['creatorProfileExtended.reach30d'] = direction;
+    sort['accountInsightsPeriod.reach'] = direction;
+  } else if (sortBy === 'engaged') {
+    sort['creatorProfileExtended.engagementRate'] = direction;
+    sort['accountInsightsPeriod.accounts_engaged'] = direction;
+  } else if (sortBy === 'followersCount' || sortBy === 'followers') {
+    sort.followers_count = direction;
+  } else if (sortBy === 'engagementRate') {
+    sort['creatorProfileExtended.engagementRate'] = direction;
   } else if (sortBy === 'createdAt') {
     sort.createdAt = direction;
   } else {
@@ -248,12 +282,15 @@ export async function listCreatorSurveyResponses(
   try {
     logger.info(`${TAG} match=${JSON.stringify(match)} sort=${JSON.stringify(sort)} page=${page} size=${pageSize}`);
     const [docs, total] = await Promise.all([
-      UserModel.find(match, projection).sort(sort).skip(skip).limit(pageSize).lean(),
+      isMetricSort
+        ? UserModel.find(match, projection).lean()
+        : UserModel.find(match, projection).sort(sort).skip(skip).limit(pageSize).lean(),
       UserModel.countDocuments(match),
     ]);
 
     const userIds = docs.map((d: any) => d._id);
     const topCityMap = await buildTopCityMap(userIds as Types.ObjectId[]);
+    const publiMap = await buildPubliMetricsMap(userIds as Types.ObjectId[]);
     const insights = await AccountInsightModel.aggregate([
       { $match: { user: { $in: userIds } } },
       { $sort: { recordedAt: -1 } },
@@ -294,8 +331,11 @@ export async function listCreatorSurveyResponses(
       const insight = insightMap.get(String(id)) || {};
       const cityFromDemographics = insight.topCityFromDemographics?.value;
       const resolvedCity = (doc as any).location?.city ?? topCityMap.get(String(id)) ?? cityFromDemographics ?? insight.accountCity ?? null;
-      const reach = insight.reach ?? insight.views ?? null;
-      const engaged = insight.engaged ?? null;
+      const publiMetrics = publiMap.get(String(id));
+      const reachRaw = insight.reach ?? insight.views ?? publiMetrics?.reach ?? null;
+      const reach = reachRaw ?? profile.reach30d ?? null;
+      const engagedRaw = insight.engaged ?? publiMetrics?.engagement ?? null;
+      const engaged = engagedRaw ?? (profile.engagementRate && reach ? (profile.engagementRate / 100) * reach : null);
       const followersLatest = (doc as any).followers_count ?? insight.followers ?? null;
       const followersPrev = insight.followersPrev ?? null;
       const engagementRateComputed =
@@ -332,6 +372,26 @@ export async function listCreatorSurveyResponses(
       };
     });
 
+    if (isMetricSort) {
+      const sorted = [...items].sort((a, b) => {
+        const pick = (item: AdminCreatorSurveyListItem) => {
+          if (sortBy === 'reach') return item.reach ?? -Infinity;
+          if (sortBy === 'engaged') return item.engaged ?? -Infinity;
+          if (sortBy === 'followers' || sortBy === 'followersCount') return item.followersCount ?? -Infinity;
+          if (sortBy === 'engagementRate') return item.engagementRate ?? -Infinity;
+          return 0;
+        };
+        const av = pick(a);
+        const bv = pick(b);
+        if (av === bv) return 0;
+        if (av === -Infinity) return 1;
+        if (bv === -Infinity) return -1;
+        return sortOrder === 'asc' ? av - bv : bv - av;
+      });
+      const sliced = sorted.slice(skip, skip + pageSize);
+      return { items: sliced, total, page, pageSize };
+    }
+
     return { items, total, page, pageSize };
   } catch (err: any) {
     logger.error(`${TAG} failed`, err);
@@ -363,7 +423,7 @@ export async function getCreatorSurveyById(id: string): Promise<AdminCreatorSurv
     return null;
   }
 
-  const [insight, demoSnapshot, insightHistory] = await Promise.all([
+  const [insight, demoSnapshot, insightHistory, publiCalculation] = await Promise.all([
     AccountInsightModel.findOne({ user: id }).sort({ recordedAt: -1 }).lean(),
     AudienceDemographicSnapshotModel.findOne({ user: id }).sort({ recordedAt: -1 }).lean(),
     AccountInsightModel.find({ user: id })
@@ -371,34 +431,104 @@ export async function getCreatorSurveyById(id: string): Promise<AdminCreatorSurv
       .limit(24)
       .lean()
       .then((rows) =>
-        rows.map((row) => ({
-          recordedAt: row.recordedAt?.toISOString?.(),
-          reach: row.accountInsightsPeriod?.reach ?? null,
-          engaged: row.accountInsightsPeriod?.accounts_engaged ?? null,
-          followers: row.followersCount ?? row.accountDetails?.followers_count ?? null,
-        })),
+        rows.map((row) => {
+          const aip = row.accountInsightsPeriod as any;
+          let reach = 0;
+          let engaged = 0;
+
+          if (Array.isArray(aip)) {
+            const preferred = aip.find(p => p.period === 'days_28') || aip[0];
+            if (preferred) {
+              reach = preferred.reach || preferred.views || 0;
+              engaged = preferred.accounts_engaged || 0;
+            }
+          } else if (aip) {
+            reach = aip.reach || aip.views || 0;
+            engaged = aip.accounts_engaged || 0;
+          }
+
+          return {
+            recordedAt: row.recordedAt?.toISOString?.(),
+            reach: reach || null,
+            engaged: engaged || null,
+            followers: row.followersCount ?? row.accountDetails?.followers_count ?? null,
+          };
+        }),
       ),
+    PubliCalculationModel.findOne({ userId: id }).sort({ createdAt: -1 }).lean(),
   ]);
 
   const profile = (doc as any).creatorProfileExtended ?? {};
   const cityRecordInsight = insight?.audienceDemographics?.follower_demographics?.city as Record<string, number> | undefined;
   const topCityFromDemographics = cityRecordInsight
     ? Object.entries(cityRecordInsight)
-        .filter(([, v]) => typeof v === 'number' && v > 0)
-        .sort((a, b) => b[1] - a[1])[0]?.[0]
+      .filter(([, v]) => typeof v === 'number' && v > 0)
+      .sort((a, b) => b[1] - a[1])[0]?.[0]
     : undefined;
   const snapshotTopCity = demoSnapshot?.demographics?.follower_demographics?.city as Record<string, number> | undefined;
   const snapshotResolvedCity = snapshotTopCity
     ? Object.entries(snapshotTopCity)
-        .filter(([, v]) => typeof v === 'number' && v > 0)
-        .sort((a, b) => b[1] - a[1])[0]?.[0]
+      .filter(([, v]) => typeof v === 'number' && v > 0)
+      .sort((a, b) => b[1] - a[1])[0]?.[0]
     : undefined;
   const accountCity = (insight as any)?.accountDetails?.city;
   const resolvedCity = (doc as any).location?.city ?? snapshotResolvedCity ?? topCityFromDemographics ?? accountCity ?? null;
+  const insightAip = insight?.accountInsightsPeriod as any;
+  let currentReach = 0;
+  let currentEngaged = 0;
+  const publiMetrics = (publiCalculation as any)?.metrics;
+  const publiCreatedAt = (publiCalculation as any)?.createdAt;
+
+  if (Array.isArray(insightAip)) {
+    const preferred = insightAip.find(p => p.period === 'days_28') || insightAip[0];
+    if (preferred) {
+      currentReach = preferred.reach || preferred.views || 0;
+      currentEngaged = preferred.accounts_engaged || 0;
+    }
+  } else if (insightAip) {
+    currentReach = insightAip.reach || insightAip.views || 0;
+    currentEngaged = insightAip.accounts_engaged || 0;
+  }
+
+  // Fallback 1: Try PubliCalculation (Media Kit source)
+  if ((!currentReach || !currentEngaged) && publiMetrics) {
+    if (publiMetrics?.reach && (!currentReach || currentReach === 0)) {
+      currentReach = publiMetrics.reach;
+    }
+    if (publiMetrics?.engagement && (!currentEngaged || currentEngaged === 0)) {
+      currentEngaged = publiMetrics.engagement;
+    }
+  }
+
+  // Fallback 2: If still no metrics, try to find the most recent valid entry from history
+  if ((!currentReach && !currentEngaged) && insightHistory && insightHistory.length > 0) {
+    const validHistory = insightHistory.find(h => (h.reach != null && h.reach > 0) || (h.engaged != null && h.engaged > 0));
+    if (validHistory) {
+      currentReach = validHistory.reach || 0;
+      currentEngaged = validHistory.engaged || 0;
+    }
+  }
+
+  // Apply fallbacks to history so the chart is never empty
+  let historyWithFallback = (insightHistory || []).map((entry, idx) => ({
+    ...entry,
+    reach: entry.reach ?? (idx === 0 ? (currentReach || publiMetrics?.reach || null) : null),
+    engaged: entry.engaged ?? (idx === 0 ? (currentEngaged || publiMetrics?.engagement || null) : null),
+    followers: entry.followers ?? (idx === 0 ? (publiMetrics?.followers ?? publiMetrics?.followers_count ?? null) : null),
+  }));
+  if ((!historyWithFallback || historyWithFallback.length === 0) && (publiMetrics?.reach || publiMetrics?.engagement)) {
+    historyWithFallback = [{
+      recordedAt: publiCreatedAt?.toISOString?.() || insight?.recordedAt?.toISOString?.() || new Date().toISOString(),
+      reach: publiMetrics?.reach ?? null,
+      engaged: publiMetrics?.engagement ?? null,
+      followers: publiMetrics?.followers ?? publiMetrics?.followers_count ?? null,
+    }];
+  }
+
   const followersLatest = (doc as any).followers_count ?? insight?.followersCount ?? insight?.accountDetails?.followers_count ?? null;
-  const followersPrev = insightHistory?.[1]?.followers ?? null;
-  const reach = insight?.accountInsightsPeriod?.reach ?? insight?.accountInsightsPeriod?.views ?? null;
-  const engaged = insight?.accountInsightsPeriod?.accounts_engaged ?? null;
+  const followersPrev = historyWithFallback?.[1]?.followers ?? null;
+  const reach = currentReach || null;
+  const engaged = currentEngaged || null;
   const engagementRateComputed = reach && engaged && reach > 0 ? (engaged / reach) * 100 : null;
   const growthPctComputed =
     followersLatest != null && followersPrev != null && followersPrev > 0
@@ -421,7 +551,7 @@ export async function getCreatorSurveyById(id: string): Promise<AdminCreatorSurv
     engaged,
     engagementRate: profile.engagementRate ?? engagementRateComputed ?? null,
     followersGrowthPct: profile.followersGrowthPct ?? growthPctComputed ?? null,
-    insightsHistory: insightHistory,
+    insightsHistory: historyWithFallback,
   };
 }
 
@@ -628,6 +758,26 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
       },
     },
     {
+      $lookup: {
+        from: 'publicalculations',
+        let: { userId: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $eq: ['$userId', '$$userId'] } } },
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 },
+          {
+            $project: {
+              _id: 0,
+              reachFallback: '$metrics.reach',
+              engagementFallback: '$metrics.engagement',
+              followersFallback: '$metrics.followers',
+            },
+          },
+        ],
+        as: 'latestPubli',
+      },
+    },
+    {
       $addFields: {
         insightReachCandidates: {
           $map: {
@@ -665,13 +815,24 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
         },
         reachWithFallback: {
           $let: {
-            vars: { metric: { $arrayElemAt: ['$latestMetric', 0] } },
-            in: { $ifNull: ['$computedReach30d', '$$metric.reachFallback'] },
+            vars: {
+              metric: { $arrayElemAt: ['$latestMetric', 0] },
+              publi: { $arrayElemAt: ['$latestPubli', 0] },
+            },
+            in: {
+              $ifNull: [
+                '$computedReach30d',
+                { $ifNull: ['$$metric.reachFallback', '$$publi.reachFallback'] },
+              ],
+            },
           },
         },
         engagementRateWithFallback: {
           $let: {
-            vars: { metric: { $arrayElemAt: ['$latestMetric', 0] } },
+            vars: {
+              metric: { $arrayElemAt: ['$latestMetric', 0] },
+              publi: { $arrayElemAt: ['$latestPubli', 0] },
+            },
             in: {
               $ifNull: [
                 '$computedEngagementRate',
@@ -687,6 +848,7 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
                     null,
                   ],
                 },
+                '$$publi.engagementFallback',
               ],
             },
           },
@@ -733,12 +895,7 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
             { $ne: ['$engagementRate', null] },
           ],
         },
-        isMonetizing: {
-          $or: [
-            { $in: ['$hasDoneSponsoredPosts', ['varias', 'poucas']] },
-            { $ne: ['$avgPriceRange', null] },
-          ],
-        },
+        isMonetizing: { $in: ['$hasDoneSponsoredPosts', ['varias', 'poucas']] },
         subpricingFlag: {
           $and: [
             { $in: ['$avgPriceRange', ['permuta', '0-500', '500-1500']] },
@@ -781,6 +938,8 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
         reach30d: { $ifNull: ['$creatorProfileExtended.reach30d', '$reachWithFallback'] },
         followersGrowthPct: { $ifNull: ['$creatorProfileExtended.followersGrowthPct', '$computedGrowthPct'] },
         success12m: { $ifNull: ['$creatorProfileExtended.success12m', ''] },
+        niches: { $ifNull: ['$creatorProfileExtended.niches', []] },
+        brandTerritories: { $ifNull: ['$creatorProfileExtended.brandTerritories', []] },
         updatedAt: {
           $ifNull: ['$creatorProfileExtended.updatedAt', '$updatedAt'],
         },
@@ -894,6 +1053,18 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
           { $unwind: { path: '$learningStyles', preserveNullAndEmptyArrays: true } },
           { $group: { _id: '$learningStyles', count: { $sum: 1 } } },
           { $sort: { count: -1 } },
+        ],
+        niches: [
+          { $unwind: { path: '$niches', preserveNullAndEmptyArrays: true } },
+          { $group: { _id: '$niches', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 20 },
+        ],
+        brandTerritories: [
+          { $unwind: { path: '$brandTerritories', preserveNullAndEmptyArrays: true } },
+          { $group: { _id: '$brandTerritories', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 20 },
         ],
         successStories: [
           { $match: { success12m: { $ne: '' } } },
@@ -1011,6 +1182,16 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
           },
           { $sort: { count: -1 } },
         ],
+        stageMonetization: [
+          { $unwind: { path: '$stage', preserveNullAndEmptyArrays: true } },
+          {
+            $group: {
+              _id: { stage: '$stage', monetization: '$hasDoneSponsoredPosts' },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { count: -1 } },
+        ],
         monetizationByCountry: [
           {
             $group: {
@@ -1029,6 +1210,27 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
           },
           { $sort: { monetizing: -1 } },
           { $limit: 10 },
+        ],
+        painStageMatrix: [
+          { $unwind: { path: '$mainPains', preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: '$stage', preserveNullAndEmptyArrays: true } },
+          {
+            $group: {
+              _id: { pain: '$mainPains', stage: '$stage' },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { count: -1 } },
+        ],
+        painMonetizationMatrix: [
+          { $unwind: { path: '$mainPains', preserveNullAndEmptyArrays: true } },
+          {
+            $group: {
+              _id: { pain: '$mainPains', monetization: '$hasDoneSponsoredPosts' },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { count: -1 } },
         ],
         metrics: [
           {
@@ -1142,17 +1344,19 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
   const [result] = await UserModel.aggregate(pipeline);
   const totalRespondents = result?.total?.[0]?.count ?? 0;
   const monetizationEntries = mapDistribution(result?.monetization);
-  const monetizationSplit = result?.monetizationSplit || [];
-  const monetizingGroup = monetizationSplit.find((r: any) => r._id === true);
-  const nonMonetizingGroup = monetizationSplit.find((r: any) => r._id === false);
   const monetizationYesFromStatus = monetizationEntries
     .filter((m) => m.value === 'varias' || m.value === 'poucas')
     .reduce((acc, cur) => acc + cur.count, 0);
   let monetizationYes = monetizationYesFromStatus;
   let monetizationNo = totalRespondents - monetizationYesFromStatus;
-  if ((monetizingGroup?.count || 0) + (nonMonetizingGroup?.count || 0) === totalRespondents && (monetizingGroup?.count || 0) > 0) {
-    monetizationYes = monetizingGroup?.count ?? monetizationYesFromStatus;
-    monetizationNo = nonMonetizingGroup?.count ?? monetizationNo;
+  if (monetizationYes < 0) monetizationYes = 0;
+  if (monetizationNo < 0) monetizationNo = 0;
+  if (totalRespondents > 0) {
+    const remainder = totalRespondents - (monetizationYes + monetizationNo);
+    if (remainder !== 0) {
+      // adjust "no" to close 100%
+      monetizationNo = Math.max(0, totalRespondents - monetizationYes);
+    }
   }
 
   const pains = mapDistribution(result?.pains);
@@ -1172,6 +1376,8 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
     avgTicket: computeAvgTicketFromPriceRange(row.priceRangeList),
     count: row.count,
   }));
+  const niches = mapDistribution(result?.niches);
+  const brandTerritories = mapDistribution(result?.brandTerritories);
   const stageEngagement = (result?.stageEngagement || []).flatMap((row: any) =>
     (row._id || []).map((stage: string) => ({
       value: stage,
@@ -1179,6 +1385,26 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
       avgEngagement: row.avgEngagement ?? null,
     })),
   );
+  const stageMonetization = (result?.stageMonetization || []).map((row: any) => ({
+    stage: row._id?.stage || 'Sem dado',
+    monetization: row._id?.monetization ?? 'sem-dado',
+    count: row.count ?? 0,
+  }));
+  const painStageMatrix = (result?.painStageMatrix || []).map((row: any) => ({
+    pain: row._id?.pain || 'Sem dado',
+    stage: row._id?.stage || 'Sem dado',
+    count: row.count ?? 0,
+  }));
+  const painMonetizationMatrix = (result?.painMonetizationMatrix || []).map((row: any) => ({
+    pain: row._id?.pain || 'Sem dado',
+    monetization: row._id?.monetization ?? 'sem-dado',
+    count: row.count ?? 0,
+  }));
+  const stageDistribution = (result?.stageMetrics || []).map((row: any) => ({
+    value: row._id || 'Sem dado',
+    count: row.count ?? 0,
+  }));
+  const monetizationSplit = result?.monetizationSplit || [];
 
   const avgTicket = (() => {
     const dist = mapDistribution(result?.priceRange);
@@ -1211,21 +1437,34 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
   const subpricingExamples = (result?.subpricingList as any[]) || [];
   const priorityList = (result?.priorityList as any[]) || [];
 
+  const computePctPair = (yes: number, total: number) => {
+    if (!total || total <= 0) return { yesPct: 0, noPct: 0 };
+    const safeYes = Math.min(Math.max(yes, 0), total);
+    const rawYes = (safeYes / total) * 100;
+    const yesPct = Number(rawYes.toFixed(1));
+    const noPct = Number((100 - yesPct).toFixed(1));
+    return {
+      yesPct: Math.max(0, Math.min(100, yesPct)),
+      noPct: Math.max(0, Math.min(100, noPct)),
+    };
+  };
+  const { yesPct: monetizationYesPct, noPct: monetizationNoPct } = computePctPair(monetizationYes, totalRespondents);
+
   return {
     totalRespondents,
-    monetizationYesPct: totalRespondents ? Math.round((monetizationYes / totalRespondents) * 100) : 0,
-    monetizationNoPct: totalRespondents ? Math.round((monetizationNo / totalRespondents) * 100) : 0,
+    monetizationYesPct,
+    monetizationNoPct,
     topPain: pains[0],
     topNextPlatform: nextPlatform[0],
     qualitySummary: dataQuality
       ? {
-          completeResponses: dataQuality.complete ?? 0,
-          metricsConnected: dataQuality.metricsConnected ?? 0,
-          missingCity: dataQuality.missingCity ?? 0,
-          missingFollowers: dataQuality.missingFollowers ?? 0,
-          missingReach: dataQuality.missingReach ?? 0,
-          missingEngagement: dataQuality.missingEngagement ?? 0,
-        }
+        completeResponses: dataQuality.complete ?? 0,
+        metricsConnected: dataQuality.metricsConnected ?? 0,
+        missingCity: dataQuality.missingCity ?? 0,
+        missingFollowers: dataQuality.missingFollowers ?? 0,
+        missingReach: dataQuality.missingReach ?? 0,
+        missingEngagement: dataQuality.missingEngagement ?? 0,
+      }
       : undefined,
     monetizationComparison: {
       monetizing: buildMonetizationGroup(true),
@@ -1249,6 +1488,9 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
       hardestStage: withFallbackDistribution(mapDistribution(result?.hardestStage), totalRespondents),
       hasDoneSponsoredPosts: withFallbackDistribution(monetizationEntries, totalRespondents),
       avgPriceRange: withFallbackDistribution(mapDistribution(result?.priceRange), totalRespondents),
+      niches: withFallbackDistribution(niches, totalRespondents),
+      brandTerritories: withFallbackDistribution(brandTerritories, totalRespondents),
+      stage: withFallbackDistribution(stageDistribution, totalRespondents),
       mainPlatformReasons: withFallbackDistribution(mapDistribution(result?.platformReasons), totalRespondents),
       nextPlatform: withFallbackDistribution(nextPlatform, totalRespondents),
       pricingMethod: withFallbackDistribution(mapDistribution(result?.pricingMethod), totalRespondents),
@@ -1274,6 +1516,11 @@ export async function getCreatorSurveyAnalytics(filters: AdminCreatorSurveyFilte
     },
     timeSeries: (result?.timeSeries || []).map((row: any) => ({ date: row._id, count: row.count })),
     topSuccessStories: mapDistribution(result?.successStories),
+    stageMonetization,
+    correlations: {
+      painByStage: painStageMatrix,
+      painByMonetization: painMonetizationMatrix,
+    },
     monetizationByCountry: (result?.monetizationByCountry || []).map((row: any) => ({
       value: row._id || 'Sem dado',
       total: row.total,
@@ -1400,6 +1647,7 @@ export async function exportCreatorSurveyResponses(filters: AdminCreatorSurveyFi
   const docs = await UserModel.find(match, projection).lean();
 
   const userIds = docs.map((d: any) => d._id);
+  const publiMap = await buildPubliMetricsMap(userIds as Types.ObjectId[]);
   const insights = await AccountInsightModel.aggregate([
     { $match: { user: { $in: userIds } } },
     { $sort: { recordedAt: -1 } },
@@ -1454,18 +1702,27 @@ export async function exportCreatorSurveyResponses(filters: AdminCreatorSurveyFi
     const monetizationLabel = buildMonetizationLabel(profile.hasDoneSponsoredPosts ?? null, profile.avgPriceRange ?? null);
     const join = (arr: string[]) => normalizeArray<string>(arr).join(', ');
     const insight = insightMap.get(String(doc._id)) || {};
+    const publiMetrics = publiMap.get(String(doc._id)) || {};
     const cityFromDemographics = insight.topCityFromDemographics?.value;
     const resolvedCity = (doc.location?.city ?? cityFromDemographics ?? insight.accountCity ?? null) as string | null;
-    const reach = insight.reach ?? insight.views ?? '';
+    const reach = insight.reach ?? insight.views ?? profile.reach30d ?? publiMetrics.reach ?? '';
+    const engaged = insight.engaged ?? publiMetrics.engagement ?? '';
+    const followersCount = doc.followers_count ?? insight.followers ?? publiMetrics.followers ?? '';
+    const engagementRate =
+      profile.engagementRate ??
+      (typeof reach === 'number' && typeof engaged === 'number' && reach > 0 ? (engaged / reach) * 100 : '');
+    const followersGrowthPct = profile.followersGrowthPct ?? '';
     return {
       id: doc._id.toString(),
       name: doc.name ?? '',
       email: doc.email ?? '',
       username: doc.username ?? '',
-      followersCount: doc.followers_count ?? insight.followers ?? '',
+      followersCount,
       mediaCount: doc.media_count ?? insight.media ?? '',
       reach,
-      engaged: insight.engaged ?? '',
+      engaged,
+      engagementRate,
+      followersGrowthPct,
       gender: doc.gender ?? '',
       country: doc.location?.country ?? '',
       city: resolvedCity ?? '',
@@ -1493,6 +1750,8 @@ export async function exportCreatorSurveyResponses(filters: AdminCreatorSurveyFi
       learningStyles: join(profile.learningStyles),
       notificationPref: join(profile.notificationPref),
       monetizationLabel,
+      monetizationStatus: profile.hasDoneSponsoredPosts ?? '',
+      ticketEstimate: profile.avgPriceRange ?? '',
       adminNotes: profile.adminNotes ?? '',
       updatedAt: profile.updatedAt || doc.updatedAt,
       createdAt: doc.createdAt,

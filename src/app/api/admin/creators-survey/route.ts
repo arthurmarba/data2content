@@ -15,7 +15,7 @@ const arrayTransform = z
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(25),
-  sortBy: z.enum(['createdAt', 'updatedAt', 'name', 'monetization']).optional().default('updatedAt'),
+  sortBy: z.enum(['createdAt', 'updatedAt', 'name', 'monetization', 'followers', 'followersCount', 'reach', 'engaged', 'engagementRate']).optional().default('updatedAt'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   search: z.string().optional(),
   userId: z.string().optional(),

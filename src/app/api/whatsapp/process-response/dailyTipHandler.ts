@@ -806,12 +806,19 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             await stateService.updateDialogueState(userId, stateToUpdate);
 
             try {
+            // Deriva um título curto para o alerta de fallback
+            const fallbackTitle = (fallbackInsightText || finalDefaultMessageToSend || 'Insight de hoje')
+                .split(/[\.\?\!]/)[0]
+                ?.trim()
+                ?.substring(0, 100) || 'Insight de hoje';
+
             const noEventDetails: AlertDetails & {
                 whatsappMessageId?: string;
                 sendStatus?: 'sent' | 'failed' | 'skipped_no_whatsapp';
                 sendError?: string;
                 inspirationId?: string;
             } = {
+                title: fallbackTitle,
                 reason: 'Nenhum evento de regra detectado, insight de fallback fornecido.',
                 fallbackInsightProvided: fallbackInsightText || 'Fallback genérico de engajamento.',
                 fallbackInsightType: fallbackInsightType || 'none',

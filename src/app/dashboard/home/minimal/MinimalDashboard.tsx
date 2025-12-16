@@ -136,6 +136,37 @@ export default function MinimalDashboard({
     }
   }, [mediaKitShareUrl]);
 
+  const tryCopyShareUrl = React.useCallback(
+    async (shareUrl: string): Promise<"clipboard" | "execCommand" | null> => {
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText && typeof window !== "undefined" && window.isSecureContext) {
+          await navigator.clipboard.writeText(shareUrl);
+          return "clipboard";
+        }
+      } catch {
+        // fallback
+      }
+
+      try {
+        if (typeof document === "undefined") return null;
+        const textarea = document.createElement("textarea");
+        textarea.value = shareUrl;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const success = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (success) return "execCommand";
+      } catch {
+        // ignore
+      }
+      return null;
+    },
+    []
+  );
+
   const copyMediaKitLink = React.useCallback(
     async (surface: DashboardCtaSurface) => {
       trackCta("copy_kit_link", surface, { origin: surface });
@@ -146,19 +177,23 @@ export default function MinimalDashboard({
       }
 
       try {
-        await navigator.clipboard.writeText(mediaKitShareUrl);
-        toast.success("Link do Mídia Kit copiado!");
-        track("copy_media_kit_link", {
-          creator_id: creatorId ?? null,
-          media_kit_id: mediaKitId,
-          origin: surface,
-        });
+        const copyMethod = await tryCopyShareUrl(mediaKitShareUrl);
+        if (copyMethod) {
+          toast.success("Link do Mídia Kit copiado!");
+          track("copy_media_kit_link", {
+            creator_id: creatorId ?? null,
+            media_kit_id: mediaKitId,
+            origin: surface,
+          });
+        } else {
+          toast.error("Não foi possível copiar. Toque e segure para copiar manualmente.");
+        }
       } catch (error) {
-        toast.error("Não foi possível copiar o link agora.");
+        toast.error("Não foi possível copiar. Toque e segure para copiar manualmente.");
       }
       return true;
     },
-    [creatorId, mediaKitId, mediaKitShareUrl, trackCta]
+    [creatorId, mediaKitId, mediaKitShareUrl, trackCta, tryCopyShareUrl]
   );
 
   const goToConnectInstagram = React.useCallback(

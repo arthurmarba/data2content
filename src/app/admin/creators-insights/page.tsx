@@ -1,48 +1,37 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Tab } from '@headlessui/react';
 import {
-  FunnelIcon,
-  MagnifyingGlassIcon,
   ArrowDownTrayIcon,
-  XMarkIcon,
   UsersIcon,
   CurrencyDollarIcon,
   ExclamationTriangleIcon,
   ClipboardDocumentListIcon,
-  AdjustmentsHorizontalIcon,
-  ClockIcon,
-  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from 'recharts';
-import TableHeader from '../components/TableHeader';
 import KpiCard from '../components/KpiCard';
 import SkeletonBlock from '../components/SkeletonBlock';
+import TreeMapChart from './components/TreeMapChart';
+import StackedBarChart from './components/StackedBarChart';
+import FunnelChart from './components/FunnelChart';
+import HeatmapTable from './components/HeatmapTable';
+import PieDistribution from './components/PieDistribution';
+import TimeSeriesChart from './components/TimeSeriesChart';
+import Section from './components/Section';
+import CreatorFilters from './components/CreatorFilters';
+import CreatorTable from './components/CreatorTable';
+import UserDetailModal from './components/UserDetailModal';
+import OpenResponsesTab from './components/OpenResponsesTab';
+import QuickInsights from './components/QuickInsights';
+import CityRanking from './components/CityRanking';
+import ExportModal from './components/ExportModal';
 import {
   AdminCreatorSurveyAnalytics,
   AdminCreatorSurveyDetail,
   AdminCreatorSurveyListItem,
   AdminCreatorSurveyListParams,
   AdminCreatorSurveyOpenResponse,
-  CategoryMetricBreakdown,
-  CityMetric,
-  CityPricingBySize,
-  DistributionEntry,
 } from '@/types/admin/creatorSurvey';
 import {
   CreatorStage,
@@ -50,6 +39,8 @@ import {
   MonetizationStatus,
   NextPlatform,
 } from '@/types/landing';
+import { classNames, formatDate, buildParams, isAllNoData } from './utils';
+import { fetchCreatorSurveyDetailAction } from '@/app/actions/adminCreatorSurvey';
 
 const defaultFilters: AdminCreatorSurveyListParams = {
   page: 1,
@@ -109,208 +100,51 @@ const platformReasonsOptions = [
   { value: 'outro', label: 'Outro' },
 ];
 
-const openQuestionOptions = [
-  { value: '', label: 'Todas as perguntas abertas' },
-  { value: 'success12m', label: 'História de sucesso (12m)' },
-  { value: 'dailyExpectation', label: 'Expectativa diária' },
-  { value: 'mainGoalOther', label: 'Objetivo (outro)' },
-  { value: 'otherPain', label: 'Outra dor' },
-  { value: 'pricingFearOther', label: 'Medo de precificar (outro)' },
-  { value: 'reasonOther', label: 'Motivo para usar (outro)' },
-  { value: 'dreamBrands', label: 'Marcas dos sonhos' },
-  { value: 'brandTerritories', label: 'Territórios de marca' },
-  { value: 'niches', label: 'Niches/temas' },
-  { value: 'hasHelp', label: 'Tem ajuda' },
+const openQuestionMeta: Record<
+  string,
+  { label: string; section: 'Narrativa' | 'Rotina' | 'Objetivos' | 'Dores' | 'Monetização' | 'Motivação' | 'Posicionamento' | 'Suporte' | 'Outro' }
+> = {
+  success12m: { label: 'História de sucesso (12m)', section: 'Narrativa' },
+  dailyExpectation: { label: 'Expectativa diária', section: 'Rotina' },
+  mainGoalOther: { label: 'Objetivo (outro)', section: 'Objetivos' },
+  otherPain: { label: 'Dor principal (outro)', section: 'Dores' },
+  pricingFearOther: { label: 'Medo de precificar (outro)', section: 'Monetização' },
+  reasonOther: { label: 'Motivo para usar (outro)', section: 'Motivação' },
+  dreamBrands: { label: 'Marcas dos sonhos', section: 'Posicionamento' },
+  brandTerritories: { label: 'Territórios de marca', section: 'Posicionamento' },
+  niches: { label: 'Niches/temas', section: 'Posicionamento' },
+  hasHelp: { label: 'Tem ajuda', section: 'Suporte' },
+};
+
+// Helper constants
+const questionToType: Record<string, 'dores' | 'objetivos' | 'plataforma' | 'rotina' | 'aprendizado'> = {
+  'Qual sua maior dificuldade hoje?': 'dores',
+  'Outra dificuldade (descreva)': 'dores',
+  'Qual seu maior objetivo p/ os pŕoximos 3 meses?': 'objetivos',
+  'O que seria sucesso p/ você daqui a 1 ano?': 'objetivos',
+  'Maior desafio na criação de conteúdo?': 'dores',
+  'O que te faz ficar no Instagram?': 'plataforma',
+  'Outro motivo p/ ficar (descreva)': 'plataforma',
+  'Quantas horas por dia vc dedica ao Instagram?': 'rotina',
+  'Como você prefere aprender?': 'aprendizado'
+};
+
+const openQuestionOptions = Object.keys(questionToType).map((q) => ({ label: q, value: q }));
+
+const openResponseTypeOptions = [
+  { label: 'Dores/Dificuldades', value: 'dores' },
+  { label: 'Objetivos/Sonhos', value: 'objetivos' },
+  { label: 'Sobre a Plataforma', value: 'plataforma' },
+  { label: 'Rotina', value: 'rotina' },
+  { label: 'Aprendizado', value: 'aprendizado' },
+  { label: 'Outros', value: 'outros' },
 ];
-
-const chartColors = ['#4F46E5', '#22C55E', '#F59E0B', '#EF4444', '#0EA5E9', '#8B5CF6'];
-
-function classNames(...args: Array<string | false | null | undefined>) {
-  return args.filter(Boolean).join(' ');
-}
-
-function formatDate(value?: string) {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString('pt-BR');
-}
-
-function buildParams(filters: AdminCreatorSurveyListParams) {
-  const params = new URLSearchParams();
-  if (filters.search) params.set('search', filters.search);
-  if (filters.userId) params.set('userId', filters.userId);
-  if (filters.username) params.set('username', filters.username);
-  if (filters.stage?.length) params.set('stage', filters.stage.join(','));
-  if (filters.pains?.length) params.set('pains', filters.pains.join(','));
-  if (filters.hardestStage?.length) params.set('hardestStage', filters.hardestStage.join(','));
-  if (filters.monetizationStatus?.length) params.set('monetizationStatus', filters.monetizationStatus.join(','));
-  if (filters.nextPlatform?.length) params.set('nextPlatform', filters.nextPlatform.join(','));
-  if (filters.niches?.length) params.set('niches', filters.niches.join(','));
-  if (filters.brandTerritories?.length) params.set('brandTerritories', filters.brandTerritories.join(','));
-  if (filters.accountReasons?.length) params.set('accountReasons', filters.accountReasons.join(','));
-  if (filters.country?.length) params.set('country', filters.country.join(','));
-  if (filters.city?.length) params.set('city', filters.city.join(','));
-  if (filters.gender?.length) params.set('gender', filters.gender.join(','));
-  if (filters.followersMin !== undefined) params.set('followersMin', String(filters.followersMin));
-  if (filters.followersMax !== undefined) params.set('followersMax', String(filters.followersMax));
-  if (filters.mediaMin !== undefined) params.set('mediaMin', String(filters.mediaMin));
-  if (filters.mediaMax !== undefined) params.set('mediaMax', String(filters.mediaMax));
-  if (filters.engagementMin !== undefined) params.set('engagementMin', String(filters.engagementMin));
-  if (filters.engagementMax !== undefined) params.set('engagementMax', String(filters.engagementMax));
-  if (filters.reachMin !== undefined) params.set('reachMin', String(filters.reachMin));
-  if (filters.reachMax !== undefined) params.set('reachMax', String(filters.reachMax));
-  if (filters.growthMin !== undefined) params.set('growthMin', String(filters.growthMin));
-  if (filters.growthMax !== undefined) params.set('growthMax', String(filters.growthMax));
-  if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
-  if (filters.dateTo) params.set('dateTo', filters.dateTo);
-  if (filters.page) params.set('page', String(filters.page));
-  if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
-  if (filters.sortBy) params.set('sortBy', filters.sortBy);
-  if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
-  return params;
-}
-
-function DistributionChart({
-  title,
-  data,
-  onClick,
-}: {
-  title: string;
-  data: DistributionEntry[];
-  onClick?: (value: string) => void;
-}) {
-  return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-gray-800">{title}</h4>
-        {onClick && <span className="text-xs text-gray-400">Clique para filtrar</span>}
-      </div>
-      {data.length === 0 ? (
-        <div className="text-sm text-gray-500">Sem dados.</div>
-      ) : (
-        <div className="h-60">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="value" tick={{ fontSize: 12 }} />
-              <YAxis allowDecimals={false} />
-              <RechartsTooltip />
-              <Bar
-                dataKey="count"
-                fill="#4F46E5"
-                radius={[4, 4, 0, 0]}
-                onClick={onClick ? (entry) => onClick(entry.value) : undefined}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PieDistribution({
-  title,
-  data,
-}: {
-  title: string;
-  data: DistributionEntry[];
-}) {
-  return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-      <h4 className="text-sm font-semibold text-gray-800 mb-3">{title}</h4>
-      {data.length === 0 ? (
-        <div className="text-sm text-gray-500">Sem dados.</div>
-      ) : (
-        <div className="h-60">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} dataKey="count" nameKey="value" outerRadius={90} label>
-                {data.map((_, idx) => (
-                  <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
-                ))}
-              </Pie>
-              <RechartsTooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TimeSeriesChart({ data }: { data: { date: string; count: number }[] }) {
-  return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
-        <ClockIcon className="w-4 h-4 text-gray-500" />
-        <h4 className="text-sm font-semibold text-gray-800">Respostas por dia</h4>
-      </div>
-      {data.length === 0 ? (
-        <div className="text-sm text-gray-500">Sem dados suficientes.</div>
-      ) : (
-        <div className="h-60">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis allowDecimals={false} />
-              <RechartsTooltip />
-              <Line type="monotone" dataKey="count" stroke="#4F46E5" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NoDataBlock({ title, description, actionLabel, onAction }: { title: string; description: string; actionLabel?: string; onAction?: () => void }) {
-  return (
-    <div className="bg-white border border-amber-200 rounded-lg p-4 shadow-sm flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
-        <div>
-          <p className="text-sm font-semibold text-gray-900">{title}</p>
-          <p className="text-xs text-gray-600">{description}</p>
-        </div>
-      </div>
-      {actionLabel && (
-        <div>
-          <button
-            onClick={onAction}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
-          >
-            {actionLabel}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function isAllNoData(data?: DistributionEntry[]) {
-  return Boolean(data && data.length && data.every((d) => d.value === 'Sem dado'));
-}
-
-function Section({ title, description, children, actions }: { title: string; description?: string; children: React.ReactNode; actions?: React.ReactNode }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-          {description && <p className="text-xs text-gray-500">{description}</p>}
-        </div>
-        {actions}
-      </div>
-      {children}
-    </div>
-  );
-}
 
 export default function CreatorsInsightsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'individual' | 'overview'>('individual');
+  const tabOrder: Array<'individual' | 'overview' | 'openResponses'> = ['individual', 'overview', 'openResponses'];
+  const [activeTab, setActiveTab] = useState<'individual' | 'overview' | 'openResponses'>('individual');
   const [filters, setFilters] = useState<AdminCreatorSurveyListParams>(defaultFilters);
   const [datePreset, setDatePreset] = useState<'all' | '7d' | '30d' | '90d'>('all');
   const [list, setList] = useState<AdminCreatorSurveyListItem[]>([]);
@@ -336,6 +170,8 @@ export default function CreatorsInsightsPage() {
   const [openResponsesTotal, setOpenResponsesTotal] = useState(0);
   const [openResponsesSearch, setOpenResponsesSearch] = useState('');
   const [openResponsesQuestion, setOpenResponsesQuestion] = useState<string>('');
+  const [openResponsesType, setOpenResponsesType] = useState<string>('all');
+  const [openResponsesSort, setOpenResponsesSort] = useState<'recent' | 'oldest' | 'length' | 'relevance'>('recent');
   const [openResponsesExpanded, setOpenResponsesExpanded] = useState<Record<string, boolean>>({});
   const [openResponsesLoaded, setOpenResponsesLoaded] = useState(0);
   const openResponsesSearchTimer = useRef<NodeJS.Timeout | null>(null);
@@ -347,7 +183,19 @@ export default function CreatorsInsightsPage() {
   const [exportIncludeHistory, setExportIncludeHistory] = useState(false);
   const [nicheInput, setNicheInput] = useState('');
   const [brandInput, setBrandInput] = useState('');
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(['name', 'email', 'niche', 'stage', 'monetization', 'pain', 'followers', 'reach', 'engaged', 'city', 'country', 'gender', 'updatedAt']);
+
+  const fetchCreatorDetail = useCallback(async (id: string) => {
+    try {
+      setDetailLoading(true);
+      const data = await fetchCreatorSurveyDetailAction(id);
+      setDetail(data);
+    } catch (error) {
+      console.error('Failed to fetch creator detail:', error);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(['name', 'email', 'niche', 'stage', 'monetization', 'pain', 'followersCount', 'reach', 'engaged', 'city', 'country', 'gender', 'updatedAt']);
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [userSearch, setUserSearch] = useState('');
@@ -478,7 +326,7 @@ export default function CreatorsInsightsPage() {
   }, [filters, activeTab]);
 
   const fetchOpenResponses = async (pageToLoad = 1, reset = false) => {
-    if (activeTab !== 'overview') return;
+    if (activeTab !== 'openResponses') return;
     setOpenResponsesLoading(true);
     if (reset) {
       setOpenResponsesPage(1);
@@ -517,13 +365,13 @@ export default function CreatorsInsightsPage() {
   };
 
   useEffect(() => {
-    if (activeTab !== 'overview') return;
+    if (activeTab !== 'openResponses') return;
     fetchOpenResponses(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, activeTab, openResponsesQuestion]);
 
   useEffect(() => {
-    if (activeTab !== 'overview') return;
+    if (activeTab !== 'openResponses') return;
     if (openResponsesSearchTimer.current) clearTimeout(openResponsesSearchTimer.current);
     openResponsesSearchTimer.current = setTimeout(() => {
       setOpenResponsesLoaded(0);
@@ -534,6 +382,13 @@ export default function CreatorsInsightsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openResponsesSearch, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'openResponses') return;
+    // When switching type, refresh list from page 1 (especially after a question filter)
+    fetchOpenResponses(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openResponsesType, activeTab]);
 
   const handleSort = (columnKey: string) => {
     let sortOrder: 'asc' | 'desc' = 'asc';
@@ -779,6 +634,12 @@ export default function CreatorsInsightsPage() {
     }
   };
 
+  const handleToggleExportColumn = (key: string) => {
+    setExportColumns((prev) =>
+      prev.includes(key) ? prev.filter((c) => c !== key) : [...prev, key],
+    );
+  };
+
   const columns = useMemo(
     () => [
       {
@@ -792,7 +653,7 @@ export default function CreatorsInsightsPage() {
       {
         key: 'reach',
         label: 'Alcance',
-        sortable: false,
+        sortable: true,
         render: (item: AdminCreatorSurveyListItem) => (
           <span className="text-sm text-gray-700">{item.reach ? item.reach.toLocaleString('pt-BR') : '—'}</span>
         ),
@@ -800,7 +661,7 @@ export default function CreatorsInsightsPage() {
       {
         key: 'engaged',
         label: 'Engajados',
-        sortable: false,
+        sortable: true,
         render: (item: AdminCreatorSurveyListItem) => (
           <span className="text-sm text-gray-700">{item.engaged ? item.engaged.toLocaleString('pt-BR') : '—'}</span>
         ),
@@ -918,12 +779,13 @@ export default function CreatorsInsightsPage() {
     return filled / totalResp;
   }, [analytics]);
 
+
   const themeBuckets = useMemo(() => {
     const themes = [
-      { key: 'roteiros', label: 'Roteiros/organização', keywords: ['roteiro', 'ideias', 'organiza', 'calendário', 'planejar'] },
-      { key: 'metricas', label: 'Métricas', keywords: ['métrica', 'metricas', 'analytics', 'alcance', 'engaj', 'dados'] },
-      { key: 'publis', label: 'Publis/negociação', keywords: ['publi', 'marca', 'negoci', 'proposta', 'preço', 'precificar'] },
-      { key: 'posicionamento', label: 'Posicionamento', keywords: ['posicion', 'nicho', 'imagem', 'marca pessoal'] },
+      { key: 'roteiros', label: 'Roteiros/organização', keywords: ['roteiro', 'ideias', 'organiza', 'calendário', 'planejar', 'pauta', 'briefing', 'cronograma'] },
+      { key: 'metricas', label: 'Métricas', keywords: ['métrica', 'metricas', 'analytics', 'alcance', 'engaj', 'dados', 'insight', 'resultado'] },
+      { key: 'publis', label: 'Publis/negociação', keywords: ['publi', 'marca', 'negoci', 'proposta', 'preço', 'precificar', 'fee', 'contrato', 'orçamento'] },
+      { key: 'posicionamento', label: 'Posicionamento', keywords: ['posicion', 'nicho', 'imagem', 'marca pessoal', 'território', 'branding'] },
     ];
     const counts: Record<string, number> = {};
     openResponses.forEach((resp) => {
@@ -937,21 +799,170 @@ export default function CreatorsInsightsPage() {
     return themes.map((t) => ({ ...t, count: counts[t.key] || 0 }));
   }, [openResponses]);
 
-  const recommendations = useMemo(() => {
-    const recs: string[] = [];
-    if (analytics?.monetizationComparison?.nonMonetizing?.count) {
-      recs.push(`${analytics.monetizationComparison.nonMonetizing.count} criadores com monetização baixa → priorizar orientação comercial`);
+  const getResponseType = useCallback((resp: AdminCreatorSurveyOpenResponse) => questionToType[resp.question] || 'outros', []);
+
+  const filteredResponses = useMemo(() => {
+    const filtered = openResponses.filter((resp) => {
+      if (openResponsesType !== 'all' && getResponseType(resp) !== openResponsesType) return false;
+      if (!openResponsesTheme) return true;
+      const text = resp.text.toLowerCase();
+      const theme = themeBuckets.find((t) => t.key === openResponsesTheme);
+      return theme?.keywords.some((k) => text.includes(k));
+    });
+    const term = openResponsesSearch.trim().toLowerCase();
+    const score = (resp: AdminCreatorSurveyOpenResponse) => {
+      if (!term) return 0;
+      const matches = resp.text.toLowerCase().split(term).length - 1;
+      return matches;
+    };
+    const sorted = [...filtered].sort((a, b) => {
+      if (openResponsesSort === 'recent') {
+        return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+      }
+      if (openResponsesSort === 'oldest') {
+        return new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime();
+      }
+      if (openResponsesSort === 'length') {
+        return (b.text?.length || 0) - (a.text?.length || 0);
+      }
+      // relevance
+      return score(b) - score(a);
+    });
+    return sorted;
+  }, [openResponses, openResponsesType, openResponsesTheme, themeBuckets, openResponsesSort, openResponsesSearch, getResponseType]);
+
+  const activeOpenResponseChips = useMemo(() => {
+    const chips: { label: string; onRemove: () => void }[] = [];
+    if (openResponsesSearch.trim()) {
+      chips.push({ label: `Termo: “${openResponsesSearch.trim()}”`, onRemove: () => setOpenResponsesSearch('') });
     }
-    if (analytics?.metrics?.avgGrowth != null) {
-      recs.push(`Crescimento médio ${analytics.metrics.avgGrowth.toFixed(2)}% → ativar estratégia de descoberta`);
+    if (openResponsesQuestion) {
+      const label = openQuestionOptions.find((q) => q.value === openResponsesQuestion)?.label || 'Pergunta';
+      chips.push({ label, onRemove: () => setOpenResponsesQuestion('') });
     }
-    if (analytics?.topPain?.value) {
-      recs.push(`Dor nº1 = ${analytics.topPain.value} → criar rotina semanal de leitura de dados`);
+    if (openResponsesType && openResponsesType !== 'all') {
+      const label = openResponseTypeOptions.find((t) => t.value === openResponsesType)?.label || 'Tipo';
+      chips.push({ label, onRemove: () => setOpenResponsesType('all') });
     }
-    if (recs.length === 0 && analytics?.qualitySummary) {
-      recs.push(`Faltando engajamento em ${analytics.qualitySummary.missingEngagement} perfis → conectar métricas`);
+    if (openResponsesTheme) {
+      const label = themeBuckets.find((t) => t.key === openResponsesTheme)?.label || 'Tema';
+      chips.push({ label, onRemove: () => setOpenResponsesTheme('') });
     }
-    return recs.slice(0, 3);
+    return chips;
+  }, [openResponsesSearch, openResponsesQuestion, openResponsesType, openResponsesTheme, themeBuckets]);
+
+  const completionRate = useMemo(() => {
+    if (!analytics?.qualitySummary) return null;
+    if (!analytics?.totalRespondents) return null;
+    if (analytics.totalRespondents === 0) return null;
+    return (analytics.qualitySummary.completeResponses / analytics.totalRespondents) * 100;
+  }, [analytics]);
+
+  const stageDistributionData = useMemo(() => {
+    return (analytics?.distributions.stage || []).map((s) => ({
+      name: s.value,
+      total: s.count,
+    }));
+  }, [analytics]);
+
+  const stageMonetizationData = useMemo(() => {
+    if (!analytics?.stageMonetization || analytics.stageMonetization.length === 0) return [];
+    const stages = Array.from(new Set(analytics.stageMonetization.map((s) => s.stage || 'Sem dado')));
+    return stages.map((stage) => {
+      const rows = analytics.stageMonetization?.filter((r) => r.stage === stage) || [];
+      const monetizing = rows.filter((r) => r.monetization === 'varias' || r.monetization === 'poucas').reduce((acc, cur) => acc + (cur.count || 0), 0);
+      const aspiring = rows.filter((r) => r.monetization === 'nunca-quero').reduce((acc, cur) => acc + (cur.count || 0), 0);
+      const notInterested = rows.filter((r) => r.monetization === 'nunca-sem-interesse').reduce((acc, cur) => acc + (cur.count || 0), 0);
+      const noData = rows.filter((r) => !r.monetization || r.monetization === 'sem-dado').reduce((acc, cur) => acc + (cur.count || 0), 0);
+      return {
+        name: stage,
+        monetizando: monetizing,
+        iniciando: aspiring,
+        semInteresse: notInterested,
+        semDado: noData,
+      };
+    });
+  }, [analytics]);
+
+  const painsBarData = useMemo(() => {
+    return (analytics?.distributions.pains || []).map((p) => ({
+      name: p.value,
+      total: p.count,
+    }));
+  }, [analytics]);
+
+  const treeMapSource = useMemo(() => {
+    if (analytics?.distributions.niches?.length) return { data: analytics.distributions.niches, filterKey: 'niches' as keyof AdminCreatorSurveyListParams, title: 'Niches / Territórios' };
+    if (analytics?.distributions.brandTerritories?.length) return { data: analytics.distributions.brandTerritories, filterKey: 'brandTerritories' as keyof AdminCreatorSurveyListParams, title: 'Territórios de marca' };
+    return { data: [], filterKey: 'niches' as keyof AdminCreatorSurveyListParams, title: 'Niches / Territórios (sem dados)' };
+  }, [analytics]);
+
+  const painStageHeatmap = useMemo(() => {
+    const rows = (analytics?.distributions.pains || []).map((p) => ({ key: p.value, label: p.value }));
+    const columnsSource = analytics?.distributions.stage?.length
+      ? analytics.distributions.stage
+      : (analytics?.metricByCategory?.stage || []).map((s) => ({ value: s.value, count: s.count || 0 }));
+    const columns: Array<{ key: string; label: string }> = Array.isArray(columnsSource)
+      ? columnsSource.map((s: any) => ({ key: s.value, label: s.value }))
+      : [];
+    const dataMap: Record<string, Record<string, number>> = {};
+    const columnTotals: Record<string, number> = {};
+    rows.forEach((r) => {
+      const rowMap: Record<string, number> = {};
+      columns.forEach((c) => { rowMap[c.key] = 0; });
+      dataMap[r.key] = rowMap;
+    });
+    (analytics?.correlations?.painByStage || []).forEach((entry) => {
+      const rowKey = entry.pain || 'Sem dado';
+      const colKey = entry.stage || 'Sem dado';
+      if (!dataMap[rowKey]) dataMap[rowKey] = {};
+      dataMap[rowKey][colKey] = (dataMap[rowKey]?.[colKey] || 0) + (entry.count || 0);
+      columnTotals[colKey] = (columnTotals[colKey] || 0) + (entry.count || 0);
+    });
+    const percentMap: Record<string, Record<string, number>> = {};
+    rows.forEach((r) => {
+      const rowMap: Record<string, number> = {};
+      columns.forEach((c) => {
+        const total = columnTotals[c.key] || 0;
+        const val = dataMap[r.key]?.[c.key] || 0;
+        rowMap[c.key] = total > 0 ? (val / total) * 100 : 0;
+      });
+      percentMap[r.key] = rowMap;
+    });
+    return { rows, columns, dataMap, percentMap, columnTotals };
+  }, [analytics]);
+
+  const painMonetizationHeatmap = useMemo(() => {
+    const rows = (analytics?.distributions.pains || []).map((p) => ({ key: p.value, label: p.value }));
+    const columnsSource = analytics?.distributions.hasDoneSponsoredPosts || [];
+    const columns: Array<{ key: string; label: string }> = Array.isArray(columnsSource)
+      ? columnsSource.map((m) => ({ key: m.value, label: m.value }))
+      : [];
+    const dataMap: Record<string, Record<string, number>> = {};
+    const columnTotals: Record<string, number> = {};
+    rows.forEach((r) => {
+      const rowMap: Record<string, number> = {};
+      columns.forEach((c) => { rowMap[c.key] = 0; });
+      dataMap[r.key] = rowMap;
+    });
+    (analytics?.correlations?.painByMonetization || []).forEach((entry) => {
+      const rowKey = entry.pain || 'Sem dado';
+      const colKey = entry.monetization || 'Sem dado';
+      if (!dataMap[rowKey]) dataMap[rowKey] = {};
+      dataMap[rowKey][colKey] = (dataMap[rowKey]?.[colKey] || 0) + (entry.count || 0);
+      columnTotals[colKey] = (columnTotals[colKey] || 0) + (entry.count || 0);
+    });
+    const percentMap: Record<string, Record<string, number>> = {};
+    rows.forEach((r) => {
+      const rowMap: Record<string, number> = {};
+      columns.forEach((c) => {
+        const total = columnTotals[c.key] || 0;
+        const val = dataMap[r.key]?.[c.key] || 0;
+        rowMap[c.key] = total > 0 ? (val / total) * 100 : 0;
+      });
+      percentMap[r.key] = rowMap;
+    });
+    return { rows, columns, dataMap, percentMap, columnTotals };
   }, [analytics]);
 
   return (
@@ -970,7 +981,10 @@ export default function CreatorsInsightsPage() {
         </button>
       </div>
 
-      <Tab.Group selectedIndex={activeTab === 'individual' ? 0 : 1} onChange={(idx) => setActiveTab(idx === 0 ? 'individual' : 'overview')}>
+      <Tab.Group
+        selectedIndex={tabOrder.indexOf(activeTab)}
+        onChange={(idx) => setActiveTab(tabOrder[idx] ?? 'individual')}
+      >
         <Tab.List className="flex space-x-2 rounded-lg bg-white p-1 border border-gray-200">
           <Tab
             className={({ selected }) =>
@@ -992,6 +1006,16 @@ export default function CreatorsInsightsPage() {
           >
             Visão geral
           </Tab>
+          <Tab
+            className={({ selected }) =>
+              classNames(
+                'flex-1 py-2 text-sm font-semibold rounded-md',
+                selected ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100',
+              )
+            }
+          >
+            Respostas abertas
+          </Tab>
         </Tab.List>
         <div className="flex items-center gap-2 mt-2">
           <span className="text-xs text-gray-600">Modo:</span>
@@ -1007,713 +1031,339 @@ export default function CreatorsInsightsPage() {
         </div>
         <Tab.Panels className="mt-4">
           <Tab.Panel>
-            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4 space-y-3">
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-                <div className="flex-1">
-                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-2">
-                    <MagnifyingGlassIcon className="w-4 h-4" />
-                    Buscar criador específico (nome, email ou @username)
-                  </label>
-                  <div className="relative mt-1">
-                    <input
-                      type="text"
-                      value={userSearch}
-                      onChange={(e) => {
-                        setUserSearch(e.target.value);
-                        setSuggestionsOpen(true);
-                      }}
-                      onFocus={() => setSuggestionsOpen(true)}
-                      className="w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Digite para buscar um criador"
-                    />
-                    {suggestionsOpen && (userSuggestions.length > 0 || suggestionsLoading) && (
-                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto">
-                        {suggestionsLoading && <p className="p-3 text-sm text-gray-500">Buscando...</p>}
-                        {!suggestionsLoading &&
-                          userSuggestions.map((item) => (
-                            <button
-                              key={item.id}
-                              onClick={() => handleUserSelect(item)}
-                              className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-gray-800"
-                            >
-                              <span className="font-semibold">{item.name}</span>
-                              <span className="text-gray-500"> · {item.email}</span>
-                              {item.username && <span className="text-gray-500"> · @{item.username}</span>}
-                            </button>
-                          ))}
-                        {!suggestionsLoading && userSuggestions.length === 0 && (
-                          <p className="p-3 text-sm text-gray-500">Nenhum criador encontrado.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSuggestionsOpen(false)}
-                    className="px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    Fechar sugestões
-                  </button>
-                  <button
-                    onClick={clearUser}
-                    className="px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                    disabled={!filters.userId}
-                  >
-                    Limpar usuário
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-2">
-                    <MagnifyingGlassIcon className="w-4 h-4" />
-                    Buscar
-                  </label>
-                  <input
-                    type="text"
-                    value={filters.search || ''}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value, page: 1 }))}
-                    className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Nome, email ou @username"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Estágio</label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    {stageOptions.map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={filters.stage?.includes(opt.value) || false}
-                          onChange={() => toggleMultiValue('stage', opt.value)}
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Dores (P7)</label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    {painsOptions.map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={filters.pains?.includes(opt.value) || false}
-                          onChange={() => toggleMultiValue('pains', opt.value)}
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Use os filtros essenciais acima. Ative os avançados para combinar mais critérios.</p>
-                <button
-                  onClick={() => setShowAdvancedFilters((prev) => !prev)}
-                  className="px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {showAdvancedFilters ? 'Ocultar filtros avançados' : 'Mostrar filtros avançados'}
-                </button>
-              </div>
-              {showAdvancedFilters && (
-              <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Etapa com mais dificuldade (P8)</label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    {hardestStageOptions.map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={filters.hardestStage?.includes(opt.value) || false}
-                          onChange={() => toggleMultiValue('hardestStage', opt.value)}
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Monetização (P9/P10)</label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    {monetizationOptions.map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={filters.monetizationStatus?.includes(opt.value) || false}
-                          onChange={() => toggleMultiValue('monetizationStatus', opt.value)}
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Plataforma além do IG (P15)</label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    {nextPlatformOptions.map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={filters.nextPlatform?.includes(opt.value) || false}
-                          onChange={() => toggleMultiValue('nextPlatform', opt.value)}
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Motivo para usar a plataforma (P13)</label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    {platformReasonsOptions.map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={filters.accountReasons?.includes(opt.value) || false}
-                          onChange={() => toggleMultiValue('accountReasons', opt.value)}
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Seguidores (min/max)</label>
-                  <div className="flex gap-2 mt-1">
-                    <input
-                      type="number"
-                      min={0}
-                      value={filters.followersMin ?? ''}
-                      onChange={(e) => setFilters((prev) => ({ ...prev, followersMin: e.target.value ? Number(e.target.value) : undefined, page: 1 }))}
-                      className="w-1/2 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      placeholder="0"
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      value={filters.followersMax ?? ''}
-                      onChange={(e) => setFilters((prev) => ({ ...prev, followersMax: e.target.value ? Number(e.target.value) : undefined, page: 1 }))}
-                      className="w-1/2 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      placeholder="50000"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Posts (min/max)</label>
-                  <div className="flex gap-2 mt-1">
-                    <input
-                      type="number"
-                      min={0}
-                      value={filters.mediaMin ?? ''}
-                      onChange={(e) => setFilters((prev) => ({ ...prev, mediaMin: e.target.value ? Number(e.target.value) : undefined, page: 1 }))}
-                      className="w-1/2 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      placeholder="0"
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      value={filters.mediaMax ?? ''}
-                      onChange={(e) => setFilters((prev) => ({ ...prev, mediaMax: e.target.value ? Number(e.target.value) : undefined, page: 1 }))}
-                      className="w-1/2 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      placeholder="1000"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">País</label>
-                  <input
-                    type="text"
-                    value={(filters.country || []).join(', ')}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, country: e.target.value.split(',').map((v) => v.trim()).filter(Boolean), page: 1 }))}
-                    className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    placeholder="BR, US..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Cidade</label>
-                  <input
-                    type="text"
-                    value={(filters.city || []).join(', ')}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, city: e.target.value.split(',').map((v) => v.trim()).filter(Boolean), page: 1 }))}
-                    className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    placeholder="São Paulo, Rio"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Gênero</label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    {['male', 'female', 'other'].map((g) => (
-                      <label key={g} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={filters.gender?.includes(g) || false}
-                          onChange={() => toggleMultiValue('gender', g)}
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {g}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Nicho/Temas (P2)</label>
-                  <input
-                    type="text"
-                    value={nicheInput}
-                    onChange={(e) => setNicheInput(e.target.value)}
-                    onBlur={(e) => updateCommaInput(e.target.value, 'niches')}
-                    placeholder="Ex: Marketing, Moda"
-                    className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                  />
-                  <p className="text-[11px] text-gray-500 mt-1">Separe múltiplos por vírgula.</p>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Territórios de marca</label>
-                  <input
-                    type="text"
-                    value={brandInput}
-                    onChange={(e) => setBrandInput(e.target.value)}
-                    onBlur={(e) => updateCommaInput(e.target.value, 'brandTerritories')}
-                    placeholder="Ex: Consistência, Vendas"
-                    className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                  />
-                  <p className="text-[11px] text-gray-500 mt-1">Separe múltiplos por vírgula.</p>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Data (cadastro/atualização)</label>
-                  <div className="flex gap-2 mt-1">
-                    <input
-                      type="date"
-                      value={filters.dateFrom || ''}
-                      onChange={(e) => {
-                        setDatePreset('all');
-                        setFilters((prev) => ({ ...prev, dateFrom: e.target.value || undefined, page: 1 }));
-                      }}
-                      className="flex-1 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    />
-                    <input
-                      type="date"
-                      value={filters.dateTo || ''}
-                      onChange={(e) => {
-                        setDatePreset('all');
-                        setFilters((prev) => ({ ...prev, dateTo: e.target.value || undefined, page: 1 }));
-                      }}
-                      className="flex-1 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    />
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    {(['all', '7d', '30d', '90d'] as const).map((preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => handleDatePreset(preset)}
-                        className={`px-2 py-1 rounded-md text-xs border ${
-                          datePreset === preset ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'border-gray-200 text-gray-600'
-                        }`}
-                      >
-                        {preset === 'all' ? 'Tudo' : `Últimos ${preset.replace('d', '')}d`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Engajamento % (min/max)</label>
-                  <div className="flex gap-2 mt-1">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.1"
-                      value={filters.engagementMin ?? ''}
-                      onChange={(e) => setFilters((prev) => ({ ...prev, engagementMin: e.target.value ? Number(e.target.value) : undefined, page: 1 }))}
-                      className="w-1/2 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      placeholder="0"
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.1"
-                      value={filters.engagementMax ?? ''}
-                      onChange={(e) => setFilters((prev) => ({ ...prev, engagementMax: e.target.value ? Number(e.target.value) : undefined, page: 1 }))}
-                      className="w-1/2 rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      placeholder="10"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Ordenar por</label>
-                  <select
-                    value={filters.sortBy}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as any, page: 1 }))}
-                    className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                  >
-                    <option value="updatedAt">Data de atualização</option>
-                    <option value="createdAt">Data de cadastro</option>
-                    <option value="name">Nome</option>
-                    <option value="monetization">Monetização</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Itens por página</label>
-                  <select
-                    value={filters.pageSize || 25}
-                    onChange={(e) => setFilters((prev) => ({ ...prev, pageSize: Number(e.target.value), page: 1 }))}
-                    className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                  >
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                  </select>
-                </div>
-                <div className="flex items-end justify-end">
-                  <button
-                    onClick={() => {
-                      setFilters((prev) => ({
-                        ...defaultFilters,
-                        pageSize: prev.pageSize ?? defaultFilters.pageSize,
-                        sortBy: prev.sortBy ?? defaultFilters.sortBy,
-                        sortOrder: prev.sortOrder ?? defaultFilters.sortOrder,
-                      }));
-                      setNicheInput('');
-                      setBrandInput('');
-                      setDatePreset('all');
-                      setSelectedId(null);
-                      setDetail(null);
-                      setUserSearch('');
-                      setSuggestionsOpen(false);
-                      setShowAdvancedFilters(false);
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-300 text-sm rounded-md hover:bg-gray-100"
-                  >
-                    <XMarkIcon className="w-4 h-4" />
-                    Limpar filtros
-                  </button>
-                </div>
-              </div>
-              </>
-              )}
-            </div>
-            {activeFilterChips.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {activeFilterChips.map((chip, idx) => (
-                  <span
-                    key={`${chip.key}-${chip.value}-${idx}`}
-                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs border border-indigo-100"
-                  >
-                    {chip.label}: {chip.value}
-                    <button
-                      onClick={() => removeChip(chip)}
-                      className="text-indigo-500 hover:text-indigo-700"
-                      aria-label={`Remover filtro ${chip.label}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            {/* FILTER COMPONENT */}
+            <CreatorFilters
+              filters={filters}
+              onFilterChange={setFilters}
+              onClearFilters={() => {
+                setFilters({ ...defaultFilters, pageSize: filters.pageSize, sortBy: filters.sortBy, sortOrder: filters.sortOrder });
+                setNicheInput('');
+                setBrandInput('');
+                setUserSearch('');
+              }}
+              totalFiltered={total}
+              loading={listLoading}
+              nicheInput={nicheInput}
+              onNicheInputChange={setNicheInput}
+              brandInput={brandInput}
+              onBrandInputChange={setBrandInput}
+            />
 
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FunnelIcon className="w-4 h-4" />
-                  {total} criadores filtrados
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <button
-                      onClick={() => setColumnsMenuOpen((prev) => !prev)}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <AdjustmentsHorizontalIcon className="w-4 h-4" />
-                      Colunas
-                    </button>
-                    {columnsMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-10 p-3 space-y-2">
-                        {columns
-                          .filter((c) => c.key !== 'actions')
-                          .map((col) => (
-                            <label key={col.key} className="flex items-center gap-2 text-sm text-gray-700">
-                              <input
-                                type="checkbox"
-                                checked={visibleColumns.includes(col.key)}
-                                onChange={() => toggleColumn(col.key)}
-                                className="rounded text-indigo-600 border-gray-300"
-                              />
-                              {col.label}
-                            </label>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-500">Ordenação</span>
-                  <button
-                    onClick={() => setFilters((prev) => ({ ...prev, sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc' }))}
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
-                  >
-                    {filters.sortOrder === 'asc' ? 'Asc' : 'Desc'}
-                  </button>
-                </div>
-              </div>
-              {listLoading ? (
-                <div className="p-6">
-                  <SkeletonBlock height="h-10" className="mb-2" />
-                  <SkeletonBlock height="h-10" className="mb-2" />
-                  <SkeletonBlock height="h-10" />
-                </div>
-              ) : listError ? (
-                <div className="p-6 text-red-600">
-                  {listError}
-                  <div className="mt-3">
-                    <button
-                      onClick={() => setFilters((prev) => ({ ...prev }))}
-                      className="text-sm text-indigo-700 font-semibold hover:text-indigo-900"
-                    >
-                      Tentar novamente
-                    </button>
-                  </div>
-                </div>
-              ) : list.length === 0 ? (
-                <div className="p-6 text-gray-500">Nenhum criador encontrado.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <TableHeader
-                      columns={activeColumns.map((col) => ({
-                        key: col.key,
-                        label: col.label,
-                        sortable: col.sortable,
-                        headerClassName: col.headerClassName,
-                      }))}
-                      sortConfig={sortConfig as any}
-                      onSort={handleSort}
-                    />
-                    <tbody className="divide-y divide-gray-100">
-                      {list.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          {activeColumns.map((col) => (
-                            <td key={col.key} className={`px-6 py-3 ${col.key === 'actions' ? 'text-right' : ''}`}>
-                              {col.render(item)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 text-sm">
-                <span>
-                  Página {filters.page} de {totalPages}
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, (prev.page || 1) - 1) }))}
-                    disabled={(filters.page || 1) === 1}
-                    className="px-3 py-1 rounded-md border border-gray-300 disabled:opacity-50"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    onClick={() => setFilters((prev) => ({ ...prev, page: Math.min(totalPages, (prev.page || 1) + 1) }))}
-                    disabled={(filters.page || 1) >= totalPages}
-                    className="px-3 py-1 rounded-md border border-gray-300 disabled:opacity-50"
-                  >
-                    Próxima
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* TABLE COMPONENT */}
+            <CreatorTable
+              list={list}
+              total={total}
+              loading={listLoading}
+              error={listError}
+              page={filters.page || 1}
+              totalPages={totalPages}
+              onPageChange={(p: number) => setFilters(prev => ({ ...prev, page: p }))}
+              onViewDetail={(id: string) => { setSelectedId(id); fetchCreatorDetail(id); }}
+              onRetry={() => setFilters({ ...filters })}
+              sortConfig={{ sortBy: filters.sortBy || 'updatedAt', sortOrder: filters.sortOrder || 'desc' }}
+              onSort={(key: string) => setFilters(prev => ({ ...prev, sortBy: key as any, sortOrder: prev.sortBy === key && prev.sortOrder === 'asc' ? 'desc' : 'asc' }))}
+              visibleColumns={visibleColumns}
+              onToggleColumn={toggleColumn}
+            />
           </Tab.Panel>
           <Tab.Panel>
-          {analytics?.qualitySummary && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Qualidade do dado</p>
-                    <h3 className="text-lg font-semibold text-gray-900">Respostas completas: {analytics.qualitySummary.completeResponses}/{analytics.totalRespondents}</h3>
-                    <p className="text-sm text-gray-600">Perfis com métricas conectadas: {analytics.qualitySummary.metricsConnected}/{analytics.totalRespondents}</p>
+            <style>{`
+              @media print {
+                @page { margin: 1cm; size: landscape; }
+                aside, header, nav, .no-print { display: none !important; }
+                main { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+                body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .bg-gray-50 { background-color: #f9fafb !important; }
+                .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: none !important; border: 1px solid #e5e7eb !important; break-inside: avoid; }
+                input, select, button { display: none !important; }
+                .recharts-wrapper { break-inside: avoid; }
+              }
+            `}</style>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+              <div className="xl:col-span-2 space-y-4">
+                <Section title="Resumo executivo" subtitle="Principais achados e direção das ações.">
+                  <div className="space-y-4">
+                    <QuickInsights analytics={analytics} isLoading={analyticsLoading} />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <KpiCard
+                        label="Total de criadores"
+                        value={analytics?.totalRespondents}
+                        icon={UsersIcon}
+                        isLoading={analyticsLoading}
+                        variant="blue"
+                      />
+                      <KpiCard
+                        label={
+                          analytics?.qualitySummary && analytics?.totalRespondents
+                            ? `Respostas completas (de ${analytics.totalRespondents})`
+                            : 'Respostas completas'
+                        }
+                        value={analytics?.qualitySummary?.completeResponses ?? (analytics?.totalRespondents ? 0 : undefined)}
+                        icon={ClipboardDocumentListIcon}
+                        isLoading={analyticsLoading}
+                        variant="green"
+                      />
+                      <KpiCard
+                        label="Taxa de completude"
+                        value={completionRate ?? undefined}
+                        icon={ClipboardDocumentListIcon}
+                        isLoading={analyticsLoading}
+                        formatAs="percentage"
+                        variant="indigo"
+                      />
+                      <KpiCard
+                        label="Dor #1"
+                        value={analytics?.topPain?.value || '—'}
+                        icon={ExclamationTriangleIcon}
+                        isLoading={analyticsLoading}
+                        variant="red"
+                      />
+                    </div>
+                    {analytics?.totalRespondents && analytics.totalRespondents > 0 && completionRate === 0 ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
+                        Nenhuma resposta completa conectada ainda. Conecte dados ou revise formulários para habilitar KPIs.
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-700">
-                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Cidade faltando: {analytics.qualitySummary.missingCity}</span>
-                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Seguidores faltando: {analytics.qualitySummary.missingFollowers}</span>
-                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Alcance faltando: {analytics.qualitySummary.missingReach}</span>
-                    <span className="px-2 py-1 rounded bg-gray-100 border border-gray-200">Engajamento faltando: {analytics.qualitySummary.missingEngagement}</span>
-                  </div>
-                  <div>
-                    <button
-                      onClick={() => alert('Solicitar atualização de dados')}
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
-                    >
-                      Solicitar atualização
-                    </button>
-                  </div>
-                </div>
+                </Section>
               </div>
-            )}
-            <Section
-              title="KPIs principais"
-              description="Visão rápida do volume, monetização e métricas médias para o recorte atual."
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <KpiCard
-                label="Total de criadores"
-                value={analytics?.totalRespondents}
-                icon={UsersIcon}
-                isLoading={analyticsLoading}
-              />
-              <KpiCard
-                label="% com publis"
-                value={analytics?.monetizationYesPct}
-                icon={CurrencyDollarIcon}
-                isLoading={analyticsLoading}
-                formatAs="percentage"
-              />
-              <KpiCard
-                label="% não monetizam"
-                value={analytics?.monetizationNoPct}
-                icon={ExclamationTriangleIcon}
-                isLoading={analyticsLoading}
-                formatAs="percentage"
-              />
-              <KpiCard
-                label="Top dor"
-                value={analytics?.topPain?.value || '—'}
-                icon={ClipboardDocumentListIcon}
-                isLoading={analyticsLoading}
-              />
-              <KpiCard
-                label="Engajamento médio"
-                value={analytics?.metrics?.avgEngagement ?? undefined}
-                icon={ClipboardDocumentListIcon}
-                isLoading={analyticsLoading}
-                formatAs="percentage"
-              />
-              <KpiCard
-                label="Alcance médio"
-                value={analytics?.metrics?.avgReach ?? undefined}
-                icon={UsersIcon}
-                isLoading={analyticsLoading}
-              />
-              <KpiCard
-                label="Crescimento seguidores"
-                value={analytics?.metrics?.avgGrowth ?? undefined}
-                icon={UsersIcon}
-                isLoading={analyticsLoading}
-                formatAs="percentage"
-              />
-            <KpiCard
-              label="Seguidores médios"
-              value={analytics?.metrics?.avgFollowers ?? undefined}
-              icon={UsersIcon}
-              isLoading={analyticsLoading}
-            />
-            <KpiCard
-              label="Cidade mais frequente"
-              value={analytics?.distributions.city?.[0]?.value || '—'}
-              icon={UsersIcon}
-              isLoading={analyticsLoading}
-            />
-              <KpiCard
-                label="Ticket médio (estimado)"
-                value={analytics?.metrics?.avgTicket ?? undefined}
-                icon={CurrencyDollarIcon}
-                isLoading={analyticsLoading}
-                formatAs="currency"
-              />
-              </div>
-            </Section>
 
-          <TopCitiesPercentList
-            data={analytics?.cityMetrics}
-            total={analytics?.totalRespondents}
-            onSelect={(value) => applyChartFilter('city', value)}
-          />
-
-          {viewMode !== 'diagnostico' && (
-            <QuickInsights
-              analytics={analytics}
-              isLoading={analyticsLoading}
-            />
-          )}
-
-          {viewMode !== 'acao' &&
-            analytics?.monetizationComparison &&
-            !(
-              (analytics.monetizationComparison.monetizing?.count || 0) === 0 &&
-              (analytics.monetizationComparison.nonMonetizing?.count || 0) === (analytics?.totalRespondents || 0)
-            ) ? (
-            <Section
-              title="Monetiza vs Não monetiza"
-              description="Comportamento de quem já faz publis versus quem ainda não monetiza."
-              actions={<span className="text-xs text-gray-600">{analytics.monetizationYesPct}% monetizam</span>}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <div className="border border-gray-100 rounded-lg p-3">
-                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">Monetiza (publis)</p>
-                  <p className="text-xs text-gray-500 mb-2">{analytics.monetizationComparison.monetizing?.count || 0} criadores</p>
-                  <p>Engajamento: {analytics.monetizationComparison.monetizing?.avgEngagement?.toFixed(2) ?? '—'}%</p>
-                  <p>Alcance: {analytics.monetizationComparison.monetizing?.avgReach?.toLocaleString('pt-BR') ?? '—'}</p>
-                  <p>Seguidores: {analytics.monetizationComparison.monetizing?.avgFollowers?.toLocaleString('pt-BR') ?? '—'}</p>
-                  <p>Ticket: {analytics.monetizationComparison.monetizing?.avgTicket ? `R$ ${Math.round(analytics.monetizationComparison.monetizing.avgTicket).toLocaleString('pt-BR')}` : '—'}</p>
-                </div>
-                <div className="border border-gray-100 rounded-lg p-3">
-                  <p className="text-xs uppercase text-gray-500 font-semibold mb-1">Não monetiza</p>
-                  <p className="text-xs text-gray-500 mb-2">{analytics.monetizationComparison.nonMonetizing?.count || 0} criadores</p>
-                  <p>Engajamento: {analytics.monetizationComparison.nonMonetizing?.avgEngagement?.toFixed(2) ?? '—'}%</p>
-                  <p>Alcance: {analytics.monetizationComparison.nonMonetizing?.avgReach?.toLocaleString('pt-BR') ?? '—'}</p>
-                  <p>Seguidores: {analytics.monetizationComparison.nonMonetizing?.avgFollowers?.toLocaleString('pt-BR') ?? '—'}</p>
-                  <p>Ticket: {analytics.monetizationComparison.nonMonetizing?.avgTicket ? `R$ ${Math.round(analytics.monetizationComparison.nonMonetizing.avgTicket).toLocaleString('pt-BR')}` : '—'}</p>
-                </div>
-              </div>
-            </Section>
-          ) : null}
-
-            {viewMode !== 'acao' && analytics?.subpricing && (
-              <Section
-                title="Possível subprecificação"
-                description="Regra: ticket abaixo do esperado para seguidores + alcance."
-                actions={<span className="text-xs text-gray-600">{analytics.subpricing.count} criadores</span>}
-              >
-                {analytics.subpricing.examples?.length ? (
-                  <div className="space-y-2">
-                    {analytics.subpricing.examples.map((ex, idx) => (
-                      <div key={idx} className="border border-gray-100 rounded-md p-2 text-sm flex justify-between">
-                        <div>
-                          <p className="font-semibold text-gray-900">{ex.name}</p>
-                          <p className="text-xs text-gray-500">{ex.email}</p>
+              <Section title="Qualidade da base" subtitle="Cobertura dos dados críticos.">
+                {analytics?.qualitySummary ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Cidade', value: analytics.qualitySummary.missingCity, tone: 'amber' },
+                      { label: 'Seguidores', value: analytics.qualitySummary.missingFollowers, tone: 'amber' },
+                      { label: 'Engajamento', value: analytics.qualitySummary.missingEngagement, tone: 'red' },
+                      { label: 'Alcance', value: analytics.qualitySummary.missingReach, tone: 'red' },
+                    ].map((item) => {
+                      const total = analytics.totalRespondents || 0;
+                      const pctMissing = total > 0 ? (item.value / total) * 100 : null;
+                      const filled = total - item.value;
+                      const pctFilled = total > 0 ? (filled / total) * 100 : null;
+                      return (
+                        <div key={item.label} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 bg-gray-50">
+                          <span className="text-sm text-gray-700">{item.label}</span>
+                          <div className="text-right">
+                            <span
+                              className={`text-sm font-semibold ${
+                                item.value > 0
+                                  ? item.tone === 'red'
+                                    ? 'text-red-600'
+                                    : 'text-amber-600'
+                                  : 'text-green-600'
+                              }`}
+                            >
+                              {item.value}
+                            </span>
+                            {pctMissing != null && (
+                              <div className="text-[11px] text-gray-500">
+                                {pctMissing.toFixed(1)}% faltando · {pctFilled?.toFixed(1)}% preenchido
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-xs text-right text-gray-700">
-                          <p>Seg: {ex.followers?.toLocaleString('pt-BR') ?? '—'}</p>
-                          <p>Alcance: {ex.reach?.toLocaleString('pt-BR') ?? '—'}</p>
-                          <p>Preço: {ex.priceRange || '—'}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-600">Nenhum caso encontrado com os filtros atuais.</p>
+                  <SkeletonBlock height="h-16" />
                 )}
               </Section>
-            )}
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <Section title="Alcance & Crescimento" subtitle="Saúde de topo e evolução recente.">
+                <div className="grid grid-cols-1 gap-3">
+                  <KpiCard
+                    label="Cresc. médio"
+                    value={analytics?.metrics?.avgGrowth ?? undefined}
+                    icon={UsersIcon}
+                    isLoading={analyticsLoading}
+                    formatAs="percentage"
+                    variant="green"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <KpiCard
+                      label="Seguidores médios"
+                      value={analytics?.metrics?.avgFollowers ?? undefined}
+                      icon={UsersIcon}
+                      isLoading={analyticsLoading}
+                      variant="blue"
+                    />
+                    <KpiCard
+                      label="Alcance médio"
+                      value={analytics?.metrics?.avgReach ?? undefined}
+                      icon={UsersIcon}
+                      isLoading={analyticsLoading}
+                      variant="indigo"
+                    />
+                  </div>
+                </div>
+              </Section>
+
+              <Section title="Monetização" subtitle="Quem já vende e quem ainda precisa de suporte.">
+                <div className="grid grid-cols-2 gap-3">
+                  <KpiCard
+                    label="% com publis"
+                    value={analytics?.monetizationYesPct}
+                    icon={CurrencyDollarIcon}
+                    isLoading={analyticsLoading}
+                    formatAs="percentage"
+                    variant="green"
+                  />
+                  <KpiCard
+                    label="% sem publis"
+                    value={analytics?.monetizationNoPct}
+                    icon={ExclamationTriangleIcon}
+                    isLoading={analyticsLoading}
+                    formatAs="percentage"
+                    variant="amber"
+                  />
+                </div>
+                <KpiCard
+                  label="Ticket médio (estimado)"
+                  value={analytics?.metrics?.avgTicket ?? undefined}
+                  icon={CurrencyDollarIcon}
+                  isLoading={analyticsLoading}
+                  formatAs="currency"
+                  variant="green"
+                />
+              </Section>
+
+              <Section title="Performance média" subtitle="Qualidade do conteúdo e da audiência.">
+                <div className="grid grid-cols-2 gap-3">
+                  <KpiCard
+                    label="Engajamento"
+                    value={analytics?.metrics?.avgEngagement ?? undefined}
+                    icon={ClipboardDocumentListIcon}
+                    isLoading={analyticsLoading}
+                    formatAs="percentage"
+                    variant="indigo"
+                  />
+                  <KpiCard
+                    label="Dor principal"
+                    value={analytics?.topPain?.value || '—'}
+                    icon={ExclamationTriangleIcon}
+                    isLoading={analyticsLoading}
+                    variant="red"
+                  />
+                </div>
+              </Section>
+            </div>
+
+            <Section title="Perfil e Demografia" subtitle="Onde estão e em que estágio da jornada.">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {treeMapSource.data.length ? (
+                  <TreeMapChart
+                    title={treeMapSource.title}
+                    data={(treeMapSource.data || []).map((d) => ({ name: d.value, value: d.count }))}
+                    onClick={(value) => applyChartFilter(treeMapSource.filterKey, value)}
+                    isLoading={analyticsLoading}
+                  />
+                ) : (
+                  <div className="bg-white border border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500 flex flex-col items-center justify-center text-center">
+                    <p className="font-semibold text-gray-700">Sem dados de nicho/território conectados</p>
+                    <p className="text-xs text-gray-500 mt-1">Conecte dados ou escolha um filtro de cidade para visualizar distribuição geográfica.</p>
+                  </div>
+                )}
+                <StackedBarChart
+                  title="Distribuição por estágio"
+                  data={stageDistributionData}
+                  xAxisKey="name"
+                  keys={[
+                    { key: 'total', color: '#4F46E5', label: 'Criadores' },
+                  ]}
+                  isLoading={analyticsLoading}
+                />
+              </div>
+            </Section>
+
+            <Section title="Desafios & Gargalos" subtitle="Onde os criadores travam e o que dói mais.">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <FunnelChart
+                  title="Etapa mais difícil"
+                  data={(analytics?.distributions.hardestStage || []).map(d => ({ name: d.value, value: d.count }))}
+                  onClick={(value) => applyChartFilter('hardestStage', value)}
+                  isLoading={analyticsLoading}
+                />
+                <StackedBarChart
+                  title="Dores mencionadas"
+                  data={painsBarData}
+                  xAxisKey="name"
+                  keys={[
+                    { key: 'total', color: '#F97316', label: 'Volume' },
+                  ]}
+                  isLoading={analyticsLoading}
+                />
+              </div>
+            </Section>
+
+            <Section title="Monetização em profundidade" subtitle="Cruzar estágio com intenção de publis e pricing (tooltip mostra % por estágio).">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {stageMonetizationData.length ? (
+                  <StackedBarChart
+                    title="Monetização por estágio"
+                    data={stageMonetizationData}
+                    xAxisKey="name"
+                    keys={[
+                      { key: 'monetizando', color: '#22C55E', label: 'Já monetiza' },
+                      { key: 'iniciando', color: '#0EA5E9', label: 'Quer começar' },
+                      { key: 'semInteresse', color: '#EF4444', label: 'Sem interesse' },
+                      { key: 'semDado', color: '#94A3B8', label: 'Sem dado' },
+                    ]}
+                    showPercentOfTotal
+                    isLoading={analyticsLoading}
+                  />
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-500">
+                    Sem dados suficientes de monetização por estágio.
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <PieDistribution title="Publis realizadas" data={analytics?.distributions.hasDoneSponsoredPosts || []} />
+                  <PieDistribution title="Faixa de preço" data={analytics?.distributions.avgPriceRange || []} />
+                </div>
+              </div>
+            </Section>
+
+            <Section title="Correlação e leitura rápida" subtitle="Entenda onde focar combinando dores com jornada.">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <HeatmapTable
+                  title="Dores x Estágio"
+                  rows={painStageHeatmap.rows}
+                  columns={painStageHeatmap.columns}
+                  dataMap={painStageHeatmap.dataMap}
+                  percentMap={painStageHeatmap.percentMap}
+                  columnTotals={painStageHeatmap.columnTotals}
+                  onSelect={(rowKey) => applyChartFilter('pains', rowKey)}
+                  isLoading={analyticsLoading}
+                />
+                <HeatmapTable
+                  title="Dores x Monetização"
+                  rows={painMonetizationHeatmap.rows}
+                  columns={painMonetizationHeatmap.columns}
+                  dataMap={painMonetizationHeatmap.dataMap}
+                  percentMap={painMonetizationHeatmap.percentMap}
+                  columnTotals={painMonetizationHeatmap.columnTotals}
+                  onSelect={(rowKey) => applyChartFilter('pains', rowKey)}
+                  isLoading={analyticsLoading}
+                />
+              </div>
+            </Section>
+
+            <Section title="Cobertura e evolução" subtitle="Tendência de respostas e praças mais relevantes.">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <TimeSeriesChart data={analytics?.timeSeries || []} isLoading={analyticsLoading} />
+                <CityRanking data={analytics?.cityMetrics} onSelect={(value) => applyChartFilter('city', value)} isLoading={analyticsLoading} />
+              </div>
+            </Section>
+
+          </Tab.Panel>
+          <Tab.Panel>
             {analytics?.priorityList?.length ? (
-              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-gray-900">Criadores que precisam de ajuda agora</h3>
                   <span className="text-xs text-gray-600">{analytics.priorityList.length} selecionados</span>
@@ -1737,363 +1387,7 @@ export default function CreatorsInsightsPage() {
               </div>
             ) : null}
 
-            {viewMode !== 'diagnostico' && recommendations.length > 0 && (
-              <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">O que fazer agora</h3>
-                <ul className="list-disc list-inside text-sm text-gray-800 space-y-1">
-                  {recommendations.map((rec, idx) => (
-                    <li key={idx}>{rec}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <TimeSeriesChart data={analytics?.timeSeries || []} />
-
-            <Section
-              title="Respostas abertas"
-              description="Leitura e cluster rápido. Clique nos temas para filtrar."
-              actions={
-                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                  <div className="flex-1">
-                    <label className="text-xs font-semibold text-gray-600">Buscar termo</label>
-                    <input
-                      type="text"
-                      value={openResponsesSearch}
-                      onChange={(e) => setOpenResponsesSearch(e.target.value)}
-                      className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                      placeholder="Ex: autenticidade, humor..."
-                    />
-                  </div>
-                  <div className="w-full md:w-60">
-                    <label className="text-xs font-semibold text-gray-600">Pergunta</label>
-                    <select
-                      value={openResponsesQuestion}
-                      onChange={(e) => setOpenResponsesQuestion(e.target.value)}
-                      className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    >
-                      {openQuestionOptions.map((opt) => (
-                        <option key={opt.value || 'all'} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              }
-            >
-              <div className="flex flex-wrap gap-2 mb-2">
-                {themeBuckets.map((t) => (
-                  <button
-                    key={t.key}
-                    onClick={() => setOpenResponsesTheme(openResponsesTheme === t.key ? '' : t.key)}
-                    className={`px-3 py-1 rounded-md text-xs border ${
-                      openResponsesTheme === t.key ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'border-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {t.label} ({t.count})
-                  </button>
-                ))}
-                <span className="text-xs text-gray-500 ml-auto">
-                  {openResponsesLoading && openResponsesLoaded === 0
-                    ? 'Carregando respostas...'
-                    : `${openResponsesLoaded}/${openResponsesTotal} respostas carregadas`}
-                </span>
-              </div>
-
-              {openResponsesError ? (
-                <div className="text-sm text-red-600">{openResponsesError}</div>
-              ) : openResponsesLoading && openResponses.length === 0 ? (
-                <SkeletonBlock height="h-16" />
-              ) : openResponses.filter((resp) => {
-                if (!openResponsesTheme) return true;
-                const text = resp.text.toLowerCase();
-                const theme = themeBuckets.find((t) => t.key === openResponsesTheme);
-                return theme?.keywords.some((k) => text.includes(k));
-              }).length === 0 ? (
-                <p className="text-sm text-gray-500">Nenhuma resposta encontrada com esses filtros.</p>
-              ) : (
-                <div className="space-y-3">
-                  {openResponses
-                    .filter((resp) => {
-                      if (!openResponsesTheme) return true;
-                      const text = resp.text.toLowerCase();
-                      const theme = themeBuckets.find((t) => t.key === openResponsesTheme);
-                      return theme?.keywords.some((k) => text.includes(k));
-                    })
-                    .map((resp) => {
-                      const expanded = openResponsesExpanded[resp.id];
-                      const shouldTruncate = resp.text.length > 220;
-                      const renderText = () => {
-                        if (!openResponsesSearch.trim()) return resp.text;
-                        const regex = new RegExp(`(${openResponsesSearch.trim()})`, 'gi');
-                        const parts = resp.text.split(regex);
-                        return parts.map((part, idx) =>
-                          idx % 2 === 1 ? (
-                            <mark key={idx} className="bg-yellow-200 text-gray-900 px-0.5 rounded">
-                              {part}
-                            </mark>
-                          ) : (
-                            <span key={idx}>{part}</span>
-                          ),
-                        );
-                      };
-                      return (
-                        <div key={resp.id} className="border border-gray-200 rounded-md p-3 shadow-sm hover:border-indigo-200">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold text-indigo-700">{resp.questionLabel}</p>
-                              <p className="text-sm font-semibold text-gray-900">{resp.name}</p>
-                              <p className="text-xs text-gray-500">
-                                {resp.email}
-                                {resp.username ? ` · @${resp.username}` : ''} · {formatDate(resp.updatedAt)}
-                              </p>
-                            </div>
-                          </div>
-                          <div
-                            className={`mt-2 text-sm text-gray-800 whitespace-pre-line ${
-                              expanded || !shouldTruncate ? '' : 'max-h-24 overflow-hidden'
-                            }`}
-                          >
-                            {renderText()}
-                          </div>
-                          {shouldTruncate && (
-                            <button
-                              onClick={() => toggleOpenResponseExpansion(resp.id)}
-                              className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
-                            >
-                              {expanded ? 'Ver menos' : 'Ver mais'}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-gray-500">
-                  {openResponsesLoading && openResponses.length > 0 ? 'Carregando...' : ''}
-                </span>
-                {openResponsesHasMore && (
-                  <button
-                    onClick={() => fetchOpenResponses(openResponsesPage + 1)}
-                    disabled={openResponsesLoading}
-                    className="px-3 py-2 text-sm rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    Ver mais respostas
-                  </button>
-                )}
-              </div>
-            </Section>
-
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-900">Distribuições por perfil e performance</h3>
-                <p className="text-xs text-gray-500">Clique para aplicar filtros rápidos.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <DistributionChart
-                title="Dores (P7)"
-                data={analytics?.distributions.pains || []}
-                onClick={(value) => applyChartFilter('pains', value)}
-              />
-              <DistributionChart
-                title="Etapa difícil (P8)"
-                data={analytics?.distributions.hardestStage || []}
-                onClick={(value) => applyChartFilter('hardestStage', value)}
-              />
-              <PieDistribution title="Publis (P9)" data={analytics?.distributions.hasDoneSponsoredPosts || []} />
-              <PieDistribution title="Faixa de preço (P10)" data={analytics?.distributions.avgPriceRange || []} />
-              <DistributionChart
-                title="Motivos para usar a plataforma (P13)"
-                data={analytics?.distributions.mainPlatformReasons || []}
-                onClick={(value) => applyChartFilter('accountReasons', value)}
-              />
-              <DistributionChart
-                title="Plataformas além do Instagram (P15)"
-                data={analytics?.distributions.nextPlatform || []}
-                onClick={(value) => applyChartFilter('nextPlatform', value)}
-              />
-              <DistributionChart
-                title="Como precifica (P12)"
-                data={analytics?.distributions.pricingMethod || []}
-              />
-              {isAllNoData(analytics?.distributions.learningStyles) ? (
-                <NoDataBlock
-                  title="Dado não coletado - Formatos de aprendizado"
-                  description="Coletar essa resposta para liberar análise de formatos preferidos."
-                  actionLabel="Solicitar atualização"
-                  onAction={() => alert('Solicitar atualização de dados')}
-                />
-              ) : (
-                <DistributionChart
-                  title="Formatos de aprendizado (P16)"
-                  data={analytics?.distributions.learningStyles || []}
-                />
-              )}
-              {isAllNoData(analytics?.distributions.followers) ? (
-                <NoDataBlock
-                  title="Dado não coletado - Faixa de seguidores"
-                  description="Conecte métricas ou peça ao criador para informar seguidores."
-                  actionLabel="Solicitar atualização"
-                  onAction={() => alert('Solicitar atualização de dados')}
-                />
-              ) : (
-                <DistributionChart
-                  title="Faixa de seguidores"
-                  data={analytics?.distributions.followers || []}
-                />
-              )}
-              {isAllNoData(analytics?.distributions.gender) ? (
-                <NoDataBlock
-                  title="Dado não coletado - Gênero"
-                  description="Recolha este campo para análises demográficas."
-                  actionLabel="Solicitar atualização"
-                  onAction={() => alert('Solicitar atualização de dados')}
-                />
-              ) : (
-                <DistributionChart
-                  title="Gênero"
-                  data={analytics?.distributions.gender || []}
-                />
-              )}
-              {isAllNoData(analytics?.distributions.city) || filledCityPct < 0.2 ? (
-                <NoDataBlock
-                  title="Dado não coletado - Cidade"
-                  description="Cidade ausente impacta análises geográficas e ticket."
-                  actionLabel="Solicitar atualização"
-                  onAction={() => alert('Solicitar atualização de dados')}
-                />
-              ) : (
-                <DistributionChart
-                  title="Cidade"
-                  data={analytics?.distributions.city || []}
-                  onClick={(value) => applyChartFilter('city', value)}
-                />
-              )}
-              {isAllNoData(analytics?.distributions.country) || filledCityPct < 0.2 ? (
-                <NoDataBlock
-                  title="Dado não coletado - País"
-                  description="Preencha país para cortes regionais e comparação."
-                  actionLabel="Solicitar atualização"
-                  onAction={() => alert('Solicitar atualização de dados')}
-                />
-              ) : (
-                <DistributionChart
-                  title="País"
-                  data={analytics?.distributions.country || []}
-                  onClick={(value) => applyChartFilter('country', value)}
-                />
-              )}
-              {isAllNoData(analytics?.distributions.engagement) ? (
-                <NoDataBlock
-                  title="Dado não coletado - Engajamento"
-                  description="Sem engajamento não conseguimos priorizar criadores."
-                  actionLabel="Conectar métricas"
-                  onAction={() => alert('Conectar métricas de engajamento')}
-                />
-              ) : (
-                <DistributionChart
-                  title="Engajamento %"
-                  data={analytics?.distributions.engagement || []}
-                  onClick={(value) => applyChartFilter('engagementMin', value)}
-                />
-              )}
-              {isAllNoData(analytics?.distributions.reach) ? (
-                <NoDataBlock
-                  title="Dado não coletado - Alcance 30d"
-                  description="Conecte a conta ou colete alcance para avaliar performance."
-                  actionLabel="Conectar métricas"
-                  onAction={() => alert('Conectar métricas de alcance')}
-                />
-              ) : (
-                <DistributionChart
-                  title="Alcance 30d"
-                  data={analytics?.distributions.reach || []}
-                />
-              )}
-              {isAllNoData(analytics?.distributions.growth) ? (
-                <NoDataBlock
-                  title="Dado não coletado - Crescimento"
-                  description="Precisamos da série de seguidores para medir crescimento."
-                  actionLabel="Conectar métricas"
-                  onAction={() => alert('Conectar métricas de seguidores')}
-                />
-              ) : (
-                <DistributionChart
-                  title="Crescimento seguidores"
-                  data={analytics?.distributions.growth || []}
-                />
-              )}
-              <DistributionChart
-                title="Engajamento por estágio"
-                data={(analytics?.distributions.stageEngagement || []).map((d) => ({
-                  value: `${d.value} (${d.count})`,
-                  count: d.avgEngagement || 0,
-                }))}
-              />
-              {analytics?.monetizationByCountry?.length ? (
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-800">Monetização por país</h4>
-                    <span className="text-xs text-gray-400">Clique aplica filtro</span>
-                  </div>
-                  <div className="h-72 overflow-y-auto pr-2">
-                    {analytics.monetizationByCountry.map((row) => (
-                      <button
-                        key={row.value}
-                        onClick={() => applyChartFilter('country', row.value)}
-                        className="w-full text-left mb-2 last:mb-0 group"
-                      >
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-gray-800 group-hover:text-indigo-700">{row.value}</span>
-                          <span className="text-gray-600">{row.pct}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-100 rounded">
-                          <div
-                            className="h-2 bg-indigo-500 rounded"
-                            style={{ width: `${Math.min(row.pct, 100)}%` }}
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500">{row.monetizing}/{row.total} monetizam</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <CorrelationTable
-                title="Dores x métricas"
-                data={analytics?.metricByCategory?.pains}
-                onSelect={(value) => applyChartFilter('pains', value)}
-              />
-              <CorrelationTable
-                title="Etapa difícil x métricas"
-                data={analytics?.metricByCategory?.hardestStage}
-                onSelect={(value) => applyChartFilter('hardestStage', value)}
-              />
-              <CorrelationTable
-                title="Próximas plataformas x métricas"
-                data={analytics?.metricByCategory?.nextPlatform}
-                onSelect={(value) => applyChartFilter('nextPlatform', value)}
-              />
-              <CorrelationTable
-                title="Estágio x métricas"
-                data={analytics?.metricByCategory?.stage}
-                onSelect={(value) => applyChartFilter('stage', value as any)}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <CityRanking data={analytics?.cityMetrics} onSelect={(value) => applyChartFilter('city', value)} />
-              <CityPricingMatrix data={analytics?.cityPricingBySize} onSelect={(value) => applyChartFilter('city', value)} />
-            </div>
-
-            <div className="mt-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm mb-4">
               <h3 className="text-sm font-semibold text-gray-800 mb-2">Histórias de sucesso (12 meses)</h3>
               {analyticsLoading ? (
                 <SkeletonBlock height="h-10" />
@@ -2110,540 +1404,77 @@ export default function CreatorsInsightsPage() {
                 <p className="text-sm text-gray-500">Sem respostas suficientes.</p>
               )}
             </div>
+
+            <OpenResponsesTab
+              responses={openResponses}
+              loading={openResponsesLoading}
+              hasMore={openResponsesHasMore}
+              onLoadMore={() => fetchOpenResponses(openResponsesPage + 1)}
+              search={openResponsesSearch}
+              onSearchChange={setOpenResponsesSearch}
+              question={openResponsesQuestion}
+              onQuestionChange={setOpenResponsesQuestion}
+              type={openResponsesType}
+              onTypeChange={setOpenResponsesType}
+              sort={openResponsesSort}
+              onSortChange={setOpenResponsesSort}
+              expanded={openResponsesExpanded}
+              onToggleExpand={toggleOpenResponseExpansion}
+              questionOptions={[
+                { value: '', label: 'Todas as perguntas abertas' },
+                ...Object.entries(openQuestionMeta).map(([value, meta]) => ({
+                  value,
+                  label: `${meta.section} · ${meta.label}`,
+                })),
+              ]}
+              typeOptions={[
+                { value: 'all', label: 'Todos os tipos' },
+                { value: 'narrativa', label: 'Histórias de sucesso' },
+                { value: 'rotina', label: 'Rotina/expectativas diárias' },
+                { value: 'objetivos', label: 'Objetivos' },
+                { value: 'dores', label: 'Dores/medos' },
+                { value: 'monetizacao', label: 'Monetização/preço' },
+                { value: 'motivacao', label: 'Motivação/uso' },
+                { value: 'posicionamento', label: 'Posicionamento/territórios' },
+                { value: 'suporte', label: 'Ajuda/apoio' },
+                { value: 'outros', label: 'Outros' },
+              ]}
+            />
           </Tab.Panel>
-        </Tab.Panels>
-      </Tab.Group>
+        </Tab.Panels >
+      </Tab.Group >
 
       {selectedId && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex justify-end">
-          <div className="w-full max-w-xl h-full bg-white shadow-xl overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <div>
-                <p className="text-xs text-gray-500">Perfil do criador</p>
-                <h3 className="text-lg font-semibold text-gray-900">{detail?.name || '...'}</h3>
-                <p className="text-sm text-gray-600">{detail?.email}</p>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedId(null);
-                  setDetail(null);
-                }}
-                className="p-2 rounded-md hover:bg-gray-100"
-              >
-                <XMarkIcon className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-
-            {detailLoading ? (
-              <div className="p-6 space-y-2">
-                <SkeletonBlock height="h-5" />
-                <SkeletonBlock height="h-5" />
-                <SkeletonBlock height="h-24" />
-              </div>
-            ) : !detail ? (
-              <div className="p-6 text-gray-500">Falha ao carregar detalhes.</div>
-            ) : (
-              <div className="p-6 space-y-5">
-                <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-                  <span className="font-semibold">Handle</span>
-                  <span>@{detail.username || '—'}</span>
-                  <span className="font-semibold">Estágio</span>
-                  <span>{detail.profile.stage?.join(', ') || '—'}</span>
-                  <span className="font-semibold">Monetização</span>
-                  <span>
-                    {detail.profile.hasDoneSponsoredPosts || '—'}{' '}
-                    {detail.profile.avgPriceRange ? `(${detail.profile.avgPriceRange})` : ''}
-                  </span>
-                  <span className="font-semibold">Seguidores</span>
-                  <span>{detail.followersCount?.toLocaleString('pt-BR') || '—'}</span>
-                  <span className="font-semibold">Posts</span>
-                  <span>{detail.mediaCount ?? '—'}</span>
-                  <span className="font-semibold">Localização</span>
-                  <span>{`${detail.city || 'Sem dado'}${detail.country ? ` · ${detail.country}` : ''}`}</span>
-                  <span className="font-semibold">Gênero</span>
-                  <span>{detail.gender || '—'}</span>
-                  <span className="font-semibold">Última atualização</span>
-                  <span>{formatDate(detail.updatedAt || detail.createdAt)}</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <MetricCard label="Alcance (últ. período)" value={detail.reach} />
-                  <MetricCard label="Contas engajadas" value={detail.engaged} />
-                </div>
-
-                {detail.insightsHistory && detail.insightsHistory.length > 1 && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                    <p className="text-sm font-semibold text-gray-900 mb-2">Evolução recente (alcance / engajamento / seguidores)</p>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={[...detail.insightsHistory].reverse().map((d) => ({
-                            date: d.recordedAt ? new Date(d.recordedAt).toLocaleDateString('pt-BR') : '',
-                            reach: d.reach ?? 0,
-                            engaged: d.engaged ?? 0,
-                            followers: d.followers ?? 0,
-                          }))}
-                          margin={{ left: 0, right: 10, top: 10, bottom: 10 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
-                          <RechartsTooltip />
-                          <Line type="monotone" dataKey="reach" stroke="#4F46E5" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="engaged" stroke="#22C55E" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="followers" stroke="#0EA5E9" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Baseado nos últimos registros coletados.</p>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900">Quem é esse criador</h4>
-                  <InfoRow label="Nicho/temas" value={detail.profile.niches?.join(', ') || '—'} />
-                  <InfoRow label="Territórios de marca" value={detail.profile.brandTerritories?.join(', ') || '—'} />
-                  <InfoRow label="Tem ajuda?" value={detail.profile.hasHelp?.join(', ') || '—'} />
-                  <InfoRow label="Marcas dos sonhos" value={detail.profile.dreamBrands?.join(', ') || '—'} />
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900">Objetivos</h4>
-                  <InfoRow label="Prioridade 3 meses" value={detail.profile.mainGoal3m || '—'} />
-                  <InfoRow label="Outro (objetivo)" value={detail.profile.mainGoalOther || '—'} />
-                  <InfoRow label="História de sucesso 12 meses" value={detail.profile.success12m || '—'} />
-                  <InfoRow label="Expectativa diária" value={detail.profile.dailyExpectation || '—'} />
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900">Dores</h4>
-                  <InfoRow label="Dores principais (P7)" value={detail.profile.mainPains?.join(', ') || '—'} />
-                  <InfoRow label="Outro (dor)" value={detail.profile.otherPain || '—'} />
-                  <InfoRow label="Etapa difícil (P8)" value={detail.profile.hardestStage?.join(', ') || '—'} />
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900">Monetização</h4>
-                  <InfoRow label="Publis (P9)" value={detail.profile.hasDoneSponsoredPosts || '—'} />
-                  <InfoRow label="Faixa média (P10)" value={detail.profile.avgPriceRange || '—'} />
-                  <InfoRow label="Faixa combo (P11)" value={detail.profile.bundlePriceRange || '—'} />
-                  <InfoRow label="Como precifica (P12)" value={detail.profile.pricingMethod || '—'} />
-                  <InfoRow label="Medo de precificar" value={detail.profile.pricingFear || '—'} />
-                  <InfoRow label="Outro (medo)" value={detail.profile.pricingFearOther || '—'} />
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900">Motivo de uso</h4>
-                  <InfoRow label="Motivos principais (P13)" value={detail.profile.mainPlatformReasons?.join(', ') || '—'} />
-                  <InfoRow label="Outro (motivo)" value={detail.profile.reasonOther || '—'} />
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900">Plataformas e aprendizado</h4>
-                  <InfoRow label="Próximas plataformas (P15)" value={detail.profile.nextPlatform?.join(', ') || '—'} />
-                  <InfoRow label="Formatos de aprendizado (P16)" value={detail.profile.learningStyles?.join(', ') || '—'} />
-                  <InfoRow label="Notificações (P17)" value={detail.profile.notificationPref?.join(', ') || '—'} />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-gray-900">Notas internas</h4>
-                    {notesSaving && <span className="text-xs text-gray-500">Salvando...</span>}
-                  </div>
-                  <textarea
-                    value={notesDraft}
-                    onChange={(e) => {
-                      setNotesDraft(e.target.value);
-                      setNotesDirty(true);
-                    }}
-                    placeholder="Anotações privadas para o time"
-                    className="w-full rounded-md border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm min-h-[120px]"
-                  />
-                  <p className="text-xs text-gray-500">Notas são salvas automaticamente em segundos.</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <UserDetailModal
+          detail={detail}
+          loading={detailLoading}
+          onClose={() => {
+            setSelectedId(null);
+            setDetail(null);
+          }}
+          notesDraft={notesDraft}
+          onNotesChange={(v) => {
+            setNotesDraft(v);
+            setNotesDirty(true);
+          }}
+          notesSaving={notesSaving}
+        />
       )}
 
-      {exportModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-lg p-5 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Exportar dados</h3>
-              <button onClick={() => setExportModal(false)} className="p-2 rounded-md hover:bg-gray-100">
-                <XMarkIcon className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-semibold text-gray-700">Formato</label>
-                <select
-                  value={exportFormat}
-                  onChange={(e) => setExportFormat(e.target.value as any)}
-                  className="mt-1 w-full rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="csv">CSV</option>
-                  <option value="json">JSON</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-700">Colunas (opcional)</label>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {columns
-                    .filter((c) => c.key !== 'actions')
-                    .map((col) => (
-                      <label key={col.key} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={exportColumns.includes(col.key)}
-                          onChange={() =>
-                            setExportColumns((prev) =>
-                              prev.includes(col.key) ? prev.filter((c) => c !== col.key) : [...prev, col.key],
-                            )
-                          }
-                          className="rounded text-indigo-600 border-gray-300"
-                        />
-                        {col.label}
-                      </label>
-                    ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Deixe em branco para exportar todas as colunas.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="export-history"
-                  type="checkbox"
-                  className="rounded text-indigo-600 border-gray-300"
-                  checked={exportIncludeHistory}
-                  onChange={(e) => setExportIncludeHistory(e.target.checked)}
-                />
-                <label htmlFor="export-history" className="text-sm text-gray-700">
-                  Incluir histórico recente de métricas (JSON)
-                </label>
-              </div>
-              <div className="text-sm text-gray-600">
-                <p>Serão exportados os criadores de acordo com os filtros aplicados.</p>
-                {activeFilterChips.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Filtros ativos: {activeFilterChips.map((c) => `${c.label}=${c.value}`).join(' · ')}
-                  </p>
-                )}
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setExportModal(false)}
-                  className="px-4 py-2 rounded-md border border-gray-300 text-sm"
-                  disabled={exporting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleExport}
-                  className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-50"
-                  disabled={exporting}
-                >
-                  {exporting ? 'Gerando...' : 'Exportar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-gray-600">{label}</p>
-      <p className="text-sm text-gray-800 whitespace-pre-line break-words">{value || '—'}</p>
-    </div>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value?: number | null }) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3">
-      <p className="text-xs text-gray-500 font-semibold">{label}</p>
-      <p className="text-lg font-semibold text-gray-900">{value != null ? value.toLocaleString('pt-BR') : '—'}</p>
-    </div>
-  );
-}
-
-function QuickInsights({ analytics, isLoading }: { analytics: AdminCreatorSurveyAnalytics | null; isLoading: boolean }) {
-  if (isLoading) {
-    return <SkeletonBlock height="h-20" />;
-  }
-  if (!analytics) return null;
-
-  const insights: string[] = [];
-  if (analytics.monetizationComparison?.nonMonetizing?.count && analytics.monetizationComparison.monetizing?.avgEngagement != null) {
-    insights.push(`${analytics.monetizationComparison.nonMonetizing.count} criadores com monetização baixa → priorizar orientação comercial`);
-  }
-  if (analytics.metrics?.avgGrowth != null) {
-    insights.push(`Crescimento médio ${analytics.metrics.avgGrowth.toFixed(2)}% → ativar estratégia de descoberta`);
-  }
-  if (analytics.topPain?.value) {
-    insights.push(`Dor nº1 = ${analytics.topPain.value} → iniciar rotina semanal de leitura de dados`);
-  }
-  if (insights.length === 0 && analytics.metrics?.avgEngagement != null) {
-    insights.push(`Engajamento médio ${analytics.metrics.avgEngagement.toFixed(2)}% → revisar consistência de conteúdo`);
-  }
-
-  if (!insights.length) return null;
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-2">
-      <h3 className="text-sm font-semibold text-gray-800">Insights rápidos</h3>
-      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-        {insights.map((insight, idx) => (
-          <li key={idx}>{insight}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function TopCitiesPercentList({
-  data,
-  total,
-  onSelect,
-}: {
-  data?: CityMetric[];
-  total?: number;
-  onSelect?: (value: string) => void;
-}) {
-  if (!data || !data.length || !total) return null;
-  const top = data.slice(0, 5);
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-semibold text-gray-900">Top 5 cidades (%)</h4>
-        {onSelect && <span className="text-xs text-gray-400">Clique aplica filtro</span>}
-      </div>
-      <div className="space-y-2">
-        {top.map((row) => {
-          const pct = Math.round((row.count / total) * 100);
-          return (
-            <button
-              key={row.value}
-              onClick={onSelect ? () => onSelect(row.value) : undefined}
-              className="w-full text-left"
-            >
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-semibold text-gray-900">{row.value}</span>
-                <span className="text-xs text-gray-600">{pct}% ({row.count})</span>
-              </div>
-              <div className="w-full h-2 bg-gray-100 rounded">
-                <div
-                  className="h-2 bg-indigo-500 rounded"
-                  style={{ width: `${Math.min(100, pct)}%` }}
-                />
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function CorrelationTable({
-  title,
-  data,
-  onSelect,
-}: {
-  title: string;
-  data?: CategoryMetricBreakdown[];
-  onSelect?: (value: string) => void;
-}) {
-  if (!data || data.length === 0) return null;
-  const maxEngagement = Math.max(...data.map((d) => d.avgEngagement || 0), 1);
-  const maxReach = Math.max(...data.map((d) => d.avgReach || 0), 1);
-  const maxGrowth = Math.max(...data.map((d) => d.avgGrowth || 0), 1);
-  const maxFollowers = Math.max(...data.map((d) => d.avgFollowers || 0), 1);
-  const formatPct = (v?: number | null) => (v != null ? `${v.toFixed(2)}%` : '—');
-  const formatNum = (v?: number | null) => (v != null ? Math.round(v).toLocaleString('pt-BR') : '—');
-
-  const Bar = ({ value, max, className }: { value?: number | null; max: number; className: string }) => {
-    if (value == null) return <div className="h-2 bg-gray-100 rounded" />;
-    const pct = Math.min(100, (value / max) * 100);
-    return (
-      <div className="h-2 bg-gray-100 rounded">
-        <div className={`h-2 rounded ${className}`} style={{ width: `${pct}%` }} />
-      </div>
-    );
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
-        {onSelect && <span className="text-xs text-gray-400">Clique para filtrar</span>}
-      </div>
-      <div className="space-y-3">
-        {data.slice(0, 8).map((row) => (
-          <button
-            key={row.value}
-            onClick={onSelect ? () => onSelect(row.value) : undefined}
-            className="w-full text-left group"
-          >
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-gray-800 group-hover:text-indigo-700">{row.value}</span>
-              <span className="text-xs text-gray-500">{row.count} resp.</span>
-            </div>
-            <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-600">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span>Engaj.</span>
-                  <span className="text-gray-700">{formatPct(row.avgEngagement)}</span>
-                </div>
-                <Bar value={row.avgEngagement ?? undefined} max={maxEngagement} className="bg-indigo-500" />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <span>Cresc.</span>
-                  <span className="text-gray-700">{formatPct(row.avgGrowth)}</span>
-                </div>
-                <Bar value={row.avgGrowth ?? undefined} max={maxGrowth} className="bg-emerald-500" />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <span>Alcance</span>
-                  <span className="text-gray-700">{formatNum(row.avgReach)}</span>
-                </div>
-                <Bar value={row.avgReach ?? undefined} max={maxReach} className="bg-blue-500" />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <span>Seguidores</span>
-                  <span className="text-gray-700">{formatNum(row.avgFollowers)}</span>
-                </div>
-                <Bar value={row.avgFollowers ?? undefined} max={maxFollowers} className="bg-slate-500" />
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CityRanking({
-  data,
-  onSelect,
-}: {
-  data?: CityMetric[];
-  onSelect?: (value: string) => void;
-}) {
-  if (!data || data.length === 0) return null;
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-semibold text-gray-900">Ranking de cidades</h4>
-        {onSelect && <span className="text-xs text-gray-400">Clique aplica filtro</span>}
-      </div>
-      <div className="divide-y divide-gray-100">
-        {data.slice(0, 10).map((row) => (
-          <button
-            key={row.value}
-            onClick={onSelect ? () => onSelect(row.value) : undefined}
-            className="w-full text-left py-2 group"
-          >
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-gray-800 group-hover:text-indigo-700">{row.value}</span>
-              <span className="text-xs text-gray-500">{row.count} criadores</span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600 mt-1">
-              <div>
-                <p>Engaj.</p>
-                <p className="font-semibold text-gray-800">{row.avgEngagement != null ? `${row.avgEngagement.toFixed(2)}%` : '—'}</p>
-              </div>
-              <div>
-                <p>Alcance</p>
-                <p className="font-semibold text-gray-800">{row.avgReach != null ? Math.round(row.avgReach).toLocaleString('pt-BR') : '—'}</p>
-              </div>
-              <div>
-                <p>Seguidores</p>
-                <p className="font-semibold text-gray-800">{row.avgFollowers != null ? Math.round(row.avgFollowers).toLocaleString('pt-BR') : '—'}</p>
-              </div>
-              <div>
-                <p>Ticket</p>
-                <p className="font-semibold text-gray-800">
-                  {row.avgTicket != null ? `R$ ${Math.round(row.avgTicket).toLocaleString('pt-BR')}` : '—'}
-                </p>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CityPricingMatrix({
-  data,
-  onSelect,
-}: {
-  data?: CityPricingBySize[];
-  onSelect?: (city: string) => void;
-}) {
-  if (!data || data.length === 0) return null;
-  const sizes: Array<CityPricingBySize['size']> = ['micro', 'mid', 'macro'];
-  const grouped = data.reduce<Record<string, CityPricingBySize[]>>((acc, row) => {
-    const key = row.city || 'Sem dado';
-    acc[key] = acc[key] || [];
-    acc[key].push(row);
-    return acc;
-  }, {});
-  const topCities = Object.entries(grouped)
-    .sort((a, b) => (b[1].reduce((s, r) => s + r.count, 0)) - (a[1].reduce((s, r) => s + r.count, 0)))
-    .slice(0, 8);
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-semibold text-gray-900">Ticket médio por cidade x porte</h4>
-        {onSelect && <span className="text-xs text-gray-400">Clique filtra cidade</span>}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-600">
-              <th className="py-2 pr-3 font-semibold">Cidade</th>
-              {sizes.map((s) => (
-                <th key={s} className="py-2 pr-3 font-semibold capitalize">{s}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {topCities.map(([city, rows]) => (
-              <tr key={city} className="hover:bg-gray-50">
-                <td className="py-2 pr-3">
-                  <button
-                    onClick={onSelect ? () => onSelect(city) : undefined}
-                    className="text-gray-900 font-semibold hover:text-indigo-700"
-                  >
-                    {city}
-                  </button>
-                </td>
-                {sizes.map((s) => {
-                  const match = rows.find((r) => r.size === s);
-                  return (
-                    <td key={`${city}-${s}`} className="py-2 pr-3">
-                      {match?.avgTicket != null ? `R$ ${Math.round(match.avgTicket).toLocaleString('pt-BR')}` : '—'}
-                      {match?.count ? <span className="text-[11px] text-gray-500"> ({match.count})</span> : null}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <ExportModal
+        isOpen={exportModal}
+        onClose={() => setExportModal(false)}
+        exporting={exporting}
+        onExport={handleExport}
+        exportFormat={exportFormat}
+        onFormatChange={setExportFormat}
+        columns={columns}
+        exportColumns={exportColumns}
+        onToggleColumn={handleToggleExportColumn}
+        exportIncludeHistory={exportIncludeHistory}
+        onIncludeHistoryChange={setExportIncludeHistory}
+        activeFilterChips={activeFilterChips}
+      />
+    </div >
   );
 }

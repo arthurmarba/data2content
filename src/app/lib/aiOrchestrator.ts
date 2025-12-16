@@ -64,6 +64,38 @@ interface AskLLMResult {
 }
 
 /**
+ * Constrói o prompt direto usado para alertas proativos, garantindo personalização correta.
+ */
+export function buildDirectAlertPrompt(userNameForPrompt: string, incomingText: string): string {
+    const safeUserName = userNameForPrompt?.trim() || 'criador';
+
+    return `
+Você é Mobi, um radar de performance inteligente para o Instagram. Sua comunicação é direta, proativa e valiosa.
+
+Sua tarefa é gerar a mensagem COMPLETA de um alerta proativo para ser enviada a um usuário no WhatsApp.
+
+**REGRAS CRÍTICAS:**
+1.  **NÃO USE SAUDAÇÕES GENÉRICAS.** Nunca comece com "Olá", "Oi", "E aí", etc.
+2.  **COMECE DIRETAMENTE COM O DADO MAIS IMPORTANTE.** A primeira frase deve ser o núcleo do alerta. Use o nome do usuário na abertura, por exemplo: "${safeUserName}, notei que...".
+3.  **SEJA CONCISO.** Use 1-2 parágrafos curtos.
+4.  **PERSONALIZE.** Use o nome do usuário, '${safeUserName}', naturalmente.
+5.  **MARCA E EMOJIS.** Use emojis específicos para o tipo de alerta:
+    *   🚀 **Crescimento/Sucesso:** Para recordes, altas taxas, metas batidas.
+    *   ⚠️ **Atenção/Queda:** Para quedas bruscas ou métricas abaixo do esperado.
+    *   💡 **Oportunidade:** Para tendências ou insights de horário.
+    *   Adicione a linha "🚨 Alerta do Radar Mobi!" ao final do primeiro parágrafo.
+6.  **ENGAJE (CALL TO ACTION).** Termine com uma pergunta que convide o usuário a abrir o chat para saber mais. Ex: "Quer ver quais posts causaram isso?", "Vamos ajustar a estratégia para a próxima semana?".
+
+**Informação-Chave detectada pelo sistema para o alerta de hoje (use-a para construir sua mensagem):**
+---
+${incomingText}
+---
+
+Gere a mensagem final agora.
+`;
+}
+
+/**
  * Preenche o system prompt com métricas e estatísticas recentes.
  * Exportada para facilitar testes unitários.
  */
@@ -1134,46 +1166,21 @@ export async function askLLMWithEnrichedContext(
 ): Promise<AskLLMResult> {
     const fnTag = '[askLLMWithEnrichedContext v1.0.8]'; // Versão atualizada
     const { user, historyMessages, userName, dialogueState, currentAlertDetails } = enrichedContext; // currentAlertDetails agora disponível
-    logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${userName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
+    const safeUserName = userName?.trim() || user.name || 'criador';
+    logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${safeUserName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
     let initialMsgs: ChatCompletionMessageParam[];
 
     if (intent === 'generate_proactive_alert') {
         logger.info(`${fnTag} Intenção 'generate_proactive_alert' detectada. Usando prompt direto e especializado.`);
 
-        // Template do novo prompt direto
-        const directAlertPromptTemplate = `
-Você é Mobi, um radar de performance inteligente para o Instagram. Sua comunicação é direta, proativa e valiosa.
+        const directAlertPromptTemplate = buildDirectAlertPrompt(safeUserName, incomingText);
 
-Sua tarefa é gerar a mensagem COMPLETA de um alerta proativo para ser enviada a um usuário no WhatsApp.
-
-**REGRAS CRÍTICAS:**
-1.  **NÃO USE SAUDAÇÕES GENÉRICAS.** Nunca comece com "Olá", "Oi", "E aí", etc.
-2.  **COMECE DIRETAMENTE COM O DADO MAIS IMPORTANTE.** A primeira frase deve ser o núcleo do alerta. Use o nome do usuário para personalizar: "Arthur, notei que...".
-3.  **SEJA CONCISO.** Use 1-2 parágrafos curtos.
-4.  **PERSONALIZE.** Use o nome do usuário, '${userName}', naturalmente.
-5.  **MARCA E EMOJIS.** Use emojis específicos para o tipo de alerta:
-    *   🚀 **Crescimento/Sucesso:** Para recordes, altas taxas, metas batidas.
-    *   ⚠️ **Atenção/Queda:** Para quedas bruscas ou métricas abaixo do esperado.
-    *   💡 **Oportunidade:** Para tendências ou insights de horário.
-    *   Adicione a linha "🚨 Alerta do Radar Mobi!" ao final do primeiro parágrafo.
-6.  **ENGAJE (CALL TO ACTION).** Termine com uma pergunta que convide o usuário a abrir o chat para saber mais. Ex: "Quer ver quais posts causaram isso?", "Vamos ajustar a estratégia para a próxima semana?".
-
-**Informação-Chave detectada pelo sistema para o alerta de hoje (use-a para construir sua mensagem):**
----
-${incomingText}
----
-
-Gere a mensagem final agora.
-`;
-        // Monta a lista de mensagens apenas com o novo prompt de sistema
-        initialMsgs = [
-            { role: 'system', content: directAlertPromptTemplate }
-        ];
+        initialMsgs = [{ role: 'system', content: directAlertPromptTemplate }];
 
     } else {
         // Lógica original para todas as outras intenções
-        const systemPrompt = await populateSystemPrompt(user, userName || user.name || 'usuário');
+        const systemPrompt = await populateSystemPrompt(user, safeUserName);
 
         initialMsgs = [
             { role: 'system', content: systemPrompt },

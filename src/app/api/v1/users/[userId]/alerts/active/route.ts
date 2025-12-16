@@ -58,11 +58,17 @@ export async function GET(
   try {
     const { alerts, totalAlerts } = await fetchUserAlerts(userId, { limit, types: filterTypes, dedupeNoEventAlerts });
 
+    const deriveTitle = (a: any) => {
+      const details = (a?.details || {}) as any;
+      const bodyCandidate = (a?.finalUserMessage || a?.messageForAI || '').split(/[.!?]/)[0]?.trim();
+      return details.title || details.reason || bodyCandidate || a?.type || 'Alerta';
+    };
+
     const mappedAlerts: AlertResponseItem[] = alerts.map((a) => ({
       alertId: (a._id ?? new Types.ObjectId()).toString(),
       type: a.type,
       date: (a.date instanceof Date ? a.date : new Date(a.date)).toISOString().split('T')[0]!,
-      title: a.type,
+      title: deriveTitle(a),
       finalUserMessage: a.finalUserMessage,
       details: a.details,
     }));

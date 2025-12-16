@@ -38,7 +38,7 @@ export interface AdminCreatorSurveyFilters {
 export interface AdminCreatorSurveyListParams extends AdminCreatorSurveyFilters {
   page?: number;
   pageSize?: number;
-  sortBy?: 'createdAt' | 'updatedAt' | 'name' | 'monetization';
+  sortBy?: 'createdAt' | 'updatedAt' | 'name' | 'monetization' | 'followers' | 'followersCount' | 'reach' | 'engaged' | 'engagementRate';
   sortOrder?: 'asc' | 'desc';
   columns?: string[];
 }
@@ -208,6 +208,9 @@ export interface AdminCreatorSurveyAnalytics {
     hardestStage: DistributionEntry[];
     hasDoneSponsoredPosts: DistributionEntry[];
     avgPriceRange: DistributionEntry[];
+    niches?: DistributionEntry[];
+    brandTerritories?: DistributionEntry[];
+    stage?: DistributionEntry[];
     mainPlatformReasons: DistributionEntry[];
     nextPlatform: DistributionEntry[];
     pricingMethod: DistributionEntry[];
@@ -224,6 +227,11 @@ export interface AdminCreatorSurveyAnalytics {
   timeSeries: { date: string; count: number }[];
   topSuccessStories: DistributionEntry[];
   monetizationByCountry?: Array<{ value: string; total: number; monetizing: number; pct: number }>;
+  stageMonetization?: Array<{ stage: string; monetization: string; count: number }>;
+  correlations?: {
+    painByStage?: Array<{ pain: string; stage: string; count: number }>;
+    painByMonetization?: Array<{ pain: string; monetization: string; count: number }>;
+  };
   metricByCategory?: {
     pains?: CategoryMetricBreakdown[];
     hardestStage?: CategoryMetricBreakdown[];

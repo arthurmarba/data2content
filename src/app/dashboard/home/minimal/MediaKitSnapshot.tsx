@@ -8,6 +8,36 @@ import { Link as LinkIcon, ExternalLink, Pencil } from "lucide-react";
 import type { MediaKitCardData } from "../types";
 import { track } from "@/lib/track";
 
+async function tryCopyShareUrl(shareUrl: string): Promise<"clipboard" | "execCommand" | null> {
+  // Tenta API moderna
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText && typeof window !== "undefined" && window.isSecureContext) {
+      await navigator.clipboard.writeText(shareUrl);
+      return "clipboard";
+    }
+  } catch {
+    // Continua para fallback
+  }
+
+  // Fallback compatível com Safari / contextos bloqueados
+  try {
+    if (typeof document === "undefined") return null;
+    const textarea = document.createElement("textarea");
+    textarea.value = shareUrl;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const success = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (success) return "execCommand";
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 interface MediaKitSnapshotProps {
   mediaKit: MediaKitCardData | null;
   loading: boolean;
@@ -56,17 +86,22 @@ export default function MediaKitSnapshot({
         handled = result === true;
       }
 
-      if (!handled) {
-        await navigator.clipboard.writeText(mediaKit.shareUrl);
+      if (handled) return;
+
+      const copyMethod = await tryCopyShareUrl(mediaKit.shareUrl);
+      if (copyMethod) {
         toast.success("Link do Mídia Kit copiado!");
         track("copy_media_kit_link", {
           creator_id: creatorId ?? null,
           media_kit_id: extractMediaKitId(mediaKit.shareUrl),
           origin: "media_kit_block",
         });
+        return;
       }
+
+      toast.error("Não foi possível copiar o link agora. Toque e segure para copiar manualmente.");
     } catch {
-      toast.error("Não foi possível copiar o link agora.");
+      toast.error("Não foi possível copiar o link agora. Toque e segure para copiar manualmente.");
     }
   }, [creatorId, mediaKit?.shareUrl, onCopyLink]);
 

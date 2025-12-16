@@ -16,5 +16,5 @@ export default async function CastingPage() {
     return { creators: [], total: 0 };
   });
 
-  return <CastingPageClient initialCreators={payload.creators ?? []} initialTotal={payload.total ?? 0} />;
+  return <CastingPageClient initialCreators={payload.creators ?? []} />;
 }

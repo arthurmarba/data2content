@@ -3,7 +3,6 @@
 import React from "react";
 
 import LandingHeader from "../landing/components/LandingHeader";
-import CreatorGallerySection from "../landing/components/CreatorGallerySection";
 import ButtonPrimary from "../landing/components/ButtonPrimary";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
@@ -14,7 +13,6 @@ import { BRAND_CAMPAIGN_ROUTE } from "@/constants/routes";
 
 type CastingPageClientProps = {
   initialCreators: LandingCreatorHighlight[];
-  initialTotal?: number;
 };
 
 const CASTING_API_ROUTE = "/api/landing/casting";
@@ -38,11 +36,355 @@ const followerOptions = [
   { value: "500000", label: "≥ 500k seguidores" },
 ];
 
-export default function CastingPageClient({ initialCreators, initialTotal = 0 }: CastingPageClientProps) {
+type CastingRail = {
+  key: string;
+  title: string;
+  description?: string;
+  creators: LandingCreatorHighlight[];
+  isFallback?: boolean;
+};
+
+const MIN_RAIL_CREATORS = 1;
+const MAX_RAIL_CREATORS = 12;
+const FULL_RAIL_MIN_SIZE = 2;
+
+const compactNumber = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+const FALLBACK_COLORS = [
+  "bg-gradient-to-br from-brand-primary to-brand-accent",
+  "bg-gradient-to-br from-brand-accent to-brand-sun",
+  "bg-gradient-to-br from-brand-sun to-brand-primary",
+  "bg-gradient-to-br from-brand-dark/90 to-brand-primary",
+  "bg-gradient-to-br from-brand-dark/80 to-brand-accent",
+];
+
+function normalizeTag(value?: string | null) {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+}
+
+function normalizePlainText(value?: string | null) {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9\s]/g, " ");
+}
+
+const FITNESS_KEYWORDS = new Set([
+  "fitness",
+  "fit",
+  "esporte",
+  "esportes",
+  "sport",
+  "sports",
+  "treino",
+  "treinos",
+  "workout",
+  "gym",
+  "academia",
+  "corrida",
+  "running",
+  "musculacao",
+  "bemestar",
+  "bem-estar",
+  "saude",
+  "health",
+  "crossfit",
+  "atividadefisica",
+  "atividade-fisica",
+]);
+
+const KEYWORD_GUESSES: Array<{ match: RegExp; value: string; label: string }> = [
+  { match: /\bfitness\b|\bgym\b|\btreino\b|\besporte\b|\bworkout\b/, value: "fitness", label: "Fitness" },
+  { match: /\bmoda\b|\bfashion\b|\blook\b/, value: "moda", label: "Moda" },
+  { match: /\bbelez|make|skincare|skin\b/, value: "beleza", label: "Beleza" },
+  { match: /\btravel|\bviagem|\btrip\b/, value: "viagem", label: "Viagem" },
+  { match: /\bfood|cozinha|culin|receita|chef\b/, value: "gastronomia", label: "Gastronomia" },
+  { match: /\btech|\btecnologia|\bgadget\b/, value: "tecnologia", label: "Tecnologia" },
+  { match: /\bgame|\bgamer|\bgaming\b/, value: "games", label: "Games" },
+  { match: /\bmae\b|\bpai\b|bebe|baby|materni/, value: "familia", label: "Família" },
+];
+
+function canonicalizeTag(raw?: string | null): { value: string; label: string } | null {
+  const normalized = normalizeTag(raw);
+  if (!normalized) return null;
+  const compact = normalized.replace(/[^a-z0-9]/g, "");
+  const isFitness = FITNESS_KEYWORDS.has(normalized) || FITNESS_KEYWORDS.has(compact) || normalized.includes("fitness");
+  if (isFitness) {
+    return { value: "fitness", label: "Fitness" };
+  }
+  const label = raw?.trim() || normalized;
+  return { value: normalized, label };
+}
+
+function collectCreatorTags(creator: LandingCreatorHighlight) {
+  const tags = [
+    ...(creator.niches ?? []),
+    ...(creator.brandTerritories ?? []),
+    ...(creator.contexts ?? []),
+  ];
+  const unique = new Set<string>();
+  tags.forEach((tag) => {
+    const normalized = normalizeTag(tag);
+    if (normalized) unique.add(normalized);
+  });
+  return Array.from(unique);
+}
+
+function collectNormalized(values?: string[] | null) {
+  return (values ?? []).map(normalizeTag).filter(Boolean);
+}
+
+function getNormalizedMeta(creator: LandingCreatorHighlight) {
+  const niches = collectNormalized([...(creator.niches ?? []), ...(creator.brandTerritories ?? [])]);
+  const contexts = collectNormalized(creator.contexts);
+  return { niches, contexts };
+}
+
+function matchesKeywords(creator: LandingCreatorHighlight, keywords: string[]) {
+  const tags = collectCreatorTags(creator);
+  return tags.some((tag) => keywords.some((kw) => tag.includes(kw)));
+}
+
+function extractMatchingTag(creator: LandingCreatorHighlight, keywords: string[]) {
+  const rawTags = [
+    ...(creator.contexts ?? []),
+    ...(creator.niches ?? []),
+    ...(creator.brandTerritories ?? []),
+  ];
+  for (const tag of rawTags) {
+    const normalized = normalizeTag(tag);
+    if (keywords.some((kw) => normalized.includes(kw))) {
+      return { value: normalized, label: tag.trim() };
+    }
+  }
+  return null;
+}
+
+function deriveNicheOptions(creators: LandingCreatorHighlight[]) {
+  const labelByValue = new Map<string, string>();
+  const counts = new Map<string, number>();
+
+  creators.forEach((creator) => {
+    const tags = [
+      ...(creator.niches ?? []),
+      ...(creator.brandTerritories ?? []),
+      ...(creator.contexts ?? []),
+    ];
+    tags.forEach((tag) => {
+      const normalized = normalizeTag(tag);
+      if (!normalized) return;
+      labelByValue.set(normalized, tag.trim());
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+    });
+  });
+
+  return Array.from(labelByValue.entries())
+    .sort((a, b) => {
+      const diff = (counts.get(b[0]) ?? 0) - (counts.get(a[0]) ?? 0);
+      if (diff !== 0) return diff;
+      return a[1].localeCompare(b[1]);
+    })
+    .map(([value, label]) => ({ value, label }));
+}
+
+function pickPrimaryNiche(creator: LandingCreatorHighlight) {
+  const firstNonEmpty = (values?: string[] | null) => {
+    if (!values || !values.length) return null;
+    for (const entry of values) {
+      const normalized = canonicalizeTag(entry);
+      if (normalized) return normalized;
+    }
+    return null;
+  };
+
+  // Ordem de prioridade: nichos > territórios de marca > contextos
+  // (ignoramos formatos para não criar trilhos como "Reels").
+  const topContext = canonicalizeTag(creator.topPerformingContext);
+  return (
+    topContext ||
+    firstNonEmpty(creator.niches) ||
+    firstNonEmpty(creator.brandTerritories) ||
+    firstNonEmpty(creator.contexts)
+  );
+}
+
+function inferAnyTag(creator: LandingCreatorHighlight) {
+  const pool = [
+    creator.topPerformingContext,
+    ...(creator.contexts ?? []),
+    ...(creator.niches ?? []),
+    ...(creator.brandTerritories ?? []),
+  ];
+  for (const entry of pool) {
+    const normalized = canonicalizeTag(entry);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
+function guessTagFromText(creator: LandingCreatorHighlight) {
+  const bag = [creator.name, creator.username].map(normalizePlainText).filter(Boolean).join(" ");
+  if (!bag) return null;
+  for (const guess of KEYWORD_GUESSES) {
+    if (guess.match.test(bag)) {
+      return { value: guess.value, label: guess.label };
+    }
+  }
+  return null;
+}
+
+function buildNicheRails(sortedByEngagement: LandingCreatorHighlight[]): CastingRail[] {
+  const buckets = new Map<string, { label: string; creators: LandingCreatorHighlight[]; isFallback: boolean }>();
+
+  sortedByEngagement.forEach((creator) => {
+    const primary = pickPrimaryNiche(creator);
+    const inferred = primary ?? inferAnyTag(creator) ?? guessTagFromText(creator);
+    const value = inferred?.value ?? "sem_nicho_contexto";
+    const label = inferred?.label ?? "Sem nicho ou contexto";
+    const isFallback = !inferred;
+    const bucket = buckets.get(value) ?? { label, creators: [], isFallback };
+    bucket.creators.push(creator);
+    bucket.isFallback = bucket.isFallback && isFallback;
+    buckets.set(value, bucket);
+  });
+
+  return Array.from(buckets.entries())
+    .sort((a, b) => {
+      const diff = b[1].creators.length - a[1].creators.length;
+      if (diff !== 0) return diff;
+      return a[1].label.localeCompare(b[1].label);
+    })
+    .map(([value, bucket]) => {
+      const description = bucket.isFallback
+        ? "Criadores sem tag definida ou com dados incompletos."
+        : `Criadores com foco em ${bucket.label}.`;
+      return {
+        key: `niche_${value}`,
+        title: bucket.isFallback ? "Contexto diverso" : bucket.label,
+        description,
+        creators: bucket.creators,
+        isFallback: bucket.isFallback,
+      };
+    });
+}
+
+function buildCuratedRails(creators: LandingCreatorHighlight[]): CastingRail[] {
+  if (!creators?.length) return [];
+
+  const sortedByEngagement = [...creators].sort((a, b) => {
+    const erA = computeEngagementRate(a) ?? 0;
+    const erB = computeEngagementRate(b) ?? 0;
+    if (erB !== erA) return erB - erA;
+    const avgA = a.avgInteractionsPerPost ?? 0;
+    const avgB = b.avgInteractionsPerPost ?? 0;
+    if (avgB !== avgA) return avgB - avgA;
+    const followersDiff = (b.followers ?? 0) - (a.followers ?? 0);
+    if (followersDiff !== 0) return followersDiff;
+    return a.rank - b.rank;
+  });
+
+  const rails: CastingRail[] = [];
+  const usedRailKeys = new Set<string>();
+  const usedIds = new Set<string>();
+
+  const getStableId = (creator: LandingCreatorHighlight) => creator.id || creator.username || creator.name || null;
+
+  const addWithDedup = (
+    rail: CastingRail | null | undefined,
+    minCount = MIN_RAIL_CREATORS,
+    _maxCount = MAX_RAIL_CREATORS,
+  ) => {
+    if (!rail || usedRailKeys.has(rail.key)) return;
+    const available = (rail.creators ?? []).filter((creator) => {
+      const stableId = getStableId(creator);
+      return stableId && !usedIds.has(stableId);
+    });
+    if (!available.length) return;
+    if (available.length < minCount) return;
+
+    available.forEach((creator) => {
+      const stableId = getStableId(creator);
+      if (stableId) usedIds.add(stableId);
+    });
+
+    usedRailKeys.add(rail.key);
+    rails.push({ ...rail, creators: available });
+  };
+
+  buildNicheRails(sortedByEngagement).forEach((rail) => addWithDedup(rail));
+
+  return rails;
+}
+
+function partitionRails(rails: CastingRail[]) {
+  const fullRails: CastingRail[] = [];
+  const microRails: CastingRail[] = [];
+
+  rails.forEach((rail) => {
+    const count = rail.creators?.length ?? 0;
+    if (!count) return;
+    if (rail.isFallback) {
+      microRails.push(rail);
+      return;
+    }
+    if (count >= FULL_RAIL_MIN_SIZE) {
+      fullRails.push(rail);
+    } else if (count > 0) {
+      microRails.push(rail);
+    }
+  });
+
+  return { fullRails, microRails };
+}
+
+function resolvePrimaryTag(creator: LandingCreatorHighlight) {
+  return creator.contexts?.[0] || creator.niches?.[0] || creator.brandTerritories?.[0] || null;
+}
+
+function computeEngagementRate(creator: LandingCreatorHighlight): number | null {
+  const followers = creator.followers ?? 0;
+  if (!followers) return null;
+  const avg = creator.avgInteractionsPerPost ?? 0;
+  if (!avg) return null;
+  const rate = (avg / followers) * 100;
+  return Number.isFinite(rate) ? Number(rate) : null;
+}
+
+function getInitials(name?: string | null, username?: string | null) {
+  const source = (name || username || "D2C").trim();
+  if (!source) return "D2C";
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    const clean = (parts[0] ?? "").replace(/^@/, "");
+    return clean.slice(0, 2).toUpperCase() || "D2C";
+  }
+  const first = parts[0]?.[0] ?? "";
+  const second = parts[1]?.[0] ?? "";
+  const initials = (first + second).trim();
+  return initials ? initials.toUpperCase() : "D2C";
+}
+
+function pickFallbackBg(seed?: string | null) {
+  const text = seed ?? "";
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash << 5) - hash + text.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % FALLBACK_COLORS.length;
+  return FALLBACK_COLORS[index];
+}
+export default function CastingPageClient({ initialCreators }: CastingPageClientProps) {
   const [creators, setCreators] = React.useState(initialCreators ?? []);
   const [loading, setLoading] = React.useState(!initialCreators || initialCreators.length === 0);
   const [error, setError] = React.useState<string | null>(null);
-  const [total, setTotal] = React.useState<number>(initialTotal || initialCreators?.length || 0);
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [minFollowers, setMinFollowers] = React.useState<string>("");
@@ -127,7 +469,6 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
         if (!res.ok) throw new Error(`Failed to fetch casting creators (${res.status})`);
         const data = (await res.json()) as { creators?: LandingCreatorHighlight[]; total?: number };
         setCreators(data.creators ?? []);
-        setTotal(data.total ?? data.creators?.length ?? 0);
       } catch (err) {
         if (signal?.aborted) return;
         setError("Não foi possível carregar o casting agora. Tente novamente em instantes.");
@@ -143,7 +484,12 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
     const controller = new AbortController();
     abortRef.current = controller;
     fetchCreators(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [fetchCreators]);
 
+  React.useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (minFollowers) params.set("minFollowers", minFollowers);
@@ -151,10 +497,7 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
     const qs = params.toString();
     const url = qs ? `?${qs}` : "";
     router.replace(url);
-    return () => {
-      controller.abort();
-    };
-  }, [fetchCreators, debouncedSearch, minFollowers, minAvgInteractions, router]);
+  }, [debouncedSearch, minFollowers, minAvgInteractions, router]);
 
   const handleBrandForm = React.useCallback(() => {
     try {
@@ -169,6 +512,42 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
     const destination = appendUtm(BRAND_CAMPAIGN_ROUTE, overrides) ?? BRAND_CAMPAIGN_ROUTE;
     window.location.assign(destination);
   }, [appendUtm, utm]);
+
+  const resetFilters = React.useCallback(() => {
+    setSearch("");
+    setDebouncedSearch("");
+    setMinFollowers("");
+    setMinAvgInteractions("");
+  }, []);
+
+  const curatedRails = React.useMemo(() => buildCuratedRails(creators), [creators]);
+  const { fullRails, microRails } = React.useMemo(() => partitionRails(curatedRails), [curatedRails]);
+  const microCreatorCount = React.useMemo(
+    () => microRails.reduce((total, rail) => total + (rail.creators?.length ?? 0), 0),
+    [microRails],
+  );
+
+  React.useEffect(() => {
+    if (loading || !fullRails.length) return;
+    try {
+      fullRails.forEach((rail, index) => {
+        track("casting_rail_impression", { key: rail.key, idx: index, total: rail.creators.length });
+      });
+    } catch {
+      // non-blocking
+    }
+  }, [fullRails, loading]);
+
+  React.useEffect(() => {
+    if (loading || !microRails.length) return;
+    try {
+      microRails.forEach((rail, index) => {
+        track("casting_micro_rail_impression", { key: rail.key, idx: index, total: rail.creators.length });
+      });
+    } catch {
+      // non-blocking
+    }
+  }, [microRails, loading]);
 
   return (
     <div className="bg-white font-sans">
@@ -186,8 +565,8 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
           className="sticky top-[calc(var(--landing-header-h,4.5rem))] z-30 border-b border-brand-glass/80 bg-white/90 backdrop-blur-lg"
           style={{ "--sat": "0px" } as React.CSSProperties}
         >
-          <div className="landing-section__inner landing-section__inner--wide flex flex-col gap-2.5 py-3">
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="landing-section__inner landing-section__inner--wide py-3">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <input
                 type="search"
                 value={search}
@@ -224,32 +603,116 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
           </div>
         </section>
 
-        <CreatorGallerySection
-          creators={creators}
-          loading={loading}
-          onRequestMediaKit={handleBrandForm}
-          maxVisible={creators.length || 16}
-          maxVisibleDesktop={creators.length || 24}
-          sectionId="casting-galeria"
-          headingEyebrow=""
-          headingTitle=""
-          headingDescription=""
-          showHeader={false}
-          containerClassName="max-w-6xl pt-6"
-          gridClassName="grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 xl:gap-6"
-          showAll
-          topContent={
-            error ? (
-              <div className="w-full rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm">
-                {error}
+        <section className="landing-section landing-section--compact-top mt-4 sm:mt-6">
+          <div className="landing-section__inner landing-section__inner--wide space-y-4">
+            {loading ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[0, 1, 2, 3].map((item) => (
+                  <div
+                    key={`rail-skeleton-${item}`}
+                    className="rounded-2xl border border-brand-glass bg-white p-4 shadow-sm"
+                  >
+                    <div className="h-4 w-1/3 rounded bg-brand-glass" />
+                    <div className="mt-2 h-3 w-2/3 rounded bg-brand-glass/80" />
+                    <div className="mt-3 flex gap-3 overflow-hidden">
+                      {[0, 1, 2].map((card) => (
+                        <div key={card} className="h-28 w-24 flex-shrink-0 rounded-xl bg-brand-glass/70" />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : !loading && creators.length === 0 ? (
-              <div className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 shadow-sm">
-                Nenhum criador encontrado com esses filtros. Tente outro termo ou reduza os filtros.
+            ) : fullRails.length || microRails.length ? (
+              <div className="space-y-3">
+                {fullRails.map((rail) => (
+                  <section
+                    key={rail.key}
+                    className="rounded-2xl border border-brand-glass bg-white/90 p-3 shadow-sm sm:p-4"
+                    aria-label={rail.title}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <h3 className="text-base font-semibold text-brand-dark">{rail.title}</h3>
+                        {rail.description ? (
+                          <p className="text-sm text-brand-text-secondary">{rail.description}</p>
+                        ) : null}
+                      </div>
+                      <span className="text-xs font-semibold text-brand-text-secondary">
+                        {rail.creators.length} criad{rail.creators.length === 1 ? "or" : "ores"}
+                      </span>
+                    </div>
+                    <div className="group relative -mx-2 mt-3 overflow-x-auto pb-1 hide-scrollbar">
+                      <div className="flex flex-nowrap gap-3 px-2 py-2 snap-x snap-mandatory">
+                        {rail.creators.map((creator) => (
+                          <CastingRankCard
+                            key={`${rail.key}-${creator.id}`}
+                            creator={creator}
+                            onRequestMediaKit={handleBrandForm}
+                            variant="rail"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                ))}
+
+                {microRails.length ? (
+                  <section
+                    className="rounded-2xl border border-brand-glass bg-white/90 p-3 shadow-sm sm:p-4"
+                    aria-label="Criadores avulsos"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <h3 className="text-base font-semibold text-brand-dark">Criadores avulsos</h3>
+                        <p className="text-sm text-brand-text-secondary">
+                          Contextos com apenas 1 criador ganham espaço fora dos trilhos para a tela não ficar vazia.
+                        </p>
+                      </div>
+                      <span className="text-xs font-semibold text-brand-text-secondary">
+                        {microCreatorCount} criad{microCreatorCount === 1 ? "or" : "ores"}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {microRails.map((rail) =>
+                        rail.creators.map((creator) => (
+                          <div
+                            key={`${rail.key}-${creator.id ?? creator.username ?? creator.name}`}
+                            className="flex flex-col gap-2 rounded-2xl p-1"
+                          >
+                            <span className="inline-flex w-fit items-center rounded-full bg-brand-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-brand-primary">
+                              {rail.title}
+                            </span>
+                            <CastingRankCard
+                              creator={creator}
+                              onRequestMediaKit={handleBrandForm}
+                              variant="grid"
+                            />
+                          </div>
+                        )),
+                      )}
+                    </div>
+                  </section>
+                ) : null}
               </div>
-            ) : null
-          }
-        />
+            ) : (
+              <div className="space-y-3">
+                {error ? (
+                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm">
+                    {error}
+                  </div>
+                ) : null}
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
+                  Ainda não temos trilhos suficientes para mostrar aqui. Adicione mais criadores ou use a busca.
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <style jsx global>{`
+          .hide-scrollbar::-webkit-scrollbar { display: none; }
+          .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        `}</style>
 
         <div
           className={[
@@ -284,5 +747,95 @@ export default function CastingPageClient({ initialCreators, initialTotal = 0 }:
         </div>
       </main>
     </div>
+  );
+}
+
+function CastingRankCard({
+  creator,
+  onRequestMediaKit,
+  className = "",
+  variant = "rail",
+}: {
+  creator: LandingCreatorHighlight;
+  onRequestMediaKit?: () => void;
+  className?: string;
+  variant?: "rail" | "grid";
+}) {
+  const primaryTag = resolvePrimaryTag(creator);
+  const followersText = compactNumber.format(Math.max(creator.followers ?? 0, 0));
+  const avgText =
+    creator.avgInteractionsPerPost && creator.avgInteractionsPerPost > 0
+      ? compactNumber.format(creator.avgInteractionsPerPost)
+      : "–";
+  const engagementRate = computeEngagementRate(creator);
+  const initials = getInitials(creator.name, creator.username);
+  const fallbackBg = pickFallbackBg(creator.id || creator.username || creator.name);
+  const mediaKitHref = creator.mediaKitSlug ? `/mediakit/${creator.mediaKitSlug}` : null;
+  const cardClasses = [
+    "rounded-3xl border border-[#E8ECF5] bg-white shadow-[0_8px_18px_rgba(20,33,61,0.08)] transition duration-200 hover:-translate-y-0.5",
+    variant === "rail" ? "min-w-[210px] max-w-[260px]" : "w-full",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <article className={cardClasses}>
+      <div className="flex items-start justify-between px-3 pt-3 sm:px-4">
+        <div className="text-sm font-bold text-[#FF4080]">#{creator.rank}</div>
+        {creator.username ? <div className="truncate text-[11px] font-semibold text-[#727C8F] sm:text-xs">@{creator.username}</div> : null}
+      </div>
+      <div className="mt-1 h-1 w-10 rounded-full bg-[#FF9FC4] px-3 sm:px-4" />
+      <div className="px-3 sm:px-4">
+        <div className="mt-3 overflow-hidden rounded-2xl bg-[#F7F8FB]">
+          {creator.avatarUrl ? (
+            <img
+              src={creator.avatarUrl}
+              alt={`Avatar de ${creator.name}`}
+              className="aspect-square w-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className={`aspect-square w-full ${fallbackBg} flex items-center justify-center text-lg font-semibold text-white`}>
+              {initials}
+            </div>
+          )}
+        </div>
+        <div className="mt-4 space-y-0.5">
+          <p className="text-sm font-semibold text-[#141C2F] leading-tight sm:text-base">{creator.name}</p>
+          <p className="text-xs font-semibold text-[#8A93A6] sm:text-[13px]">
+            Mídia kit {creator.mediaKitSlug ? "ativo" : "disponível mediante solicitação"}
+          </p>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-y-2 text-xs text-[#6E778C]">
+          <span className="text-[11px] uppercase tracking-wide text-[#A3A9B6]">Seguidores</span>
+          <span className="text-right text-sm font-semibold text-[#141C2F]">{followersText}</span>
+          <span className="text-[11px] uppercase tracking-wide text-[#A3A9B6]">Engajamento</span>
+          <span className="text-right text-sm font-semibold text-[#141C2F]">
+            {engagementRate != null ? `${engagementRate.toFixed(1)}%` : "–"}
+          </span>
+          <span className="text-[11px] uppercase tracking-wide text-[#A3A9B6]">Interações/post</span>
+          <span className="text-right text-sm font-semibold text-[#141C2F]">{avgText}</span>
+        </div>
+      </div>
+      <div className="px-4 pb-4 pt-3">
+        {mediaKitHref ? (
+          <a
+            href={mediaKitHref}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#FF4080] underline-offset-4 hover:underline"
+          >
+            Ver mídia kit →
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={onRequestMediaKit}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#FF4080] underline-offset-4 hover:underline"
+          >
+            Solicitar mídia kit →
+          </button>
+        )}
+      </div>
+    </article>
   );
 }

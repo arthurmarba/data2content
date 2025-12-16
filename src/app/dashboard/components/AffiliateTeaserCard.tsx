@@ -96,11 +96,33 @@ export default function AffiliateTeaserCard() {
 
   const canRedeem = available > 0 && (minPayout ? available >= minPayout : true);
 
-  const handleCopy = async (text: string) => {
+  const handleCopy = async (text: string): Promise<"clipboard" | "execCommand" | null> => {
+    // API moderna
     try {
-      await navigator.clipboard.writeText(text);
-      // opcional: toast
-    } catch {}
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText && typeof window !== "undefined" && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return "clipboard";
+      }
+    } catch {
+      // segue para fallback
+    }
+    // Fallback compatível com Safari / contexts bloqueados
+    try {
+      if (typeof document === "undefined") return null;
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      if (success) return "execCommand";
+    } catch {
+      // ignore
+    }
+    return null;
   };
 
   const handleShare = async () => {

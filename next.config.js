@@ -69,6 +69,7 @@ const nextConfig = {
 
   // Mantido do seu arquivo
   experimental: {
+    serverActions: true,
     outputFileTracingIncludes: {
       '/app/**/*': ['./src/app/lib/**/*.md'],
     },

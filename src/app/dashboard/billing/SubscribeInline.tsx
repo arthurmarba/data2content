@@ -19,7 +19,7 @@ interface PricesShape {
 export default function SubscribeInline({ prices }: { prices: PricesShape }) {
   const router = useRouter();
   const { data: session } = useSession();
-  const creatorId = session?.user?.id ?? null;
+  const creatorId = (session?.user as { id?: string | null } | undefined)?.id ?? null;
   const [plan, setPlan] = useState<Plan>('monthly');
   const [currency, setCurrency] = useState<Cur>('brl');
   const [affiliateCode, setAffiliateCode] = useState('');

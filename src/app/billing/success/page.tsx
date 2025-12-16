@@ -27,7 +27,7 @@ export default function BillingSuccessPage() {
         // if (sid) await fetch(`/api/stripe/confirm?session_id=${sid}`, { method: "POST" });
 
         const updatedSession = await update(); // atualiza planStatus/stripe* no token uma única vez
-        const user = updatedSession?.user;
+        const user = updatedSession?.user as { id?: string | null; planInterval?: string | null } | null | undefined;
         let resolvedContext: string | null = null;
         const stored = sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
         if (stored) {

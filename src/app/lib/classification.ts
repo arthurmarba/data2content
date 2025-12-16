@@ -175,6 +175,48 @@ const flatContextCategories = flattenCategories(contextCategories);
 const flatToneCategories = flattenCategories(toneCategories);
 const flatReferenceCategories = flattenCategories(referenceCategories);
 
+const normalizeContextId = (value?: string | null) => {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[\s./]+/g, "_")
+    .trim();
+};
+
+const contextLabelMap = new Map<string, string>();
+flatContextCategories.forEach((cat) => {
+  const key = normalizeContextId(cat.id);
+  if (key) contextLabelMap.set(key, cat.label);
+});
+const contextLabelKeys = Array.from(contextLabelMap.keys());
+
+const humanizeContextLabel = (raw?: string | null) => {
+  const base = raw ?? "";
+  const cleaned = base.replace(/[_./]+/g, " ").trim();
+  if (!cleaned) return "Contexto";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
+export const resolveContextLabel = (raw?: string | null): { value: string; label: string } | null => {
+  const normalized = normalizeContextId(raw);
+  if (!normalized) return null;
+
+  const direct = contextLabelMap.get(normalized);
+  if (direct) return { value: normalized, label: direct };
+
+  const suffix = contextLabelKeys.find(
+    (id) => normalized === id || normalized.endsWith(`_${id}`) || normalized.endsWith(`.${id}`),
+  );
+  if (suffix) {
+    const label = contextLabelMap.get(suffix);
+    if (label) return { value: suffix, label };
+  }
+
+  return { value: normalized, label: humanizeContextLabel(raw) };
+};
+
 const getFlatCategoriesByType = (
   type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
 ): Category[] => {

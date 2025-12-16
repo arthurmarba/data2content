@@ -1972,6 +1972,40 @@ export default function MediaKitView({
     if (typeof email === 'string' && email.includes('@')) return email;
     return null;
   }, [user]);
+
+  const tryCopyShareUrl = useCallback(
+    async (shareUrl: string): Promise<'clipboard' | 'execCommand' | null> => {
+      // Tenta API moderna
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText && typeof window !== 'undefined' && window.isSecureContext) {
+          await navigator.clipboard.writeText(shareUrl);
+          return 'clipboard';
+        }
+      } catch {
+        // Continua para fallback
+      }
+
+      // Fallback compatível com Safari
+      try {
+        if (typeof document === 'undefined') return null;
+        const textarea = document.createElement('textarea');
+        textarea.value = shareUrl;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (success) return 'execCommand';
+      } catch {
+        // Ignora erros de fallback
+      }
+      return null;
+    },
+    []
+  );
+
   const handleShareClick = useCallback(async () => {
     const shareUrl = publicUrlForCopy || (typeof window !== 'undefined' ? window.location.href : '');
     if (!shareUrl || typeof navigator === 'undefined') return;
@@ -1980,6 +2014,21 @@ export default function MediaKitView({
       typeof mediaKitSlug === 'string' && mediaKitSlug.length > 0
         ? mediaKitSlug
         : (user as any)?.mediaKitSlug ?? null;
+    const copyMethod = await tryCopyShareUrl(shareUrl);
+    if (copyMethod) {
+      setHasCopiedLink(true);
+      if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
+      copyFeedbackTimeout.current = setTimeout(() => setHasCopiedLink(false), 2000);
+      if (creatorId && mediaKitId) {
+        track('copy_media_kit_link', {
+          creator_id: creatorId,
+          media_kit_id: mediaKitId,
+          origin: copyMethod,
+        });
+      }
+      return;
+    }
+
     try {
       if (navigator.share) {
         await navigator.share({
@@ -1993,29 +2042,11 @@ export default function MediaKitView({
             origin: 'web_share',
           });
         }
-        return;
       }
     } catch {
-      // fallback to clipboard copy
+      // Se share falhar também, apenas silencie; UX mostra botão novamente
     }
-    if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        setHasCopiedLink(true);
-        if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
-        copyFeedbackTimeout.current = setTimeout(() => setHasCopiedLink(false), 2000);
-        if (creatorId && mediaKitId) {
-          track('copy_media_kit_link', {
-            creator_id: creatorId,
-            media_kit_id: mediaKitId,
-            origin: 'clipboard',
-          });
-        }
-      } catch {
-        // ignore clipboard errors silently
-      }
-    }
-  }, [mediaKitSlug, publicUrlForCopy, user]);
+  }, [mediaKitSlug, publicUrlForCopy, tryCopyShareUrl, user, track]);
   useEffect(
     () => () => {
       if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
