@@ -38,23 +38,42 @@ type SidebarSectionListProps = {
   badges?: Record<string, number>;
 };
 
-type SectionBlockProps = Omit<SidebarSectionListProps, "sections"> & {
-  section: SidebarSection;
-  index: number;
+const ITEM_GROUP: Record<string, "pinned" | "main" | "footer"> = {
+  dashboard: "pinned",
+  pro: "pinned",
+  "media-kit": "main",
+  "planning.chat": "main",
+  "planning.charts": "main",
+  "planning.calendar": "main",
+  "planning.discover": "main",
+  "campaigns.overview": "main",
+  publis: "main",
+  "campaigns.calculator": "main",
+  affiliates: "footer",
+  "instagram-connection": "footer",
+  settings: "footer",
+};
+
+const getItemGroup = (key: string): "pinned" | "main" | "footer" => ITEM_GROUP[key] ?? "main";
+
+const normalizePath = (value: string) => (value.endsWith("/") ? value.slice(0, -1) : value);
+
+const startsWithSegment = (pathname: string, href: string) => {
+  const path = normalizePath(pathname);
+  const target = normalizePath(href);
+  return path === target || path.startsWith(`${target}/`);
 };
 
 const isRouteActive = (pathname: string, href: string, exact?: boolean) => {
-  if (pathname === href) return true;
-  if (exact) return false;
-  const normalized = href.endsWith("/") ? href : `${href}/`;
-  return pathname.startsWith(normalized);
+  const matches = startsWithSegment(pathname, href);
+  if (!matches) return false;
+  if (exact) {
+    return normalizePath(pathname) === normalizePath(href);
+  }
+  return true;
 };
 
-const pathMatches = (pathname: string, target: string) => {
-  if (pathname === target) return true;
-  const normalized = target.endsWith("/") ? target : `${target}/`;
-  return pathname.startsWith(normalized);
-};
+const pathMatches = (pathname: string, target: string) => startsWithSegment(pathname, target);
 
 const ProBadge = ({ className = "" }: { className?: string }) => (
   <span
@@ -64,6 +83,11 @@ const ProBadge = ({ className = "" }: { className?: string }) => (
   </span>
 );
 
+const renderIcon = (iconSet: SidebarChildNode["icon"], active: boolean, className: string) => {
+  const Icon = active ? iconSet.solid : iconSet.outline;
+  return <Icon className={className} aria-hidden="true" />;
+};
+
 export const SidebarSectionList = ({
   sections,
   tokens,
@@ -72,65 +96,42 @@ export const SidebarSectionList = ({
   interaction,
   badges,
 }: SidebarSectionListProps) => (
-  <div className="flex flex-col">
-    {sections.map((section, index) => (
-      <SectionBlock
-        key={section.key}
-        section={section}
-        index={index}
-        tokens={tokens}
-        pathname={pathname}
-        userId={userId}
-        interaction={interaction}
-        badges={badges}
-      />
-    ))}
-  </div>
+  <ul className="flex flex-col gap-1">
+    {(() => {
+      const flatItems = sections.flatMap((section) => section.items);
+      let previousGroup: "pinned" | "main" | "footer" | null = null;
+      return flatItems.map((item) => {
+        const group = getItemGroup(item.key);
+        const insertSeparator = previousGroup !== null && group !== previousGroup;
+        previousGroup = group;
+
+        return item.type === "group" ? (
+          <SidebarGroupItem
+            key={item.key}
+            group={item}
+            tokens={tokens}
+            pathname={pathname}
+            userId={userId}
+            interaction={interaction}
+            badges={badges}
+            insertSeparator={insertSeparator}
+          />
+        ) : (
+          <SidebarLinkItem
+            key={item.key}
+            item={item}
+            tokens={tokens}
+            pathname={pathname}
+            interaction={interaction}
+            badges={badges}
+            source={`sidebar_item_${item.key}`}
+            insertSeparator={insertSeparator}
+          />
+        );
+      });
+    })()}
+  </ul>
 );
-
-const SectionBlock = ({ section, index, tokens, pathname, userId, interaction, badges }: SectionBlockProps) => {
-  const wrapperClass =
-    index === 0 ? "" : "mt-10 border-t border-slate-200/80 pt-6";
-
-  return (
-    <section className={wrapperClass}>
-      {tokens.showLabels && (
-        <header className="mb-3 px-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">{section.title}</p>
-          {section.description && (
-            <p className="text-[12px] text-slate-500/80">{section.description}</p>
-          )}
-        </header>
-      )}
-
-      <ul className="flex flex-col gap-1">
-        {section.items.map((item) =>
-          item.type === "group" ? (
-            <SidebarGroupItem
-              key={item.key}
-              group={item}
-              tokens={tokens}
-              pathname={pathname}
-              userId={userId}
-              interaction={interaction}
-              badges={badges}
-            />
-          ) : (
-            <SidebarLinkItem
-              key={item.key}
-              item={item}
-              tokens={tokens}
-              pathname={pathname}
-              interaction={interaction}
-              badges={badges}
-              source={`sidebar_item_${item.key}`}
-            />
-          )
-        )}
-      </ul>
-    </section>
-  );
-};
 
 const SidebarGroupItem = ({
   group,
@@ -139,6 +140,7 @@ const SidebarGroupItem = ({
   userId,
   interaction,
   badges,
+  insertSeparator,
 }: {
   group: SidebarGroupNode;
   tokens: SidebarPresentationTokens;
@@ -146,6 +148,7 @@ const SidebarGroupItem = ({
   userId: string | null;
   interaction: SidebarInteractionState;
   badges?: Record<string, number>;
+  insertSeparator?: boolean;
 }) => {
   const persistenceKey = group.statePersistence?.key ?? `nav:${group.key}:collapsed`;
   const defaultCollapsed = group.statePersistence?.defaultCollapsed ?? false;
@@ -212,46 +215,39 @@ const SidebarGroupItem = ({
     });
   };
 
+  const iconColor = active ? "text-gray-900" : "text-gray-500 group-hover:text-gray-900";
+  const labelTransition = tokens.showLabels
+    ? "max-w-[200px] opacity-100 translate-x-0"
+    : "max-w-0 opacity-0 -translate-x-1";
+  const labelBase =
+    "overflow-hidden whitespace-nowrap leading-tight transition-[max-width,opacity,transform] duration-200";
+
   return (
-    <li>
+    <li className={insertSeparator ? "mt-4 pt-2 border-t border-gray-100/80" : ""}>
       <button
         type="button"
         onClick={handleToggle}
-        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} rounded-xl ${tokens.alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${tokens.focusOffsetClass} ${active
-          ? "bg-slate-100 font-semibold text-slate-900"
-          : "font-medium text-slate-900 hover:bg-slate-100"
-          }`}
+        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} ${tokens.alignClass} rounded-lg transition-colors duration-150 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 ${tokens.focusOffsetClass}`}
         aria-expanded={expanded}
         aria-controls={`nav-group-${group.key}`}
-        title={group.tooltip}
+        aria-label={!tokens.showLabels ? group.label : undefined}
+        title={group.tooltip || group.label}
       >
-        {tokens.showLabels && active && (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-1/2 h-[60%] w-1 -translate-y-1/2 rounded-full bg-brand-magenta"
-          />
-        )}
-
         <span
           aria-hidden="true"
-          className={`relative flex ${tokens.iconSize} shrink-0 items-center justify-center rounded-xl ${tokens.showLabels ? "" : "mx-auto"
-            } ${tokens.collapsedIconShift} bg-transparent ${tokens.showLabels ? "text-[16px]" : "text-[18px]"} transition-colors duration-200 ${active
-              ? "text-slate-900"
-              : "text-slate-900 group-hover:text-slate-900"
-            } ${!tokens.showLabels && active ? "ring-2 ring-brand-magenta/35 shadow shadow-brand-magenta/20" : ""} ${!tokens.showLabels && !active ? "hover:shadow hover:shadow-brand-magenta/10" : ""
-            }`}
+          className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${tokens.collapsedIconShift}`}
         >
-          {group.icon}
+          {renderIcon(group.icon, active, `${tokens.iconSize} ${iconColor}`)}
           {locked && !tokens.showLabels && (
-            <Lock className="absolute right-1 top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
+            <Lock className="absolute -right-1 -top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}
         </span>
 
-        {tokens.showLabels && (
-          <span className={`truncate leading-tight ${active ? "text-slate-900" : "text-slate-700 group-hover:text-slate-900"}`}>
-            {group.label}
-          </span>
-        )}
+        <span
+          className={`${labelBase} ${labelTransition} ${active ? "font-semibold text-gray-900" : "font-medium text-gray-800 group-hover:text-gray-900"}`}
+        >
+          {group.label}
+        </span>
 
         {tokens.showLabels && (
           <span className="ml-auto flex items-center gap-2">
@@ -263,7 +259,7 @@ const SidebarGroupItem = ({
             )}
             {!locked && (
               <ChevronDown
-                className={`h-4 w-4 text-slate-500 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+                className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
                 aria-hidden="true"
               />
             )}
@@ -291,7 +287,6 @@ const SidebarGroupItem = ({
                 interaction={interaction}
                 focusOffsetClass={tokens.focusOffsetClass}
                 badges={badges}
-                showLabels={tokens.showLabels}
               />
             ))}
           </ul>
@@ -308,7 +303,7 @@ const SidebarLinkItem = ({
   interaction,
   badges,
   source,
-  showLabels,
+  insertSeparator,
 }: {
   item: SidebarChildNode;
   tokens: SidebarPresentationTokens;
@@ -316,14 +311,19 @@ const SidebarLinkItem = ({
   interaction: SidebarInteractionState;
   badges?: Record<string, number>;
   source: string;
-  showLabels?: boolean;
+  insertSeparator?: boolean;
 }) => {
   const active = isRouteActive(pathname, item.href, item.exact);
   const locked = Boolean(item.paywallContext);
   const hideLockBadge = Boolean(item.hideLockBadge);
-  const showActiveIndicator = active && !item.hideActiveIndicator && tokens.showLabels;
   const badgeCount = badges?.[item.key] ?? 0;
   const showBadge = badgeCount > 0;
+  const iconColor = active ? "text-gray-900" : "text-gray-500 group-hover:text-gray-900";
+  const labelTransition = tokens.showLabels
+    ? "max-w-full opacity-100 translate-x-0"
+    : "max-w-0 opacity-0 -translate-x-1";
+  const labelBase =
+    "overflow-hidden whitespace-nowrap leading-tight transition-[max-width,opacity,transform] duration-200";
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (locked && item.paywallContext) {
@@ -338,67 +338,50 @@ const SidebarLinkItem = ({
   };
 
   return (
-    <li>
+    <li className={insertSeparator ? "mt-4 pt-2 border-t border-gray-100/80" : ""}>
       <Link
         href={item.href}
         prefetch={false}
         onClick={handleClick}
-        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} rounded-xl ${tokens.alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${tokens.focusOffsetClass} ${!tokens.showLabels
-          ? active
-            ? "bg-transparent border-0 shadow-none font-semibold text-slate-900"
-            : "bg-transparent border-0 shadow-none font-medium text-slate-600 hover:bg-transparent"
-          : active
-            ? "bg-slate-100 font-semibold text-slate-900"
-            : "font-medium text-slate-900 hover:bg-slate-100"
-          } ${!tokens.showLabels ? "px-0 py-2 justify-center" : ""}`}
-        title={item.tooltip}
+        className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} ${tokens.alignClass} rounded-lg transition-colors duration-150 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 ${tokens.focusOffsetClass}`}
+        aria-current={active ? "page" : undefined}
+        aria-label={!tokens.showLabels ? item.label : undefined}
+        title={item.tooltip || item.label}
       >
-        {showActiveIndicator && (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-1/2 h-[60%] w-1 -translate-y-1/2 rounded-full bg-brand-magenta"
-          />
-        )}
-
         <span
           aria-hidden="true"
-          className={`relative flex ${tokens.iconSize} shrink-0 items-center justify-center rounded-xl ${tokens.showLabels ? "" : "mx-auto"
-            } ${tokens.collapsedIconShift} bg-transparent ${tokens.showLabels ? "text-[16px]" : "text-[18px]"} transition-colors duration-200 ${active
-              ? "text-slate-900"
-              : "text-slate-900 group-hover:text-slate-900"
-            } ${!tokens.showLabels && active ? "ring-2 ring-brand-magenta/35 shadow shadow-brand-magenta/20" : ""} ${!tokens.showLabels && !active ? "hover:shadow hover:shadow-brand-magenta/10" : ""
-            }`}
+          className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${tokens.collapsedIconShift}`}
         >
-          {item.icon}
+          {renderIcon(item.icon, active, `${tokens.iconSize} ${iconColor}`)}
           {showBadge && (
             <span className="absolute -top-1 -right-1 min-w-[18px] rounded-full bg-red-500 px-1.5 py-[1px] text-[10px] font-bold leading-4 text-white shadow">
               {badgeCount > 99 ? "99+" : badgeCount}
             </span>
           )}
           {locked && !hideLockBadge && !tokens.showLabels && (
-            <Lock className="absolute right-1 top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
+            <Lock className="absolute -right-1 -top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}
         </span>
 
+        <span
+          className={`${labelBase} ${labelTransition} ${active ? "font-semibold text-gray-900" : "font-medium text-gray-800 group-hover:text-gray-900"}`}
+        >
+          {item.label}
+        </span>
         {tokens.showLabels && (
-          <>
-            <span className={`truncate leading-tight ${active ? "text-slate-900" : "text-slate-700 group-hover:text-slate-900"}`}>
-              {item.label}
-            </span>
-            <span className="ml-auto flex items-center gap-2">
-              {showBadge && (
-                <span className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-2 py-[2px] text-[11px] font-bold leading-4 text-white shadow">
-                  {badgeCount > 99 ? "99+" : badgeCount}
-                </span>
-              )}
-              {locked && !hideLockBadge && (
-                <>
-                  <ProBadge />
-                  <Lock className="h-4 w-4 text-brand-magenta/70" aria-hidden="true" />
-                </>
-              )}
-            </span>
-          </>
+          <span className="ml-auto flex items-center gap-2">
+            {showBadge && (
+              <span className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-2 py-[2px] text-[11px] font-bold leading-4 text-white shadow">
+                {badgeCount > 99 ? "99+" : badgeCount}
+              </span>
+            )}
+            {locked && !hideLockBadge && (
+              <>
+                <ProBadge />
+                <Lock className="h-4 w-4 text-brand-magenta/70" aria-hidden="true" />
+              </>
+            )}
+          </span>
         )}
       </Link>
     </li>
@@ -411,21 +394,19 @@ const SidebarChildLink = ({
   interaction,
   focusOffsetClass,
   badges,
-  showLabels,
 }: {
   item: SidebarChildNode;
   pathname: string;
   interaction: SidebarInteractionState;
   focusOffsetClass: string;
   badges?: Record<string, number>;
-  showLabels?: boolean;
 }) => {
   const active = isRouteActive(pathname, item.href, item.exact);
   const locked = Boolean(item.paywallContext);
   const hideLockBadge = Boolean(item.hideLockBadge);
-  const showActiveIndicator = active && !item.hideActiveIndicator && showLabels;
   const badgeCount = badges?.[item.key] ?? 0;
   const showBadge = badgeCount > 0;
+  const iconColor = active ? "text-gray-900" : "text-gray-500 group-hover:text-gray-900";
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (locked && item.paywallContext) {
@@ -445,39 +426,26 @@ const SidebarChildLink = ({
         href={item.href}
         prefetch={false}
         onClick={handleClick}
-        className={`group relative flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${focusOffsetClass} ${!showLabels
-          ? active
-            ? "bg-transparent border-0 shadow-none text-slate-900"
-            : "bg-transparent border-0 shadow-none text-slate-600 hover:bg-transparent"
-          : active
-            ? "bg-slate-100 text-slate-900"
-            : "text-slate-900 hover:bg-slate-100"
-          } ${!showLabels ? "justify-center px-0" : ""}`}
-        title={item.tooltip}
+        className={`group relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors duration-150 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 ${focusOffsetClass}`}
+        aria-current={active ? "page" : undefined}
+        title={item.tooltip || item.label}
       >
-        {showActiveIndicator && (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-1/2 h-[60%] w-1 -translate-y-1/2 rounded-full bg-brand-magenta"
-          />
-        )}
-
         <span
           aria-hidden="true"
-          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-transparent text-[13px] text-slate-900 transition-colors duration-200 group-hover:text-slate-900"
+          className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center"
         >
-          {item.icon}
+          {renderIcon(item.icon, active, `h-5 w-5 ${iconColor}`)}
           {showBadge && (
             <span className="absolute -top-1 -right-1 min-w-[16px] rounded-full bg-red-500 px-1 py-[1px] text-[9px] font-bold leading-4 text-white shadow">
               {badgeCount > 99 ? "99+" : badgeCount}
             </span>
           )}
           {locked && !hideLockBadge && (
-            <Lock className="absolute right-1 top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
+            <Lock className="absolute -right-1 -top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}
         </span>
 
-        <span className={`truncate leading-tight ${active ? "text-slate-900" : "text-slate-700 group-hover:text-slate-900"}`}>
+        <span className={`leading-tight whitespace-nowrap ${active ? "font-semibold text-gray-900" : "font-medium text-gray-800 group-hover:text-gray-900"}`}>
           {item.label}
         </span>
 

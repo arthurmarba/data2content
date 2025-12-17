@@ -1,10 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { notFound } from 'next/navigation';
 import {
     CalendarDaysIcon,
     TagIcon,
@@ -90,6 +89,50 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
     const router = useRouter();
     const { data: metric, error, isLoading } = useSWR(`/api/publis/${params.id}`, fetcher);
 
+    const stats = metric?.stats || {};
+
+    const sanitizedSnapshots = useMemo(() => {
+        if (!metric?.dailySnapshots) return [];
+        type SnapshotLike = {
+            date?: string | Date;
+            dayNumber?: number | null;
+            dailyViews?: number;
+            dailyReach?: number;
+            dailyImpressions?: number;
+            dailyLikes?: number;
+        };
+        const raw = Array.isArray(metric.dailySnapshots) ? (metric.dailySnapshots as SnapshotLike[]) : [];
+        const normalized = raw
+            .map((item: SnapshotLike) => {
+                const date = item?.date ? new Date(item.date) : null;
+                if (!date || Number.isNaN(date.getTime())) return null;
+
+                const dailyViews = item.dailyViews ?? item.dailyReach ?? item.dailyImpressions ?? 0;
+                const dailyLikes = item.dailyLikes ?? 0;
+
+                return {
+                    date: date.toISOString(),
+                    dayNumber: item.dayNumber ?? null,
+                    dailyViews: Number.isFinite(dailyViews) ? dailyViews : 0,
+                    dailyLikes: Number.isFinite(dailyLikes) ? dailyLikes : 0,
+                };
+            })
+            .filter((item): item is { date: string; dayNumber: number | null; dailyViews: number; dailyLikes: number } => Boolean(item));
+
+        return normalized.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [metric?.dailySnapshots]);
+
+    const hasHistoricalSeries = sanitizedSnapshots.length >= 2;
+
+    const fallbackDate = new Date(metric?.updatedAt || metric?.postDate || Date.now());
+    const fallbackSnapshot = {
+        date: Number.isNaN(fallbackDate.getTime()) ? new Date().toISOString() : fallbackDate.toISOString(),
+        dailyViews: stats.views || stats.video_views || stats.reach || 0,
+        dailyLikes: stats.likes || 0,
+    };
+
+    const chartData = sanitizedSnapshots.length > 0 ? sanitizedSnapshots : [fallbackSnapshot];
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-8">
@@ -114,17 +157,6 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
             </div>
         );
     }
-
-    const stats = metric.stats || {};
-
-    // Ensure we have at least one data point for the chart (Current State) if snapshots are empty
-    const snapshots = (metric.dailySnapshots || []).length > 0
-        ? metric.dailySnapshots
-        : [{
-            date: metric.updatedAt || new Date().toISOString(),
-            dailyViews: stats.views || stats.video_views || 0,
-            dailyLikes: stats.likes || 0
-        }];
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] font-poppins text-gray-900 pb-20 p-6">
@@ -265,10 +297,10 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
                                 </div>
                             </div>
 
-                            {snapshots && snapshots.length > 0 ? (
+                            {hasHistoricalSeries ? (
                                 <div className="flex-1 w-full min-h-0">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={snapshots} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                             <XAxis
                                                 dataKey="date"
@@ -313,9 +345,26 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
                                     </ResponsiveContainer>
                                 </div>
                             ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 bg-gray-50/50 rounded-xl border border-dashed border-gray-200 text-center px-6">
                                     <ChartBarIcon className="w-10 h-10 mb-2 opacity-50" />
-                                    <p className="text-sm">Gráfico disponível após 2 dias de coleta de dados.</p>
+                                    <p className="text-sm font-medium">Dados diários insuficientes</p>
+                                    <p className="text-xs text-gray-400">Coletamos pelo menos 2 dias para exibir o gráfico. Ainda assim, você pode ver o último registro:</p>
+                                    {chartData[0] && (
+                                        <div className="mt-3 text-xs bg-white rounded-lg border border-gray-200 px-3 py-2 shadow-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500">Data</span>
+                                                <span className="font-semibold text-gray-800">{new Date(chartData[0].date).toLocaleDateString('pt-BR')}</span>
+                                            </div>
+                                            <div className="flex justify-between mt-1">
+                                                <span className="text-gray-500">Visualizações</span>
+                                                <span className="font-semibold text-indigo-600">{(chartData[0].dailyViews || 0).toLocaleString('pt-BR')}</span>
+                                            </div>
+                                            <div className="flex justify-between mt-1">
+                                                <span className="text-gray-500">Curtidas</span>
+                                                <span className="font-semibold text-rose-600">{(chartData[0].dailyLikes || 0).toLocaleString('pt-BR')}</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

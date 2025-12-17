@@ -86,7 +86,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [isGeminiHeaderPage]);
 
-  const mainOffset = isGuidedFlow ? "" : isCollapsed ? "lg:ml-16" : "lg:ml-[320px]";
+  const mainOffset = isGuidedFlow ? "" : "lg:ml-16";
 
   const mainScrollClass = isChatPage ? "overflow-hidden" : "overflow-y-auto";
 

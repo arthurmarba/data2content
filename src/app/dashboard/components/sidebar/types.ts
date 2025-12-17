@@ -3,12 +3,19 @@ import type { PaywallContext } from "@/types/paywall";
 
 export type SidebarSectionKey = "core" | "planning" | "monetization" | "account";
 
+export type SidebarIconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+
+export type SidebarIconSet = {
+  outline: SidebarIconComponent;
+  solid: SidebarIconComponent;
+};
+
 export type SidebarChildNode = {
   type: "item";
   key: string;
   label: string;
   href: string;
-  icon: React.ReactNode;
+  icon: SidebarIconSet;
   exact?: boolean;
   tooltip?: string;
   hideInMinimal?: boolean;
@@ -21,7 +28,7 @@ export type SidebarGroupNode = {
   type: "group";
   key: string;
   label: string;
-  icon: React.ReactNode;
+  icon: SidebarIconSet;
   tooltip?: string;
   hideInMinimal?: boolean;
   paywallContext?: PaywallContext;

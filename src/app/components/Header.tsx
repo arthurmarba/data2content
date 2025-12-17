@@ -366,7 +366,7 @@ export default function Header() {
           priority
         />
       </div>
-      <span className="hidden sm:inline">data2content</span>
+      <span className="sr-only">data2content</span>
     </Link>
   );
 
@@ -392,7 +392,7 @@ export default function Header() {
               onClick={() => toggleSidebar()}
               whileTap={{ scale: 0.92 }}
               transition={{ duration: 0.12, ease: "easeOut" }}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
               aria-label="Alternar menu lateral"
               title="Menu"
             >

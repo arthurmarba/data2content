@@ -2046,7 +2046,7 @@ export default function MediaKitView({
     } catch {
       // Se share falhar também, apenas silencie; UX mostra botão novamente
     }
-  }, [mediaKitSlug, publicUrlForCopy, tryCopyShareUrl, user, track]);
+  }, [mediaKitSlug, publicUrlForCopy, tryCopyShareUrl, user]);
   useEffect(
     () => () => {
       if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);

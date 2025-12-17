@@ -74,6 +74,7 @@ export interface IMetric extends Document {
   dailySnapshots?: ISnapshot[];
   rawData: unknown[];
   stats: IMetricStats;
+  isPubli: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -100,7 +101,8 @@ const metricSchema = new Schema<IMetric>(
     classificationError: { type: String, default: null },
     dailySnapshots: { type: Array, default: [] },
     rawData: { type: Array, default: [] },
-    stats: { type: Schema.Types.Mixed, default: {} },
+    stats: { type: Schema.Types.Mixed, default: { total_interactions: 0, engagement: 0 } },
+    isPubli: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );

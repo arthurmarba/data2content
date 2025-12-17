@@ -1,6 +1,33 @@
-import React from "react";
-import { FaHome, FaAddressCard, FaCalendarAlt, FaUsers, FaCreditCard, FaComments, FaInstagram } from "react-icons/fa";
-import { Compass as CompassIcon, Calculator, Megaphone, Crown, LineChart, Share2 } from "lucide-react";
+import {
+  HomeIcon as HomeIconOutline,
+  RectangleGroupIcon as RectangleGroupIconOutline,
+  SparklesIcon as SparklesIconOutline,
+  ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconOutline,
+  PresentationChartLineIcon as PresentationChartLineIconOutline,
+  CalendarDaysIcon as CalendarDaysIconOutline,
+  MagnifyingGlassCircleIcon as MagnifyingGlassCircleIconOutline,
+  MegaphoneIcon as MegaphoneIconOutline,
+  PlayCircleIcon as PlayCircleIconOutline,
+  CalculatorIcon as CalculatorIconOutline,
+  UserGroupIcon as UserGroupIconOutline,
+  LinkIcon as LinkIconOutline,
+  CreditCardIcon as CreditCardIconOutline,
+} from "@heroicons/react/24/outline";
+import {
+  HomeIcon as HomeIconSolid,
+  RectangleGroupIcon as RectangleGroupIconSolid,
+  SparklesIcon as SparklesIconSolid,
+  ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
+  PresentationChartLineIcon as PresentationChartLineIconSolid,
+  CalendarDaysIcon as CalendarDaysIconSolid,
+  MagnifyingGlassCircleIcon as MagnifyingGlassCircleIconSolid,
+  MegaphoneIcon as MegaphoneIconSolid,
+  PlayCircleIcon as PlayCircleIconSolid,
+  CalculatorIcon as CalculatorIconSolid,
+  UserGroupIcon as UserGroupIconSolid,
+  LinkIcon as LinkIconSolid,
+  CreditCardIcon as CreditCardIconSolid,
+} from "@heroicons/react/24/solid";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
 import type {
@@ -9,6 +36,8 @@ import type {
   SidebarGroupNode,
   SidebarSection,
   SidebarSectionKey,
+  SidebarIconComponent,
+  SidebarIconSet,
 } from "./types";
 
 type PaywallResolver = (options: SidebarBuildOptions) => PaywallContext | undefined;
@@ -20,6 +49,27 @@ type SidebarChildDefinition = Omit<SidebarChildNode, "paywallContext"> & {
 type SidebarGroupDefinition = Omit<SidebarGroupNode, "paywallContext" | "children"> & {
   paywallResolver?: PaywallResolver;
   children: SidebarChildDefinition[];
+};
+
+const iconSet = (outline: SidebarIconComponent, solid: SidebarIconComponent): SidebarIconSet => ({
+  outline,
+  solid,
+});
+
+const ICONS = {
+  dashboard: iconSet(HomeIconOutline, HomeIconSolid),
+  mediaKit: iconSet(RectangleGroupIconOutline, RectangleGroupIconSolid),
+  pro: iconSet(SparklesIconOutline, SparklesIconSolid),
+  planningChat: iconSet(ChatBubbleLeftRightIconOutline, ChatBubbleLeftRightIconSolid),
+  planningCharts: iconSet(PresentationChartLineIconOutline, PresentationChartLineIconSolid),
+  planningCalendar: iconSet(CalendarDaysIconOutline, CalendarDaysIconSolid),
+  planningDiscover: iconSet(MagnifyingGlassCircleIconOutline, MagnifyingGlassCircleIconSolid),
+  campaigns: iconSet(MegaphoneIconOutline, MegaphoneIconSolid),
+  publis: iconSet(PlayCircleIconOutline, PlayCircleIconSolid),
+  calculator: iconSet(CalculatorIconOutline, CalculatorIconSolid),
+  affiliates: iconSet(UserGroupIconOutline, UserGroupIconSolid),
+  instagramConnection: iconSet(LinkIconOutline, LinkIconSolid),
+  settings: iconSet(CreditCardIconOutline, CreditCardIconSolid),
 };
 
 type SidebarSectionDefinition = {
@@ -40,16 +90,8 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         key: "dashboard",
         label: "Início",
         href: "/dashboard",
-        icon: <FaHome />,
+        icon: ICONS.dashboard,
         exact: true,
-      },
-      {
-        type: "item",
-        key: "media-kit",
-        label: navigationLabels.mediaKit.menu,
-        tooltip: navigationLabels.mediaKit.tooltip,
-        href: "/media-kit",
-        icon: <FaAddressCard />,
       },
       {
         type: "item",
@@ -57,7 +99,15 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: "Plano Agência",
         tooltip: "Benefícios, preços e fluxos do Plano Agência",
         href: "/pro",
-        icon: <Crown className="h-5 w-5 text-brand-magenta" />,
+        icon: ICONS.pro,
+      },
+      {
+        type: "item",
+        key: "media-kit",
+        label: navigationLabels.mediaKit.menu,
+        tooltip: navigationLabels.mediaKit.tooltip,
+        href: "/media-kit",
+        icon: ICONS.mediaKit,
       },
     ],
   },
@@ -72,7 +122,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: navigationLabels.planningChat.menu,
         tooltip: navigationLabels.planningChat.tooltip,
         href: "/planning/chat",
-        icon: <FaComments className="h-5 w-5" />,
+        icon: ICONS.planningChat,
         paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
       },
       {
@@ -81,7 +131,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: navigationLabels.planningCharts.menu,
         tooltip: navigationLabels.planningCharts.tooltip,
         href: "/planning/graficos",
-        icon: <LineChart className="h-5 w-5" />,
+        icon: ICONS.planningCharts,
         paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
       },
       {
@@ -90,7 +140,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: navigationLabels.planningPlanner.menu,
         tooltip: navigationLabels.planningPlanner.tooltip,
         href: "/planning/planner",
-        icon: <FaCalendarAlt className="h-5 w-5" />,
+        icon: ICONS.planningCalendar,
         paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
       },
       {
@@ -99,7 +149,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: navigationLabels.planningDiscover.menu,
         tooltip: navigationLabels.planningDiscover.tooltip,
         href: "/planning/discover",
-        icon: <CompassIcon className="h-5 w-5" />,
+        icon: ICONS.planningDiscover,
         paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
       },
     ],
@@ -115,7 +165,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: navigationLabels.campaigns.menu,
         tooltip: navigationLabels.campaigns.tooltip,
         href: "/campaigns",
-        icon: <Megaphone className="h-5 w-5" />,
+        icon: ICONS.campaigns,
       },
       {
         type: "item",
@@ -123,14 +173,14 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: "Minhas Publis",
         tooltip: "Gerencie e compartilhe suas publis",
         href: "/dashboard/publis",
-        icon: <Share2 className="h-5 w-5" />,
+        icon: ICONS.publis,
       },
       {
         type: "item",
         key: "campaigns.calculator",
         label: "Calculadora",
         href: "/dashboard/calculator",
-        icon: <Calculator className="h-5 w-5" />,
+        icon: ICONS.calculator,
         tooltip: "Preço justo a partir das suas métricas",
         hideLockBadge: true,
         paywallResolver: ({ hasPremiumAccess }) => (!hasPremiumAccess ? "calculator" : undefined),
@@ -141,7 +191,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: navigationLabels.affiliates.menu,
         tooltip: navigationLabels.affiliates.tooltip,
         href: "/affiliates",
-        icon: <FaUsers />,
+        icon: ICONS.affiliates,
         hideInMinimal: true,
         hideActiveIndicator: true,
       },
@@ -158,7 +208,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: "Conexão",
         tooltip: "Gerencie a conexão com sua conta do Instagram",
         href: "/dashboard/instagram-connection",
-        icon: <FaInstagram />,
+        icon: ICONS.instagramConnection,
         hideInMinimal: true,
       },
       {
@@ -167,7 +217,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         label: "Gerir Assinatura",
         tooltip: navigationLabels.settings.tooltip,
         href: "/settings",
-        icon: <FaCreditCard />,
+        icon: ICONS.settings,
         hideInMinimal: true,
       },
     ],

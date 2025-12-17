@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { FilterQuery } from 'mongoose';
+import { FilterQuery, PipelineStage, Types } from 'mongoose';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -15,7 +15,69 @@ const normalizeValue = (value?: string | null) => {
     return Array.from(new Set([trimmed, lower, accentless, accentlessLower]));
 };
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildAccentInsensitiveRegex = (value: string) => {
+    const accentMap: Record<string, string> = {
+        a: 'aàáâãäå',
+        e: 'eèéêë',
+        i: 'iìíîï',
+        o: 'oòóôõö',
+        u: 'uùúûü',
+        c: 'cç',
+        n: 'nñ',
+    };
+
+    const escaped = escapeRegex(value);
+    return escaped.replace(/[aeiounc]/gi, (char) => {
+        const lower = char.toLowerCase();
+        const accentedChars = accentMap[lower];
+        if (!accentedChars) return char;
+        const characters = `${accentedChars}${accentedChars.toUpperCase()}`;
+        return `[${characters}]`;
+    });
+};
+
 export const runtime = 'nodejs';
+
+const formatDateParam = (date: Date) => date.toISOString().split('T')[0];
+
+const parseDateParam = (value?: string | null) => {
+    if (!value) return null;
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return { date: parsed, isDateOnly };
+};
+
+const resolveRangeDates = (range: string | null) => {
+    if (!range) return {};
+
+    const end = new Date();
+
+    if (range === '30d') {
+        const start = new Date(end);
+        start.setDate(end.getDate() - 30);
+        return { startDate: formatDateParam(start), endDate: formatDateParam(end) };
+    }
+
+    if (range === '90d') {
+        const start = new Date(end);
+        start.setDate(end.getDate() - 90);
+        return { startDate: formatDateParam(start), endDate: formatDateParam(end) };
+    }
+
+    if (range === 'year') {
+        const start = new Date(end.getFullYear(), 0, 1);
+        return { startDate: formatDateParam(start), endDate: formatDateParam(end) };
+    }
+
+    if (range === 'all') {
+        return {};
+    }
+
+    return {};
+};
 
 export async function GET(request: NextRequest) {
     const session = await getServerSession({ req: request, ...authOptions });
@@ -34,8 +96,11 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const sort = searchParams.get('sort') ?? 'date_desc';
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const range = searchParams.get('range');
+
+    const { startDate: rangeStart, endDate: rangeEnd } = resolveRangeDates(range);
+    const parsedStart = parseDateParam(rangeStart ?? searchParams.get('startDate'));
+    const parsedEnd = parseDateParam(rangeEnd ?? searchParams.get('endDate'));
 
     const buildClassFilter = (value: string, type: 'proposal' | 'tone') => {
         const ids = getCategoryWithSubcategoryIds(value, type);
@@ -58,12 +123,21 @@ export async function GET(request: NextRequest) {
         buildClassFilter('promotional', 'tone'),
     ];
 
+    // Heurísticas adicionais para capturar menções explícitas de publi na descrição.
+    const publiHeuristicRegex = /(publi\b|publipost|publi post|publipubli|#publi|#ad|publicidade|parceria paga|conte[uú]do pago)/i;
+    const heuristicFilters: FilterQuery<IMetric>[] = [
+        { isPubli: true },
+        { description: { $regex: publiHeuristicRegex } }
+    ];
+
+    const userId = new Types.ObjectId(session.user.id);
+
     const query: FilterQuery<IMetric> = {
-        user: session.user.id,
+        user: userId,
         $and: [
             {
                 // Posts de publi podem ser marcados tanto pela proposta quanto pelo tom promocional.
-                $or: publiFilters,
+                $or: [...publiFilters, ...heuristicFilters],
             }
         ],
     };
@@ -77,33 +151,61 @@ export async function GET(request: NextRequest) {
     }
 
     // Date Range Filter
-    if (startDate || endDate) {
+    if (parsedStart?.date || parsedEnd?.date) {
         query.postDate = {};
-        if (startDate) query.postDate.$gte = new Date(startDate);
-        if (endDate) query.postDate.$lte = new Date(endDate);
+        if (parsedStart?.date) query.postDate.$gte = parsedStart.date;
+        if (parsedEnd?.date) {
+            if (parsedEnd.isDateOnly) {
+                const endExclusive = new Date(parsedEnd.date);
+                endExclusive.setDate(endExclusive.getDate() + 1);
+                query.postDate.$lt = endExclusive;
+            } else {
+                query.postDate.$lte = parsedEnd.date;
+            }
+        }
     }
 
-    if (search) {
-        query.description = { $regex: search, $options: 'i' };
+    const trimmedSearch = search?.trim();
+
+    if (trimmedSearch) {
+        const variants = normalizeValue(trimmedSearch);
+        const searchFilters = variants.map(value => ({
+            description: { $regex: buildAccentInsensitiveRegex(value), $options: 'i' }
+        }));
+
+        if (Array.isArray(query.$and)) {
+            query.$and.push({ $or: searchFilters });
+        } else {
+            query.$and = [{ $or: searchFilters }];
+        }
     }
 
     let sortOptions: Record<string, 1 | -1> = { postDate: -1 };
 
     if (sort === 'date_asc') {
         sortOptions = { postDate: 1 };
-    } else if (sort === 'performance_desc') {
-        sortOptions = { 'stats.engagement': -1 };
-    } else if (sort === 'performance_asc') {
-        sortOptions = { 'stats.engagement': 1 };
     }
 
+    const isPerformanceSort = sort === 'performance_desc' || sort === 'performance_asc';
+    const performanceSortDirection: 1 | -1 = sort === 'performance_asc' ? 1 : -1;
+
+    const performancePipeline: PipelineStage[] = [
+        { $match: query },
+        { $addFields: { sortEngagement: { $ifNull: ['$stats.total_interactions', 0] } } },
+        { $sort: { sortEngagement: performanceSortDirection, _id: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+    ];
+
     const [items, total] = await Promise.all([
-        Metric.find(query)
-            .sort(sortOptions)
-            .skip(skip)
-            .limit(limit)
-            .lean()
-            .exec(),
+        isPerformanceSort
+            ? Metric.aggregate(performancePipeline).exec()
+            : Metric.find(query)
+                .sort(sortOptions)
+                .skip(skip)
+                .limit(limit)
+                .lean()
+                .exec(),
         Metric.countDocuments(query),
     ]);
 
@@ -116,6 +218,7 @@ export async function GET(request: NextRequest) {
             theme: item.theme,
             classificationStatus: item.classificationStatus,
             stats: item.stats,
+            isPubli: item.isPubli,
             instagramMediaId: item.instagramMediaId,
             postLink: item.postLink,
         })),

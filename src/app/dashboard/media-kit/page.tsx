@@ -853,26 +853,29 @@ export default function MediaKitSelfServePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowCommunityModal(false)}
-              className="fixed inset-0 bg-black/50 z-[70]"
+              className="fixed inset-0 z-[520] bg-black/45 backdrop-blur-sm"
               aria-hidden="true"
             />
             <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 38 }}
-              className="fixed bottom-0 left-0 right-0 z-[80]"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed inset-0 z-[530] flex items-center justify-center px-4"
             >
-              <div className="mx-auto max-w-lg px-4 pb-6">
+              <div className="mx-auto w-full max-w-lg">
                 <div className="rounded-2xl bg-white shadow-2xl border border-emerald-100 overflow-hidden">
                   <div className="flex justify-between items-start px-5 pt-5">
                     <div className="flex items-center gap-2">
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                         <FaWhatsapp className="h-5 w-5" aria-hidden="true" />
                       </span>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Faça parte da nossa comunidade gratuita
-                      </h3>
+                      <div className="flex flex-col">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Entre na Comunidade VIP
+                        </h3>
+                        <p className="text-xs text-gray-500">Networking, mentorias e alertas exclusivos no WhatsApp.</p>
+                      </div>
                     </div>
                     <button
                       onClick={() => setShowCommunityModal(false)}
@@ -883,7 +886,7 @@ export default function MediaKitSelfServePage() {
                     </button>
                   </div>
                   <div className="px-5 pt-3 pb-5 text-sm text-gray-600 leading-relaxed">
-                    Acesse o grupo exclusivo no WhatsApp para receber dicas semanais, materiais de apoio e trocar experiências com outros criadores.
+                    Acesse o grupo VIP no WhatsApp para receber materiais avançados, mentorias semanais e troca direta com outros criadores.
                   </div>
                   <div className="bg-gray-50 px-5 py-5">
                     <a
@@ -893,7 +896,7 @@ export default function MediaKitSelfServePage() {
                       className="inline-flex w-full items-center justify-center rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 transition-colors"
                       onClick={() => setShowCommunityModal(false)}
                     >
-                      Acessar comunidade no WhatsApp
+                      Acessar Comunidade VIP no WhatsApp
                     </a>
                   </div>
                 </div>

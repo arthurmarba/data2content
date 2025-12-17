@@ -35,7 +35,7 @@ export const navigationLabels = {
     tooltip: "Desbloquear Plano Agência",
   },
   affiliates: {
-    menu: "Indique e Ganhe",
+    menu: "Ganhe até R$300",
     tooltip: "Comissão por novas assinaturas",
   },
   settings: {

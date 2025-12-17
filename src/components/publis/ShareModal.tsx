@@ -86,9 +86,9 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, publiId }) => 
     };
 
     return (
-        <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog open={isOpen} onClose={onClose} className="relative z-[510]">
+            <div className="fixed inset-0 z-[500] bg-black/40 backdrop-blur-sm transition-opacity" aria-hidden="true" />
+            <div className="fixed inset-0 z-[510] flex items-center justify-center p-4">
                 <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
                     <div className="flex justify-between items-center mb-4">
                         <Dialog.Title className="text-lg font-semibold text-gray-900">

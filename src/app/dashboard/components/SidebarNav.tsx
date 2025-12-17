@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 import { buildSidebarSections } from "./sidebar/config";
@@ -59,21 +61,25 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     [dashboardMinimal, hasPremiumAccess, planningLocked]
   );
 
-  const showLabels = !isCollapsed || isMobile;
+  const [isHovering, setIsHovering] = useState(false);
+  const collapseTimer = useRef<number | null>(null);
+  const isDesktop = !isMobile;
+  const effectiveCollapsed = isMobile ? isCollapsed : !isHovering;
+  const showLabels = isMobile ? true : !effectiveCollapsed;
   const openPaywall = usePaywallOpener();
 
   const layoutTokens = useMemo<SidebarPresentationTokens>(
     () => ({
       showLabels,
-      alignClass: showLabels ? "justify-start" : "justify-center",
-      itemPadding: showLabels ? "px-5 py-3" : "py-3",
-      itemGap: showLabels ? "gap-4" : "gap-0",
-      itemTextSize: showLabels ? "text-base" : "text-sm",
-      iconSize: "h-5 w-5",
-      collapsedIconShift: showLabels ? "" : "translate-x-[1px]",
-      focusOffsetClass: isMobile ? "focus-visible:ring-offset-white" : "focus-visible:ring-offset-[#f7f8fa]",
+      alignClass: "justify-start",
+      itemPadding: "px-3 py-2.5",
+      itemGap: showLabels ? "gap-3" : "gap-0",
+      itemTextSize: showLabels ? "text-base" : "text-xs",
+      iconSize: "h-6 w-6",
+      collapsedIconShift: "",
+      focusOffsetClass: "focus-visible:ring-offset-white",
     }),
-    [isMobile, showLabels]
+    [showLabels]
   );
 
   const handleItemNavigate = useCallback(() => {
@@ -107,8 +113,55 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     event.stopPropagation();
   }, []);
 
+  const clearCollapseTimer = useCallback(() => {
+    if (collapseTimer.current) {
+      window.clearTimeout(collapseTimer.current);
+      collapseTimer.current = null;
+    }
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!isDesktop) return;
+    clearCollapseTimer();
+    setIsHovering(true);
+  }, [clearCollapseTimer, isDesktop]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!isDesktop) return;
+    clearCollapseTimer();
+    collapseTimer.current = window.setTimeout(() => {
+      setIsHovering(false);
+      collapseTimer.current = null;
+    }, 120);
+  }, [clearCollapseTimer, isDesktop]);
+
+  const handleFocusCapture = useCallback(() => {
+    if (!isDesktop) return;
+    clearCollapseTimer();
+    setIsHovering(true);
+  }, [clearCollapseTimer, isDesktop]);
+
+  const handleBlurCapture = useCallback(
+    (event: React.FocusEvent<HTMLElement>) => {
+      if (!isDesktop) return;
+      const nextTarget = event.relatedTarget as HTMLElement | null;
+      if (nextTarget && event.currentTarget.contains(nextTarget)) {
+        return;
+      }
+      clearCollapseTimer();
+      setIsHovering(false);
+    },
+    [clearCollapseTimer, isDesktop]
+  );
+
+  useEffect(() => {
+    return () => {
+      clearCollapseTimer();
+    };
+  }, [clearCollapseTimer]);
+
   const asideBase =
-    "flex flex-col border-slate-200/80 text-slate-900 transition-transform duration-200 ease-out";
+    "fixed left-0 top-0 h-screen z-40 flex flex-col bg-white text-slate-900 border-r border-gray-200/50 transition-[width] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]";
 
   const mobileVisibility = isMobile
     ? isOpen
@@ -117,28 +170,46 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     : "";
 
   const mobileClasses = isMobile
-    ? `fixed inset-y-0 left-0 z-[60] w-72 transform transition-opacity ${mobileVisibility}`
+    ? `fixed inset-y-0 left-0 z-[60] w-72 transform transition-opacity ${mobileVisibility} shadow-xl`
     : "";
 
   const desktopClasses = !isMobile
-    ? `hidden lg:flex lg:flex-col lg:fixed lg:top-[var(--header-h,5rem)] lg:left-0 lg:h-[calc(100svh_-_var(--header-h,5rem))] lg:z-[200] lg:transform-none border-none ${isCollapsed ? "lg:w-20" : "lg:w-[320px]"
-    }`
+    ? `hidden lg:flex lg:flex-col lg:transform-none ${effectiveCollapsed ? "lg:w-[72px]" : "lg:w-60"}`
     : "";
 
-  const asideSurface = isMobile
-    ? "bg-white shadow-xl border-r"
-    : "bg-white";
-  const navPaddingX = showLabels ? "px-3 sm:px-4" : "px-2";
+  const navPaddingX = "px-3";
+  const labelTransition = showLabels ? "max-w-full opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1";
+  const labelBase = "overflow-hidden whitespace-nowrap leading-tight transition-[max-width,opacity,transform] duration-200";
 
   return (
     <>
       <aside
-        className={`${asideBase} ${asideSurface} ${mobileClasses} ${desktopClasses} ${!mounted ? "opacity-0 pointer-events-none" : "opacity-100"
+        className={`${asideBase} ${mobileClasses} ${desktopClasses} ${!mounted ? "opacity-0 pointer-events-none" : "opacity-100"
           } overflow-visible`}
         aria-label="Navegação do dashboard"
         aria-hidden={isMobile ? !isOpen : false}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocusCapture={handleFocusCapture}
+        onBlurCapture={handleBlurCapture}
       >
-        <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} pb-3 pt-10`}>
+        <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} pb-6 pt-6`}>
+          <Link
+            href="/dashboard"
+            className="mb-4 -mt-6 flex items-center rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            aria-label="Data2Content"
+          >
+            <div className="relative h-16 w-16 shrink-0 flex items-center justify-center -translate-x-5">
+              <Image
+                src="/images/Colorido-Simbolo.png"
+                alt="Data2Content"
+                fill
+                className="object-contain object-center"
+                priority
+              />
+            </div>
+            <span className="sr-only">Data2Content</span>
+          </Link>
           <div
             onWheel={handleSidebarWheel}
             className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 sm:pr-1.5 scrollbar-hide"

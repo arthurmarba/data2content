@@ -4,6 +4,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import SharedLink from '@/app/models/SharedLink';
 import Metric from '@/app/models/Metric';
 import User from '@/app/models/User';
+import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot';
 
 export const runtime = 'nodejs';
 
@@ -70,37 +71,59 @@ export async function GET(
         }
     }
 
-    // 6. Sanitize response (Public View)
+    const metricData = metric.toObject ? metric.toObject() : metric;
+
+    const snapshots = await DailyMetricSnapshotModel.find({ metric: metricData._id })
+        .sort({ date: 1 })
+        .lean();
+
+    const normalizedSnapshots = snapshots
+        .map((snapshot) => {
+            const date = snapshot.date ? new Date(snapshot.date) : null;
+            const safeDate = date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+
+            const dailyViews = snapshot.dailyViews ?? snapshot.dailyReach ?? snapshot.dailyImpressions ?? 0;
+            const dailyLikes = snapshot.dailyLikes ?? 0;
+
+            return safeDate ? {
+                date: safeDate,
+                dayNumber: snapshot.dayNumber ?? null,
+                dailyViews: Number.isFinite(dailyViews) ? dailyViews : 0,
+                dailyLikes: Number.isFinite(dailyLikes) ? dailyLikes : 0,
+            } : null;
+        })
+        .filter(Boolean);
+
     const creator = sharedLink.userId as any;
 
     return NextResponse.json({
         data: {
-            description: metric.description,
-            postDate: metric.postDate,
-            type: metric.type,
-            theme: metric.theme,
-            stats: metric.stats,
-            coverUrl: metric.coverUrl,
-            postLink: metric.postLink,
-            updatedAt: metric.updatedAt,
+            description: metricData.description,
+            postDate: metricData.postDate,
+            type: metricData.type,
+            theme: metricData.theme,
+            stats: metricData.stats,
+            coverUrl: metricData.coverUrl,
+            postLink: metricData.postLink,
+            updatedAt: metricData.updatedAt,
             // Enhanced data
-            format: metric.format,
-            proposal: metric.proposal,
-            context: metric.context,
-            tone: metric.tone,
-            references: metric.references,
-            collab: metric.collab,
-            collabCreator: metric.collabCreator,
-            instagramMediaId: metric.instagramMediaId,
-            source: metric.source,
-            classificationStatus: metric.classificationStatus,
-            dailySnapshots: metric.dailySnapshots,
+            format: metricData.format,
+            proposal: metricData.proposal,
+            context: metricData.context,
+            tone: metricData.tone,
+            references: metricData.references,
+            collab: metricData.collab,
+            collabCreator: metricData.collabCreator,
+            instagramMediaId: metricData.instagramMediaId,
+            source: metricData.source,
+            classificationStatus: metricData.classificationStatus,
+            dailySnapshots: normalizedSnapshots,
         },
         creator: {
             name: creator.name || 'Criador',
         },
         meta: {
-            lastUpdate: metric.updatedAt,
+            lastUpdate: metricData.updatedAt,
             isLive: sharedLink.config.liveUpdate,
         }
     });

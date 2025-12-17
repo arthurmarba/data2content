@@ -1,11 +1,12 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { FunnelIcon, MagnifyingGlassIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import useSWR from 'swr';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { openPaywallModal } from '@/utils/paywallModal';
 import { LockClosedIcon } from '@heroicons/react/24/outline';
+import { useDebounce } from 'use-debounce';
 
 import PubliCard from '@/components/publis/PubliCard';
 import ShareModal from '@/components/publis/ShareModal';
@@ -22,52 +23,45 @@ export default function PublisPage() {
     const [filterCategory, setFilterCategory] = useState('');
     const [selectedPeriod, setSelectedPeriod] = useState('30d');
     const [sort, setSort] = useState('date_desc');
+    const [debouncedSearch] = useDebounce(search, 300);
 
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [selectedPubliId, setSelectedPubliId] = useState<string | null>(null);
 
-    // Calculate dates based on period
-    const getPeriodDates = (period: string) => {
-        const end = new Date();
-        let start = new Date();
+    const queryString = useMemo(() => {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            limit: '12',
+            sort,
+            range: selectedPeriod,
+        });
 
-        switch (period) {
-            case '30d':
-                start.setDate(end.getDate() - 30);
-                break;
-            case '90d':
-                start.setDate(end.getDate() - 90);
-                break;
-            case 'year':
-                start = new Date(new Date().getFullYear(), 0, 1);
-                break;
-            case 'all':
-                return { startDate: '', endDate: '' };
-            default:
-                return { startDate: '', endDate: '' };
+        const normalizedSearch = debouncedSearch.trim();
+        if (normalizedSearch) {
+            params.set('search', normalizedSearch);
         }
-        return { startDate: start.toISOString(), endDate: end.toISOString() };
-    };
 
-    const { startDate, endDate } = getPeriodDates(selectedPeriod);
+        if (filterCategory) {
+            params.set('category', filterCategory);
+        }
 
-    // Debounce search could be added here, for now direct
-    const queryString = new URLSearchParams({
-        page: page.toString(),
-        limit: '12',
-        search,
-        startDate,
-        endDate,
-        sort,
-    }).toString();
+        return params.toString();
+    }, [page, debouncedSearch, sort, selectedPeriod, filterCategory]);
 
     // Only fetch if has access
-    const { data, error, isLoading: isDataLoading } = useSWR(
+    const { data, error, isLoading: isDataLoading, isValidating } = useSWR(
         hasProAccess ? `/api/publis?${queryString}` : null,
-        fetcher
+        fetcher,
+        {
+            dedupingInterval: 30000,
+            revalidateOnFocus: false,
+            keepPreviousData: true,
+        }
     );
 
-    const isLoading = isBillingLoading || (hasProAccess && isDataLoading);
+    const isInitialLoading = isBillingLoading || (hasProAccess && !data && isDataLoading);
+    const isRefreshing = hasProAccess && Boolean(data) && (isDataLoading || isValidating);
+    const showSearchSpinner = isRefreshing;
 
     const handleShare = (id: string) => {
         setSelectedPubliId(id);
@@ -78,7 +72,11 @@ export default function PublisPage() {
         window.location.href = `/dashboard/publis/${id}`;
     };
 
-    if (isLoading) {
+    useEffect(() => {
+        setPage(prev => (prev === 1 ? prev : 1));
+    }, [debouncedSearch, filterCategory, selectedPeriod, sort]);
+
+    if (isInitialLoading) {
         return (
             <div className="p-4 md:p-6 max-w-7xl mx-auto">
                 <div className="mb-6 md:mb-8">
@@ -188,13 +186,18 @@ export default function PublisPage() {
             <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6 md:items-center">
                 <div className="relative w-full md:flex-1">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                        {showSearchSpinner ? (
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-500" />
+                        ) : (
+                            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                        )}
                     </div>
                     <input
                         type="text"
                         className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         placeholder="Buscar por legenda..."
                         value={search}
+                        aria-busy={showSearchSpinner}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
@@ -225,7 +228,7 @@ export default function PublisPage() {
             </div>
 
             {/* Content Grid */}
-            {isLoading ? (
+            {!data && isDataLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {[...Array(8)].map((_, i) => (
                         <div key={i} className="bg-gray-100 rounded-xl h-80 animate-pulse" />
@@ -243,7 +246,7 @@ export default function PublisPage() {
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${isRefreshing ? 'opacity-80' : ''}`}>
                         {data.items.map((publi: any) => (
                             <PubliCard
                                 key={publi.id}
