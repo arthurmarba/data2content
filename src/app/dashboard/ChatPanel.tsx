@@ -443,6 +443,9 @@ export default function ChatPanel({
   const [csatDismissed, setCsatDismissed] = useState(false);
   const [lastAssistantTs, setLastAssistantTs] = useState<number | null>(null);
   const [lastUserActivity, setLastUserActivity] = useState<number>(() => Date.now());
+  const [activeFeedbackSurface, setActiveFeedbackSurface] = useState<'none' | 'message' | 'csat'>('none');
+  const [suppressCsatUntil, setSuppressCsatUntil] = useState<number>(0);
+  const [feedbackByMessage, setFeedbackByMessage] = useState<Record<string, 'up' | 'down'>>({});
   const [csatReasons, setCsatReasons] = useState<FeedbackReasonCode[]>([]);
   const [csatReasonOther, setCsatReasonOther] = useState('');
   const [csatError, setCsatError] = useState<string | null>(null);
@@ -470,10 +473,12 @@ export default function ChatPanel({
     if (!sessionId) return;
     if (csatSent || csatPrompted || csatDismissed) return;
     if (!lastAssistantTs) return;
+    if (activeFeedbackSurface !== 'none') return;
+    const now = Date.now();
+    if (now < suppressCsatUntil) return;
     const INACTIVITY_MS = 90_000;
     const GRACE_MS = 15_000;
     const MIN_DELAY_MS = 2_000;
-    const now = Date.now();
     const target = Math.max(lastAssistantTs + GRACE_MS, lastUserActivity + INACTIVITY_MS);
     const delay = Math.max(target - now, MIN_DELAY_MS);
     const timer = window.setTimeout(() => {
@@ -482,7 +487,7 @@ export default function ChatPanel({
       setCsatVisible(true);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [sessionId, csatSent, csatPrompted, csatDismissed, lastAssistantTs, lastUserActivity, isSending, input]);
+  }, [sessionId, csatSent, csatPrompted, csatDismissed, lastAssistantTs, lastUserActivity, isSending, input, activeFeedbackSurface, suppressCsatUntil]);
 
   const submitCsat = async (score: number) => {
     if (!sessionId || csatSent) return;
@@ -552,6 +557,43 @@ export default function ChatPanel({
     setCsatError(null);
     submitCsat(csatScore);
   };
+
+  const enterMessageFeedback = useCallback(() => {
+    setActiveFeedbackSurface('message');
+    setSuppressCsatUntil(Date.now() + 120_000);
+    setCsatVisible(false);
+  }, []);
+
+  const exitMessageFeedback = useCallback(() => {
+    setActiveFeedbackSurface('none');
+  }, []);
+
+  // Busca feedback existente da sessão para mostrar ícones já ativos
+  useEffect(() => {
+    if (!sessionId) return;
+    let aborted = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/chat/feedback/session?sessionId=${sessionId}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+        if (aborted) return;
+        const map: Record<string, 'up' | 'down'> = {};
+        (data?.feedback || []).forEach((f: any) => {
+          if (f?.messageId && (f.rating === 'up' || f.rating === 'down')) {
+            map[f.messageId] = f.rating;
+          }
+        });
+        setFeedbackByMessage(map);
+      } catch {
+        // ignora
+      }
+    };
+    load();
+    return () => {
+      aborted = true;
+    };
+  }, [sessionId]);
 
   const welcomePrompts = React.useMemo(() => {
     const prompts: Array<{ label: string; requiresIG?: boolean }> = [];
@@ -718,6 +760,15 @@ export default function ChatPanel({
                   message={msg}
                   onUpsellClick={onUpsellClick}
                   onConnectInstagram={handleCorrectInstagramLink}
+                  onFeedbackStart={enterMessageFeedback}
+                  onFeedbackEnd={exitMessageFeedback}
+                  onFeedbackSubmitted={(rating, messageId) => {
+                    setLastUserActivity(Date.now());
+                    if (messageId && (rating === 'up' || rating === 'down')) {
+                      setFeedbackByMessage((prev) => ({ ...prev, [messageId]: rating }));
+                    }
+                  }}
+                  initialFeedback={msg.messageId ? feedbackByMessage[msg.messageId] : undefined}
                 />
               ))}
 

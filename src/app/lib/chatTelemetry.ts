@@ -6,23 +6,16 @@ import ChatMessageFeedbackModel from "@/app/models/ChatMessageFeedback";
 import ChatSessionFeedbackModel from "@/app/models/ChatSessionFeedback";
 import ChatSessionReviewModel from "@/app/models/ChatSessionReview";
 import { logger } from "@/app/lib/logger";
+import { FEEDBACK_REASON_CODES } from "@/app/lib/feedbackReasons";
 
 const INACTIVITY_MS = 20 * 60 * 1000; // 20 minutos
-const NEGATIVE_REASON_CODES = [
-  "generic",
-  "wrong",
-  "didnt_use_context",
-  "hard_to_follow",
-  "too_long",
-  "too_short",
-  "slow",
-  "other",
-] as const;
+const NEGATIVE_REASON_CODES = FEEDBACK_REASON_CODES;
 const REASON_TO_CATEGORY: Record<string, string> = {
   generic: "resposta_generica",
   wrong: "resposta_errada",
   didnt_use_context: "nao_usou_contexto",
   hard_to_follow: "confuso",
+  confusing: "confuso",
   too_long: "muito_longo",
   too_short: "raso",
   slow: "lento",

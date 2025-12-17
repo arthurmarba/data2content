@@ -5,6 +5,7 @@ import { recordMessageFeedback } from "@/app/lib/chatTelemetry";
 import { logger } from "@/app/lib/logger";
 import ChatSessionModel from "@/app/models/ChatSession";
 import ChatMessageLogModel from "@/app/models/ChatMessageLog";
+import { FEEDBACK_REASON_CODES } from "@/app/lib/feedbackReasons";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -16,17 +17,21 @@ export async function POST(req: Request) {
     if (!rating || (rating !== "up" && rating !== "down")) {
       return NextResponse.json({ error: "rating inválido" }, { status: 400 });
     }
-    const allowedCodes = ["generic", "wrong", "didnt_use_context", "hard_to_follow", "too_long", "too_short", "slow", "other"];
+    const allowedCodes = FEEDBACK_REASON_CODES as readonly string[];
     const normalizedCode = typeof reasonCode === "string" ? reasonCode.trim().toLowerCase() : null;
-    let finalReasonCode = normalizedCode && allowedCodes.includes(normalizedCode) ? normalizedCode : null;
+    let finalReasonCode: (typeof FEEDBACK_REASON_CODES)[number] | null =
+      normalizedCode && (allowedCodes as readonly string[]).includes(normalizedCode) ? (normalizedCode as any) : null;
     if (rating === "down" && !finalReasonCode && reason) {
       finalReasonCode = "other";
     }
     if (rating === "down" && !finalReasonCode) {
-      return NextResponse.json({ error: "reasonCode é obrigatório quando rating=down" }, { status: 400 });
+      return NextResponse.json({ error: "INVALID_REASON_CODE" }, { status: 400 });
     }
     if (!sessionId) {
       return NextResponse.json({ error: "sessionId é obrigatório" }, { status: 400 });
+    }
+    if (!messageId) {
+      return NextResponse.json({ error: "MISSING_IDS" }, { status: 400 });
     }
 
     // Validação: sessão pertence ao usuário
@@ -43,7 +48,10 @@ export async function POST(req: Request) {
       }
     }
 
-    const reasonSafe = typeof reason === "string" ? reason.trim().slice(0, 120) : null;
+    const reasonSafe = typeof reason === "string" ? reason.trim().slice(0, 240) : null;
+    if (rating === "down" && finalReasonCode === "other" && (!reasonSafe || reasonSafe.length < 5)) {
+      return NextResponse.json({ error: "MISSING_REASON_DETAIL" }, { status: 400 });
+    }
 
     await recordMessageFeedback({
       sessionId: sessionId || null,
@@ -54,7 +62,7 @@ export async function POST(req: Request) {
       reasonDetail: reasonSafe,
       userId,
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, reasonCode: finalReasonCode });
   } catch (error) {
     logger.error("[api/chat/feedback/message] failed", error);
     return NextResponse.json({ error: "Falha ao registrar feedback" }, { status: 500 });

@@ -8,12 +8,20 @@ interface MessageBubbleProps {
     message: Message;
     onUpsellClick?: () => void;
     onConnectInstagram: () => void;
+    onFeedbackStart?: () => void;
+    onFeedbackEnd?: () => void;
+    onFeedbackSubmitted?: (rating: 'up' | 'down', messageId?: string | null) => void;
+    initialFeedback?: 'up' | 'down' | undefined;
 }
 
 export const MessageBubble = React.memo(function MessageBubble({
     message,
     onUpsellClick,
     onConnectInstagram,
+    onFeedbackStart,
+    onFeedbackEnd,
+    onFeedbackSubmitted,
+    initialFeedback,
 }: MessageBubbleProps) {
     const router = useRouter();
     const isUser = message.sender === 'user';
@@ -26,6 +34,11 @@ export const MessageBubble = React.memo(function MessageBubble({
     const [showReasonSelector, setShowReasonSelector] = React.useState(false);
     const [selectedReason, setSelectedReason] = React.useState<FeedbackReasonCode | null>(null);
     const [otherReasonText, setOtherReasonText] = React.useState('');
+    React.useEffect(() => {
+        if (initialFeedback && (initialFeedback === 'up' || initialFeedback === 'down')) {
+            setFeedbackState(initialFeedback);
+        }
+    }, [initialFeedback]);
 
     const resetReason = () => {
         setShowReasonSelector(false);
@@ -35,7 +48,18 @@ export const MessageBubble = React.memo(function MessageBubble({
 
     const handleFeedback = async (rating: 'up' | 'down', reasonCode?: FeedbackReasonCode | null, reasonDetail?: string) => {
         if (isSendingFeedback) return;
-        if (!message.messageId && !message.sessionId) return;
+        if (!message.messageId || !message.sessionId) {
+            setFeedbackError('Não foi possível identificar esta mensagem.');
+            return;
+        }
+        if (rating === 'down' && !reasonCode) {
+            setFeedbackError('Selecione um motivo.');
+            return;
+        }
+        if (rating === 'down' && reasonCode === 'other' && (!reasonDetail || reasonDetail.trim().length < 5)) {
+            setFeedbackError('Descreva rapidamente o motivo (mín. 5 caracteres).');
+            return;
+        }
         setIsSendingFeedback(true);
         setFeedbackError(null);
         const safeReason = rating === 'down' ? (reasonCode || 'other') : null;
@@ -44,6 +68,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             setFeedbackState('up'); // optimistic
             setShowThanks(true);
             window.setTimeout(() => setShowThanks(false), 1800);
+            onFeedbackStart?.();
         }
         try {
             await fetch('/api/chat/feedback/message', {
@@ -59,6 +84,8 @@ export const MessageBubble = React.memo(function MessageBubble({
             });
             setFeedbackState(rating === 'up' ? 'up' : 'down');
             resetReason();
+            onFeedbackSubmitted?.(rating === 'up' ? 'up' : 'down', message.messageId);
+            onFeedbackEnd?.();
         } catch (e) {
             console.error('Falha ao enviar feedback', e);
             setFeedbackError('Não foi possível registrar, tente de novo');
@@ -137,6 +164,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                                     aria-pressed={feedbackState === 'up'}
                                     onClick={() => {
                                         if (feedbackState === 'up') return; // já ativo, evita clique infinito
+                                        onFeedbackStart?.();
                                         handleFeedback('up');
                                     }}
                                     className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackState === 'up'
@@ -151,7 +179,12 @@ export const MessageBubble = React.memo(function MessageBubble({
                                     disabled={isSendingFeedback}
                                     onClick={() => setShowReasonSelector((prev) => {
                                         const next = !prev;
-                                        if (!next) resetReason();
+                                        if (!next) {
+                                            resetReason();
+                                            onFeedbackEnd?.();
+                                        } else {
+                                            onFeedbackStart?.();
+                                        }
                                         return next;
                                     })}
                                     className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackState === 'down'
@@ -194,11 +227,23 @@ export const MessageBubble = React.memo(function MessageBubble({
                                             rows={2}
                                         />
                                     ) : null}
+                                    {selectedReason && selectedReason !== 'other' ? (
+                                        <textarea
+                                            className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-[12px] text-gray-700 focus:border-red-300 focus:outline-none"
+                                            placeholder="Quer explicar rapidinho? (opcional)"
+                                            value={otherReasonText}
+                                            onChange={(e) => setOtherReasonText(e.target.value)}
+                                            rows={2}
+                                        />
+                                    ) : null}
                                     <div className="mt-2 flex justify-end gap-2">
                                         <button
                                             type="button"
                                             className="text-[11px] font-semibold text-gray-500"
-                                            onClick={resetReason}
+                                            onClick={() => {
+                                                resetReason();
+                                                onFeedbackEnd?.();
+                                            }}
                                         >
                                             Cancelar
                                         </button>
@@ -206,11 +251,14 @@ export const MessageBubble = React.memo(function MessageBubble({
                                             type="button"
                                             disabled={isSendingFeedback}
                                             onClick={submitDownvote}
-                                            className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-red-700"
+                                            className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
                                         >
-                                            Enviar
+                                            {isSendingFeedback ? 'Enviando...' : 'Enviar'}
                                         </button>
                                     </div>
+                                    {feedbackError ? (
+                                        <p className="mt-1 text-[11px] font-semibold text-rose-600">{feedbackError}</p>
+                                    ) : null}
                                 </div>
                             ) : null}
                         </div>

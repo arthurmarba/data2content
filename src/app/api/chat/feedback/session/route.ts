@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { recordSessionFeedback, closeChatSession } from "@/app/lib/chatTelemetry";
 import { logger } from "@/app/lib/logger";
 import ChatSessionModel from "@/app/models/ChatSession";
+import ChatMessageFeedbackModel from "@/app/models/ChatMessageFeedback";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -40,5 +41,30 @@ export async function POST(req: Request) {
   } catch (error) {
     logger.error("[api/chat/feedback/session] failed", error);
     return NextResponse.json({ error: "Falha ao registrar CSAT" }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as any)?.id || null;
+  const url = new URL(req.url);
+  const sessionId = url.searchParams.get("sessionId");
+  if (!sessionId) return NextResponse.json({ error: "sessionId é obrigatório" }, { status: 400 });
+  try {
+    const sessionDoc = await ChatSessionModel.findById(sessionId).lean();
+    if (!sessionDoc || (userId && sessionDoc.userId.toString() !== userId)) {
+      return NextResponse.json({ error: "Sessão não encontrada" }, { status: 404 });
+    }
+    const feedback = await ChatMessageFeedbackModel.find({ sessionId }).lean();
+    const mapped = feedback.map((f) => ({
+      messageId: f.messageId || null,
+      rating: f.rating,
+      reasonCode: f.reasonCode || null,
+      reasonDetail: f.reasonDetail || f.reason || null,
+    }));
+    return NextResponse.json({ feedback: mapped });
+  } catch (error) {
+    logger.error("[api/chat/feedback/session GET] failed", error);
+    return NextResponse.json({ error: "Falha ao buscar feedback" }, { status: 500 });
   }
 }
