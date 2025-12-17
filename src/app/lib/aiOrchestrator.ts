@@ -1409,6 +1409,8 @@ export async function askLLMWithEnrichedContext(
 ): Promise<AskLLMResult> {
     const fnTag = '[askLLMWithEnrichedContext v1.0.8]'; // Versão atualizada
     const { user, historyMessages, userName, dialogueState, currentAlertDetails, intentConfidence, intentLabel } = enrichedContext; // currentAlertDetails agora disponível
+    const promptVariant = (enrichedContext as any)?.promptVariant || process.env.PROMPT_VARIANT || 'A';
+    const chatContextJson = (enrichedContext as any)?.chatContextJson || null;
     const safeUserName = userName?.trim() || user.name || 'criador';
     logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${safeUserName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
@@ -1429,6 +1431,13 @@ export async function askLLMWithEnrichedContext(
             { role: 'system', content: systemPrompt },
         ];
 
+        if (chatContextJson) {
+            initialMsgs.push({
+                role: 'system',
+                content: `Contexto estruturado v1 (use para personalizar e não repetir perguntas):\n\`\`\`json\n${chatContextJson}\n\`\`\``
+            });
+        }
+
         // Se for canal WEB, adiciona instrução de formatação rica
         if (enrichedContext.channel === 'web') {
             initialMsgs.push({
@@ -1448,6 +1457,24 @@ export async function askLLMWithEnrichedContext(
             content:
                 'Use dados declarados pelo criador (pesquisa/onboarding) como primeira camada de contexto. Priorize preferências, metas e dores informadas pelo usuário antes de sugerir ações.'
         });
+
+        // Variantes de prompt para experimentação (A/B/C)
+        if (promptVariant === 'A') {
+            initialMsgs.push({
+                role: 'system',
+                content: 'VARIANTE A (Objetiva): Responda com BLUF na primeira frase + 3-5 passos acionáveis. Evite parágrafos longos.'
+            });
+        } else if (promptVariant === 'B') {
+            initialMsgs.push({
+                role: 'system',
+                content: 'VARIANTE B (Didática): Estruture em passo a passo numerado ou checklist curto conforme o tema. Explique o porquê em 1 linha por passo.'
+            });
+        } else if (promptVariant === 'C') {
+            initialMsgs.push({
+                role: 'system',
+                content: 'VARIANTE C (Consultor): Se contexto for fraco ou dúvida ampla, faça 1-2 perguntas de diagnóstico curtas antes do plano. Depois, entregue um plano resumido.'
+            });
+        }
 
         // Preferências salvas no diálogo (evita variação entre turnos)
         const surveyPrefs = (dialogueState as any)?.surveyPrefs;

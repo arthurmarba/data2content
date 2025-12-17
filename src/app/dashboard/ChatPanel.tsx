@@ -14,6 +14,7 @@ import { Composer } from './components/chat/Composer';
 import { PromptChip } from './components/chat/PromptChip';
 import { AlertItem, ChatCalculationContext } from './components/chat/types';
 import { useChat } from "./hooks/useChat";
+import { FEEDBACK_REASONS, FeedbackReasonCode } from "./components/chat/feedbackReasons";
 import { usePricingAnalysis } from "./hooks/usePricingAnalysis";
 import { useAlerts } from "./hooks/useAlerts";
 import { AlertsDrawer } from "./components/chat/AlertsDrawer";
@@ -123,7 +124,8 @@ export default function ChatPanel({
     autoScrollOnNext,
     sendPrompt,
     clearChat,
-    scrollToBottom
+    scrollToBottom,
+    sessionId
   } = useChat({
     userWithId,
     isAdmin,
@@ -432,12 +434,95 @@ export default function ChatPanel({
     return parts.join(' | ');
   }, [surveyProfile]);
 
+  const [csatVisible, setCsatVisible] = useState(false);
+  const [csatScore, setCsatScore] = useState<number | null>(null);
+  const [csatComment, setCsatComment] = useState('');
+  const [csatSent, setCsatSent] = useState(false);
+  const [csatPrompted, setCsatPrompted] = useState(false);
+  const [csatReasons, setCsatReasons] = useState<FeedbackReasonCode[]>([]);
+  const [csatReasonOther, setCsatReasonOther] = useState('');
+  const [csatError, setCsatError] = useState<string | null>(null);
+
+  // Gatilho de CSAT por inatividade (90s após última resposta da IA)
+  useEffect(() => {
+    if (!sessionId) return;
+    if (csatSent || csatPrompted) return;
+    if (isSending) return;
+    if (input.trim().length > 0) return;
+    const lastAssistant = [...messages].reverse().find((m) => m.sender === 'consultant');
+    if (!lastAssistant) return;
+    const timer = window.setTimeout(() => setCsatVisible(true), 90_000);
+    return () => window.clearTimeout(timer);
+  }, [messages, sessionId, csatSent, csatPrompted, isSending, input]);
+
+  const submitCsat = async (score: number) => {
+    if (!sessionId || csatSent) return;
+    try {
+      const reasonCodes = score <= 3 ? csatReasons : [];
+      const combinedComment = (() => {
+        const base = csatComment.trim();
+        const other = csatReasonOther.trim();
+        if (reasonCodes.includes('other') && other) {
+          return base ? `${base} | Motivo: ${other}` : `Motivo: ${other}`;
+        }
+        return base || null;
+      })();
+      await fetch('/api/chat/feedback/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, csat: score, comment: combinedComment, reasonCodes }),
+      });
+      setCsatSent(true);
+      setCsatVisible(false);
+      setCsatScore(score);
+      setCsatError(null);
+    } catch (e) {
+      console.error('Falha ao enviar CSAT', e);
+    }
+  };
+
+  useEffect(() => {
+    if (csatVisible && sessionId && !csatPrompted) {
+      fetch('/api/chat/feedback/csat-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      }).catch(() => { /* ignore */ });
+      setCsatPrompted(true);
+    }
+  }, [csatVisible, sessionId, csatPrompted]);
+
   const defaultPrompts = React.useMemo(() => ([
     { label: "narrativa que gera compartilhamentos", requiresIG: true },
     { label: "melhor dia/hora pra postar por formato", requiresIG: true },
     { label: "planejamento baseado em categorias", requiresIG: true },
     { label: "ranking dos meus melhores formatos", requiresIG: true },
   ]), []);
+
+  const toggleCsatReason = (code: FeedbackReasonCode) => {
+    setCsatReasons((prev) => {
+      if (prev.includes(code)) return prev.filter((c) => c !== code);
+      return [...prev, code];
+    });
+    setCsatError(null);
+  };
+
+  const handleCsatSubmit = () => {
+    if (!csatScore) {
+      setCsatError('Escolha uma nota');
+      return;
+    }
+    if (csatScore <= 3 && csatReasons.length === 0) {
+      setCsatError('Selecione pelo menos um motivo');
+      return;
+    }
+    if (csatScore <= 3 && csatReasons.includes('other') && !csatReasonOther.trim()) {
+      setCsatError('Descreva o motivo em "outro"');
+      return;
+    }
+    setCsatError(null);
+    submitCsat(csatScore);
+  };
 
   const welcomePrompts = React.useMemo(() => {
     const prompts: Array<{ label: string; requiresIG?: boolean }> = [];
@@ -672,11 +757,120 @@ export default function ChatPanel({
                     Atualizar pesquisa agora
                   </button>
                 ) : null}
+                {sessionId ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300"
+                    onClick={() => setCsatVisible(true)}
+                  >
+                    Encerrar conversa
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>
         ) : null
       }
+
+      {/* CSAT prompt */}
+      {sessionId && (csatVisible || (!csatSent && messages.length > 0)) ? (
+        <div className="px-4 pb-3">
+          <div className="mx-auto max-w-6xl rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-gray-800">Essa conversa te ajudou?</p>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((score) => (
+                  <button
+                    key={score}
+                    type="button"
+                    className={`h-9 w-9 rounded-full border text-sm font-semibold transition-colors ${csatScore === score
+                      ? 'bg-brand-primary text-white border-brand-primary'
+                      : 'border-gray-200 text-gray-700 hover:border-brand-primary hover:text-brand-primary'}`}
+                    onClick={() => {
+                      setCsatScore(score);
+                      if (score > 3) {
+                        setCsatReasons([]);
+                        setCsatReasonOther('');
+                      }
+                      setCsatError(null);
+                    }}
+                    disabled={csatSent}
+                  >
+                    {score}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {csatScore !== null && csatScore <= 3 ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-[12px] font-semibold text-gray-700">O que faltou?</p>
+                <div className="flex flex-wrap gap-2">
+                  {FEEDBACK_REASONS.map((opt) => (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      onClick={() => toggleCsatReason(opt.code)}
+                      className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${csatReasons.includes(opt.code)
+                        ? 'border-rose-200 bg-rose-50 text-rose-700'
+                        : 'border-gray-200 text-gray-600 hover:border-rose-200 hover:text-rose-700'}`}
+                      disabled={csatSent}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {csatReasons.includes('other') ? (
+                  <textarea
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-brand-primary focus:outline-none"
+                    placeholder="Conte rapidamente o que houve"
+                    value={csatReasonOther}
+                    onChange={(e) => {
+                      setCsatReasonOther(e.target.value);
+                      setCsatError(null);
+                    }}
+                    disabled={csatSent}
+                    rows={2}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            <textarea
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-brand-primary focus:outline-none"
+              placeholder="Comentário opcional"
+              value={csatComment}
+              onChange={(e) => setCsatComment(e.target.value)}
+              disabled={csatSent}
+            />
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] text-rose-600">{csatError}</div>
+              {csatSent ? null : (
+                <button
+                  type="button"
+                  className="rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-primary-dark"
+                  onClick={handleCsatSubmit}
+                  disabled={csatSent}
+                >
+                  Enviar feedback
+                </button>
+              )}
+            </div>
+            {csatSent ? (
+              <p className="text-xs font-semibold text-emerald-600">Feedback registrado. Obrigado! 🌟</p>
+            ) : (
+              <div className="flex items-center justify-between text-[11px] text-gray-500">
+                <span>Mostramos esse card após 90s sem interação ou ao encerrar a conversa.</span>
+                <button
+                  type="button"
+                  className="text-brand-primary font-semibold"
+                  onClick={() => setCsatVisible(false)}
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {
         currentTaskLabel ? (

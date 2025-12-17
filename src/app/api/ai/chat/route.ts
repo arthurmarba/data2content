@@ -21,6 +21,9 @@ import { logger } from '@/app/lib/logger';
 import { determineIntent, normalizeText } from "@/app/lib/intentService";
 import { SUMMARY_GENERATION_INTERVAL, HISTORY_LIMIT, COMPLEX_TASK_INTENTS } from "@/app/lib/constants";
 import { aiResponseSuggestsPendingAction } from "@/app/api/whatsapp/process-response/handlerUtils";
+import { ensureChatSession, logChatMessage } from "@/app/lib/chatTelemetry";
+import { buildChatContext, stringifyChatContext } from "@/app/lib/contextBuilder";
+import { chooseVariantFromRollout, experimentConfig, type VariantBucket } from "@/app/lib/experimentConfig";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -115,6 +118,38 @@ function buildSurveyContextNote(profile: any) {
   return parts.join(' | ');
 }
 
+function scoreContextStrength(profile: any) {
+  let score = 0;
+  if (Array.isArray(profile?.stage) && profile.stage.length) score += 1;
+  if (profile?.mainGoal3m) score += 1;
+  if (Array.isArray(profile?.niches) && profile.niches.length) score += 1;
+  if (Array.isArray(profile?.mainPlatformReasons) && profile.mainPlatformReasons.length) score += 1;
+  return score; // 0-4
+}
+
+function resolveVariantBucket(profile: any): { bucket: VariantBucket; strength: number } {
+  const strength = scoreContextStrength(profile);
+  const stage = Array.isArray(profile?.stage) ? profile.stage[0] : null;
+  const learning = Array.isArray(profile?.learningStyles) ? profile.learningStyles[0] : null;
+  if (strength <= 1) return { bucket: "context_weak", strength };
+  if (stage === "iniciante" || stage === "hobby" || learning === "checklist") return { bucket: "beginner", strength };
+  return { bucket: "direct", strength };
+}
+
+function decidePromptVariant(profile: any, options: { isAdminTest: boolean; requestedVariant: string | null; existingVariant?: string | null; existingExperimentId?: string | null }) {
+  const { bucket, strength } = resolveVariantBucket(profile);
+  const requested = options.requestedVariant && ["A", "B", "C"].includes(options.requestedVariant) ? options.requestedVariant : null;
+
+  if (options.existingVariant && ["A", "B", "C"].includes(options.existingVariant)) {
+    return { variant: options.existingVariant as "A" | "B" | "C", experimentId: options.existingExperimentId || experimentConfig.experimentId, bucket, contextStrength: strength };
+  }
+  if (options.isAdminTest && requested) {
+    return { variant: requested as "A" | "B" | "C", experimentId: "admin_manual", bucket, contextStrength: strength };
+  }
+  const rolloutChoice = chooseVariantFromRollout(bucket);
+  return { variant: rolloutChoice.variant, experimentId: rolloutChoice.experimentId, bucket, contextStrength: strength };
+}
+
 async function extractContextFromAIResponse(aiResponseText: string, userId: string) {
   const trimmed = (aiResponseText || '').trim();
   const wasQuestion = trimmed.endsWith('?');
@@ -204,6 +239,8 @@ export async function POST(request: NextRequest) {
     const query = body?.query;
     let threadId = body?.threadId;
     const requestedTargetId = typeof body?.targetUserId === 'string' ? String(body.targetUserId).trim() : undefined;
+    const requestedPromptVariant = typeof body?.promptVariant === 'string' ? String(body.promptVariant).trim().toUpperCase() : null;
+    const isAdminTest = Boolean(body?.isAdminTest && String((sessionUser as any)?.role || '').toLowerCase() === 'admin');
     if (!query || !String(query).trim()) {
       return NextResponse.json({ error: 'Falta query (pergunta do usuário)' }, { status: 400 });
     }
@@ -258,7 +295,7 @@ export async function POST(request: NextRequest) {
 
     const surveyProfile = (targetUser as any)?.creatorProfileExtended || {};
     const surveyFreshness = evaluateSurveyFreshness(surveyProfile);
-
+    const contextJson = stringifyChatContext(buildChatContext(targetUser));
     const targetDisplayName = targetUser.name || 'criador';
 
     // If we have a threadId, use it as the key. Otherwise fallback to legacy logic.
@@ -285,6 +322,12 @@ export async function POST(request: NextRequest) {
     try {
       dialogueState = await stateService.getDialogueState(conversationKey);
     } catch { }
+    const variantDecision = decidePromptVariant(surveyProfile, {
+      isAdminTest,
+      requestedVariant: requestedPromptVariant,
+      existingVariant: null,
+      existingExperimentId: null,
+    });
 
     // Gating de plano inativo (bloqueia antes de chamar LLM)
     let ctaForPlan: { label: string; action: 'go_to_billing' } | undefined;
@@ -371,6 +414,17 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         ? undefined
         : { label: 'Contextualizar com minhas métricas do Instagram', action: 'connect_instagram' as const };
 
+      const sessionDoc = await ensureChatSession({
+        userId: access.targetUserId,
+        threadId: threadId || null,
+        sourcePage: 'web_chat',
+        userSurveySnapshot: surveyProfile || null,
+        promptVariant: variantDecision.variant,
+        experimentId: variantDecision.experimentId,
+      });
+      const promptVariant = (sessionDoc as any)?.promptVariant || variantDecision.variant || 'A';
+      const experimentId = (sessionDoc as any)?.experimentId || variantDecision.experimentId || null;
+
       try {
         const updated: ChatCompletionMessageParam[] = [
           ...historyMessages,
@@ -380,12 +434,49 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         await stateService.setConversationHistory(conversationKey, updated);
 
         // PERSISTENCE: Save to MongoDB if we have a threadId (inclusive modo admin com thread)
+        let userMessageId: string | null = null;
+        let assistantMessageId: string | null = null;
         if (threadId) {
-          // Save user message (fire and forget or await?)
-          await stateService.persistMessage(threadId, { role: 'user', content: truncatedQuery });
-          // Save assistant message
-          await stateService.persistMessage(threadId, { role: 'assistant', content: answer });
+          userMessageId = await stateService.persistMessage(threadId, { role: 'user', content: truncatedQuery });
+          assistantMessageId = await stateService.persistMessage(threadId, { role: 'assistant', content: answer });
         }
+
+    await logChatMessage({
+      sessionId: sessionDoc._id.toString(),
+      userId: access.targetUserId,
+      threadId: threadId || null,
+      role: 'user',
+      content: truncatedQuery,
+      intent: 'general',
+      confidence: null,
+      tokensEstimatedIn: Math.ceil(normalizedQueryRaw.length / 4),
+      promptVariant: (sessionDoc as any)?.promptVariant || promptVariant || null,
+      experimentId,
+      modelVersion: (sessionDoc as any)?.modelVersion || null,
+      ragEnabled: (sessionDoc as any)?.ragEnabled || null,
+      contextSourcesUsed: (sessionDoc as any)?.contextSourcesUsed || null,
+    });
+
+        await logChatMessage({
+          sessionId: sessionDoc._id.toString(),
+          userId: access.targetUserId,
+          threadId: threadId || null,
+          messageId: assistantMessageId,
+          role: 'assistant',
+          content: answer,
+          intent: 'general',
+          confidence: null,
+          llmLatencyMs: null,
+          totalLatencyMs: null,
+          tokensEstimatedIn: Math.ceil(normalizedQueryRaw.length / 4),
+          tokensEstimatedOut: Math.ceil(answer.length / 4),
+          hadFallback: answer.toLowerCase().includes('não consegui') || answer.toLowerCase().includes('não posso'),
+          promptVariant: (sessionDoc as any)?.promptVariant || promptVariant || null,
+          experimentId,
+          modelVersion: (sessionDoc as any)?.modelVersion || null,
+          ragEnabled: (sessionDoc as any)?.ragEnabled || null,
+          contextSourcesUsed: (sessionDoc as any)?.contextSourcesUsed || null,
+        });
 
         const counter = (dialogueState?.summaryTurnCounter ?? 0) + 1;
         const dialogueUpdate: Partial<IDialogueState> = {
@@ -402,7 +493,12 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         logger.error('[ai/chat] Failed to persist conversation (IG not connected):', error);
       }
 
-      return NextResponse.json({ answer, cta, threadId }, { status: 200 });
+      return NextResponse.json({
+        answer,
+        cta,
+        threadId,
+        sessionId: sessionDoc?._id?.toString?.() || null,
+      }, { status: 200 });
     }
 
     let intentResult: any = null;
@@ -476,6 +572,33 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
 
     logger.info(`[ai/chat] intent=${effectiveIntent} actor=${actorId} target=${access.targetUserId} thread=${threadId || 'legacy'} intentMs=${perfMarks.intentMs}ms`);
 
+    // Telemetria: garante sessão e loga mensagem do usuário
+    const sessionDoc = await ensureChatSession({
+      userId: access.targetUserId,
+      threadId: threadId || null,
+      sourcePage: 'web_chat',
+      userSurveySnapshot: surveyProfile || null,
+      surveySchemaVersion: 'v1',
+      promptVariant: variantDecision.variant,
+      experimentId: variantDecision.experimentId,
+    });
+    const promptVariant = (sessionDoc as any)?.promptVariant || variantDecision.variant || 'A';
+    const experimentId = (sessionDoc as any)?.experimentId || variantDecision.experimentId || null;
+
+    await logChatMessage({
+      sessionId: sessionDoc._id.toString(),
+      userId: access.targetUserId,
+      threadId: threadId || null,
+      role: 'user',
+      content: truncatedQuery,
+      intent: effectiveIntent,
+      confidence: intentConfidence,
+      tokensEstimatedIn: Math.ceil(truncatedQuery.length / 4),
+      hadFallback: null,
+      promptVariant,
+      experimentId,
+    });
+
     const enriched: EnrichedAIContext = {
       user: targetUser,
       historyMessages,
@@ -484,9 +607,13 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       channel: 'web',
       intentConfidence,
       intentLabel: effectiveIntent,
+      promptVariant,
+      chatContextJson: contextJson,
     };
 
     let finalText = '';
+    let userMessageId: string | null = null;
+    let assistantMessageId: string | null = null;
     try {
       const llmStartedAt = Date.now();
       const { stream } = await askLLMWithEnrichedContext(enriched, truncatedQuery.trim(), effectiveIntent);
@@ -533,9 +660,35 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       await stateService.setConversationHistory(conversationKey, updated);
 
       if (threadId) {
-        await stateService.persistMessage(threadId, { role: 'user', content: truncatedQuery });
-        await stateService.persistMessage(threadId, { role: 'assistant', content: sanitizedResponse });
+        userMessageId = await stateService.persistMessage(threadId, { role: 'user', content: truncatedQuery });
+        assistantMessageId = await stateService.persistMessage(threadId, { role: 'assistant', content: sanitizedResponse });
       }
+
+      await logChatMessage({
+        sessionId: sessionDoc._id.toString(),
+        userId: access.targetUserId,
+        threadId: threadId || null,
+        messageId: assistantMessageId,
+        role: 'assistant',
+        content: sanitizedResponse,
+        intent: effectiveIntent,
+        confidence: intentConfidence,
+        llmLatencyMs: perfMarks.llmMs || null,
+        totalLatencyMs: perfMarks.llmMs || null,
+        tokensEstimatedIn: Math.ceil(normalizedQueryRaw.length / 4),
+        tokensEstimatedOut: Math.ceil(sanitizedResponse.length / 4),
+        hadFallback: sanitizedResponse.toLowerCase().includes('não consegui') || sanitizedResponse.toLowerCase().includes('não posso'),
+        fallbackReason: sanitizedResponse.toLowerCase().includes('não consegui')
+          ? 'tool_error'
+          : sanitizedResponse.toLowerCase().includes('não posso')
+            ? 'safety_refusal'
+            : null,
+        promptVariant: (sessionDoc as any)?.promptVariant || promptVariant || null,
+        experimentId,
+        modelVersion: (sessionDoc as any)?.modelVersion || null,
+        ragEnabled: (sessionDoc as any)?.ragEnabled || null,
+        contextSourcesUsed: (sessionDoc as any)?.contextSourcesUsed || null,
+      });
 
       const extractedContext = await extractContextFromAIResponse(sanitizedResponse, access.targetUserId);
       const counter = (dialogueState?.summaryTurnCounter ?? 0) + 1;
@@ -622,7 +775,16 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
 
     logger.info(`[ai/chat] actor=${actorId} target=${access.targetUserId} thread=${threadId || 'legacy'} llmMs=${perfMarks.llmMs}ms pendingAction=${pendingActionPayload?.type || 'none'} currentTask=${currentTaskResponse?.name || 'none'} respLen=${sanitizedResponse.length}`);
 
-    return NextResponse.json({ answer: sanitizedResponse, cta, pendingAction: pendingActionPayload, currentTask: currentTaskResponse, threadId }, { status: 200 });
+    return NextResponse.json({
+      answer: sanitizedResponse,
+      cta,
+      pendingAction: pendingActionPayload,
+      currentTask: currentTaskResponse,
+      threadId,
+      assistantMessageId,
+      userMessageId,
+      sessionId: sessionDoc?._id?.toString?.() || null,
+    }, { status: 200 });
   } catch (error: unknown) {
     console.error("POST /api/ai/chat error:", error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido.';

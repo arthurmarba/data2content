@@ -438,7 +438,7 @@ export async function deleteThread(threadId: string): Promise<void> {
   await redis.del(`state:${threadId}`);
 }
 
-export async function persistMessage(threadId: string, message: ChatCompletionMessageParam): Promise<void> {
+export async function persistMessage(threadId: string, message: ChatCompletionMessageParam): Promise<string | null> {
   try {
     await connectToDatabase();
 
@@ -446,7 +446,7 @@ export async function persistMessage(threadId: string, message: ChatCompletionMe
     const content = message.content || '';
     const approxTokens = Math.ceil(content.length / 4);
 
-    await MessageModel.create({
+    const created = await MessageModel.create({
       threadId,
       role: message.role,
       content: content,
@@ -456,8 +456,10 @@ export async function persistMessage(threadId: string, message: ChatCompletionMe
     // Update thread activity
     await ThreadModel.findByIdAndUpdate(threadId, { lastActivityAt: new Date() });
 
+    return created?._id?.toString?.() || null;
   } catch (error) {
     logger.error(`[stateService] Failed to persist message for thread ${threadId}:`, error);
+    return null;
   }
 }
 

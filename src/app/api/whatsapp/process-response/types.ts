@@ -73,4 +73,7 @@ export interface EnrichedAIContext {
   channel?: 'web' | 'whatsapp';
   intentConfidence?: number;
   intentLabel?: DeterminedIntent | string;
+  promptVariant?: string | null;
+  chatContextJson?: string | null;
+  experimentId?: string | null;
 }

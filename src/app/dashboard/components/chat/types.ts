@@ -1,6 +1,8 @@
 export interface Message {
     sender: 'user' | 'consultant';
     text: string;
+    messageId?: string | null;
+    sessionId?: string | null;
     cta?: {
         label: string;
         action: string;

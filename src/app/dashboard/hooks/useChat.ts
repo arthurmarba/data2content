@@ -14,6 +14,8 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [csatPrompted, setCsatPrompted] = useState(false);
     const [inlineAlert, setInlineAlert] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<{ type?: string | null; context?: any } | null>(null);
     const [currentTask, setCurrentTask] = useState<CurrentTaskState | null>(null);
@@ -95,14 +97,15 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
         autoScrollOnNext.current = true;
         setPendingAction(null);
 
-        setMessages(prev => [...prev, { sender: 'user', text: prompt }]);
+        const localUserMsgId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+        setMessages(prev => [...prev, { sender: 'user', text: prompt, messageId: localUserMsgId }]);
 
         try {
-            const payload: Record<string, unknown> = { query: prompt };
-            if (threadId) {
-                payload.threadId = threadId;
-            }
-            if (isAdmin) {
+        const payload: Record<string, unknown> = { query: prompt };
+        if (threadId) {
+            payload.threadId = threadId;
+        }
+        if (isAdmin) {
 
                 const targetForPayload = trimmedTarget || userWithId?.id;
                 if (targetForPayload) {
@@ -122,7 +125,11 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                 setPendingAction(data.pendingAction ?? null);
                 setCurrentTask(data.currentTask ?? null);
                 autoScrollOnNext.current = true;
-                setMessages(prev => [...prev, { sender: 'consultant', text: data.answer, cta: data.cta }]);
+                setMessages(prev => [...prev, { sender: 'consultant', text: data.answer, cta: data.cta, messageId: data.assistantMessageId || null, sessionId: data.sessionId || sessionId }]);
+                if (data.sessionId) setSessionId(data.sessionId);
+                if (data.userMessageId) {
+                    setMessages(prev => prev.map((m) => m.messageId ? m : m.sender === 'user' && m.text === prompt ? { ...m, messageId: data.userMessageId, sessionId: data.sessionId || sessionId } : m));
+                }
 
                 if (data.threadId && data.threadId !== threadId && onThreadCreated) {
                     onThreadCreated(data.threadId);
@@ -148,6 +155,8 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
 
     const clearChat = useCallback(() => {
         setMessages([]);
+        setSessionId(null);
+        setCsatPrompted(false);
         setPendingAction(null);
         setCurrentTask(null);
         setInlineAlert(null);
@@ -169,6 +178,9 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
         autoScrollOnNext,
         sendPrompt,
         clearChat,
-        scrollToBottom
+        scrollToBottom,
+        sessionId,
+        csatPrompted,
+        setCsatPrompted,
     };
 }
