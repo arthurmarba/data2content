@@ -90,13 +90,14 @@ export type IntentResult =
       type: 'intent_determined';
       intent: DeterminedIntent;
       pendingActionContext?: any;
+      confidence?: number;
       extractedPreference?: ExtractedPreferenceDetail;
       extractedGoal?: string;
       extractedFact?: string;
       memoryUpdateRequestContent?: string;
       resolvedContextTopic?: string;
     }
-  | { type: 'special_handled'; response: string };
+  | { type: 'special_handled'; response: string; confidence?: number };
 
 /* -------------------------------------------------- *
  * Listas de keywords
@@ -589,17 +590,18 @@ export async function determineIntent(
   const TAG = '[intentService.determineIntent v2.20.7]'; 
   logger.info(`${TAG} User ${userId}: Analisando texto para intenção... Raw: "${rawText.substring(0, 60)}..."`);
   logger.debug(`${TAG} User ${userId}: Estado do diálogo recebido: lastInteraction: ${dialogueState.lastInteraction}, lastAIQuestionType: ${dialogueState.lastAIQuestionType}, lastResponseContext: ${JSON.stringify(dialogueState.lastResponseContext)}, summary: ${dialogueState.conversationSummary ? '"' + dialogueState.conversationSummary.substring(0,50) + '"...' : 'N/A'}`);
+  let confidence = 0.35; // baseline conservador
 
   // 1. Verifica se há uma pergunta pendente da IA e se o usuário está respondendo diretamente a ela.
   if (dialogueState.lastAIQuestionType) {
     logger.debug(`${TAG} User ${userId}: Estado do diálogo indica pergunta pendente: ${dialogueState.lastAIQuestionType}`);
     if (isSimpleAffirmative(normalizedText)) {
       logger.info(`${TAG} User ${userId}: Confirmou ação pendente (${dialogueState.lastAIQuestionType}).`);
-      return { type: 'intent_determined', intent: 'user_confirms_pending_action', pendingActionContext: dialogueState.pendingActionContext };
+      return { type: 'intent_determined', intent: 'user_confirms_pending_action', pendingActionContext: dialogueState.pendingActionContext, confidence: 0.92 };
     }
     if (isSimpleNegative(normalizedText)) {
       logger.info(`${TAG} User ${userId}: Negou ação pendente (${dialogueState.lastAIQuestionType}).`);
-      return { type: 'intent_determined', intent: 'user_denies_pending_action', pendingActionContext: dialogueState.pendingActionContext };
+      return { type: 'intent_determined', intent: 'user_denies_pending_action', pendingActionContext: dialogueState.pendingActionContext, confidence: 0.9 };
     }
     logger.debug(`${TAG} User ${userId}: Resposta não é afirmação/negação simples para pergunta pendente.`);
   }
@@ -608,29 +610,29 @@ export async function determineIntent(
   const special = await quickSpecialHandle(user, normalizedText, greeting);
   if (special && special.type === 'special_handled') {
     logger.info(`${TAG} User ${userId}: Intenção especial resolvida: ${special.response.substring(0,30)}...`);
-    return special;
+    return { ...special, confidence: 0.8 };
   }
 
   // 3. Detecta se o usuário está tentando atualizar a memória da IA ou fornecer informações pessoais.
   const memoryUpdateRequest = detectMemoryUpdateRequest(normalizedText, rawText);
   if (memoryUpdateRequest.isMatch && memoryUpdateRequest.memoryUpdateRequestContent) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_requests_memory_update.`);
-    return { type: 'intent_determined', intent: 'user_requests_memory_update', memoryUpdateRequestContent: memoryUpdateRequest.memoryUpdateRequestContent };
+    return { type: 'intent_determined', intent: 'user_requests_memory_update', memoryUpdateRequestContent: memoryUpdateRequest.memoryUpdateRequestContent, confidence: 0.82 };
   }
   const userPreference = detectUserPreference(normalizedText, rawText);
   if (userPreference.isMatch && userPreference.extractedPreference) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_stated_preference (Campo: ${userPreference.extractedPreference.field}).`);
-    return { type: 'intent_determined', intent: 'user_stated_preference', extractedPreference: userPreference.extractedPreference };
+    return { type: 'intent_determined', intent: 'user_stated_preference', extractedPreference: userPreference.extractedPreference, confidence: 0.8 };
   }
   const userGoal = detectUserGoal(normalizedText, rawText);
   if (userGoal.isMatch && userGoal.extractedGoal) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_shared_goal.`);
-    return { type: 'intent_determined', intent: 'user_shared_goal', extractedGoal: userGoal.extractedGoal };
+    return { type: 'intent_determined', intent: 'user_shared_goal', extractedGoal: userGoal.extractedGoal, confidence: 0.78 };
   }
   const userKeyFact = detectUserKeyFact(normalizedText, rawText);
   if (userKeyFact.isMatch && userKeyFact.extractedFact) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_mentioned_key_fact.`);
-    return { type: 'intent_determined', intent: 'user_mentioned_key_fact', extractedFact: userKeyFact.extractedFact };
+    return { type: 'intent_determined', intent: 'user_mentioned_key_fact', extractedFact: userKeyFact.extractedFact, confidence: 0.78 };
   }
 
   // 4. Lógica de Intenção Contextual (se habilitada).
@@ -662,7 +664,7 @@ export async function determineIntent(
 
         if (isClarificationRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): ASK_CLARIFICATION_PREVIOUS_RESPONSE.`);
-            return { type: 'intent_determined', intent: 'ASK_CLARIFICATION_PREVIOUS_RESPONSE', resolvedContextTopic: lastResponseCtx.topic };
+            return { type: 'intent_determined', intent: 'ASK_CLARIFICATION_PREVIOUS_RESPONSE', resolvedContextTopic: lastResponseCtx.topic, confidence: 0.74 };
         }
 
         const lastResponseTopicNorm = lastResponseCtx.topic ? normalize(lastResponseCtx.topic) : "";
@@ -675,12 +677,12 @@ export async function determineIntent(
 
         if (mentionsMetricsOrAnalysisInLastResp && isMetricDetailsRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): REQUEST_METRIC_DETAILS_FROM_CONTEXT.`);
-            return { type: 'intent_determined', intent: 'REQUEST_METRIC_DETAILS_FROM_CONTEXT', resolvedContextTopic: lastResponseCtx.topic };
+            return { type: 'intent_determined', intent: 'REQUEST_METRIC_DETAILS_FROM_CONTEXT', resolvedContextTopic: lastResponseCtx.topic, confidence: 0.76 };
         }
 
         if (mentionsMetricsOrAnalysisInLastResp && isDataSourceRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): EXPLAIN_DATA_SOURCE_FOR_ANALYSIS.`);
-            return { type: 'intent_determined', intent: 'EXPLAIN_DATA_SOURCE_FOR_ANALYSIS', resolvedContextTopic: lastResponseCtx.topic };
+            return { type: 'intent_determined', intent: 'EXPLAIN_DATA_SOURCE_FOR_ANALYSIS', resolvedContextTopic: lastResponseCtx.topic, confidence: 0.72 };
         }
 
         const wordsInText = normalizedText.split(/\s+/).length;
@@ -691,14 +693,14 @@ export async function determineIntent(
             // Considera como continuação do tópico se não for uma simples afirmação/negação (já tratadas).
             if (wordsInText > 0 && !isSimpleAffirmative(normalizedText) && !isSimpleNegative(normalizedText)) {
                 logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext, resposta à pergunta da IA): CONTINUE_PREVIOUS_TOPIC (comprimento: ${wordsInText} palavras).`);
-                return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: lastResponseCtx.topic };
+                return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: lastResponseCtx.topic, confidence: 0.7 };
             }
         } else {
             // Se não for uma resposta direta a uma pergunta, mas for curta e usar keywords de continuação.
             const isFollowUpLength = wordsInText <= MAX_WORDS_CONTEXTUAL_FOLLOW_UP_KEYWORDS;
             if (isFollowUpLength && isContinueTopicRequest(normalizedText)) {
                 logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext, keywords): CONTINUE_PREVIOUS_TOPIC (comprimento: ${wordsInText} palavras).`);
-                return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: lastResponseCtx.topic };
+                return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: lastResponseCtx.topic, confidence: 0.68 };
             }
         }
         logger.debug(`${TAG} User ${userId}: Lógica de CURTO PRAZO (lastResponseContext) não determinou intenção. Palavras: ${wordsInText}, isContinueTopicRequest: ${isContinueTopicRequest(normalizedText)}, isDirectResponseToAIQuestion: ${isDirectResponseToAIQuestion}. Prosseguindo para resumo...`);
@@ -711,25 +713,25 @@ export async function determineIntent(
 
         if (isClarificationRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): ASK_CLARIFICATION_PREVIOUS_RESPONSE.`);
-            return { type: 'intent_determined', intent: 'ASK_CLARIFICATION_PREVIOUS_RESPONSE', resolvedContextTopic: resolvedContextTopicForLLM };
+            return { type: 'intent_determined', intent: 'ASK_CLARIFICATION_PREVIOUS_RESPONSE', resolvedContextTopic: resolvedContextTopicForLLM, confidence: 0.65 };
         }
 
         const summaryMentionsMetricsOrAnalysis = (summaryNorm.includes("media") || summaryNorm.includes("desempenho") || summaryNorm.includes("horario") || summaryNorm.includes("resultado") || summaryNorm.includes("analis") || summaryNorm.includes("metricas") || summaryNorm.includes("dados"));
 
         if (summaryMentionsMetricsOrAnalysis && isMetricDetailsRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): REQUEST_METRIC_DETAILS_FROM_CONTEXT.`);
-            return { type: 'intent_determined', intent: 'REQUEST_METRIC_DETAILS_FROM_CONTEXT', resolvedContextTopic: resolvedContextTopicForLLM };
+            return { type: 'intent_determined', intent: 'REQUEST_METRIC_DETAILS_FROM_CONTEXT', resolvedContextTopic: resolvedContextTopicForLLM, confidence: 0.67 };
         }
 
         if (summaryMentionsMetricsOrAnalysis && isDataSourceRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): EXPLAIN_DATA_SOURCE_FOR_ANALYSIS.`);
-            return { type: 'intent_determined', intent: 'EXPLAIN_DATA_SOURCE_FOR_ANALYSIS', resolvedContextTopic: resolvedContextTopicForLLM };
+            return { type: 'intent_determined', intent: 'EXPLAIN_DATA_SOURCE_FOR_ANALYSIS', resolvedContextTopic: resolvedContextTopicForLLM, confidence: 0.64 };
         }
 
         const isShortFollowUpForSummary = normalizedText.split(/\s+/).length <= MAX_WORDS_CONTEXTUAL_FOLLOW_UP_SUMMARY;
         if (isShortFollowUpForSummary && isContinueTopicRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): CONTINUE_PREVIOUS_TOPIC.`);
-            return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: resolvedContextTopicForLLM };
+            return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: resolvedContextTopicForLLM, confidence: 0.6 };
         }
         logger.debug(`${TAG} User ${userId}: Lógica de RESUMO (conversationSummary) não determinou intenção.`);
     } else if (ENABLE_CONTEXTUAL_INTENT_LOGIC) { // Loga apenas se a lógica contextual estava habilitada mas não foi aplicada.
@@ -788,13 +790,13 @@ export async function determineIntent(
             intent = isClarificationRequest(normalizedText) ? 'ASK_CLARIFICATION_PREVIOUS_RESPONSE' : 'CONTINUE_PREVIOUS_TOPIC';
             resolvedContextTopicForLLMFallback = lastResponseCtxFallback.topic;
             logger.info(`${TAG} User ${userId}: Intenção contextual de seguimento (fallback tardio, usando lastResponseContext), classificada como ${intent}.`);
-            return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback };
+            return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback, confidence: 0.58 };
         } else if (dialogueState.conversationSummary && isFollowUpLengthFallback && isRecentInteractionOverall && (isClarificationRequest(normalizedText) || isContinueTopicRequest(normalizedText))) {
             // Se não houver contexto da última resposta, mas houver resumo e for um seguimento curto.
             intent = isClarificationRequest(normalizedText) ? 'ASK_CLARIFICATION_PREVIOUS_RESPONSE' : 'CONTINUE_PREVIOUS_TOPIC';
             resolvedContextTopicForLLMFallback = dialogueState.conversationSummary.substring(0, CONTEXT_SUMMARY_SNIPPET_LENGTH) + "...";
             logger.info(`${TAG} User ${userId}: Intenção contextual de seguimento (fallback tardio, usando summaryNorm), classificada como ${intent}.`);
-            return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback };
+            return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback, confidence: 0.55 };
         }
     }
     // Se nenhuma das lógicas acima pegar, é 'general'.
@@ -802,8 +804,42 @@ export async function determineIntent(
     logger.debug(`${TAG} User ${userId}: Nenhuma intenção específica ou contextual forte detectada, fallback para 'general'.`);
   }
 
-  logger.info(`${TAG} User ${userId}: Intenção final determinada: ${intent}`);
-  return { type: 'intent_determined', intent };
+  // Ajusta confiança com base na “força” da identificação (palavras-chave explícitas ganham mais peso).
+  const keywordStrength: Record<DeterminedIntent, number> = {
+    script_request: 0.82,
+    humor_script_request: 0.82,
+    content_plan: 0.85,
+    ranking_request: 0.78,
+    report: 0.78,
+    content_ideas: 0.72,
+    ask_community_inspiration: 0.72,
+    ASK_BEST_PERFORMER: 0.75,
+    ASK_BEST_TIME: 0.75,
+    greeting: 0.65,
+    clarification_follow_up: 0.6,
+    proactive_script_accept: 0.7,
+    proactive_script_reject: 0.7,
+    social_query: 0.55,
+    meta_query_personal: 0.55,
+    user_confirms_pending_action: 0.92,
+    user_denies_pending_action: 0.9,
+    generate_proactive_alert: 0.7,
+    user_stated_preference: 0.8,
+    demographic_query: 0.7,
+    user_shared_goal: 0.78,
+    user_mentioned_key_fact: 0.78,
+    user_requests_memory_update: 0.82,
+    REQUEST_METRIC_DETAILS_FROM_CONTEXT: 0.76,
+    EXPLAIN_DATA_SOURCE_FOR_ANALYSIS: 0.72,
+    CONTINUE_PREVIOUS_TOPIC: 0.7,
+    ASK_CLARIFICATION_PREVIOUS_RESPONSE: 0.65,
+    general: 0.38,
+  } as any;
+
+  confidence = keywordStrength[intent] ?? confidence;
+
+  logger.info(`${TAG} User ${userId}: Intenção final determinada: ${intent} (confidence=${confidence.toFixed(2)})`);
+  return { type: 'intent_determined', intent, confidence };
 }
 
 /* -------------------------------------------------- *

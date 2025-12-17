@@ -19,6 +19,8 @@ import { useAlerts } from "./hooks/useAlerts";
 import { AlertsDrawer } from "./components/chat/AlertsDrawer";
 import { useChatThreads } from "./components/chat/useChatThreads";
 import { useThreadSelection } from "./components/chat/useThreadSelection";
+import { DEFAULT_METRICS_FETCH_DAYS } from "@/app/lib/constants";
+import useCreatorProfileExtended from "@/hooks/useCreatorProfileExtended";
 
 interface SessionUserWithId {
   id?: string;
@@ -85,6 +87,7 @@ export default function ChatPanel({
   const isActiveLikePlan = hasPremiumAccess;
   const [targetUserId, setTargetUserId] = useState<string>('');
   const [selectedTargetLabel, setSelectedTargetLabel] = useState<string>('');
+  const { profile: surveyProfile } = useCreatorProfileExtended();
 
   const {
     threads,
@@ -345,6 +348,7 @@ export default function ChatPanel({
     if (pendingAction.type === 'confirm_fetch_day_stats') return 'A IA quer buscar estatísticas por dia. Confirma?';
     if (pendingAction.type === 'clarify_community_inspiration_objective') return 'A IA pediu para clarificar objetivo/tema antes de trazer exemplos.';
     if (pendingAction.type === 'confirm_another_action') return 'A IA sugeriu uma ação e pediu confirmação. Deseja seguir?';
+    if (pendingAction.type === 'survey_update_request') return 'Atualize seu perfil (2 min) para respostas mais alinhadas.';
     return 'A IA sugeriu uma próxima ação. Deseja prosseguir?';
   })();
   const TASK_NAME_MAPPING: Record<string, string> = {
@@ -394,12 +398,105 @@ export default function ChatPanel({
     [autoScrollOnNext, markAlertAsRead, setAlertsOpen, setInlineAlert, setMessages]
   );
 
-  const welcomePrompts = [
+  const surveyUpdatedAt = React.useMemo(() => {
+    if (!surveyProfile?.updatedAt) return null;
+    const dateVal = surveyProfile.updatedAt instanceof Date ? surveyProfile.updatedAt : new Date(surveyProfile.updatedAt);
+    return isNaN(dateVal.getTime()) ? null : dateVal;
+  }, [surveyProfile?.updatedAt]);
+
+  const hasCoreSurvey = React.useMemo(() => {
+    if (!surveyProfile) return false;
+    return Boolean(
+      (surveyProfile.stage && surveyProfile.stage.length > 0) ||
+      surveyProfile.mainGoal3m ||
+      (surveyProfile.niches && surveyProfile.niches.length > 0)
+    );
+  }, [surveyProfile]);
+
+  const surveyIsStale = React.useMemo(() => {
+    if (!surveyUpdatedAt) return !hasCoreSurvey;
+    const STALE_MS = 1000 * 60 * 60 * 24 * 120; // ~4 meses
+    return Date.now() - surveyUpdatedAt.getTime() > STALE_MS;
+  }, [hasCoreSurvey, surveyUpdatedAt]);
+
+  const surveyReminderLabel = !isAdmin && (surveyIsStale || !hasCoreSurvey) ? 'Atualizar pesquisa (2 min)' : null;
+
+  const surveyContextLabel = React.useMemo(() => {
+    if (!surveyProfile) return null;
+    const parts: string[] = [];
+    if (surveyProfile.mainGoal3m) parts.push(`meta: ${surveyProfile.mainGoal3m}`);
+    if (surveyProfile.niches?.length) parts.push(`nicho: ${surveyProfile.niches[0]}`);
+    if (surveyProfile.mainPlatformReasons?.length) parts.push(`motivo: ${surveyProfile.mainPlatformReasons[0]}`);
+    if (surveyProfile.stage?.length) parts.push(`etapa: ${surveyProfile.stage[0]}`);
+    if (!parts.length) return null;
+    return parts.join(' | ');
+  }, [surveyProfile]);
+
+  const defaultPrompts = React.useMemo(() => ([
     { label: "narrativa que gera compartilhamentos", requiresIG: true },
     { label: "melhor dia/hora pra postar por formato", requiresIG: true },
     { label: "planejamento baseado em categorias", requiresIG: true },
     { label: "ranking dos meus melhores formatos", requiresIG: true },
-  ];
+  ]), []);
+
+  const welcomePrompts = React.useMemo(() => {
+    const prompts: Array<{ label: string; requiresIG?: boolean }> = [];
+    const nicheHint = surveyProfile?.niches?.[0];
+    const mainGoal = surveyProfile?.mainGoal3m;
+    const hardestStage = surveyProfile?.hardestStage?.[0];
+    const pricingFear = surveyProfile?.pricingFear;
+    const wantsPublis = surveyProfile?.hasDoneSponsoredPosts && surveyProfile.hasDoneSponsoredPosts !== 'nunca-sem-interesse';
+    const nextPlatform = surveyProfile?.nextPlatform?.find(Boolean);
+    const mainReason = surveyProfile?.mainPlatformReasons?.[0];
+    const stage = surveyProfile?.stage?.[0];
+
+    if (mainGoal === 'aumentar-engajamento' || hardestStage === 'planejar') {
+      prompts.push({
+        label: `roteiro de 3 posts para ${nicheHint || 'meu nicho'} focando em salvamentos/compartilhamentos`,
+        requiresIG: true,
+      });
+    }
+    if (mainReason === 'metricas') {
+      prompts.push({
+        label: "o que meus últimos posts dizem sobre tema e formato",
+        requiresIG: true,
+      });
+    }
+    if (mainReason === 'media-kit' || mainReason === 'negociar' || pricingFear) {
+      prompts.push({
+        label: "simular contraproposta de publi com preço seguro",
+        requiresIG: false,
+      });
+    }
+    if (pricingFear || wantsPublis) {
+      prompts.push({
+        label: "simular contraproposta de publi com preço seguro",
+        requiresIG: false,
+      });
+    }
+    if (stage === 'iniciante' || stage === 'hobby') {
+      prompts.push({
+        label: `primeiros 3 posts para ${nicheHint || 'meu nicho'} (simples e rápidos)`,
+        requiresIG: false,
+      });
+    }
+    if (nextPlatform && nextPlatform !== 'nenhuma') {
+      const nextLabel = nextPlatform === 'outra' ? 'meu próximo canal' : nextPlatform;
+      prompts.push({
+        label: `plano rápido para começar no ${nextLabel} com 3 conteúdos de teste`,
+        requiresIG: false,
+      });
+    }
+
+    if (!prompts.length) return defaultPrompts;
+    const seen = new Set<string>();
+    const unique = prompts.filter((p) => {
+      if (seen.has(p.label)) return false;
+      seen.add(p.label);
+      return true;
+    });
+    return unique.slice(0, 4);
+  }, [defaultPrompts, surveyProfile]);
 
   return (
     <div
@@ -425,6 +522,12 @@ export default function ChatPanel({
                   Olá, <span className="text-brand-primary">{firstName}</span>
                 </h1>
                 <p className="text-xl sm:text-2xl text-gray-500 font-medium">O que vamos criar hoje?</p>
+                {surveyReminderLabel ? (
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 border border-amber-200">
+                    <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden />
+                    Pesquisa desatualizada? Refaça em 2 minutos para respostas mais alinhadas.
+                  </div>
+                ) : null}
               </motion.div>
 
               <motion.div
@@ -453,6 +556,47 @@ export default function ChatPanel({
           </div>
         ) : (
           <div className="relative mx-auto max-w-6xl w-full pb-4">
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+              <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                Contexto: {instagramConnected ? `métricas conectadas (últimos ${DEFAULT_METRICS_FETCH_DAYS} dias) + resumo recente` : 'respostas gerais — conecte o Instagram para personalizar'}
+              </span>
+              {currentTaskLabel ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-brand-primary/10 px-3 py-1 font-semibold text-brand-primary">
+                  <span className="h-2 w-2 rounded-full bg-brand-primary" aria-hidden />
+                  {currentTaskLabel}
+                </span>
+              ) : null}
+              <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">
+                <span className="h-2 w-2 rounded-full bg-gray-400" aria-hidden />
+                Perfil: {selectedTargetLabel || 'Meu perfil'}
+              </span>
+              {surveyContextLabel ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 border border-emerald-100">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
+                  {surveyContextLabel}
+                </span>
+              ) : null}
+              {surveyReminderLabel ? (
+                <button
+                  type="button"
+                  onClick={() => router.push('/#etapa-5-pesquisa')}
+                  className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700 hover:border-amber-300 hover:bg-amber-100 transition-colors"
+                >
+                  <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden />
+                  {surveyReminderLabel}
+                </button>
+              ) : null}
+              {!instagramConnected && !isAdmin ? (
+                <button
+                  type="button"
+                  onClick={handleCorrectInstagramLink}
+                  className="inline-flex items-center gap-2 rounded-full border border-brand-primary/30 px-3 py-1 font-semibold text-brand-primary hover:bg-brand-primary/10 transition-colors"
+                >
+                  Conectar Instagram agora
+                </button>
+              ) : null}
+            </div>
             <ul role="list" aria-live="polite" className="space-y-6">
               {messages.map((msg, idx) => (
                 <MessageBubble
@@ -519,6 +663,15 @@ export default function ChatPanel({
                 >
                   Agora não
                 </button>
+                {pendingAction?.type === 'survey_update_request' ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100"
+                    onClick={() => router.push('/#etapa-5-pesquisa')}
+                  >
+                    Atualizar pesquisa agora
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>

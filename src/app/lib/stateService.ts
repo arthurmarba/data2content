@@ -98,6 +98,16 @@ const IDialogueStateSchema = z.object({
   lastResponseContext: ILastResponseContextSchema.nullable().optional(),
   fallbackInsightsHistory: z.array(IFallbackInsightHistoryEntrySchema).default([]),
   lastResponseError: z.string().optional(),
+  surveyPrefs: z.object({
+    stage: z.array(z.string()).optional(),
+    niches: z.array(z.string()).optional(),
+    mainGoal3m: z.string().nullable().optional(),
+    mainPlatformReasons: z.array(z.string()).optional(),
+    nextPlatform: z.array(z.string()).optional(),
+    pricingFear: z.string().nullable().optional(),
+    learningStyles: z.array(z.string()).optional(),
+    updatedAt: z.number().optional(),
+  }).nullable().optional(),
 });
 type IDialogueState = z.infer<typeof IDialogueStateSchema>;
 
@@ -184,6 +194,7 @@ export const getDefaultDialogueState = (): IDialogueState => ({
   recentPlanTimestamp: undefined,
   lastAIQuestionType: undefined,
   conversationSummary: undefined,
+  surveyPrefs: null,
 });
 
 export async function getDialogueState(userId: string): Promise<IDialogueState> {
@@ -529,4 +540,3 @@ export async function getConversationHistoryWithFallback(
 
   return history;
 }
-

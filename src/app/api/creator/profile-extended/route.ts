@@ -4,6 +4,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import UserModel, { type ICreatorProfileExtended, type PlatformReason, type LearningStyle } from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
+import * as stateService from "@/app/lib/stateService";
+import { SUMMARY_GENERATION_INTERVAL } from "@/app/lib/constants";
 
 const TAG = "[api/creator/profile-extended]";
 
@@ -95,6 +97,7 @@ function sanitizeProfile(
     Array.isArray(notificationPref) ? notificationPref : notificationPref ? [notificationPref] : base.notificationPref,
     2,
   ) as ICreatorProfileExtended["notificationPref"];
+  const shouldRefreshUpdatedAt = payload && payload !== existing;
 
   const profile: ICreatorProfileExtended = {
     ...BASE_PROFILE,
@@ -125,7 +128,7 @@ function sanitizeProfile(
         : "",
     hasDoneSponsoredPosts: payload?.hasDoneSponsoredPosts ?? base.hasDoneSponsoredPosts ?? null,
     dailyExpectation: payload?.dailyExpectation ?? base.dailyExpectation ?? "",
-    updatedAt: new Date(),
+    updatedAt: shouldRefreshUpdatedAt ? new Date() : base.updatedAt,
   };
 
   return profile;
@@ -172,7 +175,30 @@ export async function PATCH(req: Request) {
 
     const sanitized = sanitizeProfile(body, (user as any).creatorProfileExtended ?? null);
     user.set("creatorProfileExtended", sanitized);
+    user.set("creatorContext", {
+      id: "survey_v1",
+      confidence: 1,
+      updatedAt: new Date(),
+    });
     await user.save();
+
+    // Atualiza estado de diálogo para refletir novo perfil e forçar resumo/contextualização.
+    try {
+      await stateService.updateDialogueState(user._id.toString(), {
+        lastResponseContext: {
+          topic: "survey_profile_update",
+          timestamp: Date.now(),
+          wasQuestion: false,
+        },
+        pendingActionContext: null,
+        lastAIQuestionType: undefined,
+        currentTask: null,
+        summaryTurnCounter: SUMMARY_GENERATION_INTERVAL || 6, // força novo resumo no próximo turno
+        lastInteraction: Date.now(),
+      });
+    } catch (err) {
+      logger.error(`${TAG} Falha ao atualizar dialogueState após survey:`, err);
+    }
 
     return NextResponse.json({ profile: sanitized }, { status: 200 });
   } catch (error) {

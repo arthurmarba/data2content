@@ -71,4 +71,6 @@ export interface EnrichedAIContext {
   userName: string;
   currentAlertDetails?: AlertDetails;
   channel?: 'web' | 'whatsapp';
+  intentConfidence?: number;
+  intentLabel?: DeterminedIntent | string;
 }

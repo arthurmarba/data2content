@@ -147,4 +147,5 @@ export interface CreatorProfileExtended {
   learningStyles: LearningStyle[];
   notificationPref: NotificationPref[];
   adminNotes?: string;
+  updatedAt?: string | Date | null;
 }

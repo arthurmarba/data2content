@@ -99,7 +99,7 @@ Gere a mensagem final agora.
  * Preenche o system prompt com métricas e estatísticas recentes.
  * Exportada para facilitar testes unitários.
  */
-const SYSTEM_PROMPT_CACHE_VERSION = 'v2.39';
+const SYSTEM_PROMPT_CACHE_VERSION = 'v2.40';
 
 export async function populateSystemPrompt(
     user: IUser,
@@ -477,6 +477,8 @@ export async function populateSystemPrompt(
         const userBio = user.biography || 'Dados insuficientes';
         const profileTone = user.profileTone || 'Dados insuficientes';
 
+        const surveyProfile = buildSurveyProfileSnippet(user);
+
         systemPrompt = systemPrompt
             .replace('{{AVG_REACH_LAST30}}', String(avgReach))
             .replace('{{AVG_SHARES_LAST30}}', String(avgShares))
@@ -514,7 +516,34 @@ export async function populateSystemPrompt(
             .replace('{{USER_KEY_FACTS}}', keyFacts)
             .replace('{{USER_EXPERTISE_LEVEL}}', expertiseLevel)
             .replace('{{USER_BIO}}', userBio)
-            .replace('{{USER_PROFILE_TONE}}', profileTone);
+            .replace('{{USER_PROFILE_TONE}}', profileTone)
+            .replace('{{SURVEY_PROFILE_SNIPPET}}', surveyProfile.snippet || 'Dados insuficientes; peça preferências rápidas (formato, tom, objetivo 3m).');
+
+        if (surveyProfile.snippet) {
+            logger.info(`${fnTag} profile_from_survey=true fields_used=[${surveyProfile.fieldsUsed.join(',')}]`);
+        } else {
+            logger.info(`${fnTag} profile_from_survey=false`);
+        }
+
+        // Injeta alertas/insights recentes (Radar) diretamente no prompt para respostas situadas.
+        const alertHistory = Array.isArray((user as any)?.alertHistory) ? (user as any).alertHistory : [];
+        if (alertHistory.length) {
+            const latestAlerts = alertHistory
+                .slice(-3)
+                .map((a: any) => {
+                    const ageMinutes = a?.date ? Math.max(0, (Date.now() - new Date(a.date).getTime()) / 60000) : null;
+                    const ageLabel = ageMinutes === null
+                        ? 'recente'
+                        : ageMinutes < 60
+                            ? `${Math.round(ageMinutes)}min`
+                            : ageMinutes < 1440
+                                ? `${Math.round(ageMinutes / 60)}h`
+                                : `${Math.round(ageMinutes / 1440)}d`;
+                    return `${a?.type || 'alerta'} (${ageLabel})`;
+                });
+            const alertSnippet = latestAlerts.join(' • ');
+            systemPrompt += `\n\nContexto de alertas recentes do Radar: ${alertSnippet}. Use para priorizar recomendações e diagnósticos.`;
+        }
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
@@ -554,7 +583,8 @@ export async function populateSystemPrompt(
             .replace('{{USER_KEY_FACTS}}', 'Dados insuficientes')
             .replace('{{USER_EXPERTISE_LEVEL}}', 'Dados insuficientes')
             .replace('{{USER_BIO}}', 'Dados insuficientes')
-            .replace('{{USER_PROFILE_TONE}}', 'Dados insuficientes');
+            .replace('{{USER_PROFILE_TONE}}', 'Dados insuficientes')
+            .replace('{{SURVEY_PROFILE_SNIPPET}}', 'Dados insuficientes; peça preferências rápidas (formato, tom, objetivo 3m).');
     }
 
     try {
@@ -1159,13 +1189,226 @@ export async function generateProposalAnalysisMessage(
  * Envia uma mensagem ao LLM com Function Calling em modo streaming para a resposta principal.
  * MODIFICADO: Agora espera EnrichedAIContext que pode conter currentAlertDetails.
  */
+export function buildSurveyProfileSnippet(user: any) {
+    const fieldsUsed: string[] = [];
+    const lines: string[] = ['survey_profile:'];
+    const pushLine = (key: string, value: string | null | undefined) => {
+        if (!value) return;
+        lines.push(`  ${key}: ${value}`);
+    };
+    const priceLabels: Record<string, string> = {
+        permuta: 'permuta/sem cobrança',
+        '0-500': 'até R$ 500',
+        '500-1500': 'R$ 500–1.500',
+        '1500-3000': 'R$ 1.500–3.000',
+        '3000-5000': 'R$ 3.000–5.000',
+        '5000-8000': 'R$ 5.000–8.000',
+        '8000-plus': 'R$ 8.000+',
+        '3000-plus': 'R$ 3.000+',
+    };
+    const platformReasonLabels: Record<string, string> = {
+        metricas: 'entender métricas',
+        'media-kit': 'atualizar mídia kit',
+        planejar: 'planejar conteúdo com IA',
+        negociar: 'negociar com marcas',
+        oportunidades: 'receber oportunidades',
+        mentorias: 'suporte em mentorias',
+        'posicionamento-marcas': 'posicionar marca para marcas',
+        outro: 'outro',
+    };
+    const nextPlatformLabels: Record<string, string> = {
+        tiktok: 'ir para TikTok',
+        youtube: 'ir para YouTube',
+        outra: 'explorar outra plataforma',
+        nenhuma: 'ficar apenas no Instagram',
+    };
+    const learningStyleLabels: Record<string, string> = {
+        videos: 'prefere aprender com vídeo',
+        texto: 'prefere texto direto',
+        checklist: 'prefere checklist curto',
+        aula: 'prefere mini-aulas estruturadas',
+    };
+    const notificationLabels: Record<string, string> = {
+        email: 'avisos por e-mail',
+        whatsapp: 'avisos por WhatsApp',
+        'in-app': 'avisos no app',
+    };
+    const pricingFearLabels: Record<string, string> = {
+        caro: 'medo de cobrar caro',
+        barato: 'medo de cobrar barato',
+        justificar: 'medo de não justificar preço',
+        amador: 'medo de parecer amador',
+        outro: 'outro receio de preço',
+    };
+
+    const formatPriceRange = (value: any) => priceLabels[String(value)] || null;
+    const formatMonetizationStatus = (value: any) => {
+        if (value === 'varias') return 'faz publis com frequência';
+        if (value === 'poucas') return 'já fez algumas publis';
+        if (value === 'nunca-quero') return 'quer começar publis';
+        if (value === 'nunca-sem-interesse') return 'sem interesse em publis agora';
+        return null;
+    };
+
+    const profile = user?.creatorProfileExtended || {};
+    if (user?.creatorContext?.id) {
+        fieldsUsed.push('creatorContext');
+        pushLine('contexto', String(user.creatorContext.id));
+    }
+    if (Array.isArray(profile.stage) && profile.stage.length) {
+        pushLine('etapa', profile.stage.slice(0, 2).join('/'));
+        fieldsUsed.push('stage');
+    }
+    if (Array.isArray(profile.niches) && profile.niches.length) {
+        pushLine('nichos', profile.niches.slice(0, 3).join(', '));
+        fieldsUsed.push('niches');
+    }
+    if (Array.isArray(profile.brandTerritories) && profile.brandTerritories.length) {
+        pushLine('territorios_marca', profile.brandTerritories.slice(0, 3).join(', '));
+        fieldsUsed.push('brandTerritories');
+    }
+    if (Array.isArray(profile.mainPains) && profile.mainPains.length) {
+        pushLine('dores', profile.mainPains.slice(0, 3).join(', '));
+        fieldsUsed.push('pains');
+    }
+    if (Array.isArray(profile.hasHelp) && profile.hasHelp.length) {
+        pushLine('suporte', profile.hasHelp.slice(0, 2).join(', '));
+        fieldsUsed.push('helpers');
+    }
+    if (profile.mainGoal3m) {
+        pushLine('meta_3m', profile.mainGoal3m);
+        fieldsUsed.push('mainGoal3m');
+        if (profile.mainGoal3m === 'outro' && profile.mainGoalOther) {
+            pushLine('meta_3m_det', profile.mainGoalOther.slice(0, 80));
+            fieldsUsed.push('mainGoalOther');
+        }
+    }
+    if (profile.success12m) {
+        pushLine('sucesso_12m', profile.success12m.slice(0, 80));
+        fieldsUsed.push('success12m');
+    }
+
+    if (Array.isArray(profile.mainPlatformReasons) && profile.mainPlatformReasons.length) {
+        const reasons = profile.mainPlatformReasons
+            .slice(0, 2)
+            .map((r: any) => platformReasonLabels[String(r)] || String(r))
+            .join(', ');
+        const reasonDetail = profile.reasonOther ? ` (${profile.reasonOther.slice(0, 60)})` : '';
+        pushLine('motivo_plataforma', `${reasons}${reasonDetail}`);
+        fieldsUsed.push('mainPlatformReasons');
+    }
+
+    if (Array.isArray(profile.hardestStage) && profile.hardestStage.length) {
+        pushLine('trava', profile.hardestStage.slice(0, 2).join('/'));
+        fieldsUsed.push('hardestStage');
+    }
+
+    if (Array.isArray(profile.nextPlatform) && profile.nextPlatform.length) {
+        const nextLabel = profile.nextPlatform
+            .slice(0, 2)
+            .map((n: any) => nextPlatformLabels[String(n)] || String(n))
+            .join(', ');
+        pushLine('proxima_plataforma', nextLabel);
+        fieldsUsed.push('nextPlatform');
+    }
+
+    if (Array.isArray(profile.dreamBrands) && profile.dreamBrands.length) {
+        pushLine('marcas_desejo', profile.dreamBrands.slice(0, 2).join(', '));
+        fieldsUsed.push('dreamBrands');
+    }
+
+    const monetization = formatMonetizationStatus(profile.hasDoneSponsoredPosts);
+    if (monetization) {
+        pushLine('publis', monetization);
+        fieldsUsed.push('hasDoneSponsoredPosts');
+    }
+
+    const avgRange = formatPriceRange(profile.avgPriceRange);
+    const bundleRange = formatPriceRange(profile.bundlePriceRange);
+    if (avgRange || bundleRange) {
+        const priceParts = [];
+        if (avgRange) priceParts.push(`unitário ${avgRange}`);
+        if (bundleRange) priceParts.push(`pacote ${bundleRange}`);
+        pushLine('preco', priceParts.join(' | '));
+        fieldsUsed.push('pricingRange');
+    }
+
+    if (profile.pricingMethod) {
+        pushLine('metodo_preco', profile.pricingMethod);
+        fieldsUsed.push('pricingMethod');
+    }
+
+    if (profile.pricingFear) {
+        const fearLabel = pricingFearLabels[String(profile.pricingFear)] || String(profile.pricingFear);
+        const fearDetail = profile.pricingFear === 'outro' && profile.pricingFearOther
+            ? ` (${profile.pricingFearOther.slice(0, 80)})`
+            : '';
+        pushLine('medo_preco', `${fearLabel}${fearDetail}`);
+        fieldsUsed.push('pricingFear');
+    }
+
+    const learningPrefs = Array.isArray(profile.learningStyles) ? profile.learningStyles : [];
+    if (learningPrefs.length) {
+        const learning = learningPrefs
+            .slice(0, 2)
+            .map((l: any) => learningStyleLabels[String(l)] || String(l))
+            .join(', ');
+        pushLine('aprendizado', learning);
+        fieldsUsed.push('learningStyles');
+    }
+
+    const notifyPrefs = Array.isArray(profile.notificationPref) ? profile.notificationPref : [];
+    if (notifyPrefs.length) {
+        const notify = notifyPrefs
+            .slice(0, 2)
+            .map((n: any) => notificationLabels[String(n)] || String(n))
+            .join(', ');
+        pushLine('avisos', notify);
+        fieldsUsed.push('notificationPref');
+    }
+
+    const prefs = user?.userPreferences || {};
+    if (Array.isArray(prefs.preferredFormats) && prefs.preferredFormats.length) {
+        pushLine('formatos_pref', prefs.preferredFormats.slice(0, 3).join(', '));
+        fieldsUsed.push('preferredFormats');
+    }
+    if (Array.isArray(prefs.dislikedTopics) && prefs.dislikedTopics.length) {
+        pushLine('evitar_temas', prefs.dislikedTopics.slice(0, 3).join(', '));
+        fieldsUsed.push('dislikedTopics');
+    }
+    if (prefs.preferredAiTone) {
+        pushLine('tom_preferido', prefs.preferredAiTone);
+        fieldsUsed.push('preferredAiTone');
+    }
+
+    const goals = Array.isArray(user?.userLongTermGoals) ? user.userLongTermGoals : [];
+    if (goals.length) {
+        const goalTexts = goals.map((g: any) => g?.goal).filter(Boolean).slice(0, 2);
+        if (goalTexts.length) {
+            pushLine('objetivos_longos', goalTexts.join(' | '));
+            fieldsUsed.push('userLongTermGoals');
+        }
+    }
+
+    const facts = Array.isArray(user?.userKeyFacts) ? user.userKeyFacts : [];
+    if (facts.length) {
+        const factTexts = facts.map((f: any) => f?.fact).filter(Boolean).slice(0, 3);
+        if (factTexts.length) {
+            pushLine('fatos', factTexts.join(' | '));
+            fieldsUsed.push('userKeyFacts');
+        }
+    }
+
+    return { snippet: lines.join('\n'), fieldsUsed };
+}
+
 export async function askLLMWithEnrichedContext(
     enrichedContext: EnrichedAIContext, // Tipo atualizado para EnrichedAIContext
     incomingText: string,
     intent: DeterminedIntent | 'generate_proactive_alert' // <<< ATUALIZAÇÃO DE TIPO AQUI >>>
 ): Promise<AskLLMResult> {
     const fnTag = '[askLLMWithEnrichedContext v1.0.8]'; // Versão atualizada
-    const { user, historyMessages, userName, dialogueState, currentAlertDetails } = enrichedContext; // currentAlertDetails agora disponível
+    const { user, historyMessages, userName, dialogueState, currentAlertDetails, intentConfidence, intentLabel } = enrichedContext; // currentAlertDetails agora disponível
     const safeUserName = userName?.trim() || user.name || 'criador';
     logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${safeUserName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
@@ -1191,6 +1434,250 @@ export async function askLLMWithEnrichedContext(
             initialMsgs.push({
                 role: 'system',
                 content: 'INSTRUÇÃO DE FORMATAÇÃO WEB: Você está respondendo no chat web. Use formatação rica Markdown para melhor didática: use **negrito** para conceitos-chave, listas (bullet points) para passos, e headers (###) para separar seções. Seja visualmente organizado.'
+            });
+        }
+
+        // Instruções de estilo e próxima ação — mantém o assistente sempre acionável.
+        initialMsgs.push({
+            role: 'system',
+            content:
+                'ESTILO OBRIGATÓRIO: Responda com: (1) diagnóstico curto, (2) plano em passos acionáveis, (3) pergunta aberta e contextual para avançar. Se citar dados, indique período/base usada. Seja direto, sem floreios.'
+        });
+        initialMsgs.push({
+            role: 'system',
+            content:
+                'Use dados declarados pelo criador (pesquisa/onboarding) como primeira camada de contexto. Priorize preferências, metas e dores informadas pelo usuário antes de sugerir ações.'
+        });
+
+        // Preferências salvas no diálogo (evita variação entre turnos)
+        const surveyPrefs = (dialogueState as any)?.surveyPrefs;
+        if (surveyPrefs && typeof surveyPrefs === 'object') {
+            const lines: string[] = ['survey_profile_runtime:'];
+            const pushLine = (k: string, v: string | null | undefined) => { if (v) lines.push(`  ${k}: ${v}`); };
+            if (Array.isArray(surveyPrefs.stage) && surveyPrefs.stage.length) pushLine('etapa', surveyPrefs.stage.slice(0, 2).join('/'));
+            if (Array.isArray(surveyPrefs.niches) && surveyPrefs.niches.length) pushLine('nichos', surveyPrefs.niches.slice(0, 3).join(', '));
+            if (surveyPrefs.mainGoal3m) pushLine('meta_3m', surveyPrefs.mainGoal3m);
+            if (Array.isArray(surveyPrefs.mainPlatformReasons) && surveyPrefs.mainPlatformReasons.length) pushLine('motivo_plataforma', surveyPrefs.mainPlatformReasons.slice(0, 2).join(', '));
+            if (Array.isArray(surveyPrefs.nextPlatform) && surveyPrefs.nextPlatform.length) pushLine('proxima_plataforma', surveyPrefs.nextPlatform.slice(0, 2).join(', '));
+            if (surveyPrefs.pricingFear) pushLine('medo_preco', surveyPrefs.pricingFear);
+            if (Array.isArray(surveyPrefs.learningStyles) && surveyPrefs.learningStyles.length) pushLine('aprendizado', surveyPrefs.learningStyles.slice(0, 2).join(', '));
+            initialMsgs.push({
+                role: 'system',
+                content: `Preferências declaradas (use antes de sugerir qualquer plano):\n\`\`\`yaml\n${lines.join('\n')}\n\`\`\``
+            });
+
+            // Formatos de resposta conforme estilo de aprendizado
+            const learningPref: string | null = Array.isArray(surveyPrefs.learningStyles) ? surveyPrefs.learningStyles[0] ?? null : null;
+            if (learningPref === 'checklist') {
+                initialMsgs.push({
+                    role: 'system',
+                    content: 'FORMATO: entregue em checklist enxuto (3-6 bullets), cada bullet com verbo de ação. Evite parágrafos longos.'
+                });
+            } else if (learningPref === 'aula') {
+                initialMsgs.push({
+                    role: 'system',
+                    content: 'FORMATO: estruture como mini-aula com 2-3 seções (###) e passos curtos. Abra com o que fazer agora.'
+                });
+            } else if (learningPref === 'videos') {
+                initialMsgs.push({
+                    role: 'system',
+                    content: 'FORMATO: use passos numerados curtos + 1 exemplo prático. Mantenha cada passo em 1-2 frases.'
+                });
+            } else if (learningPref === 'texto') {
+                initialMsgs.push({
+                    role: 'system',
+                    content: 'FORMATO: responda em 2-3 parágrafos curtos com uma lista final de próximos passos.'
+                });
+            }
+        }
+
+        if (typeof intentConfidence === 'number' && intentConfidence < 0.5) {
+            initialMsgs.push({
+                role: 'system',
+                content: `A confiança na intenção detectada (${intentLabel || intent}) está baixa (${Math.round(intentConfidence * 100)}%). Priorize pedir esclarecimento curto antes de executar planos longos.`
+            });
+        }
+
+        // Dados declarados do criador (perfil, metas, fatos) para respostas mais personalizadas.
+        const buildUserContextSnippets = () => {
+            const snippets: string[] = [];
+            const creatorProfile = (user as any)?.creatorProfileExtended || {};
+            if (Array.isArray(creatorProfile.stage) && creatorProfile.stage.length) {
+                snippets.push(`Etapa: ${creatorProfile.stage.join('/')}`);
+            }
+            if (Array.isArray(creatorProfile.niches) && creatorProfile.niches.length) {
+                snippets.push(`Nichos: ${creatorProfile.niches.slice(0, 3).join(', ')}`);
+            }
+            if (creatorProfile.mainGoal3m) {
+                snippets.push(`Meta 3m: ${creatorProfile.mainGoal3m}`);
+            }
+            const preferences = (user as any)?.userPreferences;
+            if (preferences?.preferredFormats?.length) {
+                snippets.push(`Prefere formatos: ${preferences.preferredFormats.slice(0, 3).join(', ')}`);
+            }
+            if (preferences?.dislikedTopics?.length) {
+                snippets.push(`Evitar temas: ${preferences.dislikedTopics.slice(0, 3).join(', ')}`);
+            }
+            if (preferences?.preferredAiTone) {
+                snippets.push(`Tom desejado: ${preferences.preferredAiTone}`);
+            }
+            const longTermGoals = Array.isArray((user as any)?.userLongTermGoals) ? (user as any).userLongTermGoals : [];
+            if (longTermGoals.length) {
+                const goals = longTermGoals
+                    .map((g: any) => g?.goal)
+                    .filter(Boolean)
+                    .slice(0, 2);
+                if (goals.length) snippets.push(`Objetivos declarados: ${goals.join(' | ')}`);
+            }
+            const keyFacts = Array.isArray((user as any)?.userKeyFacts) ? (user as any).userKeyFacts : [];
+            if (keyFacts.length) {
+                const facts = keyFacts
+                    .map((f: any) => f?.fact)
+                    .filter(Boolean)
+                    .slice(0, 3);
+                if (facts.length) snippets.push(`Fatos relevantes: ${facts.join(' | ')}`);
+            }
+            return snippets;
+        };
+
+        const userContextSnippets = buildUserContextSnippets();
+        const surveyProfile = buildSurveyProfileSnippet(user);
+        const surveySnippet = surveyProfile.snippet;
+
+        if (userContextSnippets.length || surveySnippet) {
+            initialMsgs.push({
+                role: 'system',
+                content: `Dados conhecidos do criador para personalizar a resposta:\n${[...userContextSnippets].join(' • ')}${userContextSnippets.length && surveySnippet ? '\n' : ''}${surveySnippet ? `\n\`\`\`yaml\n${surveySnippet}\n\`\`\`` : ''}`
+            });
+            logger.info(`${fnTag} Perfil da pesquisa aplicado ao prompt. fieldsUsed=${surveyProfile.fieldsUsed.join(',') || 'none'}`);
+        }
+        if (!surveySnippet || surveyProfile.fieldsUsed.length < 2) {
+            initialMsgs.push({
+                role: 'system',
+                content: 'Faltam preferências detalhadas (tom, formatos, metas). Faça UMA pergunta curta para completar antes de dar planos longos.'
+            });
+        }
+
+        // Aplicação direta de preferências em runtime (tom e formatos).
+        const prefsForRuntime = (user as any)?.userPreferences || {};
+        if (prefsForRuntime.preferredAiTone) {
+            initialMsgs.push({
+                role: 'system',
+                content: `Adapte o TOM para: ${prefsForRuntime.preferredAiTone} (sem perder clareza).`
+            });
+        }
+        const prefFormats = Array.isArray(prefsForRuntime.preferredFormats)
+            ? prefsForRuntime.preferredFormats.filter(Boolean).slice(0, 3)
+            : [];
+        const disliked = Array.isArray(prefsForRuntime.dislikedTopics)
+            ? prefsForRuntime.dislikedTopics.filter(Boolean).slice(0, 3)
+            : [];
+        if (prefFormats.length || disliked.length) {
+            const parts: string[] = [];
+            if (prefFormats.length) parts.push(`priorize formatos: ${prefFormats.join(', ')}`);
+            if (disliked.length) parts.push(`evite temas: ${disliked.join(', ')}`);
+            initialMsgs.push({
+                role: 'system',
+                content: `Guia rápido de preferências do criador: ${parts.join(' | ')}`
+            });
+        }
+
+        // Instruções condicionais derivadas da survey (runtime).
+        const profileExt: any = (user as any)?.creatorProfileExtended || {};
+        const hardestStage = Array.isArray(profileExt.hardestStage) ? profileExt.hardestStage[0] : null;
+        if (hardestStage) {
+            initialMsgs.push({
+                role: 'system',
+                content: `Direcione a resposta para destravar o estágio mais travado: ${hardestStage}. Seja específico e dê 1 próximo passo.`
+            });
+        }
+        const mainReason = Array.isArray(profileExt.mainPlatformReasons) ? profileExt.mainPlatformReasons[0] : null;
+        if (mainReason) {
+            const mainReasonLabel: Record<string, string> = {
+                metricas: 'entender métricas',
+                'media-kit': 'atualizar mídia kit',
+                planejar: 'planejar conteúdo',
+                negociar: 'negociação com marcas',
+                oportunidades: 'receber oportunidades',
+                mentorias: 'ter suporte/mentoria',
+                'posicionamento-marcas': 'posicionar a marca para marcas',
+                outro: 'outro motivo',
+            };
+            initialMsgs.push({
+                role: 'system',
+                content: `Objetivo principal do criador na plataforma: ${mainReasonLabel[mainReason] || mainReason}. Mantenha esse desfecho como foco ao sugerir ações.`
+            });
+        }
+        const pricingFear = profileExt.pricingFear;
+        if (pricingFear) {
+            initialMsgs.push({
+                role: 'system',
+                content: 'Ao falar de preço/negociação, traga 1 âncora de valor e uma frase de justificativa curta para reduzir insegurança do criador.'
+            });
+        }
+        const learningPref = Array.isArray(profileExt.learningStyles) ? profileExt.learningStyles[0] : null;
+        if (learningPref) {
+            initialMsgs.push({
+                role: 'system',
+                content: `Adapte o formato da resposta para o estilo de aprendizado preferido (${learningPref}): mantenha a estrutura clara e enxuta.`
+            });
+        }
+        const nextPlatformPref = Array.isArray(profileExt.nextPlatform) ? profileExt.nextPlatform[0] : null;
+        if (nextPlatformPref && nextPlatformPref !== 'nenhuma') {
+            const nextLabelMap: Record<string, string> = {
+                tiktok: 'TikTok',
+                youtube: 'YouTube',
+                outra: 'outro canal',
+            };
+            initialMsgs.push({
+                role: 'system',
+                content: `Inclua 1 ação que ajude a expandir para ${nextLabelMap[nextPlatformPref] || nextPlatformPref} (se fizer sentido para o tema).`
+            });
+        }
+
+        // Histórico rápido de alertas/insights recentes (fallbacks) para dar cor ao contexto.
+        const recentFallbacks = dialogueState?.fallbackInsightsHistory;
+        if (Array.isArray(recentFallbacks) && recentFallbacks.length) {
+            const formatElapsed = (ts: number) => {
+                const diffMinutes = Math.max(0, Date.now() - ts) / 60000;
+                if (diffMinutes < 60) return `${Math.round(diffMinutes)}min`;
+                if (diffMinutes < 1440) return `${Math.round(diffMinutes / 60)}h`;
+                return `${Math.round(diffMinutes / 1440)}d`;
+            };
+            const fallbackSnippet = recentFallbacks
+                .slice(-3)
+                .map((f: any) => `${f.type ?? 'alerta'} (${f.timestamp ? formatElapsed(Number(f.timestamp)) : 'recente'})`)
+                .join(' • ');
+            if (fallbackSnippet) {
+                initialMsgs.push({
+                    role: 'system',
+                    content: `Alertas/insights recentes do Radar: ${fallbackSnippet}`
+                });
+            }
+        }
+
+        // Hints contextuais curtos para orientar a LLM sem inflar muito o histórico.
+        const contextualHints: string[] = [];
+        const lastCtx = dialogueState?.lastResponseContext;
+        if (dialogueState?.currentTask?.name) {
+            contextualHints.push(
+                `Tarefa atual: ${dialogueState.currentTask.name}` +
+                (dialogueState.currentTask.objective ? ` — objetivo: ${dialogueState.currentTask.objective}` : '')
+            );
+        }
+        if (lastCtx?.topic) {
+            contextualHints.push(`Último tópico da IA: ${lastCtx.topic}`);
+        }
+        if (lastCtx?.entities?.length) {
+            contextualHints.push(`Entidades recentes: ${lastCtx.entities.slice(0, 4).join(', ')}`);
+        }
+        if (dialogueState?.pendingActionContext) {
+            contextualHints.push('Há uma ação pendente aguardando confirmação do usuário.');
+        }
+        if (contextualHints.length) {
+            initialMsgs.push({
+                role: 'system',
+                content: `Contexto curto da sessão: ${contextualHints.join(' | ')}`
             });
         }
 
