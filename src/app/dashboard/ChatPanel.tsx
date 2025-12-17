@@ -57,6 +57,7 @@ export default function ChatPanel({
   const inputWrapperRef = useRef<HTMLDivElement>(null);
   const previousTargetRef = useRef<string | null>(null);
   const initializedTargetRef = useRef(false);
+  const lastAssistantKeyRef = useRef<string | null>(null);
 
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -439,21 +440,49 @@ export default function ChatPanel({
   const [csatComment, setCsatComment] = useState('');
   const [csatSent, setCsatSent] = useState(false);
   const [csatPrompted, setCsatPrompted] = useState(false);
+  const [csatDismissed, setCsatDismissed] = useState(false);
+  const [lastAssistantTs, setLastAssistantTs] = useState<number | null>(null);
+  const [lastUserActivity, setLastUserActivity] = useState<number>(() => Date.now());
   const [csatReasons, setCsatReasons] = useState<FeedbackReasonCode[]>([]);
   const [csatReasonOther, setCsatReasonOther] = useState('');
   const [csatError, setCsatError] = useState<string | null>(null);
 
-  // Gatilho de CSAT por inatividade (90s após última resposta da IA)
+  // Marca última atividade do usuário (keydown, click, scroll)
+  useEffect(() => {
+    const markActivity = () => setLastUserActivity(Date.now());
+    const events: Array<keyof WindowEventMap> = ['keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, markActivity, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, markActivity));
+  }, []);
+
+  // Atualiza timestamp quando chega mensagem do assistant (fim da resposta)
+  useEffect(() => {
+    const lastAssistant = [...messages].reverse().find((m) => m.sender === 'consultant');
+    const key = lastAssistant?.messageId || lastAssistant?.text || null;
+    if (key && lastAssistantKeyRef.current !== key) {
+      lastAssistantKeyRef.current = key;
+      setLastAssistantTs(Date.now());
+    }
+  }, [messages]);
+
+  // Gatilho de CSAT por inatividade com período de graça pós-resposta
   useEffect(() => {
     if (!sessionId) return;
-    if (csatSent || csatPrompted) return;
-    if (isSending) return;
-    if (input.trim().length > 0) return;
-    const lastAssistant = [...messages].reverse().find((m) => m.sender === 'consultant');
-    if (!lastAssistant) return;
-    const timer = window.setTimeout(() => setCsatVisible(true), 90_000);
+    if (csatSent || csatPrompted || csatDismissed) return;
+    if (!lastAssistantTs) return;
+    const INACTIVITY_MS = 90_000;
+    const GRACE_MS = 15_000;
+    const MIN_DELAY_MS = 2_000;
+    const now = Date.now();
+    const target = Math.max(lastAssistantTs + GRACE_MS, lastUserActivity + INACTIVITY_MS);
+    const delay = Math.max(target - now, MIN_DELAY_MS);
+    const timer = window.setTimeout(() => {
+      if (isSending) return;
+      if (input.trim().length > 0) return;
+      setCsatVisible(true);
+    }, delay);
     return () => window.clearTimeout(timer);
-  }, [messages, sessionId, csatSent, csatPrompted, isSending, input]);
+  }, [sessionId, csatSent, csatPrompted, csatDismissed, lastAssistantTs, lastUserActivity, isSending, input]);
 
   const submitCsat = async (score: number) => {
     if (!sessionId || csatSent) return;
@@ -761,7 +790,10 @@ export default function ChatPanel({
                   <button
                     type="button"
                     className="inline-flex items-center justify-center rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300"
-                    onClick={() => setCsatVisible(true)}
+                    onClick={() => {
+                      setCsatDismissed(false);
+                      setCsatVisible(true);
+                    }}
                   >
                     Encerrar conversa
                   </button>
@@ -773,36 +805,51 @@ export default function ChatPanel({
       }
 
       {/* CSAT prompt */}
-      {sessionId && (csatVisible || (!csatSent && messages.length > 0)) ? (
-        <div className="px-4 pb-3">
-          <div className="mx-auto max-w-6xl rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-gray-800">Essa conversa te ajudou?</p>
-              <div className="flex items-center gap-2">
-                {[1, 2, 3, 4, 5].map((score) => (
-                  <button
-                    key={score}
-                    type="button"
-                    className={`h-9 w-9 rounded-full border text-sm font-semibold transition-colors ${csatScore === score
-                      ? 'bg-brand-primary text-white border-brand-primary'
-                      : 'border-gray-200 text-gray-700 hover:border-brand-primary hover:text-brand-primary'}`}
-                    onClick={() => {
-                      setCsatScore(score);
-                      if (score > 3) {
-                        setCsatReasons([]);
-                        setCsatReasonOther('');
-                      }
-                      setCsatError(null);
-                    }}
-                    disabled={csatSent}
-                  >
-                    {score}
-                  </button>
-                ))}
+      {sessionId && csatVisible && !csatSent ? (
+        <div className="fixed bottom-4 right-4 z-30 max-w-sm w-[320px]">
+          <div className="rounded-2xl border border-gray-200 bg-white/95 px-4 py-3 shadow-lg">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Essa conversa te ajudou?</p>
+                <div className="mt-2 flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <button
+                      key={score}
+                      type="button"
+                      className={`h-8 w-8 rounded-full border text-sm font-semibold transition-colors ${csatScore === score
+                        ? 'bg-brand-primary text-white border-brand-primary'
+                        : 'border-gray-200 text-gray-700 hover:border-brand-primary hover:text-brand-primary'}`}
+                      onClick={() => {
+                        setCsatScore(score);
+                        if (score > 3) {
+                          setCsatReasons([]);
+                          setCsatReasonOther('');
+                        }
+                        setCsatError(null);
+                        if (score > 3) handleCsatSubmit();
+                      }}
+                      disabled={csatSent}
+                      aria-pressed={csatScore === score}
+                    >
+                      {score}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <button
+                type="button"
+                className="text-xs font-semibold text-gray-500 hover:text-gray-700"
+                onClick={() => {
+                  setCsatVisible(false);
+                  setCsatDismissed(true);
+                  setCsatPrompted(true);
+                }}
+              >
+                Agora não
+              </button>
             </div>
             {csatScore !== null && csatScore <= 3 ? (
-              <div className="flex flex-col gap-2">
+              <div className="mt-2 flex flex-col gap-2">
                 <p className="text-[12px] font-semibold text-gray-700">O que faltou?</p>
                 <div className="flex flex-wrap gap-2">
                   {FEEDBACK_REASONS.map((opt) => (
@@ -832,42 +879,20 @@ export default function ChatPanel({
                     rows={2}
                   />
                 ) : null}
-              </div>
-            ) : null}
-            <textarea
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-brand-primary focus:outline-none"
-              placeholder="Comentário opcional"
-              value={csatComment}
-              onChange={(e) => setCsatComment(e.target.value)}
-              disabled={csatSent}
-            />
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] text-rose-600">{csatError}</div>
-              {csatSent ? null : (
                 <button
                   type="button"
-                  className="rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-primary-dark"
+                  className="self-end rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-brand-primary-dark"
                   onClick={handleCsatSubmit}
                   disabled={csatSent}
                 >
-                  Enviar feedback
-                </button>
-              )}
-            </div>
-            {csatSent ? (
-              <p className="text-xs font-semibold text-emerald-600">Feedback registrado. Obrigado! 🌟</p>
-            ) : (
-              <div className="flex items-center justify-between text-[11px] text-gray-500">
-                <span>Mostramos esse card após 90s sem interação ou ao encerrar a conversa.</span>
-                <button
-                  type="button"
-                  className="text-brand-primary font-semibold"
-                  onClick={() => setCsatVisible(false)}
-                >
-                  Fechar
+                  Enviar
                 </button>
               </div>
-            )}
+            ) : null}
+            <div className="mt-2 text-[11px] text-rose-600 min-h-[16px]">{csatError}</div>
+            {csatSent ? (
+              <p className="text-xs font-semibold text-emerald-600">Feedback registrado. Obrigado! 🌟</p>
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -19,8 +19,10 @@ export const MessageBubble = React.memo(function MessageBubble({
     const isUser = message.sender === 'user';
     const isAlert = Boolean(message.alertId);
     const severity = message.alertSeverity || 'info';
-    const [feedbackSent, setFeedbackSent] = React.useState<null | 'up' | 'down'>(null);
+    const [feedbackState, setFeedbackState] = React.useState<'none' | 'up' | 'down'>('none');
     const [isSendingFeedback, setIsSendingFeedback] = React.useState(false);
+    const [showThanks, setShowThanks] = React.useState(false);
+    const [feedbackError, setFeedbackError] = React.useState<string | null>(null);
     const [showReasonSelector, setShowReasonSelector] = React.useState(false);
     const [selectedReason, setSelectedReason] = React.useState<FeedbackReasonCode | null>(null);
     const [otherReasonText, setOtherReasonText] = React.useState('');
@@ -35,7 +37,14 @@ export const MessageBubble = React.memo(function MessageBubble({
         if (isSendingFeedback) return;
         if (!message.messageId && !message.sessionId) return;
         setIsSendingFeedback(true);
+        setFeedbackError(null);
         const safeReason = rating === 'down' ? (reasonCode || 'other') : null;
+        const previousState = feedbackState;
+        if (rating === 'up') {
+            setFeedbackState('up'); // optimistic
+            setShowThanks(true);
+            window.setTimeout(() => setShowThanks(false), 1800);
+        }
         try {
             await fetch('/api/chat/feedback/message', {
                 method: 'POST',
@@ -48,12 +57,14 @@ export const MessageBubble = React.memo(function MessageBubble({
                     reason: reasonDetail || undefined,
                 }),
             });
-            setFeedbackSent(rating);
+            setFeedbackState(rating === 'up' ? 'up' : 'down');
             resetReason();
         } catch (e) {
             console.error('Falha ao enviar feedback', e);
+            setFeedbackError('Não foi possível registrar, tente de novo');
+            setFeedbackState(previousState);
         } finally {
-            setIsSendingFeedback(false);
+            setTimeout(() => setIsSendingFeedback(false), 600); // leve cooldown para evitar clique infinito
         }
     };
 
@@ -123,8 +134,12 @@ export const MessageBubble = React.memo(function MessageBubble({
                                 <button
                                     type="button"
                                     disabled={isSendingFeedback}
-                                    onClick={() => handleFeedback('up')}
-                                    className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackSent === 'up'
+                                    aria-pressed={feedbackState === 'up'}
+                                    onClick={() => {
+                                        if (feedbackState === 'up') return; // já ativo, evita clique infinito
+                                        handleFeedback('up');
+                                    }}
+                                    className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackState === 'up'
                                         ? 'bg-emerald-100 border-emerald-200 text-emerald-700'
                                         : 'border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-700'}`}
                                     aria-label="Gostei"
@@ -139,13 +154,19 @@ export const MessageBubble = React.memo(function MessageBubble({
                                         if (!next) resetReason();
                                         return next;
                                     })}
-                                    className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackSent === 'down'
+                                    className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackState === 'down'
                                         ? 'bg-red-100 border-red-200 text-red-700'
                                         : 'border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-700'}`}
                                     aria-label="Não gostei"
                                 >
                                     👎
                                 </button>
+                                {showThanks && feedbackState === 'up' ? (
+                                    <span className="text-[11px] font-semibold text-emerald-600">Valeu!</span>
+                                ) : null}
+                                {feedbackError ? (
+                                    <span className="text-[11px] font-semibold text-rose-600">{feedbackError}</span>
+                                ) : null}
                             </div>
                             {showReasonSelector ? (
                                 <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">

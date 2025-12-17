@@ -10,6 +10,7 @@ import {
   UserGroupIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
+  ChatBubbleBottomCenterTextIcon,
 } from '@heroicons/react/24/outline';
 
 // --- Itens do Menu ---
@@ -42,6 +43,17 @@ const menuItems: MenuItem[] = [
   { label: 'Afiliados', href: '/admin/affiliates', icon: UserGroupIcon },
   { label: 'Agências', href: '/admin/agencies', icon: UserGroupIcon },
   { label: 'Resgates', href: '/admin/redemptions', icon: CurrencyDollarIcon },
+  {
+    label: 'Chat Telemetria',
+    href: '/admin/chat-telemetry',
+    icon: ChatBubbleBottomCenterTextIcon,
+    children: [
+      { label: 'Overview', href: '/admin/chat-telemetry' },
+      { label: 'Sessions', href: '/admin/chat-telemetry/sessions' },
+      { label: 'Quality', href: '/admin/chat-telemetry/quality' },
+      { label: 'Review Queue', href: '/admin/chat-telemetry/review-queue' },
+    ],
+  },
 ];
 
 // --- Componente do Layout Admin ---
