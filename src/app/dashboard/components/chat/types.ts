@@ -3,6 +3,7 @@ export interface Message {
     text: string;
     messageId?: string | null;
     sessionId?: string | null;
+    messageType?: 'content_plan' | 'community_inspiration' | 'other';
     cta?: {
         label: string;
         action: string;

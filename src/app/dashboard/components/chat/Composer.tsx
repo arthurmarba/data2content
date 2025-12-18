@@ -161,6 +161,7 @@ export const Composer = React.memo(function Composer({
                         className="flex-1 resize-none overflow-hidden bg-transparent py-2 px-2 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-400 text-gray-900 max-h-[200px] rounded-2xl focus:bg-white/50 transition-colors"
                         style={{ minHeight: '40px' }}
                         disabled={isSending}
+                        data-testid="chat-input"
                     />
 
                     <motion.button
@@ -177,6 +178,7 @@ export const Composer = React.memo(function Composer({
                             }`}
                         disabled={!input.trim() || isSending}
                         aria-label="Enviar mensagem"
+                        data-testid="chat-send"
                     >
                         {isSending ? (
                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

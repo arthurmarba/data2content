@@ -14,8 +14,18 @@ export type RenderOptions = {
     enableDisclosure?: boolean;
     stepsStyle?: boolean;
     cacheKey?: string | null;
+    normalizedText?: string;
     onToggleDisclosure?: (payload: { title: string; open: boolean }) => void;
     onCopyCode?: (payload: { code: string; language?: string | null }) => void;
+};
+
+export type NormalizationStats = {
+    applied: boolean;
+    fixesCount: number;
+};
+
+export type NormalizationResult = NormalizationStats & {
+    text: string;
 };
 
 export function escapeHtml(s: string) {
@@ -43,12 +53,18 @@ export function applyInlineMarkup(escaped: string, theme: RenderTheme = 'default
             : 'inline bg-amber-100 text-gray-900 px-1 py-0.5 rounded-sm align-middle';
     const italicClass = theme === 'inverse' ? 'italic text-white/90' : 'italic text-gray-700';
 
+    const isSafeUrl = (url: string) => /^https?:\/\//i.test(url);
+
     let out = escaped;
     // Highlight: ==...== (somente se não há tags internas ou sinais suspeitos)
     out = out.replace(/==([^=<>\n=]{1,200})==/g, `<span class="${highlightClass}">$1</span>`);
     out = out.replace(/`([^`]+)`/g, `<code class="${codeClass}">$1</code>`);
     out = out.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
     out = out.replace(/__([^_]+)__/g, '<strong class="font-semibold">$1</strong>');
+    out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, text, url) => {
+        if (!isSafeUrl(url)) return text;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${text}</a>`;
+    });
     out = out.replace(/(^|[\s(])\*([^*\n]{1,200})\*(?=[\s).,!?]|$)/g, (_match, lead, text) => {
         return `${lead}<em class="${italicClass}">${text}</em>`;
     });
@@ -57,7 +73,10 @@ export function applyInlineMarkup(escaped: string, theme: RenderTheme = 'default
     });
     out = out.replace(
         /(https?:\/\/[^\s)]+)(?![^<]*>)/g,
-        `<a href="$1" target="_blank" rel="noopener noreferrer" class="${linkClass}">$1</a>`
+        (_match, url) => {
+            if (!isSafeUrl(url)) return url;
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${url}</a>`;
+        }
     );
     return out;
 }
@@ -77,6 +96,23 @@ function normalizeHeading(value: string) {
     return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+function slugifyHeading(value: string) {
+    const normalized = normalizeHeading(value);
+    const cleaned = normalized.replace(/[^a-z0-9\s-]/g, '').trim();
+    return cleaned.replace(/\s+/g, '-');
+}
+
+type SectionKind = 'summary' | 'insights' | 'actions';
+
+function getSectionKind(value: string): SectionKind | null {
+    const normalized = normalizeHeading(value);
+    if (!normalized) return null;
+    if (['resumo', 'resumo executivo'].some((label) => normalized.startsWith(label))) return 'summary';
+    if (['principais insights', 'insights', 'pontos chave', 'pontos principais'].some((label) => normalized.startsWith(label))) return 'insights';
+    if (['proximas acoes', 'proximos passos', 'acoes'].some((label) => normalized.startsWith(label))) return 'actions';
+    return null;
+}
+
 function isHyphenListItemLine(line: string) {
     const trimmed = line.trimStart();
     return /^-\s+/.test(trimmed);
@@ -92,9 +128,12 @@ function hasBlockyEnding(line: string) {
 
 function isContentPlanItemLine(line: string) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.endsWith(':')) return false;
-    if (/[—–-]/.test(trimmed)) return true;
-    return /\b(reel|reels|carrossel|foto|story|live|video|vídeo|post)\b/i.test(trimmed);
+    if (!trimmed) return false;
+    const withoutBullet = trimmed.replace(/^[-*]\s+/, '');
+    const normalized = stripLooseMarkers(withoutBullet).trim();
+    if (!normalized || normalized.endsWith(':')) return false;
+    if (/[—–-]/.test(normalized)) return true;
+    return /\b(reel|reels|carrossel|foto|story|live|video|vídeo|post)\b/i.test(normalized);
 }
 
 function fixDanglingBoldLine(line: string) {
@@ -102,6 +141,8 @@ function fixDanglingBoldLine(line: string) {
     const prefix = listMatch ? listMatch[1] : '';
     const rest = listMatch?.[2] ?? line;
     const safeRest = rest ?? '';
+
+    if (/`[^`]*\*\*\s*:\s*[^`]*`/.test(safeRest)) return line;
 
     const boldMatch = safeRest.match(/^([^*]+?)\*\*\s*:\s*(.*)$/);
     if (!boldMatch) return line;
@@ -113,10 +154,11 @@ function fixDanglingBoldLine(line: string) {
     return `${prefix}**${label}:**${tail ? ` ${tail}` : ''}`;
 }
 
-function normalizePlanningMarkdown(input: string) {
+export function normalizePlanningMarkdownWithStats(input: string): NormalizationResult {
     const lines = input.split(/\r?\n/);
     const output: string[] = [];
     let inCodeBlock = false;
+    let fixesCount = 0;
 
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i] ?? '';
@@ -129,7 +171,9 @@ function normalizePlanningMarkdown(input: string) {
         }
 
         if (!inCodeBlock && !/^\s*>/.test(line)) {
-            line = fixDanglingBoldLine(line);
+            const fixedLine = fixDanglingBoldLine(line);
+            if (fixedLine !== line) fixesCount += 1;
+            line = fixedLine;
         }
 
         if (!inCodeBlock && !/^\s*>/.test(line)) {
@@ -147,6 +191,7 @@ function normalizePlanningMarkdown(input: string) {
                     const suffix = dayValue ? `Dia: ${dayValue}` : 'Dia';
                     const separator = /[:—-]\s*$/.test(prevLine) ? ' ' : ' — ';
                     output[output.length - 1] = `${prevLine}${separator}${suffix}`;
+                    fixesCount += 1;
                     continue;
                 }
             }
@@ -155,7 +200,15 @@ function normalizePlanningMarkdown(input: string) {
         output.push(line);
     }
 
-    return output.join("\n");
+    return {
+        text: output.join("\n"),
+        fixesCount,
+        applied: fixesCount > 0,
+    };
+}
+
+export function normalizePlanningMarkdown(input: string) {
+    return normalizePlanningMarkdownWithStats(input).text;
 }
 
 function splitLongParagraph(value: string) {
@@ -669,6 +722,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, theme, onCopy }) 
                         : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                     aria-label={copyAriaLabel}
                     title={copyAriaLabel}
+                    data-testid="chat-copy-code"
                 >
                     {copyLabel}
                 </button>
@@ -690,6 +744,8 @@ type DisclosureProps = {
     theme: RenderTheme;
     forceOpen?: boolean;
     forceSignal?: number;
+    titleSuffix?: string;
+    anchorId?: string;
     onToggle?: (payload: { title: string; open: boolean }) => void;
     children: React.ReactNode;
 };
@@ -699,6 +755,8 @@ const Disclosure: React.FC<DisclosureProps> = ({
     theme,
     forceOpen,
     forceSignal,
+    titleSuffix,
+    anchorId,
     onToggle,
     children,
 }) => {
@@ -726,6 +784,7 @@ const Disclosure: React.FC<DisclosureProps> = ({
 
     return (
         <details
+            id={anchorId}
             open={open}
             onToggle={(event) => {
                 const next = (event.currentTarget as HTMLDetailsElement).open;
@@ -738,8 +797,16 @@ const Disclosure: React.FC<DisclosureProps> = ({
                 className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold ${summaryClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-magenta focus-visible:ring-offset-2 focus-visible:ring-offset-transparent`}
                 aria-expanded={open}
                 aria-controls={contentId}
+                data-testid="chat-disclosure-toggle"
             >
-                <span>{title}</span>
+                <span className="flex items-center gap-2">
+                    <span>{title}</span>
+                    {titleSuffix ? (
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badgeClass}`}>
+                            {titleSuffix}
+                        </span>
+                    ) : null}
+                </span>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${badgeClass}`}>
                     {open ? 'Recolher' : 'Ver mais'}
                 </span>
@@ -773,6 +840,13 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
     const tableStripeClass = isInverse ? 'bg-white/5' : 'bg-gray-50/70';
     const labelClass = isInverse ? 'font-semibold text-white' : 'font-semibold text-gray-900';
     const valueClass = isInverse ? 'text-white/90' : 'text-gray-800';
+    const tocContainerClass = isInverse ? 'border-white/15 bg-white/5 text-white' : 'border-gray-200 bg-white text-gray-800';
+    const tocSummaryClass = isInverse ? 'text-white/90 hover:text-white' : 'text-gray-800 hover:text-gray-900';
+    const tocBadgeClass = isInverse ? 'bg-white/10 text-white/80' : 'bg-gray-100 text-gray-600';
+    const tocLinkClass = isInverse ? 'text-white/80 hover:text-white underline decoration-white/30' : 'text-gray-700 hover:text-gray-900 underline decoration-gray-200';
+    const summaryCardClass = 'my-4 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-4 text-gray-800 shadow-sm';
+    const insightsCardClass = 'my-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-4 text-gray-800 shadow-sm';
+    const actionsCardClass = 'my-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-4 text-gray-800 shadow-sm';
 
     const alertBaseClass = "my-4 rounded-xl p-4 text-sm border-l-4";
     const alertStyles: Record<AlertType, string> = {
@@ -812,9 +886,26 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
         WARNING: '!',
         CAUTION: '!',
     };
-    const normalizedText = normalizePlanningMarkdown(text);
+    const normalizedText = options.normalizedText ?? normalizePlanningMarkdown(text);
     const { normalizedBlocks, disclosureBlocks } = getCachedBlocks(normalizedText, options.cacheKey);
     const blocksToRender = allowDisclosure ? disclosureBlocks : normalizedBlocks;
+    const allowSectionCards = !isInverse;
+
+    const headingMeta: Array<{ id: string; title: string; level: number; index: number }> = [];
+    const headingIdMap = new Map<number, string>();
+    const headingSlugCounts = new Map<string, number>();
+    blocksToRender.forEach((block, index) => {
+        if (block.type !== 'heading' && block.type !== 'disclosure') return;
+        const title = block.type === 'heading' ? block.content : block.title;
+        const baseSlug = slugifyHeading(title) || `section-${headingMeta.length + 1}`;
+        const count = headingSlugCounts.get(baseSlug) ?? 0;
+        headingSlugCounts.set(baseSlug, count + 1);
+        const id = count ? `${baseSlug}-${count + 1}` : baseSlug;
+        headingMeta.push({ id, title, level: block.level, index });
+        headingIdMap.set(index, id);
+    });
+    const tocHeadings = headingMeta.filter((heading) => heading.level === 2);
+    const showToc = allowSectionCards && tocHeadings.length >= 3;
 
     const renderValueChipsOrText = (val: string, labelHint?: string) => {
         const cleanValue = stripLooseMarkers(val);
@@ -857,6 +948,97 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
         <span dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(raw), theme) }} />
     );
 
+    const inlineHtml = (raw: string) => applyInlineMarkup(escapeHtml(raw), theme).replace(/\n/g, "<br/>");
+
+    const collectSectionBlocks = (list: Block[], startIndex: number, level: 1 | 2 | 3) => {
+        const collected: Block[] = [];
+        let j = startIndex + 1;
+        while (j < list.length) {
+            const candidate = list[j];
+            if (!candidate) {
+                j += 1;
+                continue;
+            }
+            if ((candidate.type === 'heading' || candidate.type === 'disclosure') && candidate.level <= level) break;
+            collected.push(candidate);
+            j += 1;
+        }
+        return { collected, endIndex: j - 1 };
+    };
+
+    const extractSectionItems = (blocks: Block[]) => {
+        const items: string[] = [];
+        for (const block of blocks) {
+            switch (block.type) {
+                case 'paragraph':
+                    items.push(block.content);
+                    break;
+                case 'ul':
+                case 'ol':
+                    items.push(...block.items);
+                    break;
+                case 'checklist':
+                    items.push(...block.items.map((item) => item.text));
+                    break;
+                case 'dl':
+                    items.push(...block.items.map((item) => `${item.label}: ${item.value}`));
+                    break;
+                case 'labels':
+                    items.push(...block.items);
+                    break;
+                default:
+                    return null;
+            }
+        }
+        const cleaned = items.map((item) => stripLooseMarkers(item).trim()).filter(Boolean);
+        return cleaned.length ? cleaned : null;
+    };
+
+    const extractActionItems = (blocks: Block[]) => {
+        const items: Array<{ text: string; checked: boolean }> = [];
+        for (const block of blocks) {
+            switch (block.type) {
+                case 'checklist':
+                    items.push(...block.items.map((item) => ({ text: item.text, checked: item.checked })));
+                    break;
+                case 'ul':
+                case 'ol':
+                    items.push(...block.items.map((text) => ({ text, checked: false })));
+                    break;
+                case 'paragraph':
+                    items.push({ text: block.content, checked: false });
+                    break;
+                case 'dl':
+                    items.push(...block.items.map((item) => ({ text: `${item.label}: ${item.value}`, checked: false })));
+                    break;
+                case 'labels':
+                    items.push(...block.items.map((text) => ({ text, checked: false })));
+                    break;
+                default:
+                    return null;
+            }
+        }
+        const cleaned = items
+            .map((item) => ({ ...item, text: stripLooseMarkers(item.text).trim() }))
+            .filter((item) => item.text);
+        return cleaned.length ? cleaned : null;
+    };
+
+    const renderInsightItem = (item: string) => {
+        const parts = item.split(/:\s+/);
+        if (parts.length > 1) {
+            const lead = parts.shift() || '';
+            const rest = parts.join(': ');
+            return (
+                <span>
+                    <span className="font-semibold" dangerouslySetInnerHTML={{ __html: inlineHtml(lead) }} />{' '}
+                    <span dangerouslySetInnerHTML={{ __html: inlineHtml(rest) }} />
+                </span>
+            );
+        }
+        return <span dangerouslySetInnerHTML={{ __html: inlineHtml(item) }} />;
+    };
+
     const tableWrapper = (key: string, node: JSX.Element) => (
         <div
             key={key}
@@ -866,14 +1048,310 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
         </div>
     );
 
-    const renderBlocks = (list: Block[], keyPrefix: string) => {
+    const renderTableCellValue = (value: string, labelHint?: string) => {
+        if (labelHint) return renderValueChipsOrText(value, labelHint);
+        if (value.includes(",")) {
+            const parts = value.split(",").map((p) => p.trim()).filter(Boolean);
+            return (
+                <div className="space-y-1">
+                    {parts.map((part, idx) => (
+                        <div key={idx} dangerouslySetInnerHTML={{ __html: inlineHtml(part) }} />
+                    ))}
+                </div>
+            );
+        }
+        return <span dangerouslySetInnerHTML={{ __html: inlineHtml(value) }} />;
+    };
+
+    const TableBlock: React.FC<{ block: Extract<Block, { type: 'table' | 'tableFromDl' }>; keyBase: string }> = ({
+        block,
+        keyBase,
+    }) => {
+        const [mode, setMode] = React.useState<'table' | 'cards'>('table');
+        const [isSmall, setIsSmall] = React.useState(false);
+        const columnCount = block.type === 'table' ? block.headers.length : block.labels.length + 1;
+        const shouldToggle = columnCount > 3;
+        const hasWideCells = React.useMemo(() => {
+            if (block.type === 'table') {
+                return block.rows.some((row) => row.some((cell) => (cell ?? '').length > 48));
+            }
+            return block.rows.some((row) => row.values.some((cell) => (cell ?? '').length > 48));
+        }, [block]);
+
+        React.useEffect(() => {
+            if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+            const media = window.matchMedia('(max-width: 640px)');
+            const update = () => setIsSmall(media.matches);
+            update();
+            media.addEventListener('change', update);
+            return () => media.removeEventListener('change', update);
+        }, []);
+
+        React.useEffect(() => {
+            if (isSmall || (shouldToggle && hasWideCells)) {
+                setMode('cards');
+            }
+        }, [isSmall, shouldToggle, hasWideCells]);
+
+        const showToggle = shouldToggle || isSmall || hasWideCells;
+        const toggleClass = isInverse
+            ? 'border-white/20 bg-white/5 text-white/80 hover:text-white'
+            : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900';
+
+        const renderTable = () => {
+            if (block.type === 'table') {
+                return tableWrapper(
+                    `tbl-${keyBase}`,
+                    <table className={`${tableTextClass} min-w-[480px]`}>
+                        <thead>
+                            <tr>
+                                {block.headers.map((hCell, cIdx) => {
+                                    const html = applyInlineMarkup(escapeHtml(hCell), theme);
+                                    return (
+                                        <th key={cIdx} className={`${tableHeaderClass} text-left sticky top-0 z-10`} dangerouslySetInnerHTML={{ __html: html }} />
+                                    );
+                                })}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {block.rows.map((row, rIdx) => (
+                                <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
+                                    {row.map((cell, cIdx) => {
+                                        const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(cell));
+                                        const html = applyInlineMarkup(escapeHtml(cell), theme);
+                                        return (
+                                            <td
+                                                key={cIdx}
+                                                className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}
+                                                dangerouslySetInnerHTML={{ __html: html }}
+                                            />
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                );
+            }
+
+            return tableWrapper(
+                `tbl-dl-${keyBase}`,
+                <table className={`${tableTextClass} min-w-[480px]`}>
+                    <caption className="sr-only">{inlineMarkup(block.titleLabel)}</caption>
+                    <thead>
+                        <tr>
+                            <th className={`${tableHeaderClass} text-left sticky top-0 z-10`}>{inlineMarkup(block.titleLabel)}</th>
+                            {block.labels.map((lbl, cIdx) => (
+                                <th key={cIdx} className={`${tableHeaderClass} text-left sticky top-0 z-10`}>
+                                    <div className="flex flex-col items-start gap-1">
+                                        <span>{inlineMarkup(lbl)}</span>
+                                        {block.topValues && block.topValues[lbl] ? (
+                                            <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-800 px-2 py-0.5 text-[10px] font-semibold leading-tight">
+                                                Mais comum: {block.topValues[lbl]}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {block.rows.map((row, rIdx) => (
+                            <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
+                                <td className={tableCellClass}>{inlineMarkup(row.title)}</td>
+                                {row.values.map((val, cIdx) => {
+                                    const labelHint = block.labels[cIdx] ?? '';
+                                    const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(val));
+                                    return (
+                                        <td key={cIdx} className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}>
+                                            {renderValueChipsOrText(val, labelHint)}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            );
+        };
+
+        const renderCards = () => {
+            if (block.type === 'table') {
+                return (
+                    <div className="grid gap-3">
+                        {block.rows.map((row, rIdx) => (
+                            <div
+                                key={rIdx}
+                                className={`rounded-xl border p-3 ${isInverse ? 'border-white/15 bg-white/5 text-white' : 'border-gray-200 bg-white text-gray-800'}`}
+                            >
+                                <div className="space-y-2">
+                                    {block.headers.map((header, cIdx) => {
+                                        const value = row[cIdx] ?? '—';
+                                        return (
+                                            <div key={cIdx} className="flex items-start justify-between gap-4">
+                                                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{inlineMarkup(header)}</span>
+                                                <span className="text-[13px] text-right">{renderTableCellValue(value)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="grid gap-3">
+                    {block.rows.map((row, rIdx) => (
+                        <div
+                            key={rIdx}
+                            className={`rounded-xl border p-3 ${isInverse ? 'border-white/15 bg-white/5 text-white' : 'border-gray-200 bg-white text-gray-800'}`}
+                        >
+                            <div className="space-y-2">
+                                <div className="flex items-start justify-between gap-4">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{inlineMarkup(block.titleLabel)}</span>
+                                    <span className="text-[13px] text-right">{inlineMarkup(row.title)}</span>
+                                </div>
+                                {block.labels.map((label, cIdx) => {
+                                    const value = row.values[cIdx] ?? '—';
+                                    return (
+                                        <div key={cIdx} className="flex items-start justify-between gap-4">
+                                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{inlineMarkup(label)}</span>
+                                            <span className="text-[13px] text-right">{renderTableCellValue(value, label)}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        return (
+            <div className="my-3" data-testid="chat-table-container">
+                {showToggle ? (
+                    <div className="mb-2 flex items-center justify-between text-[11px]" data-testid="chat-table-toggle">
+                        <span className={isInverse ? 'text-white/60' : 'text-gray-500'}>
+                            Visualização da tabela
+                        </span>
+                        <div className="flex items-center rounded-full border p-0.5">
+                            <button
+                                type="button"
+                                onClick={() => setMode('table')}
+                                className={`rounded-full px-2.5 py-1 font-semibold ${toggleClass} ${mode === 'table' ? (isInverse ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-800') : ''}`}
+                                aria-pressed={mode === 'table'}
+                            >
+                                Tabela
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode('cards')}
+                                className={`rounded-full px-2.5 py-1 font-semibold ${toggleClass} ${mode === 'cards' ? (isInverse ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-800') : ''}`}
+                                aria-pressed={mode === 'cards'}
+                            >
+                                Cards
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
+                {mode === 'table' ? renderTable() : renderCards()}
+            </div>
+        );
+    };
+
+    const renderBlocks = (list: Block[], keyPrefix: string, allowSections = true) => {
         const elements: JSX.Element[] = [];
-        list.forEach((block, idx) => {
+        for (let idx = 0; idx < list.length; idx++) {
+            const block = list[idx];
+            if (!block) continue;
             const next = list[idx + 1];
             const keyBase = `${keyPrefix}-${idx}`;
+            const headingId = headingIdMap.get(idx);
+
+            if (
+                allowSectionCards &&
+                !isInverse &&
+                block.type === 'heading' &&
+                block.level === 2
+            ) {
+                const sectionKind = getSectionKind(block.content);
+                if (sectionKind) {
+                    const { collected, endIndex } = collectSectionBlocks(list, idx, block.level);
+                    const sectionItems = sectionKind === 'actions' ? null : extractSectionItems(collected);
+                    const actionItems = sectionKind === 'actions' ? extractActionItems(collected) : null;
+
+                    if (sectionKind === 'summary' && sectionItems?.length) {
+                        elements.push(
+                            <section key={`section-summary-${keyBase}`} id={headingId} className={summaryCardClass} data-testid="chat-section-summary">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-800 text-[12px] font-bold">R</span>
+                                    <h3 className="text-lg font-semibold text-gray-900">Resumo</h3>
+                                </div>
+                                <div className="space-y-2 text-[15px] leading-[1.6] text-gray-800">
+                                    {sectionItems.slice(0, 4).map((item, i) => (
+                                        <p key={i} dangerouslySetInnerHTML={{ __html: inlineHtml(item) }} />
+                                    ))}
+                                </div>
+                            </section>
+                        );
+                        idx = endIndex;
+                        continue;
+                    }
+
+                    if (sectionKind === 'insights' && sectionItems?.length) {
+                        elements.push(
+                            <section key={`section-insights-${keyBase}`} id={headingId} className={insightsCardClass} data-testid="chat-section-insights">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-800 text-[12px] font-bold">I</span>
+                                    <h3 className="text-lg font-semibold text-gray-900">Principais insights</h3>
+                                </div>
+                                <ul className="space-y-2 pl-1 text-[15px] leading-[1.6] text-gray-800">
+                                    {sectionItems.map((item, i) => (
+                                        <li key={i} className="flex items-start gap-2">
+                                            <span className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full bg-indigo-400" aria-hidden />
+                                            <span>{renderInsightItem(item)}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        );
+                        idx = endIndex;
+                        continue;
+                    }
+
+                    if (sectionKind === 'actions' && actionItems?.length) {
+                        elements.push(
+                            <section key={`section-actions-${keyBase}`} id={headingId} className={actionsCardClass} data-testid="chat-section-actions">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[12px] font-bold">A</span>
+                                    <h3 className="text-lg font-semibold text-gray-900">Próximas ações</h3>
+                                </div>
+                                <ul className="space-y-2 text-[15px] leading-[1.55] text-gray-800">
+                                    {actionItems.map((item, i) => (
+                                        <li key={i} className="flex items-start gap-2">
+                                            <span
+                                                aria-hidden
+                                                className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded border ${item.checked ? 'border-emerald-300 bg-emerald-500 text-white' : 'border-gray-300 bg-white'}`}
+                                            >
+                                                {item.checked ? 'x' : ''}
+                                            </span>
+                                            <span dangerouslySetInnerHTML={{ __html: inlineHtml(item.text) }} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        );
+                        idx = endIndex;
+                        continue;
+                    }
+                }
+            }
+
             if (block.type === 'hr') {
                 elements.push(<hr key={`hr-${keyBase}`} className={hrClass} />);
-                return;
+                continue;
             }
             if (block.type === 'heading') {
                 const mbTight = next && (next.type === 'ul' || next.type === 'ol' || next.type === 'dl' || next.type === 'tableFromDl' || next.type === 'labels' || next.type === 'checklist');
@@ -881,6 +1359,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     elements.push(
                         <h2
                             key={`h1-${keyBase}`}
+                            id={headingId}
                             className={`${h1Class} ${mbTight ? 'mb-2' : ''}`}
                             dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
                         />
@@ -889,6 +1368,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     elements.push(
                         <h3
                             key={`h2-${keyBase}`}
+                            id={headingId}
                             className={`${h2Class} ${mbTight ? 'mb-1.5' : ''}`}
                             dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
                         />
@@ -897,17 +1377,18 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     elements.push(
                         <h4
                             key={`h3-${keyBase}`}
+                            id={headingId}
                             className={`${h3Class} ${mbTight ? 'mb-1.5' : ''}`}
                             dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
                         />
                     );
                 }
-                return;
+                continue;
             }
             if (block.type === 'blockquote') {
                 const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
                 elements.push(<blockquote key={`bq-${keyBase}`} className={blockquoteClass} dangerouslySetInnerHTML={{ __html: html }} />);
-                return;
+                continue;
             }
             if (block.type === 'alert') {
                 const style = alertStyles[block.alertType] || alertStyles.NOTE;
@@ -926,12 +1407,12 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         <div dangerouslySetInnerHTML={{ __html: html }} />
                     </div>
                 );
-                return;
+                continue;
             }
             if (block.type === 'paragraph') {
                 const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
                 elements.push(<p key={`p-${keyBase}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
-                return;
+                continue;
             }
             if (block.type === 'code') {
                 elements.push(
@@ -943,7 +1424,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         onCopy={options.onCopyCode}
                     />
                 );
-                return;
+                continue;
             }
             if (block.type === 'ul') {
                 const hasTitleBullet = block.items.length > 1 && Boolean(block.items[0]?.trim()?.endsWith(':'));
@@ -1000,7 +1481,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         </ul>
                     );
                 }
-                return;
+                continue;
             }
             if (block.type === 'checklist') {
                 const boxClass = isInverse
@@ -1027,7 +1508,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         })}
                     </ul>
                 );
-                return;
+                continue;
             }
             if (block.type === 'ol') {
                 if (stepsStyle) {
@@ -1061,7 +1542,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         </ol>
                     );
                 }
-                return;
+                continue;
             }
             if (block.type === 'dl') {
                 elements.push(
@@ -1077,7 +1558,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         ))}
                     </dl>
                 );
-                return;
+                continue;
             }
             if (block.type === 'labels') {
                 elements.push(
@@ -1093,99 +1574,15 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         ))}
                     </div>
                 );
-                return;
+                continue;
             }
             if (block.type === 'table') {
-                elements.push(
-                    tableWrapper(
-                        `tbl-${keyBase}`,
-                        <table className={`${tableTextClass} min-w-[480px]`}>
-                            <thead>
-                                <tr>
-                                    {block.headers.map((hCell, cIdx) => {
-                                        const html = applyInlineMarkup(escapeHtml(hCell), theme);
-                                        return (
-                                            <th key={cIdx} className={`${tableHeaderClass} text-left sticky top-0 z-10`} dangerouslySetInnerHTML={{ __html: html }} />
-                                        );
-                                    })}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {block.rows.map((row, rIdx) => (
-                                    <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
-                                        {row.map((cell, cIdx) => {
-                                            if (cell.includes(",")) {
-                                                const parts = cell.split(",").map((p) => p.trim()).filter(Boolean);
-                                                return (
-                                                    <td key={cIdx} className={`${tableCellClass} ${cIdx > 0 ? 'border-l border-current/10' : ''}`}>
-                                                        {parts.map((part, pIdx) => {
-                                                            const htmlPart = applyInlineMarkup(escapeHtml(part), theme);
-                                                            return <div key={pIdx} dangerouslySetInnerHTML={{ __html: htmlPart }} />;
-                                                        })}
-                                                    </td>
-                                                );
-                                            }
-                                            const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(cell));
-                                            const html = applyInlineMarkup(escapeHtml(cell), theme);
-                                            return (
-                                                <td
-                                                    key={cIdx}
-                                                    className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}
-                                                    dangerouslySetInnerHTML={{ __html: html }}
-                                                />
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )
-                );
-                return;
+                elements.push(<TableBlock key={`tbl-${keyBase}`} block={block} keyBase={keyBase} />);
+                continue;
             }
             if (block.type === 'tableFromDl') {
-                elements.push(
-                    tableWrapper(
-                        `tbl-dl-${keyBase}`,
-                        <table className={`${tableTextClass} min-w-[480px]`}>
-                            <caption className="sr-only">{inlineMarkup(block.titleLabel)}</caption>
-                            <thead>
-                                <tr>
-                                    <th className={`${tableHeaderClass} text-left sticky top-0 z-10`}>{inlineMarkup(block.titleLabel)}</th>
-                                    {block.labels.map((lbl, cIdx) => (
-                                        <th key={cIdx} className={`${tableHeaderClass} text-left sticky top-0 z-10`}>
-                                            <div className="flex flex-col items-start gap-1">
-                                                <span>{inlineMarkup(lbl)}</span>
-                                                {block.topValues && block.topValues[lbl] ? (
-                                                    <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-800 px-2 py-0.5 text-[10px] font-semibold leading-tight">
-                                                        Mais comum: {block.topValues[lbl]}
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {block.rows.map((row, rIdx) => (
-                                    <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
-                                        <td className={tableCellClass}>{inlineMarkup(row.title)}</td>
-                                        {row.values.map((val, cIdx) => {
-                                            const labelHint = block.labels[cIdx] ?? '';
-                                            const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(val));
-                                            return (
-                                                <td key={cIdx} className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}>
-                                                    {renderValueChipsOrText(val, labelHint)}
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )
-                );
-                return;
+                elements.push(<TableBlock key={`tbl-${keyBase}`} block={block} keyBase={keyBase} />);
+                continue;
             }
             if (block.type === 'disclosure') {
                 elements.push(
@@ -1196,14 +1593,58 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         forceOpen={options.disclosureOpen}
                         forceSignal={options.disclosureSignal}
                         onToggle={options.onToggleDisclosure}
+                        titleSuffix={`${block.blocks.length} tópicos`}
+                        anchorId={headingId}
                     >
-                        {renderBlocks(block.blocks, `${keyBase}-inside`)}
+                        {renderBlocks(block.blocks, `${keyBase}-inside`, false)}
                     </Disclosure>
                 );
             }
-        });
+        }
         return elements;
     };
 
-    return <div className="max-w-[72ch] w-full break-words">{renderBlocks(blocksToRender, 'root')}</div>;
+    const toc = showToc ? (
+        <div className={`mb-4 rounded-xl border ${tocContainerClass}`}>
+            <details>
+                <summary
+                    className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold ${tocSummaryClass}`}
+                    data-testid="chat-toc-toggle"
+                >
+                    <span>Sumário</span>
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${tocBadgeClass}`}>
+                        {tocHeadings.length} seções
+                    </span>
+                </summary>
+                <div className="px-4 pb-3 pt-1">
+                    <ul className="space-y-1.5 text-[14px]">
+                        {tocHeadings.map((heading) => (
+                            <li key={heading.id}>
+                                <a
+                                    href={`#${heading.id}`}
+                                    className={tocLinkClass}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        const target = document.getElementById(heading.id);
+                                        if (target) {
+                                            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }
+                                    }}
+                                >
+                                    {heading.title}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </details>
+        </div>
+    ) : null;
+
+    return (
+        <div className="max-w-[72ch] w-full break-words">
+            {toc}
+            {renderBlocks(blocksToRender, 'root')}
+        </div>
+    );
 }

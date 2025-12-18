@@ -286,6 +286,8 @@ export default function ChatPanel({
     const root = scrollRef.current;
     if (!root) return;
     const thresholds = [0.25, 0.5, 0.75, 0.95];
+    const throttleMs = 150;
+    let timeoutId: number | null = null;
     const handleScroll = () => {
       if (root.scrollHeight <= root.clientHeight) return;
       const depth = (root.scrollTop + root.clientHeight) / Math.max(root.scrollHeight, 1);
@@ -300,9 +302,19 @@ export default function ChatPanel({
         }
       });
     };
-    root.addEventListener('scroll', handleScroll, { passive: true });
+    const onScroll = () => {
+      if (timeoutId) return;
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+        handleScroll();
+      }, throttleMs);
+    };
+    root.addEventListener('scroll', onScroll, { passive: true });
     handleScroll();
-    return () => root.removeEventListener('scroll', handleScroll);
+    return () => {
+      root.removeEventListener('scroll', onScroll);
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
   }, [sessionId, effectiveThreadId]);
 
   // Pricing Analysis Integration
@@ -317,7 +329,15 @@ export default function ChatPanel({
       // Add the assistant message from preloaded messages
       const assistantMsg = preloadedMessages.find(m => m.role === 'assistant');
       if (assistantMsg) {
-        return [...prev, { sender: 'consultant', text: assistantMsg.content, contextCalcId: pricingAnalysisContext.calcId }];
+        return [
+          ...prev,
+          {
+            sender: 'consultant',
+            text: assistantMsg.content,
+            contextCalcId: pricingAnalysisContext.calcId,
+            messageType: 'other',
+          },
+        ];
       }
       return prev;
     });
@@ -349,7 +369,7 @@ export default function ChatPanel({
         if (cancelled) return;
         lastPricingCalcIdRef.current = pricingAnalysisContext.calcId;
         autoScrollOnNext.current = true;
-        setMessages((prev) => [...prev, { sender: 'consultant', text: String(data.message) }]);
+        setMessages((prev) => [...prev, { sender: 'consultant', text: String(data.message), messageType: 'other' }]);
       } catch (error) {
         console.error('[ChatPanel] Falha ao gerar insight automático de precificação.', error);
         if (!cancelled) {
@@ -566,6 +586,7 @@ export default function ChatPanel({
             alertId: alert.id,
             alertTitle: alert.title,
             alertSeverity: alert.severity ?? 'info',
+            messageType: 'other',
           },
         ];
       });
@@ -953,6 +974,7 @@ export default function ChatPanel({
                       type="button"
                       onClick={() => handleToggleViewMode('reading')}
                       aria-pressed={viewMode === 'reading'}
+                      data-testid="chat-mode-read"
                       className={`rounded-full px-3 py-1 font-semibold transition-colors ${viewMode === 'reading'
                         ? 'bg-brand-primary text-white'
                         : 'text-gray-600 hover:text-gray-900'}`}
@@ -963,6 +985,7 @@ export default function ChatPanel({
                       type="button"
                       onClick={() => handleToggleViewMode('compact')}
                       aria-pressed={viewMode === 'compact'}
+                      data-testid="chat-mode-compact"
                       className={`rounded-full px-3 py-1 font-semibold transition-colors ${viewMode === 'compact'
                         ? 'bg-brand-primary text-white'
                         : 'text-gray-600 hover:text-gray-900'}`}
@@ -994,6 +1017,7 @@ export default function ChatPanel({
                     type="button"
                     onClick={handleToggleDisclosures}
                     disabled={!hasDisclosure}
+                    data-testid="chat-disclosure-toggle"
                     className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-semibold text-gray-600 shadow-sm transition-colors hover:border-brand-primary/40 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {disclosureOpen ? 'Recolher tudo' : 'Expandir tudo'}

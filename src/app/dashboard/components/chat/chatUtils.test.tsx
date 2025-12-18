@@ -1,0 +1,131 @@
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import { normalizePlanningMarkdown, renderFormatted } from './chatUtils';
+
+describe('normalizePlanningMarkdown', () => {
+    it('repairs dangling bold labels and attaches Dia to plan items', () => {
+        const input = [
+            '- Reel (Humor)**: roteiro curto',
+            'Dia: quinta-feira',
+        ].join('\n');
+
+        const output = normalizePlanningMarkdown(input);
+
+        expect(output).toMatchInlineSnapshot(`"- **Reel (Humor):** roteiro curto \u2014 Dia: quinta-feira"`);
+    });
+
+    it('does not alter Dia inside blockquotes or code blocks', () => {
+        const input = [
+            '> Dia: quarta-feira',
+            '> detalhe',
+            '',
+            '```',
+            'Dia: sexta-feira',
+            '```',
+        ].join('\n');
+
+        const output = normalizePlanningMarkdown(input);
+
+        expect(output).toBe(input);
+    });
+
+    it('does not attach Dia to title bullets', () => {
+        const input = [
+            '- **Semana 1:**',
+            'Dia: Segunda',
+        ].join('\n');
+
+        const output = normalizePlanningMarkdown(input);
+
+        expect(output).toBe(input);
+    });
+
+    it('does not repair dangling bold inside inline code', () => {
+        const input = 'Use `Reel (Humor)**:` como exemplo.';
+
+        const output = normalizePlanningMarkdown(input);
+
+        expect(output).toBe(input);
+    });
+});
+
+describe('renderFormatted', () => {
+    let useIdSpy: jest.SpyInstance;
+
+    beforeAll(() => {
+        jest.useFakeTimers();
+        useIdSpy = jest.spyOn(React, 'useId').mockReturnValue('static-id');
+    });
+
+    afterAll(() => {
+        jest.useRealTimers();
+        useIdSpy.mockRestore();
+    });
+
+    it('renders headings, lists, tables, and checklists', () => {
+        const text = [
+            '# Resumo',
+            '## Insights',
+            '- ponto um',
+            '- ponto dois',
+            '',
+            '1. passo um',
+            '2. passo dois',
+            '',
+            '- [x] feito',
+            '- [ ] pendente',
+            '',
+            '| Coluna | Valor |',
+            '| --- | --- |',
+            '| A | 1 |',
+            '',
+            '## Detalhes',
+            'Mais contexto aqui.',
+        ].join('\n');
+
+        const { container } = render(renderFormatted(text));
+
+        expect(screen.getByRole('heading', { name: 'Resumo' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Insights' })).toBeInTheDocument();
+        expect(container.querySelectorAll('ul').length).toBeGreaterThan(0);
+        expect(container.querySelectorAll('ol')).toHaveLength(1);
+        expect(container.querySelectorAll('table')).toHaveLength(1);
+        expect(screen.getByText(/Conclu/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/Pendente/i).length).toBeGreaterThan(0);
+        expect(container).toMatchSnapshot();
+    });
+
+    it('splits long paragraphs into multiple blocks', () => {
+        const sentence = 'This sentence is intentionally verbose to force the paragraph splitter into action.';
+        const text = [
+            `${sentence} One.`,
+            `${sentence} Two.`,
+            `${sentence} Three.`,
+            `${sentence} Four.`,
+            `${sentence} Five.`,
+        ].join(' ');
+
+        const { container } = render(renderFormatted(text));
+        const paragraphs = container.querySelectorAll('p');
+
+        expect(paragraphs.length).toBeGreaterThan(1);
+    });
+
+    it('does not linkify javascript or data URLs', () => {
+        const text = [
+            'Seguro https://example.com e javascript:alert(1) e data:text/html,oi',
+            'JaVaScRiPt:alert(1) e  javascript:alert(1)',
+            'java%73cript:alert(1)',
+            '[x](javascript:alert(1) "title")',
+        ].join('\n');
+        const { container } = render(renderFormatted(text));
+        const links = container.querySelectorAll('a');
+
+        expect(links).toHaveLength(1);
+        expect(links[0]?.getAttribute('href')).toBe('https://example.com');
+        expect(container.textContent).toContain('javascript:alert(1)');
+        expect(container.textContent).toContain('JaVaScRiPt:alert(1)');
+        expect(container.textContent).toContain('data:text/html,oi');
+        expect(container.textContent).toContain('java%73cript:alert(1)');
+    });
+});

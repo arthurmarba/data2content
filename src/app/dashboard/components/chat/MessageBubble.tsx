@@ -1,8 +1,11 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Message } from './types';
-import { renderFormatted, type RenderOptions } from './chatUtils';
+import { normalizePlanningMarkdown, normalizePlanningMarkdownWithStats, renderFormatted, type RenderOptions } from './chatUtils';
+import { CommunityInspirationMessage, parseCommunityInspirationText } from './CommunityInspirationMessage';
 import { FEEDBACK_REASONS, FeedbackReasonCode } from './feedbackReasons';
+import { track } from '@/lib/track';
+import { chatNormalizationAppliedSchema } from '@/lib/analytics/chatSchemas';
 
 interface MessageBubbleProps {
     message: Message;
@@ -15,6 +18,30 @@ interface MessageBubbleProps {
     renderOptions?: RenderOptions;
     virtualize?: boolean;
 }
+
+const MAX_MESSAGE_CHARS = 30000;
+const NORMALIZATION_SAMPLE_RATE_OTHER = 0.25;
+
+const hashString = (value: string) => {
+    let hash = 2166136261;
+    for (let i = 0; i < value.length; i += 1) {
+        hash ^= value.charCodeAt(i);
+        hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return hash >>> 0;
+};
+
+const shouldSampleNormalization = (
+    messageType: 'content_plan' | 'community_inspiration' | 'other',
+    sessionId?: string | null,
+    messageId?: string | null
+) => {
+    if (messageType === 'content_plan' || messageType === 'community_inspiration') return true;
+    if (!sessionId) return Math.random() < NORMALIZATION_SAMPLE_RATE_OTHER;
+    const seed = `${sessionId}:${messageId ?? ''}`;
+    const bucket = hashString(seed) % 1000;
+    return bucket / 1000 < NORMALIZATION_SAMPLE_RATE_OTHER;
+};
 
 export const MessageBubble = React.memo(function MessageBubble({
     message,
@@ -39,11 +66,17 @@ export const MessageBubble = React.memo(function MessageBubble({
     const [showReasonSelector, setShowReasonSelector] = React.useState(false);
     const [selectedReason, setSelectedReason] = React.useState<FeedbackReasonCode | null>(null);
     const [otherReasonText, setOtherReasonText] = React.useState('');
+    const [isExpanded, setIsExpanded] = React.useState(false);
+    const normalizationTrackedRef = React.useRef<string | null>(null);
     React.useEffect(() => {
         if (initialFeedback && (initialFeedback === 'up' || initialFeedback === 'down')) {
             setFeedbackState(initialFeedback);
         }
     }, [initialFeedback]);
+
+    React.useEffect(() => {
+        setIsExpanded(false);
+    }, [message.messageId, message.text]);
 
     const resetReason = () => {
         setShowReasonSelector(false);
@@ -110,6 +143,57 @@ export const MessageBubble = React.memo(function MessageBubble({
         await handleFeedback('down', reasonCode, detail);
     };
 
+    const clampMessage = (value: string) => {
+        const slice = value.slice(0, MAX_MESSAGE_CHARS);
+        const lastBreak = slice.lastIndexOf('\n');
+        if (lastBreak > MAX_MESSAGE_CHARS * 0.6) {
+            return slice.slice(0, lastBreak);
+        }
+        return slice;
+    };
+
+    const isTooLong = message.text.length > MAX_MESSAGE_CHARS;
+    const clampedText = isTooLong ? clampMessage(message.text) : message.text;
+    const displayText = isTooLong && !isExpanded ? clampedText : message.text;
+    const shouldRenderMarkdown = !isTooLong || isExpanded;
+    const normalizationResult = React.useMemo(
+        () => normalizePlanningMarkdownWithStats(message.text),
+        [message.text]
+    );
+    const normalizedDisplayText = React.useMemo(
+        () => {
+            if (!shouldRenderMarkdown) return null;
+            return displayText === message.text ? normalizationResult.text : normalizePlanningMarkdown(displayText);
+        },
+        [displayText, message.text, normalizationResult.text, shouldRenderMarkdown]
+    );
+
+    React.useEffect(() => {
+        if (isUser || isAlert) return;
+        const signature = message.messageId || `${message.text.length}:${message.text.slice(0, 64)}`;
+        if (normalizationTrackedRef.current === signature) return;
+        const payload = {
+            normalization_applied: normalizationResult.applied,
+            fixes_count: normalizationResult.fixesCount,
+            message_type: message.messageType || 'other',
+            session_id: message.sessionId || '',
+        };
+        const parsed = chatNormalizationAppliedSchema.safeParse(payload);
+        if (!parsed.success) return;
+        normalizationTrackedRef.current = signature;
+        if (!shouldSampleNormalization(parsed.data.message_type, parsed.data.session_id, message.messageId)) return;
+        track('chat_normalization_applied', parsed.data);
+    }, [
+        isAlert,
+        isUser,
+        message.messageId,
+        message.messageType,
+        message.sessionId,
+        message.text,
+        normalizationResult.applied,
+        normalizationResult.fixesCount,
+    ]);
+
     const severityBadgeClass = (() => {
         if (severity === 'critical') return 'bg-red-100 text-red-700';
         if (severity === 'warning') return 'bg-amber-100 text-amber-700';
@@ -128,9 +212,31 @@ export const MessageBubble = React.memo(function MessageBubble({
         };
     }, [renderOptions, isUser, message.messageId]);
 
-    const formattedContent = React.useMemo(() => (
-        renderFormatted(message.text, isUser ? 'inverse' : 'default', resolvedRenderOptions)
-    ), [message.text, isUser, resolvedRenderOptions]);
+    const formattedContent = React.useMemo(() => {
+        if (!shouldRenderMarkdown) return null;
+        return renderFormatted(displayText, isUser ? 'inverse' : 'default', {
+            ...resolvedRenderOptions,
+            normalizedText: normalizedDisplayText ?? undefined,
+        });
+    }, [displayText, isUser, normalizedDisplayText, resolvedRenderOptions, shouldRenderMarkdown]);
+
+    const isHttpUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url.trim());
+
+    const communityContent = React.useMemo(() => {
+        const renderComponent = () => <CommunityInspirationMessage text={displayText} theme={isUser ? 'inverse' : 'default'} />;
+
+        if (message.messageType === 'community_inspiration') {
+            return renderComponent();
+        }
+        // Fallback: try to parse even if the intent wasn't tagged, with safety guardrails
+        const parsed = parseCommunityInspirationText(displayText);
+        const cardsWithContent = parsed.cards.filter((card) => Boolean(card.title?.trim() || card.description?.trim()));
+        const hasValidLink = cardsWithContent.some((card) => isHttpUrl(card.link?.url));
+        if ((cardsWithContent.length >= 2) || (cardsWithContent.length >= 1 && hasValidLink)) {
+            return renderComponent();
+        }
+        return null;
+    }, [displayText, isUser, message.messageType]);
 
     const virtualizationStyle = virtualize
         ? ({ contentVisibility: 'auto', containIntrinsicSize: '1px 240px' } as React.CSSProperties)
@@ -157,8 +263,32 @@ export const MessageBubble = React.memo(function MessageBubble({
                         </div>
                     )}
                     <div className={isUser ? 'text-white/95' : undefined}>
-                        {formattedContent}
+                        {communityContent || (shouldRenderMarkdown ? formattedContent : (
+                            <p className="text-[15px] leading-[1.6] whitespace-pre-wrap break-words">
+                                {displayText}
+                            </p>
+                        ))}
                     </div>
+                    {isTooLong ? (
+                        <div className={`mt-3 flex flex-wrap items-center gap-2 text-[11px] ${isUser ? 'text-white/80' : 'text-gray-500'}`}>
+                            <button
+                                type="button"
+                                onClick={() => setIsExpanded((prev) => !prev)}
+                                aria-expanded={isExpanded}
+                                data-testid="chat-show-more"
+                                className={`rounded-full border px-3 py-1 font-semibold transition-colors ${isUser
+                                    ? 'border-white/40 text-white hover:bg-white/15'
+                                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800'}`}
+                            >
+                                {isExpanded ? 'Mostrar menos' : 'Ver mais'}
+                            </button>
+                            {!isExpanded ? (
+                                <span>
+                                    Mostrando {displayText.length.toLocaleString()} de {message.text.length.toLocaleString()} caracteres
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : null}
                     {message.cta && (
                         <div className={`mt-3 pt-3 ${isUser ? 'border-t border-white/25' : 'border-t border-gray-200'}`}>
                             <button

@@ -1,0 +1,188 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`renderFormatted renders headings, lists, tables, and checklists 1`] = `
+<div>
+  <div
+    class="max-w-[72ch] w-full break-words"
+  >
+    <h2
+      class="text-2xl font-bold tracking-tight text-gray-900 mt-6 mb-3 "
+      id="resumo"
+    >
+      Resumo
+    </h2>
+    <h3
+      class="text-xl font-bold tracking-tight text-gray-800 mt-6 mb-2.5 mb-1.5"
+      id="insights"
+    >
+      Insights
+    </h3>
+    <div
+      class="flex flex-wrap gap-2 my-2"
+    >
+      <span
+        class="inline-flex items-center rounded-full border px-3 py-1 text-[12px] font-semibold border-gray-200 bg-gray-50 text-gray-700"
+      >
+        ponto um
+      </span>
+      <span
+        class="inline-flex items-center rounded-full border px-3 py-1 text-[12px] font-semibold border-gray-200 bg-gray-50 text-gray-700"
+      >
+        ponto dois
+      </span>
+    </div>
+    <ol
+      class="space-y-2 text-[15px] my-3 leading-[1.55] text-gray-800"
+    >
+      <li
+        class="flex items-start gap-3"
+      >
+        <span
+          aria-hidden="true"
+          class="mt-0.5 flex items-center justify-center rounded-full border font-semibold h-6 w-6 text-[12px] border-gray-300 text-gray-700"
+        >
+          1
+        </span>
+        <span
+          class="flex-1"
+        >
+          passo um
+        </span>
+      </li>
+      <li
+        class="flex items-start gap-3"
+      >
+        <span
+          aria-hidden="true"
+          class="mt-0.5 flex items-center justify-center rounded-full border font-semibold h-6 w-6 text-[12px] border-gray-300 text-gray-700"
+        >
+          2
+        </span>
+        <span
+          class="flex-1"
+        >
+          passo dois
+        </span>
+      </li>
+    </ol>
+    <ul
+      class="space-y-2 text-[15px] my-3 leading-[1.55] text-gray-800"
+    >
+      <li
+        class="flex items-start gap-2"
+      >
+        <span
+          aria-hidden="true"
+          class="mt-0.5 flex h-4 w-4 items-center justify-center rounded border border-gray-300 bg-white bg-emerald-500 text-white"
+        >
+          x
+        </span>
+        <span
+          class="sr-only"
+        >
+          Concluído: 
+        </span>
+        <span>
+          feito
+        </span>
+      </li>
+      <li
+        class="flex items-start gap-2"
+      >
+        <span
+          aria-hidden="true"
+          class="mt-0.5 flex h-4 w-4 items-center justify-center rounded border border-gray-300 bg-white "
+        />
+        <span
+          class="sr-only"
+        >
+          Pendente: 
+        </span>
+        <span>
+          pendente
+        </span>
+      </li>
+    </ul>
+    <div
+      class="my-3"
+      data-testid="chat-table-container"
+    >
+      <div
+        class="overflow-x-auto my-3 max-w-full rounded-xl border border-gray-100"
+      >
+        <table
+          class="min-w-full text-left text-[13px] leading-5 text-gray-800 min-w-[480px]"
+        >
+          <thead>
+            <tr>
+              <th
+                class="px-3 py-2 border-b border-gray-200 bg-gray-50 text-gray-700 font-semibold text-left sticky top-0 z-10"
+              >
+                Coluna
+              </th>
+              <th
+                class="px-3 py-2 border-b border-gray-200 bg-gray-50 text-gray-700 font-semibold text-left sticky top-0 z-10"
+              >
+                Valor
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td
+                class="px-3 py-2 border-b border-gray-100 align-top break-words "
+              >
+                A
+              </td>
+              <td
+                class="px-3 py-2 border-b border-gray-100 align-top break-words text-right border-l border-current/10 min-w-[72px]"
+              >
+                1
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <details
+      class="group my-4 rounded-xl border border-gray-200 bg-white text-gray-800"
+      id="detalhes"
+    >
+      <summary
+        aria-controls="static-id"
+        aria-expanded="false"
+        class="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-gray-800 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-magenta focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+        data-testid="chat-disclosure-toggle"
+      >
+        <span
+          class="flex items-center gap-2"
+        >
+          <span>
+            Detalhes
+          </span>
+          <span
+            class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-600"
+          >
+            1 tópicos
+          </span>
+        </span>
+        <span
+          class="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-600"
+        >
+          Ver mais
+        </span>
+      </summary>
+      <div
+        class="px-4 pb-4 pt-1"
+        id="static-id"
+      >
+        <p
+          class="text-[15px] my-3 leading-[1.6] text-gray-800"
+        >
+          Mais contexto aqui.
+        </p>
+      </div>
+    </details>
+  </div>
+</div>
+`;

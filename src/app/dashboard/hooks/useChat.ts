@@ -131,7 +131,23 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                 setPendingAction(data.pendingAction ?? null);
                 setCurrentTask(data.currentTask ?? null);
                 autoScrollOnNext.current = true;
-                setMessages(prev => [...prev, { sender: 'consultant', text: data.answer, cta: data.cta, messageId: data.assistantMessageId || null, sessionId: data.sessionId || sessionId }]);
+                const messageType = (() => {
+                    const taskName = data.currentTask?.name;
+                    if (taskName === 'content_plan') return 'content_plan';
+                    if (taskName === 'ask_community_inspiration') return 'community_inspiration';
+                    return 'other';
+                })();
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        sender: 'consultant',
+                        text: data.answer,
+                        cta: data.cta,
+                        messageId: data.assistantMessageId || null,
+                        sessionId: data.sessionId || sessionId,
+                        messageType,
+                    },
+                ]);
                 if (data.sessionId) setSessionId(data.sessionId);
                 if (data.userMessageId) {
                     setMessages(prev => prev.map((m) => m.messageId ? m : m.sender === 'user' && m.text === prompt ? { ...m, messageId: data.userMessageId, sessionId: data.sessionId || sessionId } : m));
@@ -144,9 +160,9 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                 const errorText = data?.error || "Não foi possível obter resposta agora.";
                 autoScrollOnNext.current = true;
                 if (data?.cta) {
-                    setMessages(prev => [...prev, { sender: 'consultant', text: errorText, cta: data.cta }]);
+                    setMessages(prev => [...prev, { sender: 'consultant', text: errorText, cta: data.cta, messageType: 'other' }]);
                 } else {
-                    setMessages(prev => [...prev, { sender: 'consultant', text: errorText }]);
+                    setMessages(prev => [...prev, { sender: 'consultant', text: errorText, messageType: 'other' }]);
                 }
                 throw new Error(errorText);
             }

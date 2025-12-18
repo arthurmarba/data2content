@@ -645,7 +645,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     const surveyContextNote = (!surveyNudgeNeeded && buildSurveyContextNote(surveyProfile)) || null;
     if (surveyNudgeText) {
       sanitizedResponse = `${sanitizedResponse}\n\n> [!IMPORTANT]\n> ${surveyNudgeText}`;
-    } else if (surveyContextNote) {
+    } else if (surveyContextNote && effectiveIntent !== 'ask_community_inspiration') {
       sanitizedResponse = `${sanitizedResponse}\n\n> [!NOTE]\n> Contexto aplicado (pesquisa): ${surveyContextNote}`;
     }
     const pendingActionInfo = aiResponseSuggestsPendingAction(sanitizedResponse);
