@@ -127,7 +127,7 @@ export default async function DiscoverContentPage({
       );
     }
     return (
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main className="dashboard-page-shell py-8">
         <h1 className="text-2xl font-semibold text-gray-900">Comunidade</h1>
         <p className="mt-2 text-gray-600">
           {title} {hint}
@@ -175,11 +175,11 @@ export default async function DiscoverContentPage({
   const exploredLabel = totalIdeas > 0 ? Math.min(totalIdeas, 48) : 0;
 
   return (
-    <main className="w-full max-w-none pb-24">
+    <main className="w-full pb-24">
       <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 
-      <div className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="dashboard-page-shell space-y-8 py-6 sm:py-8">
         <DiscoverActionBar allowedPersonalized={allowedPersonalized} />
 
         <DiscoverExplorerSection sections={secondarySections} primaryKey={featuredSection?.key} />

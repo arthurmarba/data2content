@@ -34,8 +34,9 @@ export default function ManageSubscription() {
     const trialEnd = formatDate(subscription?.trialEnd);
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center bg-[#FAFAFB] p-4">
-            <div className="w-full max-w-md space-y-8">
+        <div className="min-h-screen w-full bg-[#FAFAFB]">
+            <div className="dashboard-page-shell flex min-h-screen items-center justify-center py-6">
+                <div className="w-full max-w-md space-y-8">
 
                 {/* Header Minimalista */}
                 <div className="text-center">
@@ -107,6 +108,7 @@ export default function ManageSubscription() {
                         Ações irreversíveis relacionadas à sua conta.
                     </p>
                     <DeleteAccountSection />
+                </div>
                 </div>
             </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import useSWR from 'swr';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { openPaywallModal } from '@/utils/paywallModal';
@@ -15,8 +15,10 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function PublisPage() {
     const billingStatus = useBillingStatus();
-    const hasProAccess = Boolean(billingStatus.hasPremiumAccess);
-    const isBillingLoading = Boolean(billingStatus.isLoading);
+    const billingError = billingStatus.error;
+    const hasBillingResolved = Boolean(billingStatus.hasResolvedOnce);
+    const hasProAccess =
+        Boolean(billingStatus.hasLoadedOnce && billingStatus.hasPremiumAccess);
 
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
@@ -59,7 +61,7 @@ export default function PublisPage() {
         }
     );
 
-    const isInitialLoading = isBillingLoading || (hasProAccess && !data && isDataLoading);
+    const isInitialLoading = !hasBillingResolved || (hasProAccess && !data && isDataLoading);
     const isRefreshing = hasProAccess && Boolean(data) && (isDataLoading || isValidating);
     const showSearchSpinner = isRefreshing;
 
@@ -78,7 +80,7 @@ export default function PublisPage() {
 
     if (isInitialLoading) {
         return (
-            <div className="p-4 md:p-6 max-w-7xl mx-auto">
+            <div className="dashboard-page-shell py-4 md:py-6">
                 <div className="mb-6 md:mb-8">
                     <h1 className="text-xl md:text-2xl font-bold text-gray-900">Minhas Publis</h1>
                     <p className="text-sm md:text-base text-gray-500 mt-1">Gerencie, analise e compartilhe seus conteúdos de publicidade.</p>
@@ -92,12 +94,45 @@ export default function PublisPage() {
         );
     }
 
+    if (hasBillingResolved && billingError && !billingStatus.hasLoadedOnce) {
+        return (
+            <div className="dashboard-page-shell py-4 md:py-6">
+                <div className="mb-6 md:mb-8">
+                    <h1 className="text-xl md:text-2xl font-bold text-gray-900">Minhas Publis</h1>
+                    <p className="text-sm md:text-base text-gray-500 mt-1">
+                        Não foi possível verificar sua assinatura agora.
+                    </p>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+                    <div className="flex items-start gap-3">
+                        <ExclamationTriangleIcon className="h-5 w-5 mt-0.5" />
+                        <div className="space-y-2">
+                            <p className="text-sm font-semibold">
+                                Falha ao carregar o status da assinatura.
+                            </p>
+                            <p className="text-sm text-amber-800">
+                                Tente novamente para liberar suas publis.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => billingStatus.refetch()}
+                                className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700"
+                            >
+                                Tentar novamente
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!hasProAccess) {
         // Mock visuals for the blocked state
         const MOCK_ITEMS = Array.from({ length: 8 });
 
         return (
-            <div className="p-4 md:p-6 max-w-7xl mx-auto relative overflow-hidden">
+            <div className="dashboard-page-shell relative overflow-hidden py-4 md:py-6">
                 {/* Header & Controls (Visible but inert) */}
                 <div className="mb-6 md:mb-8 transition-opacity duration-300 opacity-50 select-none">
                     <h1 className="text-xl md:text-2xl font-bold text-gray-900">Minhas Publis</h1>
@@ -176,7 +211,7 @@ export default function PublisPage() {
     }
 
     return (
-        <div className="p-4 md:p-6 max-w-7xl mx-auto">
+        <div className="dashboard-page-shell py-4 md:py-6">
             <div className="mb-6 md:mb-8">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900">Minhas Publis</h1>
                 <p className="text-sm md:text-base text-gray-500 mt-1">Gerencie, analise e compartilhe seus conteúdos de publicidade.</p>

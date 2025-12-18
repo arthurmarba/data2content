@@ -33,8 +33,8 @@ const SkeletonLine = ({ className = 'w-full h-3' }: { className?: string }) => (
 
 const MediaKitSkeleton = ({ compactPadding }: { compactPadding?: boolean }) => {
   const containerClass = compactPadding
-    ? 'mx-auto w-full max-w-5xl px-4 py-6'
-    : 'mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6 lg:px-8';
+    ? 'dashboard-page-shell py-6'
+    : 'dashboard-page-shell pb-10 pt-6';
   const sectionsWrapperClass = 'flex flex-col gap-4 sm:gap-3 lg:gap-2';
   const cardClass = 'rounded-3xl border border-[#EAEAEA] bg-white shadow-sm p-5 sm:p-6';
 
@@ -436,7 +436,7 @@ function SelfMediaKitContent({
 
   if (error) {
     return (
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      <div className="dashboard-page-shell py-6">
         <div className="max-w-md w-full border border-yellow-200 bg-yellow-50 text-yellow-900 rounded-lg p-3 text-sm">{error}</div>
       </div>
     );

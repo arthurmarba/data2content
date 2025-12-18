@@ -485,7 +485,7 @@ export default function CalculatorClient() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 space-y-10 sm:px-6">
+    <div className="dashboard-page-shell py-10 space-y-10">
       <header className="space-y-4 text-center sm:text-left">
         <div className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-600">
           <FaChartLine className="h-3.5 w-3.5 text-[#F6007B]" />

@@ -88,7 +88,7 @@ export default function StrategicReportInline() {
 
   return (
     <section className="bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+      <div className="dashboard-page-shell space-y-4 py-6">
         <h2 className="text-2xl font-bold text-gray-900">Relatório Estratégico</h2>
 
         {!isActiveLike && (

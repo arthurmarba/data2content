@@ -75,10 +75,11 @@ export default function PlanningLockedView({ variant = "planner", returnTo = "/d
   }, [openPaywall, returnTo, variant]);
 
   return (
-    <main className="flex w-full justify-center px-4 pb-12 pt-16 sm:pt-24">
-      <div className="w-full max-w-3xl">
-        <section className="rounded-3xl border border-dashed border-pink-200 bg-white px-5 py-6 text-sm text-slate-600 shadow-sm sm:px-8">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+    <main className="w-full pb-12 pt-16 sm:pt-24">
+      <div className="dashboard-page-shell">
+        <div className="w-full max-w-3xl mx-auto">
+          <section className="rounded-3xl border border-dashed border-pink-200 bg-white px-5 py-6 text-sm text-slate-600 shadow-sm sm:px-8">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="rounded-full bg-pink-50 p-2 text-pink-600">
                 <Lock className="h-4 w-4" aria-hidden />
@@ -111,7 +112,8 @@ export default function PlanningLockedView({ variant = "planner", returnTo = "/d
               </li>
             ))}
           </ul>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   );

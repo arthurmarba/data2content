@@ -70,6 +70,8 @@ export type BillingStatus = {
   trialRemainingMs?: number | null;
   hasBasicReport?: boolean;
   hasFullReportAccess?: boolean;
+  hasLoadedOnce?: boolean;
+  hasResolvedOnce?: boolean;
 };
 
 type Options = {
@@ -152,17 +154,32 @@ export function useBillingStatus(opts: Options = {}) {
   });
   const [loading, setLoading] = useState<boolean>(!!auto);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [hasResolvedOnce, setHasResolvedOnce] = useState(false);
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasLoadedOnceRef = useRef(false);
+
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
 
   const fetchOnce = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
 
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    let keepLoading = false;
 
     try {
       const res = await fetch(`/api/plan/status`, {
@@ -184,6 +201,12 @@ export function useBillingStatus(opts: Options = {}) {
       const planExpiresAt =
         toDate(j.planExpiresAt ?? null) ?? trial?.expiresAt ?? null;
 
+      if (requestId !== requestIdRef.current) return;
+      clearRetryTimer();
+      retryCountRef.current = 0;
+      hasLoadedOnceRef.current = true;
+      setHasLoadedOnce(true);
+      setHasResolvedOnce(true);
       setData({
         planStatus,
         planExpiresAt,
@@ -196,12 +219,30 @@ export function useBillingStatus(opts: Options = {}) {
         extras,
       });
     } catch (e: any) {
+      if (requestId !== requestIdRef.current) return;
+      if (e?.name === "AbortError") return;
+
+      const maxRetries = 2;
+      if (!hasLoadedOnceRef.current && retryCountRef.current < maxRetries) {
+        retryCountRef.current += 1;
+        const delayMs = 600 * retryCountRef.current;
+        clearRetryTimer();
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          fetchOnce();
+        }, delayMs);
+        keepLoading = true;
+        return;
+      }
+
       setError(e?.message || "Erro inesperado");
+      setHasResolvedOnce(true);
       setData((prev) => ({ ...prev }));
     } finally {
-      setLoading(false);
+      if (requestId !== requestIdRef.current) return;
+      if (!keepLoading) setLoading(false);
     }
-  }, []);
+  }, [clearRetryTimer]);
 
   const refetch = useCallback(() => fetchOnce(), [fetchOnce]);
 
@@ -222,8 +263,9 @@ export function useBillingStatus(opts: Options = {}) {
     return () => {
       stopPolling();
       abortRef.current?.abort();
+      clearRetryTimer();
     };
-  }, [auto, fetchOnce, stopPolling]);
+  }, [auto, fetchOnce, stopPolling, clearRetryTimer]);
 
   useEffect(() => {
     if (!data.planStatus) return;
@@ -299,6 +341,8 @@ export function useBillingStatus(opts: Options = {}) {
       refetch,
       startPolling,
       stopPolling,
+      hasLoadedOnce,
+      hasResolvedOnce,
       ...flags,
       nextAction: flags.nextAction,
       hasPremiumAccess: flags.hasPremiumAccess,

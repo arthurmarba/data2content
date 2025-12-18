@@ -159,10 +159,10 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] font-poppins text-gray-900 pb-20 p-6">
+        <div className="min-h-screen bg-[#F8FAFC] font-poppins text-gray-900 pb-20 py-6">
 
             {/* Navigation Header */}
-            <div className="max-w-7xl mx-auto mb-8 flex items-center justify-between">
+            <div className="dashboard-page-shell mb-8 flex items-center justify-between">
                 <button
                     onClick={() => router.back()}
                     className="flex items-center text-gray-500 hover:text-gray-900 transition-colors px-4 py-2 bg-white/50 hover:bg-white rounded-lg border border-transparent hover:border-gray-200"
@@ -181,7 +181,7 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
                 </div>
             </div>
 
-            <main className="max-w-7xl mx-auto space-y-8">
+            <main className="dashboard-page-shell space-y-8">
 
                 {/* --- Top Section: Cover & Key Stats --- */}
                 <div className="grid lg:grid-cols-12 gap-6 w-full">

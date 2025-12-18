@@ -22,7 +22,7 @@ export default function InstagramReconnectBanner() {
   const reason = status.lastErrorMessage || 'Perdemos o acesso às permissões do Instagram.';
 
   return (
-    <div className="mx-auto mb-4 w-full max-w-5xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+    <div className="mb-4 w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-2">
           <FaExclamationTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />

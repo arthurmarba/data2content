@@ -306,7 +306,7 @@ export default function ProPageClient({
 
   return (
     <>
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-16">
+      <main className="dashboard-page-shell py-10 space-y-16">
         <section className="space-y-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#F6007B]/20 bg-[#F6007B]/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#F6007B]">
             <Sparkles className="h-4 w-4" /> Plano Agência

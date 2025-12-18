@@ -1824,7 +1824,7 @@ export default function HomeClientPage() {
 
   if (tutorialHomeEnabled) {
     return (
-      <div className="w-full space-y-8 px-4 pt-4 pb-8 sm:px-6">
+      <div className="dashboard-page-shell space-y-8 pt-4 pb-8">
         <section
           id="home-progress-section"
           className="mt-2"
@@ -1968,7 +1968,7 @@ export default function HomeClientPage() {
 
   if (dashboardMinimal) {
     return (
-      <div className="w-full px-4 pt-4 pb-8 sm:px-6">
+      <div className="dashboard-page-shell pt-4 pb-8">
         <MinimalDashboard
           summary={summary}
           loading={loading}
@@ -1984,7 +1984,7 @@ export default function HomeClientPage() {
 
   return (
     <>
-      <div className="w-full px-4 pt-4 pb-8 sm:px-6">
+      <div className="dashboard-page-shell pt-4 pb-8">
         {connectBanner}
         {showWelcomeCard ? (
           <div className="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50/95 px-5 py-5 text-emerald-900 shadow-sm">

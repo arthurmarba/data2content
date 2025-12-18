@@ -288,7 +288,7 @@ export default function PlannerClientPage() {
 
   return (
     <div className="min-h-screen bg-white pb-20">
-      <div className="px-6 py-8">
+      <div className="dashboard-page-shell py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-slate-900">Planejador de Conteúdo</h1>
           <p className="mt-1 text-slate-500">

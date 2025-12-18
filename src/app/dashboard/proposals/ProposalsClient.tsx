@@ -943,22 +943,21 @@ export default function ProposalsClient() {
 
   return (
     <>
-      <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-7xl space-y-8">
-          <header className="flex items-center justify-between border-b border-gray-100 pb-6">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">Campanhas & Propostas</h1>
-              <p className="text-sm text-slate-500">Gerencie suas negociações em andamento.</p>
-            </div>
-            <button
-              type="button"
-              onClick={loadProposals}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
-            >
-              <RefreshCcw className="h-3.5 w-3.5" />
-              Atualizar
-            </button>
-          </header>
+      <div className="dashboard-page-shell space-y-8 py-8">
+        <header className="flex items-center justify-between border-b border-gray-100 pb-6">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Campanhas & Propostas</h1>
+            <p className="text-sm text-slate-500">Gerencie suas negociações em andamento.</p>
+          </div>
+          <button
+            type="button"
+            onClick={loadProposals}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+          >
+            <RefreshCcw className="h-3.5 w-3.5" />
+            Atualizar
+          </button>
+        </header>
 
 
 
@@ -1468,7 +1467,6 @@ export default function ProposalsClient() {
               Abra a Calculadora de Publi
             </button>
           </footer>
-        </div>
       </div>
     </>
   );

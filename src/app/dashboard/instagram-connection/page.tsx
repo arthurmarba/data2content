@@ -57,10 +57,12 @@ export default function InstagramConnectionPage() {
     if (isLoading) {
         return (
             <div className="w-full min-h-screen bg-[#FAFAFB]">
-                <div className="mx-auto w-full max-w-[800px] px-4 sm:px-6 pt-header pb-safe">
-                    <div className="animate-pulse space-y-4">
-                        <div className="h-8 w-1/3 bg-gray-200 rounded"></div>
-                        <div className="h-32 w-full bg-gray-200 rounded"></div>
+                <div className="dashboard-page-shell pt-header pb-safe">
+                    <div className="max-w-[800px]">
+                        <div className="animate-pulse space-y-4">
+                            <div className="h-8 w-1/3 bg-gray-200 rounded"></div>
+                            <div className="h-32 w-full bg-gray-200 rounded"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -72,8 +74,9 @@ export default function InstagramConnectionPage() {
     const profilePicture = status?.profilePictureUrl;
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center bg-[#FAFAFB] p-4">
-            <div className="w-full max-w-md space-y-6">
+        <div className="min-h-screen w-full bg-[#FAFAFB]">
+            <div className="dashboard-page-shell flex min-h-screen items-center justify-center py-6">
+                <div className="w-full max-w-md space-y-6">
 
                 {/* Header Minimalista */}
                 <div className="text-center">
@@ -193,6 +196,7 @@ export default function InstagramConnectionPage() {
                         {connectError}
                     </div>
                 )}
+                </div>
             </div>
         </div>
     );

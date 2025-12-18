@@ -751,8 +751,8 @@ export default function PlanningChartsPage() {
 
   return (
     <>
-      <main className="flex w-full justify-center px-4 pb-12 pt-8">
-        <div className="w-full max-w-6xl space-y-5">
+      <main className="w-full pb-12 pt-8">
+        <div className="dashboard-page-shell space-y-5">
           <header className="flex flex-col gap-2">
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               <LineChartIcon className="h-4 w-4" />

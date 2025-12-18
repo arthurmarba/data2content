@@ -1319,9 +1319,7 @@ export default function MediaKitView({
   const innerCardStyle = 'space-y-6';
   const containerClass = isPublicView
     ? 'mx-auto w-full max-w-3xl px-4 py-8'
-    : compactPadding
-      ? 'mx-auto w-full px-6 py-8'
-      : 'mx-auto w-full px-6 py-8';
+    : `dashboard-page-shell ${compactPadding ? 'py-6' : 'py-8'}`;
   const sectionsWrapperClass = 'flex flex-col space-y-10';
   const compactNumberFormat = (num: number | null | undefined) =>
     num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
