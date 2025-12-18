@@ -20,6 +20,9 @@ Link: [Veja](https://example.com/r2)
     const html = renderToString(<CommunityInspirationMessage text={dirtyText} />);
     await page.setContent(`<div id="root">${html}</div>`);
 
+    const wrapper = page.locator('[data-testid="community-inspiration-wrapper"]');
+    await expect(wrapper).toHaveCount(1);
+
     const cards = page.locator('[data-testid="community-inspiration-card"]');
     await expect(cards).toHaveCount(2);
     await expect(page.locator('text=Um momento')).toHaveCount(0);

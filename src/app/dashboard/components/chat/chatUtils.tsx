@@ -81,6 +81,28 @@ export function applyInlineMarkup(escaped: string, theme: RenderTheme = 'default
     return out;
 }
 
+export function normalizeLooseBoldLabels(raw: string) {
+    let inCodeBlock = false;
+    return raw
+        .split(/\r?\n/)
+        .map((line) => {
+            const trimmed = line.trim();
+            if (/^```/.test(trimmed)) {
+                inCodeBlock = !inCodeBlock;
+                return line;
+            }
+            if (inCodeBlock) return line;
+            if (line.includes('`')) return line; // skip inline code
+            if (/\[[^\]]+\]\([^)]+\)/.test(line)) return line; // skip markdown links
+            return line.replace(/(^|\s)([A-Za-zÀ-ÿ ]{2,40})\*\*\s*:\s*/g, (_m, sep, label) => {
+                const safeLabel = label.trim();
+                if (!safeLabel) return `${sep}${label}`;
+                return `${sep}**${safeLabel}:** `;
+            });
+        })
+        .join("\n");
+}
+
 // Remove artefatos simples de markdown cru (asteriscos/underscores soltos)
 function stripLooseMarkers(value: string) {
     return value

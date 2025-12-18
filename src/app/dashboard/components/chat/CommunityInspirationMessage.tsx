@@ -45,7 +45,7 @@ const extractLink = (value: string): { url: string; label?: string } | null => {
 
 const splitHighlights = (raw: string): string[] => {
     return raw
-        .split(/[\n;•●]+/)
+        .split(/[\n;•●.]+/)
         .map((item) => item.replace(/^\s*[-*]\s*/, '').trim())
         .filter(Boolean);
 };
@@ -132,10 +132,11 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
         }
 
         const cardStartMatch = line.match(/^(?:[-*]\s*)?(?:\d+[.)]\s*)?(?:#{1,3}\s*)?((?:Reel|Vídeo|Video|Post|Carrossel|Inspira(?:ç|c)ao|Inspira(?:ç|c)[aã]o|Inspiration|Idea|Ideia)\s*\d*)(?:\s*[—\-–:]\s*(.*))?$/i);
-        if (cardStartMatch) {
+        const numberedFallback = !cardStartMatch ? line.match(/^(?:\d+[.)]\s*)(.+)$/) : null;
+        if (cardStartMatch || numberedFallback) {
             commitCurrent();
-            const baseTitle = cardStartMatch[1]?.trim() || '';
-            const suffix = cardStartMatch[2]?.trim() || '';
+            const baseTitle = cardStartMatch ? (cardStartMatch[1]?.trim() || '') : (numberedFallback?.[1]?.trim() || '');
+            const suffix = cardStartMatch ? (cardStartMatch[2]?.trim() || '') : '';
             current = {
                 title: suffix ? `${baseTitle} — ${suffix}` : baseTitle,
                 description: '',
@@ -150,14 +151,14 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
             continue;
         }
 
-        const fieldMatch = line.match(/^(?:[-*]\s*)?(descri[cç][aã]o|destaques?|tags?|link)s?\s*[:\-]?\s*(.*)$/i);
+        const fieldMatch = line.match(/^(?:[-*]\s*)?(?:\*\*)?(descri[cç][aã]o|resumo|performance|highlights?|destaques(?: de performance)?|tags?|link)s?(?:\*\*)?\s*[:\-]?\s*(.*)$/i);
         if (fieldMatch) {
             const field = fieldMatch[1]?.toLowerCase() || '';
             const rest = fieldMatch[2]?.trim() || '';
-            if (field.startsWith('descri')) {
+            if (field.startsWith('descri') || field === 'resumo') {
                 current.description = rest || current.description || '';
                 collecting = 'description';
-            } else if (field.startsWith('destaq') || field.startsWith('tag')) {
+            } else if (field.startsWith('destaq') || field.includes('performance') || field.startsWith('tag') || field.startsWith('highlight')) {
                 if (rest) current.highlights.push(...splitHighlights(rest));
                 collecting = 'highlights';
             } else if (field.startsWith('link')) {
@@ -166,14 +167,6 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
                 collecting = 'link';
             }
             continue;
-        }
-
-        if (/https?:\/\//i.test(line) && !current.link) {
-            const link = extractLink(line);
-            if (link) {
-                current.link = link;
-                continue;
-            }
         }
 
         if (collecting === 'highlights') {
@@ -190,11 +183,21 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
                 current.link = link;
                 continue;
             }
+            // ignore invalid placeholder links
+            continue;
         }
 
         if (collecting === 'description') {
             current.description = [current.description, line].filter(Boolean).join(' ').trim();
             continue;
+        }
+
+        if (/https?:\/\//i.test(line) && !current.link) {
+            const link = extractLink(line);
+            if (link) {
+                current.link = link;
+                continue;
+            }
         }
 
         if (!current.description) {
@@ -248,7 +251,7 @@ export function CommunityInspirationMessage({ text, theme = 'default' }: Communi
     const contextCardClass = isInverse ? 'border-white/20 bg-white/5 text-white' : 'border-gray-200 bg-gray-50 text-gray-800';
 
     return (
-        <div className="space-y-3" data-testid="community-inspiration">
+        <div className="space-y-3" data-testid="community-inspiration-wrapper">
             {parsed.intro ? (
                 <p
                     className={`text-[14px] leading-[1.6] ${textClass}`}

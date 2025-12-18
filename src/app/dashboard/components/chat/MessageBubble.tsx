@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Message } from './types';
-import { normalizePlanningMarkdown, normalizePlanningMarkdownWithStats, renderFormatted, type RenderOptions } from './chatUtils';
+import { normalizePlanningMarkdown, normalizePlanningMarkdownWithStats, renderFormatted, type RenderOptions, normalizeLooseBoldLabels } from './chatUtils';
 import { CommunityInspirationMessage, parseCommunityInspirationText } from './CommunityInspirationMessage';
 import { FEEDBACK_REASONS, FeedbackReasonCode } from './feedbackReasons';
 import { track } from '@/lib/track';
@@ -212,31 +212,36 @@ export const MessageBubble = React.memo(function MessageBubble({
         };
     }, [renderOptions, isUser, message.messageId]);
 
+    const labelSafeText = React.useMemo(() => normalizeLooseBoldLabels(displayText), [displayText]);
     const formattedContent = React.useMemo(() => {
         if (!shouldRenderMarkdown) return null;
-        return renderFormatted(displayText, isUser ? 'inverse' : 'default', {
+        return renderFormatted(labelSafeText, isUser ? 'inverse' : 'default', {
             ...resolvedRenderOptions,
             normalizedText: normalizedDisplayText ?? undefined,
         });
-    }, [displayText, isUser, normalizedDisplayText, resolvedRenderOptions, shouldRenderMarkdown]);
+    }, [labelSafeText, isUser, normalizedDisplayText, resolvedRenderOptions, shouldRenderMarkdown]);
 
     const isHttpUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url.trim());
 
     const communityContent = React.useMemo(() => {
-        const renderComponent = () => <CommunityInspirationMessage text={displayText} theme={isUser ? 'inverse' : 'default'} />;
+        const renderComponent = () => <CommunityInspirationMessage text={labelSafeText} theme={isUser ? 'inverse' : 'default'} />;
 
         if (message.messageType === 'community_inspiration') {
             return renderComponent();
         }
         // Fallback: try to parse even if the intent wasn't tagged, with safety guardrails
-        const parsed = parseCommunityInspirationText(displayText);
-        const cardsWithContent = parsed.cards.filter((card) => Boolean(card.title?.trim() || card.description?.trim()));
+        const parsed = parseCommunityInspirationText(labelSafeText);
+        const cardsWithContent = parsed.cards.filter((card) => {
+            const hasTitleOrDescription = Boolean(card.title?.trim() || card.description?.trim());
+            const hasDetail = Boolean(card.description?.trim() || (card.highlights?.length ?? 0) > 0 || isHttpUrl(card.link?.url));
+            return hasTitleOrDescription && hasDetail;
+        });
         const hasValidLink = cardsWithContent.some((card) => isHttpUrl(card.link?.url));
         if ((cardsWithContent.length >= 2) || (cardsWithContent.length >= 1 && hasValidLink)) {
             return renderComponent();
         }
         return null;
-    }, [displayText, isUser, message.messageType]);
+    }, [displayText, isUser, message.messageType, labelSafeText]);
 
     const virtualizationStyle = virtualize
         ? ({ contentVisibility: 'auto', containIntrinsicSize: '1px 240px' } as React.CSSProperties)
