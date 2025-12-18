@@ -34,4 +34,14 @@ describe('answerEngine policies', () => {
     const intent = detectAnswerIntent('Quero os posts com maior engajamento e os top do mês', null);
     expect(intent).toBe('top_performance_inspirations');
   });
+
+  it('detects diagnosis intent for viraliza without ask for examples', () => {
+    const intent = detectAnswerIntent('por que meus conteúdos não viralizam', null);
+    expect(intent).toBe('underperformance_diagnosis');
+  });
+
+  it('still routes to inspiration when explicitly asking for examples', () => {
+    const intent = detectAnswerIntent('me mostre reels virais', null);
+    expect(intent).not.toBe('underperformance_diagnosis');
+  });
 });

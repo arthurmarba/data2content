@@ -686,6 +686,9 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       ? {
           version: 'v1',
           intent: answerEngineResult.intent,
+          intent_group: answerEngineResult.intentGroup,
+          asked_for_examples: answerEngineResult.askedForExamples,
+          router_rule_hit: answerEngineResult.routerRuleHit,
           thresholds: {
             minAbs: answerEngineResult.policy.thresholds.minAbsolute,
             minRel: answerEngineResult.policy.thresholds.minRelativeInteractions,
@@ -724,6 +727,48 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
             },
           })),
           relaxApplied: answerEngineResult.telemetry?.relaxApplied,
+          diagnosticEvidence: answerEngineResult.diagnosticEvidence
+            ? {
+                insufficient: answerEngineResult.diagnosticEvidence.insufficient,
+                perFormat: (answerEngineResult.diagnosticEvidence.perFormat || []).map((block: any) => ({
+                  format: block.format,
+                  sampleSize: block.sampleSize,
+                  insufficient: block.insufficient,
+                  reason: block.reason,
+                  deltas: block.deltas,
+                  lowPosts: (block.lowPosts || []).map((p: any) => ({
+                    id: p.id,
+                    permalink: p.permalink,
+                    format: p.format,
+                    tags: p.tags,
+                    stats: p.stats,
+                    vsBaseline: {
+                      interactionsPct: p.baselineDelta ?? null,
+                      erPct: p.erDelta ?? null,
+                      reachPct: p.reachDelta ?? null,
+                    },
+                    title: p.tags?.[0] || (Array.isArray(p.format) ? p.format[0] : p.format) || undefined,
+                    captionSnippet: (p.raw?.description || '').slice(0, 120) || undefined,
+                    thumbUrl: p.raw?.coverUrl || undefined,
+                  })),
+                  highPosts: (block.highPosts || []).map((p: any) => ({
+                    id: p.id,
+                    permalink: p.permalink,
+                    format: p.format,
+                    tags: p.tags,
+                    stats: p.stats,
+                    vsBaseline: {
+                      interactionsPct: p.baselineDelta ?? null,
+                      erPct: p.erDelta ?? null,
+                      reachPct: p.reachDelta ?? null,
+                    },
+                    title: p.tags?.[0] || (Array.isArray(p.format) ? p.format[0] : p.format) || undefined,
+                    captionSnippet: (p.raw?.description || '').slice(0, 120) || undefined,
+                    thumbUrl: p.raw?.coverUrl || undefined,
+                  })),
+                })),
+              }
+            : null,
         }
       : null;
     const surveyNudgeNeeded = !access.isAdmin && (surveyFreshness.isStale || surveyFreshness.missingCore.length > 0);

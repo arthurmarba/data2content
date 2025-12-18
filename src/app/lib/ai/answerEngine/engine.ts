@@ -2,7 +2,7 @@ import { logger } from '@/app/lib/logger';
 import MetricModel, { IMetric } from '@/app/models/Metric';
 import * as stateService from '@/app/lib/stateService';
 import { buildProfileSignals } from './profile';
-import { detectAnswerIntent, resolvePolicy, coerceToAnswerIntent, detectRequestedFormat } from './policies';
+import { detectAnswerIntent, resolvePolicy, coerceToAnswerIntent, detectRequestedFormat, type IntentDetectionResult } from './policies';
 import { rankCandidates } from './ranker';
 import type {
   AnswerEngineRequest,
@@ -207,6 +207,7 @@ function buildContextPack(
   profileSignals: ReturnType<typeof buildProfileSignals>,
   query: string,
   relaxApplied: Array<{ step: string; reason: string }>,
+  diagnostic?: AnswerEngineResult['diagnosticEvidence'],
 ): ContextPack {
   const notes: string[] = [];
   notes.push(`threshold_interactions=${policy.thresholds.effectiveInteractions}`);
@@ -214,6 +215,21 @@ function buildContextPack(
     notes.push(`threshold_er=${(policy.thresholds.effectiveEr * 100).toFixed(2)}%`);
   }
   if (policy.formatLocked) notes.push(`format_locked=${policy.formatLocked}`);
+  const toContextPost = (p: RankedCandidate): ContextPack['top_posts'][number] => ({
+    id: p.id,
+    permalink: p.permalink || null,
+    formato: p.format?.[0] || null,
+    tema: p.tags?.[0] || null,
+    total_interactions: p.stats.total_interactions || 0,
+    saves: p.stats.saves ?? null,
+    shares: p.stats.shares ?? null,
+    comments: p.stats.comments ?? null,
+    reach: p.stats.reach ?? null,
+    engagement_rate_by_reach: p.stats.engagement_rate_on_reach ?? null,
+    baseline_delta: p.baselineDelta ?? null,
+    reach_delta: p.reachDelta ?? null,
+    post_date: p.postDate ? new Date(p.postDate).toISOString() : null,
+  });
   return {
     user_profile: profileSignals,
     user_baselines: baselines,
@@ -224,33 +240,42 @@ function buildContextPack(
       formatLocked: policy.formatLocked,
       metricsRequired: policy.metricsRequired,
     },
-    top_posts: top.map((p) => ({
-      id: p.id,
-      permalink: p.permalink || null,
-      formato: p.format?.[0] || null,
-      tema: p.tags?.[0] || null,
-      total_interactions: p.stats.total_interactions || 0,
-      saves: p.stats.saves ?? null,
-      shares: p.stats.shares ?? null,
-      comments: p.stats.comments ?? null,
-      reach: p.stats.reach ?? null,
-      engagement_rate_by_reach: p.stats.engagement_rate_on_reach ?? null,
-      baseline_delta: p.baselineDelta ?? null,
-      reach_delta: p.reachDelta ?? null,
-      post_date: p.postDate ? new Date(p.postDate).toISOString() : null,
-    })),
+    top_posts: top.map(toContextPost),
     generated_at: new Date().toISOString(),
     query,
     intent: policy.intent,
     notes,
     relaxApplied: relaxApplied.length ? relaxApplied : undefined,
+    diagnostic:
+      diagnostic && diagnostic.perFormat && diagnostic.perFormat.length
+        ? {
+            insufficient: diagnostic.insufficient,
+            per_format: diagnostic.perFormat.map((fmt) => ({
+              format: fmt.format,
+              sample_size: fmt.sampleSize,
+              insufficient: !!fmt.insufficient,
+              reason: fmt.reason,
+              deltas: fmt.deltas
+                ? {
+                    reach_pct: fmt.deltas.reachPct ?? null,
+                    er_pct: fmt.deltas.erPct ?? null,
+                    shares_pct: fmt.deltas.sharesPct ?? null,
+                    saves_pct: fmt.deltas.savesPct ?? null,
+                  }
+                : undefined,
+              low_posts: fmt.lowPosts.map(toContextPost),
+              high_posts: fmt.highPosts.map(toContextPost),
+            })),
+          }
+        : undefined,
   };
 }
 
 export async function runAnswerEngine(request: AnswerEngineRequest): Promise<AnswerEngineResult> {
   const now = request.now || new Date();
   const profileSignals = buildProfileSignals(request.surveyProfile, request.preferences);
-  const intent = detectAnswerIntent(request.query, coerceToAnswerIntent(request.explicitIntent));
+  const intentResult: IntentDetectionResult = detectAnswerIntent(request.query, coerceToAnswerIntent(request.explicitIntent));
+  const intent = intentResult.intent;
   const baselines =
     request.baselineOverride ||
     (await getBaselinesCached(String(request.user._id), 90, now).catch((err) => {
@@ -298,6 +323,108 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
   });
 
   const topPosts = ranked.filter((c) => c.passesThreshold).slice(0, policy.maxPosts);
+  let diagnosticEvidence: AnswerEngineResult['diagnosticEvidence'] | undefined;
+  if (intent === 'underperformance_diagnosis') {
+    const totalSample = ranked.length;
+    const perFormatMap: Record<string, RankedCandidate[]> = {};
+    ranked.forEach((c) => {
+      const rawFmt = Array.isArray(c.format) && c.format.length ? c.format[0] : c.format;
+      const fmtKey: string = typeof rawFmt === 'string' && rawFmt ? rawFmt : 'unknown';
+      if (!perFormatMap[fmtKey]) perFormatMap[fmtKey] = [];
+      perFormatMap[fmtKey].push(c);
+    });
+
+    const percentileRank = (value: number, sortedArr: number[]) => {
+      if (!sortedArr.length) return 0;
+      const len = sortedArr.length;
+      let idx = sortedArr.findIndex((v) => v >= value);
+      if (idx === -1) idx = len - 1;
+      return len === 1 ? 1 : Math.max(0, Math.min(1, idx / (len - 1)));
+    };
+
+    const formatEvidence: any[] = [];
+    Object.entries(perFormatMap).forEach(([fmt, posts]) => {
+      if (posts.length < 5) {
+        formatEvidence.push({ format: fmt, sampleSize: posts.length, insufficient: true, lowPosts: [], highPosts: [] });
+        return;
+      }
+      const reachArr = posts.map((p) => (typeof p.stats.reach === 'number' ? p.stats.reach : 0)).sort((a, b) => a - b);
+      const erArr = posts
+        .map((p) => (typeof p.stats.engagement_rate_on_reach === 'number' ? p.stats.engagement_rate_on_reach : 0))
+        .sort((a, b) => a - b);
+      const sharesArr = posts.map((p) => (typeof p.stats.shares === 'number' ? p.stats.shares : 0)).sort((a, b) => a - b);
+      const savesArr = posts.map((p) => (typeof p.stats.saves === 'number' ? p.stats.saves : 0)).sort((a, b) => a - b);
+
+      const scored = posts.map((p) => {
+        const reach = typeof p.stats.reach === 'number' ? p.stats.reach : 0;
+        const er = typeof p.stats.engagement_rate_on_reach === 'number' ? p.stats.engagement_rate_on_reach : 0;
+        const shares = typeof p.stats.shares === 'number' ? p.stats.shares : 0;
+        const saves = typeof p.stats.saves === 'number' ? p.stats.saves : 0;
+        const reachPct = percentileRank(reach, reachArr);
+        const erPct = percentileRank(er, erArr);
+        const sharesPct = percentileRank(shares, sharesArr);
+        const savesPct = percentileRank(saves, savesArr);
+        const weakScore = 0.55 * reachPct + 0.45 * erPct + 0.05 * ((sharesPct + savesPct) / 2);
+        const reason =
+          reachPct < 0.35 && erPct < 0.35
+            ? 'Baixo reach e ER'
+            : reachPct < 0.35
+              ? 'Problema de distribuição (reach baixo)'
+              : erPct < 0.35
+                ? 'Problema de retenção/valor (ER baixo)'
+                : 'Queda leve em ER/reach';
+        return { post: p, weakScore, reachPct, erPct, sharesPct, savesPct, reason };
+      });
+
+      const sortedAsc = [...scored].sort((a, b) => a.weakScore - b.weakScore);
+      const lowPosts = sortedAsc.slice(0, 3).map((s) => s.post);
+      const highPosts = sortedAsc.slice(-3).map((s) => s.post).reverse();
+
+      const medianVal = (values: number[]) => {
+        if (!values.length) return 0;
+        const s = [...values].sort((a, b) => a - b);
+        const m = Math.floor(s.length / 2);
+        if (s.length % 2 === 0) {
+          const left = s[m - 1] ?? s[0] ?? 0;
+          const right = s[m] ?? left;
+          return (left + right) / 2;
+        }
+        return s[m] ?? s[s.length - 1] ?? 0;
+      };
+
+      const lowReach = medianVal(lowPosts.map((p) => (typeof p.stats.reach === 'number' ? p.stats.reach : 0)));
+      const highReach = medianVal(highPosts.map((p) => (typeof p.stats.reach === 'number' ? p.stats.reach : 0)));
+      const lowEr = medianVal(lowPosts.map((p) => (typeof p.stats.engagement_rate_on_reach === 'number' ? p.stats.engagement_rate_on_reach : 0)));
+      const highEr = medianVal(highPosts.map((p) => (typeof p.stats.engagement_rate_on_reach === 'number' ? p.stats.engagement_rate_on_reach : 0)));
+      const lowShares = medianVal(lowPosts.map((p) => (typeof p.stats.shares === 'number' ? p.stats.shares : 0)));
+      const highShares = medianVal(highPosts.map((p) => (typeof p.stats.shares === 'number' ? p.stats.shares : 0)));
+      const lowSaves = medianVal(lowPosts.map((p) => (typeof p.stats.saves === 'number' ? p.stats.saves : 0)));
+      const highSaves = medianVal(highPosts.map((p) => (typeof p.stats.saves === 'number' ? p.stats.saves : 0)));
+
+      const pctDelta = (hi: number, lo: number) => (lo > 0 ? ((hi - lo) / lo) * 100 : hi > 0 ? 100 : 0);
+
+      formatEvidence.push({
+        format: fmt,
+        sampleSize: posts.length,
+        lowPosts,
+        highPosts,
+        reason: sortedAsc[0]?.reason,
+        deltas: {
+          reachPct: pctDelta(highReach, lowReach),
+          erPct: pctDelta(highEr, lowEr),
+          sharesPct: pctDelta(highShares, lowShares),
+          savesPct: pctDelta(highSaves, lowSaves),
+        },
+      });
+    });
+
+    diagnosticEvidence = {
+      insufficient: totalSample < 10,
+      perFormat: formatEvidence,
+    };
+  }
+
+  const topForPack = intent === 'underperformance_diagnosis' ? [] : topPosts;
   if (!topPosts.length && requestedFormat) {
     relaxApplied.push({ step: 'format_locked_empty', reason: `no_${requestedFormat}_candidates_above_threshold` });
   }
@@ -313,12 +440,13 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
 
   const contextPack = buildContextPack(
     ranked,
-    topPosts,
+    topForPack,
     baselines as any,
     policy,
     profileSignals,
     request.query,
     relaxApplied,
+    diagnosticEvidence,
   );
 
   logger.info('[answer-engine] chat_answer_intent_detected', {
@@ -344,15 +472,19 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
 
   return {
     intent,
+    intentGroup: intentResult.intentGroup,
+    askedForExamples: intentResult.askedForExamples,
+    routerRuleHit: intentResult.routerRuleHit,
     policy,
     baselines: baselines as any,
     ranked,
-    topPosts,
+    topPosts: topForPack,
     contextPack,
     telemetry: {
       candidatesConsidered: candidates.length,
       thresholdApplied: policy.thresholds,
       relaxApplied,
     },
+    diagnosticEvidence,
   };
 }

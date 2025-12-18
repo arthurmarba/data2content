@@ -89,6 +89,9 @@ export type AlertItem = {
 export interface AnswerEvidence {
     version?: string;
     intent: string;
+    intent_group?: 'inspiration' | 'diagnosis' | 'planning' | 'generic';
+    asked_for_examples?: boolean;
+    router_rule_hit?: string | null;
     thresholds: {
         minAbs?: number;
         minRel?: number;
@@ -131,4 +134,8 @@ export interface AnswerEvidence {
     }>;
     relaxApplied?: Array<{ step: string; reason?: string }>;
     filtersApplied?: { tagsLocked?: boolean; formatLocked?: boolean };
+    diagnosticEvidence?: {
+        lowPosts: AnswerEvidence['topPosts'];
+        highPosts: AnswerEvidence['topPosts'];
+    } | null;
 }

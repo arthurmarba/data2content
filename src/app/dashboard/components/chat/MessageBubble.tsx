@@ -229,8 +229,10 @@ export const MessageBubble = React.memo(function MessageBubble({
     const communityContent = React.useMemo(() => {
         const renderComponent = () => <CommunityInspirationMessage text={labelSafeText} theme={isUser ? 'inverse' : 'default'} />;
         // Prefer evidence topPosts for inspiration cards
-        if (message.answerEvidence?.topPosts?.length) {
-            const cards = message.answerEvidence.topPosts.map((p, idx) => ({
+        const evidence = message.answerEvidence;
+        const evidenceAllowsInspiration = evidence && evidence.intent_group === 'inspiration' && evidence.asked_for_examples;
+        if (evidenceAllowsInspiration && evidence.topPosts?.length) {
+            const cards = evidence.topPosts.map((p, idx) => ({
                 title: p.title || p.tags?.[0] || (Array.isArray(p.format) ? p.format[0] : p.format) || `Post ${idx + 1}`,
                 description: p.captionSnippet || undefined,
                 highlights: [],
@@ -279,7 +281,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             return renderComponent();
         }
         return null;
-    }, [displayText, isUser, message.messageType, labelSafeText, message.answerEvidence?.topPosts]);
+    }, [isUser, message.messageType, labelSafeText, message.answerEvidence]);
 
     const virtualizationStyle = virtualize
         ? ({ contentVisibility: 'auto', containIntrinsicSize: '1px 240px' } as React.CSSProperties)
@@ -313,9 +315,9 @@ export const MessageBubble = React.memo(function MessageBubble({
                                 {displayText}
                             </p>
                         ))}
-                        {!isUser && evidence && evidence.intent?.includes('top') && (
-                            (Array.isArray(evidence.topPosts) && evidence.topPosts.length >= 0) ||
-                            (evidence.relaxApplied && evidence.relaxApplied.length)
+                        {!isUser && evidence && (
+                            (evidence.intent_group === 'inspiration' && evidence.topPosts && evidence.topPosts.length > 0) ||
+                            (evidence.intent_group === 'diagnosis' && evidence.diagnosticEvidence)
                         ) ? (
                             <AnswerEvidencePanel
                                 evidence={evidence}

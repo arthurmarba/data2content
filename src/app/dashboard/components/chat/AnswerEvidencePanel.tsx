@@ -49,12 +49,15 @@ const isSafeUrl = (url?: string | null) => {
 
 export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: EvidencePanelProps) {
   const [expanded, setExpanded] = React.useState(false);
+  const isDiagnostic = evidence.intent_group === 'diagnosis' || evidence.intent === 'underperformance_diagnosis';
   const hasPosts = Array.isArray(evidence.topPosts) && evidence.topPosts.length > 0;
+  const hasDiagnostic = Boolean((evidence as any).diagnosticEvidence && (evidence as any).diagnosticEvidence.perFormat?.length);
 
   const summaryParts: string[] = [];
   const intentLabel = (() => {
     if (evidence.intent === 'top_reach') return 'Top alcance';
     if (evidence.intent === 'top_saves') return 'Top salvamentos';
+    if (evidence.intent === 'underperformance_diagnosis') return 'Sinais do desempenho';
     if (evidence.intent?.includes('performance')) return 'Top engajamento';
     return evidence.intent || 'Critério aplicado';
   })();
@@ -122,7 +125,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
     );
   };
 
-    if (!hasPosts) return renderEmpty();
+  if (!hasPosts && !isDiagnostic) return renderEmpty();
 
   const metricsOrder = selectIntentMetrics(evidence.intent || 'top_performance_inspirations');
 
@@ -155,10 +158,111 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
       </div>
       {expanded ? (
         <div className="mt-3 space-y-3">
-          {evidence.topPosts.slice(0, 8).map((post, idx) => {
+          {isDiagnostic && (evidence as any).diagnosticEvidence
+            ? ((evidence as any).diagnosticEvidence.perFormat || []).map((block: any) => {
+                const blockMetricsOrder = selectIntentMetrics('top_reach');
+                const summaryChips = [];
+                if (block.deltas?.erPct !== undefined) summaryChips.push(`ER ${deltaText(block.deltas.erPct) || ''}`.trim());
+                if (block.deltas?.reachPct !== undefined) summaryChips.push(`Reach ${deltaText(block.deltas.reachPct) || ''}`.trim());
+                if (block.deltas?.sharesPct !== undefined) summaryChips.push(`Shares ${deltaText(block.deltas.sharesPct) || ''}`.trim());
+                if (block.deltas?.savesPct !== undefined) summaryChips.push(`Saves ${deltaText(block.deltas.savesPct) || ''}`.trim());
+
+                if (block.insufficient) {
+                  return (
+                    <div key={block.format} className="rounded-lg border border-gray-200 bg-white p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-gray-800">{block.format}</span>
+                        <span className="text-xs text-gray-500">Amostra insuficiente ({block.sampleSize})</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={block.format} className="rounded-lg border border-gray-200 bg-white p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-800">{block.format}</span>
+                      <span className="text-xs text-amber-700">{block.reason}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-700">
+                      {summaryChips.filter(Boolean).map((chip) => (
+                        <span key={chip} className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1">{chip}</span>
+                      ))}
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {block.lowPosts.slice(0, 2).map((post: any, idx: number) => {
+                        const metricValues = blockMetricsOrder.map((m) => {
+                          if (m === 'engagement_rate_on_reach') {
+                            const er = (post.stats as any).engagement_rate_on_reach ?? (post.stats as any).er_by_reach;
+                            return er !== undefined && er !== null ? `${(er * 100).toFixed(1)}% ER` : '—';
+                          }
+                          return formatNumber((post.stats as any)[m]);
+                        });
+                        const tags = [];
+                        if (post.format) tags.push(Array.isArray(post.format) ? post.format[0] : post.format);
+                        if (post.tags && post.tags.length) tags.push(post.tags[0]);
+                        return (
+                          <div key={`low-${post.id}-${idx}`} className="rounded-lg border border-rose-100 bg-rose-50/70 p-2 text-xs">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-semibold text-rose-700">{post.title || `Post ${idx + 1}`}</span>
+                              <span className="text-[10px] text-rose-600">Fraco</span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {tags.map((t) => (
+                                <span key={t} className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[10px] text-gray-700">{t}</span>
+                              ))}
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-700">
+                              {blockMetricsOrder.map((metricKey, i) => (
+                                <span key={`${post.id}-${metricKey}`} className="inline-flex items-center rounded-full bg-white px-2 py-0.5">
+                                  {metricKey === 'engagement_rate_on_reach' ? 'ER' : metricKey.replace(/_/g, ' ')}: {metricValues[i]}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {block.highPosts.slice(0, 2).map((post: any, idx: number) => {
+                        const metricValues = blockMetricsOrder.map((m) => {
+                          if (m === 'engagement_rate_on_reach') {
+                            const er = (post.stats as any).engagement_rate_on_reach ?? (post.stats as any).er_by_reach;
+                            return er !== undefined && er !== null ? `${(er * 100).toFixed(1)}% ER` : '—';
+                          }
+                          return formatNumber((post.stats as any)[m]);
+                        });
+                        const tags = [];
+                        if (post.format) tags.push(Array.isArray(post.format) ? post.format[0] : post.format);
+                        if (post.tags && post.tags.length) tags.push(post.tags[0]);
+                        return (
+                          <div key={`high-${post.id}-${idx}`} className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-2 text-xs">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-semibold text-emerald-700">{post.title || `Post ${idx + 1}`}</span>
+                              <span className="text-[10px] text-emerald-600">Forte</span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {tags.map((t) => (
+                                <span key={t} className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[10px] text-gray-700">{t}</span>
+                              ))}
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-700">
+                              {blockMetricsOrder.map((metricKey, i) => (
+                                <span key={`${post.id}-${metricKey}`} className="inline-flex items-center rounded-full bg-white px-2 py-0.5">
+                                  {metricKey === 'engagement_rate_on_reach' ? 'ER' : metricKey.replace(/_/g, ' ')}: {metricValues[i]}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            : null}
+          {(!isDiagnostic ? evidence.topPosts : []).slice(0, 8).map((post, idx) => {
             const metricValues = metricsOrder.map((m) => {
               if (m === 'engagement_rate_on_reach') {
-                const er = post.stats.engagement_rate_on_reach ?? post.stats.er_by_reach;
+                const er = (post.stats as any).engagement_rate_on_reach ?? (post.stats as any).er_by_reach;
                 return er !== undefined && er !== null ? `${(er * 100).toFixed(1)}% ER` : '—';
               }
               return formatNumber((post.stats as any)[m]);

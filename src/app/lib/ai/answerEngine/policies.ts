@@ -1,5 +1,5 @@
 import { logger } from '@/app/lib/logger';
-import type { AnswerEnginePolicy, AnswerIntent, Thresholds, UserBaselines } from './types';
+import type { AnswerEnginePolicy, AnswerIntent, IntentGroup, Thresholds, UserBaselines } from './types';
 
 const HIGH_ENGAGEMENT_KEYWORDS = [
   'maior engajamento',
@@ -16,6 +16,28 @@ const HIGH_ENGAGEMENT_KEYWORDS = [
   'maior desempenho',
   'top performance',
   'que performou mais',
+];
+
+const DIAGNOSIS_KEYWORDS = [
+  'por que',
+  'porque',
+  'porquê',
+  'entender',
+  'analisar',
+  'análise',
+  'analise',
+  'flop',
+  'não viraliza',
+  'nao viraliza',
+  'não viralizam',
+  'nao viralizam',
+  'o que estou fazendo errado',
+  'não está indo bem',
+  'não ta indo bem',
+  'nao ta indo bem',
+  'por que não engaja',
+  'porque nao engaja',
+  'quero entender',
 ];
 
 const REACH_KEYWORDS = ['alcance', 'reach', 'impress', 'views'];
@@ -43,18 +65,81 @@ function keywordMatch(query: string, patterns: RegExp[]) {
   return patterns.every((pattern) => pattern.test(query));
 }
 
-export function detectAnswerIntent(query: string, fallback?: AnswerIntent | string | null): AnswerIntent {
+function wantsExamples(query: string) {
+  const verbs = /(me mostre|me de|me dê|traga|liste|quais são|quais foram|me envie|mostra)/i;
+  const nouns = /(exemplos|inspiraç|inspira\u00e7|posts|conte\u00fados|reels|ideias|cards)/i;
+  return verbs.test(query) || nouns.test(query);
+}
+
+export type IntentDetectionResult = {
+  intent: AnswerIntent;
+  intentGroup: IntentGroup;
+  askedForExamples: boolean;
+  routerRuleHit: string | null;
+};
+
+export function detectAnswerIntent(query: string, fallback?: AnswerIntent | string | null): IntentDetectionResult {
   const normalized = (query || '').trim().toLowerCase();
+
+  const askedForExamples = wantsExamples(normalized);
+
+  if (DIAGNOSIS_KEYWORDS.some((kw) => normalized.includes(kw)) && !askedForExamples) {
+    return {
+      intent: 'underperformance_diagnosis',
+      intentGroup: 'diagnosis',
+      askedForExamples,
+      routerRuleHit: 'ptbr_diagnosis_why_not_viralize',
+    };
+  }
+
   for (const entry of INTENT_KEYWORDS) {
-    if (keywordMatch(normalized, entry.patterns)) return entry.intent;
+    if (keywordMatch(normalized, entry.patterns)) {
+      if ((entry.intent === 'top_performance_inspirations' || entry.intent === 'community_examples') && !askedForExamples) {
+        // Avoid inspiration/top unless user asked for examples
+        continue;
+      }
+      return {
+        intent: entry.intent,
+        intentGroup: 'inspiration',
+        askedForExamples,
+        routerRuleHit: `kw_${entry.intent}`,
+      };
+    }
   }
 
   if (HIGH_ENGAGEMENT_KEYWORDS.some((kw) => normalized.includes(kw))) {
-    return 'top_performance_inspirations';
+    if (askedForExamples) {
+      return {
+        intent: 'top_performance_inspirations',
+        intentGroup: 'inspiration',
+        askedForExamples,
+        routerRuleHit: 'kw_high_engagement_examples',
+      };
+    }
+    return {
+      intent: 'underperformance_diagnosis',
+      intentGroup: 'diagnosis',
+      askedForExamples,
+      routerRuleHit: 'kw_high_engagement_diagnosis',
+    };
   }
 
   const mapped = coerceToAnswerIntent(fallback);
-  return mapped;
+  const group: IntentGroup =
+    mapped === 'growth_plan'
+      ? 'planning'
+      : mapped === 'underperformance_diagnosis'
+        ? 'diagnosis'
+        : mapped.includes('top') || mapped === 'community_examples'
+          ? 'inspiration'
+          : 'generic';
+
+  return {
+    intent: mapped,
+    intentGroup: group,
+    askedForExamples,
+    routerRuleHit: 'fallback',
+  };
 }
 
 export function coerceToAnswerIntent(intent?: string | null): AnswerIntent {

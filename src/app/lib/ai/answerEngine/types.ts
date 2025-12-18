@@ -4,6 +4,7 @@ export type AnswerIntent =
   | 'top_performance_inspirations'
   | 'top_reach'
   | 'top_saves'
+  | 'underperformance_diagnosis'
   | 'best_formats_for_user'
   | 'content_ideas_for_goal'
   | 'why_my_content_flopped'
@@ -11,6 +12,8 @@ export type AnswerIntent =
   | 'community_examples'
   | 'pricing_suggestion'
   | 'generic_qna';
+
+export type IntentGroup = 'inspiration' | 'diagnosis' | 'planning' | 'generic';
 
 export interface ProfileSignals {
   nicho?: string;
@@ -121,10 +124,30 @@ export interface ContextPack {
   intent: AnswerIntent;
   notes?: string[];
   relaxApplied?: Array<{ step: string; reason: string }>;
+  diagnostic?: {
+    insufficient?: boolean;
+    per_format: Array<{
+      format: string;
+      sample_size: number;
+      insufficient?: boolean;
+      reason?: string;
+      deltas?: {
+        reach_pct?: number | null;
+        er_pct?: number | null;
+        shares_pct?: number | null;
+        saves_pct?: number | null;
+      };
+      low_posts: ContextPack['top_posts'];
+      high_posts: ContextPack['top_posts'];
+    }>;
+  };
 }
 
 export interface AnswerEngineResult {
   intent: AnswerIntent;
+  intentGroup: IntentGroup;
+  askedForExamples: boolean;
+  routerRuleHit?: string | null;
   policy: AnswerEnginePolicy & { thresholds: Thresholds };
   baselines: UserBaselines;
   ranked: RankedCandidate[];
@@ -134,6 +157,23 @@ export interface AnswerEngineResult {
     candidatesConsidered: number;
     thresholdApplied: Thresholds;
     relaxApplied?: Array<{ step: string; reason: string }>;
+  };
+  diagnosticEvidence?: {
+    insufficient?: boolean;
+    perFormat: Array<{
+      format: string;
+      sampleSize: number;
+      insufficient?: boolean;
+      reason?: string;
+      deltas?: {
+        reachPct?: number | null;
+        erPct?: number | null;
+        sharesPct?: number | null;
+        savesPct?: number | null;
+      };
+      lowPosts: RankedCandidate[];
+      highPosts: RankedCandidate[];
+    }>;
   };
 }
 
