@@ -1,19 +1,38 @@
+"use client";
+
 import React from 'react';
 
 /* ---------- Renderização tipográfica “chat-like” ---------- */
 
+export type RenderTheme = 'default' | 'inverse';
+export type RenderDensity = 'comfortable' | 'compact';
+
+export type RenderOptions = {
+    density?: RenderDensity;
+    disclosureOpen?: boolean;
+    disclosureSignal?: number;
+    enableDisclosure?: boolean;
+    stepsStyle?: boolean;
+    cacheKey?: string | null;
+    onToggleDisclosure?: (payload: { title: string; open: boolean }) => void;
+    onCopyCode?: (payload: { code: string; language?: string | null }) => void;
+};
+
 export function escapeHtml(s: string) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 /** `** bold ** `, `code` e links (sobre HTML escapado) */
-export type RenderTheme = 'default' | 'inverse';
-
 export function applyInlineMarkup(escaped: string, theme: RenderTheme = 'default') {
     const codeClass =
         theme === 'inverse'
-            ? 'px-1 py-0.5 rounded bg-white/10 text-white text-[13px] font-mono leading-tight'
-            : 'px-1 py-0.5 rounded bg-gray-100 text-gray-800 text-[13px] font-mono leading-tight';
+            ? 'px-1.5 py-0.5 rounded bg-white/15 text-white text-[13px] font-mono leading-tight'
+            : 'px-1.5 py-0.5 rounded bg-gray-100 text-gray-900 text-[13px] font-mono leading-tight';
     const linkClass =
         theme === 'inverse'
             ? 'text-white underline decoration-white/40 hover:decoration-white/70 break-words'
@@ -22,12 +41,20 @@ export function applyInlineMarkup(escaped: string, theme: RenderTheme = 'default
         theme === 'inverse'
             ? 'inline bg-white/20 text-white px-1 py-0.5 rounded-sm align-middle'
             : 'inline bg-amber-100 text-gray-900 px-1 py-0.5 rounded-sm align-middle';
+    const italicClass = theme === 'inverse' ? 'italic text-white/90' : 'italic text-gray-700';
 
     let out = escaped;
     // Highlight: ==...== (somente se não há tags internas ou sinais suspeitos)
     out = out.replace(/==([^=<>\n=]{1,200})==/g, `<span class="${highlightClass}">$1</span>`);
     out = out.replace(/`([^`]+)`/g, `<code class="${codeClass}">$1</code>`);
-    out = out.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>');
+    out = out.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+    out = out.replace(/__([^_]+)__/g, '<strong class="font-semibold">$1</strong>');
+    out = out.replace(/(^|[\s(])\*([^*\n]{1,200})\*(?=[\s).,!?]|$)/g, (_match, lead, text) => {
+        return `${lead}<em class="${italicClass}">${text}</em>`;
+    });
+    out = out.replace(/(^|[\s(])_([^_\n]{1,200})_(?=[\s).,!?]|$)/g, (_match, lead, text) => {
+        return `${lead}<em class="${italicClass}">${text}</em>`;
+    });
     out = out.replace(
         /(https?:\/\/[^\s)]+)(?![^<]*>)/g,
         `<a href="$1" target="_blank" rel="noopener noreferrer" class="${linkClass}">$1</a>`
@@ -46,67 +73,182 @@ function stripLooseMarkers(value: string) {
         .trim();
 }
 
-/** Tipografia compacta (14px / lh-6) com respiro reduzido */
-export function renderFormatted(text: string, theme: RenderTheme = 'default') {
-    const isInverse = theme === 'inverse';
-    const hrClass = isInverse ? 'my-6 border-t border-white/30' : 'my-6 border-t border-gray-200/80';
-    const blockquoteClass = isInverse
-        ? 'border-l-4 border-white/40 pl-4 italic text-[14px] leading-6 opacity-90 my-4 text-white'
-        : 'border-l-4 border-gray-300 pl-4 italic text-[14px] leading-6 text-gray-600 my-4';
-    const h1Class = `text-2xl leading-tight font-bold mt-8 mb-4 tracking-tight ${isInverse ? 'text-white' : 'text-gray-900'}`;
-    const h2Class = `text-xl leading-snug font-bold mt-6 mb-2 tracking-tight ${isInverse ? 'text-white' : 'text-gray-800'}`;
-    const h3Class = `text-lg leading-snug font-bold mt-5 mb-2 tracking-tight ${isInverse ? 'text-white' : 'text-gray-800'}`;
-    const paragraphClass = `text-[15px] leading-7 my-3 ${isInverse ? 'text-white' : 'text-gray-800'}`;
-    const listClass = `text-[15px] leading-6 my-2 ${isInverse ? 'text-white' : 'text-gray-800'}`;
-    const tableTextClass = `min-w-full text-left text-xs leading-5 ${isInverse ? 'text-white' : 'text-gray-800'}`;
-    const tableHeaderClass = `px-3 py-2 border-b ${isInverse ? 'border-white/25 bg-white/10' : 'border-current/20 bg-gray-50'} font-semibold`;
-    const tableCellClass = `px-3 py-2 border-b ${isInverse ? 'border-white/20' : 'border-current/10'} align-top break-words`;
-    const tableStripeClass = isInverse ? 'bg-white/5' : 'bg-gray-50/70';
-    const labelClass = isInverse ? 'font-semibold text-white' : 'font-semibold text-gray-900';
-    const valueClass = isInverse ? 'text-white/90' : 'text-gray-800';
+function normalizeHeading(value: string) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
 
-    // Alert Styles
-    const alertBaseClass = "my-4 rounded-md p-4 text-sm border-l-4";
-    const alertStyles = {
-        NOTE: isInverse
-            ? 'bg-blue-900/30 border-blue-400 text-blue-100'
-            : 'bg-blue-50 border-blue-500 text-blue-800',
-        TIP: isInverse
-            ? 'bg-emerald-900/30 border-emerald-400 text-emerald-100'
-            : 'bg-emerald-50 border-emerald-500 text-emerald-800',
-        IMPORTANT: isInverse
-            ? 'bg-violet-900/30 border-violet-400 text-violet-100'
-            : 'bg-violet-50 border-violet-500 text-violet-800',
-        WARNING: isInverse
-            ? 'bg-amber-900/30 border-amber-400 text-amber-100'
-            : 'bg-amber-50 border-amber-500 text-amber-800',
-        CAUTION: isInverse
-            ? 'bg-red-900/30 border-red-400 text-red-100'
-            : 'bg-red-50 border-red-500 text-red-800',
+function isHyphenListItemLine(line: string) {
+    const trimmed = line.trimStart();
+    return /^-\s+/.test(trimmed);
+}
+
+function hasBlockyEnding(line: string) {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    if (trimmed.endsWith('```')) return true;
+    if (/(?:^|\s)#{2,}\s*$/.test(trimmed)) return true;
+    return /(-{3,}|_{3,}|\*{3,})$/.test(trimmed);
+}
+
+function isContentPlanItemLine(line: string) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.endsWith(':')) return false;
+    if (/[—–-]/.test(trimmed)) return true;
+    return /\b(reel|reels|carrossel|foto|story|live|video|vídeo|post)\b/i.test(trimmed);
+}
+
+function fixDanglingBoldLine(line: string) {
+    const listMatch = line.match(/^(\s*(?:[-*]|\d+\.)\s+)(.*)$/);
+    const prefix = listMatch ? listMatch[1] : '';
+    const rest = listMatch?.[2] ?? line;
+    const safeRest = rest ?? '';
+
+    const boldMatch = safeRest.match(/^([^*]+?)\*\*\s*:\s*(.*)$/);
+    if (!boldMatch) return line;
+
+    const label = boldMatch[1]?.trim() || '';
+    const tail = boldMatch[2]?.trim() || '';
+    if (!label) return line;
+
+    return `${prefix}**${label}:**${tail ? ` ${tail}` : ''}`;
+}
+
+function normalizePlanningMarkdown(input: string) {
+    const lines = input.split(/\r?\n/);
+    const output: string[] = [];
+    let inCodeBlock = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i] ?? '';
+        const trimmed = line.trim();
+
+        if (/^```/.test(trimmed)) {
+            inCodeBlock = !inCodeBlock;
+            output.push(line);
+            continue;
+        }
+
+        if (!inCodeBlock && !/^\s*>/.test(line)) {
+            line = fixDanglingBoldLine(line);
+        }
+
+        if (!inCodeBlock && !/^\s*>/.test(line)) {
+            const dayMatch = line.match(/^(\s*)Dia\s*:\s*(.*)$/i);
+            const indent = dayMatch?.[1] ?? '';
+            if (dayMatch && indent.length === 0 && output.length > 0) {
+                const prevLine = output[output.length - 1] ?? '';
+                if (
+                    isHyphenListItemLine(prevLine) &&
+                    isContentPlanItemLine(prevLine) &&
+                    !/\bDia\s*:/i.test(prevLine) &&
+                    !hasBlockyEnding(prevLine)
+                ) {
+                    const dayValue = (dayMatch[2] ?? '').trim();
+                    const suffix = dayValue ? `Dia: ${dayValue}` : 'Dia';
+                    const separator = /[:—-]\s*$/.test(prevLine) ? ' ' : ' — ';
+                    output[output.length - 1] = `${prevLine}${separator}${suffix}`;
+                    continue;
+                }
+            }
+        }
+
+        output.push(line);
+    }
+
+    return output.join("\n");
+}
+
+function splitLongParagraph(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.includes("\n")) return [trimmed];
+    if (trimmed.length < 280) return [trimmed];
+    const chunks: string[] = [];
+    let buffer: string[] = [];
+    let start = 0;
+
+    const pushSentence = (sentence: string) => {
+        const clean = sentence.trim();
+        if (!clean) return;
+        buffer.push(clean);
+        const joined = buffer.join(' ');
+        const shouldFlush = buffer.length >= 3 || (buffer.length >= 2 && joined.length >= 240);
+        if (shouldFlush) {
+            chunks.push(joined);
+            buffer = [];
+        }
     };
 
-    type AlertType = keyof typeof alertStyles;
+    for (let i = 0; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (ch !== '.' && ch !== '!' && ch !== '?') continue;
+        const next = trimmed[i + 1];
+        if (i < trimmed.length - 1 && next && next !== ' ' && next !== '\n' && next !== '\r' && next !== '\t') {
+            continue;
+        }
+        pushSentence(trimmed.slice(start, i + 1));
+        let j = i + 1;
+        while (j < trimmed.length) {
+            const nextChar = trimmed[j];
+            if (nextChar !== ' ' && nextChar !== '\n' && nextChar !== '\r' && nextChar !== '\t') break;
+            j += 1;
+        }
+        start = j;
+        i = j - 1;
+    }
 
-    type Block =
-        | { type: 'heading'; level: 1 | 2 | 3; content: string }
-        | { type: 'hr' }
-        | { type: 'blockquote'; content: string }
-        | { type: 'alert'; alertType: AlertType; title?: string; content: string }
-        | { type: 'paragraph'; content: string }
-        | { type: 'table'; headers: string[]; rows: string[][] }
-        | { type: 'tableFromDl'; titleLabel: string; labels: string[]; rows: { title: string; values: string[] }[]; topValues?: Record<string, string> }
-        | { type: 'ul'; items: string[] }
-        | { type: 'ol'; items: string[] }
-        | { type: 'dl'; items: { label: string; value: string }[] }
-        | { type: 'labels'; items: string[] };
+    if (start < trimmed.length) {
+        pushSentence(trimmed.slice(start));
+    }
+    if (buffer.length) chunks.push(buffer.join(' '));
+    return chunks.length ? chunks : [trimmed];
+}
 
+type AlertType = 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION' | 'INFO';
+
+type Block =
+    | { type: 'heading'; level: 1 | 2 | 3; content: string }
+    | { type: 'hr' }
+    | { type: 'blockquote'; content: string }
+    | { type: 'alert'; alertType: AlertType; content: string }
+    | { type: 'paragraph'; content: string }
+    | { type: 'code'; content: string; language?: string }
+    | { type: 'table'; headers: string[]; rows: string[][] }
+    | { type: 'tableFromDl'; titleLabel: string; labels: string[]; rows: { title: string; values: string[] }[]; topValues?: Record<string, string> }
+    | { type: 'ul'; items: string[] }
+    | { type: 'ol'; items: string[] }
+    | { type: 'checklist'; items: { text: string; checked: boolean }[] }
+    | { type: 'dl'; items: { label: string; value: string }[] }
+    | { type: 'labels'; items: string[] }
+    | { type: 'disclosure'; title: string; level: 1 | 2 | 3; blocks: Block[] };
+
+type ParsedBlocksCacheEntry = {
+    text: string;
+    normalizedBlocks: Block[];
+    disclosureBlocks: Block[];
+};
+
+const PARSED_BLOCKS_CACHE_LIMIT = 300;
+const PARSED_BLOCKS_CACHE = new Map<string, ParsedBlocksCacheEntry>();
+
+const parseTextToBlocks = (text: string): Block[] => {
     const lines = text.split(/\r?\n/);
     const blocks: Block[] = [];
     let paragraphBuffer: string[] = [];
 
+    const pushParagraph = (content: string) => {
+        const chunks = splitLongParagraph(content);
+        chunks.forEach((chunk) => {
+            if (chunk.trim()) {
+                blocks.push({ type: 'paragraph', content: chunk });
+            }
+        });
+    };
+
     const flushParagraph = () => {
         if (paragraphBuffer.length === 0) return;
-        blocks.push({ type: 'paragraph', content: paragraphBuffer.join("\n") });
+        const content = paragraphBuffer.join("\n");
+        pushParagraph(content);
         paragraphBuffer = [];
     };
 
@@ -129,6 +271,23 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
             continue;
         }
 
+        // Code block
+        if (/^```/.test(line)) {
+            flushParagraph();
+            const language = line.replace(/```/, '').trim() || undefined;
+            const codeLines: string[] = [];
+            let j = i + 1;
+            while (j < lines.length) {
+                const candidate = (lines[j] ?? "").trim();
+                if (/^```/.test(candidate)) break;
+                codeLines.push(lines[j] ?? "");
+                j++;
+            }
+            i = j < lines.length ? j : lines.length - 1;
+            blocks.push({ type: 'code', content: codeLines.join("\n"), language });
+            continue;
+        }
+
         // HR
         if (/^(-{3,}|_{3,}|\*{3,})$/.test(line)) {
             flushParagraph();
@@ -142,7 +301,6 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
             flushParagraph();
             const level = Math.min(h[1].length, 3);
             const headingText = h[2] ?? "";
-
             blocks.push({ type: 'heading', level: level as 1 | 2 | 3, content: headingText });
             continue;
         }
@@ -161,37 +319,14 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
             i = j - 1;
 
             const fullContent = quoteLines.join("\n");
-            // Check for Alert syntax: [!TYPE]
-            const alertMatch = fullContent.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)/i);
+            const alertMatch = fullContent.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO|WARN)\]\s*(.*)/i);
 
             if (alertMatch && alertMatch[1]) {
-                const typeKey = alertMatch[1].toUpperCase() as AlertType;
-                const matchedPrefix = alertMatch[0] ?? '';
-                // The rest of the first line is the title (optional), subsequent lines are content
-                // Actually, standard GFM alerts don't have a title on the same line usually, 
-                // but let's handle: > [!TIP] Title \n Content
-                // or just > [!TIP] \n Content
-
-                let remainingContent = fullContent.substring(matchedPrefix.length).trim();
-                // If the first line had text after [!TYPE], treat as title or start of content?
-                // Standard GFM: > [!NOTE]
-                // > Highlights information that users should take into account.
-
-                // Let's treat text immediately after [!TYPE] as part of content if it exists, 
-                // but usually it's empty.
-
-                // Re-parsing to separate title logic if we want custom titles? 
-                // For now, let's just strip the [!TYPE] marker and render the rest.
-
-                // Let's try to support a title if provided on the same line? 
-                // No, let's stick to standard GFM: [!TYPE] is the header.
-                // We'll just render the content.
-
-                // But wait, our `quoteLines` array has the lines.
-                // quoteLines[0] is "[!NOTE]" or "[!NOTE] Title"
-
+                const rawType = alertMatch[1].toUpperCase();
+                const normalizedType = rawType === 'WARN' ? 'WARNING' : rawType;
+                const typeKey = normalizedType as AlertType;
                 const firstLine = quoteLines[0] ?? '';
-                const firstLineContent = firstLine.replace(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i, '').trim();
+                const firstLineContent = firstLine.replace(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO|WARN)\]\s*/i, '').trim();
                 const otherLines = quoteLines.slice(1).join("\n");
                 const finalContent = firstLineContent ? `${firstLineContent}\n${otherLines}` : otherLines;
 
@@ -201,7 +336,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
                     content: finalContent.trim()
                 });
             } else {
-                blocks.push({ type: 'blockquote', content: quoteLines.join(" ") });
+                blocks.push({ type: 'blockquote', content: quoteLines.join("\n") });
             }
             continue;
         }
@@ -245,6 +380,19 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
                 j++;
             }
             i = j - 1;
+
+            const checklistItems = items.map((item) => {
+                const match = item.match(/^\[( |x|X)\]\s+(.*)$/);
+                if (!match) return null;
+                const checked = (match[1] ?? '').toLowerCase() === 'x';
+                const text = stripLooseMarkers(match[2] ?? '');
+                return { checked, text };
+            });
+
+            if (checklistItems.every((item) => item)) {
+                blocks.push({ type: 'checklist', items: checklistItems.filter(Boolean) as { text: string; checked: boolean }[] });
+                continue;
+            }
 
             const parsedItems = items.map((it) => {
                 const match = it.match(/^([^:]+):\s*(.*)$/);
@@ -343,7 +491,10 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
     }
 
     flushParagraph();
+    return blocks;
+};
 
+const normalizeBlocks = (blocks: Block[]): Block[] => {
     // Agrupa headings + dls em tabela se possível (union de labels, admite faltas)
     const normalizedBlocks: Block[] = [];
     for (let i = 0; i < blocks.length;) {
@@ -401,8 +552,269 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
         }
         i += 1;
     }
+    return normalizedBlocks;
+};
 
-    const elements: JSX.Element[] = [];
+const buildDisclosureBlocks = (normalizedBlocks: Block[]): Block[] => {
+    const withDisclosure: Block[] = [];
+    for (let i = 0; i < normalizedBlocks.length; i++) {
+        const block = normalizedBlocks[i];
+        if (!block) continue;
+        if (block.type === 'heading') {
+            const normalized = normalizeHeading(block.content);
+            if (normalized.startsWith('detalhes') || normalized.startsWith('metodologia')) {
+                const collected: Block[] = [];
+                let j = i + 1;
+                while (j < normalizedBlocks.length) {
+                    const nextBlock = normalizedBlocks[j];
+                    if (!nextBlock) {
+                        j += 1;
+                        continue;
+                    }
+                    if (nextBlock.type === 'heading' && nextBlock.level <= block.level) break;
+                    collected.push(nextBlock);
+                    j += 1;
+                }
+                withDisclosure.push({
+                    type: 'disclosure',
+                    title: block.content,
+                    level: block.level,
+                    blocks: collected,
+                });
+                i = j - 1;
+                continue;
+            }
+        }
+        withDisclosure.push(block);
+    }
+    return withDisclosure;
+};
+
+const getCachedBlocks = (text: string, cacheKey?: string | null) => {
+    if (!cacheKey) {
+        const normalizedBlocks = normalizeBlocks(parseTextToBlocks(text));
+        return { normalizedBlocks, disclosureBlocks: buildDisclosureBlocks(normalizedBlocks) };
+    }
+
+    const cached = PARSED_BLOCKS_CACHE.get(cacheKey);
+    if (cached && cached.text === text) {
+        PARSED_BLOCKS_CACHE.delete(cacheKey);
+        PARSED_BLOCKS_CACHE.set(cacheKey, cached);
+        return { normalizedBlocks: cached.normalizedBlocks, disclosureBlocks: cached.disclosureBlocks };
+    }
+
+    const normalizedBlocks = normalizeBlocks(parseTextToBlocks(text));
+    const disclosureBlocks = buildDisclosureBlocks(normalizedBlocks);
+    PARSED_BLOCKS_CACHE.set(cacheKey, { text, normalizedBlocks, disclosureBlocks });
+
+    if (PARSED_BLOCKS_CACHE.size > PARSED_BLOCKS_CACHE_LIMIT) {
+        const firstKey = PARSED_BLOCKS_CACHE.keys().next().value;
+        if (firstKey) PARSED_BLOCKS_CACHE.delete(firstKey);
+    }
+
+    return { normalizedBlocks, disclosureBlocks };
+};
+
+type CodeBlockProps = {
+    code: string;
+    language?: string | null;
+    theme: RenderTheme;
+    onCopy?: (payload: { code: string; language?: string | null }) => void;
+};
+
+const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, theme, onCopy }) => {
+    const [copied, setCopied] = React.useState(false);
+    const timeoutRef = React.useRef<number | null>(null);
+
+    React.useEffect(() => {
+        return () => {
+            if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+        };
+    }, []);
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(code);
+            setCopied(true);
+            onCopy?.({ code, language: language || null });
+            if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+            timeoutRef.current = window.setTimeout(() => setCopied(false), 1600);
+        } catch (error) {
+            console.error('[chat] falha ao copiar codigo', error);
+        }
+    };
+
+    const wrapperClass =
+        theme === 'inverse'
+            ? 'border-white/15 bg-white/10 text-white'
+            : 'border-gray-200 bg-gray-50 text-gray-900';
+    const headerClass =
+        theme === 'inverse'
+            ? 'border-b border-white/10 text-white/80'
+            : 'border-b border-gray-200 text-gray-600';
+    const codeClass = theme === 'inverse' ? 'text-white/90' : 'text-gray-800';
+    const label = language?.trim() ? language.trim() : 'Código';
+    const copyLabel = copied ? 'Copiado!' : 'Copiar código';
+    const copyAriaLabel = copied ? 'Código copiado' : 'Copiar código';
+
+    return (
+        <div className={`my-4 overflow-hidden rounded-xl border ${wrapperClass}`}>
+            <div className={`flex items-center justify-between gap-2 px-3 py-2 text-[11px] uppercase tracking-wide ${headerClass}`}>
+                <span className="font-semibold">{label}</span>
+                <button
+                    type="button"
+                    onClick={handleCopy}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${theme === 'inverse'
+                        ? 'bg-white/10 text-white hover:bg-white/20'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                    aria-label={copyAriaLabel}
+                    title={copyAriaLabel}
+                >
+                    {copyLabel}
+                </button>
+                <span className="sr-only" role="status" aria-live="polite">
+                    {copied ? 'Código copiado' : ''}
+                </span>
+            </div>
+            <pre className="max-h-[360px] overflow-x-auto overflow-y-auto px-4 py-3">
+                <code className={`block text-[13px] leading-6 font-mono ${codeClass}`}>
+                    {code}
+                </code>
+            </pre>
+        </div>
+    );
+};
+
+type DisclosureProps = {
+    title: string;
+    theme: RenderTheme;
+    forceOpen?: boolean;
+    forceSignal?: number;
+    onToggle?: (payload: { title: string; open: boolean }) => void;
+    children: React.ReactNode;
+};
+
+const Disclosure: React.FC<DisclosureProps> = ({
+    title,
+    theme,
+    forceOpen,
+    forceSignal,
+    onToggle,
+    children,
+}) => {
+    const contentId = React.useId();
+    const [open, setOpen] = React.useState(Boolean(forceOpen));
+
+    React.useEffect(() => {
+        if (typeof forceOpen === 'boolean') {
+            setOpen(forceOpen);
+        }
+    }, [forceOpen, forceSignal]);
+
+    const containerClass =
+        theme === 'inverse'
+            ? 'border-white/15 bg-white/5 text-white'
+            : 'border-gray-200 bg-white text-gray-800';
+    const summaryClass =
+        theme === 'inverse'
+            ? 'text-white/90 hover:text-white'
+            : 'text-gray-800 hover:text-gray-900';
+    const badgeClass =
+        theme === 'inverse'
+            ? 'bg-white/10 text-white/80'
+            : 'bg-gray-100 text-gray-600';
+
+    return (
+        <details
+            open={open}
+            onToggle={(event) => {
+                const next = (event.currentTarget as HTMLDetailsElement).open;
+                setOpen(next);
+                onToggle?.({ title, open: next });
+            }}
+            className={`group my-4 rounded-xl border ${containerClass}`}
+        >
+            <summary
+                className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold ${summaryClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-magenta focus-visible:ring-offset-2 focus-visible:ring-offset-transparent`}
+                aria-expanded={open}
+                aria-controls={contentId}
+            >
+                <span>{title}</span>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${badgeClass}`}>
+                    {open ? 'Recolher' : 'Ver mais'}
+                </span>
+            </summary>
+            <div id={contentId} className="px-4 pb-4 pt-1">
+                {children}
+            </div>
+        </details>
+    );
+};
+
+/** Tipografia com respiro legível */
+export function renderFormatted(text: string, theme: RenderTheme = 'default', options: RenderOptions = {}) {
+    const isInverse = theme === 'inverse';
+    const density = options.density ?? 'comfortable';
+    const stepsStyle = options.stepsStyle ?? true;
+    const allowDisclosure = options.enableDisclosure !== false;
+
+    const hrClass = isInverse ? 'my-6 border-t border-white/30' : 'my-6 border-t border-gray-200/80';
+    const blockquoteClass = isInverse
+        ? 'border-l-4 border-white/40 pl-4 italic text-[14px] leading-[1.6] opacity-90 my-4 text-white'
+        : 'border-l-4 border-gray-300 pl-4 italic text-[14px] leading-[1.6] text-gray-600 my-4';
+    const h1Class = `text-2xl font-bold tracking-tight ${isInverse ? 'text-white' : 'text-gray-900'} ${density === 'compact' ? 'mt-5 mb-2' : 'mt-6 mb-3'}`;
+    const h2Class = `text-xl font-bold tracking-tight ${isInverse ? 'text-white' : 'text-gray-800'} ${density === 'compact' ? 'mt-4 mb-2' : 'mt-6 mb-2.5'}`;
+    const h3Class = `text-lg font-bold tracking-tight ${isInverse ? 'text-white' : 'text-gray-800'} ${density === 'compact' ? 'mt-3 mb-1.5' : 'mt-5 mb-2'}`;
+    const paragraphClass = `${density === 'compact' ? 'text-[14px] my-2' : 'text-[15px] my-3'} leading-[1.6] ${isInverse ? 'text-white' : 'text-gray-800'}`;
+    const listClass = `${density === 'compact' ? 'text-[14px] my-2' : 'text-[15px] my-3'} leading-[1.55] ${isInverse ? 'text-white' : 'text-gray-800'}`;
+    const tableTextClass = `min-w-full text-left text-[13px] leading-5 ${isInverse ? 'text-white' : 'text-gray-800'}`;
+    const tableHeaderClass = `px-3 py-2 border-b ${isInverse ? 'border-white/25 bg-white/10 text-white/90' : 'border-gray-200 bg-gray-50 text-gray-700'} font-semibold`;
+    const tableCellClass = `px-3 py-2 border-b ${isInverse ? 'border-white/15' : 'border-gray-100'} align-top break-words`;
+    const tableStripeClass = isInverse ? 'bg-white/5' : 'bg-gray-50/70';
+    const labelClass = isInverse ? 'font-semibold text-white' : 'font-semibold text-gray-900';
+    const valueClass = isInverse ? 'text-white/90' : 'text-gray-800';
+
+    const alertBaseClass = "my-4 rounded-xl p-4 text-sm border-l-4";
+    const alertStyles: Record<AlertType, string> = {
+        INFO: isInverse
+            ? 'bg-blue-900/30 border-blue-400 text-blue-100'
+            : 'bg-blue-50 border-blue-500 text-blue-800',
+        NOTE: isInverse
+            ? 'bg-slate-900/30 border-slate-300 text-slate-100'
+            : 'bg-slate-50 border-slate-300 text-slate-800',
+        TIP: isInverse
+            ? 'bg-emerald-900/30 border-emerald-400 text-emerald-100'
+            : 'bg-emerald-50 border-emerald-500 text-emerald-800',
+        IMPORTANT: isInverse
+            ? 'bg-violet-900/30 border-violet-400 text-violet-100'
+            : 'bg-violet-50 border-violet-500 text-violet-800',
+        WARNING: isInverse
+            ? 'bg-amber-900/30 border-amber-400 text-amber-100'
+            : 'bg-amber-50 border-amber-500 text-amber-800',
+        CAUTION: isInverse
+            ? 'bg-red-900/30 border-red-400 text-red-100'
+            : 'bg-red-50 border-red-500 text-red-800',
+    };
+
+    const alertTitleMap: Record<AlertType, string> = {
+        INFO: 'Info',
+        NOTE: 'Nota',
+        TIP: 'Dica',
+        IMPORTANT: 'Importante',
+        WARNING: 'Atenção',
+        CAUTION: 'Cuidado',
+    };
+    const alertIconMap: Record<AlertType, string> = {
+        INFO: 'i',
+        NOTE: 'i',
+        TIP: 'T',
+        IMPORTANT: '*',
+        WARNING: '!',
+        CAUTION: '!',
+    };
+    const normalizedText = normalizePlanningMarkdown(text);
+    const { normalizedBlocks, disclosureBlocks } = getCachedBlocks(normalizedText, options.cacheKey);
+    const blocksToRender = allowDisclosure ? disclosureBlocks : normalizedBlocks;
 
     const renderValueChipsOrText = (val: string, labelHint?: string) => {
         const cleanValue = stripLooseMarkers(val);
@@ -410,14 +822,14 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
         if (cleanValue.includes(',')) {
             const chips = cleanValue.split(',').map((p) => p.trim()).filter(Boolean);
             return (
-                <span className="flex flex-wrap gap-1">
+                <span className="flex flex-wrap gap-1.5">
                     {chips.map((chip, idx) => (
                         <span
                             key={idx}
                             className={
                                 isInverse
-                                    ? 'inline-flex items-center rounded bg-white/10 px-2 py-0.5 text-[13px] font-normal text-white'
-                                    : 'inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[13px] font-normal text-gray-800'
+                                    ? 'inline-flex items-center rounded-full bg-white/10 px-2.5 py-0.5 text-[12px] font-medium text-white'
+                                    : 'inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[12px] font-medium text-gray-700'
                             }
                         >
                             {chip}
@@ -432,7 +844,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
                     /m[eé]dia/i.test(cleanValue) ? (isInverse ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-800') :
                         isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-800';
             return (
-                <span className={`inline-flex items-center rounded px-2 py-0.5 text-[13px] font-semibold ${tone}`}>
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${tone}`}>
                     {cleanValue}
                 </span>
             );
@@ -442,231 +854,356 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default') {
     };
 
     const inlineMarkup = (raw: string) => (
-        <span dangerouslySetInnerHTML={{ __html: applyInlineMarkup(raw, theme) }} />
+        <span dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(raw), theme) }} />
     );
 
     const tableWrapper = (key: string, node: JSX.Element) => (
-        <div key={key} className="overflow-x-auto my-3 max-w-full">
+        <div
+            key={key}
+            className={`overflow-x-auto my-3 max-w-full rounded-xl border ${isInverse ? 'border-white/10' : 'border-gray-100'}`}
+        >
             {node}
         </div>
     );
 
-    normalizedBlocks.forEach((block, idx) => {
-        const next = normalizedBlocks[idx + 1];
-        if (block.type === 'hr') {
-            elements.push(<hr key={`hr-${idx}`} className={hrClass} />);
-        } else if (block.type === 'heading') {
-            const mbTight = next && (next.type === 'ul' || next.type === 'ol' || next.type === 'dl' || next.type === 'tableFromDl' || next.type === 'labels');
-            if (block.level === 1) {
-                elements.push(
-                    <h2
-                        key={`h1-${idx}`}
-                        className={`${h1Class} ${mbTight ? 'mb-2' : ''}`}
-                        dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
-                    />
-                );
-            } else if (block.level === 2) {
-                elements.push(
-                    <h3
-                        key={`h2-${idx}`}
-                        className={`${h2Class} ${mbTight ? 'mb-1.5' : ''}`}
-                        dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
-                    />
-                );
-            } else {
-                elements.push(
-                    <h4
-                        key={`h3-${idx}`}
-                        className={`${h3Class} ${mbTight ? 'mb-1.5' : ''}`}
-                        dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
-                    />
-                );
+    const renderBlocks = (list: Block[], keyPrefix: string) => {
+        const elements: JSX.Element[] = [];
+        list.forEach((block, idx) => {
+            const next = list[idx + 1];
+            const keyBase = `${keyPrefix}-${idx}`;
+            if (block.type === 'hr') {
+                elements.push(<hr key={`hr-${keyBase}`} className={hrClass} />);
+                return;
             }
-        } else if (block.type === 'blockquote') {
-            const html = applyInlineMarkup(escapeHtml(block.content), theme);
-            elements.push(<blockquote key={`bq-${idx}`} className={blockquoteClass} dangerouslySetInnerHTML={{ __html: html }} />);
-        } else if (block.type === 'alert') {
-            const style = alertStyles[block.alertType] || alertStyles.NOTE;
-            const titleMap: Record<string, string> = {
-                NOTE: 'Nota',
-                TIP: 'Dica',
-                IMPORTANT: 'Importante',
-                WARNING: 'Atenção',
-                CAUTION: 'Cuidado'
-            };
-            const title = block.title || titleMap[block.alertType];
-            const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
-
-            elements.push(
-                <div key={`alert-${idx}`} className={`${alertBaseClass} ${style}`}>
-                    <div className="font-bold mb-1 flex items-center gap-2">
-                        {/* Optional: Add icons here if desired */}
-                        {title}
-                    </div>
-                    <div dangerouslySetInnerHTML={{ __html: html }} />
-                </div>
-            );
-        } else if (block.type === 'paragraph') {
-            const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
-            elements.push(<p key={`p-${idx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
-        } else if (block.type === 'ul') {
-            const hasTitleBullet = block.items.length > 1 && Boolean(block.items[0]?.trim()?.endsWith(':'));
-            const allLongSentences = block.items.length >= 2 && block.items.every((it) => (it ?? '').length > 80);
-
-            if (hasTitleBullet || allLongSentences) {
-                if (hasTitleBullet) {
-                    const title = (block.items[0] ?? '').trim().replace(/:\s*$/, '');
+            if (block.type === 'heading') {
+                const mbTight = next && (next.type === 'ul' || next.type === 'ol' || next.type === 'dl' || next.type === 'tableFromDl' || next.type === 'labels' || next.type === 'checklist');
+                if (block.level === 1) {
                     elements.push(
-                        <p
-                            key={`ul-title-${idx}`}
-                            className={`${paragraphClass} font-semibold`}
-                            dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(title), theme) }}
+                        <h2
+                            key={`h1-${keyBase}`}
+                            className={`${h1Class} ${mbTight ? 'mb-2' : ''}`}
+                            dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
                         />
                     );
-                    block.items.slice(1).forEach((it, jdx) => {
-                        const html = applyInlineMarkup(escapeHtml(it), theme);
-                        elements.push(<p key={`ul-title-item-${idx}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
-                    });
+                } else if (block.level === 2) {
+                    elements.push(
+                        <h3
+                            key={`h2-${keyBase}`}
+                            className={`${h2Class} ${mbTight ? 'mb-1.5' : ''}`}
+                            dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
+                        />
+                    );
                 } else {
-                    block.items.forEach((it, jdx) => {
-                        const html = applyInlineMarkup(escapeHtml(it), theme);
-                        elements.push(<p key={`ul-paragraph-${idx}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
-                    });
+                    elements.push(
+                        <h4
+                            key={`h3-${keyBase}`}
+                            className={`${h3Class} ${mbTight ? 'mb-1.5' : ''}`}
+                            dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(block.content), theme) }}
+                        />
+                    );
                 }
-            } else {
+                return;
+            }
+            if (block.type === 'blockquote') {
+                const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
+                elements.push(<blockquote key={`bq-${keyBase}`} className={blockquoteClass} dangerouslySetInnerHTML={{ __html: html }} />);
+                return;
+            }
+            if (block.type === 'alert') {
+                const style = alertStyles[block.alertType] || alertStyles.NOTE;
+                const title = alertTitleMap[block.alertType] || 'Nota';
+                const icon = alertIconMap[block.alertType] || 'i';
+                const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
+
                 elements.push(
-                    <ul key={`ul-${idx}`} className={`list-disc ml-6 pl-1 space-y-1 ${listClass}`}>
-                        {block.items.map((it, jdx) => {
+                    <div key={`alert-${keyBase}`} className={`${alertBaseClass} ${style}`}>
+                        <div className="font-bold mb-1 flex items-center gap-2">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-current text-[11px] font-semibold">
+                                {icon}
+                            </span>
+                            {title}
+                        </div>
+                        <div dangerouslySetInnerHTML={{ __html: html }} />
+                    </div>
+                );
+                return;
+            }
+            if (block.type === 'paragraph') {
+                const html = applyInlineMarkup(escapeHtml(block.content), theme).replace(/\n/g, "<br/>");
+                elements.push(<p key={`p-${keyBase}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
+                return;
+            }
+            if (block.type === 'code') {
+                elements.push(
+                    <CodeBlock
+                        key={`code-${keyBase}`}
+                        code={block.content}
+                        language={block.language}
+                        theme={theme}
+                        onCopy={options.onCopyCode}
+                    />
+                );
+                return;
+            }
+            if (block.type === 'ul') {
+                const hasTitleBullet = block.items.length > 1 && Boolean(block.items[0]?.trim()?.endsWith(':'));
+                const allLongSentences = block.items.length >= 2 && block.items.every((it) => (it ?? '').length > 80);
+                const allShortLabels =
+                    block.items.length > 0 &&
+                    block.items.length <= 8 &&
+                    block.items.every((it) => {
+                        const trimmed = (it ?? '').trim();
+                        return trimmed.length > 0 && trimmed.length <= 24 && !/[.!?]$/.test(trimmed);
+                    });
+
+                if (allShortLabels) {
+                    elements.push(
+                        <div key={`ul-chips-${keyBase}`} className="flex flex-wrap gap-2 my-2">
+                            {block.items.map((item, jdx) => (
+                                <span
+                                    key={jdx}
+                                    className={`inline-flex items-center rounded-full border px-3 py-1 text-[12px] font-semibold ${isInverse
+                                        ? 'border-white/20 bg-white/10 text-white'
+                                        : 'border-gray-200 bg-gray-50 text-gray-700'}`}
+                                    dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(item), theme) }}
+                                />
+                            ))}
+                        </div>
+                    );
+                } else if (hasTitleBullet || allLongSentences) {
+                    if (hasTitleBullet) {
+                        const title = (block.items[0] ?? '').trim().replace(/:\s*$/, '');
+                        elements.push(
+                            <p
+                                key={`ul-title-${keyBase}`}
+                                className={`${paragraphClass} font-semibold`}
+                                dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(title), theme) }}
+                            />
+                        );
+                        block.items.slice(1).forEach((it, jdx) => {
                             const html = applyInlineMarkup(escapeHtml(it), theme);
-                            return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
+                            elements.push(<p key={`ul-title-item-${keyBase}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
+                        });
+                    } else {
+                        block.items.forEach((it, jdx) => {
+                            const html = applyInlineMarkup(escapeHtml(it), theme);
+                            elements.push(<p key={`ul-paragraph-${keyBase}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
+                        });
+                    }
+                } else {
+                    elements.push(
+                        <ul key={`ul-${keyBase}`} className={`list-disc pl-5 space-y-1.5 ${listClass}`}>
+                            {block.items.map((it, jdx) => {
+                                const html = applyInlineMarkup(escapeHtml(it), theme);
+                                return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
+                            })}
+                        </ul>
+                    );
+                }
+                return;
+            }
+            if (block.type === 'checklist') {
+                const boxClass = isInverse
+                    ? 'border-white/40 bg-white/10'
+                    : 'border-gray-300 bg-white';
+                elements.push(
+                    <ul key={`checklist-${keyBase}`} className={`space-y-2 ${listClass}`}>
+                        {block.items.map((item, jdx) => {
+                            const html = applyInlineMarkup(escapeHtml(item.text), theme);
+                            return (
+                                <li key={jdx} className="flex items-start gap-2">
+                                    <span
+                                        aria-hidden
+                                        className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded border ${boxClass} ${item.checked ? (isInverse ? 'bg-emerald-400 text-slate-900' : 'bg-emerald-500 text-white') : ''}`}
+                                    >
+                                        {item.checked ? 'x' : ''}
+                                    </span>
+                                    <span className="sr-only">
+                                        {item.checked ? 'Concluído: ' : 'Pendente: '}
+                                    </span>
+                                    <span dangerouslySetInnerHTML={{ __html: html }} />
+                                </li>
+                            );
                         })}
                     </ul>
                 );
+                return;
             }
-        } else if (block.type === 'ol') {
-            elements.push(
-                <ol key={`ol-${idx}`} className={`list-decimal ml-6 pl-1 space-y-0.5 ${listClass}`}>
-                    {block.items.map((it, jdx) => {
-                        const html = applyInlineMarkup(escapeHtml(it), theme);
-                        return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
-                    })}
-                </ol>
-            );
-        } else if (block.type === 'dl') {
-            elements.push(
-                <dl
-                    key={`dl-${idx}`}
-                    className={`my-1.5 grid grid-cols-[minmax(88px,auto),1fr] gap-x-2 gap-y-1 text-[15px] leading-6 ${isInverse ? 'text-white' : 'text-gray-800'}`}
-                >
-                    {block.items.map((pair, jdx) => (
-                        <React.Fragment key={jdx}>
-                            <dt className={labelClass}>{escapeHtml(pair.label)}:</dt>
-                            <dd className={`${valueClass} pl-0.5`}>{renderValueChipsOrText(pair.value, pair.label)}</dd>
-                        </React.Fragment>
-                    ))}
-                </dl>
-            );
-        } else if (block.type === 'labels') {
-            elements.push(
-                <div key={`labels-${idx}`} className="space-y-1 my-2">
-                    {block.items.map((p, jdx) => (
-                        <div key={jdx} className={`text-[15px] font-semibold ${isInverse ? 'text-white' : 'text-gray-900'}`}>
-                            {p}
-                        </div>
-                    ))}
-                </div>
-            );
-        } else if (block.type === 'table') {
-            elements.push(
-                tableWrapper(
-                    `tbl-${idx}`,
-                    <table className={`${tableTextClass} min-w-[480px]`}>
-                        <thead>
-                            <tr>
-                                {block.headers.map((hCell, cIdx) => {
-                                    const html = applyInlineMarkup(escapeHtml(hCell), theme);
-                                    return (
-                                        <th key={cIdx} className={`${tableHeaderClass} text-left px-2 py-1.5`} dangerouslySetInnerHTML={{ __html: html }} />
-                                    );
-                                })}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {block.rows.map((row, rIdx) => (
-                                <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
-                                    {row.map((cell, cIdx) => {
-                                        if (cell.includes(",")) {
-                                            const parts = cell.split(",").map((p) => p.trim()).filter(Boolean);
+            if (block.type === 'ol') {
+                if (stepsStyle) {
+                    const stepCircleClass = isInverse ? 'border-white/40 text-white' : 'border-gray-300 text-gray-700';
+                    const stepSizeClass = density === 'compact' ? 'h-5 w-5 text-[11px]' : 'h-6 w-6 text-[12px]';
+                    elements.push(
+                        <ol key={`ol-steps-${keyBase}`} className={`space-y-2 ${listClass}`}>
+                            {block.items.map((it, jdx) => {
+                                const html = applyInlineMarkup(escapeHtml(it), theme);
+                                return (
+                                    <li key={jdx} className="flex items-start gap-3">
+                                        <span
+                                            aria-hidden
+                                            className={`mt-0.5 flex items-center justify-center rounded-full border font-semibold ${stepSizeClass} ${stepCircleClass}`}
+                                        >
+                                            {jdx + 1}
+                                        </span>
+                                        <span className="flex-1" dangerouslySetInnerHTML={{ __html: html }} />
+                                    </li>
+                                );
+                            })}
+                        </ol>
+                    );
+                } else {
+                    elements.push(
+                        <ol key={`ol-${keyBase}`} className={`list-decimal pl-5 space-y-1.5 ${listClass}`}>
+                            {block.items.map((it, jdx) => {
+                                const html = applyInlineMarkup(escapeHtml(it), theme);
+                                return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
+                            })}
+                        </ol>
+                    );
+                }
+                return;
+            }
+            if (block.type === 'dl') {
+                elements.push(
+                    <dl
+                        key={`dl-${keyBase}`}
+                        className={`my-2 grid grid-cols-[minmax(96px,auto),1fr] gap-x-3 gap-y-2 ${density === 'compact' ? 'text-[14px]' : 'text-[15px]'} leading-6 ${isInverse ? 'text-white' : 'text-gray-800'}`}
+                    >
+                        {block.items.map((pair, jdx) => (
+                            <React.Fragment key={jdx}>
+                                <dt className={labelClass}>{pair.label}:</dt>
+                                <dd className={`${valueClass} pl-0.5`}>{renderValueChipsOrText(pair.value, pair.label)}</dd>
+                            </React.Fragment>
+                        ))}
+                    </dl>
+                );
+                return;
+            }
+            if (block.type === 'labels') {
+                elements.push(
+                    <div key={`labels-${keyBase}`} className="flex flex-wrap gap-2 my-2">
+                        {block.items.map((p, jdx) => (
+                            <span
+                                key={jdx}
+                                className={`inline-flex items-center rounded-full border px-3 py-1 text-[12px] font-semibold ${isInverse
+                                    ? 'border-white/20 bg-white/10 text-white'
+                                    : 'border-gray-200 bg-gray-50 text-gray-700'}`}
+                                dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(p), theme) }}
+                            />
+                        ))}
+                    </div>
+                );
+                return;
+            }
+            if (block.type === 'table') {
+                elements.push(
+                    tableWrapper(
+                        `tbl-${keyBase}`,
+                        <table className={`${tableTextClass} min-w-[480px]`}>
+                            <thead>
+                                <tr>
+                                    {block.headers.map((hCell, cIdx) => {
+                                        const html = applyInlineMarkup(escapeHtml(hCell), theme);
+                                        return (
+                                            <th key={cIdx} className={`${tableHeaderClass} text-left sticky top-0 z-10`} dangerouslySetInnerHTML={{ __html: html }} />
+                                        );
+                                    })}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {block.rows.map((row, rIdx) => (
+                                    <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
+                                        {row.map((cell, cIdx) => {
+                                            if (cell.includes(",")) {
+                                                const parts = cell.split(",").map((p) => p.trim()).filter(Boolean);
+                                                return (
+                                                    <td key={cIdx} className={`${tableCellClass} ${cIdx > 0 ? 'border-l border-current/10' : ''}`}>
+                                                        {parts.map((part, pIdx) => {
+                                                            const htmlPart = applyInlineMarkup(escapeHtml(part), theme);
+                                                            return <div key={pIdx} dangerouslySetInnerHTML={{ __html: htmlPart }} />;
+                                                        })}
+                                                    </td>
+                                                );
+                                            }
+                                            const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(cell));
+                                            const html = applyInlineMarkup(escapeHtml(cell), theme);
                                             return (
-                                                <td key={cIdx} className={`${tableCellClass} ${cIdx > 0 ? 'border-l border-current/10' : ''}`}>
-                                                    {parts.map((part, pIdx) => {
-                                                        const htmlPart = applyInlineMarkup(escapeHtml(part), theme);
-                                                        return <div key={pIdx} dangerouslySetInnerHTML={{ __html: htmlPart }} />;
-                                                    })}
+                                                <td
+                                                    key={cIdx}
+                                                    className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}
+                                                    dangerouslySetInnerHTML={{ __html: html }}
+                                                />
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )
+                );
+                return;
+            }
+            if (block.type === 'tableFromDl') {
+                elements.push(
+                    tableWrapper(
+                        `tbl-dl-${keyBase}`,
+                        <table className={`${tableTextClass} min-w-[480px]`}>
+                            <caption className="sr-only">{inlineMarkup(block.titleLabel)}</caption>
+                            <thead>
+                                <tr>
+                                    <th className={`${tableHeaderClass} text-left sticky top-0 z-10`}>{inlineMarkup(block.titleLabel)}</th>
+                                    {block.labels.map((lbl, cIdx) => (
+                                        <th key={cIdx} className={`${tableHeaderClass} text-left sticky top-0 z-10`}>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <span>{inlineMarkup(lbl)}</span>
+                                                {block.topValues && block.topValues[lbl] ? (
+                                                    <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-800 px-2 py-0.5 text-[10px] font-semibold leading-tight">
+                                                        Mais comum: {block.topValues[lbl]}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {block.rows.map((row, rIdx) => (
+                                    <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
+                                        <td className={tableCellClass}>{inlineMarkup(row.title)}</td>
+                                        {row.values.map((val, cIdx) => {
+                                            const labelHint = block.labels[cIdx] ?? '';
+                                            const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(val));
+                                            return (
+                                                <td key={cIdx} className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}>
+                                                    {renderValueChipsOrText(val, labelHint)}
                                                 </td>
                                             );
-                                        }
-                                        const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(cell));
-                                        const html = applyInlineMarkup(escapeHtml(cell), theme);
-                                        return (
-                                            <td
-                                                key={cIdx}
-                                                className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}
-                                                dangerouslySetInnerHTML={{ __html: html }}
-                                            />
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )
-            );
-        } else if (block.type === 'tableFromDl') {
-            elements.push(
-                tableWrapper(
-                    `tbl-dl-${idx}`,
-                    <table className={`${tableTextClass} min-w-[480px]`}>
-                        <caption className="sr-only">{inlineMarkup(escapeHtml(block.titleLabel))}</caption>
-                        <thead>
-                            <tr>
-                                <th className={`${tableHeaderClass} text-left`}>{inlineMarkup(escapeHtml(block.titleLabel))}</th>
-                                {block.labels.map((lbl, cIdx) => (
-                                    <th key={cIdx} className={`${tableHeaderClass} text-left`}>
-                                        <div className="flex flex-col items-start gap-1">
-                                            <span>{inlineMarkup(escapeHtml(lbl))}</span>
-                                            {block.topValues && block.topValues[lbl] ? (
-                                                <span className="inline-flex items-center rounded bg-amber-50 text-amber-800 px-1.5 py-0.5 text-[10px] font-semibold leading-tight">
-                                                    Mais comum: {block.topValues[lbl]}
-                                                </span>
-                                            ) : null}
-                                        </div>
-                                    </th>
+                                        })}
+                                    </tr>
                                 ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {block.rows.map((row, rIdx) => (
-                                <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
-                                    <td className={tableCellClass}>{inlineMarkup(escapeHtml(row.title))}</td>
-                                    {row.values.map((val, cIdx) => {
-                                        const labelHint = block.labels[cIdx] ?? '';
-                                        const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(val));
-                                        return (
-                                            <td key={cIdx} className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}>
-                                                {renderValueChipsOrText(val, labelHint)}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )
-            );
-        }
-    });
+                            </tbody>
+                        </table>
+                    )
+                );
+                return;
+            }
+            if (block.type === 'disclosure') {
+                elements.push(
+                    <Disclosure
+                        key={`disclosure-${keyBase}`}
+                        title={block.title}
+                        theme={theme}
+                        forceOpen={options.disclosureOpen}
+                        forceSignal={options.disclosureSignal}
+                        onToggle={options.onToggleDisclosure}
+                    >
+                        {renderBlocks(block.blocks, `${keyBase}-inside`)}
+                    </Disclosure>
+                );
+            }
+        });
+        return elements;
+    };
 
-    // Wrapper enxuto (sem prose)
-    return <div className="max-w-none break-words">{elements}</div>;
+    return <div className="max-w-[72ch] w-full break-words">{renderBlocks(blocksToRender, 'root')}</div>;
 }

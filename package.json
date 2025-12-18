@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "npm run smoke:types",
     "test": "jest --watchAll=false",
     "reclassify": "tsx --env-file=.env.local ./scripts/reclassifyAll.ts",
     "reset-classification": "tsx --env-file=.env.local ./scripts/resetClassificationStatus.ts",

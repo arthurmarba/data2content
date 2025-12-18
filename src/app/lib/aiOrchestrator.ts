@@ -1438,12 +1438,25 @@ export async function askLLMWithEnrichedContext(
             });
         }
 
+        const isWebChannel = enrichedContext.channel === 'web';
+
         // Se for canal WEB, adiciona instrução de formatação rica
-        if (enrichedContext.channel === 'web') {
+        if (isWebChannel) {
             initialMsgs.push({
                 role: 'system',
                 content: 'INSTRUÇÃO DE FORMATAÇÃO WEB: Você está respondendo no chat web. Use formatação rica Markdown para melhor didática: use **negrito** para conceitos-chave, listas (bullet points) para passos, e headers (###) para separar seções. Seja visualmente organizado.'
             });
+            if (intent === 'content_plan') {
+                initialMsgs.push({
+                    role: 'system',
+                    content:
+                        'PLANO/ CALENDÁRIO DE CONTEÚDO: quando responder com semanas/calendário, use bullets (não lista numerada) e mantenha o dia NA MESMA LINHA do item. Formato recomendado:\n' +
+                        '### Semana 1\n' +
+                        '- **Segunda — Reel (Humor):** Descrição curta.\n' +
+                        '- **Quarta — Foto/Carrossel (Bastidores):** Descrição curta.\n' +
+                        'Regras: nunca coloque "Dia:" em linha separada; se usar "Dia:", deixe na mesma linha (ex.: "— Dia: Segunda"). Negrito sempre completo (**texto**). Lista numerada só para passo a passo.'
+                });
+            }
         }
 
         // Instruções de estilo e próxima ação — mantém o assistente sempre acionável.

@@ -22,6 +22,8 @@ import { useChatThreads } from "./components/chat/useChatThreads";
 import { useThreadSelection } from "./components/chat/useThreadSelection";
 import { DEFAULT_METRICS_FETCH_DAYS } from "@/app/lib/constants";
 import useCreatorProfileExtended from "@/hooks/useCreatorProfileExtended";
+import { track } from "@/lib/track";
+import type { RenderDensity } from "./components/chat/chatUtils";
 
 interface SessionUserWithId {
   id?: string;
@@ -29,6 +31,52 @@ interface SessionUserWithId {
   email?: string | null;
   image?: string | null;
 }
+
+const normalizeSectionHeading = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const parseResponseSections = (text: string) => {
+  const sections: Record<string, string[]> = {};
+  let current: string | null = null;
+
+  text.split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^#{1,3}\s+(.*)$/);
+    if (match) {
+      const normalized = normalizeSectionHeading(match[1] || '');
+      const base = normalized.split(/[(:\-–—]/)[0] ?? '';
+      const baseTrimmed = base.trim();
+      current = baseTrimmed || normalized;
+      if (!sections[current]) sections[current] = [];
+      return;
+    }
+    if (current) {
+      const bucket = sections[current] ?? [];
+      bucket.push(line);
+      sections[current] = bucket;
+    }
+  });
+
+  const cleanup = (lines?: string[]) =>
+    (lines || []).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+
+  const pick = (keys: string[]) => {
+    for (const key of keys) {
+      const content = cleanup(sections[key]);
+      if (content) return content;
+    }
+    return '';
+  };
+
+  return {
+    summary: pick(['resumo']),
+    actions: pick(['proximas acoes', 'proximos passos', 'acoes']),
+    hasDisclosure: Boolean(sections['detalhes']?.length || sections['metodologia']?.length),
+  };
+};
 
 /* ---------- Componente principal ---------- */
 
@@ -58,6 +106,14 @@ export default function ChatPanel({
   const previousTargetRef = useRef<string | null>(null);
   const initializedTargetRef = useRef(false);
   const lastAssistantKeyRef = useRef<string | null>(null);
+  const firstFeedbackTrackedRef = useRef(false);
+  const scrollDepthRef = useRef<Set<number>>(new Set());
+  const copyTimeoutRef = useRef<number | null>(null);
+
+  const [viewMode, setViewMode] = useState<'reading' | 'compact'>('reading');
+  const [copiedSection, setCopiedSection] = useState<'summary' | 'actions' | null>(null);
+  const [disclosureOpen, setDisclosureOpen] = useState(false);
+  const [disclosureSignal, setDisclosureSignal] = useState(0);
 
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -226,6 +282,29 @@ export default function ChatPanel({
     return () => io.disconnect();
   }, [messagesEndRef]);
 
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+    const thresholds = [0.25, 0.5, 0.75, 0.95];
+    const handleScroll = () => {
+      if (root.scrollHeight <= root.clientHeight) return;
+      const depth = (root.scrollTop + root.clientHeight) / Math.max(root.scrollHeight, 1);
+      thresholds.forEach((threshold) => {
+        if (depth >= threshold && !scrollDepthRef.current.has(threshold)) {
+          scrollDepthRef.current.add(threshold);
+          track('chat_scroll_depth', {
+            depth: Math.round(threshold * 100),
+            session_id: sessionId || null,
+            thread_id: effectiveThreadId || null,
+          });
+        }
+      });
+    };
+    root.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => root.removeEventListener('scroll', handleScroll);
+  }, [sessionId, effectiveThreadId]);
+
   // Pricing Analysis Integration
   useEffect(() => {
     if (!pricingAnalysisContext || !preloadedMessages.length) return;
@@ -371,6 +450,107 @@ export default function ChatPanel({
   const isWelcome = messages.length === 0;
   const fullName = (session?.user?.name || "").trim();
   const firstName = fullName ? fullName.split(" ")[0] : "visitante";
+  const messageSpacingClass = viewMode === 'compact' ? 'space-y-3' : 'space-y-6';
+  const renderDensity: RenderDensity = viewMode === 'compact' ? 'compact' : 'comfortable';
+  const shouldVirtualize = messages.length >= 60;
+
+  const lastAssistantMessage = React.useMemo(
+    () => [...messages].reverse().find((m) => m.sender === 'consultant'),
+    [messages]
+  );
+  const responseSections = React.useMemo(
+    () => parseResponseSections(lastAssistantMessage?.text || ''),
+    [lastAssistantMessage?.text]
+  );
+  const summaryText = responseSections.summary;
+  const actionsText = responseSections.actions;
+  const hasSummary = Boolean(summaryText);
+  const hasActions = Boolean(actionsText);
+  const showSummaryActions = hasSummary || hasActions;
+  const hasDisclosure = React.useMemo(
+    () => messages.some((msg) => msg.sender === 'consultant' && /#{1,3}\s*(Detalhes|Metodologia)/i.test(msg.text)),
+    [messages]
+  );
+
+  const handleCopySection = useCallback(
+    async (kind: 'summary' | 'actions', text: string) => {
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopiedSection(kind);
+        track(`chat_copy_${kind}`, {
+          length: text.length,
+          session_id: sessionId || null,
+          thread_id: effectiveThreadId || null,
+        });
+        if (copyTimeoutRef.current) window.clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = window.setTimeout(() => setCopiedSection(null), 1600);
+      } catch (error) {
+        console.error('[chat] falha ao copiar secao', error);
+      }
+    },
+    [effectiveThreadId, sessionId]
+  );
+
+  const handleToggleViewMode = useCallback(
+    (mode: 'reading' | 'compact') => {
+      setViewMode(mode);
+      track('chat_view_mode_toggle', {
+        mode,
+        session_id: sessionId || null,
+        thread_id: effectiveThreadId || null,
+      });
+    },
+    [effectiveThreadId, sessionId]
+  );
+
+  const handleToggleDisclosures = useCallback(() => {
+    const next = !disclosureOpen;
+    setDisclosureOpen(next);
+    setDisclosureSignal((value) => value + 1);
+    track('chat_disclosure_toggle_all', {
+      open: next,
+      session_id: sessionId || null,
+      thread_id: effectiveThreadId || null,
+    });
+  }, [disclosureOpen, effectiveThreadId, sessionId]);
+
+  const handleDisclosureToggle = useCallback(
+    ({ title, open }: { title: string; open: boolean }) => {
+      track('chat_disclosure_toggle', {
+        title,
+        open,
+        session_id: sessionId || null,
+        thread_id: effectiveThreadId || null,
+      });
+    },
+    [effectiveThreadId, sessionId]
+  );
+
+  const handleCopyCode = useCallback(
+    ({ code, language }: { code: string; language?: string | null }) => {
+      track('chat_copy_code', {
+        language: language || null,
+        length: code.length,
+        session_id: sessionId || null,
+        thread_id: effectiveThreadId || null,
+      });
+    },
+    [effectiveThreadId, sessionId]
+  );
+
+  const messageRenderOptions = React.useMemo(
+    () => ({
+      density: renderDensity,
+      disclosureOpen,
+      disclosureSignal,
+      stepsStyle: true,
+      enableDisclosure: true,
+      onToggleDisclosure: handleDisclosureToggle,
+      onCopyCode: handleCopyCode,
+    }),
+    [renderDensity, disclosureOpen, disclosureSignal, handleDisclosureToggle, handleCopyCode]
+  );
   const handleAlertSelect = useCallback(
     (alert: AlertItem) => {
       if (!alert) return;
@@ -458,6 +638,12 @@ export default function ChatPanel({
     return () => events.forEach((e) => window.removeEventListener(e, markActivity));
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) window.clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
+
   // Atualiza timestamp quando chega mensagem do assistant (fim da resposta)
   useEffect(() => {
     const lastAssistant = [...messages].reverse().find((m) => m.sender === 'consultant');
@@ -467,6 +653,11 @@ export default function ChatPanel({
       setLastAssistantTs(Date.now());
     }
   }, [messages]);
+
+  useEffect(() => {
+    firstFeedbackTrackedRef.current = false;
+    scrollDepthRef.current.clear();
+  }, [sessionId, effectiveThreadId]);
 
   // Gatilho de CSAT por inatividade com período de graça pós-resposta
   useEffect(() => {
@@ -753,11 +944,69 @@ export default function ChatPanel({
                 </button>
               ) : null}
             </div>
-            <ul role="list" aria-live="polite" className="space-y-6">
+            {messages.length > 0 ? (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-gray-600">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Visualização</span>
+                  <div className="flex items-center rounded-full border border-gray-200 bg-white p-0.5 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleViewMode('reading')}
+                      aria-pressed={viewMode === 'reading'}
+                      className={`rounded-full px-3 py-1 font-semibold transition-colors ${viewMode === 'reading'
+                        ? 'bg-brand-primary text-white'
+                        : 'text-gray-600 hover:text-gray-900'}`}
+                    >
+                      Leitura
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleViewMode('compact')}
+                      aria-pressed={viewMode === 'compact'}
+                      className={`rounded-full px-3 py-1 font-semibold transition-colors ${viewMode === 'compact'
+                        ? 'bg-brand-primary text-white'
+                        : 'text-gray-600 hover:text-gray-900'}`}
+                    >
+                      Compacto
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {showSummaryActions && hasSummary ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCopySection('summary', summaryText)}
+                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-semibold text-gray-600 shadow-sm transition-colors hover:border-brand-primary/40 hover:text-gray-900"
+                    >
+                      {copiedSection === 'summary' ? 'Resumo copiado' : 'Copiar resumo'}
+                    </button>
+                  ) : null}
+                  {showSummaryActions && hasActions ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCopySection('actions', actionsText)}
+                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-semibold text-gray-600 shadow-sm transition-colors hover:border-brand-primary/40 hover:text-gray-900"
+                    >
+                      {copiedSection === 'actions' ? 'Ações copiadas' : 'Copiar ações'}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleToggleDisclosures}
+                    disabled={!hasDisclosure}
+                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-semibold text-gray-600 shadow-sm transition-colors hover:border-brand-primary/40 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {disclosureOpen ? 'Recolher tudo' : 'Expandir tudo'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <ul role="list" aria-live="polite" className={messageSpacingClass}>
               {messages.map((msg, idx) => (
                 <MessageBubble
-                  key={idx}
+                  key={msg.messageId ? `msg-${msg.messageId}` : `msg-${idx}`}
                   message={msg}
+                  virtualize={shouldVirtualize}
                   onUpsellClick={onUpsellClick}
                   onConnectInstagram={handleCorrectInstagramLink}
                   onFeedbackStart={enterMessageFeedback}
@@ -767,8 +1016,26 @@ export default function ChatPanel({
                     if (messageId && (rating === 'up' || rating === 'down')) {
                       setFeedbackByMessage((prev) => ({ ...prev, [messageId]: rating }));
                     }
+                    if (!firstFeedbackTrackedRef.current && lastAssistantTs) {
+                      firstFeedbackTrackedRef.current = true;
+                      track('chat_time_to_feedback', {
+                        ms_since_response: Date.now() - lastAssistantTs,
+                        rating,
+                        session_id: sessionId || null,
+                        thread_id: effectiveThreadId || null,
+                      });
+                    }
+                    if (rating === 'up' || rating === 'down') {
+                      track('chat_message_feedback', {
+                        rating,
+                        message_id: messageId || null,
+                        session_id: sessionId || null,
+                        thread_id: effectiveThreadId || null,
+                      });
+                    }
                   }}
                   initialFeedback={msg.messageId ? feedbackByMessage[msg.messageId] : undefined}
+                  renderOptions={messageRenderOptions}
                 />
               ))}
 

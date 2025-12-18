@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Message } from './types';
-import { renderFormatted } from './chatUtils';
+import { renderFormatted, type RenderOptions } from './chatUtils';
 import { FEEDBACK_REASONS, FeedbackReasonCode } from './feedbackReasons';
 
 interface MessageBubbleProps {
@@ -12,6 +12,8 @@ interface MessageBubbleProps {
     onFeedbackEnd?: () => void;
     onFeedbackSubmitted?: (rating: 'up' | 'down', messageId?: string | null) => void;
     initialFeedback?: 'up' | 'down' | undefined;
+    renderOptions?: RenderOptions;
+    virtualize?: boolean;
 }
 
 export const MessageBubble = React.memo(function MessageBubble({
@@ -22,6 +24,8 @@ export const MessageBubble = React.memo(function MessageBubble({
     onFeedbackEnd,
     onFeedbackSubmitted,
     initialFeedback,
+    renderOptions,
+    virtualize,
 }: MessageBubbleProps) {
     const router = useRouter();
     const isUser = message.sender === 'user';
@@ -113,14 +117,33 @@ export const MessageBubble = React.memo(function MessageBubble({
         return 'bg-indigo-100 text-indigo-700';
     })();
 
+    const resolvedRenderOptions = React.useMemo<RenderOptions>(() => {
+        if (!renderOptions) {
+            return { cacheKey: message.messageId ?? null };
+        }
+        return {
+            ...renderOptions,
+            enableDisclosure: !isUser && renderOptions.enableDisclosure !== false,
+            cacheKey: message.messageId ?? null,
+        };
+    }, [renderOptions, isUser, message.messageId]);
+
+    const formattedContent = React.useMemo(() => (
+        renderFormatted(message.text, isUser ? 'inverse' : 'default', resolvedRenderOptions)
+    ), [message.text, isUser, resolvedRenderOptions]);
+
+    const virtualizationStyle = virtualize
+        ? ({ contentVisibility: 'auto', containIntrinsicSize: '1px 240px' } as React.CSSProperties)
+        : undefined;
+
     return (
-        <li className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <li className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`} style={virtualizationStyle}>
             <div className={`flex flex-col gap-1.5 w-full ${isUser ? 'items-end' : 'items-start'}`}>
                 <div
                     className={[
                         isUser
                             ? 'max-w-[92%] sm:max-w-[75%] rounded-2xl rounded-tr-sm bg-brand-primary text-white shadow-sm px-3.5 py-2.5'
-                            : 'max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch] text-gray-800 px-1 text-[15px] leading-7',
+                            : 'max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch] text-gray-800 px-1',
                     ].join(' ')}
                 >
                     {isAlert && (
@@ -134,7 +157,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                         </div>
                     )}
                     <div className={isUser ? 'text-white/95' : undefined}>
-                        {renderFormatted(message.text, isUser ? 'inverse' : 'default')}
+                        {formattedContent}
                     </div>
                     {message.cta && (
                         <div className={`mt-3 pt-3 ${isUser ? 'border-t border-white/25' : 'border-t border-gray-200'}`}>
