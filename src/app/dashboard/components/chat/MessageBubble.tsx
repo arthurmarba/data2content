@@ -27,6 +27,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     const isUser = message.sender === 'user';
     const isAlert = Boolean(message.alertId);
     const severity = message.alertSeverity || 'info';
+    const canSendFeedback = Boolean(message.messageId && message.sessionId);
     const [feedbackState, setFeedbackState] = React.useState<'none' | 'up' | 'down'>('none');
     const [isSendingFeedback, setIsSendingFeedback] = React.useState(false);
     const [showThanks, setShowThanks] = React.useState(false);
@@ -154,7 +155,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                             </button>
                         </div>
                     )}
-                    {!isUser && !isAlert ? (
+                    {!isUser && !isAlert && canSendFeedback ? (
                         <div className="mt-3 flex flex-col gap-2 text-xs text-gray-500">
                             <div className="flex items-center gap-2">
                                 <span>Essa resposta ajudou?</span>

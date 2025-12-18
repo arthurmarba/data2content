@@ -50,10 +50,16 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
             }
             const data = await res.json();
             if (data.messages) {
-                const mapped: Message[] = data.messages.map((m: any) => ({
-                    sender: m.role === 'user' ? 'user' : 'consultant',
-                    text: m.content
-                }));
+                const mapped: Message[] = data.messages.map((m: any) => {
+                    const rawMessageId = m?.messageId ?? m?._id ?? null;
+                    const rawSessionId = m?.sessionId ?? null;
+                    return {
+                        sender: m.role === 'user' ? 'user' : 'consultant',
+                        text: m.content,
+                        messageId: rawMessageId ? String(rawMessageId) : null,
+                        sessionId: rawSessionId ? String(rawSessionId) : null,
+                    };
+                });
                 setMessages(mapped);
                 setTimeout(scrollToBottom, 50);
             } else {

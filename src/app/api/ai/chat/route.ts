@@ -424,6 +424,8 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       });
       const promptVariant = (sessionDoc as any)?.promptVariant || variantDecision.variant || 'A';
       const experimentId = (sessionDoc as any)?.experimentId || variantDecision.experimentId || null;
+      let userMessageId: string | null = null;
+      let assistantMessageId: string | null = null;
 
       try {
         const updated: ChatCompletionMessageParam[] = [
@@ -434,8 +436,6 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         await stateService.setConversationHistory(conversationKey, updated);
 
         // PERSISTENCE: Save to MongoDB if we have a threadId (inclusive modo admin com thread)
-        let userMessageId: string | null = null;
-        let assistantMessageId: string | null = null;
         if (threadId) {
           userMessageId = await stateService.persistMessage(threadId, { role: 'user', content: truncatedQuery });
           assistantMessageId = await stateService.persistMessage(threadId, { role: 'assistant', content: answer });
@@ -497,6 +497,8 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         answer,
         cta,
         threadId,
+        assistantMessageId,
+        userMessageId,
         sessionId: sessionDoc?._id?.toString?.() || null,
       }, { status: 200 });
     }

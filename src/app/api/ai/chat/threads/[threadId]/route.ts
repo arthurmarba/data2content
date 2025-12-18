@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import * as stateService from '@/app/lib/stateService';
+import ChatMessageLogModel from "@/app/models/ChatMessageLog";
 import MessageModel from '@/app/models/Message';
 import { connectToDatabase } from "@/app/lib/mongoose";
 
@@ -27,7 +28,32 @@ export async function GET(
             .limit(100) // Reasonable limit for history loading
             .lean();
 
-        return NextResponse.json({ thread, messages });
+        const messageIds = messages
+            .map((msg: any) => msg?._id?.toString?.())
+            .filter(Boolean);
+        const sessionByMessageId = new Map<string, string>();
+        if (messageIds.length) {
+            const logs = await ChatMessageLogModel.find(
+                { messageId: { $in: messageIds } },
+                { messageId: 1, sessionId: 1 }
+            ).lean();
+            logs.forEach((log: any) => {
+                if (log?.messageId && log?.sessionId) {
+                    sessionByMessageId.set(String(log.messageId), String(log.sessionId));
+                }
+            });
+        }
+
+        const hydratedMessages = messages.map((msg: any) => {
+            const messageId = msg?._id?.toString?.() ?? null;
+            return {
+                ...msg,
+                messageId,
+                sessionId: messageId ? sessionByMessageId.get(messageId) ?? null : null,
+            };
+        });
+
+        return NextResponse.json({ thread, messages: hydratedMessages });
     } catch (error) {
         console.error('Failed to get thread:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
