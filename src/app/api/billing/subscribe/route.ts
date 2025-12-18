@@ -184,12 +184,27 @@ export async function POST(req: NextRequest) {
 
     if (existing && ["active", "trialing"].includes(existing.status) && existing.items.data[0]) {
       // --- FLUXO DE UPGRADE/DOWNGRADE ---
-      const itemId = existing.items.data[0].id;
+      const currentItem = existing.items.data[0];
+      const currentPriceId =
+        currentItem.price?.id ||
+        (currentItem as any)?.plan?.id ||
+        null;
+
+      // Evita reancorar/cobrar se já está no mesmo price
+      if (currentPriceId && currentPriceId === priceId) {
+        return NextResponse.json({
+          ok: true,
+          noop: true,
+          subscriptionId: existing.id,
+          message: "Sua assinatura já está nesse plano.",
+        });
+      }
+
+      const itemId = currentItem.id;
       sub = await stripe.subscriptions.update(existing.id, {
         items: [{ id: itemId, price: priceId }],
-        payment_behavior: "default_incomplete",
-        proration_behavior: "create_prorations",
-        billing_cycle_anchor: "now",
+        payment_behavior: "pending_if_incomplete",
+        proration_behavior: "none",
         expand: ["latest_invoice.payment_intent"],
       });
     } else {
