@@ -1438,6 +1438,32 @@ export async function askLLMWithEnrichedContext(
             });
         }
 
+        const answerEnginePack = (enrichedContext as any)?.answerEnginePack;
+        if (answerEnginePack) {
+            const condensedPack = {
+                intent: answerEnginePack.intent,
+                thresholds: answerEnginePack.policy.thresholds,
+                top_posts: answerEnginePack.top_posts.slice(0, 8),
+                user_profile: answerEnginePack.user_profile,
+                notes: answerEnginePack.notes,
+            };
+            initialMsgs.push({
+                role: 'system',
+                content:
+                    'PACK DE EVIDÊNCIAS (v1): use apenas estes posts/métricas já validados pelo motor de ranking. ' +
+                    'NÃO defina o que é alto engajamento; apenas explique e recomende usando o ranking abaixo. ' +
+                    'Se precisar citar posts, use somente os IDs/links listados. ' +
+                    'Se o pack estiver vazio, peça autorização para relaxar o critério ou explique a falta de evidências.\n' +
+                    `\`\`\`json\n${JSON.stringify(condensedPack, null, 2)}\n\`\`\``,
+            });
+            initialMsgs.push({
+                role: 'system',
+                content:
+                    'POLÍTICA: Posts fora do pack ou abaixo do threshold não podem ser recomendados. ' +
+                    'Sempre cite métricas e o quanto estão acima da mediana do usuário.',
+            });
+        }
+
         const isWebChannel = enrichedContext.channel === 'web';
 
         // Se for canal WEB, adiciona instrução de formatação rica

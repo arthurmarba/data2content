@@ -135,6 +135,7 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                     const taskName = data.currentTask?.name;
                     if (taskName === 'content_plan') return 'content_plan';
                     if (taskName === 'ask_community_inspiration') return 'community_inspiration';
+                    if (data.answerEvidence?.topPosts?.length) return 'community_inspiration';
                     return 'other';
                 })();
                 setMessages(prev => [
@@ -146,6 +147,8 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                         messageId: data.assistantMessageId || null,
                         sessionId: data.sessionId || sessionId,
                         messageType,
+                        intent: data.answerEvidence?.intent || data.pendingAction?.intent || null,
+                        answerEvidence: data.answerEvidence || null,
                     },
                 ]);
                 if (data.sessionId) setSessionId(data.sessionId);

@@ -6,6 +6,7 @@ import { CommunityInspirationMessage, parseCommunityInspirationText } from './Co
 import { FEEDBACK_REASONS, FeedbackReasonCode } from './feedbackReasons';
 import { track } from '@/lib/track';
 import { chatNormalizationAppliedSchema } from '@/lib/analytics/chatSchemas';
+import { AnswerEvidencePanel } from './AnswerEvidencePanel';
 
 interface MessageBubbleProps {
     message: Message;
@@ -17,6 +18,7 @@ interface MessageBubbleProps {
     initialFeedback?: 'up' | 'down' | undefined;
     renderOptions?: RenderOptions;
     virtualize?: boolean;
+    onEvidenceAction?: (prompt: string) => void;
 }
 
 const MAX_MESSAGE_CHARS = 30000;
@@ -53,6 +55,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     initialFeedback,
     renderOptions,
     virtualize,
+    onEvidenceAction,
 }: MessageBubbleProps) {
     const router = useRouter();
     const isUser = message.sender === 'user';
@@ -225,11 +228,46 @@ export const MessageBubble = React.memo(function MessageBubble({
 
     const communityContent = React.useMemo(() => {
         const renderComponent = () => <CommunityInspirationMessage text={labelSafeText} theme={isUser ? 'inverse' : 'default'} />;
+        // Prefer evidence topPosts for inspiration cards
+        if (message.answerEvidence?.topPosts?.length) {
+            const cards = message.answerEvidence.topPosts.map((p, idx) => ({
+                title: p.title || p.tags?.[0] || (Array.isArray(p.format) ? p.format[0] : p.format) || `Post ${idx + 1}`,
+                description: p.captionSnippet || undefined,
+                highlights: [],
+                link: isHttpUrl(p.permalink) ? { url: p.permalink as string, label: 'Ver post' } : undefined,
+            }));
+            if (cards.length) {
+                return (
+                    <div className="mt-2 space-y-2">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Inspirações validadas</div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {cards.map((card, idx2) => (
+                                <div key={card.title + idx2} className="rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
+                                    <div className="font-semibold text-gray-800">{card.title}</div>
+                                    {card.description ? (
+                                        <p className="mt-1 text-sm text-gray-600">{card.description}</p>
+                                    ) : null}
+                                    {card.link?.url ? (
+                                        <a
+                                            href={card.link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="mt-2 inline-flex items-center text-sm font-semibold text-brand-primary hover:underline"
+                                        >
+                                            {card.link.label || 'Ver post'}
+                                        </a>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            }
+        }
 
         if (message.messageType === 'community_inspiration') {
             return renderComponent();
         }
-        // Fallback: try to parse even if the intent wasn't tagged, with safety guardrails
         const parsed = parseCommunityInspirationText(labelSafeText);
         const cardsWithContent = parsed.cards.filter((card) => {
             const hasTitleOrDescription = Boolean(card.title?.trim() || card.description?.trim());
@@ -241,11 +279,13 @@ export const MessageBubble = React.memo(function MessageBubble({
             return renderComponent();
         }
         return null;
-    }, [displayText, isUser, message.messageType, labelSafeText]);
+    }, [displayText, isUser, message.messageType, labelSafeText, message.answerEvidence?.topPosts]);
 
     const virtualizationStyle = virtualize
         ? ({ contentVisibility: 'auto', containIntrinsicSize: '1px 240px' } as React.CSSProperties)
         : undefined;
+
+    const evidence = message.answerEvidence;
 
     return (
         <li className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`} style={virtualizationStyle}>
@@ -273,6 +313,16 @@ export const MessageBubble = React.memo(function MessageBubble({
                                 {displayText}
                             </p>
                         ))}
+                        {!isUser && evidence && evidence.intent?.includes('top') && (
+                            (Array.isArray(evidence.topPosts) && evidence.topPosts.length >= 0) ||
+                            (evidence.relaxApplied && evidence.relaxApplied.length)
+                        ) ? (
+                            <AnswerEvidencePanel
+                                evidence={evidence}
+                                onRelax={onEvidenceAction ? () => onEvidenceAction('Relaxe o critério e me mostre os melhores possíveis.') : undefined}
+                                onImproveBase={onEvidenceAction ? () => onEvidenceAction('Como posso melhorar minha base de exemplos?') : undefined}
+                            />
+                        ) : null}
                     </div>
                     {isTooLong ? (
                         <div className={`mt-3 flex flex-wrap items-center gap-2 text-[11px] ${isUser ? 'text-white/80' : 'text-gray-500'}`}>

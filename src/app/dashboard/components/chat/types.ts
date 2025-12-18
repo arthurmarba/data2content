@@ -8,6 +8,8 @@ export interface Message {
         label: string;
         action: string;
     };
+    intent?: string | null;
+    answerEvidence?: AnswerEvidence | null;
     contextCalcId?: string;
     alertId?: string;
     alertTitle?: string;
@@ -83,3 +85,50 @@ export type AlertItem = {
     readAt?: string | null;
     createdAt: string;
 };
+
+export interface AnswerEvidence {
+    version?: string;
+    intent: string;
+    thresholds: {
+        minAbs?: number;
+        minRel?: number;
+        formatLocked?: string | null;
+        metricsRequired?: string[];
+        effectiveEr?: number | null;
+    };
+    baselines: {
+        windowDays: number;
+        p50Interactions?: number;
+        p50ER?: number;
+        perFormat?: Record<string, { p50Interactions?: number; p50ER?: number | null }>;
+    };
+    topPosts: Array<{
+        id: string;
+        permalink?: string;
+        format?: string | string[] | null;
+        tags?: string[];
+        stats: {
+            total_interactions?: number;
+            reach?: number;
+            saves?: number;
+            shares?: number;
+            comments?: number;
+            likes?: number;
+            er_by_reach?: number;
+            engagement_rate_on_reach?: number;
+        };
+        vsBaseline?: {
+            interactionsPct?: number;
+            reachPct?: number;
+            savesPct?: number;
+            sharesPct?: number;
+            erPct?: number;
+        };
+        title?: string;
+        captionSnippet?: string;
+        thumbUrl?: string;
+        score?: number;
+    }>;
+    relaxApplied?: Array<{ step: string; reason?: string }>;
+    filtersApplied?: { tagsLocked?: boolean; formatLocked?: boolean };
+}

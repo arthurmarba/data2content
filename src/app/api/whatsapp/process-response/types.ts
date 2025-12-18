@@ -6,6 +6,7 @@
 
 import { DeterminedIntent } from '@/app/lib/intentService';
 import { IUser, AlertDetails } from '../../../models/User';
+import type { ContextPack } from '@/app/lib/ai/answerEngine/types';
 import { IDialogueState } from '@/app/lib/stateService';
 
 /**
@@ -76,4 +77,5 @@ export interface EnrichedAIContext {
   promptVariant?: string | null;
   chatContextJson?: string | null;
   experimentId?: string | null;
+  answerEnginePack?: ContextPack | null;
 }

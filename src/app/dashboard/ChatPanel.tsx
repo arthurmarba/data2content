@@ -1033,6 +1033,7 @@ export default function ChatPanel({
                   virtualize={shouldVirtualize}
                   onUpsellClick={onUpsellClick}
                   onConnectInstagram={handleCorrectInstagramLink}
+                  onEvidenceAction={(prompt) => sendPrompt(prompt, { skipInputReset: true })}
                   onFeedbackStart={enterMessageFeedback}
                   onFeedbackEnd={exitMessageFeedback}
                   onFeedbackSubmitted={(rating, messageId) => {

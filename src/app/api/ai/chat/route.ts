@@ -24,6 +24,9 @@ import { aiResponseSuggestsPendingAction } from "@/app/api/whatsapp/process-resp
 import { ensureChatSession, logChatMessage } from "@/app/lib/chatTelemetry";
 import { buildChatContext, stringifyChatContext } from "@/app/lib/contextBuilder";
 import { chooseVariantFromRollout, experimentConfig, type VariantBucket } from "@/app/lib/experimentConfig";
+import { runAnswerEngine } from "@/app/lib/ai/answerEngine/engine";
+import { validateAnswerWithContext } from "@/app/lib/ai/answerEngine/validator";
+import { coerceToAnswerIntent } from "@/app/lib/ai/answerEngine/policies";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -35,6 +38,7 @@ const SUMMARY_INTERVAL_SAFE = SUMMARY_GENERATION_INTERVAL || 6;
 const MAX_AI_EXCERPT = 1500;
 const MAX_QUERY_CHARS = 4000;
 const HARMFUL_PATTERNS = [/su[ií]c[ií]dio/i, /\bme matar\b/i, /\bmatar algu[eé]m\b/i, /aut[oô]mutila/i];
+const ANSWER_ENGINE_ENABLED = process.env.ANSWER_ENGINE_ENABLED !== 'false';
 
 function isTableStart(lines: string[], index: number) {
   const first = (lines[index] ?? '').trim();
@@ -601,6 +605,25 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       experimentId,
     });
 
+    let answerEngineResult: any = null;
+    let answerEngineDuration = 0;
+    if (ANSWER_ENGINE_ENABLED) {
+      try {
+        const started = Date.now();
+        answerEngineResult = await runAnswerEngine({
+          user: targetUser,
+          query: truncatedQuery.trim(),
+          explicitIntent: coerceToAnswerIntent(effectiveIntent),
+          surveyProfile,
+          preferences: (targetUser as any)?.userPreferences,
+          now: new Date(),
+        });
+        answerEngineDuration = Date.now() - started;
+      } catch (error) {
+        logger.error('[ai/chat] answer-engine failed', error);
+      }
+    }
+
     const enriched: EnrichedAIContext = {
       user: targetUser,
       historyMessages,
@@ -611,6 +634,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       intentLabel: effectiveIntent,
       promptVariant,
       chatContextJson: contextJson,
+      answerEnginePack: answerEngineResult?.contextPack || null,
     };
 
     let finalText = '';
@@ -638,6 +662,70 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     const instigatingQuestion = await generateInstigatingQuestion(finalText, dialogueState, access.targetUserId);
     const fullResponse = instigatingQuestion ? `${finalText.trim()}\n\n${instigatingQuestion}` : finalText.trim();
     let sanitizedResponse = sanitizeTables(fullResponse);
+    if (answerEngineResult?.contextPack) {
+      const validation = validateAnswerWithContext(sanitizedResponse, answerEngineResult.contextPack);
+      if (validation.badRecoPrevented > 0) {
+        logger.info('[answer-engine] chat_bad_reco_prevented', {
+          removed: validation.badRecoPrevented,
+          intent: answerEngineResult.intent,
+        });
+      }
+      sanitizedResponse = validation.sanitizedResponse;
+      logger.info('[answer-engine] telemetry', {
+        event: 'answer_engine_validation',
+        intent: answerEngineResult.intent,
+        candidates_found: answerEngineResult?.ranked?.length || 0,
+        thresholds: answerEngineResult?.policy?.thresholds,
+        removed_by_validator: validation.badRecoPrevented || 0,
+        pack_empty: !answerEngineResult?.topPosts?.length,
+        relaxApplied: answerEngineResult?.telemetry?.relaxApplied,
+        duration_ms: answerEngineDuration || null,
+      });
+    }
+    const answerEvidence = answerEngineResult
+      ? {
+          version: 'v1',
+          intent: answerEngineResult.intent,
+          thresholds: {
+            minAbs: answerEngineResult.policy.thresholds.minAbsolute,
+            minRel: answerEngineResult.policy.thresholds.minRelativeInteractions,
+            formatLocked: answerEngineResult.policy.formatLocked || null,
+            metricsRequired: answerEngineResult.policy.metricsRequired || [],
+            effectiveEr: answerEngineResult.policy.thresholds.effectiveEr || null,
+          },
+          baselines: {
+            windowDays: answerEngineResult.baselines.windowDays,
+            p50Interactions: answerEngineResult.baselines.totalInteractionsP50,
+            p50ER: answerEngineResult.baselines.engagementRateP50,
+            perFormat: Object.fromEntries(
+              Object.entries(answerEngineResult.baselines.perFormat || {}).map(([fmt, vals]) => {
+                const safe = vals as { totalInteractionsP50?: number; engagementRateP50?: number | null };
+                return [
+                  fmt,
+                  { p50Interactions: safe.totalInteractionsP50, p50ER: safe.engagementRateP50 },
+                ];
+              }),
+            ),
+          },
+          topPosts: answerEngineResult.topPosts.slice(0, 8).map((p: any) => ({
+            id: p.id,
+            permalink: p.permalink,
+            format: p.format,
+            tags: p.tags,
+            stats: {
+              ...p.stats,
+              er_by_reach: p.stats?.engagement_rate_on_reach ?? null,
+            },
+            score: p.score,
+            vsBaseline: {
+              interactionsPct: p.baselineDelta ?? null,
+              erPct: p.erDelta ?? null,
+              reachPct: p.reachDelta ?? null,
+            },
+          })),
+          relaxApplied: answerEngineResult.telemetry?.relaxApplied,
+        }
+      : null;
     const surveyNudgeNeeded = !access.isAdmin && (surveyFreshness.isStale || surveyFreshness.missingCore.length > 0);
     const surveyNudgeText = surveyNudgeNeeded
       ? `Para personalizar com o que você preencheu na pesquisa, confirme seu ${surveyFreshness.missingCore.join('/') || 'perfil'} rapidinho (leva 2 min).`
@@ -786,6 +874,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       assistantMessageId,
       userMessageId,
       sessionId: sessionDoc?._id?.toString?.() || null,
+      answerEvidence,
     }, { status: 200 });
   } catch (error: unknown) {
     console.error("POST /api/ai/chat error:", error);
