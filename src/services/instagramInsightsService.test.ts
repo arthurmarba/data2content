@@ -27,7 +27,7 @@ describe('fetchFollowerDemographics', () => {
     mockedGet.mockResolvedValueOnce({ data: { data: [] } });
     mockedGet.mockResolvedValue({ data: { data: [] } });
     const res = await fetchFollowerDemographics(igUserId, token);
-    expect(res.follower_demographics.age).toEqual([]);
+    expect(res.follower_demographics.age).toEqual({});
     expect(mockedGet).toHaveBeenCalled();
   });
 });

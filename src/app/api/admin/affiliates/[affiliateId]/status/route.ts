@@ -29,7 +29,7 @@ export async function PATCH(
   logger.info(`${TAG} Received request to update status for affiliate (user ID): ${userId}`);
 
   try {
-    const session = await getAdminSession(req);
+    const session = (await getAdminSession(req)) as { user?: { name?: string } } | null;
     if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }

@@ -2,47 +2,58 @@
 import { Types } from 'mongoose'; // Import Types for use in mock return values if needed
 
 // UserModel Mock
-const mockUserAggregate = jest.fn();
-const mockUserFindLean = jest.fn();
-const mockUserFindSelect = jest.fn().mockReturnThis();
-const mockUserFind = jest.fn(() => ({ select: mockUserFindSelect, lean: mockUserFindLean }));
-const mockUserFindOneLean = jest.fn();
-const mockUserFindOne = jest.fn(() => ({ lean: mockUserFindOneLean }));
-jest.mock('@/app/models/User', () => ({
-  __esModule: true,
-  default: {
-    aggregate: mockUserAggregate,
-    find: mockUserFind,
-    findOne: mockUserFindOne,
-  },
-}));
+jest.mock('@/app/models/User', () => {
+  const aggregate = jest.fn();
+  const findLean = jest.fn();
+  const findSelect = jest.fn().mockReturnThis();
+  const findDistinct = jest.fn();
+  const find = jest.fn(() => ({ select: findSelect, lean: findLean, distinct: findDistinct }));
+  const findOneLean = jest.fn();
+  const findOne = jest.fn(() => ({ lean: findOneLean }));
+  const countDocuments = jest.fn();
+  const distinct = jest.fn();
+  return {
+    __esModule: true,
+    default: {
+      aggregate,
+      find,
+      findOne,
+      countDocuments,
+      distinct,
+    },
+  };
+});
 
 // MetricModel Mock
-const mockMetricAggregate = jest.fn();
-const mockMetricFindLean = jest.fn();
-const mockMetricFindSelect = jest.fn().mockReturnThis();
-const mockMetricFind = jest.fn(() => ({ select: mockMetricFindSelect, lean: mockMetricFindLean }));
-const mockMetricFindOneLean = jest.fn();
-const mockMetricFindOne = jest.fn(() => ({ lean: mockMetricFindOneLean }));
-const mockMetricDistinct = jest.fn();
-jest.mock('@/app/models/Metric', () => ({
-  __esModule: true,
-  default: {
-    aggregate: mockMetricAggregate,
-    find: mockMetricFind,
-    findOne: mockMetricFindOne,
-    distinct: mockMetricDistinct,
-  },
-}));
+jest.mock('@/app/models/Metric', () => {
+  const aggregate = jest.fn();
+  const findLean = jest.fn();
+  const findSelect = jest.fn().mockReturnThis();
+  const find = jest.fn(() => ({ select: findSelect, lean: findLean }));
+  const findOneLean = jest.fn();
+  const findOne = jest.fn(() => ({ lean: findOneLean }));
+  const distinct = jest.fn();
+  return {
+    __esModule: true,
+    default: {
+      aggregate,
+      find,
+      findOne,
+      distinct,
+    },
+  };
+});
 
 // DailyMetricSnapshotModel Mock
-const mockDailyMetricSnapshotAggregate = jest.fn();
-jest.mock('@/app/models/DailyMetricSnapshot', () => ({
-  __esModule: true,
-  default: {
-    aggregate: mockDailyMetricSnapshotAggregate,
-  },
-}));
+jest.mock('@/app/models/DailyMetricSnapshot', () => {
+  const aggregate = jest.fn();
+  return {
+    __esModule: true,
+    default: {
+      aggregate,
+    },
+  };
+});
 
 // NOW import other modules
 import {
@@ -70,6 +81,25 @@ import MetricModel from '@/app/models/Metric';
 import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot';
 import UserModel from '@/app/models/User';
 
+const mockUserAggregate = (UserModel as any).aggregate as jest.Mock;
+const mockUserFind = (UserModel as any).find as jest.Mock;
+const mockUserFindOne = (UserModel as any).findOne as jest.Mock;
+const mockUserFindSelect = jest.fn().mockReturnThis();
+const mockUserFindLean = jest.fn();
+const mockUserFindOneLean = jest.fn();
+const mockUserFindDistinct = jest.fn();
+const mockUserCountDocuments = (UserModel as any).countDocuments as jest.Mock;
+const mockUserDistinct = (UserModel as any).distinct as jest.Mock;
+
+const mockMetricAggregate = (MetricModel as any).aggregate as jest.Mock;
+const mockMetricFind = (MetricModel as any).find as jest.Mock;
+const mockMetricFindOne = (MetricModel as any).findOne as jest.Mock;
+const mockMetricDistinct = (MetricModel as any).distinct as jest.Mock;
+const mockMetricFindSelect = jest.fn().mockReturnThis();
+const mockMetricFindLean = jest.fn();
+const mockMetricFindOneLean = jest.fn();
+const mockDailyMetricSnapshotAggregate = (DailyMetricSnapshotModel as any).aggregate as jest.Mock;
+
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -88,13 +118,17 @@ describe('MarketAnalysisService', () => {
     (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
 
     mockUserAggregate.mockReset().mockResolvedValue([]);
+    mockUserDistinct.mockReset().mockResolvedValue([]);
     mockUserFindLean.mockReset().mockResolvedValue([]);
-    (UserModel.find as jest.Mock).mockClear().mockReturnValue({ // Ensure chaining is reset
+    mockUserFindDistinct.mockReset().mockResolvedValue([]);
+    mockUserFind.mockReset().mockReturnValue({
       select: mockUserFindSelect.mockClear().mockReturnThis(),
       lean: mockUserFindLean,
+      distinct: mockUserFindDistinct,
     });
+    mockUserCountDocuments.mockReset().mockResolvedValue(0);
     mockUserFindOneLean.mockReset().mockResolvedValue(null);
-    (UserModel.findOne as jest.Mock).mockClear().mockReturnValue({ // Ensure chaining is reset
+    mockUserFindOne.mockReset().mockReturnValue({
       lean: mockUserFindOneLean,
     });
 
@@ -102,12 +136,12 @@ describe('MarketAnalysisService', () => {
     mockMetricAggregate.mockReset().mockResolvedValue([]);
     mockMetricDistinct.mockReset().mockResolvedValue([]);
     mockMetricFindLean.mockReset().mockResolvedValue([]);
-    (MetricModel.find as jest.Mock).mockClear().mockReturnValue({ // Ensure chaining is reset
+    mockMetricFind.mockReset().mockReturnValue({
       select: mockMetricFindSelect.mockClear().mockReturnThis(),
       lean: mockMetricFindLean,
     });
     mockMetricFindOneLean.mockReset().mockResolvedValue(null);
-     (MetricModel.findOne as jest.Mock).mockClear().mockReturnValue({ // Ensure chaining is reset
+    mockMetricFindOne.mockReset().mockReturnValue({
       lean: mockMetricFindOneLean,
     });
 
@@ -139,7 +173,11 @@ describe('MarketAnalysisService', () => {
       const result = await marketAnalysisService.fetchDashboardCreatorsList(defaultParams);
       expect(connectToDatabase).toHaveBeenCalledTimes(1);
       expect(UserModel.aggregate).toHaveBeenCalledTimes(2);
-      expect(result.creators).toEqual(mockCreators);
+      const expectedCreators = mockCreators.map(c => ({
+        ...c,
+        recentAlertsSummary: { count: 0, alerts: [] },
+      }));
+      expect(result.creators).toEqual(expectedCreators);
       expect(result.totalCreators).toBe(mockCreators.length);
     });
 
@@ -168,6 +206,8 @@ describe('MarketAnalysisService', () => {
       breakdownByFormat: [{ format: 'video', count: 600 }],
       breakdownByProposal: [{ proposal: 'tutorial', count: 300 }],
       breakdownByContext: [{ context: 'education', count: 400 }],
+      breakdownByTone: [],
+      breakdownByReferences: [],
     };
     it('should fetch overall content stats successfully', async () => {
       (MetricModel.aggregate as jest.Mock).mockResolvedValueOnce([{
@@ -191,7 +231,7 @@ describe('MarketAnalysisService', () => {
     });
     it('should throw DatabaseError if aggregation fails', async () => {
       (MetricModel.aggregate as jest.Mock).mockRejectedValue(new Error('Stats Aggregation failed'));
-      await expect(marketAnalysisService.fetchDashboardOverallContentStats({})).rejects.toThrow('Falha ao buscar estatísticas gerais de conteúdo: Stats Aggregation failed');
+      await expect(marketAnalysisService.fetchDashboardOverallContentStats({})).rejects.toThrow('Falha ao buscar estatísticas gerais: Stats Aggregation failed');
     });
   });
 
@@ -235,10 +275,10 @@ describe('MarketAnalysisService', () => {
       (MetricModel.aggregate as jest.Mock).mockRejectedValue(new Error('TimeSeries Aggregation failed'));
       await expect(marketAnalysisService.fetchCreatorTimeSeriesData(baseArgs)).rejects.toThrow('Failed to fetch time series data: TimeSeries Aggregation failed');
     });
-     it('should log the aggregation pipeline for debug', async () => {
+    it('should log the request info for debugging', async () => {
       (MetricModel.aggregate as jest.Mock).mockResolvedValue(mockTimeSeriesData);
       await marketAnalysisService.fetchCreatorTimeSeriesData({...baseArgs, metric: 'avg_engagement_rate', period: 'weekly'});
-      expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('[fetchCreatorTimeSeriesData] Aggregation pipeline:'));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[dataService][timeSeriesService][fetchCreatorTimeSeriesData] Fetching'));
     });
   });
 

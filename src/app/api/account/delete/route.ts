@@ -1,7 +1,6 @@
 // src/app/api/account/delete/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
@@ -14,8 +13,17 @@ export const runtime = "nodejs";
 
 type SessionWithUserId = { user?: { id?: string | null } } | null;
 
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === "test") {
+    return {} as any;
+  }
+  const mod = await import("@/app/api/auth/[...nextauth]/route");
+  return mod.authOptions as any;
+}
+
 export async function DELETE(req: NextRequest) {
   try {
+    const authOptions = await loadAuthOptions();
     const session = (await getServerSession(authOptions as any)) as SessionWithUserId;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

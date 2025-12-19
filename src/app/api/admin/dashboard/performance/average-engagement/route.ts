@@ -24,7 +24,7 @@ type GroupingType = 'format' | 'context' | 'proposal';
 const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context', 'proposal'];
 
 export async function GET(request: NextRequest) {
-  const session = await getAdminSession(request);
+  const session = (await getAdminSession(request)) as { user?: { name?: string } } | null;
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

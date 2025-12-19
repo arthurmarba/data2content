@@ -8,14 +8,10 @@ import { ICreatorProfile } from '@/app/lib/dataService/marketAnalysisService'; /
 // Mock global fetch
 global.fetch = jest.fn();
 
-// Mock next/image
-const MockImage = ({ src, alt }: {src: string, alt: string}) => <img src={src} alt={alt} data-testid="mock-image" />;
-MockImage.displayName = 'MockImage';
-jest.mock('next/image', () => MockImage);
-
-// Mock XMarkIcon
-jest.mock('@heroicons/react/24/solid', () => ({
-  XMarkIcon: () => <svg data-testid="x-mark-icon" />,
+// Mock next/image antes do uso (factory inline para evitar hoisting com const)
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: (props: any) => <img alt={props.alt ?? ''} {...props} data-testid="mock-image" />,
 }));
 
 
@@ -100,13 +96,13 @@ describe('CreatorComparisonModal Component', () => {
         json: async () => mockProfiles,
       });
       render(<CreatorComparisonModal {...defaultProps} />);
-      await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument()); // Wait for data to load
+      await waitFor(() => expect(screen.getAllByText('Alice').length).toBeGreaterThan(0)); // Wait for data to load
     });
 
     test('displays creator names as column headers', () => {
-      expect(screen.getByText('Alice')).toBeInTheDocument();
-      expect(screen.getByText('Bob')).toBeInTheDocument();
-      expect(screen.getByText('Charlie')).toBeInTheDocument();
+      expect(screen.getAllByText('Alice')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('Bob')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('Charlie')[0]).toBeInTheDocument();
     });
 
     test('renders metric labels and data in table cells', () => {
@@ -115,15 +111,15 @@ describe('CreatorComparisonModal Component', () => {
       expect(screen.getByText('150')).toBeInTheDocument(); // Bob's postCount
 
       expect(screen.getByText('Taxa de Engaj. Média')).toBeInTheDocument();
-      expect(screen.getByText('5,0%')).toBeInTheDocument(); // Alice's engagement
-      expect(screen.getByText('8,0%')).toBeInTheDocument(); // Bob's engagement (highlighted)
+      expect(screen.getByText('5.0%')).toBeInTheDocument(); // Alice's engagement
+      expect(screen.getByText('8.0%')).toBeInTheDocument(); // Bob's engagement (highlighted)
 
       expect(screen.getAllByTestId('mock-image').length).toBe(3); // 3 profile pictures
     });
 
     test('highlights best values correctly', () => {
       // Bob has best avgEngagementRate (0.08 vs 0.05 vs 0.03)
-      const bobEngagementCell = screen.getByText('8,0%').closest('td');
+      const bobEngagementCell = screen.getByText('8.0%').closest('td');
       expect(bobEngagementCell).toHaveClass('font-bold text-green-600 dark:text-green-400');
 
       // Charlie has best avgLikes (60 vs 50 vs 40)
@@ -137,15 +133,18 @@ describe('CreatorComparisonModal Component', () => {
   });
 
   test('re-fetches when creatorIdsToCompare prop changes while open', async () => {
-    const { rerender } = render(<CreatorComparisonModal {...defaultProps} />);
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-
     const newIds = ['id4', 'id5'];
     const newMockProfiles = [
       { creatorId: 'id4', creatorName: 'Dave', postCount: 200, avgEngagementRate: 0.1, avgLikes: 10, avgShares: 1, topPerformingContext: 'Music' },
       { creatorId: 'id5', creatorName: 'Eve', postCount: 220, avgEngagementRate: 0.12, avgLikes: 12, avgShares: 2, topPerformingContext: 'Art' },
     ];
-    (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => newMockProfiles });
+    (fetch as jest.Mock).mockReset();
+    (fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, json: async () => mockProfiles })
+      .mockResolvedValueOnce({ ok: true, json: async () => newMockProfiles });
+
+    const { rerender } = render(<CreatorComparisonModal {...defaultProps} />);
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
 
     rerender(<CreatorComparisonModal {...defaultProps} creatorIdsToCompare={newIds} />);
 
@@ -153,8 +152,12 @@ describe('CreatorComparisonModal Component', () => {
     expect(fetch).toHaveBeenLastCalledWith('/api/admin/dashboard/creators/compare', expect.objectContaining({
       body: JSON.stringify({ creatorIds: newIds }),
     }));
-    expect(await screen.findByText('Dave')).toBeInTheDocument();
-    expect(screen.getByText('Eve')).toBeInTheDocument();
+
+    const daveCells = await screen.findAllByText('Dave');
+    const eveCells = await screen.findAllByText('Eve');
+
+    expect(daveCells.length).toBeGreaterThan(0);
+    expect(eveCells.length).toBeGreaterThan(0);
   });
 
 });

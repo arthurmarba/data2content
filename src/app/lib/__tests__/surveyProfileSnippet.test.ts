@@ -22,11 +22,11 @@ describe('buildSurveyProfileSnippet', () => {
 
     const res = buildSurveyProfileSnippet(user);
 
-    expect(res.snippet).toContain('Etapa: iniciante/full-time');
-    expect(res.snippet).toContain('Nichos: tech, finanças, marketing');
-    expect(res.snippet).toContain('Meta 3m: crescer seguidores');
-    expect(res.snippet).toContain('Dores: sem tempo, ideias repetidas');
-    expect(res.snippet).toContain('Form. preferidos: reels, carrossel, live');
+    expect(res.snippet).toContain('etapa: iniciante/full-time');
+    expect(res.snippet).toContain('nichos: tech, finanças, marketing');
+    expect(res.snippet).toContain('meta_3m: crescer seguidores');
+    expect(res.snippet).toContain('dores: sem tempo, ideias repetidas');
+    expect(res.snippet).toContain('formatos_pref: reels, carrossel, live');
     expect(res.fieldsUsed.length).toBeGreaterThan(3);
   });
 

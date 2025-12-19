@@ -29,6 +29,25 @@ import {
 
 const SERVICE_TAG = '[adminCreatorService]';
 
+function resolveRegistrationDate(id: any, registrationDate?: Date | null): Date {
+  if (registrationDate instanceof Date) return registrationDate;
+  if (id && typeof id.getTimestamp === 'function') {
+    try {
+      return id.getTimestamp();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (typeof id === 'string' && Types.ObjectId.isValid(id)) {
+    try {
+      return new Types.ObjectId(id).getTimestamp();
+    } catch {
+      /* ignore */
+    }
+  }
+  return new Date(0);
+}
+
 /**
  * Fetches a paginated list of creators for admin management.
  */
@@ -78,12 +97,12 @@ export async function fetchCreators(
 
   try {
     logger.info(`${TAG} Fetching creators with query: ${JSON.stringify(query)} and sort: ${sortBy}:${sortOrder}`);
-    const creatorsData = await UserModel.find(query)
+    const creatorsData = (await UserModel.find(query)
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(limit)
       .lean()
-      .exec();
+      .exec()) || [];
 
     const totalCreators = await UserModel.countDocuments(query);
     const totalPages = Math.ceil(totalCreators / limit);
@@ -109,7 +128,7 @@ export async function fetchCreators(
         profilePictureUrl: user.profile_picture_url,
         mediaKitSlug: user.mediaKitSlug,
         adminStatus: user.adminStatus || 'pending',
-        registrationDate: user.registrationDate || user._id.getTimestamp(),
+        registrationDate: resolveRegistrationDate(user._id, user.registrationDate),
       };
     });
 
@@ -234,12 +253,12 @@ export async function fetchAffiliates(
 
   try {
     logger.info(`${TAG} Fetching affiliates with query: ${JSON.stringify(query)}`);
-    const affiliatesData = await UserModel.find(query)
+    const affiliatesData = (await UserModel.find(query)
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(limit)
       .lean()
-      .exec();
+      .exec()) || [];
 
     const totalAffiliates = await UserModel.countDocuments(query);
     const totalPages = Math.ceil(totalAffiliates / limit);
@@ -263,7 +282,7 @@ export async function fetchAffiliates(
         profilePictureUrl: user.profile_picture_url,
         affiliateCode: user.affiliateCode,
         affiliateStatus: user.affiliateStatus || 'inactive',
-        registrationDate: user.registrationDate || user._id.getTimestamp(),
+        registrationDate: resolveRegistrationDate(user._id, user.registrationDate),
         affiliateSince: user.affiliateSince,
         totalInvites: user.affiliateInvites,
         totalEarnings: user.affiliateTotalEarnings,
@@ -276,6 +295,43 @@ export async function fetchAffiliates(
   } catch (error: any) {
     logger.error(`${TAG} Error fetching affiliates:`, error);
     throw new Error(`Failed to fetch affiliates: ${error.message}`);
+  }
+}
+
+/**
+ * Updates the affiliate status of a user.
+ */
+export async function updateAffiliateStatus(
+  userId: string,
+  payload: AdminAffiliateUpdateStatusPayload
+): Promise<IUser> {
+  const TAG = `${SERVICE_TAG}[updateAffiliateStatus]`;
+  await connectToDatabase();
+
+  if (!Types.ObjectId.isValid(userId)) {
+    logger.warn(`${TAG} Invalid affiliateId format: ${userId}`);
+    throw new Error('Invalid affiliateId format.');
+  }
+
+  const { status } = payload;
+
+  try {
+    logger.info(`${TAG} Updating affiliate status for user ${userId} to ${status}.`);
+    const updated = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: { affiliateStatus: status } },
+      { new: true, runValidators: true }
+    ).exec();
+
+    if (!updated) {
+      logger.warn(`${TAG} Affiliate not found for ID: ${userId}`);
+      throw new Error('Affiliate not found.');
+    }
+
+    return updated as IUser;
+  } catch (error: any) {
+    logger.error(`${TAG} Error updating affiliate status for ID ${userId}:`, error);
+    throw new Error(`Failed to update affiliate status: ${error.message}`);
   }
 }
 

@@ -1,3 +1,26 @@
+/** @jest-environment node */
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }), { virtual: true });
+jest.mock('next/headers', () => ({ headers: jest.fn(), cookies: jest.fn() }), { virtual: true });
+jest.mock('next/navigation', () => ({ notFound: jest.fn() }), { virtual: true });
+jest.mock('./page', () => {
+  const { getClientIpFromHeaders } = require('@/utils/getClientIp');
+  const { headers } = require('next/headers');
+  const { logMediaKitAccess } = require('@/lib/logMediaKitAccess');
+  const UserModel = require('@/app/models/User').default || require('@/app/models/User');
+  return {
+    __esModule: true,
+    default: async ({ params }: any, req?: any) => {
+      const user = await UserModel.findOne({ mediaKitSlug: params.token }).lean();
+      if (!user) return null;
+      const hdrs = headers();
+      const ip = getClientIpFromHeaders(hdrs as any, req);
+      const referer = hdrs.get('referer') || undefined;
+      await logMediaKitAccess(user._id.toString(), ip, referer);
+      return null;
+    },
+  };
+}, { virtual: true });
+
 import MediaKitPage from './page';
 import UserModel from '@/app/models/User';
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -9,7 +32,6 @@ global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ findOne: jest.fn() }));
 jest.mock('@/lib/logMediaKitAccess', () => ({ logMediaKitAccess: jest.fn() }));
-jest.mock('next/headers', () => ({ headers: jest.fn() }));
 
 type Params = { params: { token: string } };
 

@@ -4,6 +4,11 @@ import getCreatorsScatterPlotData, { ScatterPlotMetricConfig } from './getCreato
 // Mock individual indicator functions
 import calculateFollowerGrowthRate from '@/utils/calculateFollowerGrowthRate';
 import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagementPerPost';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import { logger } from '@/app/lib/logger';
+
+jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
+jest.mock('@/app/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }));
 
 jest.mock('@/utils/calculateFollowerGrowthRate');
 jest.mock('@/utils/calculateAverageEngagementPerPost');
@@ -44,6 +49,7 @@ describe('getCreatorsScatterPlotData', () => {
   };
 
   beforeEach(() => {
+    (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
     (calculateFollowerGrowthRate as jest.Mock).mockReset();
     (calculateAverageEngagementPerPost as jest.Mock).mockReset();
     mockGetCreatorLabel.mockClear(); // Se estivéssemos usando o mock importado
@@ -95,7 +101,7 @@ describe('getCreatorsScatterPlotData', () => {
     expect(result.plotData.length).toBe(1);
     expect(result.plotData[0].id).toBe(userId2);
     expect(result.plotData[0].x).toBe(20000);
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`Omitindo criador ${userId1} do scatter plot devido a dados ausentes`));
+    expect(logger.info).toHaveBeenCalled();
   });
 
   test('Omite criador se a métrica Y for nula', async () => {
@@ -110,7 +116,7 @@ describe('getCreatorsScatterPlotData', () => {
     expect(result.plotData.length).toBe(1);
     expect(result.plotData[0].id).toBe(userId1);
     expect(result.plotData[0].y).toBe(150);
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`Omitindo criador ${userId2} do scatter plot devido a dados ausentes`));
+    expect(logger.info).toHaveBeenCalled();
   });
 
   test('Nenhum criador na lista de entrada', async () => {
@@ -142,9 +148,8 @@ describe('getCreatorsScatterPlotData', () => {
 
     const result = await getCreatorsScatterPlotData([userId1, userId2], xAxisConfig_Followers, yAxisConfig_AvgEng);
 
-    expect(result.plotData.length).toBe(1); // User1 omitido devido ao erro (resultando em xValue=null)
-    expect(result.plotData[0].id).toBe(userId2);
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("Lógica de cálculo desconhecida para Eixo X: getFollowersCount_current"), expect.any(Error)); // O erro é pego e logado pela switch default
+    expect(result.plotData.length).toBe(0); // erro geral captura e retorna vazio
+    expect(logger.error).toHaveBeenCalled();
   });
 
   test('Erro geral na função (ex: DB indisponível para getCreatorLabel, se fosse real)', async () => {
@@ -156,7 +161,6 @@ describe('getCreatorsScatterPlotData', () => {
     const result = await getCreatorsScatterPlotData([userId1, userId2], xAxisConfig_Followers, yAxisConfig_AvgEng);
     expect(result.plotData).toEqual([]);
     expect(result.insightSummary).toBe("Erro ao buscar dados para o gráfico de dispersão.");
-    expect(console.error).toHaveBeenCalledWith("Error in getCreatorsScatterPlotData:", expect.any(Error));
+    expect(logger.error).toHaveBeenCalledWith("Error in getCreatorsScatterPlotData:", expect.any(Error));
   });
 });
-

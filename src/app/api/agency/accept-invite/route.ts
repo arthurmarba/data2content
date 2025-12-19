@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import AgencyModel from '@/app/models/Agency';
@@ -8,13 +7,21 @@ import { logger } from '@/app/lib/logger';
 import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === 'test') {
+    return {} as any;
+  }
+  const mod = await import('@/app/api/auth/[...nextauth]/route');
+  return mod.authOptions as any;
+}
 
 const bodySchema = z.object({
   inviteCode: z.string(),
 });
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession({ req, ...authOptions });
+  const authOptions = await loadAuthOptions();
+  const session = (await getServerSession({ req, ...authOptions })) as { user?: { id?: string } } | null;
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }

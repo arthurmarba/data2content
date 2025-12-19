@@ -1,10 +1,10 @@
-import { POST } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { Types } from 'mongoose';
-import { fetchMultipleCreatorProfiles } from '@/app/lib/dataService/marketAnalysisService';
+import { getCreatorProfile } from '@/app/lib/dataService/marketAnalysis/profilesService';
 import { logger } from '@/app/lib/logger';
-import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
+import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
+import UserModel from '@/app/models/User';
 
 jest.mock('next-auth/next', () => ({
   getServerSession: jest.fn(),
@@ -14,7 +14,6 @@ jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
   authOptions: {},
 }));
 
-// Mock logger
 jest.mock('@/app/lib/logger', () => ({
   logger: {
     info: jest.fn(),
@@ -24,14 +23,18 @@ jest.mock('@/app/lib/logger', () => ({
   },
 }));
 
-// Mock marketAnalysisService
-jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
-  fetchMultipleCreatorProfiles: jest.fn(),
+jest.mock('@/app/models/User', () => ({
+  find: jest.fn(),
+}));
+
+jest.mock('@/app/lib/dataService/marketAnalysis/profilesService', () => ({
+  getCreatorProfile: jest.fn(),
 }));
 
 const mockGetServerSession = getServerSession as jest.Mock;
-
-const mockFetchMultipleCreatorProfiles = fetchMultipleCreatorProfiles as jest.Mock;
+const mockGetCreatorProfile = getCreatorProfile as jest.Mock;
+const mockFind = UserModel.find as jest.Mock;
+let POST: any;
 
 describe('API Route: /api/admin/dashboard/creators/compare', () => {
 
@@ -50,11 +53,21 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
+    mockFind.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { name: 'Creator 1' },
+          { name: 'Creator 2' },
+        ]),
+      }),
+    });
+    mockGetCreatorProfile.mockResolvedValue({ creatorId: 'id', creatorName: 'Creator 1' });
+    POST = require('./route').POST;
   });
 
   it('should return 200 with comparison data on a valid request', async () => {
     const mockProfiles = [{ creatorId: new Types.ObjectId().toString(), creatorName: 'Creator 1' }];
-    mockFetchMultipleCreatorProfiles.mockResolvedValue(mockProfiles);
+    mockGetCreatorProfile.mockResolvedValueOnce(mockProfiles[0]).mockResolvedValueOnce(mockProfiles[0]);
 
     const validBody = { creatorIds: [new Types.ObjectId().toString(), new Types.ObjectId().toString()] };
     const req = createMockRequest(validBody);
@@ -62,8 +75,8 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body).toEqual(mockProfiles);
-    expect(fetchMultipleCreatorProfiles).toHaveBeenCalledWith({ creatorIds: validBody.creatorIds });
+    expect(body).toEqual([mockProfiles[0], mockProfiles[0]]);
+    expect(getCreatorProfile).toHaveBeenCalled();
   });
 
   it('should return 400 if creatorIds is missing', async () => {
@@ -87,7 +100,7 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
     const response = await POST(req);
     const body = await response.json();
     expect(response.status).toBe(400);
-    expect(body.error).toContain('creatorIds: creatorIds array cannot be empty.');
+    expect(body.error).toContain('creatorIds: O array creatorIds não pode estar vazio.');
   });
 
   it('should return 400 if creatorIds array exceeds max limit', async () => {
@@ -96,7 +109,7 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
     const response = await POST(req);
     const body = await response.json();
     expect(response.status).toBe(400);
-    expect(body.error).toContain('creatorIds: Cannot compare more than 5 creators at a time.');
+    expect(body.error).toContain('creatorIds: Não é possível comparar mais de 5 criadores de uma vez.');
   });
 
   it('should return 400 if creatorIds array contains invalid ObjectId strings', async () => {
@@ -104,7 +117,7 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
     const response = await POST(req);
     const body = await response.json();
     expect(response.status).toBe(400);
-    expect(body.error).toContain('creatorIds.1: Invalid Creator ID format provided in the array.');
+    expect(body.error).toContain('creatorIds.1: Formato de Creator ID inválido.');
   });
 
   it('should return 401 if admin session is invalid', async () => {
@@ -116,18 +129,18 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
   });
 
   it('should return 500 if service function throws a DatabaseError', async () => {
-    mockFetchMultipleCreatorProfiles.mockRejectedValue(new DatabaseError('DB query failed'));
+    mockGetCreatorProfile.mockRejectedValue(new DatabaseError('DB query failed'));
     const validBody = { creatorIds: [new Types.ObjectId().toString()] };
     const req = createMockRequest(validBody);
     const response = await POST(req);
     const body = await response.json();
 
     expect(response.status).toBe(500);
-    expect(body.error).toBe('Erro de banco de dados: DB query failed');
+    expect(body.error).toBe('Erro de base de dados: DB query failed');
   });
 
   it('should return 500 for unexpected service error', async () => {
-    mockFetchMultipleCreatorProfiles.mockRejectedValue(new Error('Unexpected internal failure'));
+    mockGetCreatorProfile.mockRejectedValue(new Error('Unexpected internal failure'));
     const validBody = { creatorIds: [new Types.ObjectId().toString()] };
     const req = createMockRequest(validBody);
     const response = await POST(req);

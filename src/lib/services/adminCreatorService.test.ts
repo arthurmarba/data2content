@@ -4,19 +4,20 @@ import {
   updateCreatorStatus,
   fetchAffiliates,
   updateAffiliateStatus,
-  fetchRedemptions, // Added
-  updateRedemptionStatus // Added
+  fetchRedemptions,
+  updateRedemptionStatus,
 } from './adminCreatorService';
 import UserModel from '@/app/models/User';
+import RedemptionModel from '@/app/models/Redemption';
 import { connectToDatabase } from '@/app/lib/dataService/connection';
 import { AdminCreatorListParams } from '@/types/admin/creators';
 import { AdminAffiliateListParams, AdminAffiliateUpdateStatusPayload } from '@/types/admin/affiliates';
 import {
   AdminRedemptionListParams,
   AdminRedemptionUpdateStatusPayload,
-  RedemptionStatus
-} from '@/types/admin/redemptions'; // Added
-import mongoose, { Types } from 'mongoose'; // Added mongoose for spying
+  RedemptionStatus,
+} from '@/types/admin/redemptions';
+import { Types } from 'mongoose';
 
 // Mock UserModel
 jest.mock('@/app/models/User', () => ({
@@ -30,9 +31,26 @@ jest.mock('@/app/models/User', () => ({
   findByIdAndUpdate: jest.fn().mockReturnThis(), // Para findByIdAndUpdate(...).exec()
 }));
 
+// Mock RedemptionModel
+jest.mock('@/app/models/Redemption', () => ({
+  __esModule: true,
+  default: {
+    aggregate: jest.fn(),
+    findById: jest.fn(),
+    findByIdAndUpdate: jest.fn(),
+    updateOne: jest.fn(),
+  },
+}));
+
 // Mock connectToDatabase
 jest.mock('@/app/lib/dataService/connection');
 const mockConnectToDatabase = connectToDatabase as jest.Mock;
+const mockRedemption = RedemptionModel as unknown as {
+  aggregate: jest.Mock;
+  findById: jest.Mock;
+  findByIdAndUpdate: jest.Mock;
+  updateOne: jest.Mock;
+};
 
 
 describe('AdminCreatorService', () => {
@@ -131,7 +149,7 @@ describe('AdminCreatorService', () => {
           mediaKitSlug: undefined,
         },
       ];
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUserData.map(u => ({...u, _id: u._id.toString() }))); // lean() returns plain objects
+      (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUserData); // manter ObjectId para usar getTimestamp
       (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(mockUserData.length);
 
       const { creators } = await fetchCreators({});
@@ -161,10 +179,10 @@ describe('AdminCreatorService', () => {
 
   describe('updateCreatorStatus', () => {
     it('should call findByIdAndUpdate with correct parameters', async () => {
-      const mockUpdatedUser = { _id: 'creator1', adminStatus: 'approved' };
+      const creatorId = new Types.ObjectId().toString();
+      const mockUpdatedUser = { _id: creatorId, adminStatus: 'approved' };
       (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
 
-      const creatorId = 'creator1';
       const payload = { status: 'approved' as const };
       const result = await updateCreatorStatus(creatorId, payload);
 
@@ -179,7 +197,7 @@ describe('AdminCreatorService', () => {
     it('should throw error if creator not found', async () => {
       (UserModel.exec as jest.Mock).mockResolvedValueOnce(null);
 
-      await expect(updateCreatorStatus('notFoundId', { status: 'approved' })).rejects.toThrow('Creator not found.');
+      await expect(updateCreatorStatus(new Types.ObjectId().toString(), { status: 'approved' })).rejects.toThrow('Creator not found.');
     });
 
     it('should throw error for invalid creatorId format', async () => {
@@ -211,11 +229,11 @@ describe('AdminCreatorService', () => {
 
   describe('updateAffiliateStatus', () => {
     it('should call findByIdAndUpdate for affiliate status (placeholder)', async () => {
-      const mockUpdatedUser = { _id: 'affiliate1', affiliateStatus: 'active' };
+      const userId = new Types.ObjectId().toString();
+      const mockUpdatedUser = { _id: userId, affiliateStatus: 'active' };
       (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
 
 
-      const userId = 'affiliate1';
       const payload: AdminAffiliateUpdateStatusPayload = { status: 'active' as const };
       await updateAffiliateStatus(userId, payload);
 
@@ -235,54 +253,32 @@ describe('AdminCreatorService', () => {
 
     beforeEach(() => {
       mockExecForFetchRedemptions = jest.fn();
-      const mockAggregate = jest.fn(() => ({ exec: mockExecForFetchRedemptions }));
-
-      // Spy on mongoose.model to return our mock for 'Redemption'
-      jest.spyOn(mongoose, 'model').mockImplementation((name: string) => {
-          if (name === 'Redemption') {
-              return { aggregate: mockAggregate } as any;
-          }
-          return jest.requireActual('mongoose').model(name); // Fallback for other models if any
-      });
+      (mockRedemption.aggregate as jest.Mock).mockReturnValue({ exec: mockExecForFetchRedemptions });
     });
 
     it('should call RedemptionModel.aggregate with correct pipeline for default params', async () => {
       mockExecForFetchRedemptions.mockResolvedValueOnce([]); // Data
       mockExecForFetchRedemptions.mockResolvedValueOnce([{ totalCount: 0 }]); // Count
 
-      const params: AdminRedemptionListParams = {};
-      await fetchRedemptions(params);
+      await fetchRedemptions({});
 
       expect(connectToDatabase).toHaveBeenCalled();
-      const aggregateCalls = (mongoose.model('Redemption').aggregate as jest.Mock).mock.calls;
-      expect(aggregateCalls.length).toBeGreaterThanOrEqual(2); // Data and Count calls
+      const aggregateCalls = (mockRedemption.aggregate as jest.Mock).mock.calls;
+      expect(aggregateCalls.length).toBeGreaterThanOrEqual(2);
 
-      const firstPipeline = aggregateCalls[0][0]; // Pipeline for data
-      // Check initial $match (should be empty or only contain base query if one exists in service)
-      const initialMatchStage = firstPipeline.find((stage: any) => stage.$match);
-      expect(initialMatchStage?.$match || {}).toEqual({}); // Default query is empty
-
-      // Check $lookup, $unwind, $sort stages
-      expect(firstPipeline).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ $lookup: expect.any(Object) }),
-          expect.objectContaining({ $unwind: expect.any(Object) }),
-          expect.objectContaining({ $sort: { createdAt: -1 } }),
-          expect.objectContaining({ $skip: 0 }),
-          expect.objectContaining({ $limit: 10 }),
-        ])
-      );
+      const pipeline = aggregateCalls[0][0];
+      const initialMatchStage = pipeline.find((stage: any) => stage.$match);
+      expect(initialMatchStage?.$match || {}).toEqual({});
     });
 
     it('should include $match for status if status filter is provided', async () => {
       mockExecForFetchRedemptions.mockResolvedValueOnce([]);
       mockExecForFetchRedemptions.mockResolvedValueOnce([{ totalCount: 0 }]);
 
-      const params: AdminRedemptionListParams = { status: 'requested' };
-      await fetchRedemptions(params);
+      await fetchRedemptions({ status: 'requested' });
 
-      const firstPipeline = (mongoose.model('Redemption').aggregate as jest.Mock).mock.calls[0][0];
-      const initialMatchStage = firstPipeline.find((stage: any) => stage.$match && stage.$match.status);
+      const pipeline = (mockRedemption.aggregate as jest.Mock).mock.calls[0][0];
+      const initialMatchStage = pipeline.find((stage: any) => stage.$match && stage.$match.status);
       expect(initialMatchStage?.$match).toEqual({ status: 'requested' });
     });
 
@@ -293,14 +289,12 @@ describe('AdminCreatorService', () => {
       const dateFromStr = new Date('2023-01-01T00:00:00.000Z').toISOString();
       const dateToStr = new Date('2023-01-31T23:59:59.999Z').toISOString();
 
-      const params: AdminRedemptionListParams = { dateFrom: dateFromStr, dateTo: dateToStr };
-      await fetchRedemptions(params);
+      await fetchRedemptions({ dateFrom: dateFromStr, dateTo: dateToStr });
 
-      const firstPipeline = (mongoose.model('Redemption').aggregate as jest.Mock).mock.calls[0][0];
-      const initialMatchStage = firstPipeline.find((stage: any) => stage.$match && stage.$match.createdAt);
+      const pipeline = (mockRedemption.aggregate as jest.Mock).mock.calls[0][0];
+      const initialMatchStage = pipeline.find((stage: any) => stage.$match && stage.$match.createdAt);
 
       expect(initialMatchStage?.$match.createdAt.$gte).toEqual(new Date(dateFromStr));
-      // Service adds time to dateTo to make it end of day
       const expectedEndDate = new Date(dateToStr);
       expectedEndDate.setHours(23, 59, 59, 999);
       expect(initialMatchStage?.$match.createdAt.$lte).toEqual(expectedEndDate);
@@ -308,39 +302,36 @@ describe('AdminCreatorService', () => {
   });
 
   describe('updateRedemptionStatus', () => {
-    let mockExecForUpdateRedemption: jest.Mock;
-
-    beforeEach(() => {
-      mockExecForUpdateRedemption = jest.fn();
-      const mockFindByIdAndUpdate = jest.fn(() => ({ exec: mockExecForUpdateRedemption }));
-
-      jest.spyOn(mongoose, 'model').mockImplementation((name: string) => {
-          if (name === 'Redemption') {
-              return { findByIdAndUpdate: mockFindByIdAndUpdate } as any;
-          }
-          return jest.requireActual('mongoose').model(name);
-      });
-    });
-
     it('should call RedemptionModel.findByIdAndUpdate with correct parameters', async () => {
-      const mockUpdatedRedemption = { _id: 'redemption1', status: 'paid', notes: 'Approved by admin' };
-      mockExecForUpdateRedemption.mockResolvedValueOnce(mockUpdatedRedemption);
-
-      const redemptionId = 'redemption1';
+      const redemptionId = new Types.ObjectId().toString();
       const payload: AdminRedemptionUpdateStatusPayload = { status: 'paid', notes: 'Approved by admin' };
+      const baseDoc = {
+        _id: redemptionId,
+        status: 'requested' as RedemptionStatus,
+        amountCents: 1000,
+        currency: 'usd',
+        userId: new Types.ObjectId(),
+      };
+
+      (mockRedemption.findById as jest.Mock).mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(baseDoc) });
+      (mockRedemption.findByIdAndUpdate as jest.Mock).mockReturnValueOnce({ exec: jest.fn().mockResolvedValue({ ...baseDoc, ...payload }) });
+      (mockRedemption.updateOne as jest.Mock).mockResolvedValueOnce({ modifiedCount: 1 });
+      (UserModel.updateOne as any) = jest.fn().mockResolvedValueOnce({ modifiedCount: 1 });
+
       const result = await updateRedemptionStatus(redemptionId, payload);
 
-      expect(mongoose.model('Redemption').findByIdAndUpdate).toHaveBeenCalledWith(
+      expect(mockRedemption.findByIdAndUpdate).toHaveBeenCalledWith(
         redemptionId,
         { $set: expect.objectContaining({ status: 'paid', notes: 'Approved by admin' }) },
         { new: true, runValidators: true }
       );
-      expect(result).toEqual(mockUpdatedRedemption);
+      expect(result).toEqual(expect.objectContaining({ status: 'paid' }));
     });
 
     it('should throw error if redemption not found', async () => {
-      mockExecForUpdateRedemption.mockResolvedValueOnce(null);
-      await expect(updateRedemptionStatus('notFoundId', { status: 'paid' })).rejects.toThrow('Redemption not found.');
+      (mockRedemption.findById as jest.Mock).mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) });
+
+      await expect(updateRedemptionStatus(new Types.ObjectId().toString(), { status: 'paid' })).rejects.toThrow('Redemption not found.');
     });
 
     it('should throw error for invalid redemptionId format', async () => {

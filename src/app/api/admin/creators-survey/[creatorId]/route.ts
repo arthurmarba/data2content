@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest, { params }: { params: { creatorId: string } }) {
   const TAG = '[api/admin/creators-survey/:id][GET]';
   try {
-    const session = await getAdminSession(req);
+    const session = (await getAdminSession(req)) as { user?: { name?: string } } | null;
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

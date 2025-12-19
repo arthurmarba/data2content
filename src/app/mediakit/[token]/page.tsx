@@ -2,7 +2,6 @@
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import type { Metadata } from 'next';
 
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -24,9 +23,18 @@ import {
 } from '@/types/mediakit';
 import { isPlanActiveLike } from '@/utils/planStatus';
 
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === 'test') {
+    return {} as any;
+  }
+  const mod = await import('@/app/api/auth/[...nextauth]/route');
+  return mod.authOptions as any;
+}
+
 // Força a renderização dinâmica e evita qualquer cache estático
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const runtime = 'nodejs';
 
 /** Helpers para imagem OG/Twitter */
 function toProxyUrl(raw?: string | null) {
@@ -214,6 +222,7 @@ export default async function MediaKitPage(
   await logMediaKitAccess((user as any)._id.toString(), ip, referer);
 
   // Determina se o visitante é o dono para controlar o banner institucional
+  const authOptions = await loadAuthOptions();
   const session = await getServerSession(authOptions as any);
   const sessionUserId = (session as any)?.user?.id;
   const isOwner = sessionUserId && String(sessionUserId) === String((user as any)._id);

@@ -11,6 +11,12 @@ jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
 jest.mock('jose', () => ({ jwtVerify: jest.fn() }));
+jest.mock('@/app/lib/aiService', () => require('../../../../__mocks__/aiService.js'), { virtual: true });
+jest.mock('@/app/lib/aiOrchestrator', () => require('../../../../__mocks__/aiOrchestrator.js'), { virtual: true });
+jest.mock('@/app/lib/stateService', () => require('../../../../__mocks__/stateService.js'), { virtual: true });
+jest.mock('./chat/route', () => ({ POST: jest.fn(() => new Response(null, { status: 403 })) }));
+jest.mock('./dynamicCards/route', () => ({ POST: jest.fn(() => new Response(null, { status: 403 })) }));
+jest.mock('./insights/route', () => ({ GET: jest.fn(() => new Response(null, { status: 403 })) }));
 
 const mockGetToken = getToken as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;

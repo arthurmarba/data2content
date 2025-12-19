@@ -1,6 +1,6 @@
 /** @jest-environment node */
 jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));
-jest.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }));
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }), { virtual: true });
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ findById: jest.fn(), updateOne: jest.fn() }));
 jest.mock('@/app/models/Redemption', () => ({ create: jest.fn(), updateOne: jest.fn() }));

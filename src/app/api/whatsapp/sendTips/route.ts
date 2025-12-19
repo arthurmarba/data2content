@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { guardPremiumRequest }        from "@/app/lib/planGuard";
 import { getServerSession }           from "next-auth/next";
-import { authOptions }                from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase }          from "@/app/lib/mongoose";
 import User, { type IUser }          from "@/app/models/User";
 import { DailyMetric, IDailyMetric }  from "@/app/models/DailyMetric";
@@ -46,6 +45,12 @@ async function recordAlertForUser(userId: string, tips: TipsData, messageText: s
 /* ------------------------------------------------------------------ */
 export const runtime = "nodejs";
 
+async function resolveAuthOptions() {
+  if (process.env.NODE_ENV === 'test') return {};
+  const mod = await import('@/app/api/auth/[...nextauth]/route');
+  return (mod as any)?.authOptions ?? {};
+}
+
 /* -------- envio WhatsApp, com +55 normalizado --------------------- */
 async function safeSendWhatsAppMessage(phone: string, body: string) {
   if (!phone.startsWith("+")) phone = "+" + phone;
@@ -83,7 +88,8 @@ export async function POST(request: NextRequest) {
   const tag = "[whatsapp/sendTips]";
 
   /* 1) Autenticação da chamada (ex.: proteger para staff/admin) */
-  const session = await getServerSession({ req: request, ...authOptions });
+  const authOptions = await resolveAuthOptions();
+  const session = (await getServerSession({ req: request, ...authOptions })) as { user?: { id?: string } } | null;
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }

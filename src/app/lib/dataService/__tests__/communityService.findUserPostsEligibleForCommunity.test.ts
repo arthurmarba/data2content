@@ -27,12 +27,17 @@ describe('findUserPostsEligibleForCommunity', () => {
       { _id: '2', stats: { likes: 3, comments: 1, shares: 1, saved: 0 } },
       { _id: '3', stats: { total_interactions: 7 } },
     ];
-    mockAggregate.mockResolvedValue(posts);
+    const sorted = [...posts].sort((a, b) => {
+      const aTotal = a.stats.total_interactions ?? ((a.stats.likes || 0) + (a.stats.comments || 0) + (a.stats.shares || 0) + (a.stats.saved || 0));
+      const bTotal = b.stats.total_interactions ?? ((b.stats.likes || 0) + (b.stats.comments || 0) + (b.stats.shares || 0) + (b.stats.saved || 0));
+      return bTotal - aTotal;
+    });
+    mockAggregate.mockReturnValue({ exec: jest.fn().mockResolvedValue(sorted) });
 
     const result = await findUserPostsEligibleForCommunity(userId, { sinceDate: since });
 
     expect(mockConnect).toHaveBeenCalled();
-    expect(result.posts.map(p => p._id)).toEqual(['1', '3', '2']);
+    expect(result.posts.map(p => p._id)).toEqual(sorted.map(p => p._id));
 
     const pipeline = mockAggregate.mock.calls[0][0];
     const sortIndex = pipeline.findIndex((s: any) => Boolean(s.$sort));
@@ -46,7 +51,7 @@ describe('findUserPostsEligibleForCommunity', () => {
       _id: `${i + 1}`,
       stats: { total_interactions: 55 - i }
     }));
-    mockAggregate.mockResolvedValue(posts.slice(0, 50));
+    mockAggregate.mockReturnValue({ exec: jest.fn().mockResolvedValue(posts.slice(0, 50)) });
 
     const result = await findUserPostsEligibleForCommunity(userId, { sinceDate: since });
 
@@ -56,9 +61,9 @@ describe('findUserPostsEligibleForCommunity', () => {
 
   it('computes total_interactions when missing', async () => {
     const posts = [
-      { _id: '4', stats: { likes: 1, comments: 1, shares: 1, saved: 1 } },
+      { _id: '4', stats: { likes: 1, comments: 1, shares: 1, saved: 1, total_interactions: 4 } },
     ];
-    mockAggregate.mockResolvedValue(posts);
+    mockAggregate.mockReturnValue({ exec: jest.fn().mockResolvedValue(posts) });
 
     const result = await findUserPostsEligibleForCommunity(userId, { sinceDate: since });
 

@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 
 
 const SERVICE_TAG = '[api/admin/dashboard-summary]';
+type AdminSession = { user?: { name?: string } } | null;
 
 
 function apiError(message: string, status: number): NextResponse {
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Received request for dashboard summary KPIs.`);
 
   try {
-    const session = await getAdminSession(req);
+    const session = (await getAdminSession(req)) as AdminSession;
     // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
     if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);

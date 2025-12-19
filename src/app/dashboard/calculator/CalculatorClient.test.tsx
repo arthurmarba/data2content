@@ -28,6 +28,7 @@ jest.mock('@/lib/track', () => ({
 
 const originalFetch = global.fetch;
 const originalDispatch = window.dispatchEvent;
+const originalScrollIntoView = Element.prototype.scrollIntoView;
 
 beforeEach(() => {
   toastMock.mockClear();
@@ -35,6 +36,7 @@ beforeEach(() => {
   mockUseBillingStatus.mockReset();
   mockUseSession.mockReset();
   window.dispatchEvent = jest.fn();
+  Element.prototype.scrollIntoView = jest.fn();
 });
 
 afterEach(() => {
@@ -42,6 +44,7 @@ afterEach(() => {
     (global.fetch as jest.Mock).mockRestore?.();
   }
   window.dispatchEvent = originalDispatch;
+  Element.prototype.scrollIntoView = originalScrollIntoView;
 });
 
 afterAll(() => {
@@ -65,7 +68,20 @@ test('free user sees calculator lock and triggers upgrade tracking', () => {
     isLoading: false,
   });
 
-  global.fetch = jest.fn();
+  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    const method = (init?.method || 'GET').toUpperCase();
+
+    if (url === '/api/mediakit/self/packages' && method === 'GET') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ packages: [] }),
+      } as Response);
+    }
+
+    return Promise.reject(new Error(`Unexpected fetch call: ${method} ${url}`));
+  });
 
   render(<CalculatorClient />);
 
@@ -121,6 +137,14 @@ test('pro user can submit calculator and view results', async () => {
   global.fetch = jest.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
     const method = (init?.method || 'GET').toUpperCase();
+
+    if (url === '/api/mediakit/self/packages' && method === 'GET') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ packages: [] }),
+      } as Response);
+    }
 
     if (url === '/api/calculator' && method === 'POST') {
       return Promise.resolve({

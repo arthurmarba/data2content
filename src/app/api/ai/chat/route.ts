@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import UserModel, { IUser } from "@/app/models/User";
 import { callOpenAIForQuestion, generateConversationSummary } from "@/app/lib/aiService";
@@ -39,6 +38,12 @@ const MAX_AI_EXCERPT = 1500;
 const MAX_QUERY_CHARS = 4000;
 const HARMFUL_PATTERNS = [/su[ií]c[ií]dio/i, /\bme matar\b/i, /\bmatar algu[eé]m\b/i, /aut[oô]mutila/i];
 const ANSWER_ENGINE_ENABLED = process.env.ANSWER_ENGINE_ENABLED !== 'false';
+
+async function resolveAuthOptions() {
+  if (process.env.NODE_ENV === 'test') return {};
+  const mod = await import('@/app/api/auth/[...nextauth]/route');
+  return (mod as any)?.authOptions ?? {};
+}
 
 function isTableStart(lines: string[], index: number) {
   const first = (lines[index] ?? '').trim();
@@ -224,10 +229,11 @@ Se não houver pergunta útil, responda apenas "NO_QUESTION".`;
  * POST /api/ai/chat
  * Body esperado: { userId, query }
  * Retorna uma resposta da IA baseada nas métricas do usuário.
- */
+  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const authOptions = await resolveAuthOptions();
+    const session = (await getServerSession(authOptions)) as Session | null;
     const sessionUser = session?.user as (NonNullable<Session['user']> & { id?: string; name?: string | null }) | undefined;
     const actorId = sessionUser?.id;
     if (!actorId) {

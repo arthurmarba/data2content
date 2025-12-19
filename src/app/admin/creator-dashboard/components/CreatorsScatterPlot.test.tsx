@@ -22,16 +22,17 @@ jest.mock('recharts', () => {
 });
 
 // Mock CreatorSelector to immediately select a creator
-const MockCreatorSelector = (props: any) => {
-  if (!props.isOpen) return null;
-  return (
-    <div data-testid="selector-mock">
-      <button onClick={() => props.onSelect({ id: '1', name: 'Teste' })}>Select</button>
-    </div>
-  );
-};
-MockCreatorSelector.displayName = 'MockCreatorSelector';
-jest.mock('./CreatorSelector', () => MockCreatorSelector);
+jest.mock('./CreatorSelector', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    if (!props.isOpen) return null;
+    return (
+      <div data-testid="selector-mock">
+        <button onClick={() => props.onSelect({ id: '1', name: 'Teste' })}>Select</button>
+      </div>
+    );
+  },
+}));
 
 global.fetch = jest.fn();
 

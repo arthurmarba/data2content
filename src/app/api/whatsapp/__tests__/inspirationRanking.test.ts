@@ -1,8 +1,22 @@
+const mockGetTopPostsByMetric = jest.fn();
+const mockLookupUserById = jest.fn();
+const mockRecordDailyInspirationShown = jest.fn();
+const mockGetInspirations = jest.fn();
+
+jest.mock('@/app/lib/dataService', () => ({
+  __esModule: true,
+  getTopPostsByMetric: (...args: any[]) => mockGetTopPostsByMetric(...args),
+  lookupUserById: (...args: any[]) => mockLookupUserById(...args),
+  recordDailyInspirationShown: (...args: any[]) => mockRecordDailyInspirationShown(...args),
+  getInspirations: (...args: any[]) => mockGetInspirations(...args),
+}));
+
 import { fetchInspirationSnippet } from '../process-response/dailyTipHandler';
 import { calculateInspirationSimilarity, UserEngagementProfile } from '@/app/lib/dataService/communityService';
-import * as dataService from '@/app/lib/dataService';
 
 describe('inspiration ranking', () => {
+  afterEach(() => jest.resetAllMocks());
+
   test('calculateInspirationSimilarity gives higher score to closer match', () => {
     const profile: UserEngagementProfile = {
       proposal: 'Humor/Cena',
@@ -51,9 +65,9 @@ describe('inspiration ranking', () => {
       internalMetricsSnapshot: { saveRate: 0.05, shareRate: 0.01 }
     };
 
-    jest.spyOn(dataService, 'getTopPostsByMetric').mockResolvedValue(topPosts);
-    jest.spyOn(dataService, 'recordDailyInspirationShown').mockResolvedValue();
-    jest.spyOn(dataService, 'getInspirations').mockImplementation((f, l, e, simFn, excludeCreatorId) => {
+    mockGetTopPostsByMetric.mockResolvedValue(topPosts as any);
+    mockRecordDailyInspirationShown.mockResolvedValue(undefined as any);
+    mockGetInspirations.mockImplementation((f: any, l: number, e: any, simFn: any) => {
       const arr = [inspLow, inspHigh];
       if (simFn) {
         arr.sort((a, b) => simFn(b) - simFn(a));

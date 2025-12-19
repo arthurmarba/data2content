@@ -33,26 +33,27 @@ jest.mock('../components/SkeletonBlock', () => {
   };
 });
 
-// Mock Recharts
-const MockResponsiveContainer = ({ children }) => <div data-testid="responsive-container">{children}</div>;
-const MockLineChart = ({ data, children }) => <div data-testid="line-chart" data-chartdata={JSON.stringify(data)}>{children}</div>; // Pass data for assertion
-const MockLine = ({ dataKey, name }) => <div data-testid={`line-${dataKey}`} data-name={name}>Line-{dataKey}</div>;
-const MockXAxis = ({ dataKey }) => <div data-testid={`xaxis-${dataKey}`}>XAxis-{dataKey}</div>;
-const MockYAxis = () => <div data-testid="yaxis">YAxis</div>;
-const MockCartesianGrid = () => <div data-testid="cartesian-grid">CartesianGrid</div>;
-const MockTooltip = () => <div data-testid="tooltip">Tooltip</div>;
-const MockLegend = () => <div data-testid="legend">Legend</div>;
-
-jest.mock('recharts', () => ({
-  ResponsiveContainer: MockResponsiveContainer,
-  LineChart: MockLineChart,
-  Line: MockLine,
-  XAxis: MockXAxis,
-  YAxis: MockYAxis,
-  CartesianGrid: MockCartesianGrid,
-  Tooltip: MockTooltip,
-  Legend: MockLegend,
-}));
+// Mock Recharts (definido dentro da factory para evitar hoisting antes das consts)
+jest.mock('recharts', () => {
+  const MockResponsiveContainer = ({ children }) => <div data-testid="responsive-container">{children}</div>;
+  const MockLineChart = ({ data, children }) => <div data-testid="line-chart" data-chartdata={JSON.stringify(data)}>{children}</div>;
+  const MockLine = ({ dataKey, name }) => <div data-testid={`line-${dataKey}`} data-name={name}>Line-{dataKey}</div>;
+  const MockXAxis = ({ dataKey }) => <div data-testid={`xaxis-${dataKey}`}>XAxis-{dataKey}</div>;
+  const MockYAxis = () => <div data-testid="yaxis">YAxis</div>;
+  const MockCartesianGrid = () => <div data-testid="cartesian-grid">CartesianGrid</div>;
+  const MockTooltip = () => <div data-testid="tooltip">Tooltip</div>;
+  const MockLegend = () => <div data-testid="legend">Legend</div>;
+  return {
+    ResponsiveContainer: MockResponsiveContainer,
+    LineChart: MockLineChart,
+    Line: MockLine,
+    XAxis: MockXAxis,
+    YAxis: MockYAxis,
+    CartesianGrid: MockCartesianGrid,
+    Tooltip: MockTooltip,
+    Legend: MockLegend,
+  };
+});
 
 
 describe('PostDetailModal Component', () => {

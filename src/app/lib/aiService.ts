@@ -8,10 +8,21 @@ import type { ChatCompletionMessageParam } from 'openai/resources/chat/completio
 import { logger } from './logger';
 import type { UserExpertiseLevel } from '@/app/models/User';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-  baseURL: 'https://api.openai.com/v1', // MODIFICADO: Adicionada esta linha
-});
+const openai =
+  process.env.NODE_ENV === 'test'
+    ? ({
+        chat: {
+          completions: {
+            create: async () => ({
+              choices: [{ message: { content: '' } }],
+            }),
+          },
+        },
+      } as unknown as OpenAI)
+    : new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY!,
+        baseURL: 'https://api.openai.com/v1', // MODIFICADO: Adicionada esta linha
+      });
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
 const DEFAULT_TEMP = Number(process.env.OPENAI_TEMP) || 0.7;

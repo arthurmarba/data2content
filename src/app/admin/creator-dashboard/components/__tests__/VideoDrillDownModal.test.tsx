@@ -3,43 +3,25 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import VideoDrillDownModal from '../VideoDrillDownModal';
 
-// Mock PostDetailModal
-const MockPostDetailModal = jest.fn(({ isOpen, postId, onClose }) => {
-  if (!isOpen) return null;
-  return (
-    <div data-testid="mock-post-detail-modal">
-      <span>Post {postId}</span>
-      <button onClick={onClose}>Close</button>
-    </div>
-  );
+const buildFetchResponse = (response: any, ok = true) => ({
+  ok,
+  status: ok ? 200 : response.status || 500,
+  json: async () => response,
 });
-
-jest.mock('../PostDetailModal', () => ({
-  __esModule: true,
-  default: MockPostDetailModal,
-}));
-
-// Helper to mock fetch responses
-const mockFetch = (response: any, ok = true) => {
-  (global.fetch as jest.Mock) = jest.fn().mockResolvedValue({
-    ok,
-    status: ok ? 200 : response.status || 500,
-    json: async () => response,
-  });
-};
 
 const videosPage1 = {
   videos: [
     {
       _id: 'v1',
       caption: 'Video 1',
+      description: 'Video 1',
       postDate: '2024-01-01T00:00:00Z',
       stats: { views: 100 },
       average_video_watch_time_seconds: 30,
       retention_rate: 0.5,
     },
   ],
-  pagination: { totalVideos: 2, page: 1, limit: 1 },
+  pagination: { totalVideos: 20, totalPosts: 20, page: 1, limit: 10 },
 };
 
 const videosPage2 = {
@@ -47,19 +29,20 @@ const videosPage2 = {
     {
       _id: 'v2',
       caption: 'Video 2',
+      description: 'Video 2',
       postDate: '2024-01-02T00:00:00Z',
       stats: { views: 200 },
       average_video_watch_time_seconds: 40,
       retention_rate: 0.6,
     },
   ],
-  pagination: { totalVideos: 2, page: 2, limit: 1 },
+  pagination: { totalVideos: 20, totalPosts: 20, page: 2, limit: 10 },
 };
 
 describe('VideoDrillDownModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetch(videosPage1);
+    (global.fetch as jest.Mock) = jest.fn().mockResolvedValue(buildFetchResponse(videosPage1));
   });
 
   const defaultProps = {
@@ -85,11 +68,12 @@ describe('VideoDrillDownModal', () => {
     render(<VideoDrillDownModal {...defaultProps} />);
     await screen.findByText('Video 1');
 
-    mockFetch(videosPage1); // mock for next fetch
-    fireEvent.click(screen.getByText('Views'));
+    (fetch as jest.Mock).mockResolvedValueOnce(buildFetchResponse(videosPage1));
+    fireEvent.change(screen.getByLabelText('Ordenar por'), { target: { value: 'stats.views-desc' } });
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('sortOrder=asc'));
+      expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('sortBy=stats.views'));
+      expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('sortOrder=desc'));
     });
   });
 
@@ -97,14 +81,15 @@ describe('VideoDrillDownModal', () => {
     render(<VideoDrillDownModal {...defaultProps} />);
     await screen.findByText('Video 1');
 
-    mockFetch(videosPage2);
+    (fetch as jest.Mock).mockResolvedValueOnce(buildFetchResponse(videosPage2));
     fireEvent.click(screen.getByText('Próxima'));
 
-    expect(await screen.findByText('Video 2')).toBeInTheDocument();
+    await screen.findByText('Video 2');
     expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('page=2'));
-    expect(screen.getByText('Página 2 de 2 (2 vídeos)')).toBeInTheDocument();
+    expect(screen.getByText('Página 2 de 2')).toBeInTheDocument();
+    expect(screen.getByText('Total: 20 vídeos')).toBeInTheDocument();
 
-    mockFetch(videosPage1);
+    (fetch as jest.Mock).mockResolvedValueOnce(buildFetchResponse(videosPage1));
     fireEvent.click(screen.getByText('Anterior'));
 
     expect(await screen.findByText('Video 1')).toBeInTheDocument();
@@ -113,18 +98,16 @@ describe('VideoDrillDownModal', () => {
 
   test('opens PostDetailModal when a row is clicked', async () => {
     render(<VideoDrillDownModal {...defaultProps} />);
-    const row = await screen.findByText('Video 1');
-    fireEvent.click(row.closest('tr')!);
+    await screen.findByText(/Video 1/);
+    fireEvent.click(screen.getByRole('button', { name: /Analisar/ }));
 
-    expect(MockPostDetailModal).toHaveBeenCalledWith(
-      expect.objectContaining({ isOpen: true, postId: 'v1' }),
-      {}
-    );
-    expect(screen.getByTestId('mock-post-detail-modal')).toBeInTheDocument();
+    expect(await screen.findByText('Detalhes do Post')).toBeInTheDocument();
+    expect(screen.getByText('Análise do Post ID:')).toBeInTheDocument();
+    expect(screen.getByText('v1')).toBeInTheDocument();
   });
 
   test('displays error state when fetch fails', async () => {
-    mockFetch({ error: 'Internal error' }, false);
+    (fetch as jest.Mock).mockResolvedValue(buildFetchResponse({ error: 'Internal error' }, false));
     render(<VideoDrillDownModal {...defaultProps} />);
 
     expect(await screen.findByText('Erro: Internal error')).toBeInTheDocument();

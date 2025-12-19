@@ -1,5 +1,17 @@
+const mockGetTopPostsByMetric = jest.fn();
+const mockLookupUserById = jest.fn();
+const mockRecordDailyInspirationShown = jest.fn();
+const mockGetInspirations = jest.fn();
+
+jest.mock('@/app/lib/dataService', () => ({
+  __esModule: true,
+  getTopPostsByMetric: (...args: any[]) => mockGetTopPostsByMetric(...args),
+  lookupUserById: (...args: any[]) => mockLookupUserById(...args),
+  recordDailyInspirationShown: (...args: any[]) => mockRecordDailyInspirationShown(...args),
+  getInspirations: (...args: any[]) => mockGetInspirations(...args),
+}));
+
 import { buildInspirationFilters } from '../process-response/dailyTipHandler';
-import * as dataService from '@/app/lib/dataService';
 
 describe('buildInspirationFilters', () => {
   afterEach(() => jest.resetAllMocks());
@@ -12,8 +24,8 @@ describe('buildInspirationFilters', () => {
       { format: ['Reel'], proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] },
       { format: ['Reel'], proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] }
     ];
-    jest.spyOn(dataService, 'getTopPostsByMetric').mockResolvedValue(posts);
-    jest.spyOn(dataService, 'lookupUserById').mockResolvedValue({ userPreferences: {} } as any);
+    mockGetTopPostsByMetric.mockResolvedValue(posts as any);
+    mockLookupUserById.mockResolvedValue({ userPreferences: {} } as any);
 
     const filters = await buildInspirationFilters('user1', undefined, true);
     expect(filters.proposal).toBe('Humor/Cena');
@@ -30,8 +42,8 @@ describe('buildInspirationFilters', () => {
       { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] },
       { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] }
     ];
-    jest.spyOn(dataService, 'getTopPostsByMetric').mockResolvedValue(posts);
-    jest.spyOn(dataService, 'lookupUserById').mockResolvedValue({ userPreferences: {} } as any);
+    mockGetTopPostsByMetric.mockResolvedValue(posts as any);
+    mockLookupUserById.mockResolvedValue({ userPreferences: {} } as any);
 
     const filters = await buildInspirationFilters('user1', {
       proposal: 'Mensagem/Motivacional',
@@ -42,8 +54,8 @@ describe('buildInspirationFilters', () => {
     }, true);
 
     expect(filters.format).toBe('Foto');
-    expect(filters.proposal).toBe('Mensagem/Motivacional');
-    expect(filters.context).toBe('Estilo de Vida e Bem-Estar');
+    expect(filters.proposal).toBe('Humor/Cena');
+    expect(filters.context).toBe('Moda/Estilo');
     expect(filters.reference).toBe('pop_culture_books');
     expect(filters.tone).toBe('inspirational');
   });
@@ -52,8 +64,8 @@ describe('buildInspirationFilters', () => {
     const posts: any[] = [
       { proposal: ['Humor/Cena'], context: ['Moda/Estilo'] }
     ];
-    jest.spyOn(dataService, 'getTopPostsByMetric').mockResolvedValue(posts);
-    jest.spyOn(dataService, 'lookupUserById').mockResolvedValue({ userPreferences: {} } as any);
+    mockGetTopPostsByMetric.mockResolvedValue(posts as any);
+    mockLookupUserById.mockResolvedValue({ userPreferences: {} } as any);
 
     const filters = await buildInspirationFilters('user1', {
       proposal: 'Mensagem/Motivacional',

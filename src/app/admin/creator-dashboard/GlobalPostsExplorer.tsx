@@ -29,7 +29,7 @@ import { ArrowTopRightOnSquareIcon, ClipboardIcon } from '@heroicons/react/24/ou
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
   const baseClasses = "bg-gray-200 animate-pulse";
   const shapeClass = variant === 'circle' ? 'rounded-full' : 'rounded';
-  return <div className={`${baseClasses} ${width} ${height} ${shapeClass} ${className}`}></div>;
+  return <div data-testid="skeleton-block" className={`${baseClasses} ${width} ${height} ${shapeClass} ${className}`}></div>;
 };
 
 const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => (
@@ -256,7 +256,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
   const [minInteractionsValue, setMinInteractionsValue] = useState<string>('');
   const [textSearch, setTextSearch] = useState('');
 
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [viewMode, setViewMode] = useState<'explorer' | 'analysis'>('explorer'); // NEW: View mode state
 

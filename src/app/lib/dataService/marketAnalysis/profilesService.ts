@@ -9,7 +9,7 @@ import MetricModel from '@/app/models/Metric';
 import UserModel, { IUser } from '@/app/models/User';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
-import { ICreatorProfile, ITopCreatorResult, TopCreatorMetric } from './types';
+import { ICreatorProfile, IFetchMultipleCreatorProfilesArgs, ITopCreatorResult, TopCreatorMetric } from './types';
 import { createBasePipeline } from './helpers';
 import { subDays } from 'date-fns';
 import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
@@ -80,6 +80,76 @@ export async function getCreatorProfile(args: { name: string }): Promise<ICreato
         logger.error(`${TAG} Erro ao buscar perfil do criador "${args.name}":`, error);
         throw new DatabaseError(`Falha ao buscar o perfil do criador: ${error.message}`);
     }
+}
+
+/**
+ * @function fetchMultipleCreatorProfiles
+ * @description Busca perfis resumidos para múltiplos criadores.
+ */
+export async function fetchMultipleCreatorProfiles(args: IFetchMultipleCreatorProfilesArgs): Promise<ICreatorProfile[]> {
+  const TAG = `${SERVICE_TAG}[fetchMultipleCreatorProfiles]`;
+  try {
+    await connectToDatabase();
+    const creatorObjectIds = (args.creatorIds || [])
+      .filter((id) => Types.ObjectId.isValid(id))
+      .map((id) => new Types.ObjectId(id));
+
+    if (creatorObjectIds.length === 0) {
+      return [];
+    }
+
+    const users = await UserModel.find({ _id: { $in: creatorObjectIds } })
+      .select('name profile_picture_url')
+      .lean();
+
+    const aggregationPipeline: PipelineStage[] = [
+      { $match: { user: { $in: creatorObjectIds } } },
+      {
+        $facet: {
+          mainStatsPerUser: [
+            {
+              $group: {
+                _id: '$user',
+                postCount: { $sum: 1 },
+                avgLikes: { $avg: '$stats.likes' },
+                avgShares: { $avg: '$stats.shares' },
+                avgEngagementRate: { $avg: '$stats.engagement_rate_on_reach' },
+              },
+            },
+          ],
+          topContextPerUser: [
+            { $match: { context: { $exists: true, $ne: null } } },
+            { $unwind: '$context' },
+            { $group: { _id: '$user', topContext: { $first: '$context' }, count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+          ],
+        },
+      },
+    ];
+
+    const aggregationResult = await MetricModel.aggregate(aggregationPipeline);
+    const mainStats = aggregationResult[0]?.mainStatsPerUser || [];
+    const topContexts = aggregationResult[0]?.topContextPerUser || [];
+
+    return users.map((user: any) => {
+      const stats = mainStats.find((s: any) => s._id?.toString() === user._id.toString()) || {};
+      const topContext = topContexts.find((c: any) => c._id?.toString() === user._id.toString());
+
+      return {
+        creatorId: user._id.toString(),
+        creatorName: user.name || 'Criador Desconhecido',
+        profilePictureUrl: user.profile_picture_url,
+        postCount: stats.postCount || 0,
+        avgLikes: stats.avgLikes || 0,
+        avgShares: stats.avgShares || 0,
+        avgEngagementRate: stats.avgEngagementRate || 0,
+        topPerformingContext: topContext?.topContext || 'Geral',
+      } as ICreatorProfile;
+    });
+  } catch (error: any) {
+    logger.error(`${TAG} Erro ao buscar perfis múltiplos:`, error);
+    throw new DatabaseError(`Failed to fetch multiple creator profiles: ${error.message}`);
+  }
 }
 
 

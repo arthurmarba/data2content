@@ -1,10 +1,28 @@
 // @jest-environment node
 import { NextRequest } from 'next/server';
-import { POST as chat, sanitizeTables } from './route';
 import { getServerSession } from 'next-auth/next';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
-import * as stateService from '@/app/lib/stateService';
+const mockGetHistory = jest.fn();
+const mockSetHistory = jest.fn();
+const mockGetDialogue = jest.fn();
+const mockUpdateDialogue = jest.fn();
+const mockCallQuestion = jest.fn();
+const mockGenSummary = jest.fn();
+const mockAskLLM = jest.fn();
+const mockCreateThread = jest.fn();
+const mockPersistMessage = jest.fn();
+const mockGenerateThreadTitle = jest.fn();
+jest.mock('@/app/lib/stateService', () => ({
+  __esModule: true,
+  getConversationHistory: () => mockGetHistory(),
+  setConversationHistory: (...args: any[]) => mockSetHistory(...args),
+  getDialogueState: () => mockGetDialogue(),
+  updateDialogueState: (...args: any[]) => mockUpdateDialogue(...args),
+  createThread: (...args: any[]) => mockCreateThread(...args),
+  persistMessage: (...args: any[]) => mockPersistMessage(...args),
+  generateThreadTitle: (...args: any[]) => mockGenerateThreadTitle(...args),
+}));
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import { determineIntent } from '@/app/lib/intentService';
 import { callOpenAIForQuestion, generateConversationSummary } from '@/app/lib/aiService';
@@ -12,33 +30,35 @@ import { callOpenAIForQuestion, generateConversationSummary } from '@/app/lib/ai
 jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
-jest.mock('@/app/lib/stateService', () => ({
-  getConversationHistory: jest.fn(),
-  setConversationHistory: jest.fn(),
-  getDialogueState: jest.fn(),
-  updateDialogueState: jest.fn(),
+jest.mock('@/app/lib/aiOrchestrator', () => ({
+  __esModule: true,
+  askLLMWithEnrichedContext: (...args: any[]) => mockAskLLM(...args),
 }));
-jest.mock('@/app/lib/aiOrchestrator', () => ({ askLLMWithEnrichedContext: jest.fn() }));
 jest.mock('@/app/lib/intentService', () => ({
   determineIntent: jest.fn(),
   normalizeText: (text: string) => text,
 }));
 jest.mock('@/app/lib/aiService', () => ({
-  callOpenAIForQuestion: jest.fn(),
-  generateConversationSummary: jest.fn(),
+  __esModule: true,
+  callOpenAIForQuestion: (...args: any[]) => mockCallQuestion(...args),
+  generateConversationSummary: (...args: any[]) => mockGenSummary(...args),
 }));
+jest.mock('@/utils/rateLimit', () => ({
+  checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
+}));
+jest.mock('@/app/lib/chatTelemetry', () => ({
+  ensureChatSession: jest.fn().mockResolvedValue({ _id: 'session1' }),
+  logChatMessage: jest.fn().mockResolvedValue(null),
+}));
+
+let chat: typeof import('./route').POST;
+let sanitizeTables: typeof import('./route').sanitizeTables;
+let stateServiceMocked: any;
 
 const mockSession = getServerSession as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
 const mockFindById = (UserModel as any).findById as jest.Mock;
-const mockGetHistory = stateService.getConversationHistory as jest.Mock;
-const mockSetHistory = stateService.setConversationHistory as jest.Mock;
-const mockGetDialogue = stateService.getDialogueState as jest.Mock;
-const mockUpdateDialogue = stateService.updateDialogueState as jest.Mock;
-const mockLLM = askLLMWithEnrichedContext as jest.Mock;
 const mockIntent = determineIntent as jest.Mock;
-const mockCallQuestion = callOpenAIForQuestion as jest.Mock;
-const mockGenSummary = generateConversationSummary as jest.Mock;
 
 const streamFromText = (text: string) => ({
   getReader: () => {
@@ -63,6 +83,19 @@ function makeRequest(body: any) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.isolateModules(() => {
+    stateServiceMocked = require('@/app/lib/stateService');
+    stateServiceMocked.getConversationHistory = mockGetHistory;
+    stateServiceMocked.setConversationHistory = mockSetHistory;
+    stateServiceMocked.getDialogueState = mockGetDialogue;
+    stateServiceMocked.updateDialogueState = mockUpdateDialogue;
+    stateServiceMocked.createThread = mockCreateThread;
+    stateServiceMocked.persistMessage = mockPersistMessage;
+    stateServiceMocked.generateThreadTitle = mockGenerateThreadTitle;
+    const routeModule = require('./route');
+    chat = routeModule.POST;
+    sanitizeTables = routeModule.sanitizeTables;
+  });
   mockSession.mockResolvedValue({ user: { id: 'u1', planStatus: 'active' } });
   mockConnect.mockResolvedValue(null);
   mockFindById.mockReturnValue({
@@ -77,10 +110,13 @@ beforeEach(() => {
   mockSetHistory.mockResolvedValue(null);
   mockGetDialogue.mockResolvedValue({ summaryTurnCounter: 0 });
   mockUpdateDialogue.mockResolvedValue(null);
+  mockCreateThread.mockResolvedValue({ _id: 't1' });
+  mockPersistMessage.mockResolvedValue('msg1');
+  mockGenerateThreadTitle.mockResolvedValue(undefined);
   mockCallQuestion.mockResolvedValue('Genérico');
   mockGenSummary.mockResolvedValue('Resumo');
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'general' });
-  mockLLM.mockResolvedValue({ stream: streamFromText('Resposta padrão') });
+  mockAskLLM.mockResolvedValue({ stream: streamFromText('Resposta padrão') });
 });
 
 it('retorna CTA de conectar IG quando não conectado', async () => {
@@ -120,7 +156,7 @@ it('bloqueia plano inativo com CTA de upgrade', async () => {
 
 it('retorna pendingAction e currentTask para intenção complexa', async () => {
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'content_plan' });
-  mockLLM.mockResolvedValue({ stream: streamFromText('Posso buscar esses dados?') });
+  mockAskLLM.mockResolvedValue({ stream: streamFromText('Posso buscar esses dados?') });
 
   const res = await chat(makeRequest({ query: 'Preciso de plano de conteúdo' }));
   const json = await res.json();
@@ -130,7 +166,7 @@ it('retorna pendingAction e currentTask para intenção complexa', async () => {
 });
 
 it('retorna mensagem amigável quando LLM falha', async () => {
-  mockLLM.mockRejectedValue(new Error('fail'));
+  mockAskLLM.mockRejectedValue(new Error('fail'));
 
   const res = await chat(makeRequest({ query: 'Teste error' }));
   const json = await res.json();

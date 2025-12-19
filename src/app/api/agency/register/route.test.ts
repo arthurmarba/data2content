@@ -1,22 +1,24 @@
+jest.mock('@/app/models/Agency', () => {
+  const findOne = jest.fn();
+  const create = jest.fn();
+  return { __esModule: true, default: { findOne, create } };
+});
+
+jest.mock('@/app/models/User', () => {
+  const findOne = jest.fn();
+  const create = jest.fn();
+  return { __esModule: true, default: { findOne, create } };
+});
+
 import { POST } from './route';
 import { NextRequest } from 'next/server';
 import AgencyModel from '@/app/models/Agency';
 import UserModel from '@/app/models/User';
 
-const mockAgencyFindOne = jest.fn();
-const mockAgencyCreate = jest.fn();
-const mockUserFindOne = jest.fn();
-const mockUserCreate = jest.fn();
-
-jest.mock('@/app/models/Agency', () => ({
-  __esModule: true,
-  default: { findOne: mockAgencyFindOne, create: mockAgencyCreate },
-}));
-
-jest.mock('@/app/models/User', () => ({
-  __esModule: true,
-  default: { findOne: mockUserFindOne, create: mockUserCreate },
-}));
+const mockAgencyFindOne = (AgencyModel as any).findOne as jest.Mock;
+const mockAgencyCreate = (AgencyModel as any).create as jest.Mock;
+const mockUserFindOne = (UserModel as any).findOne as jest.Mock;
+const mockUserCreate = (UserModel as any).create as jest.Mock;
 
 function makeRequest(body: any): NextRequest {
   return new NextRequest('http://localhost/api/agency/register', {

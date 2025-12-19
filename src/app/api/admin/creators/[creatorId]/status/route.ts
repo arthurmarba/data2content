@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 
 const SERVICE_TAG = '[api/admin/creators/[creatorId]/status]';
+type AdminSession = { user?: { name?: string } } | null;
 
 
 function apiError(message: string, status: number): NextResponse {
@@ -31,7 +32,7 @@ export async function PATCH(
   logger.info(`${TAG} Received request to update status for creatorId: ${creatorId}`);
 
   try {
-    const session = await getAdminSession(req);
+    const session = (await getAdminSession(req)) as AdminSession;
     // <<< CORREÇÃO 1: A verificação agora inclui !session.user >>>
     if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
@@ -72,7 +73,7 @@ export async function PUT(
   logger.info(`${TAG} Received request to approve creatorId: ${creatorId}`);
 
   try {
-    const session = await getAdminSession(req);
+    const session = (await getAdminSession(req)) as AdminSession;
     // <<< CORREÇÃO 2: A mesma verificação rigorosa é aplicada aqui >>>
     if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);

@@ -8,6 +8,7 @@ import { logger } from '@/app/lib/logger';
 
 export const dynamic = 'force-dynamic';
 const SERVICE_TAG = '[api/admin/agencies]';
+type AdminSession = { user?: { name?: string } } | null;
 
 async function hashPassword(pwd: string) {
   return bcrypt.hash(pwd, 10);
@@ -19,7 +20,7 @@ function apiError(message: string, status: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getAdminSession(req);
+  const session = (await getAdminSession(req)) as AdminSession;
   if (!session || !session.user) return apiError('Unauthorized', 401);
   const agencies = await AgencyModel.find().lean();
   const managers = await UserModel.find({ role: 'agency', agency: { $in: agencies.map(a => a._id) } }).lean();
@@ -45,7 +46,7 @@ const updateSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const session = await getAdminSession(req);
+  const session = (await getAdminSession(req)) as AdminSession;
   if (!session || !session.user) return apiError('Unauthorized', 401);
 
   const body = await req.json();
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const session = await getAdminSession(req);
+  const session = (await getAdminSession(req)) as AdminSession;
   if (!session || !session.user) return apiError('Unauthorized', 401);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
@@ -84,7 +85,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getAdminSession(req);
+  const session = (await getAdminSession(req)) as AdminSession;
   if (!session || !session.user) return apiError('Unauthorized', 401);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');

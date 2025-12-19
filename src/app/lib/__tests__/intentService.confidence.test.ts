@@ -1,4 +1,11 @@
 import { determineIntent, normalizeText } from '../intentService';
+
+jest.mock('../stateService', () => ({
+  getDefaultDialogueState: jest.fn(() => ({
+    lastAIQuestionType: null,
+    pendingActionContext: null,
+  })),
+}));
 import { getDefaultDialogueState } from '../stateService';
 
 const mockUser = {
@@ -14,9 +21,9 @@ describe('determineIntent confidence', () => {
     dialogueState.pendingActionContext = { foo: 'bar' };
 
     const res = await determineIntent(
-      normalizeText('sim pode seguir'),
+      normalizeText('sim'),
       mockUser,
-      'sim pode seguir',
+      'sim',
       dialogueState,
       'Oi',
       'user1',

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Received request to list affiliates.`);
 
   try {
-    const session = await getAdminSession(req);
+    const session = (await getAdminSession(req)) as { user?: { name?: string } } | null;
     // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
     if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);

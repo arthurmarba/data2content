@@ -71,12 +71,14 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
       const result: VideoMetricsResponse = await response.json();
-      setMetrics({
+      const nextMetrics: VideoMetricsData = {
         averageViews: result.averageViews,
         averageWatchTimeSeconds: result.averageWatchTimeSeconds,
         numberOfVideoPosts: result.numberOfVideoPosts,
-      });
-      setInsightSummary(result.insightSummary);
+      };
+      const hasData = Object.values(nextMetrics).some((val) => val !== null && val !== undefined);
+      setMetrics(hasData ? nextMetrics : null);
+      setInsightSummary(hasData ? result.insightSummary : undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
       setMetrics(null);
@@ -136,4 +138,3 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
 };
 
 export default memo(PlatformVideoPerformanceMetrics);
-

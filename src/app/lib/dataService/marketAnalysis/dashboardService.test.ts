@@ -4,6 +4,7 @@ import { connectToDatabase } from '../connection';
 import { logger } from '@/app/lib/logger';
 import { IDashboardCreator, IFetchDashboardCreatorsListParams } from './types'; // Assuming types are correctly pathed
 import { Types } from 'mongoose';
+import { DatabaseError } from '@/app/lib/errors';
 
 // Mock dependencies
 jest.mock('@/app/models/User');
@@ -121,6 +122,7 @@ describe('dashboardService', () => {
     });
 
     test('should handle missing alertHistory or undefined message field gracefully', async () => {
+        (UserModel.aggregate as jest.Mock).mockReset();
         const modifiedMockCreators = [
             {
               ...mockRawCreators[0],
@@ -145,11 +147,13 @@ describe('dashboardService', () => {
     });
 
     test('should throw DatabaseError if UserModel.aggregate fails for count', async () => {
+        (UserModel.aggregate as jest.Mock).mockReset();
         (UserModel.aggregate as jest.Mock).mockRejectedValueOnce(new Error('Aggregate count failed'));
         await expect(fetchDashboardCreatorsList(defaultParams)).rejects.toThrow(DatabaseError);
     });
 
     test('should throw DatabaseError if UserModel.aggregate fails for data', async () => {
+        (UserModel.aggregate as jest.Mock).mockReset();
         (UserModel.aggregate as jest.Mock)
           .mockResolvedValueOnce([{ totalCreators: 1 }]) // Count succeeds
           .mockRejectedValueOnce(new Error('Aggregate data failed')); // Data fails

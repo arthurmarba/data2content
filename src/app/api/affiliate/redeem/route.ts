@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import Redemption from '@/app/models/Redemption';
@@ -10,6 +9,13 @@ import type { Types } from 'mongoose';
 export const runtime = 'nodejs';
 
 const locks = new Map<string, number>();
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === 'test') {
+    return {} as any;
+  }
+  const mod = await import('@/app/api/auth/[...nextauth]/route');
+  return mod.authOptions as any;
+}
 function acquireLock(key: string, ttlSec: number): boolean {
   const now = Date.now();
   const expiry = locks.get(key);
@@ -23,7 +29,8 @@ function releaseLock(key: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const authOptions = await loadAuthOptions();
+    const session = (await getServerSession(authOptions)) as { user?: { id?: string } } | null;
     if (!session?.user?.id) {
       return NextResponse.json({ ok: false, code: 'unauthorized', message: 'Não autenticado.' }, { status: 401 });
     }

@@ -48,7 +48,7 @@ function getPortugueseWeekdayNameForSummary(day: number): string {
 
 export async function GET(request: NextRequest) {
   const start = performance.now ? performance.now() : Date.now();
-  const session = await getAdminSession(request);
+  const session = (await getAdminSession(request)) as { user?: { name?: string } } | null;
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

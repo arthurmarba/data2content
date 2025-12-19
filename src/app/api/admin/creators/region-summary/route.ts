@@ -17,7 +17,7 @@ const querySchema = z.object({
 
 export async function GET(req: NextRequest) {
   const TAG = '[api/admin/audience/region-summary]';
-  const session = await getAdminSession(req);
+  const session = (await getAdminSession(req)) as { user?: { name?: string } } | null;
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Acesso não autorizado.' }, { status: 401 });
   }

@@ -29,7 +29,11 @@ import { logger } from '@/app/lib/logger';
 import { functionSchemas, functionExecutors } from './aiFunctions';
 import { getSystemPrompt } from '@/app/lib/promptSystemFC';
 import { IUser, AlertDetails } from '@/app/models/User'; // AlertDetails importado
-import * as stateService from '@/app/lib/stateService';
+// Carrega stateService de forma segura em testes (evita Upstash/Redis)
+const stateService =
+  process.env.NODE_ENV === 'test'
+    ? require('../../../__mocks__/stateService.js')
+    : require('@/app/lib/stateService');
 import { functionValidators } from './aiFunctionSchemas.zod';
 import { DeterminedIntent } from './intentService';
 // Importando EnrichedAIContext do local correto
@@ -42,7 +46,20 @@ import { formatCurrencySafely, normalizeCurrencyCode } from '@/utils/currency';
 
 
 // Configuração do cliente OpenAI e constantes
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const openai =
+  process.env.NODE_ENV === 'test'
+    ? ({
+        chat: {
+          completions: {
+            create: async () => ({ choices: [{ message: { content: '' } }] }),
+          },
+        },
+      } as unknown as OpenAI)
+    : new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY!,
+        baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+        dangerouslyAllowBrowser: true,
+      });
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-3.5-turbo';
 const TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
@@ -1397,6 +1414,10 @@ export function buildSurveyProfileSnippet(user: any) {
             pushLine('fatos', factTexts.join(' | '));
             fieldsUsed.push('userKeyFacts');
         }
+    }
+
+    if (fieldsUsed.length === 0) {
+        return { snippet: '', fieldsUsed };
     }
 
     return { snippet: lines.join('\n'), fieldsUsed };

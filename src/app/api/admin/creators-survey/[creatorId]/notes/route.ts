@@ -13,7 +13,7 @@ const bodySchema = z.object({
 export async function PATCH(req: NextRequest, { params }: { params: { creatorId: string } }) {
   const TAG = '[api/admin/creators-survey/:id/notes][PATCH]';
   try {
-    const session = await getAdminSession(req);
+    const session = (await getAdminSession(req)) as { user?: { name?: string } } | null;
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
