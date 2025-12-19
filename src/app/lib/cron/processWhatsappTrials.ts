@@ -1,10 +1,7 @@
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
-import {
-  sendTemplateMessage,
-  sendWhatsAppMessage,
-} from "@/app/lib/whatsappService";
+import { sendTemplateMessage } from "@/app/lib/whatsappService";
 import {
   buildWhatsappTrialDeactivation,
   isWhatsappTrialEnabled,
@@ -20,6 +17,7 @@ const UPGRADE_URL =
   "https://app.data2content.co/dashboard/billing/checkout";
 
 const EXPIRE_TEMPLATE = process.env.WHATSAPP_TRIAL_EXPIRE_TEMPLATE || "";
+const EXPIRE_FALLBACK_TEMPLATE = process.env.WHATSAPP_TRIAL_FALLBACK_TEMPLATE || "d2c_trial_expired_fallback";
 
 export interface ProcessWhatsappTrialsOptions {
   batchLimit?: number;
@@ -46,20 +44,17 @@ function buildFallbackMessage(name?: string | null) {
 }
 
 async function notifyUser(phone: string, name?: string | null) {
-  if (EXPIRE_TEMPLATE) {
-    await sendTemplateMessage(phone, EXPIRE_TEMPLATE, [
-      {
-        type: "body",
-        parameters: [
-          { type: "text", text: name ?? "criador" },
-          { type: "text", text: UPGRADE_URL },
-        ],
-      },
-    ]);
-  } else {
-    const fallback = buildFallbackMessage(name);
-    await sendWhatsAppMessage(phone, fallback);
-  }
+  const templateToUse = EXPIRE_TEMPLATE || EXPIRE_FALLBACK_TEMPLATE;
+  await sendTemplateMessage(phone, templateToUse, [
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: name ?? "criador" },
+        { type: "text", text: UPGRADE_URL },
+        { type: "text", text: buildFallbackMessage(name) },
+      ],
+    },
+  ]);
 }
 
 export async function processWhatsappTrials(

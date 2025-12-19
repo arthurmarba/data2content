@@ -41,7 +41,7 @@ type ProPageClientProps = {
 const HERO_COPY = {
   title: "Posicione seu conteúdo para atrair marcas com IA.",
   subtitle:
-    "Plano Agência: estratégia guiada, IA no WhatsApp e mentorias semanais para você negociar direto com as marcas.",
+    "Plano Agência: estratégia guiada, alertas no WhatsApp e mentorias semanais para você negociar direto com as marcas. Dúvidas com IA ficam no Chat AI dentro do app.",
   helper:
     "Você segue dono do relacionamento; as marcas chegam a você. Só assinatura fixa, 0% de comissão nas publis.",
 };
@@ -68,8 +68,8 @@ const BENEFITS = [
     icon: <Calendar className="h-6 w-6" />,
   },
   {
-    title: "Mentorias + WhatsApp IA",
-    description: "Mentoria estratégica semanal + IA 24/7 no WhatsApp para alinhar posicionamento e constância.",
+    title: "Mentorias + alertas no WhatsApp",
+    description: "Mentoria estratégica semanal e alertas pelo WhatsApp; para conversar com a IA, abra o Chat AI na plataforma.",
     icon: <MessageCircle className="h-6 w-6" />,
   },
   {
@@ -83,7 +83,7 @@ const COMPARISON = [
   { feature: "Receber propostas e visualizar detalhes", free: true, pro: true },
   { feature: "Responder com IA e enviar pela plataforma", free: false, pro: true },
   { feature: "Calculadora dinâmica baseada nas suas métricas", free: false, pro: true },
-  { feature: "Planejamento Agência (Descoberta/Planner/WhatsApp IA)", free: false, pro: true },
+  { feature: "Planejamento Agência (Descoberta/Planner/alertas no WhatsApp)", free: false, pro: true },
   { feature: "Mentorias semanais e nudges personalizados", free: false, pro: true },
   { feature: "Oportunidades de campanha sem exclusividade", free: false, pro: true },
   { feature: "Posicionamento para atrair marcas (IA + mentoria)", free: false, pro: true },
@@ -122,9 +122,9 @@ const FAQS = [
       "Ajustes de posicionamento, pitch, pricing e revisão de deals. É um espaço para dúvidas táticas e acompanhamento contínuo.",
   },
   {
-    question: "O WhatsApp IA depende de integrar o Instagram?",
+    question: "Os alertas do WhatsApp dependem de integrar o Instagram?",
     answer:
-      "Recomendamos conectar o Instagram para diagnósticos mais precisos. Sem a conexão, a IA funciona com menos contexto sobre seu perfil.",
+      "Recomendamos conectar o Instagram para diagnósticos mais precisos. Os alertas usam seus dados e qualquer conversa com IA acontece no Chat AI do app.",
   },
   {
     question: "Posso trocar o período (mensal/anual) depois?",
@@ -136,7 +136,7 @@ const FAQS = [
 const UNLOCKED_SURFACES = [
   {
     title: "Planejamento Agência",
-    description: "Slots com IA, previsões de alcance e alertas no WhatsApp para cada entrega.",
+    description: "Slots com IA, previsões de alcance e alertas no WhatsApp para cada entrega (dúvidas no Chat AI).",
     href: "/dashboard/planning",
   },
   {
@@ -529,7 +529,7 @@ export default function ProPageClient({
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-3.5 w-3.5" />
                           </div>
-                          <span>Acesso imediato ao Planner, WhatsApp IA e discovery da comunidade.</span>
+                          <span>Acesso imediato ao Planner, alertas no WhatsApp e discovery da comunidade (dúvidas no Chat AI).</span>
                         </li>
                         <li className="flex items-start gap-3 text-sm text-slate-600">
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">

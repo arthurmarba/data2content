@@ -87,8 +87,8 @@ function LoginComponent() {
     },
     {
       icon: <FaWhatsapp className="h-5 w-5 text-emerald-500" aria-hidden="true" />,
-      title: "IA no WhatsApp integrada",
-      description: "Ative o Mobi para validar conteúdos e legendas com feedback instantâneo.",
+      title: "Alertas no WhatsApp integrados",
+      description: "Ative para receber notificações rápidas; dúvidas com IA ficam no Chat AI.",
     },
   ];
 

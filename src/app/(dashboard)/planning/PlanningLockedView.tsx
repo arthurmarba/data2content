@@ -25,7 +25,7 @@ const VARIANT_COPY: Record<PlanningLockedVariant, VariantContent> = {
     description: "Planejamento faz parte do Plano Agência: gere horários com IA e mantenha constância para fechar melhor.",
     bullets: [
       "Slots inteligentes por dia e horário",
-      "Alertas da IA no WhatsApp",
+      "Alertas no WhatsApp (dúvidas no Chat AI)",
       "Roteiros e benchmarks do seu segmento",
     ],
     ctaLabel: planningEmptyState.ctaLabel,
@@ -42,11 +42,11 @@ const VARIANT_COPY: Record<PlanningLockedVariant, VariantContent> = {
     ctaLabel: "Desbloquear Descoberta",
   },
   whatsapp: {
-    eyebrow: "IA no WhatsApp",
-    title: "Ative o estrategista direto no WhatsApp",
-    description: "Receba avisos de horários quentes, roteiros e campanhas no app que você já usa todo dia.",
-    bullets: ["Alertas diários personalizados", "Diagnósticos da sua performance", "Campanhas e faixas justas no chat"],
-    ctaLabel: "Ativar IA no WhatsApp",
+    eyebrow: "Alertas no WhatsApp",
+    title: "Ative os alertas direto no WhatsApp",
+    description: "Receba avisos de horários quentes e campanhas no app que você já usa. Para conversar com a IA, use o Chat AI no painel.",
+    bullets: ["Alertas diários personalizados", "Diagnósticos da sua performance", "Link direto para o Chat AI"],
+    ctaLabel: "Ativar alertas no WhatsApp",
   },
 };
 

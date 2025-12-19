@@ -344,6 +344,9 @@ export interface IUser extends Document {
   whatsappTrialExpiresAt?: Date | null;
   whatsappTrialLastReminderAt?: Date | null;
   whatsappTrialLastNotificationAt?: Date | null;
+  whatsappOptOut?: boolean;
+  whatsappOptOutAt?: Date | null;
+  whatsappLastRedirectAt?: Date | null;
 
   profileTone?: string;
   hobbies?: string[];
@@ -598,6 +601,9 @@ const userSchema = new Schema<IUser>(
     whatsappTrialExpiresAt: { type: Date, default: null, index: true },
     whatsappTrialLastReminderAt: { type: Date, default: null },
     whatsappTrialLastNotificationAt: { type: Date, default: null },
+    whatsappOptOut: { type: Boolean, default: false, index: true },
+    whatsappOptOutAt: { type: Date, default: null },
+    whatsappLastRedirectAt: { type: Date, default: null },
 
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },

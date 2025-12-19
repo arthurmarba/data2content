@@ -30,9 +30,9 @@ type APIRawPrice = {
 // cache simples em escopo de módulo para reabrir o modal sem re-buscar sempre
 let pricesCache: PricesShape | null = null;
 
-// 🎯 Narrativa focada: IA no WhatsApp + Relatório Avançado
+// 🎯 Narrativa focada: alertas no WhatsApp + Chat AI na plataforma
 const FEATURES: string[] = [
-  "IA no WhatsApp conectada ao seu Instagram",
+  "Alertas no WhatsApp conectados ao seu Instagram (dúvidas vão para o Chat AI)",
   "Planejamento automático por dia/horário com base na sua performance",
   "Alertas diários com táticas e prioridades do que postar",
   "Receba oportunidades de campanha como um agenciado (sem exclusividade)",
@@ -52,7 +52,7 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
     title: "Receba alertas e oportunidades diárias no seu WhatsApp",
     subtitle:
-      "Ative o Plano Agência para transformar sua IA em um estrategista que planeja, analisa e negocia com você.",
+      "Ative o Plano Agência para manter alertas no WhatsApp e tirar dúvidas com IA direto no Chat AI da plataforma.",
     bullets: FEATURES,
     ctaLabel: "Ativar Plano Agência",
   },
@@ -81,23 +81,23 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   },
   planning: {
     title: "Planejamento com IA é exclusivo do Plano Agência.",
-    subtitle: "Descubra o que postar com o planner da IA, libere a área de descobertas da comunidade e receba alertas diários no WhatsApp.",
+    subtitle: "Descubra o que postar com o planner da IA, libere a área de descobertas da comunidade e receba alertas diários no WhatsApp (dúvidas no Chat AI).",
     bullets: [
       "Planner com horários, formatos e previsões otimizadas",
       "Descoberta da Comunidade com referências e benchmarks do Plano Agência",
       "Mentorias semanais do Grupo VIP para ajustar sua estratégia",
       "Receba oportunidades de campanha e trate como um agenciado sem exclusividade",
-      "WhatsApp IA com alertas diários de oportunidades",
+      "Alertas no WhatsApp com redirect para o Chat AI",
     ],
     ctaLabel: "Desbloquear Planejamento Plano Agência",
   },
   whatsapp: {
-    title: "Conecte a IA direto no WhatsApp.",
-    subtitle: "Alertas diários, diagnósticos e oportunidades chegando no app que você já usa.",
+    title: "Conecte os alertas no WhatsApp.",
+    subtitle: "WhatsApp = notificações. Para conversar com a IA, use o Chat AI dentro do app.",
     bullets: [
-      "Roteiros e ideias personalizadas todo dia",
+      "Alertas com horários, campanhas e oportunidades",
       "Diagnóstico automático do Instagram",
-      "Alertas sobre campanhas e valores justos",
+      "Link rápido para abrir o Chat AI e tirar dúvidas",
     ],
     ctaLabel: "Ativar Plano Agência",
   },
@@ -115,7 +115,7 @@ const FREE_VS_PRO_ROWS = [
     pro: true,
   },
   {
-    feature: "Mentorias semanais e IA no WhatsApp",
+    feature: "Mentorias semanais e alertas no WhatsApp",
     free: false,
     pro: true,
   },

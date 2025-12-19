@@ -144,22 +144,22 @@ export default function WhatsAppPanel({
         <div className="flex items-center gap-3">
           <FaWhatsapp className="h-10 w-10 text-emerald-500" aria-hidden />
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">WhatsApp IA Plano Agência</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Alertas no WhatsApp · Plano Agência</h3>
             <p className="text-sm text-slate-600">
-              Diagnósticos e ideias no seu WhatsApp (sem disparar lembretes automáticos).
+              Alertas e notificações chegam pelo WhatsApp; qualquer dúvida com IA acontece no Chat AI dentro da plataforma.
             </p>
           </div>
         </div>
 
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-            O que a IA faz por você
+            O que você recebe
           </p>
           <ul className="mt-2 space-y-2 text-sm text-slate-700">
-            <li>• Diagnósticos sobre o desempenho mais recente do seu Instagram.</li>
-            <li>• Ideias e prompts gerados pelo Mobi quando você precisar.</li>
-            <li>• Insights conectados aos seus dados (leitura segura, sem disparos automáticos).</li>
-            <li>• Histórico da conversa para consultar antes de negociar com marcas.</li>
+            <li>• Alertas sobre desempenho recente do Instagram.</li>
+            <li>• Recomendações e lembretes do horário certo.</li>
+            <li>• Notificações com link para abrir o Chat AI e tirar dúvidas.</li>
+            <li>• Histórico centralizado dentro da plataforma (não no WhatsApp).</li>
           </ul>
         </div>
 
@@ -179,10 +179,10 @@ export default function WhatsAppPanel({
             ))}
           </div>
           <p className="sr-only">
-            Prévia borrada das mensagens que você recebe no WhatsApp IA Plano Agência; disponível após assinar o Plano Agência.
+            Prévia borrada das mensagens que você recebe via alertas no WhatsApp; disponível após assinar o Plano Agência.
           </p>
           <p className="mt-3 text-xs text-slate-500">
-            Assine o Plano Agência para ver diagnósticos completos e puxar insights sob demanda sempre que precisar.
+            Assine o Plano Agência para receber alertas e abrir o Chat AI no app quando quiser aprofundar.
           </p>
         </div>
 
@@ -191,7 +191,7 @@ export default function WhatsAppPanel({
             onClick={handleStartTrial}
             className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
           >
-            Ativar WhatsApp IA
+            Ativar alertas no WhatsApp
           </button>
           <a
             href="/dashboard/billing"
@@ -221,7 +221,7 @@ export default function WhatsAppPanel({
   function handleActionClick(event: React.MouseEvent<HTMLButtonElement>) {
     if (!canAccessFeatures) {
       event.preventDefault();
-      showToast("Converse com a IA Mobi ativando um plano premium.", "info");
+      showToast("Ative um plano premium para liberar alertas no WhatsApp e o Chat AI na plataforma.", "info");
       onActionRedirect();
       return;
     }
@@ -237,7 +237,7 @@ export default function WhatsAppPanel({
     window.open(link, "_blank");
   }
   const getButtonText = () => {
-    if (isLinked) return "Conversar com IA";
+    if (isLinked) return "Abrir WhatsApp (alertas)";
     if (isLoading) return "Carregando...";
     if (whatsappCode) return "Abrir WhatsApp";
     return "Vincular com WhatsApp";
@@ -252,14 +252,14 @@ export default function WhatsAppPanel({
         <div className="flex items-center gap-3">
           <FaWhatsapp className="w-10 h-10 text-green-500" />
           <div>
-            <h3 className="font-semibold text-lg text-gray-800">WhatsApp IA Plano Agência</h3>
+            <h3 className="font-semibold text-lg text-gray-800">Alertas no WhatsApp · Plano Agência</h3>
             <p className="text-sm text-gray-500 mt-1">
-              Diagnósticos e ideias no seu WhatsApp (sem disparar lembretes automáticos).
+              Alertas chegam pelo WhatsApp; dúvidas e conversas com IA ficam centralizadas no Chat AI da plataforma.
             </p>
             <p className="text-xs text-gray-500 mt-1">
               {isLinked
-                ? "Conectado! Clique no botão para conversar com o Mobi."
-                : "Conecte seu WhatsApp para falar com o Mobi quando quiser."}
+                ? "Conectado! Clique no botão para abrir o canal de alertas."
+                : "Conecte seu WhatsApp para receber alertas. Para tirar dúvidas, use o Chat AI no app."}
             </p>
           </div>
         </div>
@@ -373,8 +373,8 @@ export default function WhatsAppPanel({
 
       <p className="text-xs text-gray-500 mt-4 border-t pt-3">
         {isLinked
-          ? "Abra o WhatsApp e converse com a IA para receber dicas e análises personalizadas das suas métricas."
-          : "Vincule sua conta para conversar diretamente com nosso especialista e otimizar seu conteúdo."}
+          ? "Abra o WhatsApp para acompanhar alertas. Para conversar com a IA, use o Chat AI dentro da plataforma."
+          : "Vincule sua conta para receber alertas no WhatsApp. Dúvidas ficam no Chat AI do app."}
       </p>
     </div>
   );

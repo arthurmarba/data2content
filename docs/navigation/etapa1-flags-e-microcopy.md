@@ -40,7 +40,7 @@ export const navigationLabels = {
   },
   planning: {
     menu: "Planejamento (PRO)",
-    tooltip: "Descoberta, Planner e WhatsApp IA",
+    tooltip: "Descoberta, Planner e alertas no WhatsApp",
   },
   pro: {
     menu: "PRO",

@@ -7,12 +7,12 @@ import { handleUserMessage } from './userMessageHandler';
 import { ProcessRequestBody } from './types';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
-import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { isActiveLike } from '@/app/lib/isActiveLike';
 
 export const runtime = 'nodejs';
 
 const ROUTE_TAG = '[API Route /process-response]';
+const INBOUND_MODE = (process.env.WHATSAPP_INBOUND_MODE || 'redirect_only').toLowerCase();
 
 // QStash Receiver (inalterado)
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
@@ -30,6 +30,11 @@ if (currentSigningKey && nextSigningKey) {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  if (INBOUND_MODE === 'redirect_only') {
+    logger.warn(`${ROUTE_TAG} Desativado porque WHATSAPP_INBOUND_MODE=redirect_only.`);
+    return NextResponse.json({ disabled: true, reason: 'redirect_only' }, { status: 410 });
+  }
+
   if (!receiver) {
     logger.error(`${ROUTE_TAG} QStash Receiver não está inicializado.`);
     return NextResponse.json({ error: 'QStash Receiver not configured or initialization failed' }, { status: 500 });
@@ -89,22 +94,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       if (!isActiveLike(user.planStatus)) {
-        const firstName = user.name ? user.name.split(' ')[0] : 'criador';
-        const toPhone = payload.fromPhone || (user.whatsappVerified && user.whatsappPhone) || undefined;
-
         logger.info(`${ROUTE_TAG} Bloqueando processamento: plano ${user.planStatus} para user=${payload.userId}.`);
-        if (toPhone) {
-          try {
-            await sendWhatsAppMessage(
-              toPhone,
-              `Olá ${firstName}! Seu plano está ${user.planStatus}. Para continuar usando o Mobi, reative sua assinatura em nosso site.`
-            );
-          } catch (sendErr) {
-            logger.error(`${ROUTE_TAG} Falha ao enviar mensagem de plano inativo para ${toPhone}:`, sendErr);
-          }
-        }
-
-        // Retorna 200 para QStash (considerado processado)
         return NextResponse.json({ plan_inactive: true, userId: String(user._id) }, { status: 200 });
       }
 

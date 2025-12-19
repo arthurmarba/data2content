@@ -1,73 +1,192 @@
-// src/app/api/whatsapp/incoming/route.ts - v2.4.0 (IG CTA + igConnected flag)
-// - Mantém v2.3.9 intacto (intent restaurada + expiração só se existir expiresAt)
-// - ADICIONA: PS de conexão do Instagram em respostas special_handled (quando usuário ainda não conectou)
-// - ADICIONA: igConnected no payload do QStash para o worker poder anexar o mesmo PS
+// src/app/api/whatsapp/incoming/route.ts - Redirect-only inbound handler (v3.0.0)
+// - Enforces template-based replies and redirects users to Chat AI.
+// - Supports opt-in/out commands and basic phone verification without IA/LLM calls.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
 import { connectToDatabase } from '@/app/lib/mongoose';
-import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
-import { UserNotFoundError } from '@/app/lib/errors';
+import { sendTemplateMessage, type ITemplateComponent } from '@/app/lib/whatsappService';
 import { logger } from '@/app/lib/logger';
-import { Client as QStashClient } from '@upstash/qstash';
-import * as dataService from '@/app/lib/dataService';
-import {
-  buildWhatsappTrialActivation,
-  canStartWhatsappTrial,
-} from '@/app/lib/whatsappTrial';
-import {
-  normalizeText,
-  determineIntent,
-  getRandomGreeting,
-  IntentResult,
-  DeterminedIntent,
-  isSimpleConfirmationOrAcknowledgement,
-} from '@/app/lib/intentService';
-import { IUser } from '@/app/models/User';
-import User from '@/app/models/User';
-import * as stateService from '@/app/lib/stateService';
+import { getFromCache, setInCache } from '@/app/lib/stateService';
+import User, { type IUser } from '@/app/models/User';
 
-const WHATSAPP_TRIAL_UPSELL_URL =
-  process.env.NEXT_PUBLIC_PRO_UPGRADE_URL ||
-  process.env.WHATSAPP_TRIAL_UPSELL_URL ||
-  'https://app.data2content.co/dashboard/billing/checkout';
+const INBOUND_MODE = (process.env.WHATSAPP_INBOUND_MODE || 'redirect_only').toLowerCase();
+const REDIRECT_TEMPLATE = process.env.WHATSAPP_TEMPLATE_REDIRECT || 'd2c_redirect_chat_ai';
+const OPT_OUT_TEMPLATE = process.env.WHATSAPP_TEMPLATE_OPTOUT || 'd2c_optout_confirm';
+const OPT_IN_TEMPLATE = process.env.WHATSAPP_TEMPLATE_OPTIN || 'd2c_optin_confirm';
+const HELP_TEMPLATE = process.env.WHATSAPP_TEMPLATE_HELP || 'd2c_help';
+const CODE_EXPIRED_TEMPLATE = process.env.WHATSAPP_TEMPLATE_CODE_EXPIRED || 'd2c_code_expired';
+const CODE_CONFIRMED_TEMPLATE = process.env.WHATSAPP_TEMPLATE_CODE_CONFIRMED || 'd2c_code_confirmed';
+const CHAT_AI_URL =
+  process.env.NEXT_PUBLIC_CHAT_AI_URL || process.env.CHAT_AI_URL || 'https://data2content.ai/chat';
+const REDIRECT_RATE_LIMIT_MINUTES = Number(process.env.WHATSAPP_REDIRECT_RATE_LIMIT_MINUTES || '10');
 
-/* ──────────────────────────────────────────────────────────────────
-   Normalização e checagem de plano
-   ────────────────────────────────────────────────────────────────── */
-function normalizePlanStatusStrong(s: unknown): string | null {
-  if (s == null) return null;
-  let v = String(s).trim().toLowerCase();
-  v = v.replace(/[\s-]+/g, '_').replace(/_+/g, '_');
-  if (v === 'nonrenewing') v = 'non_renewing';
-  return v;
+const DEDUP_TTL_SECONDS = 60 * 60 * 48;
+const REDIRECT_COOLDOWN_SECONDS = Math.max(REDIRECT_RATE_LIMIT_MINUTES, 1) * 60;
+
+const OPT_OUT_KEYWORDS = ['PARAR', 'STOP', 'SAIR', 'CANCELAR'];
+const OPT_IN_KEYWORDS = ['VOLTAR', 'START', 'RETOMAR'];
+const HELP_KEYWORDS = ['AJUDA', 'HELP', 'MENU', '?'];
+
+interface IncomingMessage {
+  from: string;
+  text: string;
+  messageId: string;
+  timestamp?: number;
 }
-function isActiveLikeNormalized(s: unknown): boolean {
-  const v = normalizePlanStatusStrong(s);
-  return v === 'active' || v === 'non_renewing' || v === 'trial' || v === 'trialing';
+
+function normalizeCommand(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toUpperCase()
+    .trim();
 }
-async function revalidateActiveLikeById(userId: string) {
+
+function sanitizePhoneForKey(phone: string): string {
+  return phone.replace(/[^0-9+]/g, '');
+}
+
+function extractSenderAndMessage(body: any): { message: IncomingMessage | null; isStatusUpdate: boolean } {
+  const fallback = { message: null, isStatusUpdate: false };
   try {
-    const fresh = await User.findById(userId).select('planStatus').lean<{ planStatus?: string }>();
-    const raw = fresh?.planStatus;
-    const norm = normalizePlanStatusStrong(raw);
-    return { raw, norm, active: isActiveLikeNormalized(raw) };
-  } catch (e) {
-    logger.warn('[incoming/revalidateActiveLikeById] Falha ao revalidar planStatus:', e);
-    return { raw: undefined, norm: undefined, active: false };
+    if (!body || !Array.isArray(body.entry)) return fallback;
+
+    for (const entry of body.entry) {
+      if (!Array.isArray(entry.changes)) continue;
+      for (const change of entry.changes) {
+        if (change.field === 'messages' && Array.isArray(change.value?.messages) && change.value.messages.length > 0) {
+          const message = change.value.messages[0];
+          if (message?.type === 'text' && message.text?.body && message.from && message.id) {
+            return {
+              message: {
+                from: message.from,
+                text: message.text.body,
+                messageId: message.id,
+                timestamp: message.timestamp ? Number(message.timestamp) : undefined,
+              },
+              isStatusUpdate: false,
+            };
+          }
+        }
+
+        if (change.field === 'messages' && Array.isArray(change.value?.statuses)) {
+          return { message: null, isStatusUpdate: true };
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('[whatsapp/incoming] Erro ao parsear payload:', error);
+  }
+  return fallback;
+}
+
+async function alreadyProcessed(messageId: string): Promise<boolean> {
+  const cacheKey = `wa:dedup:${messageId}`;
+  const cached = await getFromCache(cacheKey);
+  if (cached) return true;
+  await setInCache(cacheKey, '1', DEDUP_TTL_SECONDS);
+  return false;
+}
+
+async function hasRecentRedirect(phone: string): Promise<boolean> {
+  const cacheKey = `wa:redirect:last:${sanitizePhoneForKey(phone)}`;
+  const cached = await getFromCache(cacheKey);
+  return Boolean(cached);
+}
+
+async function markRedirect(phone: string): Promise<void> {
+  const cacheKey = `wa:redirect:last:${sanitizePhoneForKey(phone)}`;
+  await setInCache(cacheKey, String(Date.now()), REDIRECT_COOLDOWN_SECONDS);
+}
+
+async function loadUserByPhone(phone: string): Promise<IUser | null> {
+  try {
+    const user = await User.findOne({ whatsappPhone: phone }).lean<IUser>();
+    return user || null;
+  } catch (error) {
+    logger.error('[whatsapp/incoming] Erro ao buscar usuário por telefone:', error);
+    return null;
   }
 }
 
-// ──────────────────────────────────────────────────────────────────
-// QStash
-// ──────────────────────────────────────────────────────────────────
-if (!process.env.QSTASH_TOKEN) {
-  logger.error('[whatsapp/incoming] Variável de ambiente QSTASH_TOKEN não definida!');
+async function sendTemplateSafe(to: string, templateName: string, components: ITemplateComponent[]): Promise<string | null> {
+  try {
+    const wamid = await sendTemplateMessage(to, templateName, components);
+    logger.info('[whatsapp/incoming] Template enviado', { template: templateName, to, wamid });
+    return wamid;
+  } catch (error) {
+    logger.error('[whatsapp/incoming] Falha ao enviar template', { template: templateName, to, error });
+    return null;
+  }
 }
-if (!process.env.APP_BASE_URL && !process.env.NEXT_PUBLIC_APP_URL) {
-  logger.warn('[whatsapp/incoming] APP_BASE_URL/NEXT_PUBLIC_APP_URL não definida! Usando fallback.');
+
+async function sendRedirect(to: string): Promise<void> {
+  const components: ITemplateComponent[] = [
+    {
+      type: 'body',
+      parameters: [{ type: 'text', text: CHAT_AI_URL }],
+    },
+  ];
+  await sendTemplateSafe(to, REDIRECT_TEMPLATE, components);
+  await markRedirect(to);
 }
-const qstashClient = process.env.QSTASH_TOKEN ? new QStashClient({ token: process.env.QSTASH_TOKEN }) : null;
+
+function matchesKeyword(text: string, keywords: string[]): boolean {
+  return keywords.some((keyword) => text === keyword || text.startsWith(`${keyword} `));
+}
+
+async function handleVerification(rawText: string, fromPhone: string): Promise<boolean> {
+  const codeMatch = rawText.match(/\b([A-Za-z0-9]{6})\b/);
+  if (!codeMatch?.[1]) return false;
+
+  const verificationCode = codeMatch[1].toUpperCase();
+  const tag = '[whatsapp/incoming][verification]';
+  try {
+    const user = await User.findOne({ whatsappVerificationCode: verificationCode });
+    if (!user) return false;
+
+    const expRaw = user.whatsappVerificationCodeExpiresAt;
+    const exp = expRaw instanceof Date ? expRaw : expRaw ? new Date(expRaw) : null;
+    if (exp && exp.getTime() <= Date.now()) {
+      logger.warn(`${tag} Código expirado para user ${user._id}`);
+      user.whatsappVerificationCode = null;
+      user.whatsappVerificationCodeExpiresAt = null;
+      await user.save();
+      await sendTemplateSafe(fromPhone, CODE_EXPIRED_TEMPLATE, [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', text: CHAT_AI_URL }],
+        },
+      ]);
+      return true;
+    }
+
+    user.whatsappPhone = fromPhone;
+    user.whatsappVerified = true;
+    user.whatsappLinkedAt = user.whatsappLinkedAt ?? new Date();
+    user.whatsappVerificationCode = null;
+    user.whatsappVerificationCodeExpiresAt = null;
+    (user as any).whatsappOptOut = false;
+    (user as any).whatsappOptOutAt = null;
+    await user.save();
+
+    const confirmation =
+      `Pronto! Vamos usar este número para enviar alertas. ` +
+      `Para falar com a IA, acesse o Chat AI: ${CHAT_AI_URL}`;
+    await sendTemplateSafe(fromPhone, CODE_CONFIRMED_TEMPLATE, [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: CHAT_AI_URL }],
+      },
+    ]);
+    logger.info(`${tag} Número ${fromPhone} vinculado para o usuário ${user._id}`);
+    return true;
+  } catch (error) {
+    logger.error(`${tag} Erro ao processar verificação:`, error);
+    return false;
+  }
+}
 
 /* ──────────────────────────────────────────────────────────────────
    GET (verificação do webhook)
@@ -77,16 +196,16 @@ export async function GET(request: NextRequest) {
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
   if (!verifyToken) {
-    logger.error('[whatsapp/incoming GET v2.4.0] Error: WHATSAPP_VERIFY_TOKEN não está no .env');
+    logger.error('[whatsapp/incoming GET] WHATSAPP_VERIFY_TOKEN ausente');
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 
   if (searchParams.get('hub.mode') === 'subscribe' && searchParams.get('hub.verify_token') === verifyToken) {
-    logger.debug('[whatsapp/incoming GET v2.4.0] Verification succeeded.');
+    logger.debug('[whatsapp/incoming GET] Verification succeeded.');
     return new Response(searchParams.get('hub.challenge') || '', { status: 200 });
   }
 
-  logger.error('[whatsapp/incoming GET v2.4.0] Verification failed:', {
+  logger.error('[whatsapp/incoming GET] Verification failed', {
     mode: searchParams.get('hub.mode'),
     token_received: searchParams.get('hub.verify_token') ? '******' : 'NONE',
     expected_defined: !!verifyToken,
@@ -95,356 +214,123 @@ export async function GET(request: NextRequest) {
 }
 
 /* ──────────────────────────────────────────────────────────────────
-   Utilitários
-   ────────────────────────────────────────────────────────────────── */
-function getSenderAndMessage(body: any): { from: string; text: string } | null {
-  try {
-    if (!body || !Array.isArray(body.entry) || body.entry.length === 0) return null;
-    for (const entry of body.entry) {
-      if (!Array.isArray(entry.changes) || entry.changes.length === 0) continue;
-      for (const change of entry.changes) {
-        if (change.field === 'messages' && change.value?.messages?.length > 0) {
-          const message = change.value.messages[0];
-          if (message.type === 'text' && message.from && message.text?.body) {
-            return { from: message.from, text: message.text.body };
-          }
-        }
-      }
-    }
-  } catch (error) {
-    logger.error('[whatsapp/incoming getSenderAndMessage v2.4.0] Erro ao parsear payload:', error);
-  }
-  return null;
-}
-
-function extractExcerpt(text: string, maxLength = 30): string {
-  if (text.length <= maxLength) return text;
-  return `${text.substring(0, maxLength - 3)}...`;
-}
-
-/** PS de conexão do Instagram quando o usuário ainda não conectou. */
-function appendIgCtaIfNeeded(
-  text: string,
-  user: Pick<IUser, 'isInstagramConnected' | 'instagramAccountId'>
-) {
-  const isConnected = Boolean(user.isInstagramConnected && user.instagramAccountId);
-  if (isConnected) return text;
-  return (
-    text +
-    '\n\n🔗 Para eu analisar seus conteúdos e responder com dados reais, conecte seu Instagram na plataforma (Perfil → Conectar Instagram).'
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   POST
+   POST (redirect-only)
    ────────────────────────────────────────────────────────────────── */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v2.4.0 InterruptionLogic]';
-  let body: any;
+  if (INBOUND_MODE !== 'redirect_only') {
+    logger.warn('[whatsapp/incoming POST] WHATSAPP_INBOUND_MODE não está em redirect_only. Forçando redirect-only.');
+  }
 
+  let body: any;
   try {
     body = await request.json();
   } catch (error) {
-    logger.error(`${postTag} Erro ao parsear JSON:`, error);
+    logger.error('[whatsapp/incoming POST] Erro ao parsear JSON:', error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const senderAndMsg = getSenderAndMessage(body);
-  const isStatusUpdate =
-    !senderAndMsg &&
-    Array.isArray(body?.entry) &&
-    body.entry.some(
-      (e: any) => Array.isArray(e.changes) && e.changes.some((c: any) => c.field === 'messages' && Array.isArray(c.value?.statuses)),
-    );
-
-  if (!senderAndMsg && !isStatusUpdate) {
-    logger.warn(`${postTag} Payload não contém mensagem de texto válida ou status conhecido.`);
+  const { message, isStatusUpdate } = extractSenderAndMessage(body);
+  if (!message && !isStatusUpdate) {
+    logger.warn('[whatsapp/incoming POST] Payload sem mensagem de texto ou status conhecido.');
     return NextResponse.json({ received_but_not_processed: true }, { status: 200 });
   }
 
   if (isStatusUpdate) {
-    logger.debug(`${postTag} Atualização de status recebida, confirmando e ignorando.`);
+    logger.debug('[whatsapp/incoming POST] Atualização de status recebida.');
     return NextResponse.json({ received_status_update: true }, { status: 200 });
   }
 
-  const fromPhone = normalizePhoneNumber(senderAndMsg!.from);
-  const rawText_MsgNova = senderAndMsg!.text.trim();
-  const normText_MsgNova = normalizeText(rawText_MsgNova);
-  logger.info(`${postTag} MsgNova de ${fromPhone}: "${rawText_MsgNova.slice(0, 50)}..."`);
+  if (await alreadyProcessed(message!.messageId)) {
+    logger.info('[whatsapp/incoming POST] Mensagem duplicada ignorada', { messageId: message!.messageId });
+    return NextResponse.json({ duplicate: true }, { status: 200 });
+  }
+
+  const fromPhone = normalizePhoneNumber(message!.from);
+  const rawText = message!.text.trim();
+  const normalizedCommand = normalizeCommand(rawText);
+  const timestampMs = message!.timestamp ? Number(message!.timestamp) * 1000 : Date.now();
+
+  logger.info('[whatsapp/incoming POST] Mensagem recebida', {
+    from: fromPhone,
+    messageId: message!.messageId,
+    timestamp: new Date(timestampMs).toISOString(),
+    char_count: rawText.length,
+  });
 
   await connectToDatabase();
-  let alreadyLinkedUser: IUser | null = null;
-  try {
-    alreadyLinkedUser = await User.findOne({ whatsappPhone: fromPhone, whatsappVerified: true }).lean<IUser>();
-    if (alreadyLinkedUser) {
-      logger.debug(
-        `${postTag} Número ${fromPhone} já vinculado ao usuário ${alreadyLinkedUser._id}. Pulando verificação de código.`,
-      );
-    }
-  } catch (e) {
-    logger.error(`${postTag} Erro ao verificar vinculação prévia para ${fromPhone}:`, e);
+
+  // Vinculação por código continua permitida, mas com resposta estática (sem IA)
+  const verificationHandled = await handleVerification(rawText, fromPhone);
+  if (verificationHandled) {
+    return NextResponse.json({ verification_processed: true }, { status: 200 });
   }
 
-  // 1) Fluxo de CÓDIGO DE VERIFICAÇÃO
-  const codeMatch = !alreadyLinkedUser ? rawText_MsgNova.match(/\b([A-Za-z0-9]{6})\b/) : null;
-  if (!alreadyLinkedUser && codeMatch && codeMatch[1]) {
-    const verificationCode = codeMatch[1].toUpperCase();
-    const verifyTag = '[whatsapp/incoming][Verification v2.4.0]';
-    logger.info(`${verifyTag} Código detectado: ${verificationCode} de ${fromPhone}`);
+  let user: IUser | null = null;
+  try {
+    user = (await loadUserByPhone(fromPhone)) ?? null;
+  } catch (error) {
+    logger.error('[whatsapp/incoming POST] Erro ao buscar usuário por telefone:', error);
+  }
 
+  if (!user) {
+    logger.warn('[whatsapp/incoming POST] Nenhum usuário vinculado ao número informado', { fromPhone });
+  }
+
+  // Comandos de opt-out / opt-in / help
+  if (matchesKeyword(normalizedCommand, OPT_OUT_KEYWORDS)) {
+    if (user?._id) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { whatsappOptOut: true, whatsappOptOutAt: new Date() } }
+      );
+    }
+    await sendTemplateSafe(fromPhone, OPT_OUT_TEMPLATE, []);
+    logger.info('[whatsapp/incoming POST] Opt-out registrado', { fromPhone, userId: user?._id });
+    return NextResponse.json({ opt_out: true }, { status: 200 });
+  }
+
+  if (matchesKeyword(normalizedCommand, OPT_IN_KEYWORDS)) {
+    if (user?._id) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { whatsappOptOut: false, whatsappOptOutAt: null } }
+      );
+    }
+    await sendTemplateSafe(fromPhone, OPT_IN_TEMPLATE, []);
+    logger.info('[whatsapp/incoming POST] Opt-in registrado', { fromPhone, userId: user?._id });
+    return NextResponse.json({ opt_in: true }, { status: 200 });
+  }
+
+  if (matchesKeyword(normalizedCommand, HELP_KEYWORDS)) {
+    await sendTemplateSafe(fromPhone, HELP_TEMPLATE, [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: CHAT_AI_URL }],
+      },
+    ]);
+    logger.info('[whatsapp/incoming POST] Ajuda enviada', { fromPhone, userId: user?._id });
+    return NextResponse.json({ help_sent: true }, { status: 200 });
+  }
+
+  if (user?.whatsappOptOut) {
+    logger.info('[whatsapp/incoming POST] Usuário em opt-out, nenhuma resposta enviada', { fromPhone, userId: user._id });
+    return NextResponse.json({ opt_out_active: true }, { status: 200 });
+  }
+
+  if (await hasRecentRedirect(fromPhone)) {
+    logger.info('[whatsapp/incoming POST] Rate limit de redirect ativo', { fromPhone });
+    return NextResponse.json({ redirect_suppressed_rate_limited: true }, { status: 200 });
+  }
+
+  await sendRedirect(fromPhone);
+
+  if (user?._id) {
     try {
-      const userWithCode = await User.findOne({ whatsappVerificationCode: verificationCode });
-      if (userWithCode) {
-        // ===== Checagem de expiração (só expira se existir expiresAt) =====
-        const exp: Date | undefined =
-          (userWithCode as any).whatsappVerificationCodeExpiresAt instanceof Date
-            ? (userWithCode as any).whatsappVerificationCodeExpiresAt
-            : (userWithCode as any).whatsappVerificationCodeExpiresAt
-            ? new Date((userWithCode as any).whatsappVerificationCodeExpiresAt)
-            : undefined;
-
-        const now = Date.now();
-        if (exp && exp.getTime() <= now) {
-          logger.warn(
-            `${verifyTag} Código expirado para user=${userWithCode._id}; exp=${exp.toISOString()}`
-          );
-          // Limpa o código expirado para evitar confusão
-          (userWithCode as any).whatsappVerificationCode = null;
-          (userWithCode as any).whatsappVerificationCodeExpiresAt = undefined;
-          await userWithCode.save();
-
-          await sendWhatsAppMessage(
-            fromPhone,
-            'Seu código expirou. Gere um novo na plataforma (Perfil > Vincular WhatsApp) e envie aqui novamente.'
-          );
-          return NextResponse.json({ verification_attempted: true, expired: true }, { status: 200 });
-        }
-        // ===== FIM: checagem de expiração =====
-
-        let raw = userWithCode.planStatus;
-        let norm = normalizePlanStatusStrong(raw);
-        logger.debug(`${verifyTag} user=${userWithCode._id} planStatus raw="${raw}" normalized="${norm}"`);
-
-        // Checagem normalizada + revalidação
-        let activeLike = isActiveLikeNormalized(raw);
-        if (!activeLike) {
-          const reval = await revalidateActiveLikeById(String(userWithCode._id));
-          logger.debug(`${verifyTag} Revalidação: raw="${reval.raw}" normalized="${reval.norm}" active=${reval.active}`);
-          activeLike = reval.active;
-        }
-
-        let trialActivation: ReturnType<typeof buildWhatsappTrialActivation> | null = null;
-        if (!activeLike && canStartWhatsappTrial(userWithCode as any)) {
-          const activationNow = new Date();
-          trialActivation = buildWhatsappTrialActivation(activationNow);
-          for (const [key, value] of Object.entries(trialActivation.set)) {
-            (userWithCode as any)[key] = value;
-          }
-          raw = userWithCode.planStatus;
-          norm = normalizePlanStatusStrong(raw);
-          activeLike = true;
-          logger.info(
-            `${verifyTag} Trial de WhatsApp iniciado para user=${userWithCode._id}, expira em ${trialActivation.expiresAt.toISOString()}`
-          );
-        }
-
-        let reply = '';
-        if (activeLike) {
-          (userWithCode as any).whatsappPhone = fromPhone;
-          (userWithCode as any).whatsappVerificationCode = null;
-          (userWithCode as any).whatsappVerificationCodeExpiresAt = undefined;
-          (userWithCode as any).whatsappVerified = true;
-          await userWithCode.save();
-
-          const firstName = userWithCode.name ? userWithCode.name.split(' ')[0] : '';
-          reply = `Olá ${firstName}, me chamo Mobi! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta. A partir de agora serei seu assistente de métricas e insights via WhatsApp. 👋
-Vou acompanhar em tempo real o desempenho dos seus conteúdos, enviar resumos diários com os principais indicadores e sugerir dicas práticas para você melhorar seu engajamento. Sempre que quiser consultar alguma métrica, receber insights sobre seus posts ou configurar alertas personalizados, é só me chamar por aqui. Estou à disposição para ajudar você a crescer de forma inteligente!
-Você pode começar me pedindo um planejamento de conteudo que otimize seu alcance. :)`;
-
-          if (trialActivation) {
-            reply += '\n\n🎉 Você ganhou um acesso experimental via WhatsApp. Aproveite e ative seu Plano Agência para desbloquear mais 7 dias completos.';
-          }
-
-          // PS: conexão do Instagram, se ainda não estiver conectado
-          if (!userWithCode.isInstagramConnected || !userWithCode.instagramAccountId) {
-            reply += '\n\n⚠️ Para que eu puxe seus dados e gere análises, conecte seu Instagram na plataforma (Perfil → Conectar Instagram).';
-          }
-
-          logger.info(`${verifyTag} VINCULADO com sucesso user=${userWithCode._id}, status="${norm ?? raw}"`);
-        } else {
-          const firstName = userWithCode.name ? userWithCode.name.split(' ')[0] : '';
-          reply = `Olá ${firstName}. Encontramos seu código, mas seu plano (${raw ?? 'indefinido'}) não está ativo. Ative sua assinatura para vincular o WhatsApp.`;
-          logger.warn(`${verifyTag} NEGADO user=${userWithCode._id}, status raw="${raw}", normalized="${norm}"`);
-        }
-
-        await sendWhatsAppMessage(fromPhone, reply);
-      } else {
-        logger.warn(`${verifyTag} Nenhum usuário encontrado para o código: ${verificationCode}`);
-        await sendWhatsAppMessage(fromPhone, 'Código inválido ou expirado. Verifique o código no seu perfil ou gere um novo.');
-      }
-
-      return NextResponse.json({ verification_attempted: true }, { status: 200 });
+      await User.updateOne({ _id: user._id }, { $set: { whatsappLastRedirectAt: new Date() } });
     } catch (error) {
-      logger.error(`${verifyTag} Erro processando código ${verificationCode}:`, error);
-      try {
-        await sendWhatsAppMessage(fromPhone, 'Ocorreu um erro ao tentar verificar seu código. Tente novamente mais tarde.');
-      } catch {}
-      return NextResponse.json({ error: 'Failed to process verification code' }, { status: 500 });
+      logger.error('[whatsapp/incoming POST] Falha ao salvar whatsappLastRedirectAt', { userId: user._id, error });
     }
   }
 
-  // 2) Fluxo NORMAL
-  let user: IUser;
-  let uid: string;
-  let userFirstName: string;
-
-  try {
-    user = alreadyLinkedUser ?? await dataService.lookupUser(fromPhone);
-    uid = user._id.toString();
-    userFirstName = (user.name || 'criador').split(' ')[0]!;
-    logger.info(`${postTag} Usuário ${uid} (${userFirstName}) encontrado para ${fromPhone}.`);
-  } catch (e) {
-    logger.error(`${postTag} Erro em lookupUser para ${fromPhone}:`, e);
-    if (e instanceof UserNotFoundError) {
-      try {
-        await sendWhatsAppMessage(
-          fromPhone,
-          'Olá! Não encontrei uma conta associada a este número de WhatsApp. Se você já se registou (ex: com Google), por favor, acesse a plataforma e use a opção "Vincular WhatsApp" no seu perfil.',
-        );
-      } catch (sendError) {
-        logger.error(`${postTag} Falha ao enviar aviso de usuário não encontrado:`, sendError);
-      }
-      return NextResponse.json({ user_not_found_message_sent: true }, { status: 200 });
-    }
-    return NextResponse.json({ error: 'Failed to lookup user' }, { status: 500 });
-  }
-
-  const rawStatusUser = user.planStatus;
-  const normStatusUser = normalizePlanStatusStrong(rawStatusUser);
-  const activeLikeUser = isActiveLikeNormalized(rawStatusUser);
-  logger.debug(`${postTag} planStatus do usuário raw="${rawStatusUser}" normalized="${normStatusUser}" activeLike=${activeLikeUser}`);
-
-  const trialExpiresRaw = user.whatsappTrialExpiresAt;
-  const trialExpiresDate =
-    trialExpiresRaw instanceof Date ? trialExpiresRaw : trialExpiresRaw ? new Date(trialExpiresRaw) : null;
-  const trialExpiresAt = trialExpiresDate && !Number.isNaN(trialExpiresDate.getTime()) ? trialExpiresDate : null;
-  const trialExpiresIso = trialExpiresAt ? trialExpiresAt.toISOString() : 'null';
-  const trialWindowActive =
-    Boolean(user.whatsappTrialActive) && Boolean(trialExpiresAt && trialExpiresAt.getTime() > Date.now());
-
-  if (!activeLikeUser && user.whatsappTrialActive && !trialWindowActive) {
-    const message =
-      `Seu acesso promocional com a estrategista terminou. ` +
-      `Ative o Plano Agência para continuar recebendo alertas personalizados: ${WHATSAPP_TRIAL_UPSELL_URL}`;
-    logger.info(`${postTag} Trial expirado para ${uid} (expiresAt=${trialExpiresIso}). Notificando e encerrando atendimento.`);
-    try {
-      await sendWhatsAppMessage(fromPhone, message);
-    } catch (sendError) {
-      logger.error(`${postTag} Falha ao enviar mensagem de trial expirado:`, sendError);
-    }
-    return NextResponse.json({ trial_expired: true }, { status: 200 });
-  }
-
-  if (trialWindowActive) {
-    logger.debug(`${postTag} Usuário ${uid} em trial ativo até ${trialExpiresIso}.`);
-  }
-
-  // Bloqueio para plano não-ativo (normalizado)
-  if (!activeLikeUser) {
-    try {
-      await sendWhatsAppMessage(
-        fromPhone,
-        `Olá ${userFirstName}! Seu plano está ${rawStatusUser ?? 'indefinido'}. Para continuar usando o Mobi, reative sua assinatura em nosso site.`,
-      );
-    } catch (sendError) {
-      logger.error(`${postTag} Falha ao enviar mensagem de plano inativo:`, sendError);
-    }
-    return NextResponse.json({ plan_inactive: true }, { status: 200 });
-  }
-
-  // Interrupção / estado de diálogo
-  let currentDialogueState: stateService.IDialogueState = stateService.getDefaultDialogueState();
-  try {
-    const t0 = Date.now();
-    currentDialogueState = await stateService.getDialogueState(uid);
-    logger.debug(`${postTag} getDialogueState levou ${Date.now() - t0}ms.`);
-  } catch (stateError) {
-    logger.error(`${postTag} Erro ao buscar estado do Redis para ${uid} (usará default):`, stateError);
-    currentDialogueState = stateService.getDefaultDialogueState();
-  }
-
-  if (currentDialogueState.currentProcessingMessageId) {
-    const isConfirmation = isSimpleConfirmationOrAcknowledgement(normText_MsgNova);
-    if (isConfirmation) {
-      const ack = `Entendido, ${userFirstName}! Continuo trabalhando no seu pedido anterior sobre "${currentDialogueState.currentProcessingQueryExcerpt || 'o assunto anterior'}". 👍`;
-      try { await sendWhatsAppMessage(fromPhone, ack); } catch (e) { logger.error(`${postTag} Falha ao enviar ack adaptado:`, e); }
-    } else {
-      const excerpt = extractExcerpt(rawText_MsgNova);
-      const ack = `Recebi sua nova mensagem sobre "${excerpt}", ${userFirstName}! Só um instante enquanto concluo o raciocínio anterior sobre "${currentDialogueState.currentProcessingQueryExcerpt || 'o assunto anterior'}".`;
-      try { await sendWhatsAppMessage(fromPhone, ack); } catch (e) { logger.error(`${postTag} Falha ao enviar ack padrão:`, e); }
-      await stateService.updateDialogueState(uid, { interruptSignalForMessageId: currentDialogueState.currentProcessingMessageId });
-      currentDialogueState = await stateService.getDialogueState(uid);
-    }
-  }
-
-  // >>> RESTAURADO: cálculo da intenção <<<
-  const greeting = getRandomGreeting(userFirstName);
-  let intentResult: IntentResult;
-  let determinedIntent: DeterminedIntent | null = null;
-
-  try {
-    const t0 = Date.now();
-    intentResult = await determineIntent(normText_MsgNova, user, rawText_MsgNova, currentDialogueState, greeting, uid);
-    logger.debug(`${postTag} determineIntent levou ${Date.now() - t0}ms.`);
-
-    if (intentResult.type === 'special_handled') {
-      // Acrescenta PS do Instagram se ainda não estiver conectado
-      const toSend = appendIgCtaIfNeeded(intentResult.response, user);
-      await sendWhatsAppMessage(fromPhone, toSend);
-
-      const st: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
-      if (currentDialogueState.lastAIQuestionType) { st.lastAIQuestionType = undefined; st.pendingActionContext = undefined; }
-      await stateService.updateDialogueState(uid, st);
-      return NextResponse.json({ special_handled: true }, { status: 200 });
-    } else {
-      determinedIntent = intentResult.intent;
-      if (
-        currentDialogueState.lastAIQuestionType &&
-        determinedIntent !== 'user_confirms_pending_action' &&
-        determinedIntent !== 'user_denies_pending_action'
-      ) {
-        await stateService.clearPendingActionState(uid);
-      }
-    }
-  } catch (intentError) {
-    logger.error(`${postTag} Erro ao determinar intenção para ${uid}:`, intentError);
-    determinedIntent = 'general';
-    if (currentDialogueState.lastAIQuestionType) await stateService.clearPendingActionState(uid);
-  }
-  // <<< FIM RESTAURADO
-
-  if (!qstashClient) {
-    logger.error(`${postTag} QStash não configurado.`);
-    return NextResponse.json({ error: 'QStash client not configured' }, { status: 500 });
-  }
-  const appBaseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
-  if (!appBaseUrl) {
-    logger.error(`${postTag} App base URL não configurada.`);
-    return NextResponse.json({ error: 'App base URL not configured' }, { status: 500 });
-  }
-
-  const workerUrl = `${appBaseUrl}/api/whatsapp/process-response`;
-  const igConnected = Boolean(user.isInstagramConnected && user.instagramAccountId);
-  const qstashPayload = { fromPhone, incomingText: rawText_MsgNova, userId: uid, determinedIntent, igConnected };
-
-  try {
-    logger.info(`${postTag} Publicando tarefa no QStash para ${workerUrl} - payload: ${JSON.stringify(qstashPayload)}`);
-    const publishResponse = await qstashClient.publishJSON({ url: workerUrl, body: qstashPayload });
-    logger.info(`${postTag} Tarefa publicada. QStash Message ID: ${publishResponse.messageId}`);
-  } catch (err) {
-    logger.error(`${postTag} Falha ao publicar tarefa no QStash:`, err);
-    return NextResponse.json({ error: 'Failed to queue task' }, { status: 500 });
-  }
-
-  return NextResponse.json({ received_message: true, task_queued: true }, { status: 200 });
+  return NextResponse.json({ redirect_sent: true }, { status: 200 });
 }

@@ -50,7 +50,7 @@ import SurveyModal from "./minimal/SurveyModal";
 
 type Period = CommunityMetricsCardData["period"];
 const DEFAULT_PERIOD: Period = "30d";
-const TRIAL_CTA_LABEL = "⚡ Ativar IA no WhatsApp";
+const TRIAL_CTA_LABEL = "⚡ Ativar alertas no WhatsApp";
 const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
 
 type HeroAction = {
@@ -134,7 +134,7 @@ const JOURNEY_STEP_COPY: Record<
   },
   activate_pro: {
     stepHelper:
-      "Posicione seu conteúdo para atrair marcas: IA no WhatsApp 24/7 + mentoria semanal para fechar campanhas sem exclusividade.",
+      "Posicione seu conteúdo para atrair marcas: alertas no WhatsApp + mentoria semanal (dúvidas com IA no Chat AI).",
     ctaLabel: "Ativar Plano Agência",
   },
 };
@@ -811,18 +811,18 @@ export default function HomeClientPage() {
 
   const whatsappBanner = React.useMemo(() => {
     const previewMessages = [
-      "IA: Seu melhor horário ainda é às 19h.",
-      "IA: Já são 4 dias sem publicar. Quer que eu monte 3 ideias e te lembre 30 min antes?",
+      "🔔 Alerta: pico de alcance previsto às 19h.",
+      "⏰ Lembrete: slot forte em 30 minutos.",
     ];
     const base = {
       previewMessages,
-      heading: "Mobi no WhatsApp",
-      subheading: "Seu assistente de carreira com IA.",
+      heading: "Alertas no WhatsApp",
+      subheading: "WhatsApp = notificações. Dúvidas com IA = Chat AI no app.",
       description: "Conexão segura em menos de 30s.",
       bullets: [
-        { icon: "🧠", text: "Conteúdos diários nas categorias que puxam alcance" },
-        { icon: "⏰", text: "Melhor dia e horário com base nos seus dados" },
-        { icon: "🗓️", text: "Lembrete com roteiro pronto pra publicar" },
+        { icon: "🔔", text: "Alertas sobre horários, oportunidades e quedas de ritmo" },
+        { icon: "📊", text: "Insights rápidos baseados nos seus dados" },
+        { icon: "💬", text: "Link direto para abrir o Chat AI e tirar dúvidas" },
       ],
       footnote: "Conexão segura · 30 segundos.",
     };
@@ -830,9 +830,9 @@ export default function HomeClientPage() {
     if (trialExpired) {
       return {
         ...base,
-        calloutTitle: "Continue com a estrategista no WhatsApp.",
+        calloutTitle: "Continue recebendo alertas no WhatsApp.",
         calloutSubtitle:
-          "Assine o Plano Agência para seguir recebendo categorias vencedoras, horário ideal e lembretes direto no WhatsApp.",
+          "Assine o Plano Agência para manter horários ideais, alertas e lembretes; converse com a IA pelo Chat AI.",
         primary: {
           label: "Assinar Plano Agência",
           variant: "pro" as const,
@@ -847,25 +847,25 @@ export default function HomeClientPage() {
     if (whatsappTrialActive || whatsappLinked) {
       return {
         ...base,
-        calloutTitle: "Sua estrategista está ativa no WhatsApp.",
-        calloutSubtitle: "Peça novas ideias por categoria e confirme os horários sempre que quiser.",
+        calloutTitle: "Alertas ativos no WhatsApp.",
+        calloutSubtitle: "Receba notificações sobre oportunidades e horários. Para conversar com a IA, abra o Chat AI.",
         primary: {
-          label: "Abrir WhatsApp IA",
+          label: "Abrir WhatsApp (alertas)",
           variant: "whatsapp" as const,
           icon: <FaWhatsapp />,
           onClick: handleOpenWhatsApp,
           trackingKey: "hero_trial_open",
         },
-        footnote: "🔔 Peça novos conteúdos sempre que precisar.",
+        footnote: "🔔 Alertas no WhatsApp; dúvidas no Chat AI do app.",
       };
     }
 
     if (!whatsappTrialStarted && whatsappTrialEligible) {
       return {
         ...base,
-        calloutTitle: "Ative a IA no WhatsApp.",
+        calloutTitle: "Ative os alertas no WhatsApp.",
         calloutSubtitle:
-          "Eu analiso seus posts, identifico oportunidades e te lembro dos horários certos.",
+          "Receba notificações rápidas sobre seus posts. As conversas com IA ficam no Chat AI dentro da plataforma.",
         primary: {
           label: TRIAL_CTA_LABEL,
           variant: "whatsapp" as const,
@@ -883,10 +883,10 @@ export default function HomeClientPage() {
     if (planIsPro) {
       return {
         ...base,
-        calloutTitle: "Conecte seu WhatsApp e mantenha a estratégia no ritmo.",
-        calloutSubtitle: "Ative alertas personalizados com horários ideais e roteiro pronto.",
+        calloutTitle: "Conecte seu WhatsApp para alertas.",
+        calloutSubtitle: "Ative notificações personalizadas com horários ideais. Dúvidas vão para o Chat AI.",
         primary: {
-          label: "Conectar WhatsApp IA",
+          label: "Conectar alertas no WhatsApp",
           variant: "whatsapp" as const,
           icon: <FaWhatsapp />,
           onClick: handleOpenWhatsApp,
@@ -898,9 +898,9 @@ export default function HomeClientPage() {
 
     return {
       ...base,
-      calloutTitle: "Ative a IA no WhatsApp.",
+      calloutTitle: "Ative os alertas no WhatsApp.",
       calloutSubtitle:
-        "Eu analiso seus posts, identifico oportunidades e te lembro dos horários certos.",
+        "Receba notificações rápidas sobre oportunidades e horários. Para conversar com a IA, use o Chat AI.",
       primary: {
         label: TRIAL_CTA_LABEL,
         variant: "whatsapp" as const,
@@ -1211,7 +1211,7 @@ export default function HomeClientPage() {
       return {
         subtitle: "Conecte o WhatsApp para seguir recebendo alertas inteligentes e convites de publicidade.",
         helper: "Conexão segura em segundos.",
-        ctaLabel: "🤖 Conectar WhatsApp IA",
+        ctaLabel: "🔔 Conectar alertas no WhatsApp",
         onClick: handleHeaderStartTrial,
       };
     }
@@ -1226,10 +1226,10 @@ export default function HomeClientPage() {
     }
     return {
       subtitle: whatsappLinked
-        ? "Peça novas ideias no WhatsApp sempre que precisar."
+        ? "Receba alertas no WhatsApp; para ideias e dúvidas, abra o Chat AI."
         : "Entre na comunidade para acompanhar os próximos desafios.",
       helper: null,
-      ctaLabel: whatsappLinked ? "📱 Abrir WhatsApp IA" : "🌎 Ver comunidade",
+      ctaLabel: whatsappLinked ? "📱 Abrir WhatsApp (alertas)" : "🌎 Ver comunidade",
       onClick: whatsappLinked ? handleOpenWhatsApp : () => handleJoinFreeCommunity("hero"),
     };
   }, [
@@ -1252,7 +1252,7 @@ export default function HomeClientPage() {
   const heroFeedbackMessage = React.useMemo(() => {
     if (!isInstagramConnected) return null;
     if (whatsappLinked || whatsappTrialActive) {
-      return "🤖 IA no WhatsApp ativa — confira seus alertas e peça novas ideias quando quiser.";
+      return "🔔 Alertas no WhatsApp ativos — confira notificações e use o Chat AI para dúvidas.";
     }
     return "✅ Instagram conectado! Mobi já está analisando seus últimos posts.";
   }, [isInstagramConnected, whatsappLinked, whatsappTrialActive]);
@@ -1281,7 +1281,7 @@ export default function HomeClientPage() {
     ? "Bem-vindo! Veja o que você pode fazer primeiro 👇"
     : "Seu progresso na Data2Content";
   const progressDescription = isNewUser
-    ? "Conecte o Instagram, ative a IA no WhatsApp, participe da comunidade e escolha seu plano ideal."
+    ? "Conecte o Instagram, ative alertas no WhatsApp, participe da comunidade e escolha seu plano ideal."
     : journeyStageInfo.label;
   const toolCards = React.useMemo(() => {
     const plannerMetric = !isInstagramConnected
@@ -1648,8 +1648,8 @@ export default function HomeClientPage() {
 
     list.push({
       id: "whatsapp",
-      title: "IA no WhatsApp",
-      description: "Diagnóstico e ideias rápidas",
+      title: "Alertas no WhatsApp",
+      description: "Notificações rápidas; dúvidas no Chat AI",
       icon: <FaWhatsapp className="h-5 w-5" aria-hidden />,
       badge: "Agência",
       locked: proLocked,
@@ -1994,7 +1994,7 @@ export default function HomeClientPage() {
                   Bem-vindo à Data2Content
                 </p>
                 <p className="text-sm font-semibold">
-                  Veja o que destrava seus diagnósticos: conecte o Instagram, ative a IA no WhatsApp,
+                  Veja o que destrava seus diagnósticos: conecte o Instagram, ative os alertas no WhatsApp,
                   entre na comunidade e escolha seu plano ideal.
                 </p>
               </div>
@@ -2203,7 +2203,7 @@ export default function HomeClientPage() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">IA no WhatsApp</h2>
+                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Alertas no WhatsApp</h2>
                 <p className="text-sm text-slate-600">
                   {whatsappBanner.subheading} {whatsappBanner.description}
                 </p>

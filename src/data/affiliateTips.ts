@@ -37,6 +37,6 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     title: 'Mentorias e 1:1',
     description: 'Convide pessoalmente e ofereça ajuda para montar o painel e o kit.',
     buildCopy: (link) =>
-      `Quer testar o Mobi comigo? Entra por ${link}, garante 10% de desconto na primeira fatura e eu te mostro como uso a IA no WhatsApp e o mídia kit para falar com marcas.`,
+      `Quer testar o Mobi comigo? Entra por ${link}, garante 10% de desconto na primeira fatura e eu te mostro como uso os alertas no WhatsApp e o mídia kit para falar com marcas (dúvidas com IA ficam no Chat AI do app).`,
   },
 ];

@@ -19,7 +19,6 @@ import { IEnrichedReport } from './dataService';
 import { UserNotFoundError } from '@/app/lib/errors';
 import { IUser, AlertDetails } from '@/app/models/User'; 
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { functionExecutors } from '@/app/lib/aiFunctions';
 import { getFunAcknowledgementPrompt } from './funAcknowledgementPrompt'; 
 import { EnrichedAIContext } from '@/app/api/whatsapp/process-response/types';
@@ -188,7 +187,7 @@ export async function getConsultantResponse(
             const dynamicAckMessage = await generateDynamicAcknowledgement(firstName, textForNormalization, currentDialogueState); // Usar textForNormalization
             if (dynamicAckMessage) {
                 logger.debug(`${TAG} Enviando reconhecimento dinâmico (gerado por IA) para ${fromPhone}: "${dynamicAckMessage}"`);
-                await sendWhatsAppMessage(fromPhone, dynamicAckMessage);
+                logger.debug(`${TAG} (skip) Envio de WhatsApp desativado no modo redirect_only.`);
             }
         } catch (ackError) {
             logger.error(`${TAG} Falha ao gerar/enviar reconhecimento dinâmico via IA (não fatal):`, ackError);

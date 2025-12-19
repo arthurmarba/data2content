@@ -2,7 +2,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import UserModel from '@/app/models/User';
 import { sendGuestMigrationEmail, sendVipInviteEmail } from '@/app/lib/emailService';
-import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
+import { sendTemplateMessage } from '@/app/lib/whatsappService';
 import billingService from '@/services/billingService';
 
 const APP_BASE_URL =
@@ -11,9 +11,7 @@ const APP_BASE_URL =
     process.env.NEXTAUTH_URL ||
     'https://app.data2content.ai').replace(/\/$/, '');
 const TRIAL_CTA_URL = `${APP_BASE_URL}/dashboard/billing`;
-const TRIAL_WHATSAPP_MESSAGE =
-  'Seu acesso ao Plano Agência gratuito terminou. Continue com seu estrategista de bolso ativando o Plano Agência agora mesmo: ' +
-  TRIAL_CTA_URL;
+const TRIAL_EXPIRE_TEMPLATE = process.env.WHATSAPP_GUEST_TRIAL_TEMPLATE || 'd2c_guest_trial_expired';
 
 export async function handleGuestTransitions() {
   const TAG = '[cron guestTransition]';
@@ -43,7 +41,12 @@ export async function handleGuestTransitions() {
 
       if (guest.whatsappVerified && guest.whatsappPhone) {
         try {
-          await sendWhatsAppMessage(guest.whatsappPhone, TRIAL_WHATSAPP_MESSAGE);
+          await sendTemplateMessage(guest.whatsappPhone, TRIAL_EXPIRE_TEMPLATE, [
+            {
+              type: 'body',
+              parameters: [{ type: 'text', text: TRIAL_CTA_URL }],
+            },
+          ]);
         } catch (err) {
           logger.error(`${TAG} falha ao enviar lembrete WhatsApp para ${guest._id}`, err);
         }

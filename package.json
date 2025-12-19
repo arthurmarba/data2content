@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NEXT_DISABLE_SERVER_IPC=1 next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "npm run smoke:types",
@@ -25,7 +25,8 @@
     "qa:triggers": "bash qa/stripe-triggers.sh",
     "qa:http": "bash qa/http.sh",
     "cron:refresh-metrics": "tsx --env-file=.env.local ./scripts/cron/refreshMetrics.ts",
-    "smoke:types": "tsc -p tsconfig.smoke.json"
+    "smoke:types": "tsc -p tsconfig.smoke.json",
+    "compliance:whatsapp": "node scripts/compliance-whatsapp.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",

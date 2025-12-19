@@ -6,7 +6,7 @@ import { connectToDatabase }          from "@/app/lib/mongoose";
 import User, { type IUser }          from "@/app/models/User";
 import { DailyMetric, IDailyMetric }  from "@/app/models/DailyMetric";
 import { callOpenAIForTips }          from "@/app/lib/aiService";
-import { sendWhatsAppMessage }        from "@/app/lib/whatsappService";
+import { sendTemplateMessage }        from "@/app/lib/whatsappService";
 import { Model, Types, type FilterQuery } from "mongoose";
 import { isActiveLike, type ActiveLikeStatus } from "@/app/lib/isActiveLike";
 import Alert from "@/app/models/Alert";
@@ -52,10 +52,15 @@ async function resolveAuthOptions() {
 }
 
 /* -------- envio WhatsApp, com +55 normalizado --------------------- */
-async function safeSendWhatsAppMessage(phone: string, body: string) {
-  if (!phone.startsWith("+")) phone = "+" + phone;
-  try   { await sendWhatsAppMessage(phone, body) }
-  catch (err) { console.error("[sendTips] Falha WhatsApp", { phone, err }); }
+async function sendTipsTemplate(phone: string, tips: TipsData) {
+  const templateName = process.env.WHATSAPP_TIPS_TEMPLATE || "d2c_daily_tip";
+  const bodyText = formatTipsMessage(tips);
+  await sendTemplateMessage(phone, templateName, [
+    {
+      type: "body",
+      parameters: [{ type: "text", text: bodyText }],
+    },
+  ]);
 }
 
 /* -------- agregação simplificada (7 dias) ------------------------- */
@@ -162,8 +167,10 @@ export async function POST(request: NextRequest) {
 
         // 4d) envia WhatsApp se houver número; caso contrário, apenas registra
         let delivered = false;
-        if (u.whatsappPhone && u.whatsappVerified) {
-          await safeSendWhatsAppMessage(u.whatsappPhone, messageText);
+        if (u.whatsappOptOut) {
+          console.warn(`${tag} Usuário em opt-out; não enviando WhatsApp`, { userId });
+        } else if (u.whatsappPhone && u.whatsappVerified) {
+          await sendTipsTemplate(u.whatsappPhone, tips);
           delivered = true;
         }
 

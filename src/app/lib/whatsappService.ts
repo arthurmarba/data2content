@@ -14,12 +14,16 @@
  */
 
 import { logger } from '@/app/lib/logger'; // Supondo que você tenha um logger centralizado
+import { connectToDatabase } from '@/app/lib/mongoose';
+import User from '@/app/models/User';
 
 const WABA_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
 const WHATSAPP_API_VERSION = "v18.0";
 const BASE_URL = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
+const OUTBOUND_ENABLED = (process.env.WHATSAPP_OUTBOUND_ENABLED || "true").toLowerCase() !== "false";
+const ALLOW_FREE_TEXT = process.env.WHATSAPP_ALLOW_FREE_TEXT === "true" || process.env.NODE_ENV !== "production";
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000;
@@ -70,6 +74,32 @@ function isRetryableStatusCode(status: number): boolean {
   return status === 429 || (status >= 500 && status <= 599);
 }
 
+function normalizePhone(to: string): string {
+  const cleanedPhoneNumber = to.replace(/[^\d+]/g, '');
+  return cleanedPhoneNumber.startsWith("+") ? cleanedPhoneNumber : `+${cleanedPhoneNumber}`;
+}
+
+async function enforceOutboundGuard(to: string): Promise<{ blocked: boolean; userId?: string | null }> {
+  if (!OUTBOUND_ENABLED) {
+    logger.warn("[WhatsAppService] Envio bloqueado por WHATSAPP_OUTBOUND_ENABLED=false", { to });
+    return { blocked: true, userId: null };
+  }
+
+  try {
+    await connectToDatabase();
+    const user = await User.findOne({ whatsappPhone: to }).select("_id whatsappOptOut").lean();
+    const userId = user?._id ? String(user._id) : null;
+    if (user?.whatsappOptOut) {
+      logger.warn("[WhatsAppService] Envio bloqueado por opt-out ativo", { to, userId });
+      return { blocked: true, userId };
+    }
+    return { blocked: false, userId };
+  } catch (err) {
+    logger.error("[WhatsAppService] Falha ao checar opt-out; permitindo envio por segurança reversa", err);
+    return { blocked: false, userId: null };
+  }
+}
+
 function validateEnvVariables() {
     if (!WABA_TOKEN || !PHONE_NUMBER_ID) {
         logger.error("[WhatsAppService] Erro Crítico: Variáveis WHATSAPP_TOKEN ou WHATSAPP_PHONE_NUMBER_ID não definidas.");
@@ -99,8 +129,11 @@ export async function sendTemplateMessage(
     const TAG = '[sendTemplateMessage]';
     validateEnvVariables();
 
-    const cleanedPhoneNumber = to.replace(/[^\d+]/g, '');
-    const phoneNumber = cleanedPhoneNumber.startsWith("+") ? cleanedPhoneNumber : `+${cleanedPhoneNumber}`;
+    const phoneNumber = normalizePhone(to);
+    const guard = await enforceOutboundGuard(phoneNumber);
+    if (guard.blocked) {
+      throw new Error("Envio bloqueado (opt-out ou kill switch ativo).");
+    }
 
     const url = `${BASE_URL}/${PHONE_NUMBER_ID}/messages`;
     const payload = {
@@ -133,7 +166,11 @@ export async function sendTemplateMessage(
                 const data = (await response.json()) as WhatsAppSuccessResponse;
                 const wamid = data.messages?.[0]?.id;
                 if (wamid) {
-                    logger.info(`${TAG} Template '${templateName}' enviado com sucesso para ${phoneNumber}. WAMID: ${wamid}`);
+                    logger.info(`${TAG} Template '${templateName}' enviado com sucesso para ${phoneNumber}.`, {
+                      wamid,
+                      template: templateName,
+                      userId: guard.userId,
+                    });
                     return wamid;
                 } else {
                     lastError = new Error("Resposta OK da API, mas WAMID não encontrado.");
@@ -190,8 +227,17 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<str
     const TAG = '[sendWhatsAppMessage]';
     validateEnvVariables();
 
-    const cleanedPhoneNumber = to.replace(/[^\d+]/g, '');
-    const phoneNumber = cleanedPhoneNumber.startsWith("+") ? cleanedPhoneNumber : `+${cleanedPhoneNumber}`;
+    if (!ALLOW_FREE_TEXT) {
+      const msg = "[sendWhatsAppMessage] Bloqueado em produção — habilite WHATSAPP_ALLOW_FREE_TEXT=true se necessário.";
+      logger.error(msg);
+      throw new Error(msg);
+    }
+
+    const phoneNumber = normalizePhone(to);
+    const guard = await enforceOutboundGuard(phoneNumber);
+    if (guard.blocked) {
+      throw new Error("Envio bloqueado (opt-out ou kill switch ativo).");
+    }
 
     const url = `${BASE_URL}/${PHONE_NUMBER_ID}/messages`;
     const payload = {
@@ -218,7 +264,10 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<str
                 const data = (await response.json()) as WhatsAppSuccessResponse;
                 const wamid = data.messages?.[0]?.id;
                 if (wamid) {
-                    logger.info(`${TAG} Mensagem de texto enviada com sucesso para ${phoneNumber}. WAMID: ${wamid}`);
+                    logger.info(`${TAG} Mensagem de texto enviada com sucesso para ${phoneNumber}.`, {
+                      wamid,
+                      userId: guard.userId,
+                    });
                     return wamid;
                 } else {
                      lastError = new Error("Resposta OK da API, mas WAMID não encontrado.");

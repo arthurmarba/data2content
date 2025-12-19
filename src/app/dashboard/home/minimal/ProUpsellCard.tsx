@@ -70,7 +70,7 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
             onClick={() => onNavigate("/planning/whatsapp")}
           >
             <MessageCircle className="h-4 w-4" />
-            IA no WhatsApp
+            Alertas no WhatsApp
           </button>
         </div>
       </div>
@@ -84,7 +84,7 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
         Desbloqueie o Planejamento (Plano Agência)
       </div>
       <h3 className="mt-2 text-lg font-semibold text-slate-900">
-        Descobertas, planner com IA e respostas pelo WhatsApp.
+        Descobertas, planner com IA e alertas pelo WhatsApp (dúvidas no Chat AI).
       </h3>
       <p className="mt-2 text-sm text-slate-500">
         Conecte insights em tempo real e feche campanhas com ajuda do Mobi.

@@ -19,9 +19,9 @@ const valueCards: ValueCard[] = [
   {
     id: "ia",
     icon: "🤖",
-    title: "IA no WhatsApp",
-    accent: "⚡ Alertas automáticos",
-    description: "Alertas curtos com benchmarks que já performaram no seu nicho.",
+    title: "Alertas no WhatsApp",
+    accent: "⚡ Notificações automáticas",
+    description: "Alertas curtos com benchmarks que já performaram no seu nicho e link direto para o Chat AI.",
   },
   {
     id: "community",

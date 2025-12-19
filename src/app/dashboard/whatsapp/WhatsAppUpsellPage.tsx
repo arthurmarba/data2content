@@ -41,9 +41,9 @@ export default function WhatsAppUpsellPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">WhatsApp IA Plano Agência</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Alertas no WhatsApp · Plano Agência</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Assine e ative um consultor que monitora sua performance, envia alertas e recomendações no seu WhatsApp.
+          Receba alertas e notificações no WhatsApp; qualquer dúvida ou conversa com IA acontece dentro do Chat AI da plataforma.
         </p>
         <p className="mt-1 text-xs text-gray-500">
           Diferente das agências que ficam com 10%–30% do cachê e pedem exclusividade, aqui você paga só a assinatura e segue livre.
@@ -55,7 +55,7 @@ export default function WhatsAppUpsellPage() {
         <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
           <li>Alertas proativos de performance e oportunidades de conteúdo.</li>
           <li>Resumo semanal automático com destaques e prioridades.</li>
-          <li>Atalhos de prompts para tirar dúvidas em tempo real.</li>
+          <li>Link rápido para abrir o Chat AI na plataforma e tirar dúvidas.</li>
           <li>Integração direta com seu Instagram conectado.</li>
           <li>Participação no grupo VIP com mentorias estratégicas semanais exclusivas.</li>
         </ul>

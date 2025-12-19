@@ -448,7 +448,7 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
               </span>
               <div>
                 <p className="text-sm font-semibold text-[#1A1A1A]">
-                  <strong className="font-semibold text-[#1A1A1A]">Mobi — IA no WhatsApp</strong> para manter a sua estratégia viva.
+                  <strong className="font-semibold text-[#1A1A1A]">Mobi — alertas no WhatsApp</strong> para manter a sua estratégia viva (dúvidas no Chat AI).
                 </p>
                 <p className="mt-1 text-xs text-[#777777]">
                   <strong className="font-semibold text-[#1A1A1A]">Alertas acionáveis</strong>, leituras de desempenho e <strong className="font-semibold text-[#1A1A1A]">ideias prontas</strong> para publicação.

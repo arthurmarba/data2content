@@ -1,15 +1,15 @@
 // Caminho do ficheiro: src/app/api/test-whatsapp/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sendWhatsAppMessage } from '@/app/lib/whatsappService'; // Usando o alias do projeto
+import { sendTemplateMessage } from '@/app/lib/whatsappService'; // Usando o alias do projeto
 import { logger } from '@/app/lib/logger';
 
 export async function GET(request: NextRequest) {
   const TAG = '[API Test WhatsApp]';
 
-  // Medida de segurança: Garante que esta rota só funcione em ambiente de desenvolvimento.
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json({ error: 'This endpoint is for development use only.' }, { status: 403 });
+  // Medida de segurança: Garante que esta rota só funcione fora de produção.
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'This endpoint is unavailable in production.' }, { status: 404 });
   }
 
   // Pega o número de telefone de destino a partir dos parâmetros da URL.
@@ -25,7 +25,13 @@ export async function GET(request: NextRequest) {
   logger.info(`${TAG} Enviando mensagem de teste para o número: ${to}`);
 
   try {
-    const wamid = await sendWhatsAppMessage(to, testMessage);
+    const templateName = process.env.WHATSAPP_TEST_TEMPLATE || 'd2c_test_message';
+    const wamid = await sendTemplateMessage(to, templateName, [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: testMessage }],
+      },
+    ]);
     
     const successResponse = {
       success: true,

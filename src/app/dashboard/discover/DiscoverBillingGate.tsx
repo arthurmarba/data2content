@@ -29,10 +29,10 @@ export default function DiscoverBillingGate() {
             <Sparkles className="h-4 w-4" aria-hidden />
           </span>
           <div className="space-y-2">
-            <p className="text-base font-semibold text-brand-dark">Ative a IA quando estiver pronto</p>
+            <p className="text-base font-semibold text-brand-dark">Ative os alertas quando estiver pronto</p>
             <p>
-              O botão “Ativar IA no WhatsApp” libera horários quentes, formatos vencedores e benchmarks personalizados para
-              o seu nicho. Explore as ideias e decida quando avançar.
+              O botão “Ativar alertas no WhatsApp” libera horários quentes, formatos vencedores e benchmarks personalizados para
+              o seu nicho. Explore as ideias e use o Chat AI para dúvidas.
             </p>
           </div>
         </div>

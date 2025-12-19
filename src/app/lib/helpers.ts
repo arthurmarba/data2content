@@ -1,4 +1,4 @@
-import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
+import { sendTemplateMessage } from "@/app/lib/whatsappService";
 import { connectToDatabase } from "@/app/lib/mongoose";
 
 /**
@@ -23,9 +23,12 @@ export async function connectDB(): Promise<void> {
  * Envia uma mensagem via WhatsApp com tratamento de erros.
  */
 export async function safeSendWhatsAppMessage(phone: string, body: string): Promise<void> {
+  const template = process.env.WHATSAPP_GENERIC_TEMPLATE || "d2c_generic_text";
   try {
     console.debug("Tentando enviar mensagem para:", phone);
-    await sendWhatsAppMessage(phone, body);
+    await sendTemplateMessage(phone, template, [
+      { type: "body", parameters: [{ type: "text", text: body }] },
+    ]);
     console.debug("Mensagem enviada com sucesso para:", phone);
   } catch (error: unknown) {
     console.error(`Falha ao enviar WhatsApp para ${phone}:`, error);
