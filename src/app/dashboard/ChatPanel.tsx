@@ -869,7 +869,10 @@ export default function ChatPanel({
   return (
     <div
       className="relative flex flex-col w-full bg-white overflow-hidden"
-      style={{ height: fullHeight ? 'calc(100svh - var(--header-h, 0px))' : '100svh' }}
+      style={{
+        height: fullHeight ? 'calc(100svh - var(--header-h, 0px))' : '100svh',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
     >
 
 
@@ -877,6 +880,10 @@ export default function ChatPanel({
       <div
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto scrollbar-hide overscroll-contain px-4 py-6"
+        style={{
+          paddingBottom: 'calc(var(--composer-h, 140px) + env(safe-area-inset-bottom, 0px) + 24px)',
+          WebkitOverflowScrolling: 'touch',
+        }}
       >
         {isWelcome ? (
           <div className="h-full flex flex-col items-center justify-center pb-10">
@@ -1034,6 +1041,7 @@ export default function ChatPanel({
                   onUpsellClick={onUpsellClick}
                   onConnectInstagram={handleCorrectInstagramLink}
                   onEvidenceAction={(prompt) => sendPrompt(prompt, { skipInputReset: true })}
+                  onSendPrompt={(prompt) => sendPrompt(prompt, { skipInputReset: true })}
                   onFeedbackStart={enterMessageFeedback}
                   onFeedbackEnd={exitMessageFeedback}
                   onFeedbackSubmitted={(rating, messageId) => {

@@ -26,6 +26,7 @@ import { chooseVariantFromRollout, experimentConfig, type VariantBucket } from "
 import { runAnswerEngine } from "@/app/lib/ai/answerEngine/engine";
 import { validateAnswerWithContext } from "@/app/lib/ai/answerEngine/validator";
 import { coerceToAnswerIntent } from "@/app/lib/ai/answerEngine/policies";
+import { stripUnprovenCommunityClaims } from "@/app/lib/text/sanitizeCommunityClaims";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -116,15 +117,35 @@ function inferIntentFromSurvey(profile: any, cachedPrefs?: any) {
   return { intent: null as string | null, objective: null as string | null };
 }
 
-function buildSurveyContextNote(profile: any) {
+function summarizeRequestTopic(value?: string | null) {
+  if (!value) return '';
+  const condensed = value.replace(/\s+/g, ' ').trim();
+  if (!condensed) return '';
+  return condensed.length > 90 ? `${condensed.slice(0, 90)}…` : condensed;
+}
+
+function buildSurveyContextNote(profile: any, userRequest?: string) {
   if (!profile) return null;
   const parts: string[] = [];
   if (Array.isArray(profile.stage) && profile.stage.length) parts.push(`etapa: ${profile.stage[0]}`);
   if (profile.mainGoal3m) parts.push(`meta 3m: ${profile.mainGoal3m}`);
   if (Array.isArray(profile.niches) && profile.niches.length) parts.push(`nicho: ${profile.niches[0]}`);
   if (Array.isArray(profile.mainPlatformReasons) && profile.mainPlatformReasons.length) parts.push(`motivo: ${profile.mainPlatformReasons[0]}`);
-  if (!parts.length) return null;
-  return parts.join(' | ');
+
+  const profileSummary = parts.join(' | ');
+  const requestedTheme = summarizeRequestTopic(userRequest);
+
+  if (!profileSummary && !requestedTheme) return null;
+
+  const explanation = profileSummary && requestedTheme
+    ? 'Vou combinar o tema pedido com o seu perfil declarado para manter seu estilo.'
+    : '';
+
+  return [
+    requestedTheme ? `Tema solicitado: ${requestedTheme}` : null,
+    profileSummary ? `Perfil (pesquisa): ${profileSummary}` : null,
+    explanation || null,
+  ].filter(Boolean).join(' | ');
 }
 
 function scoreContextStrength(profile: any) {
@@ -688,6 +709,8 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         duration_ms: answerEngineDuration || null,
       });
     }
+    const hasAnswerEvidence = Boolean(answerEngineResult?.topPosts?.length || answerEngineResult?.contextPack?.top_posts?.length);
+    sanitizedResponse = stripUnprovenCommunityClaims(sanitizedResponse, hasAnswerEvidence);
     const answerEvidence = answerEngineResult
       ? {
           version: 'v1',
@@ -781,7 +804,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     const surveyNudgeText = surveyNudgeNeeded
       ? `Para personalizar com o que você preencheu na pesquisa, confirme seu ${surveyFreshness.missingCore.join('/') || 'perfil'} rapidinho (leva 2 min).`
       : null;
-    const surveyContextNote = (!surveyNudgeNeeded && buildSurveyContextNote(surveyProfile)) || null;
+    const surveyContextNote = (!surveyNudgeNeeded && buildSurveyContextNote(surveyProfile, truncatedQuery)) || null;
     if (surveyNudgeText) {
       sanitizedResponse = `${sanitizedResponse}\n\n> [!IMPORTANT]\n> ${surveyNudgeText}`;
     } else if (surveyContextNote && effectiveIntent !== 'ask_community_inspiration') {

@@ -102,4 +102,36 @@ Resumo: Continuação
         expect(parsed.cards[0].highlights).toEqual(['Viralizou', 'Alcance alto']);
         expect(parsed.cards[0].link?.url).toBe('https://example.com/p1');
     });
+
+    it('sanitizes markdown headings, bullets and open question placeholders', () => {
+        const input = `
+### Pergunta Aberta
+- **Reel 1:** **Ideia forte**
+Descrição: **Teste** com *markdown* e ## heading
+* Destaque 1
+`;
+        const parsed = parseCommunityInspirationText(input);
+        expect(parsed.cards).toHaveLength(1);
+        expect(parsed.cards[0].title).toBe('Reel 1 — Ideia forte');
+        expect(parsed.cards[0].description).toBe('Teste com markdown e heading');
+        expect(parsed.cards[0].highlights).toEqual(['Destaque 1']);
+        expect(parsed.footer).toBeNull();
+    });
+
+    it('parses structured JSON responses without leaking markdown', () => {
+        const input = `{
+  "type": "content_ideas",
+  "items": [
+    { "label": "Ideia A", "title": "**Título**", "description": "### Desc", "highlights": ["**Chip**"], "link": "https://example.com/a" }
+  ],
+  "next_step_question": "Qual priorizar?"
+}`;
+        const parsed = parseCommunityInspirationText(input);
+        expect(parsed.cards).toHaveLength(1);
+        expect(parsed.cards[0].label).toBe('Ideia A');
+        expect(parsed.cards[0].title).toBe('Título');
+        expect(parsed.cards[0].description).toBe('Desc');
+        expect(parsed.cards[0].highlights).toEqual(['Chip']);
+        expect(parsed.footer?.items).toEqual(['Qual priorizar?']);
+    });
 });

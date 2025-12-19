@@ -1486,9 +1486,11 @@ export async function askLLMWithEnrichedContext(
         }
 
         const isWebChannel = enrichedContext.channel === 'web';
+        const isCardIntent = intent === 'ask_community_inspiration' || intent === 'content_ideas';
+        const hasAnswerEvidence = Array.isArray(answerEnginePack?.top_posts) && answerEnginePack.top_posts.length > 0;
 
         // Se for canal WEB, adiciona instrução de formatação rica
-        if (isWebChannel) {
+        if (isWebChannel && !isCardIntent) {
             initialMsgs.push({
                 role: 'system',
                 content: 'INSTRUÇÃO DE FORMATAÇÃO WEB: Você está respondendo no chat web. Use formatação rica Markdown para melhor didática: use **negrito** para conceitos-chave, listas (bullet points) para passos, e headers (###) para separar seções. Seja visualmente organizado.'
@@ -1504,6 +1506,24 @@ export async function askLLMWithEnrichedContext(
                         'Regras: nunca coloque "Dia:" em linha separada; se usar "Dia:", deixe na mesma linha (ex.: "— Dia: Segunda"). Negrito sempre completo (**texto**). Lista numerada só para passo a passo.'
                 });
             }
+        } else if (isWebChannel && isCardIntent) {
+            initialMsgs.push({
+                role: 'system',
+                content: 'IDEIAS EM CARDS (WEB): responda prioritariamente em JSON, no formato {"type":"content_ideas","items":[{"label":"Reel 1","title":"...","description":"...","highlights":["..."],"link":null}],"next_step_question":"Qual dessas ideias quer priorizar?"}. Se não puder JSON, use texto plano curto, sem Markdown (sem ###, ** ou listas).'
+            });
+        }
+
+        if (isCardIntent) {
+            initialMsgs.push({
+                role: 'system',
+                content: 'Gere 3 ideias não sobrepostas. Cada card deve ter um gancho diferente (ex.: rotina, desafio, antes-e-depois) e incluir um "por que funciona" curto. Não repita variações da mesma ideia.'
+            });
+            initialMsgs.push({
+                role: 'system',
+                content: hasAnswerEvidence
+                    ? 'Você pode mencionar que as ideias usam exemplos reais apenas se conseguir citar links/permalinks fornecidos. Não invente referências.'
+                    : 'Não diga que as ideias estão "baseadas em posts da comunidade" porque não há evidências fornecidas. Fale apenas "ideias sugeridas" e ofereça buscar exemplos validados se o usuário quiser.'
+            });
         }
 
         // Instruções de estilo e próxima ação — mantém o assistente sempre acionável.

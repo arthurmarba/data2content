@@ -3,6 +3,7 @@ import { applyInlineMarkup, escapeHtml, type RenderTheme } from './chatUtils';
 import { track } from '@/lib/track';
 
 type InspirationCard = {
+    label?: string;
     title: string;
     description?: string;
     highlights: string[];
@@ -14,6 +15,7 @@ type ParsedCommunityInspiration = {
     cards: InspirationCard[];
     contextNote?: string;
     footer?: { heading: string; items: string[] } | null;
+    schemaVersion?: number;
 };
 
 const cleanLine = (line: string) => line.trim();
@@ -50,6 +52,115 @@ const splitHighlights = (raw: string): string[] => {
         .filter(Boolean);
 };
 
+const sanitizeCardText = (value?: string | null): string => {
+    if (!value) return '';
+    let out = value.replace(/\r\n/g, '\n');
+    // Remove headings and bullets leaking from markdown.
+    out = out.replace(/(^|\n)\s*#{1,6}\s+/g, '$1');
+    out = out.replace(/#{2,}/g, '');
+    out = out.replace(/(^|\n)\s*[-*]\s+/g, '$1');
+    // Strip markdown bold/italic markers.
+    out = out.replace(/\*\*(.*?)\*\*/g, '$1');
+    out = out.replace(/__(.*?)__/g, '$1');
+    out = out.replace(/(^|[\s(])\*(.*?)\*(?=[\s).,!?]|$)/g, '$1$2');
+    out = out.replace(/(^|[\s(])_(.*?)_(?=[\s).,!?]|$)/g, '$1$2');
+    // Remove leftover asterisks at boundaries.
+    out = out.replace(/^\*+|\*+$/g, '');
+    // Remove placeholder headings/questions.
+    out = out.replace(/^\s*pergunta aberta[:\-\s]*/i, '');
+    out = out.replace(/\bpergunta aberta\b[:\-\s]*/gi, '');
+    // Collapse whitespace.
+    out = out.replace(/\s{2,}/g, ' ').trim();
+    return out;
+};
+
+const sanitizeParsedInspiration = (data: ParsedCommunityInspiration): ParsedCommunityInspiration => {
+    const cleanArray = (values?: string[]) => (values || []).map((v) => sanitizeCardText(v)).filter(Boolean);
+    const cards = (data.cards || []).map((card, idx) => {
+        const cleanedLabel = sanitizeCardText(card.label || '');
+        const cleanedTitle = sanitizeCardText(card.title) || card.title || `Inspiração ${idx + 1}`;
+        const cleanedDescription = sanitizeCardText(card.description || '');
+        const cleanedHighlights = Array.from(new Set(cleanArray(card.highlights)));
+        const cleanedLinkLabel = sanitizeCardText(card.link?.label || '');
+        const cleanedLinkUrl = card.link?.url?.trim();
+        return {
+            ...card,
+            label: cleanedLabel || undefined,
+            title: cleanedTitle,
+            description: cleanedDescription || undefined,
+            highlights: cleanedHighlights,
+            link: cleanedLinkUrl ? { url: cleanedLinkUrl, label: cleanedLinkLabel || undefined } : undefined,
+        };
+    }).filter((card) => Boolean(card.title?.trim() || card.description?.trim() || card.highlights.length || card.link));
+
+    const cleanedFooterItems = cleanArray(data.footer?.items);
+    const footer = cleanedFooterItems.length
+        ? { heading: sanitizeCardText(data.footer?.heading || 'Próximo passo') || 'Próximo passo', items: cleanedFooterItems }
+        : null;
+
+    return {
+        intro: sanitizeCardText(data.intro || '') || undefined,
+        cards,
+        contextNote: sanitizeCardText(data.contextNote || '') || undefined,
+        footer,
+        schemaVersion: data.schemaVersion || 1,
+    };
+};
+
+const parseStructuredInspiration = (text: string): ParsedCommunityInspiration | null => {
+    const trimmed = text.trim();
+    if (!trimmed.startsWith('{') && !trimmed.includes('{')) return null;
+    const jsonCandidate = (() => {
+        if (trimmed.startsWith('{')) return trimmed;
+        const match = trimmed.match(/\{[\s\S]*\}/);
+        return match?.[0] || null;
+    })();
+    if (!jsonCandidate) return null;
+    let parsed: any;
+    try {
+        parsed = JSON.parse(jsonCandidate);
+    } catch {
+        return null;
+    }
+    const schemaVersionRaw = parsed.schema_version ?? parsed.schemaVersion ?? 1;
+    const schemaVersion = typeof schemaVersionRaw === 'number' ? schemaVersionRaw : Number(schemaVersionRaw) || 1;
+    if (!parsed || parsed.type !== 'content_ideas' || !Array.isArray(parsed.items)) return null;
+
+    const cards: InspirationCard[] = parsed.items.map((item: any, idx: number) => {
+        const label = typeof item.label === 'string' ? item.label : undefined;
+        const title = typeof item.title === 'string' ? item.title : '';
+        const description = typeof item.description === 'string' ? item.description : '';
+        const highlights = Array.isArray(item.highlights)
+            ? item.highlights.filter((h: any) => typeof h === 'string')
+            : [];
+        const linkUrl = typeof item.link?.url === 'string'
+            ? item.link.url
+            : typeof item.link === 'string'
+                ? item.link
+                : undefined;
+        const linkLabel = typeof item.link?.label === 'string' ? item.link.label : undefined;
+        return {
+            label,
+            title: title || label || `Ideia ${idx + 1}`,
+            description,
+            highlights,
+            link: linkUrl ? { url: linkUrl, label: linkLabel } : undefined,
+        };
+    });
+
+    const nextQuestion = typeof parsed.next_step_question === 'string' ? parsed.next_step_question : '';
+
+    return {
+        intro: typeof parsed.intro === 'string' ? parsed.intro : undefined,
+        cards,
+        contextNote: typeof parsed.context_note === 'string' ? parsed.context_note : undefined,
+        footer: nextQuestion.trim()
+            ? { heading: 'Próximo passo', items: [nextQuestion] }
+            : null,
+        schemaVersion,
+    };
+};
+
 const isValidUrl = (url?: string | null) => {
     if (!url) return false;
     try {
@@ -61,6 +172,11 @@ const isValidUrl = (url?: string | null) => {
 };
 
 export const parseCommunityInspirationText = (text: string): ParsedCommunityInspiration => {
+    const structured = parseStructuredInspiration(text);
+    if (structured) {
+        return sanitizeParsedInspiration(structured);
+    }
+
     const normalizedText = text.replace(/([^\n])(\s*###)/g, (_m, before, hashes) => `${before}\n${hashes.trimStart()}`);
     const lines = normalizedText
         .split(/\r?\n/)
@@ -116,7 +232,10 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
     };
 
     for (const rawLine of lines) {
-        const line = rawLine;
+        const rawTrimmed = rawLine.trim();
+        const line = sanitizeCardText(rawLine);
+        const isBulletLine = /^[-*•●]\s*/.test(rawTrimmed);
+        if (!line) continue;
         if (/^\s*>?\s*\[!?note\]/i.test(line)) continue;
         if (tryCaptureContextNote(line)) continue;
         if (tryStartFooter(line)) continue;
@@ -144,6 +263,15 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
             };
             collecting = null;
             continue;
+        }
+
+        if (/https?:\/\//i.test(line) && current && !current.link) {
+            const link = extractLink(line);
+            if (link) {
+                current.link = link;
+                collecting = 'link';
+                continue;
+            }
         }
 
         if (!current) {
@@ -188,6 +316,14 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
         }
 
         if (collecting === 'description') {
+            if (isBulletLine) {
+                const highlightCandidate = rawTrimmed.replace(/^[-*•●]\s*/, '').trim();
+                if (highlightCandidate) {
+                    current.highlights.push(highlightCandidate);
+                    collecting = 'highlights';
+                    continue;
+                }
+            }
             current.description = [current.description, line].filter(Boolean).join(' ').trim();
             continue;
         }
@@ -211,7 +347,7 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
 
     commitCurrent();
 
-    return {
+    return sanitizeParsedInspiration({
         intro: introLines.join(' ').trim() || undefined,
         cards,
         contextNote: contextNote || undefined,
@@ -221,19 +357,44 @@ export const parseCommunityInspirationText = (text: string): ParsedCommunityInsp
                 items: footerItems.slice(0, 2),
             }
             : null,
-    };
+    });
 };
 
 type CommunityInspirationMessageProps = {
     text: string;
     theme?: RenderTheme;
+    messageId?: string | null;
+    sessionId?: string | null;
+    intent?: string | null;
+    onSendPrompt?: (prompt: string) => Promise<void> | void;
 };
 
-export function CommunityInspirationMessage({ text, theme = 'default' }: CommunityInspirationMessageProps) {
+const impressionCache = new Set<string>();
+
+export function CommunityInspirationMessage({
+    text,
+    theme = 'default',
+    messageId = null,
+    sessionId = null,
+    intent = null,
+    onSendPrompt,
+}: CommunityInspirationMessageProps) {
     const parsed = React.useMemo(() => parseCommunityInspirationText(text), [text]);
     const isInverse = theme === 'inverse';
     const parseTrackedRef = React.useRef(false);
+    const impressionTrackedRef = React.useRef(false);
     const [expanded, setExpanded] = React.useState<Record<number, boolean>>({});
+    const [ctaCopied, setCtaCopied] = React.useState<Record<number, boolean>>({});
+    const [footerCopied, setFooterCopied] = React.useState<Record<number, boolean>>({});
+    const [manualCopyCard, setManualCopyCard] = React.useState<Record<number, string>>({});
+    const [manualCopyFooter, setManualCopyFooter] = React.useState<Record<number, string>>({});
+
+    React.useEffect(() => {
+        setCtaCopied({});
+        setFooterCopied({});
+        setManualCopyCard({});
+        setManualCopyFooter({});
+    }, [text, messageId]);
 
     React.useEffect(() => {
         if (parsed.cards.length === 0 && !parseTrackedRef.current) {
@@ -242,6 +403,21 @@ export function CommunityInspirationMessage({ text, theme = 'default' }: Communi
         }
     }, [parsed.cards.length]);
 
+    React.useEffect(() => {
+        if (!parsed.cards.length) return;
+        const key = `${sessionId || 'no-session'}:${messageId || text.length}:${intent || 'unknown'}`;
+        if (impressionCache.has(key)) return;
+        if (impressionTrackedRef.current) return;
+        impressionTrackedRef.current = true;
+        impressionCache.add(key);
+        track('community_inspiration_card_impression', {
+            cards: parsed.cards.length,
+            session_id: sessionId || null,
+            message_id: messageId || null,
+            intent: intent || null,
+        });
+    }, [intent, messageId, parsed.cards.length, sessionId, text.length]);
+
     if (!parsed.cards.length) return null;
 
     const textClass = isInverse ? 'text-white/90' : 'text-gray-800';
@@ -249,6 +425,26 @@ export function CommunityInspirationMessage({ text, theme = 'default' }: Communi
     const borderClass = isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-white';
     const badgeClass = isInverse ? 'bg-indigo-100/10 text-indigo-50 ring-1 ring-indigo-200/40' : 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100';
     const contextCardClass = isInverse ? 'border-white/20 bg-white/5 text-white' : 'border-gray-200 bg-gray-50 text-gray-800';
+
+    const copyPrompt = async (value: string) => {
+        try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(value);
+                return true;
+            }
+        } catch {
+            // ignore copy failures
+        }
+        return false;
+    };
+
+    const showManualCopy = (type: 'card' | 'footer', idx: number, value: string) => {
+        if (type === 'card') {
+            setManualCopyCard((prev) => ({ ...prev, [idx]: value }));
+        } else {
+            setManualCopyFooter((prev) => ({ ...prev, [idx]: value }));
+        }
+    };
 
     return (
         <div className="space-y-3" data-testid="community-inspiration-wrapper">
@@ -267,12 +463,14 @@ export function CommunityInspirationMessage({ text, theme = 'default' }: Communi
                     const shouldClamp = description.length > 320;
                     const isExpanded = expanded[idx] === true;
                     const shownDescription = shouldClamp && !isExpanded ? `${description.slice(0, 280)}…` : description;
+                    const badgeLabel = card.label && card.label.trim().length ? card.label : `Reel ${idx + 1}`;
+                    const ideaPrompt = `Quero roteirizar a ideia "${card.title || `Inspiração ${idx + 1}`}".`;
 
                     return (
                         <div key={`${card.title}-${idx}`} className={`rounded-2xl border ${borderClass} p-4 shadow-sm`} data-testid="community-inspiration-card">
                             <div className="mb-2 flex items-start gap-3">
                                 <div className={`text-[13px] font-semibold ${badgeClass} inline-flex items-center rounded-full px-2.5 py-1`}>
-                                    Reel {idx + 1}
+                                    {badgeLabel}
                                 </div>
                             </div>
                             <p className={`text-[15px] font-semibold leading-[1.5] ${headingClass}`}>
@@ -320,7 +518,13 @@ export function CommunityInspirationMessage({ text, theme = 'default' }: Communi
                                     </div>
                                 </div>
                             ) : null}
-                            {!validLink ? null : (
+                            {!validLink ? (
+                                card.link?.url ? (
+                                    <p className={`mt-3 text-[12px] ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
+                                        Sem link — exemplo não disponível
+                                    </p>
+                                ) : null
+                            ) : (
                                 <div className="mt-3 flex">
                                     <a
                                         href={card.link?.url}
@@ -335,6 +539,80 @@ export function CommunityInspirationMessage({ text, theme = 'default' }: Communi
                                     </a>
                                 </div>
                             )}
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    className={`inline-flex items-center justify-center rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors ${isInverse
+                                        ? 'bg-white/10 text-white hover:bg-white/20'
+                                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                                    onClick={async () => {
+                                        track('community_inspiration_card_choose_for_script', { card_index: idx });
+                                        if (onSendPrompt) {
+                                            try {
+                                                await onSendPrompt(ideaPrompt);
+                                                setCtaCopied((prev) => ({ ...prev, [idx]: true }));
+                                                window.setTimeout(() => setCtaCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                                return;
+                                            } catch {
+                                                // fall back to copy
+                                            }
+                                        }
+                                        const ok = await copyPrompt(ideaPrompt);
+                                        if (ok) {
+                                            setCtaCopied((prev) => ({ ...prev, [idx]: true }));
+                                            window.setTimeout(() => setCtaCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                        } else {
+                                            showManualCopy('card', idx, ideaPrompt);
+                                        }
+                                    }}
+                                >
+                                    {ctaCopied[idx] ? 'Enviado!' : 'Roteirizar agora'}
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`inline-flex items-center justify-center rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors ${isInverse
+                                        ? 'bg-white/10 text-white hover:bg-white/20'
+                                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                                    onClick={async () => {
+                                        const ok = await copyPrompt(ideaPrompt);
+                                        if (ok) {
+                                            setCtaCopied((prev) => ({ ...prev, [idx]: true }));
+                                            window.setTimeout(() => setCtaCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                        } else {
+                                            showManualCopy('card', idx, ideaPrompt);
+                                        }
+                                    }}
+                                >
+                                    Copiar prompt
+                                </button>
+                            </div>
+                            {manualCopyCard[idx] ? (
+                                <div className={`mt-2 rounded-lg border ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-gray-50'} p-2`}>
+                                    <p className={`text-[11px] font-semibold ${isInverse ? 'text-white/70' : 'text-gray-600'}`}>Copie manualmente:</p>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <input
+                                            readOnly
+                                            value={manualCopyCard[idx]}
+                                            onFocus={(e) => e.target.select()}
+                                            onClick={(e) => e.currentTarget.select()}
+                                            className={`flex-1 rounded-md border px-2 py-1 text-[12px] ${isInverse ? 'bg-transparent text-white border-white/30' : 'bg-white text-gray-800 border-gray-200'}`}
+                                        />
+                                        <button
+                                            type="button"
+                                            className={`rounded-md px-2 py-1 text-[11px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                            onClick={async () => {
+                                                const ok = await copyPrompt(manualCopyCard[idx] || '');
+                                                if (ok) {
+                                                    setCtaCopied((prev) => ({ ...prev, [idx]: true }));
+                                                    window.setTimeout(() => setCtaCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                                }
+                                            }}
+                                        >
+                                            Copiar
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     );
                 })}
@@ -344,14 +622,88 @@ export function CommunityInspirationMessage({ text, theme = 'default' }: Communi
                     <p className={`text-[13px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
                         {parsed.footer.heading}
                     </p>
-                    <ul className={`mt-2 space-y-2 text-[14px] leading-[1.6] ${textClass}`}>
-                        {parsed.footer.items.map((item, idx) => (
-                            <li key={`footer-${idx}`} className="flex items-start gap-2">
-                                <span className={`mt-[6px] inline-block h-1.5 w-1.5 rounded-full ${isInverse ? 'bg-white/70' : 'bg-indigo-400'}`} aria-hidden />
-                                <span dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(item), theme) }} />
-                            </li>
-                        ))}
-                    </ul>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {parsed.footer.items.map((item, idx) => {
+                            const prompt = `Quero avançar com: "${item}"`;
+                            const copied = footerCopied[idx] === true;
+                            return (
+                                <div key={`footer-${idx}`} className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors ${isInverse
+                                            ? 'bg-white/10 text-white hover:bg-white/20'
+                                            : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'}`}
+                                        onClick={async () => {
+                                            track('community_inspiration_next_step_action', { item_index: idx });
+                                            if (onSendPrompt) {
+                                                try {
+                                                    await onSendPrompt(prompt);
+                                                    setFooterCopied((prev) => ({ ...prev, [idx]: true }));
+                                                    window.setTimeout(() => setFooterCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                                    return;
+                                                } catch {
+                                                    // fallback to copy
+                                                }
+                                            }
+                                            const ok = await copyPrompt(prompt);
+                                            if (ok) {
+                                                setFooterCopied((prev) => ({ ...prev, [idx]: true }));
+                                                window.setTimeout(() => setFooterCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                            } else {
+                                                showManualCopy('footer', idx, prompt);
+                                            }
+                                        }}
+                                    >
+                                        {copied ? 'Enviado!' : item}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${isInverse
+                                            ? 'bg-white/10 text-white hover:bg-white/20'
+                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                                        onClick={async () => {
+                                            const ok = await copyPrompt(prompt);
+                                            if (ok) {
+                                                setFooterCopied((prev) => ({ ...prev, [idx]: true }));
+                                                window.setTimeout(() => setFooterCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                            } else {
+                                                showManualCopy('footer', idx, prompt);
+                                            }
+                                        }}
+                                    >
+                                        Copiar
+                                    </button>
+                                    {manualCopyFooter[idx] ? (
+                                        <div className={`w-full rounded-lg border ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-gray-50'} px-2 py-1`}>
+                                            <p className={`text-[11px] font-semibold ${isInverse ? 'text-white/70' : 'text-gray-600'}`}>Copie manualmente:</p>
+                                            <div className="mt-1 flex items-center gap-2">
+                                                <input
+                                                    readOnly
+                                                    value={manualCopyFooter[idx]}
+                                                    onFocus={(e) => e.target.select()}
+                                                    onClick={(e) => e.currentTarget.select()}
+                                                    className={`flex-1 rounded-md border px-2 py-1 text-[12px] ${isInverse ? 'bg-transparent text-white border-white/30' : 'bg-white text-gray-800 border-gray-200'}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className={`rounded-md px-2 py-1 text-[11px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                                    onClick={async () => {
+                                                        const ok = await copyPrompt(manualCopyFooter[idx] || '');
+                                                        if (ok) {
+                                                            setFooterCopied((prev) => ({ ...prev, [idx]: true }));
+                                                            window.setTimeout(() => setFooterCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                                        }
+                                                    }}
+                                                >
+                                                    Copiar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             ) : null}
             {parsed.contextNote ? (

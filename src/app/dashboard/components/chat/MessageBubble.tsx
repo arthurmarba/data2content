@@ -19,6 +19,7 @@ interface MessageBubbleProps {
     renderOptions?: RenderOptions;
     virtualize?: boolean;
     onEvidenceAction?: (prompt: string) => void;
+    onSendPrompt?: (prompt: string) => Promise<void> | void;
 }
 
 const MAX_MESSAGE_CHARS = 30000;
@@ -56,6 +57,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     renderOptions,
     virtualize,
     onEvidenceAction,
+    onSendPrompt,
 }: MessageBubbleProps) {
     const router = useRouter();
     const isUser = message.sender === 'user';
@@ -227,7 +229,16 @@ export const MessageBubble = React.memo(function MessageBubble({
     const isHttpUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url.trim());
 
     const communityContent = React.useMemo(() => {
-        const renderComponent = () => <CommunityInspirationMessage text={labelSafeText} theme={isUser ? 'inverse' : 'default'} />;
+        const renderComponent = () => (
+            <CommunityInspirationMessage
+                text={labelSafeText}
+                theme={isUser ? 'inverse' : 'default'}
+                messageId={message.messageId || null}
+                sessionId={message.sessionId || null}
+                intent={message.intent || message.messageType || null}
+                onSendPrompt={onSendPrompt}
+            />
+        );
         // Prefer evidence topPosts for inspiration cards
         const evidence = message.answerEvidence;
         const evidenceAllowsInspiration = evidence && evidence.intent_group === 'inspiration' && evidence.asked_for_examples;

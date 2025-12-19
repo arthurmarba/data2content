@@ -78,8 +78,8 @@ export const Composer = React.memo(function Composer({
     return (
         <div
             ref={inputWrapperRef}
-            className="relative flex-none bg-white px-4 py-2 z-20"
-            style={{ paddingBottom: `max(16px, ${safeBottom})` }}
+            className="sticky bottom-0 left-0 right-0 flex-none bg-white px-4 py-2 z-20 shadow-[0_-6px_24px_-12px_rgba(15,23,42,0.3)]"
+            style={{ paddingBottom: `calc(${safeBottom} + 8px)` }}
         >
             {/* Gradient Fade - Positioned absolutely above the composer */}
             <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/60 to-transparent pointer-events-none" />
@@ -118,7 +118,7 @@ export const Composer = React.memo(function Composer({
                     <div className="flex items-center gap-1">
                         <button
                             onClick={onOpenTools}
-                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full transition-all ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-full transition-all ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir ferramentas"
                             title="Ferramentas"
                         >
@@ -133,7 +133,7 @@ export const Composer = React.memo(function Composer({
                                     onOpenAlerts();
                                 }
                             }}
-                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-3 h-10 text-[13px] font-semibold transition-all border ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-3 h-11 text-[13px] font-semibold transition-all border ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir conversas"
                             title="Conversas"
                         >
@@ -158,8 +158,8 @@ export const Composer = React.memo(function Composer({
                             }
                         }}
                         placeholder="Digite sua mensagem..."
-                        className="flex-1 resize-none overflow-hidden bg-transparent py-2 px-2 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-400 text-gray-900 max-h-[200px] rounded-2xl focus:bg-white/50 transition-colors"
-                        style={{ minHeight: '40px' }}
+                        className="flex-1 min-h-[44px] resize-none overflow-hidden bg-transparent py-2.5 px-2.5 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-400 text-gray-900 max-h-[200px] rounded-2xl focus:bg-white/50 transition-colors break-words"
+                        style={{ minHeight: '44px' }}
                         disabled={isSending}
                         data-testid="chat-input"
                     />
@@ -172,7 +172,7 @@ export const Composer = React.memo(function Composer({
                         }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onSend}
-                        className={`flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300 ${input.trim().length > 0
+                        className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 ${input.trim().length > 0
                             ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-md shadow-brand-primary/25'
                             : 'bg-gray-200 text-gray-400'
                             }`}
