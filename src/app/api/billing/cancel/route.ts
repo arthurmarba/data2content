@@ -125,7 +125,9 @@ export async function POST() {
       userId: String(user._id),
       customerId: (user as any).stripeCustomerId ?? null,
       subscriptionId: finalSubscription.id,
-      status: finalSubscription.status,
+      statusDb: user.planStatus ?? null,
+      statusStripe: finalSubscription.status ?? null,
+      errorCode: null,
       stripeRequestId: (finalSubscription as any)?.lastResponse?.requestId ?? null,
     });
 

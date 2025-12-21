@@ -75,6 +75,21 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
 
       const json = await res.json();
       if (!res.ok) {
+        if (json?.code === "PAYMENT_ISSUE") {
+          throw new Error(json?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
+        }
+        if (json?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE" || json?.code === "SUBSCRIPTION_INCOMPLETE") {
+          throw new Error(json?.message || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
+        }
+        if (json?.code === "SUBSCRIPTION_ACTIVE_DB" || json?.code === "SUBSCRIPTION_ACTIVE" || json?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
+          throw new Error(json?.message || "Você já possui um plano ativo.");
+        }
+        if (json?.code === "SUBSCRIPTION_NON_RENEWING" || json?.code === "SUBSCRIPTION_NON_RENEWING_DB") {
+          throw new Error(json?.message || "Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.");
+        }
+        if (json?.code === "BILLING_IN_PROGRESS") {
+          throw new Error(json?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
+        }
         throw new Error(json?.message || json?.error || "Falha ao iniciar assinatura.");
       }
 

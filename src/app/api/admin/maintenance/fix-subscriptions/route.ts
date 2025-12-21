@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
+import { getAdminSession } from "@/lib/getAdminSession";
+import { logger } from "@/app/lib/logger";
 
 export const dynamic = "force-dynamic";
+const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
 const STATUSES_TO_RECONCILE = [
     "expired",
@@ -40,8 +43,13 @@ const pickBestSubscription = (subs: any[]) => {
     return subs[0];
 };
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
+        const session = await getAdminSession(request);
+        if (!session?.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: noStoreHeaders });
+        }
+
         await connectToDatabase();
 
         const searchParams = new URL(request.url).searchParams;
@@ -197,14 +205,21 @@ export async function GET(request: Request) {
             }
         }
 
+        logger.info("admin_fix_subscriptions_done", {
+            endpoint: "GET /api/admin/maintenance/fix-subscriptions",
+            adminUserId: session.user.id ?? null,
+            count: results.length,
+            fixedCount: results.filter(r => r.status === "fixed" || r.status === "would_fix").length,
+        });
+
         return NextResponse.json({
             ok: true,
             dryRun,
             count: results.length,
             fixedCount: results.filter(r => r.status === "fixed" || r.status === "would_fix").length,
             results
-        });
+        }, { headers: noStoreHeaders });
     } catch (error) {
-        return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
+        return NextResponse.json({ ok: false, error: String(error) }, { status: 500, headers: noStoreHeaders });
     }
 }

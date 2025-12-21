@@ -208,12 +208,14 @@ function PlanTeaserContent() {
           setAffiliateError(json?.message || 'Código inválido ou expirado.');
         } else if (json?.code === 'PAYMENT_ISSUE' || json?.code === 'SUBSCRIPTION_PAST_DUE') {
           setErrorMsg(json?.message || 'Pagamento pendente. Atualize em Billing.');
-        } else if (json?.code === 'SUBSCRIPTION_ACTIVE' || json?.code === 'SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN') {
+        } else if (json?.code === 'BILLING_BLOCKED_PENDING_OR_INCOMPLETE' || json?.code === 'SUBSCRIPTION_INCOMPLETE') {
+          setErrorMsg(json?.message || 'Há um checkout pendente. Retome ou aborte a tentativa.');
+        } else if (json?.code === 'SUBSCRIPTION_ACTIVE' || json?.code === 'SUBSCRIPTION_ACTIVE_DB' || json?.code === 'SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN') {
           setErrorMsg(json?.message || 'Você já possui uma assinatura ativa.');
-        } else if (json?.code === 'SUBSCRIPTION_NON_RENEWING') {
+        } else if (json?.code === 'SUBSCRIPTION_NON_RENEWING' || json?.code === 'SUBSCRIPTION_NON_RENEWING_DB') {
           setErrorMsg(json?.message || 'Assinatura com cancelamento agendado. Reative em Billing.');
-        } else if (json?.code === 'SUBSCRIPTION_INCOMPLETE') {
-          setErrorMsg(json?.message || 'Há um checkout pendente.');
+        } else if (json?.code === 'BILLING_IN_PROGRESS') {
+          setErrorMsg(json?.message || 'Já existe uma tentativa em andamento. Aguarde alguns segundos.');
         } else {
           setErrorMsg(json?.error || json?.message || 'Falha ao iniciar assinatura.');
         }

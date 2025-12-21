@@ -69,8 +69,9 @@ export async function POST() {
         userId: String(user._id),
         customerId: user.stripeCustomerId ?? null,
         subscriptionId: user.stripeSubscriptionId ?? null,
-        status,
-        stripeStatus,
+        statusDb: status,
+        statusStripe: stripeStatus,
+        errorCode: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE",
         stripeRequestId: null,
       });
       return NextResponse.json(
@@ -99,7 +100,9 @@ export async function POST() {
       userId: String(user._id),
       customerId: user.stripeCustomerId ?? null,
       subscriptionId: user.stripeSubscriptionId ?? null,
-      status: user.planStatus ?? null,
+      statusDb: user.planStatus ?? null,
+      statusStripe: null,
+      errorCode: null,
       stripeRequestId: (portal as any)?.lastResponse?.requestId ?? null,
     });
 

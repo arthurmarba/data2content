@@ -61,8 +61,23 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         setLoading(false);
         return;
       }
-      if (!res.ok && (body?.code === 'SUBSCRIPTION_ACTIVE_DB' || body?.code === 'SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN')) {
+      if (!res.ok && (body?.code === 'BILLING_BLOCKED_PENDING_OR_INCOMPLETE' || body?.code === 'SUBSCRIPTION_INCOMPLETE')) {
+        setError(body?.message ?? 'Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.');
+        setLoading(false);
+        return;
+      }
+      if (!res.ok && (body?.code === 'SUBSCRIPTION_ACTIVE_DB' || body?.code === 'SUBSCRIPTION_ACTIVE' || body?.code === 'SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN')) {
         setError(body?.message ?? 'Você já possui um plano ativo.');
+        setLoading(false);
+        return;
+      }
+      if (!res.ok && (body?.code === 'SUBSCRIPTION_NON_RENEWING' || body?.code === 'SUBSCRIPTION_NON_RENEWING_DB')) {
+        setError(body?.message ?? 'Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.');
+        setLoading(false);
+        return;
+      }
+      if (!res.ok && body?.code === 'BILLING_IN_PROGRESS') {
+        setError(body?.message ?? 'Já existe uma tentativa em andamento. Aguarde alguns segundos.');
         setLoading(false);
         return;
       }

@@ -9,6 +9,7 @@
   - `/api/billing/reactivate` retorna 409 `NOT_REACTIVATABLE_USE_SUBSCRIBE`
   - UI mostra “Assinar novamente”, nunca “Reativar”
 - [ ] 4. Incomplete -> abort -> libera novo subscribe
+  - `/api/billing/subscribe` retorna 409 `BILLING_BLOCKED_PENDING_OR_INCOMPLETE`
   - `/api/billing/abort` cancela pendências, limpa DB e permite novo checkout
 - [ ] 5. Past_due/unpaid -> subscribe bloqueia e envia para pagamento
   - `/api/billing/subscribe` retorna 409 `PAYMENT_ISSUE`

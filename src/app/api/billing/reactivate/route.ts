@@ -88,6 +88,7 @@ export async function POST() {
     if (!user?.stripeSubscriptionId) {
       return NextResponse.json({ ok: false, message: 'No subscription' }, { status: 400, headers: cacheHeader })
     }
+    const statusDb = (user as any).planStatus ?? null
 
     // 1) Busca assinatura atual (com price expandido)
     const current = await stripe.subscriptions.retrieve(user.stripeSubscriptionId, {
@@ -101,7 +102,9 @@ export async function POST() {
         endpoint: 'POST /api/billing/reactivate',
         userId: String(user._id),
         subscriptionId: user.stripeSubscriptionId,
-        status: currentStatus,
+        statusDb,
+        statusStripe: currentStatus ?? null,
+        errorCode: 'NOT_REACTIVATABLE_USE_SUBSCRIBE',
         stripeRequestId: (current as any)?.lastResponse?.requestId ?? null,
       })
       return NextResponse.json(
@@ -114,6 +117,27 @@ export async function POST() {
       )
     }
 
+    const isActiveEligible = currentStatus === 'active' || currentStatus === 'trialing'
+    if (!isActiveEligible) {
+      logger.info('billing_reactivate_blocked_status', {
+        endpoint: 'POST /api/billing/reactivate',
+        userId: String(user._id),
+        subscriptionId: user.stripeSubscriptionId,
+        statusDb,
+        statusStripe: currentStatus ?? null,
+        errorCode: 'NOT_REACTIVATABLE_STATUS',
+        stripeRequestId: (current as any)?.lastResponse?.requestId ?? null,
+      })
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'NOT_REACTIVATABLE_STATUS',
+          message: 'Assinatura não está ativa para reativação.',
+        },
+        { status: 409, headers: cacheHeader }
+      )
+    }
+
     // 2) Reativar só faz sentido se houver cancelamento agendado
     const needsFlip = Boolean((current as any).cancel_at_period_end)
     if (!needsFlip) {
@@ -121,7 +145,9 @@ export async function POST() {
         endpoint: 'POST /api/billing/reactivate',
         userId: String(user._id),
         subscriptionId: user.stripeSubscriptionId,
-        status: currentStatus ?? null,
+        statusDb,
+        statusStripe: currentStatus ?? null,
+        errorCode: 'NOT_REACTIVATABLE_NOT_CANCELING',
         stripeRequestId: (current as any)?.lastResponse?.requestId ?? null,
       })
       return NextResponse.json(
@@ -159,7 +185,9 @@ export async function POST() {
       endpoint: 'POST /api/billing/reactivate',
       userId: String(user._id),
       subscriptionId: updated.id,
-      status: updated.status,
+      statusDb: user.planStatus ?? null,
+      statusStripe: updated.status ?? null,
+      errorCode: null,
       stripeRequestId: (updated as any)?.lastResponse?.requestId ?? null,
     })
 

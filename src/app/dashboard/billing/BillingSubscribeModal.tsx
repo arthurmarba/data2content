@@ -434,8 +434,17 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
         if (body?.code === "PAYMENT_ISSUE") {
           throw new Error(body?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
         }
-        if (body?.code === "SUBSCRIPTION_ACTIVE_DB" || body?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
+        if (body?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE" || body?.code === "SUBSCRIPTION_INCOMPLETE") {
+          throw new Error(body?.message || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
+        }
+        if (body?.code === "SUBSCRIPTION_ACTIVE_DB" || body?.code === "SUBSCRIPTION_ACTIVE" || body?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
           throw new Error(body?.message || "Você já possui um plano ativo.");
+        }
+        if (body?.code === "SUBSCRIPTION_NON_RENEWING" || body?.code === "SUBSCRIPTION_NON_RENEWING_DB") {
+          throw new Error(body?.message || "Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.");
+        }
+        if (body?.code === "BILLING_IN_PROGRESS") {
+          throw new Error(body?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
         }
         throw new Error(body?.error || body?.message || "Não foi possível iniciar o checkout.");
       }

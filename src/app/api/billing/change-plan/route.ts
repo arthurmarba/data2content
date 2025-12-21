@@ -4,6 +4,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
+import { checkRateLimit } from "@/utils/rateLimit";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +49,30 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const { allowed: lockAllowed } = await checkRateLimit(
+      `change_plan_lock:${session.user.id}`,
+      1,
+      15
+    );
+    if (!lockAllowed) {
+      logger.info("billing_change_plan_locked", {
+        endpoint: "POST /api/billing/change-plan",
+        userId: session.user.id,
+        customerId: null,
+        subscriptionId: null,
+        statusDb: null,
+        statusStripe: null,
+        errorCode: "BILLING_IN_PROGRESS",
+        stripeRequestId: null,
+      });
+      return NextResponse.json(
+        {
+          code: "BILLING_IN_PROGRESS",
+          message: "Já existe uma tentativa de mudança de plano em andamento. Aguarde alguns segundos.",
+        },
+        { status: 409 }
+      );
+    }
 
     const { to, when }: { to: Plan; when: When } = await req.json().catch(() => ({} as any));
     if (!to || !["monthly", "annual"].includes(to)) {
@@ -66,6 +92,70 @@ export async function POST(req: Request) {
     const sub: any = await stripe.subscriptions.retrieve(user.stripeSubscriptionId as string, {
       expand: ["items.data.price", "schedule"],
     } as any);
+    const stripeStatus = typeof sub?.status === "string" ? sub.status : "unknown";
+    const stripeRequestId = sub?.lastResponse?.requestId ?? null;
+    const dbStatus = (user as any)?.planStatus ?? null;
+
+    if (stripeStatus === "past_due" || stripeStatus === "unpaid") {
+      logger.info("billing_change_plan_blocked_payment_issue", {
+        endpoint: "POST /api/billing/change-plan",
+        userId: String(user._id),
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: user.stripeSubscriptionId,
+        statusDb: dbStatus,
+        statusStripe: stripeStatus,
+        errorCode: "PAYMENT_ISSUE",
+        stripeRequestId,
+      });
+      return NextResponse.json(
+        {
+          error: "Pagamento pendente. Atualize o método de pagamento antes de trocar de plano.",
+          code: "PAYMENT_ISSUE",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (stripeStatus === "incomplete" || stripeStatus === "incomplete_expired") {
+      logger.info("billing_change_plan_blocked_incomplete", {
+        endpoint: "POST /api/billing/change-plan",
+        userId: String(user._id),
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: user.stripeSubscriptionId,
+        statusDb: dbStatus,
+        statusStripe: stripeStatus,
+        errorCode: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE",
+        stripeRequestId,
+      });
+      return NextResponse.json(
+        {
+          error:
+            "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa antes de trocar de plano.",
+          code: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (stripeStatus === "canceled") {
+      logger.info("billing_change_plan_blocked_canceled", {
+        endpoint: "POST /api/billing/change-plan",
+        userId: String(user._id),
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: user.stripeSubscriptionId,
+        statusDb: dbStatus,
+        statusStripe: stripeStatus,
+        errorCode: "SUBSCRIPTION_NOT_ACTIVE",
+        stripeRequestId,
+      });
+      return NextResponse.json(
+        {
+          error: "Assinatura cancelada. Assine novamente para escolher um novo plano.",
+          code: "SUBSCRIPTION_NOT_ACTIVE",
+        },
+        { status: 409 }
+      );
+    }
 
     /** ---------------- Guard mínimo: bloquear mudança durante trial ---------------- */
     const trialEndFromStripe: number | null =
@@ -96,7 +186,38 @@ export async function POST(req: Request) {
     /** -------- NOVO GUARD: cancelar/encerramento agendado bloqueia mudança ---------- */
     const cancelAtPeriodEndStripe = Boolean((sub as any)?.cancel_at_period_end);
     const cancelAtPeriodEndDb = Boolean((user as any)?.cancelAtPeriodEnd);
-    if (cancelAtPeriodEndStripe || cancelAtPeriodEndDb || sub?.status === "canceled") {
+    const isActiveEligible = stripeStatus === "active" || stripeStatus === "trialing";
+    if (!isActiveEligible) {
+      logger.info("billing_change_plan_blocked_not_active", {
+        endpoint: "POST /api/billing/change-plan",
+        userId: String(user._id),
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: user.stripeSubscriptionId,
+        statusDb: dbStatus,
+        statusStripe: stripeStatus,
+        errorCode: "SUBSCRIPTION_NOT_ACTIVE",
+        stripeRequestId,
+      });
+      return NextResponse.json(
+        {
+          error: "Assinatura inativa. Assine novamente para escolher um novo plano.",
+          code: "SUBSCRIPTION_NOT_ACTIVE",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (cancelAtPeriodEndStripe || cancelAtPeriodEndDb) {
+      logger.info("billing_change_plan_blocked_cancel_scheduled", {
+        endpoint: "POST /api/billing/change-plan",
+        userId: String(user._id),
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: user.stripeSubscriptionId,
+        statusDb: dbStatus,
+        statusStripe: stripeStatus,
+        errorCode: "CANCELLED_CHANGE_LOCKED",
+        stripeRequestId,
+      });
       return NextResponse.json(
         {
           error: "Troca de plano indisponível com cancelamento agendado. Reative a assinatura para alterar o plano.",
@@ -180,6 +301,17 @@ export async function POST(req: Request) {
       const pi: any = latestInvoice?.payment_intent;
       const clientSecret: string | null = pi?.client_secret ?? null;
 
+      logger.info("billing_change_plan_now", {
+        endpoint: "POST /api/billing/change-plan",
+        userId: String(user._id),
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: updated.id,
+        statusDb: dbStatus,
+        statusStripe: updated.status ?? null,
+        errorCode: null,
+        stripeRequestId: (updated as any)?.lastResponse?.requestId ?? null,
+      });
+
       return NextResponse.json({
         ok: true,
         when: "now",
@@ -221,6 +353,17 @@ export async function POST(req: Request) {
       end_behavior: "release",
       phases,
     } as any);
+
+    logger.info("billing_change_plan_scheduled", {
+      endpoint: "POST /api/billing/change-plan",
+      userId: String(user._id),
+      customerId: (user as any).stripeCustomerId ?? null,
+      subscriptionId: sub.id,
+      statusDb: dbStatus,
+      statusStripe: stripeStatus,
+      errorCode: null,
+      stripeRequestId: (updatedSchedule as any)?.lastResponse?.requestId ?? null,
+    });
 
     return NextResponse.json({
       ok: true,

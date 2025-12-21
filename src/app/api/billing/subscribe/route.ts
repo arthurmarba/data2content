@@ -157,6 +157,30 @@ export async function POST(req: NextRequest) {
         { status: 429 }
       );
     }
+    const { allowed: lockAllowed } = await checkRateLimit(
+      `subscribe_lock:${session.user.id}`,
+      1,
+      15
+    );
+    if (!lockAllowed) {
+      logger.info("billing_subscribe_locked", {
+        endpoint: "POST /api/billing/subscribe",
+        userId: session.user.id,
+        customerId: null,
+        subscriptionId: null,
+        statusDb: null,
+        statusStripe: null,
+        errorCode: "BILLING_IN_PROGRESS",
+        stripeRequestId: null,
+      });
+      return NextResponse.json(
+        {
+          code: "BILLING_IN_PROGRESS",
+          message: "Já existe uma tentativa de assinatura em andamento. Aguarde alguns segundos.",
+        },
+        { status: 409 }
+      );
+    }
 
     const body = await req.json();
     const plan: Plan = String(body.plan || "").toLowerCase() as Plan;
@@ -183,7 +207,9 @@ export async function POST(req: NextRequest) {
         userId,
         customerId: (user as any).stripeCustomerId ?? null,
         subscriptionId: (user as any).stripeSubscriptionId ?? null,
-        status: dbStatus,
+        statusDb: dbStatus,
+        statusStripe: null,
+        errorCode: "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN",
         stripeRequestId: null,
       });
       return NextResponse.json(
@@ -203,7 +229,9 @@ export async function POST(req: NextRequest) {
         userId,
         customerId: (user as any).stripeCustomerId ?? null,
         subscriptionId: (user as any).stripeSubscriptionId ?? null,
-        status: dbStatus || "non_renewing",
+        statusDb: dbStatus || "non_renewing",
+        statusStripe: null,
+        errorCode: "SUBSCRIPTION_NON_RENEWING_DB",
         stripeRequestId: null,
       });
       return NextResponse.json(
@@ -211,6 +239,50 @@ export async function POST(req: NextRequest) {
           code: "SUBSCRIPTION_NON_RENEWING_DB",
           message:
             "Sua assinatura está com cancelamento agendado. Reative em Billing antes de assinar novamente.",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (dbStatus === "past_due" || dbStatus === "unpaid") {
+      logger.info("billing_subscribe_blocked_db_payment_issue", {
+        endpoint: "POST /api/billing/subscribe",
+        userId,
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: (user as any).stripeSubscriptionId ?? null,
+        statusDb: dbStatus,
+        statusStripe: null,
+        errorCode: "PAYMENT_ISSUE",
+        stripeRequestId: null,
+      });
+      return NextResponse.json(
+        {
+          code: "PAYMENT_ISSUE",
+          message:
+            "Seu pagamento está pendente. Atualize o método de pagamento no portal de cobrança antes de assinar novamente.",
+          subscriptionId: (user as any).stripeSubscriptionId ?? null,
+        },
+        { status: 409 }
+      );
+    }
+
+    if (dbStatus === "pending" || dbStatus === "incomplete" || dbStatus === "incomplete_expired") {
+      logger.info("billing_subscribe_blocked_db_pending", {
+        endpoint: "POST /api/billing/subscribe",
+        userId,
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: (user as any).stripeSubscriptionId ?? null,
+        statusDb: dbStatus,
+        statusStripe: null,
+        errorCode: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE",
+        stripeRequestId: null,
+      });
+      return NextResponse.json(
+        {
+          code: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE",
+          message:
+            "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa em Billing.",
+          subscriptionId: (user as any).stripeSubscriptionId ?? null,
         },
         { status: 409 }
       );
@@ -254,7 +326,9 @@ export async function POST(req: NextRequest) {
         userId,
         customerId,
         subscriptionId: delinquentSub.id,
-        status: delinquentSub.status,
+        statusDb: dbStatus || null,
+        statusStripe: delinquentSub.status,
+        errorCode: "PAYMENT_ISSUE",
         stripeRequestId: getStripeRequestId(subsList),
       });
       return NextResponse.json(
@@ -274,7 +348,9 @@ export async function POST(req: NextRequest) {
         userId,
         customerId,
         subscriptionId: nonRenewingSub.id,
-        status: nonRenewingSub.status,
+        statusDb: dbStatus || null,
+        statusStripe: nonRenewingSub.status,
+        errorCode: "SUBSCRIPTION_NON_RENEWING",
         stripeRequestId: getStripeRequestId(subsList),
       });
       return NextResponse.json(
@@ -294,7 +370,9 @@ export async function POST(req: NextRequest) {
         userId,
         customerId,
         subscriptionId: activeSub.id,
-        status: activeSub.status,
+        statusDb: dbStatus || null,
+        statusStripe: activeSub.status,
+        errorCode: "SUBSCRIPTION_ACTIVE",
         stripeRequestId: getStripeRequestId(subsList),
       });
       return NextResponse.json(
@@ -313,12 +391,14 @@ export async function POST(req: NextRequest) {
         userId,
         customerId,
         subscriptionId: incompleteSub.id,
-        status: incompleteSub.status,
+        statusDb: dbStatus || null,
+        statusStripe: incompleteSub.status,
+        errorCode: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE",
         stripeRequestId: getStripeRequestId(subsList),
       });
       return NextResponse.json(
         {
-          code: "SUBSCRIPTION_INCOMPLETE",
+          code: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE",
           message: "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa em Billing.",
           subscriptionId: incompleteSub.id,
         },
@@ -326,124 +406,81 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let existing: Stripe.Subscription | null = null;
-    if (user.stripeSubscriptionId) {
-      try {
-        existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-      } catch { /* ignore */ }
-    }
-    if (!existing) {
-      const reuse = subsList.data.find(
-        (s) =>
-          s.items.data.some((i) => i.price.id === priceId) &&
-          s.status !== "incomplete_expired"
-      );
-      if (reuse) existing = reuse;
-    }
-
     let sub: Stripe.Subscription;
     let affiliateOwner: any = null;
     let discounts: Stripe.SubscriptionCreateParams.Discount[] | undefined = undefined;
-    const currentItem = existing?.items?.data?.[0];
-    const isUpgrade = Boolean(existing && ["active", "trialing"].includes(existing.status) && currentItem);
 
-    if (isUpgrade && existing && currentItem) {
-      // --- FLUXO DE UPGRADE/DOWNGRADE ---
-      const currentPriceId =
-        currentItem.price?.id ||
-        (currentItem as any)?.plan?.id ||
-        null;
-
-      // Evita reancorar/cobrar se já está no mesmo price
-      if (currentPriceId && currentPriceId === priceId) {
-        return NextResponse.json({
-          ok: true,
-          noop: true,
-          subscriptionId: existing.id,
-          message: "Sua assinatura já está nesse plano.",
-        });
-      }
-
-      const itemId = currentItem.id;
-      sub = await stripe.subscriptions.update(existing.id, {
-        items: [{ id: itemId, price: priceId }],
-        payment_behavior: "pending_if_incomplete",
-        proration_behavior: "none",
-        expand: ["latest_invoice.payment_intent"],
-      });
-    } else {
-      // --- FLUXO DE NOVA ASSINATURA ---
-      if (affiliateCode) {
-        affiliateOwner = await User.findOne({ affiliateCode }).select("_id affiliateCode").lean();
-      }
-
-      if (affiliateOwner) {
-        if (String(affiliateOwner._id) === String(user._id)) {
-          return NextResponse.json(
-            { code: "SELF_REFERRAL", message: "Você não pode usar seu próprio código." },
-            { status: 400 }
-          );
-        }
-        
-        // --- INÍCIO DA CORREÇÃO 1 (COMISSÃO) ---
-        // Atribui e salva a afiliação ANTES de criar a assinatura no Stripe
-        if (!user.affiliateUsed) {
-          user.affiliateUsed = affiliateCode!;
-          await user.save(); // Garante que o dado esteja no DB para o webhook
-        }
-        // --- FIM DA CORREÇÃO 1 ---
-
-        const couponEnv =
-          currency === "BRL"
-            ? process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL
-            : process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD;
-
-        if (!couponEnv) {
-          return NextResponse.json(
-            {
-              code: "AFFILIATE_COUPON_MISSING",
-              message: "Cupom de afiliado não configurado. Contate o suporte.",
-            },
-            { status: 500 }
-          );
-        }
-        discounts = [{ coupon: couponEnv }];
-      } else if (typedCode) {
-        const manual = await resolveManualDiscountFields(typedCode);
-        if (!manual) {
-          return NextResponse.json(
-            { code: "INVALID_CODE", message: "Código inválido ou expirado." },
-            { status: 422 }
-          );
-        }
-        discounts = manual.discounts;
-      }
-
-      const metadata: Record<string, string> = { userId: String(user._id), plan };
-      if (affiliateOwner && affiliateCode) {
-        metadata.affiliateCode = affiliateCode;
-        metadata.affiliate_user_id = String(affiliateOwner._id);
-        if (source) metadata.attribution_source = String(source);
-      }
-
-      sub = await stripe.subscriptions.create({
-        customer: customerId!,
-        items: [{ price: priceId }],
-        payment_behavior: "default_incomplete",
-        expand: ["latest_invoice.payment_intent"],
-        metadata,
-        ...(discounts ? { discounts } : {}),
-      }, {
-        idempotencyKey: buildIdempotencyKey({
-          scope: "sub_create",
-          userId: String(user._id),
-          priceId,
-          plan,
-          currency,
-          affiliateCode,
-        }),
-      });
+    // --- FLUXO DE NOVA ASSINATURA ---
+    if (affiliateCode) {
+      affiliateOwner = await User.findOne({ affiliateCode }).select("_id affiliateCode").lean();
     }
+
+    if (affiliateOwner) {
+      if (String(affiliateOwner._id) === String(user._id)) {
+        return NextResponse.json(
+          { code: "SELF_REFERRAL", message: "Você não pode usar seu próprio código." },
+          { status: 400 }
+        );
+      }
+
+      // --- INÍCIO DA CORREÇÃO 1 (COMISSÃO) ---
+      // Atribui e salva a afiliação ANTES de criar a assinatura no Stripe
+      if (!user.affiliateUsed) {
+        user.affiliateUsed = affiliateCode!;
+        await user.save(); // Garante que o dado esteja no DB para o webhook
+      }
+      // --- FIM DA CORREÇÃO 1 ---
+
+      const couponEnv =
+        currency === "BRL"
+          ? process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL
+          : process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD;
+
+      if (!couponEnv) {
+        return NextResponse.json(
+          {
+            code: "AFFILIATE_COUPON_MISSING",
+            message: "Cupom de afiliado não configurado. Contate o suporte.",
+          },
+          { status: 500 }
+        );
+      }
+      discounts = [{ coupon: couponEnv }];
+    } else if (typedCode) {
+      const manual = await resolveManualDiscountFields(typedCode);
+      if (!manual) {
+        return NextResponse.json(
+          { code: "INVALID_CODE", message: "Código inválido ou expirado." },
+          { status: 422 }
+        );
+      }
+      discounts = manual.discounts;
+    }
+
+    const metadata: Record<string, string> = { userId: String(user._id), plan };
+    if (affiliateOwner && affiliateCode) {
+      metadata.affiliateCode = affiliateCode;
+      metadata.affiliate_user_id = String(affiliateOwner._id);
+      if (source) metadata.attribution_source = String(source);
+    }
+
+    sub = await stripe.subscriptions.create({
+      customer: customerId!,
+      items: [{ price: priceId }],
+      payment_behavior: "default_incomplete",
+      expand: ["latest_invoice.payment_intent"],
+      metadata,
+      ...(discounts ? { discounts } : {}),
+    }, {
+      idempotencyKey: buildIdempotencyKey({
+        scope: "sub_create",
+        userId: String(user._id),
+        priceId,
+        plan,
+        currency,
+        affiliateCode,
+      }),
+    });
 
     let clientSecret = await extractClientSecretFromSubscription(sub);
     let refreshed: Stripe.Subscription | null = null;
@@ -469,7 +506,9 @@ export async function POST(req: NextRequest) {
           userId,
           customerId,
           subscriptionId: sub.id,
-          status: sub.status,
+          statusDb: (user as any).planStatus ?? null,
+          statusStripe: sub.status,
+          errorCode: "SUBSCRIBE_NO_PAYMENT_INTENT",
           stripeRequestId: getStripeRequestId(refreshed ?? sub),
         });
         return NextResponse.json(
@@ -482,9 +521,7 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        if (!isUpgrade) {
-          await stripe.subscriptions.cancel(sub.id);
-        }
+        await stripe.subscriptions.cancel(sub.id);
       } catch { /* noop */ }
 
       const successUrl = `${process.env.NEXTAUTH_URL}/dashboard/billing/thanks?session_id={CHECKOUT_SESSION_ID}`;
@@ -552,29 +589,17 @@ export async function POST(req: NextRequest) {
         ? new Date(currentPeriodEndSec * 1000)
         : null;
 
-    const statusForDb = !isUpgrade
-      ? (sub.status === "incomplete" ? "pending" : (sub.status as any))
-      : null;
+    const statusForDb = sub.status === "incomplete" ? "pending" : (sub.status as any);
 
-    if (!isUpgrade) {
-      user.planStatus = statusForDb as any;
-    }
+    user.planStatus = statusForDb as any;
     user.planType = plan;
     user.planInterval = planInterval;
     user.stripePriceId = priceId;
     user.cancelAtPeriodEnd = false;
-    if (!isUpgrade) {
-      user.planExpiresAt = resolvedExpiresAt;
-    } else if (resolvedExpiresAt) {
-      user.planExpiresAt = resolvedExpiresAt;
-    }
+    user.planExpiresAt = resolvedExpiresAt;
     (user as any).lastPaymentError = null;
 
-    if (clientSecret) {
-      user.stripeSubscriptionId = sub.id;
-    } else if (!isUpgrade) {
-      user.stripeSubscriptionId = null;
-    }
+    user.stripeSubscriptionId = clientSecret ? sub.id : null;
 
     await user.save();
 
@@ -583,7 +608,9 @@ export async function POST(req: NextRequest) {
       userId,
       customerId,
       subscriptionId: clientSecret ? sub.id : null,
-      status: statusForDb ?? (user as any).planStatus ?? null,
+      statusDb: statusForDb ?? (user as any).planStatus ?? null,
+      statusStripe: sub.status ?? null,
+      errorCode: null,
       stripeRequestId: clientSecret ? getStripeRequestId(refreshed ?? sub) : checkoutRequestId,
     });
 

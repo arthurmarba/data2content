@@ -49,7 +49,9 @@ export async function POST(req: NextRequest) {
         userId: String(user._id),
         customerId: null,
         subscriptionId: null,
-        status: (user as any).planStatus ?? null,
+        statusDb: (user as any).planStatus ?? null,
+        statusStripe: null,
+        errorCode: null,
         stripeRequestId: null,
       });
       return NextResponse.json({ ok: true, cleaned: [], status: "no_customer" });
@@ -69,7 +71,9 @@ export async function POST(req: NextRequest) {
             userId: String(user._id),
             customerId,
             subscriptionId: sub.id,
-            status: sub.status,
+            statusDb: (user as any).planStatus ?? null,
+            statusStripe: sub.status,
+            errorCode: null,
             stripeRequestId: (sub as any)?.lastResponse?.requestId ?? null,
           });
         }
@@ -128,7 +132,9 @@ export async function POST(req: NextRequest) {
         userId: String(user._id),
         customerId,
         subscriptionId: pick.id,
-        status: (pick as any).status,
+        statusDb: (user as any).planStatus ?? null,
+        statusStripe: (pick as any).status ?? null,
+        errorCode: null,
         stripeRequestId: (pick as any)?.lastResponse?.requestId ?? null,
       });
 
@@ -152,7 +158,9 @@ export async function POST(req: NextRequest) {
     userId: String(user._id),
     customerId,
     subscriptionId: null,
-    status: (user as any).planStatus ?? null,
+    statusDb: (user as any).planStatus ?? null,
+    statusStripe: null,
+    errorCode: null,
     stripeRequestId: null,
   });
 

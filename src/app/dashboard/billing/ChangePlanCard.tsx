@@ -231,6 +231,18 @@ export default function ChangePlanCard() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data?.code === "PAYMENT_ISSUE") {
+          throw new Error(data?.error || "Pagamento pendente. Atualize o método de pagamento antes de trocar de plano.");
+        }
+        if (data?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE") {
+          throw new Error(data?.error || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
+        }
+        if (data?.code === "SUBSCRIPTION_NOT_ACTIVE") {
+          throw new Error(data?.error || "Assinatura inativa. Assine novamente para escolher um novo plano.");
+        }
+        if (data?.code === "BILLING_IN_PROGRESS") {
+          throw new Error(data?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
+        }
         if (res.status === 409 && (data?.code === "TRIAL_CHANGE_LOCKED" || data?.code === "CANCELLED_CHANGE_LOCKED")) {
           if (data.code === "TRIAL_CHANGE_LOCKED") showTrialLockedToast();
           else showCancelLockedToast();
@@ -292,8 +304,20 @@ export default function ChangePlanCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toPlan: newPlan }),
       });
-      const data = (await res.json()) as PreviewData & { error?: string; code?: string };
+      const data = (await res.json()) as PreviewData & { error?: string; code?: string; message?: string };
       if (!res.ok) {
+        if (data?.code === "PAYMENT_ISSUE") {
+          throw new Error(data?.error || "Pagamento pendente. Atualize o método de pagamento antes de trocar de plano.");
+        }
+        if (data?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE") {
+          throw new Error(data?.error || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
+        }
+        if (data?.code === "SUBSCRIPTION_NOT_ACTIVE") {
+          throw new Error(data?.error || "Assinatura inativa. Assine novamente para escolher um novo plano.");
+        }
+        if (data?.code === "BILLING_IN_PROGRESS") {
+          throw new Error(data?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
+        }
         if (res.status === 409 && (data?.code === "TRIAL_CHANGE_LOCKED" || data?.code === "CANCELLED_CHANGE_LOCKED")) {
           if (data.code === "TRIAL_CHANGE_LOCKED") showTrialLockedToast();
           else showCancelLockedToast();

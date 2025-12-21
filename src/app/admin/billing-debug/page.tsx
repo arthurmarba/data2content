@@ -15,6 +15,9 @@ export default function BillingDebugPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DebugResponse | null>(null);
+  const [actionLoading, setActionLoading] = useState<"reconcile" | "abort" | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionOk, setActionOk] = useState<string | null>(null);
 
   const fetchDebug = async () => {
     const q = query.trim();
@@ -41,6 +44,63 @@ export default function BillingDebugPage() {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const userId =
+    typeof data?.db?.userId === "string" ? (data?.db?.userId as string) : null;
+  const planStatus =
+    typeof data?.db?.planStatus === "string" ? (data?.db?.planStatus as string) : null;
+  const canAbort =
+    planStatus === "pending" || planStatus === "incomplete" || planStatus === "incomplete_expired";
+
+  const runReconcile = async () => {
+    if (!userId) return;
+    setActionLoading("reconcile");
+    setActionError(null);
+    setActionOk(null);
+    try {
+      const res = await fetch("/api/admin/billing/reconcile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setActionError(body?.error || "Falha ao reconciliar.");
+        return;
+      }
+      setActionOk("Reconciliação concluída.");
+      await fetchDebug();
+    } catch (err: any) {
+      setActionError(err?.message || "Erro ao reconciliar.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const runAbort = async () => {
+    if (!userId) return;
+    setActionLoading("abort");
+    setActionError(null);
+    setActionOk(null);
+    try {
+      const res = await fetch("/api/admin/billing/abort", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setActionError(body?.error || "Falha ao abortar tentativa.");
+        return;
+      }
+      setActionOk("Tentativa abortada.");
+      await fetchDebug();
+    } catch (err: any) {
+      setActionError(err?.message || "Erro ao abortar.");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -92,6 +152,30 @@ export default function BillingDebugPage() {
         {data?.stripeRequestId && (
           <p className="mt-3 text-xs text-gray-500">stripeRequestId: {data.stripeRequestId}</p>
         )}
+        {userId && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={runReconcile}
+              disabled={actionLoading !== null}
+              className="rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
+            >
+              {actionLoading === "reconcile" ? "Reconciliando..." : "Reconciliar"}
+            </button>
+            {canAbort && (
+              <button
+                type="button"
+                onClick={runAbort}
+                disabled={actionLoading !== null}
+                className="rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
+              >
+                {actionLoading === "abort" ? "Abortando..." : "Abortar tentativa"}
+              </button>
+            )}
+          </div>
+        )}
+        {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
+        {actionOk && <p className="mt-3 text-sm text-emerald-600">{actionOk}</p>}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

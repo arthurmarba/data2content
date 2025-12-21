@@ -252,8 +252,12 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
           setErr(data?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
           return;
         }
-        if (data?.code === "SUBSCRIPTION_INCOMPLETE") {
+        if (data?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE" || data?.code === "SUBSCRIPTION_INCOMPLETE") {
           setErr(data?.message || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
+          return;
+        }
+        if (data?.code === "BILLING_IN_PROGRESS") {
+          setErr(data?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
           return;
         }
         if (data?.code === "SUBSCRIPTION_ACTIVE_DB" || data?.code === "SUBSCRIPTION_ACTIVE" || data?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
