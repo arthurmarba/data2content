@@ -1682,7 +1682,7 @@ export async function askLLMWithEnrichedContext(
                 'REQUISITO DE PERTINÊNCIA: Comece o Diagnóstico citando EXATAMENTE o ponto da pergunta do usuário (ex: "Para aumentar seu alcance...", "Sobre sua dúvida de horários..."). ' +
                 'Use EXCLUSIVAMENTE estes headers: ### Diagnóstico (curto), ### Plano Estratégico (passos práticos) e ### Próximo Passo (pergunta acionável). ' +
                 'ANTI-DESVIO: Priorize responder a dúvida central antes de sugerir ações de expansão. ' +
-                'Ao final da resposta, SEMPRE ofereça 2 botões de ação rápida no formato: `[BUTTON: Pergunta ou Ação]`.'
+                'Ao final da resposta, SEMPRE ofereça 2 botões de ação rápida no formato: `[BUTTON: ...]` com rótulos específicos do contexto (nunca use placeholders genéricos).'
         });
         initialMsgs.push({
             role: 'system',

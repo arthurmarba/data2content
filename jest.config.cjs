@@ -25,6 +25,7 @@ const customJestConfig = {
 
       // Mocks específicos devem vir antes do alias geral "@/"
       '^@/app/api/auth/\\[\\.\\.\\.nextauth\\]/route(\\.ts)?$': '<rootDir>/__mocks__/nextauth-route.js',
+      '^next-auth/providers/(.*)$': '<rootDir>/__mocks__/next-auth-provider.js',
       '^next-auth/?(.*)$': '<rootDir>/__mocks__/next-auth.js',
       '^next/headers$': '<rootDir>/__mocks__/next-headers.js',
       '^@/app/lib/aiService(?:\\.ts)?$': '<rootDir>/__mocks__/aiService.js',

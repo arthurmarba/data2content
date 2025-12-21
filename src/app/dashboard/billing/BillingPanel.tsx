@@ -31,7 +31,7 @@ export type BillingStatus = {
 export default function BillingPanel() {
   const [loading, setLoading] = useState(true);
   const [s, setS] = useState<BillingStatus | null>(null);
-  const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | null>(null);
+  const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | 'abort' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async (): Promise<void> => {
@@ -102,6 +102,21 @@ export default function BillingPanel() {
     await fetchStatus();
   };
 
+  const abortPending = async (): Promise<void> => {
+    const ok = confirm('Abortar tentativa pendente? Isso libera um novo checkout.');
+    if (!ok) return;
+    setDoing('abort');
+    const res = await fetch('/api/billing/abort', { method: 'POST' });
+    const data = await res.json();
+    setDoing(null);
+    if (!res.ok) {
+      toast.error(data?.message ?? data?.error ?? 'Falha ao abortar tentativa');
+      return;
+    }
+    toast.success('Tentativa cancelada. Você pode assinar novamente.');
+    await fetchStatus();
+  };
+
   if (loading && !s && !error) return <div className="text-sm text-muted-foreground">Carregando informações do plano…</div>;
 
   if (error) {
@@ -124,7 +139,7 @@ export default function BillingPanel() {
   const status: PlanStatus = s.planStatus ?? 'inactive';
   const intervalLabel = s.planInterval === 'year' ? 'Anual' : s.planInterval === 'month' ? 'Mensal' : null;
   const cancelable = (status === 'active' || status === 'trialing') && !s.cancelAtPeriodEnd;
-  const canReactivate = s.cancelAtPeriodEnd || status === 'non_renewing';
+  const canReactivate = s.cancelAtPeriodEnd === true;
   const portalBlockedStatuses: PlanStatus[] = ['pending', 'expired', 'incomplete', 'incomplete_expired'];
   const showPortal = (status === 'active' || status === 'non_renewing' || status === 'trialing' || status === 'past_due' || status === 'unpaid') && !portalBlockedStatuses.includes(status);
   const needsCheckout = ['pending', 'incomplete', 'incomplete_expired'].includes(status);
@@ -143,7 +158,7 @@ export default function BillingPanel() {
       break;
     case 'past_due':
     case 'unpaid':
-      statusDescription = <>Pagamento pendente • atualize seu método de pagamento.</>;
+      statusDescription = <>Cartão recusado • atualize seu método de pagamento.</>;
       break;
     case 'incomplete':
       statusDescription = <>Pagamento não finalizado • conclua o checkout para ativar.</>;
@@ -191,7 +206,11 @@ export default function BillingPanel() {
           )}
           {showPortal && (
             <button onClick={openPortal} disabled={doing === 'portal'} className="px-3 py-2 rounded-lg border hover:bg-muted">
-              {doing === 'portal' ? 'Abrindo…' : 'Gerenciar pagamento'}
+              {doing === 'portal'
+                ? 'Abrindo…'
+                : status === 'past_due' || status === 'unpaid'
+                ? 'Atualizar pagamento'
+                : 'Gerenciar pagamento'}
             </button>
           )}
         </div>
@@ -200,13 +219,22 @@ export default function BillingPanel() {
       {(needsCheckout || showSubscribeCta) && (
         <div className="flex flex-col gap-2 text-sm">
           {needsCheckout && (
-            <a href="/dashboard/billing/checkout" className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
-              Retomar pagamento
-            </a>
+            <>
+              <a href="/dashboard/billing/checkout" className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
+                Retomar pagamento
+              </a>
+              <button
+                onClick={abortPending}
+                disabled={doing === 'abort'}
+                className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-60"
+              >
+                {doing === 'abort' ? 'Abortando…' : 'Abortar tentativa'}
+              </button>
+            </>
           )}
           {showSubscribeCta && (
             <a href="/pricing" className="inline-flex items-center px-3 py-2 rounded-lg bg-black text-white hover:opacity-90">
-              Assinar agora
+              {status === 'canceled' ? 'Assinar novamente' : 'Assinar agora'}
             </a>
           )}
         </div>

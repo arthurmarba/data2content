@@ -24,6 +24,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
+    needsPaymentAction,
   } = useBillingStatus();
 
   const current = useMemo(() => {
@@ -142,7 +143,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       <div className="grid grid-cols-1 gap-2">
         <button
           onClick={handleSubscribe}
-          disabled={loading || !current || hasPremiumAccess || billingStatusLoading}
+          disabled={loading || !current || hasPremiumAccess || needsPaymentAction || billingStatusLoading}
           className="w-full rounded-xl bg-black px-4 py-2 sm:py-3 text-white disabled:opacity-50"
         >
           {loading ? "Iniciando…" : "Assinar agora"}
@@ -155,6 +156,11 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       {hasPremiumAccess && !billingStatusLoading && (
         <p className="mt-1 text-center text-xs text-gray-600">
           Você já possui um plano ativo.
+        </p>
+      )}
+      {needsPaymentAction && !billingStatusLoading && (
+        <p className="mt-1 text-center text-xs text-amber-700">
+          Existe um pagamento pendente. Atualize o método de pagamento em Billing.
         </p>
       )}
     </div>

@@ -1,16 +1,18 @@
 // src/app/api/billing/reactivate/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { connectToDatabase } from '@/app/lib/mongoose'
 import User from '@/app/models/User'
 import Stripe from 'stripe'
 import { stripe } from '@/app/lib/stripe'
+import { logger } from '@/app/lib/logger'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const cacheHeader = { 'Cache-Control': 'no-store, max-age=0' } as const
+
+type SessionWithUserId = { user?: { id?: string | null } } | null
 
 type UiPlanStatus =
   | 'pending'
@@ -19,6 +21,14 @@ type UiPlanStatus =
   | 'inactive'
   | 'trial'
   | 'expired'
+
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === 'test') {
+    return {} as any
+  }
+  const mod = await import('@/app/api/auth/[...nextauth]/route')
+  return mod.authOptions as any
+}
 
 /** Rótulo para a UI (sem non_renewing; isso agora é um flag separado) */
 function toUiPlanStatus(s: string): UiPlanStatus {
@@ -67,7 +77,8 @@ function resolvePlanExpiresAt(sub: Stripe.Subscription): Date | null {
 
 export async function POST() {
   try {
-    const session = await getServerSession(authOptions)
+    const authOptions = await loadAuthOptions()
+    const session = (await getServerSession(authOptions as any)) as SessionWithUserId
     if (!session?.user?.id) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401, headers: cacheHeader })
     }
@@ -86,19 +97,49 @@ export async function POST() {
     const currentStatus = (current as any).status as string | undefined
     // Casos não reativáveis
     if (currentStatus === 'canceled' || currentStatus === 'incomplete_expired') {
+      logger.info('billing_reactivate_blocked', {
+        endpoint: 'POST /api/billing/reactivate',
+        userId: String(user._id),
+        subscriptionId: user.stripeSubscriptionId,
+        status: currentStatus,
+        stripeRequestId: (current as any)?.lastResponse?.requestId ?? null,
+      })
       return NextResponse.json(
-        { ok: false, message: 'Subscription is not reactivatable (canceled or expired).' },
-        { status: 400, headers: cacheHeader }
+        {
+          ok: false,
+          code: 'NOT_REACTIVATABLE_USE_SUBSCRIBE',
+          message: 'Assinatura cancelada definitivamente. Para voltar, faça uma nova assinatura.',
+        },
+        { status: 409, headers: cacheHeader }
       )
     }
 
-    // 2) Se estava marcado para cancelar no fim do ciclo, retira o cancelamento
+    // 2) Reativar só faz sentido se houver cancelamento agendado
     const needsFlip = Boolean((current as any).cancel_at_period_end)
+    if (!needsFlip) {
+      logger.info('billing_reactivate_not_scheduled', {
+        endpoint: 'POST /api/billing/reactivate',
+        userId: String(user._id),
+        subscriptionId: user.stripeSubscriptionId,
+        status: currentStatus ?? null,
+        stripeRequestId: (current as any)?.lastResponse?.requestId ?? null,
+      })
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'NOT_REACTIVATABLE_NOT_CANCELING',
+          message: 'Assinatura não está com cancelamento agendado.',
+        },
+        { status: 409, headers: cacheHeader }
+      )
+    }
+
+    // 3) Se estava marcado para cancelar no fim do ciclo, retira o cancelamento
     const updated = needsFlip
       ? await stripe.subscriptions.update(user.stripeSubscriptionId, { cancel_at_period_end: false }) as Stripe.Subscription
       : current
 
-    // 3) Persistência no DB (status REAL do Stripe)
+    // 4) Persistência no DB (status REAL do Stripe)
     const firstItem = updated.items?.data?.[0]
     const stripePriceId = firstItem?.price?.id ?? null
     const planInterval = getInterval(updated)
@@ -114,7 +155,15 @@ export async function POST() {
     user.cancelAtPeriodEnd = cancelAtPeriodEnd
     await user.save()
 
-    // 4) Resposta para UI (sem non_renewing; usar flag cancelAtPeriodEnd)
+    logger.info('billing_reactivate_success', {
+      endpoint: 'POST /api/billing/reactivate',
+      userId: String(user._id),
+      subscriptionId: updated.id,
+      status: updated.status,
+      stripeRequestId: (updated as any)?.lastResponse?.requestId ?? null,
+    })
+
+    // 5) Resposta para UI (sem non_renewing; usar flag cancelAtPeriodEnd)
     return NextResponse.json(
       {
         ok: true,

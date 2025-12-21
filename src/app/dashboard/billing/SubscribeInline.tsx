@@ -29,6 +29,7 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
+    needsPaymentAction,
   } = useBillingStatus();
 
   const priceShown = plan === 'monthly' ? prices.monthly[currency] : prices.annual[currency];
@@ -52,6 +53,16 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       }
       if (!res.ok && body?.code === 'SELF_REFERRAL') {
         setCodeError(body?.message ?? 'Você não pode usar seu próprio código.');
+        setLoading(false);
+        return;
+      }
+      if (!res.ok && body?.code === 'PAYMENT_ISSUE') {
+        setError(body?.message ?? 'Pagamento pendente. Atualize o método de pagamento no Billing.');
+        setLoading(false);
+        return;
+      }
+      if (!res.ok && (body?.code === 'SUBSCRIPTION_ACTIVE_DB' || body?.code === 'SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN')) {
+        setError(body?.message ?? 'Você já possui um plano ativo.');
         setLoading(false);
         return;
       }
@@ -137,12 +148,17 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       {hasPremiumAccess && !billingStatusLoading && (
         <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo.</p>
       )}
+      {needsPaymentAction && !billingStatusLoading && (
+        <p className="text-xs text-amber-700 text-center">
+          Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+        </p>
+      )}
 
       {/* Ações */}
       <div className="grid grid-cols-1 gap-3">
         <button
           onClick={handleStart}
-          disabled={loading || hasPremiumAccess || billingStatusLoading}
+          disabled={loading || hasPremiumAccess || needsPaymentAction || billingStatusLoading}
           className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50"
         >
           {loading ? 'Processando…' : 'Assinar agora'}

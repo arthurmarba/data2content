@@ -10,7 +10,8 @@ export default function AbortPendingButton() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
-  if (session?.user?.planStatus !== "pending") return null;
+  const planStatus = session?.user?.planStatus;
+  if (!["pending", "incomplete", "incomplete_expired"].includes(String(planStatus || ""))) return null;
 
   async function handleAbortPending() {
     event("select_content", {
@@ -45,4 +46,3 @@ export default function AbortPendingButton() {
     </div>
   );
 }
-

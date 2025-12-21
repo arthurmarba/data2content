@@ -46,6 +46,55 @@ const shouldSampleNormalization = (
     return bucket / 1000 < NORMALIZATION_SAMPLE_RATE_OTHER;
 };
 
+const isHttpUrl = (url?: string | null): url is string =>
+    typeof url === 'string' && /^https?:\/\//i.test(url.trim());
+
+const isInstagramPostUrl = (url?: string | null) => {
+    if (!isHttpUrl(url)) return false;
+    try {
+        const parsed = new URL(url.trim());
+        const host = parsed.hostname.replace(/^www\./, '');
+        if (!(host.endsWith('instagram.com') || host === 'instagr.am')) return false;
+        return /\/(p|reel|tv)\/[^/]+/i.test(parsed.pathname);
+    } catch {
+        return false;
+    }
+};
+
+const humanizeToken = (value?: string | null) => {
+    if (!value) return '';
+    const cleaned = value.replace(/[_-]+/g, ' ').trim();
+    if (!cleaned) return '';
+    return cleaned.replace(/\b\w/g, (match) => match.toUpperCase());
+};
+
+const toneLabel = (value?: string | null) => {
+    const tone = value?.toLowerCase();
+    if (!tone) return '';
+    const map: Record<string, string> = {
+        humorous: 'Humor',
+        inspirational: 'Inspiracional',
+        educational: 'Educativo',
+        critical: 'Crítico',
+        promotional: 'Promocional',
+        neutral: 'Neutro',
+    };
+    return map[tone] || humanizeToken(value);
+};
+
+const matchTypeLabel = (value?: string | null) => {
+    const match = value?.toLowerCase();
+    if (!match) return '';
+    const map: Record<string, string> = {
+        exact: 'Exato',
+        broad_context: 'Contexto semelhante',
+        proposal_only: 'Proposta semelhante',
+        context_only: 'Contexto semelhante',
+        unknown: 'Semelhante',
+    };
+    return map[match] || humanizeToken(value);
+};
+
 export const MessageBubble = React.memo(function MessageBubble({
     message,
     onUpsellClick,
@@ -208,11 +257,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 
     const resolvedRenderOptions = React.useMemo<RenderOptions>(() => {
         if (!renderOptions) {
-            return { cacheKey: message.messageId ?? null };
+            return { cacheKey: message.messageId ?? null, allowSuggestedActions: !isUser };
         }
         return {
             ...renderOptions,
             enableDisclosure: !isUser && renderOptions.enableDisclosure !== false,
+            allowSuggestedActions: !isUser && renderOptions.allowSuggestedActions !== false,
             cacheKey: message.messageId ?? null,
         };
     }, [renderOptions, isUser, message.messageId]);
@@ -225,55 +275,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             normalizedText: normalizedDisplayText ?? undefined,
             onSendPrompt: onSendPrompt,
         });
-    }, [labelSafeText, isUser, normalizedDisplayText, resolvedRenderOptions, shouldRenderMarkdown]);
-
-    const isHttpUrl = (url?: string | null): url is string =>
-        typeof url === 'string' && /^https?:\/\//i.test(url.trim());
-    const isInstagramPostUrl = (url?: string | null) => {
-        if (!isHttpUrl(url)) return false;
-        try {
-            const parsed = new URL(url.trim());
-            const host = parsed.hostname.replace(/^www\./, '');
-            if (!(host.endsWith('instagram.com') || host === 'instagr.am')) return false;
-            return /\/(p|reel|tv)\/[^/]+/i.test(parsed.pathname);
-        } catch {
-            return false;
-        }
-    };
-
-    const humanizeToken = (value?: string | null) => {
-        if (!value) return '';
-        const cleaned = value.replace(/[_-]+/g, ' ').trim();
-        if (!cleaned) return '';
-        return cleaned.replace(/\b\w/g, (match) => match.toUpperCase());
-    };
-
-    const toneLabel = (value?: string | null) => {
-        const tone = value?.toLowerCase();
-        if (!tone) return '';
-        const map: Record<string, string> = {
-            humorous: 'Humor',
-            inspirational: 'Inspiracional',
-            educational: 'Educativo',
-            critical: 'Crítico',
-            promotional: 'Promocional',
-            neutral: 'Neutro',
-        };
-        return map[tone] || humanizeToken(value);
-    };
-
-    const matchTypeLabel = (value?: string | null) => {
-        const match = value?.toLowerCase();
-        if (!match) return '';
-        const map: Record<string, string> = {
-            exact: 'Exato',
-            broad_context: 'Contexto semelhante',
-            proposal_only: 'Proposta semelhante',
-            context_only: 'Contexto semelhante',
-            unknown: 'Semelhante',
-        };
-        return map[match] || humanizeToken(value);
-    };
+    }, [labelSafeText, isUser, normalizedDisplayText, onSendPrompt, resolvedRenderOptions, shouldRenderMarkdown]);
 
     const linkAllowList = React.useMemo(() => {
         const links = new Set<string>();

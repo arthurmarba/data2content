@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 
 // 🔧 Tipo mínimo para evitar o erro de TS
 type SessionWithUserId = { user?: { id?: string | null } } | null;
+
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === "test") {
+    return {} as any;
+  }
+  const mod = await import("@/app/api/auth/[...nextauth]/route");
+  return mod.authOptions as any;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +25,7 @@ export async function POST(req: NextRequest) {
       subscriptionId?: string;
     };
 
+    const authOptions = await loadAuthOptions();
     const session = (await getServerSession(authOptions as any)) as SessionWithUserId;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
@@ -29,7 +38,20 @@ export async function POST(req: NextRequest) {
     const customerId = (user as any).stripeCustomerId;
     if (!customerId) {
       (user as any).planStatus = "inactive";
+      (user as any).stripeSubscriptionId = null;
+      (user as any).stripePriceId = null;
+      (user as any).planInterval = null;
+      (user as any).planExpiresAt = null;
+      (user as any).cancelAtPeriodEnd = false;
       await user.save();
+      logger.info("billing_abort_no_customer", {
+        endpoint: "POST /api/billing/abort",
+        userId: String(user._id),
+        customerId: null,
+        subscriptionId: null,
+        status: (user as any).planStatus ?? null,
+        stripeRequestId: null,
+      });
       return NextResponse.json({ ok: true, cleaned: [], status: "no_customer" });
     }
 
@@ -42,6 +64,14 @@ export async function POST(req: NextRequest) {
         if (sub && (sub.status === "incomplete" || sub.status === "incomplete_expired")) {
           await stripe.subscriptions.cancel(sub.id);
           cleaned.push(sub.id);
+          logger.info("billing_abort_cancelled_sub", {
+            endpoint: "POST /api/billing/abort",
+            userId: String(user._id),
+            customerId,
+            subscriptionId: sub.id,
+            status: sub.status,
+            stripeRequestId: (sub as any)?.lastResponse?.requestId ?? null,
+          });
         }
       } catch {
         // ignore id inválido/inesperado
@@ -93,6 +123,15 @@ export async function POST(req: NextRequest) {
       (user as any).planStatus = (pick as any).status;
       await user.save();
 
+      logger.info("billing_abort_reattached", {
+        endpoint: "POST /api/billing/abort",
+        userId: String(user._id),
+        customerId,
+        subscriptionId: pick.id,
+        status: (pick as any).status,
+        stripeRequestId: (pick as any)?.lastResponse?.requestId ?? null,
+      });
+
       return NextResponse.json({ ok: true, cleaned, reattachedSubscriptionId: pick.id });
     }
   } catch {
@@ -101,14 +140,21 @@ export async function POST(req: NextRequest) {
 
   // Reset local (sem assinatura válida encontrada)
   (user as any).planStatus = "inactive";
-  if ((user as any).stripeSubscriptionId && cleaned.includes((user as any).stripeSubscriptionId)) {
-    (user as any).stripeSubscriptionId = null;
-  }
+  (user as any).stripeSubscriptionId = null;
   (user as any).stripePriceId = null;
-  (user as any).planInterval = undefined;
+  (user as any).planInterval = null;
   (user as any).planExpiresAt = null;
   (user as any).cancelAtPeriodEnd = false;
   await user.save();
+
+  logger.info("billing_abort_reset", {
+    endpoint: "POST /api/billing/abort",
+    userId: String(user._id),
+    customerId,
+    subscriptionId: null,
+    status: (user as any).planStatus ?? null,
+    stripeRequestId: null,
+  });
 
   return NextResponse.json({ ok: true, cleaned });
   } catch (e: any) {

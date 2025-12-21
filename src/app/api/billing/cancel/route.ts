@@ -6,6 +6,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import Stripe from "stripe";
 import { stripe } from "@/app/lib/stripe";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -119,6 +120,15 @@ export async function POST() {
 
     await user.save();
 
+    logger.info("billing_cancel_success", {
+      endpoint: "POST /api/billing/cancel",
+      userId: String(user._id),
+      customerId: (user as any).stripeCustomerId ?? null,
+      subscriptionId: finalSubscription.id,
+      status: finalSubscription.status,
+      stripeRequestId: (finalSubscription as any)?.lastResponse?.requestId ?? null,
+    });
+
     return NextResponse.json(
       {
         ok: true,
@@ -136,7 +146,7 @@ export async function POST() {
   } catch (err: any) {
     const message = err?.message || "Cancel failed";
     const statusCode = typeof err?.statusCode === "number" ? err.statusCode : 500;
-    console.error("[billing/cancel] error:", message);
+    logger.error("[billing/cancel] error", err);
     return NextResponse.json(
       { ok: false, message },
       { status: statusCode, headers: cacheHeader }

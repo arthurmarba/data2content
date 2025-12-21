@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 
 import LandingHeader from "../landing/components/LandingHeader";
 import ButtonPrimary from "../landing/components/ButtonPrimary";
@@ -789,12 +790,15 @@ function CastingRankCard({
       <div className="px-3 sm:px-4">
         <div className="mt-3 overflow-hidden rounded-2xl bg-[#F7F8FB]">
           {creator.avatarUrl ? (
-            <img
-              src={creator.avatarUrl}
-              alt={`Avatar de ${creator.name}`}
-              className="aspect-square w-full object-cover"
-              loading="lazy"
-            />
+            <div className="relative aspect-square w-full">
+              <Image
+                src={creator.avatarUrl}
+                alt={`Avatar de ${creator.name}`}
+                fill
+                sizes="(max-width: 640px) 100vw, 260px"
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div className={`aspect-square w-full ${fallbackBg} flex items-center justify-center text-lg font-semibold text-white`}>
               {initials}

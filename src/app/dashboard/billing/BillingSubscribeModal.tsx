@@ -144,6 +144,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const billingStatusLoading = Boolean(billingStatus.isLoading);
   const hasPremiumAccess = Boolean(billingStatus.hasPremiumAccess);
   const isTrialActive = Boolean(billingStatus.isTrialActive);
+  const needsPaymentAction = Boolean(billingStatus.needsPaymentAction);
   const effectiveContext = context ?? "default";
   const paywallCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const bulletItems = paywallCopy.bullets && paywallCopy.bullets.length > 0 ? paywallCopy.bullets : FEATURES;
@@ -403,6 +404,9 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       if (hasPremiumAccess) {
         throw new Error("Você já possui um plano ativo ou em teste.");
       }
+      if (needsPaymentAction) {
+        throw new Error("Existe um pagamento pendente. Atualize o método de pagamento em Billing.");
+      }
       const payload = {
         plan: period,              // "monthly" | "annual"
         currency,                  // "brl" | "usd"
@@ -427,6 +431,12 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       }
 
       if (!response.ok) {
+        if (body?.code === "PAYMENT_ISSUE") {
+          throw new Error(body?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
+        }
+        if (body?.code === "SUBSCRIPTION_ACTIVE_DB" || body?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
+          throw new Error(body?.message || "Você já possui um plano ativo.");
+        }
         throw new Error(body?.error || body?.message || "Não foi possível iniciar o checkout.");
       }
 
@@ -714,6 +724,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                   loadingRedirect ||
                   hasPremiumAccess ||
                   isTrialActive ||
+                  needsPaymentAction ||
                   billingStatusLoading
                 }
                 className="w-full inline-flex items-center justify-center rounded-md bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -763,6 +774,11 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
               {(hasPremiumAccess || isTrialActive) && !billingStatusLoading && (
                 <p className="mt-2 text-center text-xs text-gray-600">
                   Você já possui um plano ativo ou em período de teste.
+                </p>
+              )}
+              {needsPaymentAction && !billingStatusLoading && (
+                <p className="mt-2 text-center text-xs text-amber-700">
+                  Existe um pagamento pendente. Atualize o método de pagamento em Billing.
                 </p>
               )}
             </div>

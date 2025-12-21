@@ -10,6 +10,7 @@ export type DiscoverCtaState =
   | "trial_active"
   | "plan_active"
   | "reactivate_plan"
+  | "payment_issue"
   | "subscribe";
 
 export type DiscoverCtaConfig = {
@@ -51,6 +52,7 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
     instagram,
     isLoading,
     isTrialActive,
+    needsPaymentAction,
     nextAction,
     trial,
     trialRemainingMs,
@@ -65,6 +67,7 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
     if (needsReconnect) return "instagram_reconnect";
     if (isTrialActive) return "trial_active";
     if (hasPremiumAccess) return "plan_active";
+    if (needsPaymentAction) return "payment_issue";
     if (nextAction === "reactivate") return "reactivate_plan";
     if (trialState === "eligible") return "subscribe";
     if (nextAction === "resubscribe") return "subscribe";
@@ -72,7 +75,7 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
       return "subscribe";
     }
     return "subscribe";
-  }, [hasPremiumAccess, instagramConnected, isTrialActive, needsReconnect, nextAction, trialState]);
+  }, [hasPremiumAccess, instagramConnected, isTrialActive, needsReconnect, needsPaymentAction, nextAction, trialState]);
 
   const countdownLabel = useMemo(() => formatCountdown(trialRemainingMs), [trialRemainingMs]);
 
@@ -113,6 +116,18 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
         step: 4,
         totalSteps,
         onPress: openSubscribeModal,
+          disabled: isLoading,
+        };
+      case "payment_issue":
+        return {
+          state,
+          kind: "action",
+          label: "Atualizar pagamento",
+          description: "Existe um pagamento pendente. Atualize seu método de pagamento para recuperar o acesso.",
+          stageLabel: "Pagamento pendente",
+          step: 4,
+          totalSteps,
+          href: "/dashboard/billing",
           disabled: isLoading,
         };
       case "subscribe":

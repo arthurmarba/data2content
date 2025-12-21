@@ -20,7 +20,6 @@ import { useAlerts } from "./hooks/useAlerts";
 import { AlertsDrawer } from "./components/chat/AlertsDrawer";
 import { useChatThreads } from "./components/chat/useChatThreads";
 import { useThreadSelection } from "./components/chat/useThreadSelection";
-import { DEFAULT_METRICS_FETCH_DAYS } from "@/app/lib/constants";
 import useCreatorProfileExtended from "@/hooks/useCreatorProfileExtended";
 import { track } from "@/lib/track";
 import type { RenderDensity } from "./components/chat/chatUtils";
@@ -176,7 +175,6 @@ export default function ChatPanel({
     inlineAlert,
     setInlineAlert,
     pendingAction,
-    currentTask,
     messagesEndRef,
     autoScrollOnNext,
     sendPrompt,
@@ -453,19 +451,6 @@ export default function ChatPanel({
     if (pendingAction.type === 'survey_update_request') return 'Atualize seu perfil (2 min) para respostas mais alinhadas.';
     return 'A IA sugeriu uma próxima ação. Deseja prosseguir?';
   })();
-  const TASK_NAME_MAPPING: Record<string, string> = {
-    content_plan: 'Criando Planejamento de Conteúdo',
-    pricing_analysis: 'Analisando Precificação',
-    market_analysis: 'Analisando Mercado',
-    competitor_analysis: 'Analisando Concorrência',
-    audience_analysis: 'Analisando Audiência',
-  };
-
-  const getFriendlyTaskName = (taskName: string) => {
-    return TASK_NAME_MAPPING[taskName] || `Processando: ${taskName}`;
-  };
-
-  const currentTaskLabel = currentTask?.name ? `Tarefa em andamento: ${getFriendlyTaskName(currentTask.name)}` : null;
 
   const isWelcome = messages.length === 0;
   const fullName = (session?.user?.name || "").trim();
@@ -624,17 +609,6 @@ export default function ChatPanel({
   }, [hasCoreSurvey, surveyUpdatedAt]);
 
   const surveyReminderLabel = !isAdmin && (surveyIsStale || !hasCoreSurvey) ? 'Atualizar pesquisa (2 min)' : null;
-
-  const surveyContextLabel = React.useMemo(() => {
-    if (!surveyProfile) return null;
-    const parts: string[] = [];
-    if (surveyProfile.mainGoal3m) parts.push(`meta: ${surveyProfile.mainGoal3m}`);
-    if (surveyProfile.niches?.length) parts.push(`nicho: ${surveyProfile.niches[0]}`);
-    if (surveyProfile.mainPlatformReasons?.length) parts.push(`motivo: ${surveyProfile.mainPlatformReasons[0]}`);
-    if (surveyProfile.stage?.length) parts.push(`etapa: ${surveyProfile.stage[0]}`);
-    if (!parts.length) return null;
-    return parts.join(' | ');
-  }, [surveyProfile]);
 
   const [csatVisible, setCsatVisible] = useState(false);
   const [csatScore, setCsatScore] = useState<number | null>(null);
@@ -931,47 +905,6 @@ export default function ChatPanel({
           </div>
         ) : (
           <div className="relative mx-auto max-w-6xl w-full pb-4">
-            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-gray-600">
-              <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                Contexto: {instagramConnected ? `métricas conectadas (últimos ${DEFAULT_METRICS_FETCH_DAYS} dias) + resumo recente` : 'respostas gerais — conecte o Instagram para personalizar'}
-              </span>
-              {currentTaskLabel ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-brand-primary/10 px-3 py-1 font-semibold text-brand-primary">
-                  <span className="h-2 w-2 rounded-full bg-brand-primary" aria-hidden />
-                  {currentTaskLabel}
-                </span>
-              ) : null}
-              <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">
-                <span className="h-2 w-2 rounded-full bg-gray-400" aria-hidden />
-                Perfil: {selectedTargetLabel || 'Meu perfil'}
-              </span>
-              {surveyContextLabel ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 border border-emerald-100">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
-                  {surveyContextLabel}
-                </span>
-              ) : null}
-              {surveyReminderLabel ? (
-                <button
-                  type="button"
-                  onClick={() => router.push('/#etapa-5-pesquisa')}
-                  className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700 hover:border-amber-300 hover:bg-amber-100 transition-colors"
-                >
-                  <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden />
-                  {surveyReminderLabel}
-                </button>
-              ) : null}
-              {!instagramConnected && !isAdmin ? (
-                <button
-                  type="button"
-                  onClick={handleCorrectInstagramLink}
-                  className="inline-flex items-center gap-2 rounded-full border border-brand-primary/30 px-3 py-1 font-semibold text-brand-primary hover:bg-brand-primary/10 transition-colors"
-                >
-                  Conectar Instagram agora
-                </button>
-              ) : null}
-            </div>
             {messages.length > 0 ? (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-gray-600">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1247,20 +1180,6 @@ export default function ChatPanel({
           </div>
         </div>
       ) : null}
-
-      {
-        currentTaskLabel ? (
-          <div className="px-4 pb-2">
-            <div className="mx-auto max-w-6xl rounded-2xl border border-dashed border-brand-primary/40 bg-white/80 px-4 py-3 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary">Modo tarefa</p>
-              <p className="text-sm font-semibold text-gray-800">{currentTaskLabel}</p>
-              {currentTask?.objective ? (
-                <p className="mt-1 text-xs text-gray-500 line-clamp-2">{currentTask.objective}</p>
-              ) : null}
-            </div>
-          </div>
-        ) : null
-      }
 
       {/* Composer — Fixed at bottom */}
       <div ref={inputWrapperRef}>

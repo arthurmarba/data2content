@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { stripe } from "@/app/lib/stripe";
 
 // Ensure this route is never statically generated during build
@@ -15,6 +17,11 @@ function entries<T extends string>(o: Record<T, string | undefined>) {
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const priceIds: Record<`${Plan}_${Currency}`, string | undefined> = {
       monthly_BRL: process.env.STRIPE_PRICE_MONTHLY_BRL,
       annual_BRL: process.env.STRIPE_PRICE_ANNUAL_BRL,

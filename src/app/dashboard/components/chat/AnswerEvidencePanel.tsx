@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { AnswerEvidence } from './types';
 import { track } from '@/lib/track';
 
@@ -282,7 +283,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
               <div key={post.id} className="flex items-start gap-3 rounded-lg border border-gray-100 bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)]" data-testid="chat-evidence-post">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 text-gray-500">
                   {post.thumbUrl ? (
-                    <img src={post.thumbUrl} alt="" className="h-full w-full object-cover" />
+                    <Image src={post.thumbUrl} alt="" width={48} height={48} className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-sm font-semibold">{idx + 1}</span>
                   )}

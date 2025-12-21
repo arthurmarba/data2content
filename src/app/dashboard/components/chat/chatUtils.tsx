@@ -19,6 +19,7 @@ export type RenderOptions = {
     onToggleDisclosure?: (payload: { title: string; open: boolean }) => void;
     onCopyCode?: (payload: { code: string; language?: string | null }) => void;
     onSendPrompt?: (prompt: string) => void | Promise<void>;
+    allowSuggestedActions?: boolean;
 };
 
 export type NormalizationStats = {
@@ -115,6 +116,51 @@ function stripLooseMarkers(value: string) {
         .replace(/\s{2,}/g, ' ')
         .trim();
 }
+
+const normalizeActionLabel = (value: string) => {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+};
+
+const isGenericActionLabel = (value: string) => {
+    const normalized = normalizeActionLabel(value);
+    if (!normalized) return true;
+    return normalized === 'pergunta ou acao';
+};
+
+const buildFallbackActions = (text: string) => {
+    const normalized = normalizeActionLabel(text);
+    if (!normalized) return [];
+
+    const pick = (...items: string[]) => items.filter(Boolean);
+    if (normalized.includes('roteiro')) {
+        return pick('Gerar roteiro completo', 'Criar legenda pronta');
+    }
+    if (normalized.includes('legenda')) {
+        return pick('Gerar legenda pronta', 'Criar variações da legenda');
+    }
+    if (normalized.includes('horario') || normalized.includes('melhor horario')) {
+        return pick('Ver melhores horários', 'Montar calendário semanal');
+    }
+    if (normalized.includes('calendario') || normalized.includes('plano')) {
+        return pick('Montar calendário semanal', 'Gerar 3 ideias extras');
+    }
+    if (normalized.includes('inspiracao') || normalized.includes('ideia')) {
+        return pick('Quero mais inspirações desse estilo', 'Transformar em roteiro');
+    }
+    if (normalized.includes('engaj') || normalized.includes('alcance') || normalized.includes('salvamento') || normalized.includes('compartilh')) {
+        return pick('Comparar últimos 30 dias', 'Ver top posts');
+    }
+    if (normalized.includes('publi') || normalized.includes('parceria') || normalized.includes('preco') || normalized.includes('negoci')) {
+        return pick('Simular preço da publi', 'Preparar resposta de negociação');
+    }
+    return pick('Quero um roteiro detalhado', 'Sugira próximos passos');
+};
 
 function normalizeHeading(value: string) {
     return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -593,7 +639,10 @@ const parseTextToBlocks = (text: string): Block[] => {
                 const candidate = (lines[j] ?? "").trim();
                 const m = candidate.match(/^\[(BUTTON|OPÇÃO):\s*([^\]]+)\]$/i);
                 if (!m) break;
-                actionItems.push(m[2]?.trim() || '');
+                const label = m[2]?.trim() || '';
+                if (!isGenericActionLabel(label)) {
+                    actionItems.push(label);
+                }
                 j++;
             }
             i = j - 1;
@@ -978,6 +1027,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
     const density = options.density ?? 'comfortable';
     const stepsStyle = options.stepsStyle ?? true;
     const allowDisclosure = options.enableDisclosure !== false;
+    const allowSuggestedActions = options.allowSuggestedActions !== false && typeof options.onSendPrompt === 'function';
 
     const hrClass = isInverse ? 'my-6 border-t border-white/30' : 'my-6 border-t border-gray-200/80';
     const blockquoteClass = isInverse
@@ -1046,6 +1096,15 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
     const { normalizedBlocks, disclosureBlocks } = getCachedBlocks(normalizedText, options.cacheKey);
     const blocksToRender = allowDisclosure ? disclosureBlocks : normalizedBlocks;
     const allowSectionCards = !isInverse;
+    const hasSuggestedActions = (blocks: Block[]): boolean => {
+        return blocks.some((block) => {
+            if (block.type === 'suggestedActions') return true;
+            if (block.type === 'disclosure') return hasSuggestedActions(block.blocks);
+            return false;
+        });
+    };
+    const shouldRenderFallbackActions = allowSuggestedActions && !hasSuggestedActions(blocksToRender);
+    const fallbackActions = shouldRenderFallbackActions ? buildFallbackActions(normalizedText) : [];
 
     const headingMeta: Array<{ id: string; title: string; level: number; index: number }> = [];
     const headingIdMap = new Map<number, string>();
@@ -1859,6 +1918,17 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
         <div className="max-w-[72ch] w-full break-words">
             {toc}
             {renderBlocks(blocksToRender, 'root')}
+            {shouldRenderFallbackActions && fallbackActions.length ? (
+                <div className="my-6 flex flex-wrap justify-center gap-3">
+                    {fallbackActions.map((label, idx) => (
+                        <PromptChip
+                            key={`fallback-action-${idx}`}
+                            label={label}
+                            onClick={() => options.onSendPrompt?.(label)}
+                        />
+                    ))}
+                </div>
+            ) : null}
         </div>
     );
 }

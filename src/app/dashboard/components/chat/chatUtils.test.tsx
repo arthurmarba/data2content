@@ -128,4 +128,12 @@ describe('renderFormatted', () => {
         expect(container.textContent).toContain('data:text/html,oi');
         expect(container.textContent).toContain('java%73cript:alert(1)');
     });
+
+    it('renders fallback actions when suggested actions are missing', () => {
+        const text = 'Preciso de um roteiro para um Reels engraçado.';
+        render(renderFormatted(text, 'default', { onSendPrompt: jest.fn(), allowSuggestedActions: true }));
+
+        expect(screen.getByRole('button', { name: 'Gerar roteiro completo' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Criar legenda pronta' })).toBeInTheDocument();
+    });
 });

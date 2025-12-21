@@ -79,6 +79,7 @@ function buildEventMeta(
     userId: String(user._id),
     eventId: event.id,
     eventType: event.type,
+    stripeRequestId: (event as any)?.request?.id ?? null,
     ...extra,
   };
 }
@@ -283,6 +284,8 @@ function applyNormalizedUserBilling(
   user.planStatus = toDbPlanStatus(desired);
 
   user.planInterval = n.planInterval;
+  if (n.planInterval === "month") user.planType = "monthly";
+  if (n.planInterval === "year") user.planType = "annual";
   user.planExpiresAt = n.planExpiresAt;
   user.currentPeriodEnd = n.planExpiresAt;
   user.cancelAtPeriodEnd = n.cancelAtPeriodEnd;
@@ -514,6 +517,8 @@ export async function handleStripeEvent(event: Stripe.Event) {
           (user as any).stripeSubscriptionId = subId ?? (user as any).stripeSubscriptionId ?? null;
           (user as any).planInterval =
             coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
+          if ((user as any).planInterval === "month") (user as any).planType = "monthly";
+          if ((user as any).planInterval === "year") (user as any).planType = "annual";
           (user as any).planExpiresAt = period?.end
             ? new Date(period.end * 1000)
             : (user as any).planExpiresAt ?? null;
@@ -526,6 +531,8 @@ export async function handleStripeEvent(event: Stripe.Event) {
         (user as any).planStatus = toDbPlanStatus(amountPaidCents === 0 ? "trialing" : "active");
         (user as any).planInterval =
           coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
+        if ((user as any).planInterval === "month") (user as any).planType = "monthly";
+        if ((user as any).planInterval === "year") (user as any).planType = "annual";
         (user as any).planExpiresAt = period?.end
           ? new Date(period.end * 1000)
           : (user as any).planExpiresAt ?? null;

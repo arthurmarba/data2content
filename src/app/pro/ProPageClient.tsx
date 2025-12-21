@@ -211,6 +211,8 @@ export default function ProPageClient({
   const normalizedStatus = billingStatus.normalizedStatus ?? initialPlanStatus.normalizedStatus ?? null;
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess ?? initialPlanStatus.hasProAccess);
   const isTrialActive = Boolean(billingStatus.isTrialActive ?? initialPlanStatus.isTrialActive);
+  const needsPaymentAction = Boolean(billingStatus.needsPaymentAction);
+  const canSubscribe = !hasProAccess && !needsPaymentAction;
 
   useEffect(() => {
     track("pro_page_viewed", {
@@ -314,7 +316,7 @@ export default function ProPageClient({
           <h1 className="text-4xl font-bold text-slate-900 sm:text-5xl">{HERO_COPY.title}</h1>
           <p className="mx-auto max-w-2xl text-lg text-slate-600">{HERO_COPY.subtitle}</p>
           <p className="mx-auto max-w-3xl text-sm text-slate-500">{HERO_COPY.helper}</p>
-          {!hasProAccess && (
+          {canSubscribe && (
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <button
                 type="button"
@@ -329,6 +331,21 @@ export default function ProPageClient({
                 className="text-sm font-semibold text-[#F6007B] underline-offset-4 hover:underline"
               >
                 Tirar dúvidas
+              </Link>
+            </div>
+          )}
+          {!hasProAccess && needsPaymentAction && (
+            <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm">
+              <p className="font-semibold">Pagamento pendente</p>
+              <p className="mt-1 text-amber-800">
+                Atualize o método de pagamento em Billing para liberar novas assinaturas.
+              </p>
+              <Link
+                href="/dashboard/billing"
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+              >
+                Ir para Billing
+                <ArrowUpRight className="h-4 w-4" />
               </Link>
             </div>
           )}
@@ -557,13 +574,27 @@ export default function ProPageClient({
                         </li>
                       </ul>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenModal("pricing_card")}
-                        className="w-full rounded-xl bg-[#F6007B] px-6 py-4 text-base font-bold text-white shadow-lg shadow-[#F6007B]/25 transition hover:bg-[#e2006f] hover:shadow-[#F6007B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-                      >
-                        Assinar agora
-                      </button>
+                      {!needsPaymentAction ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenModal("pricing_card")}
+                          className="w-full rounded-xl bg-[#F6007B] px-6 py-4 text-base font-bold text-white shadow-lg shadow-[#F6007B]/25 transition hover:bg-[#e2006f] hover:shadow-[#F6007B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
+                        >
+                          Assinar agora
+                        </button>
+                      ) : (
+                        <Link
+                          href="/dashboard/billing"
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-white px-6 py-4 text-base font-bold text-amber-900 shadow-sm transition hover:bg-amber-50"
+                        >
+                          Atualizar pagamento
+                        </Link>
+                      )}
+                      {needsPaymentAction && (
+                        <p className="text-sm text-amber-700">
+                          Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-slate-500">
@@ -637,14 +668,24 @@ export default function ProPageClient({
               Ative o Plano Agência para liberar análise, e-mail, calculadora e planejamento em um só clique.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => handleOpenModal("bottom")}
-                className="inline-flex items-center gap-2 rounded-full bg-[#F6007B] px-8 py-4 text-base font-bold text-white shadow-lg shadow-[#F6007B]/30 transition hover:bg-[#e2006f] hover:shadow-[#F6007B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40"
-              >
-                Ativar Plano Agência
-                <ArrowRight className="h-5 w-5" />
-              </button>
+              {!needsPaymentAction ? (
+                <button
+                  type="button"
+                  onClick={() => handleOpenModal("bottom")}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#F6007B] px-8 py-4 text-base font-bold text-white shadow-lg shadow-[#F6007B]/30 transition hover:bg-[#e2006f] hover:shadow-[#F6007B]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40"
+                >
+                  Ativar Plano Agência
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              ) : (
+                <Link
+                  href="/dashboard/billing"
+                  className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-8 py-4 text-base font-bold text-amber-900 shadow-sm transition hover:bg-amber-50"
+                >
+                  Atualizar pagamento
+                  <ArrowUpRight className="h-5 w-5" />
+                </Link>
+              )}
               <a
                 href="mailto:arthur@data2content.ai"
                 className="text-sm font-semibold text-[#F6007B] underline-offset-4 hover:underline"
@@ -652,6 +693,11 @@ export default function ProPageClient({
                 Falar com vendas
               </a>
             </div>
+            {needsPaymentAction && (
+              <p className="mt-4 text-sm text-amber-700">
+                Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+              </p>
+            )}
           </section>
         )}
       </main>

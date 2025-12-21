@@ -366,7 +366,7 @@ export function useBillingStatus(opts: Options = {}) {
       hasBasicReport: flags.hasBasicReport,
       hasFullReportAccess: flags.hasFullReportAccess,
     }),
-    [data, loading, error, refetch, startPolling, stopPolling, flags]
+    [data, loading, error, refetch, startPolling, stopPolling, flags, hasLoadedOnce, hasResolvedOnce]
   );
 }
 

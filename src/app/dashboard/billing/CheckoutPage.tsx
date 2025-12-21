@@ -248,6 +248,22 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
           setAffiliateError(data?.message || "Código inválido ou expirado.");
           return;
         }
+        if (data?.code === "PAYMENT_ISSUE") {
+          setErr(data?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
+          return;
+        }
+        if (data?.code === "SUBSCRIPTION_INCOMPLETE") {
+          setErr(data?.message || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
+          return;
+        }
+        if (data?.code === "SUBSCRIPTION_ACTIVE_DB" || data?.code === "SUBSCRIPTION_ACTIVE" || data?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
+          setErr(data?.message || "Você já possui uma assinatura ativa.");
+          return;
+        }
+        if (data?.code === "SUBSCRIPTION_NON_RENEWING" || data?.code === "SUBSCRIPTION_NON_RENEWING_DB") {
+          setErr(data?.message || "Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.");
+          return;
+        }
         throw new Error(data?.message || data?.error || "Falha ao iniciar assinatura");
       }
 
