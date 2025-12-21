@@ -134,4 +134,26 @@ Descrição: **Teste** com *markdown* e ## heading
         expect(parsed.cards[0].highlights).toEqual(['Chip']);
         expect(parsed.footer?.items).toEqual(['Qual priorizar?']);
     });
+
+    it('parses fenced JSON with trailing commas', () => {
+        const input = `\`\`\`json
+{
+  "type": "content_ideas",
+  "items": [
+    {
+      "label": "Reel 1",
+      "title": "Teste",
+      "description": "Desc",
+      "highlights": ["alto_engajamento_nos_comentarios",],
+    },
+  ],
+  "next_step_question": "Qual dessas ideias?",
+}
+\`\`\``;
+        const parsed = parseCommunityInspirationText(input);
+        expect(parsed.cards).toHaveLength(1);
+        expect(parsed.cards[0].label).toBe('Reel 1');
+        expect(parsed.cards[0].highlights).toEqual(['alto_engajamento_nos_comentarios']);
+        expect(parsed.footer?.items).toEqual(['Qual dessas ideias?']);
+    });
 });

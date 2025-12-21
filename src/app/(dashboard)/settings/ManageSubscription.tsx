@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import SubscriptionCard from "@/components/billing/SubscriptionCard";
 import ChangePlanCard from "@/app/dashboard/billing/ChangePlanCard";
-import DeleteAccountSection from "./DeleteAccountSection";
+import DeleteAccountSection from "@/app/dashboard/settings/DeleteAccountSection";
 import { FaCreditCard } from "react-icons/fa";
 
 export default function ManageSubscription() {

@@ -37,11 +37,13 @@ const getPrimaryDelta = (intent: string, post: AnswerEvidence['topPosts'][number
   return post.vsBaseline?.interactionsPct ?? post.vsBaseline?.erPct ?? null;
 };
 
-const isSafeUrl = (url?: string | null) => {
+const isInstagramPostUrl = (url?: string | null) => {
   if (!url) return false;
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    const host = parsed.hostname.replace(/^www\./, '');
+    if (!(host.endsWith('instagram.com') || host === 'instagr.am')) return false;
+    return /\/(p|reel|tv)\/[^/]+/i.test(parsed.pathname);
   } catch {
     return false;
   }
@@ -271,6 +273,10 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
             const tags = [];
             if (post.format) tags.push(Array.isArray(post.format) ? post.format[0] : post.format);
             if (post.tags && post.tags.length) tags.push(post.tags[0]);
+            const isUserSource = !post.source || post.source === 'user';
+            const isIgLink = isInstagramPostUrl(post.permalink);
+            const isVerified = typeof post.linkVerified === 'boolean' ? post.linkVerified : isIgLink;
+            const canShowLink = isUserSource && isVerified && isIgLink;
 
             return (
               <div key={post.id} className="flex items-start gap-3 rounded-lg border border-gray-100 bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)]" data-testid="chat-evidence-post">
@@ -296,7 +302,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       {delta ? <span className="text-xs font-semibold text-emerald-600">{delta}</span> : null}
-                      {isSafeUrl(post.permalink) ? (
+                      {canShowLink ? (
                         <a
                           href={post.permalink}
                           target="_blank"

@@ -206,6 +206,14 @@ function PlanTeaserContent() {
           setAffiliateError('Você não pode usar seu próprio código.');
         } else if (json?.code === 'INVALID_CODE' || (json?.message || '').toLowerCase().includes('inválido')) {
           setAffiliateError(json?.message || 'Código inválido ou expirado.');
+        } else if (json?.code === 'SUBSCRIPTION_PAST_DUE') {
+          setErrorMsg(json?.message || 'Pagamento pendente. Atualize em Billing.');
+        } else if (json?.code === 'SUBSCRIPTION_ACTIVE') {
+          setErrorMsg(json?.message || 'Você já possui uma assinatura ativa.');
+        } else if (json?.code === 'SUBSCRIPTION_NON_RENEWING') {
+          setErrorMsg(json?.message || 'Assinatura com cancelamento agendado. Reative em Billing.');
+        } else if (json?.code === 'SUBSCRIPTION_INCOMPLETE') {
+          setErrorMsg(json?.message || 'Há um checkout pendente.');
         } else {
           setErrorMsg(json?.error || json?.message || 'Falha ao iniciar assinatura.');
         }
@@ -402,7 +410,7 @@ export default function PlanTeaser() {
   const { data: session } = useSession();
   const billingStatus = useBillingStatus();
   const sessionActive = isPlanActiveLike(session?.user?.planStatus);
-  const shouldHide = billingStatus.hasPremiumAccess || sessionActive;
+  const shouldHide = billingStatus.hasPremiumAccess || sessionActive || billingStatus.needsPaymentAction;
   const stillLoading = billingStatus.isLoading && sessionActive;
 
   if (shouldHide || stillLoading) {

@@ -31,13 +31,16 @@ import { getSystemPrompt } from '@/app/lib/promptSystemFC';
 import { IUser, AlertDetails } from '@/app/models/User'; // AlertDetails importado
 // Carrega stateService de forma segura em testes (evita Upstash/Redis)
 const stateService =
-  process.env.NODE_ENV === 'test'
-    ? require('../../../__mocks__/stateService.js')
-    : require('@/app/lib/stateService');
+    process.env.NODE_ENV === 'test'
+        ? require('../../../__mocks__/stateService.js')
+        : require('@/app/lib/stateService');
 import { functionValidators } from './aiFunctionSchemas.zod';
 import { DeterminedIntent } from './intentService';
 // Importando EnrichedAIContext do local correto
 import { EnrichedAIContext } from '@/app/api/whatsapp/process-response/types';
+import { buildQuestionFocusPrompt, extractQuestionFocus } from '@/app/lib/ai/questionFocus';
+import { applyIntentContract } from '@/app/lib/ai/intentContract';
+import { buildAnswerSpec, buildClarifyingResponse, validateRelevance } from '@/app/lib/ai/relevanceValidator';
 import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
 import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
@@ -47,19 +50,19 @@ import { formatCurrencySafely, normalizeCurrencyCode } from '@/utils/currency';
 
 // Configuração do cliente OpenAI e constantes
 const openai =
-  process.env.NODE_ENV === 'test'
-    ? ({
-        chat: {
-          completions: {
-            create: async () => ({ choices: [{ message: { content: '' } }] }),
-          },
-        },
-      } as unknown as OpenAI)
-    : new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY!,
-        baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-        dangerouslyAllowBrowser: true,
-      });
+    process.env.NODE_ENV === 'test'
+        ? ({
+            chat: {
+                completions: {
+                    create: async () => ({ choices: [{ message: { content: '' } }] }),
+                },
+            },
+        } as unknown as OpenAI)
+        : new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY!,
+            baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+            dangerouslyAllowBrowser: true,
+        });
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-3.5-turbo';
 const TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
@@ -71,6 +74,25 @@ const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
 const QUICK_ACK_TIMEOUT_MS = Number(process.env.OPENAI_QUICK_ACK_TIMEOUT_MS) || 10_000;
 
 // Removida a interface EnrichedContext local, usaremos EnrichedAIContext de types.ts
+
+const MONETIZATION_KEYWORDS = [
+    'quanto cobrar', 'quanto devo cobrar', 'preço', 'valor', 'cache', 'cachê',
+    'publi', 'publicidade', 'parceria', 'patrocínio', 'patrocinio', 'marca',
+    'mediakit', 'media kit', 'mídia kit', 'midia kit', 'proposta', 'orçamento',
+    'negociar', 'contrato', 'deliverables', 'combo', 'pacote'
+];
+
+const BUG_KEYWORDS = [
+    'sumiu', 'não carrega', 'bug', 'erro', 'quebrou', 'não aparece', 'travou',
+    'falha', 'problema', 'não funciona', 'tela branca', '404', '500'
+];
+
+const DEEP_ANALYSIS_KEYWORDS = [
+    'por que', 'motivo', 'razão', 'razao', 'entender', 'analisa esse',
+    'analise esse', 'funcionou tanto', 'deu certo', 'deu errado', 'flopou',
+    'bombou', 'viralizou', 'explica', 'explicação'
+];
+
 
 /**
  * Retorno de askLLMWithEnrichedContext.
@@ -1433,9 +1455,77 @@ export async function askLLMWithEnrichedContext(
     const promptVariant = (enrichedContext as any)?.promptVariant || process.env.PROMPT_VARIANT || 'A';
     const chatContextJson = (enrichedContext as any)?.chatContextJson || null;
     const safeUserName = userName?.trim() || user.name || 'criador';
+    const isWebChannel = enrichedContext.channel === 'web';
+    const answerEnginePack = (enrichedContext as any)?.answerEnginePack || null;
+    const isCardIntent = intent === 'ask_community_inspiration' || intent === 'content_ideas';
+    const baseFocus = isWebChannel && intent !== 'generate_proactive_alert'
+        ? extractQuestionFocus(incomingText, intent)
+        : null;
+    const questionFocus = baseFocus ? applyIntentContract(baseFocus, intent) : null;
+    const lastTopic = dialogueState?.lastResponseContext?.topic || null;
+    const lastEntities = dialogueState?.lastResponseContext?.entities || null;
+    const requiresTopic =
+        intent === 'CONTINUE_PREVIOUS_TOPIC' ||
+        intent === 'ASK_CLARIFICATION_PREVIOUS_RESPONSE' ||
+        intent === 'REQUEST_METRIC_DETAILS_FROM_CONTEXT';
+    const answerSpec = isWebChannel && questionFocus
+        ? buildAnswerSpec(questionFocus, answerEnginePack, {
+            lastTopic,
+            lastEntities,
+            requireTopic: requiresTopic,
+        })
+        : null;
+    const skipPertinenceIntents = new Set([
+        'greeting',
+        'social_query',
+        'meta_query_personal',
+        'clarification_follow_up',
+        'proactive_script_accept',
+        'proactive_script_reject',
+        'user_confirms_pending_action',
+        'user_denies_pending_action',
+        'user_stated_preference',
+        'user_shared_goal',
+        'user_mentioned_key_fact',
+        'user_requests_memory_update',
+        'script_request',
+        'humor_script_request',
+    ]);
+    const relevanceGate = {
+        enabled: Boolean(
+            isWebChannel &&
+            !isCardIntent &&
+            !skipPertinenceIntents.has(intent) &&
+            questionFocus &&
+            answerSpec
+        ),
+        spec: answerSpec || undefined,
+        focus: questionFocus || undefined,
+    };
+    if (questionFocus) {
+        if (baseFocus && questionFocus.missing.join('|') !== baseFocus.missing.join('|')) {
+            logger.info(`${fnTag} IntentContract aplicado. missing_before=${baseFocus.missing.join(',') || 'none'} missing_after=${questionFocus.missing.join(',') || 'none'}`);
+        }
+        logger.info(`${fnTag} QuestionFocus anchor="${questionFocus.anchor}" type=${questionFocus.type} missing=${questionFocus.missing.join(',') || 'none'} required=${JSON.stringify(questionFocus.required)}`);
+    }
     logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${safeUserName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
     let initialMsgs: ChatCompletionMessageParam[];
+
+    if (relevanceGate.enabled && questionFocus?.needsClarification) {
+        const clarification = buildClarifyingResponse(questionFocus);
+        const { readable, writable } = new TransformStream<string, string>();
+        const writer = writable.getWriter();
+        await writer.write(clarification);
+        await writer.close();
+        const history = [
+            ...historyMessages,
+            { role: 'user', content: incomingText },
+            { role: 'assistant', content: clarification },
+        ];
+        logger.info(`${fnTag} Clarificacao direta solicitada antes do LLM. missing=${questionFocus.missing.join(',')}`);
+        return { stream: readable, historyPromise: Promise.resolve(history) };
+    }
 
     if (intent === 'generate_proactive_alert') {
         logger.info(`${fnTag} Intenção 'generate_proactive_alert' detectada. Usando prompt direto e especializado.`);
@@ -1448,9 +1538,57 @@ export async function askLLMWithEnrichedContext(
         // Lógica original para todas as outras intenções
         const systemPrompt = await populateSystemPrompt(user, safeUserName);
 
-        initialMsgs = [
-            { role: 'system', content: systemPrompt },
-        ];
+        // --- PHASE 2 & 4: INTENT REFINEMENT & LOGIC INJECTION ---
+
+        const lowerText = incomingText.toLowerCase();
+
+        // 1. Monetization Logic (with Anti-Bug Guard)
+        const isBugReport = BUG_KEYWORDS.some(kw => lowerText.includes(kw));
+        const isMonetizationTopic = !isBugReport && MONETIZATION_KEYWORDS.some(kw => lowerText.includes(kw));
+
+        if (isMonetizationTopic) {
+            logger.info(`${fnTag} Tópico de MONETIZAÇÃO detectado. Injetando instruções de Pricing/Business.`);
+            initialMsgs = [
+                { role: 'system', content: systemPrompt },
+                {
+                    role: 'system',
+                    content: `CONTEXTO DE NEGÓCIOS E PRECIFICAÇÃO:
+                    1. O usuário está perguntando sobre valores, parcerias ou estratégia comercial.
+                    2. Use o "Mobi Methodology" para explicar como marcas compram (CPM, Alcance, Nicho).
+                    3. Se o usuário perguntar "quanto cobrar", NÃO dê um número solto imediatamente. PRIMEIRO pergunte: "Qual a entrega exata (Reels, Stories, Combo)?", "Tem exclusividade?", "Uso de imagem?".
+                    4. Se já tiver detalhes, use as faixas de preço do 'PricingKnowledge' e 'adDealInsights' (se disponíveis nos relatórios) para estimar um valor.
+                    5. Se não houver dados de 'adDealInsights', use o CPM de mercado para o nicho como base (R$ 30-60 CPM é uma média segura para micro/meso, mas varie conforme engajamento).
+                    6. SEMPRE relacione preço com entrega de resultado (Alcance estimado).`
+                }
+            ];
+        } else {
+            initialMsgs = [
+                { role: 'system', content: systemPrompt },
+            ];
+        }
+
+        if (isWebChannel && questionFocus) {
+            initialMsgs.push({
+                role: 'system',
+                content: buildQuestionFocusPrompt(questionFocus)
+            });
+        }
+
+        // 2. Deep Analysis Trigger
+        const isDeepAnalysis = DEEP_ANALYSIS_KEYWORDS.some(kw => lowerText.includes(kw));
+        if (isDeepAnalysis) {
+            logger.info(`${fnTag} Tópico de ANÁLISE PROFUNDA detectado. Injetando instrução de drill-down.`);
+            initialMsgs.push({
+                role: 'system',
+                content: `MODO ANÁLISE PROFUNDA:
+                - O usuário quer entender a CAUSA RAIZ de uma performance.
+                - NÃO APENAS LISTE NÚMEROS. Analise a RELAÇÃO entre eles.
+                - Exemplo: "Muitos comentários mas poucos shares" = Comunidade forte, mas baixo potencial viral (bolha).
+                - Exemplo: "Muitos shares mas baixa retenção" = Gancho forte (clickbait?) mas conteúdo não segurou.
+                - CRÍTICO: Se estiver analisando um post específico, você DEVE usar a ferramenta 'getMetricDetailsById' para ver a retenção (se disponível) e fontes de tráfego.`
+            });
+        }
+
 
         if (chatContextJson) {
             initialMsgs.push({
@@ -1459,7 +1597,6 @@ export async function askLLMWithEnrichedContext(
             });
         }
 
-        const answerEnginePack = (enrichedContext as any)?.answerEnginePack;
         if (answerEnginePack) {
             const condensedPack = {
                 intent: answerEnginePack.intent,
@@ -1485,8 +1622,6 @@ export async function askLLMWithEnrichedContext(
             });
         }
 
-        const isWebChannel = enrichedContext.channel === 'web';
-        const isCardIntent = intent === 'ask_community_inspiration' || intent === 'content_ideas';
         const hasAnswerEvidence = Array.isArray(answerEnginePack?.top_posts) && answerEnginePack.top_posts.length > 0;
 
         // Se for canal WEB, adiciona instrução de formatação rica
@@ -1499,11 +1634,14 @@ export async function askLLMWithEnrichedContext(
                 initialMsgs.push({
                     role: 'system',
                     content:
-                        'PLANO/ CALENDÁRIO DE CONTEÚDO: quando responder com semanas/calendário, use bullets (não lista numerada) e mantenha o dia NA MESMA LINHA do item. Formato recomendado:\n' +
-                        '### Semana 1\n' +
-                        '- **Segunda — Reel (Humor):** Descrição curta.\n' +
-                        '- **Quarta — Foto/Carrossel (Bastidores):** Descrição curta.\n' +
-                        'Regras: nunca coloque "Dia:" em linha separada; se usar "Dia:", deixe na mesma linha (ex.: "— Dia: Segunda"). Negrito sempre completo (**texto**). Lista numerada só para passo a passo.'
+                        'PLANO ESTRATÉGICO DE CONTEÚDO (DATA-DRIVEN): Além do calendário, forneça conselhos sobre O QUE dizer em cada post e POR QUE aquela abordagem funciona. ' +
+                        'PROATIVIDADE DATA-DRIVEN: Antes de finalizar o plano, você DEVE integrar os melhores horários (`TOP_DAY_PCO_COMBOS` e `HOT_TIMES_LAST_ANALYSIS`) e as categorias em alta (`TOP_CATEGORY_RANKINGS`) para garantir que sua sugestão seja fundamentada nos dados reais do criador. ' +
+                        'Cite explicitamente quando um dia/tema foi escolhido com base nos dados (ex: "Sugerido para Terça devido ao alto engajamento histórico"). ' +
+                        'Para cada sugestão de post, busque ou sugira uma inspiração real da comunidade para ilustrar a ideia. ' +
+                        'Mantenha o calendário organizado: use bullets para os dias e mantenha o dia na mesma linha. ' +
+                        'Formato recomendado:\n' +
+                        '### Semana [X]\n' +
+                        '- **[Dia] — [Formato] ([Tema]):** [Descrição curta]. *Por que funciona:* [Explicação baseada em dados ou estratégia].'
                 });
             }
         } else if (isWebChannel && isCardIntent) {
@@ -1522,7 +1660,17 @@ export async function askLLMWithEnrichedContext(
                 role: 'system',
                 content: hasAnswerEvidence
                     ? 'Você pode mencionar que as ideias usam exemplos reais apenas se conseguir citar links/permalinks fornecidos. Não invente referências.'
-                    : 'Não diga que as ideias estão "baseadas em posts da comunidade" porque não há evidências fornecidas. Fale apenas "ideias sugeridas" e ofereça buscar exemplos validados se o usuário quiser.'
+                    : 'Como não há evidências personalizadas fortes (pack vazio ou insuficiente), você DEVE usar a ferramenta `fetchCommunityInspirations` para encontrar exemplos reais da comunidade que ilustrem suas sugestões. Evite dar conselhos puramente teóricos sem buscar referências práticas.'
+            });
+        }
+
+        // Phase 4: Throttling fetchCommunityInspirations
+        // Only explicitly suggest it if user asks or if we really need illustration.
+        // The instruction below is general advice provided to the model.
+        if (!isCardIntent && !hasAnswerEvidence && !isMonetizationTopic && !isDeepAnalysis) {
+            initialMsgs.push({
+                role: 'system',
+                content: 'Se o usuário pedir exemplos práticos ou se você sentir que a explicação ficou muito abstrata, use `fetchCommunityInspirations` para buscar casos reais. Não use indiscriminadamente para economizar tokens, apenas quando agregar valor visual.'
             });
         }
 
@@ -1530,7 +1678,11 @@ export async function askLLMWithEnrichedContext(
         initialMsgs.push({
             role: 'system',
             content:
-                'ESTILO OBRIGATÓRIO: Responda com: (1) diagnóstico curto, (2) plano em passos acionáveis, (3) pergunta aberta e contextual para avançar. Se citar dados, indique período/base usada. Seja direto, sem floreios.'
+                'ESTILO OBRIGATÓRIO (NÃO NEGOCIÁVEL): Responda diretamente, sem intros. ' +
+                'REQUISITO DE PERTINÊNCIA: Comece o Diagnóstico citando EXATAMENTE o ponto da pergunta do usuário (ex: "Para aumentar seu alcance...", "Sobre sua dúvida de horários..."). ' +
+                'Use EXCLUSIVAMENTE estes headers: ### Diagnóstico (curto), ### Plano Estratégico (passos práticos) e ### Próximo Passo (pergunta acionável). ' +
+                'ANTI-DESVIO: Priorize responder a dúvida central antes de sugerir ações de expansão. ' +
+                'Ao final da resposta, SEMPRE ofereça 2 botões de ação rápida no formato: `[BUTTON: Pergunta ou Ação]`.'
         });
         initialMsgs.push({
             role: 'system',
@@ -1716,6 +1868,7 @@ export async function askLLMWithEnrichedContext(
             });
         }
         const pricingFear = profileExt.pricingFear;
+
         if (pricingFear) {
             initialMsgs.push({
                 role: 'system',
@@ -1726,7 +1879,7 @@ export async function askLLMWithEnrichedContext(
         if (learningPref) {
             initialMsgs.push({
                 role: 'system',
-                content: `Adapte o formato da resposta para o estilo de aprendizado preferido (${learningPref}): mantenha a estrutura clara e enxuta.`
+                content: `Adapte o formato da resposta para o estilo de aprendizado preferido(${learningPref}): mantenha a estrutura clara e enxuta.`
             });
         }
         const nextPlatformPref = Array.isArray(profileExt.nextPlatform) ? profileExt.nextPlatform[0] : null;
@@ -1738,7 +1891,7 @@ export async function askLLMWithEnrichedContext(
             };
             initialMsgs.push({
                 role: 'system',
-                content: `Inclua 1 ação que ajude a expandir para ${nextLabelMap[nextPlatformPref] || nextPlatformPref} (se fizer sentido para o tema).`
+                content: `Inclua 1 ação que ajude a expandir para ${nextLabelMap[nextPlatformPref] || nextPlatformPref}(se fizer sentido para o tema).`
             });
         }
 
@@ -1753,12 +1906,12 @@ export async function askLLMWithEnrichedContext(
             };
             const fallbackSnippet = recentFallbacks
                 .slice(-3)
-                .map((f: any) => `${f.type ?? 'alerta'} (${f.timestamp ? formatElapsed(Number(f.timestamp)) : 'recente'})`)
+                .map((f: any) => `${f.type ?? 'alerta'}(${f.timestamp ? formatElapsed(Number(f.timestamp)) : 'recente'})`)
                 .join(' • ');
             if (fallbackSnippet) {
                 initialMsgs.push({
                     role: 'system',
-                    content: `Alertas/insights recentes do Radar: ${fallbackSnippet}`
+                    content: `Alertas / insights recentes do Radar: ${fallbackSnippet}`
                 });
             }
         }
@@ -1768,15 +1921,15 @@ export async function askLLMWithEnrichedContext(
         const lastCtx = dialogueState?.lastResponseContext;
         if (dialogueState?.currentTask?.name) {
             contextualHints.push(
-                `Tarefa atual: ${dialogueState.currentTask.name}` +
-                (dialogueState.currentTask.objective ? ` — objetivo: ${dialogueState.currentTask.objective}` : '')
+                `Tarefa atual: ${dialogueState.currentTask.name} ` +
+                (dialogueState.currentTask.objective ? ` — objetivo: ${dialogueState.currentTask.objective} ` : '')
             );
         }
         if (lastCtx?.topic) {
-            contextualHints.push(`Último tópico da IA: ${lastCtx.topic}`);
+            contextualHints.push(`Último tópico da IA: ${lastCtx.topic} `);
         }
         if (lastCtx?.entities?.length) {
-            contextualHints.push(`Entidades recentes: ${lastCtx.entities.slice(0, 4).join(', ')}`);
+            contextualHints.push(`Entidades recentes: ${lastCtx.entities.slice(0, 4).join(', ')} `);
         }
         if (dialogueState?.pendingActionContext) {
             contextualHints.push('Há uma ação pendente aguardando confirmação do usuário.');
@@ -1784,7 +1937,7 @@ export async function askLLMWithEnrichedContext(
         if (contextualHints.length) {
             initialMsgs.push({
                 role: 'system',
-                content: `Contexto curto da sessão: ${contextualHints.join(' | ')}`
+                content: `Contexto curto da sessão: ${contextualHints.join(' | ')} `
             });
         }
 
@@ -1792,7 +1945,7 @@ export async function askLLMWithEnrichedContext(
         try {
             const summary = (enrichedContext as any)?.dialogueState?.conversationSummary as string | undefined;
             if (summary && typeof summary === 'string' && summary.trim().length > 0) {
-                initialMsgs.push({ role: 'system', content: `Resumo da conversa até agora:\n${summary.trim()}` });
+                initialMsgs.push({ role: 'system', content: `Resumo da conversa até agora: \n${summary.trim()} ` });
             }
         } catch {/* ignore */ }
 
@@ -1814,12 +1967,12 @@ export async function askLLMWithEnrichedContext(
 
     processTurn(initialMsgs, 0, null, writer, user, intent, enrichedContext)
         .then((finalHistory) => {
-            logger.debug(`${fnTag} processTurn concluído com sucesso. Fechando writer.`);
+            logger.debug(`${fnTag} processTurn concluído com sucesso.Fechando writer.`);
             writer.close();
             resolveHistoryPromise(finalHistory);
         })
         .catch(async (error) => {
-            logger.error(`${fnTag} Erro durante processTurn:`, error);
+            logger.error(`${fnTag} Erro durante processTurn: `, error);
             rejectHistoryPromise(error);
             try {
                 if (!writer.closed) {
@@ -1832,12 +1985,99 @@ export async function askLLMWithEnrichedContext(
                     await writer.abort(error);
                 }
             } catch (abortError) {
-                logger.error(`${fnTag} Erro ao escrever erro/abortar writer:`, abortError);
+                logger.error(`${fnTag} Erro ao escrever erro / abortar writer: `, abortError);
             }
         });
 
     logger.debug(`${fnTag} Retornando stream e historyPromise imediatamente.`);
     return { stream: readable, historyPromise };
+
+    // ============================================================
+    // Funcoes auxiliares para pertinencia (web)
+    // ============================================================
+    async function rewriteForRelevance(original: string, issues: string[]): Promise<string | null> {
+        if (!relevanceGate.focus || !relevanceGate.spec) return null;
+        const allowed = relevanceGate.spec.evidence
+            ? {
+                allowed_ids: relevanceGate.spec.evidence.allowedIds,
+                allowed_urls: relevanceGate.spec.evidence.allowedUrls,
+            }
+            : { allowed_ids: [], allowed_urls: [] };
+        const needsEvidenceDisclaimer = issues.some((issue) =>
+            issue === 'metric_number_without_evidence' ||
+            issue === 'strong_claim_without_evidence' ||
+            issue === 'recommendation_without_evidence'
+        );
+        const requirements = [
+            relevanceGate.spec.requiredMentions.length ? `obrigatorio mencionar: ${relevanceGate.spec.requiredMentions.join(', ')}` : null,
+            relevanceGate.spec.requiredAnyOf.length
+                ? `inclua pelo menos um termo de cada grupo: ${relevanceGate.spec.requiredAnyOf.map((g) => g.join(' | ')).join(' ; ')}`
+                : null,
+        ].filter(Boolean).join(' | ');
+
+        const rewriteMessages: ChatCompletionMessageParam[] = [
+            {
+                role: 'system',
+                content:
+                    'Voce e um revisor de pertinencia. Reescreva a resposta para cobrir a pergunta central logo na primeira frase. ' +
+                    'Mantenha a resposta direta, sem intro, e use os headers: ### Diagnostico, ### Plano Estrategico, ### Proximo Passo. ' +
+                    'Finalize com 2 botoes no formato [BUTTON: ...]. Nao invente evidencias. ' +
+                    (needsEvidenceDisclaimer ? 'Se nao houver evidencias suficientes, diga isso explicitamente e faca 1 pergunta direta.' : '')
+            },
+            {
+                role: 'user',
+                content:
+                    `Pergunta do usuario: "${incomingText}"\n` +
+                    `Pergunta central (anchor): "${relevanceGate.focus.anchor}"\n` +
+                    `Requisitos: ${requirements || 'nenhum'}\n` +
+                    `Evidencias permitidas (ids/urls): ${JSON.stringify(allowed)}\n` +
+                    `Problemas detectados: ${issues.join(', ') || 'nenhum'}\n\n` +
+                    `Resposta atual:\n${original}`
+            }
+        ];
+
+        try {
+            const completion = await openai.chat.completions.create({
+                model: MODEL,
+                temperature: 0.2,
+                max_tokens: Math.min(TOKENS, 900),
+                stream: false,
+                messages: rewriteMessages,
+            });
+            const content = completion.choices?.[0]?.message?.content?.trim();
+            return content || null;
+        } catch (err) {
+            logger.warn(`${fnTag} Falha ao reescrever por pertinencia:`, err);
+            return null;
+        }
+    }
+
+    async function applyRelevanceGate(answer: string) {
+        if (!relevanceGate.spec || !relevanceGate.focus) {
+            return { finalContent: answer, validation: { passed: true, score: 100, issues: [] }, rewritten: false };
+        }
+
+        const validation = validateRelevance(answer, relevanceGate.spec);
+        logger.info(`${fnTag} Pertinencia check: intent=${intent} anchor="${relevanceGate.focus.anchor}" passed=${validation.passed} score=${validation.score} issues=${validation.issues.join('|') || 'none'}`);
+
+        if (validation.passed) {
+            return { finalContent: answer, validation, rewritten: false };
+        }
+
+        logger.info(`${fnTag} Pertinencia falhou, tentando reescrita.`);
+        const rewritten = await rewriteForRelevance(answer, validation.issues);
+        if (rewritten) {
+            const secondPass = validateRelevance(rewritten, relevanceGate.spec);
+            logger.info(`${fnTag} Pertinencia recheck: passed=${secondPass.passed} score=${secondPass.score} issues=${secondPass.issues.join('|') || 'none'}`);
+            if (secondPass.passed) {
+                return { finalContent: rewritten, validation: secondPass, rewritten: true };
+            }
+        }
+
+        logger.info(`${fnTag} Pertinencia ainda falhou, retornando clarificacao.`);
+        const clarification = buildClarifyingResponse(relevanceGate.focus);
+        return { finalContent: clarification, validation, rewritten: false };
+    }
 
     // ============================================================
     // Função Interna Recursiva para Processar Turnos da Conversa
@@ -1852,14 +2092,15 @@ export async function askLLMWithEnrichedContext(
         currentEnrichedContext: EnrichedAIContext
     ): Promise<ChatCompletionMessageParam[]> {
         const turnTag = `[processTurn iter ${iter} v1.0.8]`; // Versão atualizada
-        logger.debug(`${turnTag} Iniciando. Intenção atual do turno: ${currentIntent}`);
+        const shouldBufferOutput = Boolean(relevanceGate.enabled && relevanceGate.spec && relevanceGate.focus);
+        logger.debug(`${turnTag} Iniciando.Intenção atual do turno: ${currentIntent}`);
 
         if (iter >= MAX_ITERS) {
-            logger.warn(`${turnTag} Function-call loop excedeu MAX_ITERS (${MAX_ITERS}).`);
-            const maxIterMessage = `Desculpe, parece que estou tendo dificuldades em processar sua solicitação após várias tentativas. Poderia tentar de outra forma?`;
+            logger.warn(`${turnTag} Function - call loop excedeu MAX_ITERS(${MAX_ITERS}).`);
+            const maxIterMessage = `Desculpe, parece que estou tendo dificuldades em processar sua solicitação após várias tentativas.Poderia tentar de outra forma ? `;
             currentMsgs.push({ role: 'assistant', content: maxIterMessage });
             try { await writer.write(maxIterMessage); }
-            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de MAX_ITERS:`, e); }
+            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de MAX_ITERS: `, e); }
             return currentMsgs;
         }
 
@@ -1877,7 +2118,7 @@ export async function askLLMWithEnrichedContext(
         const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert';
 
         if (isLightweightIntent) {
-            logger.info(`${turnTag} Intenção '${currentIntent}' é leve. Function calling desabilitado.`);
+            logger.info(`${turnTag} Intenção '${currentIntent}' é leve.Function calling desabilitado.`);
         } else {
             logger.info(`${turnTag} Intenção '${currentIntent}' permite function calling. Habilitando funções padrão.`);
             // Filtra funções sensíveis para o chat geral: não expor inspirações da comunidade
@@ -1901,18 +2142,18 @@ export async function askLLMWithEnrichedContext(
 
         let completionStream: AsyncIterable<ChatCompletionChunk>;
         try {
-            logger.debug(`${turnTag} Chamando OpenAI API (Modelo: ${requestPayload.model}, Histórico: ${requestPayload.messages.length} msgs). Function calling: ${(requestPayload as any).function_call ?? 'omitido'}, Functions count: ${(requestPayload as any).functions?.length ?? 'omitido'}`);
+            logger.debug(`${turnTag} Chamando OpenAI API(Modelo: ${requestPayload.model}, Histórico: ${requestPayload.messages.length} msgs).Function calling: ${(requestPayload as any).function_call ?? 'omitido'}, Functions count: ${(requestPayload as any).functions?.length ?? 'omitido'} `);
             completionStream = await openai.chat.completions.create(
                 requestPayload,
                 { signal: aborter.signal }
             );
         } catch (error: any) {
             clearTimeout(timeout);
-            logger.error(`${turnTag} Falha na chamada à API OpenAI. Error Name: ${error.name}, Message: ${error.message}. Full Error Object:`, error);
+            logger.error(`${turnTag} Falha na chamada à API OpenAI.Error Name: ${error.name}, Message: ${error.message}. Full Error Object: `, error);
             const apiCallFailMessage = "Desculpe, não consegui conectar com o serviço de IA no momento. Tente mais tarde.";
             currentMsgs.push({ role: 'assistant', content: apiCallFailMessage });
             try { await writer.write(apiCallFailMessage); }
-            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de falha da API:`, e); }
+            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de falha da API: `, e); }
             return currentMsgs;
         }
 
@@ -1941,41 +2182,43 @@ export async function askLLMWithEnrichedContext(
                     streamReceivedContent = true;
                     if (!pendingAssistantMsg) { pendingAssistantMsg = { role: 'assistant', content: '' }; }
                     pendingAssistantMsg.content = (pendingAssistantMsg.content ?? '') + delta.content;
-                    try { await writer.write(delta.content); }
-                    catch (writeError) { logger.error(`${turnTag} Erro ao escrever no writer:`, writeError); throw writeError; }
+                    if (!shouldBufferOutput) {
+                        try { await writer.write(delta.content); }
+                        catch (writeError) { logger.error(`${turnTag} Erro ao escrever no writer: `, writeError); throw writeError; }
+                    }
                 }
 
-                if (choice.finish_reason) { lastFinishReason = choice.finish_reason; logger.debug(`${turnTag} Recebido finish_reason: ${lastFinishReason}`); }
+                if (choice.finish_reason) { lastFinishReason = choice.finish_reason; logger.debug(`${turnTag} Recebido finish_reason: ${lastFinishReason} `); }
             }
-            logger.debug(`${turnTag} Fim do consumo do stream da API. Último Finish Reason: ${lastFinishReason}`);
+            logger.debug(`${turnTag} Fim do consumo do stream da API.Último Finish Reason: ${lastFinishReason} `);
         } catch (streamError: any) {
-            logger.error(`${turnTag} Erro durante o consumo do stream:`, streamError);
+            logger.error(`${turnTag} Erro durante o consumo do stream: `, streamError);
             const streamErrMessage = "Desculpe, houve um problema ao receber a resposta da IA. Tente novamente.";
             if (pendingAssistantMsg && typeof pendingAssistantMsg.content === 'string') {
-                pendingAssistantMsg.content += `\n${streamErrMessage}`;
+                pendingAssistantMsg.content += `\n${streamErrMessage} `;
             } else {
                 pendingAssistantMsg = { role: 'assistant', content: streamErrMessage };
             }
             currentMsgs.push(pendingAssistantMsg);
-            try { await writer.write(`\n${streamErrMessage}`); }
-            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de erro de stream:`, e); }
+            try { await writer.write(`\n${streamErrMessage} `); }
+            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de erro de stream: `, e); }
             return currentMsgs;
         } finally {
             clearTimeout(timeout);
         }
 
         if (!streamReceivedContent && lastFinishReason !== 'stop' && lastFinishReason !== 'length' && lastFinishReason !== 'function_call') {
-            logger.error(`${turnTag} Stream finalizado sem conteúdo útil e com finish_reason inesperado: ${lastFinishReason}`);
+            logger.error(`${turnTag} Stream finalizado sem conteúdo útil e com finish_reason inesperado: ${lastFinishReason} `);
             const noContentMessage = "A IA não forneceu uma resposta utilizável desta vez. Poderia tentar novamente?";
             currentMsgs.push({ role: 'assistant', content: noContentMessage });
             try { await writer.write(noContentMessage); }
-            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de 'sem conteúdo útil':`, e); }
+            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de 'sem conteúdo útil': `, e); }
             return currentMsgs;
         }
         if (pendingAssistantMsg) {
             if (functionCallName || functionCallArgs) {
                 if (isLightweightIntent) {
-                    logger.warn(`${turnTag} IA tentou function call (${functionCallName}) para intent leve ('${currentIntent}'), mas os parâmetros de função não foram enviados. Ignorando a chamada de função e tratando como texto.`);
+                    logger.warn(`${turnTag} IA tentou function call(${functionCallName}) para intent leve('${currentIntent}'), mas os parâmetros de função não foram enviados.Ignorando a chamada de função e tratando como texto.`);
                     if (pendingAssistantMsg.content === null || pendingAssistantMsg.content === '') {
                         pendingAssistantMsg.content = "Entendi.";
                         try { await writer.write(pendingAssistantMsg.content); } catch (e) { /* ignore */ }
@@ -1987,15 +2230,22 @@ export async function askLLMWithEnrichedContext(
                 }
             } else if (pendingAssistantMsg.content === null || pendingAssistantMsg.content === '') {
                 if (lastFinishReason !== 'stop' && lastFinishReason !== 'length') {
-                    logger.warn(`${turnTag} Mensagem assistente finalizada sem conteúdo/function call. Finish Reason: ${lastFinishReason}. Content será null/vazio.`);
+                    logger.warn(`${turnTag} Mensagem assistente finalizada sem conteúdo / function call.Finish Reason: ${lastFinishReason}. Content será null / vazio.`);
                 }
+            }
+
+            if (!pendingAssistantMsg.function_call && shouldBufferOutput && typeof pendingAssistantMsg.content === 'string') {
+                const gated = await applyRelevanceGate(pendingAssistantMsg.content);
+                pendingAssistantMsg.content = gated.finalContent;
+                try { await writer.write(pendingAssistantMsg.content); }
+                catch (writeError) { logger.error(`${turnTag} Erro ao escrever resposta validada: `, writeError); }
             }
             currentMsgs.push(pendingAssistantMsg as ChatCompletionAssistantMessageParam);
         } else if (lastFinishReason === 'stop' || lastFinishReason === 'length') {
-            logger.warn(`${turnTag} Stream finalizado (${lastFinishReason}) mas sem delta de assistente. Adicionando msg de assistente vazia de fallback.`);
+            logger.warn(`${turnTag} Stream finalizado(${lastFinishReason}) mas sem delta de assistente.Adicionando msg de assistente vazia de fallback.`);
             currentMsgs.push({ role: 'assistant', content: '' });
         } else if (!functionCallName && lastFinishReason !== 'function_call') {
-            logger.error(`${turnTag} Estado inesperado no final do processamento do stream. Finish Reason: ${lastFinishReason}, sem function call name.`);
+            logger.error(`${turnTag} Estado inesperado no final do processamento do stream.Finish Reason: ${lastFinishReason}, sem function call name.`);
         }
 
         if (pendingAssistantMsg?.function_call && !isLightweightIntent) {
@@ -2003,8 +2253,8 @@ export async function askLLMWithEnrichedContext(
             logger.info(`${turnTag} API solicitou Function Call: ${name}. Args RAW: ${rawArgs.slice(0, 100)}...`);
 
             if (name === lastFnName && iter > 1) {
-                logger.warn(`${turnTag} Loop de função (após uma tentativa de correção) detectado e prevenido: ${name} chamada novamente.`);
-                const loopErrorMessage = `Ainda estou tendo dificuldades com a função '${name}' após tentar corrigi-la. Poderia reformular sua solicitação ou focar em outro aspecto?`;
+                logger.warn(`${turnTag} Loop de função(após uma tentativa de correção) detectado e prevenido: ${name} chamada novamente.`);
+                const loopErrorMessage = `Ainda estou tendo dificuldades com a função '${name}' após tentar corrigi - la.Poderia reformular sua solicitação ou focar em outro aspecto ? `;
                 currentMsgs.push({ role: 'assistant', content: loopErrorMessage });
                 try {
                     const lastMessageInHistory = currentMsgs[currentMsgs.length - 2];
@@ -2012,7 +2262,7 @@ export async function askLLMWithEnrichedContext(
                         await writer.write(loopErrorMessage);
                     }
                 }
-                catch (writeError) { logger.error(`${turnTag} Erro ao escrever mensagem de loop detectado no writer:`, writeError); }
+                catch (writeError) { logger.error(`${turnTag} Erro ao escrever mensagem de loop detectado no writer: `, writeError); }
                 return currentMsgs;
             }
 
@@ -2041,29 +2291,29 @@ export async function askLLMWithEnrichedContext(
                             functionResult = await executor(validatedArgs, currentUser);
                             logger.info(`${turnTag} Função "${name}" executada com sucesso.`);
                         } catch (execError: any) {
-                            logger.error(`${turnTag} Erro ao executar a função "${name}":`, execError);
-                            functionResult = { error: `Erro interno ao executar a função ${name}: ${execError.message || String(execError)}` };
+                            logger.error(`${turnTag} Erro ao executar a função "${name}": `, execError);
+                            functionResult = { error: `Erro interno ao executar a função ${name}: ${execError.message || String(execError)} ` };
                         }
                     } else {
-                        logger.warn(`${turnTag} Erro de validação Zod para args da função "${name}":`, validationResult.error.format());
-                        const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.') || 'argumento'}: ${e.message}`).join('; ');
-                        functionResult = { error: `Argumentos inválidos para a função ${name}. Detalhes: ${errorMessages}` };
+                        logger.warn(`${turnTag} Erro de validação Zod para args da função "${name}": `, validationResult.error.format());
+                        const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.') || 'argumento'}: ${e.message} `).join('; ');
+                        functionResult = { error: `Argumentos inválidos para a função ${name}.Detalhes: ${errorMessages} ` };
                     }
                 } catch (parseError) {
-                    logger.error(`${turnTag} Erro JSON.parse dos args para "${name}": ${rawArgs}`, parseError);
+                    logger.error(`${turnTag} Erro JSON.parse dos args para "${name}": ${rawArgs} `, parseError);
                     functionResult = { error: `Argumentos inválidos para ${name}. Esperava formato JSON.` };
                 }
             }
 
             currentMsgs.push({ role: 'function', name: name, content: JSON.stringify(functionResult) });
-            logger.debug(`${turnTag} Histórico antes da recursão (iter ${iter + 1}, ${currentMsgs.length} msgs).`);
+            logger.debug(`${turnTag} Histórico antes da recursão(iter ${iter + 1}, ${currentMsgs.length} msgs).`);
             // Passando currentEnrichedContext para a chamada recursiva
             return processTurn(currentMsgs, iter + 1, name, writer, currentUser, currentIntent, currentEnrichedContext);
         } else if (pendingAssistantMsg?.function_call && isLightweightIntent) {
             logger.warn(`${turnTag} Function call recebida para intent leve '${currentIntent}', mas foi ignorada pois os parâmetros de função não foram enviados à API.`);
         }
 
-        logger.debug(`${turnTag} Turno concluído sem chamada de função processada (ou para intent leve).`);
+        logger.debug(`${turnTag} Turno concluído sem chamada de função processada(ou para intent leve).`);
         return currentMsgs;
     } // Fim da função processTurn
 }

@@ -133,9 +133,11 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                 autoScrollOnNext.current = true;
                 const messageType = (() => {
                     const taskName = data.currentTask?.name;
+                    const isInspirationIntent =
+                        data.answerEvidence?.intent_group === 'inspiration' &&
+                        Boolean(data.answerEvidence?.asked_for_examples);
                     if (taskName === 'content_plan') return 'content_plan';
-                    if (taskName === 'ask_community_inspiration') return 'community_inspiration';
-                    if (data.answerEvidence?.topPosts?.length) return 'community_inspiration';
+                    if (taskName === 'ask_community_inspiration' || isInspirationIntent) return 'community_inspiration';
                     return 'other';
                 })();
                 setMessages(prev => [

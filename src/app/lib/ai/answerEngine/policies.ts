@@ -186,21 +186,36 @@ export function buildThresholds(
   format?: string | null,
 ): Thresholds {
   const formatBaseline = format ? baselines?.perFormat?.[format] : null;
+
+  // BASELINES
   const baseInteractions = formatBaseline?.totalInteractionsP50 ?? baselines?.totalInteractionsP50 ?? 0;
+  const p75Interactions = formatBaseline?.totalInteractionsP75 ?? baselines?.totalInteractionsP75 ?? 0;
   const baseEr = formatBaseline?.engagementRateP50 ?? baselines?.engagementRateP50 ?? null;
+  const p60Er = formatBaseline?.engagementRateP60 ?? baselines?.engagementRateP60 ?? null;
+
+  // ABSOLUTE GATE (Gate A)
+  // Rule: max(P75, median * 1.5, minAbs)
   const minAbsolute = minAbsoluteByFollowers(followers);
-  const minRelativeInteractions = Math.max(Math.round(baseInteractions * 1.25), 0);
-  const effectiveInteractions = Math.max(minRelativeInteractions, minAbsolute);
-  const minRelativeEr = baseEr && baseEr > 0 ? baseEr * 1.15 : null;
-  const effectiveEr = minRelativeEr && minRelativeEr > 0 ? minRelativeEr : null;
+  const strictAbsTarget = Math.max(p75Interactions, baseInteractions * 1.5, minAbsolute);
+
+  // QUALITY GATE (Gate B)
+  // Rule: max(P60_ER, median_ER * 1.15)
+  // Defaults to null if no ER baseline
+  const minRelativeEr = baseEr && baseEr > 0
+    ? Math.max(p60Er || 0, baseEr * 1.15)
+    : null;
+
   return {
     minAbsolute,
-    minRelativeInteractions,
+    minRelativeInteractions: Math.round(baseInteractions * 1.25), // Legacy relative, keep for safe fallback
     minRelativeEr,
-    effectiveInteractions,
-    effectiveEr,
+    effectiveInteractions: strictAbsTarget,
+    effectiveEr: minRelativeEr,
     baselineInteractionP50: baseInteractions,
+    baselineInteractionP75: p75Interactions,
     baselineErP50: baseEr,
+    baselineErP60: p60Er,
+    strictMode: false, // Will be overridden by policy
   };
 }
 
@@ -233,6 +248,12 @@ export function resolvePolicy(
   };
 
   const thresholds = buildThresholds(baselines, followers, formatLocked || undefined);
+
+  // Apply Strict Mode for Top Performance
+  if (intent === 'top_performance_inspirations') {
+    thresholds.strictMode = true;
+  }
+
   const policyWithThresholds = { ...basePolicy, thresholds };
 
   if (!baselines) {

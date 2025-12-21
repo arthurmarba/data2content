@@ -49,13 +49,22 @@ function formatDatePTBR(d: Date | null): string {
   }
 }
 
-export default function SubscriptionCard() {
+type Props = {
+  onChangePlan?: () => void;
+};
+
+export default function SubscriptionCard({ onChangePlan }: Props) {
   const { subscription, error, isLoading } = useSubscription();
   const [showModal, setShowModal] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
 
-  const scrollToChangePlan = () => {
+  const handleChangePlan = () => {
+    if (onChangePlan) {
+      onChangePlan();
+      return;
+    }
     const target = document.getElementById('change-plan');
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -83,7 +92,7 @@ export default function SubscriptionCard() {
           Você ainda não possui uma assinatura ativa. Escolha um plano para desbloquear todos os recursos da plataforma.
         </p>
         <button
-          onClick={scrollToChangePlan}
+          onClick={handleChangePlan}
           className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
         >
           Mudar de plano
@@ -96,6 +105,7 @@ export default function SubscriptionCard() {
   const isTrialing = statusRaw === 'trialing';
   const isNonRenewing = statusRaw === 'non_renewing';
   const showReactivate = subscription.cancelAtPeriodEnd === true;
+  const showPaymentUpdate = statusRaw === 'past_due' || statusRaw === 'unpaid';
 
   // Converte valores vindos da API (podem ser string/number/Date/null)
   const trialEndDate = toDate(subscription.trialEnd);
@@ -113,6 +123,14 @@ export default function SubscriptionCard() {
     ? 'Período de teste'
     : isNonRenewing
     ? 'Não renovará (ao fim do ciclo)'
+    : statusRaw === 'past_due'
+    ? 'Pagamento pendente'
+    : statusRaw === 'unpaid'
+    ? 'Pagamento falhou'
+    : statusRaw === 'incomplete'
+    ? 'Pagamento pendente'
+    : statusRaw === 'incomplete_expired'
+    ? 'Pagamento expirado'
     : statusRaw
     ? statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1)
     : '—';
@@ -174,6 +192,19 @@ export default function SubscriptionCard() {
     }
   }
 
+  async function openPortal() {
+    try {
+      setOpeningPortal(true);
+      const res = await fetch('/api/billing/portal', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || data?.error);
+      window.location.href = data.url;
+    } catch {
+      toast.error('Não foi possível abrir o portal de cobrança.');
+      setOpeningPortal(false);
+    }
+  }
+
   return (
     <div className="rounded-[12px] border border-[#ECECF0] bg-[#FCFCFD] p-4 sm:p-5 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -231,6 +262,16 @@ export default function SubscriptionCard() {
 
       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full flex-col gap-3 sm:flex-row">
+          {showPaymentUpdate && (
+            <button
+              onClick={openPortal}
+              className="w-full min-h-[44px] rounded-[8px] border border-[#E6E6EB] px-4 py-2.5 text-[14px] font-semibold text-[#2053B4] transition hover:border-[#2053B4] hover:bg-[#F4F8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2053B4] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={openingPortal}
+            >
+              {openingPortal ? 'Abrindo...' : 'Atualizar pagamento'}
+            </button>
+          )}
+
           {!showReactivate && (
             <button
               onClick={() => setShowModal(true)}
@@ -253,7 +294,7 @@ export default function SubscriptionCard() {
         </div>
 
         <button
-          onClick={scrollToChangePlan}
+          onClick={handleChangePlan}
           className="w-full min-h-[44px] rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E] sm:w-auto"
         >
           Mudar de plano

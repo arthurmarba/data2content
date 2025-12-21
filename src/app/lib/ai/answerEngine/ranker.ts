@@ -104,13 +104,13 @@ export function rankCandidates(
 
   const medians = smallSample
     ? {
-        saves: medianFor('saves'),
-        shares: medianFor('shares'),
-        comments: medianFor('comments'),
-        likes: medianFor('likes'),
-        reach: medianFor('reach'),
-        total: medianFor('total_interactions' as any),
-      }
+      saves: medianFor('saves'),
+      shares: medianFor('shares'),
+      comments: medianFor('comments'),
+      likes: medianFor('likes'),
+      reach: medianFor('reach'),
+      total: medianFor('total_interactions' as any),
+    }
     : null;
 
   return candidates
@@ -169,13 +169,23 @@ export function rankCandidates(
         : null;
       const reachDelta = baseline.perFormat?.[options.policy.formatLocked || '']?.totalInteractionsP50
         ? ((reach - (baseline.perFormat[options.policy.formatLocked || ''] as any).totalInteractionsP50) /
-            Math.max(1, (baseline.perFormat[options.policy.formatLocked || ''] as any).totalInteractionsP50)) * 100
+          Math.max(1, (baseline.perFormat[options.policy.formatLocked || ''] as any).totalInteractionsP50)) * 100
         : null;
 
-      let passesThreshold =
-        totalInteractions >= options.policy.thresholds.effectiveInteractions &&
-        (!options.policy.thresholds.effectiveEr || (er ?? 0) >= options.policy.thresholds.effectiveEr);
+      // PHASE 3: STRICT DOUBLE GATE IMPLEMENTATION
+      // Gate A: Absolute Interactions
+      const gateA = totalInteractions >= options.policy.thresholds.effectiveInteractions;
 
+      // Gate B: Relative Quality (ER)
+      // Only applies if effectiveEr is set (i.e., we have enough history to trust ER)
+      const gateB = options.policy.thresholds.effectiveEr
+        ? (er ?? 0) >= options.policy.thresholds.effectiveEr
+        : true;
+
+      // Double Gate Check
+      let passesThreshold = gateA && gateB;
+
+      // Specialized Metric Checks (if intent requires specific metrics, they act as Gate C)
       if (options.policy.metricsRequired?.includes('reach')) {
         passesThreshold = passesThreshold && reach > 0 && reach >= options.policy.thresholds.effectiveInteractions;
       }
@@ -185,8 +195,13 @@ export function rankCandidates(
       if (options.policy.metricsRequired?.includes('shares')) {
         passesThreshold = passesThreshold && safeNumber(stats.shares) > 0;
       }
-      if (options.policy.metricsRequired?.includes('er')) {
-        passesThreshold = passesThreshold && (er ?? 0) >= (options.policy.thresholds.effectiveEr || 0);
+
+      // If Strict Mode is active (Phase 3), we are potentially even stricter
+      if (options.policy.thresholds.strictMode) {
+        // Enforce that Boosts NEVER rescue a post that failed gates
+        if (!passesThreshold) {
+          score = 0;
+        }
       }
 
       return {
@@ -206,5 +221,8 @@ export function rankCandidates(
         },
       };
     })
+    // HARDENING: If Strict Mode is active, remove failed posts entirely.
+    // This prevents "zero score" posts from leaking into top slices.
+    .filter(c => options.policy.thresholds.strictMode ? c.passesThreshold : true)
     .sort((a, b) => b.score - a.score);
 }

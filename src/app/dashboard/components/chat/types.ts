@@ -110,6 +110,8 @@ export interface AnswerEvidence {
         permalink?: string;
         format?: string | string[] | null;
         tags?: string[];
+        source?: 'user' | 'community';
+        linkVerified?: boolean;
         stats: {
             total_interactions?: number;
             reach?: number;
@@ -132,6 +134,33 @@ export interface AnswerEvidence {
         thumbUrl?: string;
         score?: number;
     }>;
+    communityInspirations?: Array<{
+        id: string;
+        title?: string;
+        description?: string;
+        highlights?: string[];
+        permalink?: string;
+        proposal?: string;
+        context?: string;
+        format?: string;
+        tone?: string;
+        reference?: string;
+        primaryObjective?: string;
+        source: 'community';
+        linkVerified?: boolean;
+    }>;
+    communityMeta?: {
+        matchType?: string;
+        usedFilters?: {
+            proposal?: string;
+            context?: string;
+            format?: string;
+            tone?: string;
+            reference?: string;
+            primaryObjective?: string;
+        };
+        fallbackMessage?: string;
+    };
     relaxApplied?: Array<{ step: string; reason?: string }>;
     filtersApplied?: { tagsLocked?: boolean; formatLocked?: boolean };
     diagnosticEvidence?: {

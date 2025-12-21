@@ -94,6 +94,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
+    needsPaymentAction,
   } = useBillingStatus();
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -129,6 +130,10 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
       const body = await res.json();
       if (res.status === 422 || body?.code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
       if (!res.ok && body?.code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
+      if (!res.ok && body?.code === 'SUBSCRIPTION_PAST_DUE') { setError(body?.message ?? 'Pagamento pendente. Atualize em Billing.'); return; }
+      if (!res.ok && body?.code === 'SUBSCRIPTION_ACTIVE') { setError(body?.message ?? 'Você já possui uma assinatura ativa.'); return; }
+      if (!res.ok && body?.code === 'SUBSCRIPTION_NON_RENEWING') { setError(body?.message ?? 'Assinatura com cancelamento agendado. Reative em Billing.'); return; }
+      if (!res.ok && body?.code === 'SUBSCRIPTION_INCOMPLETE') { setError(body?.message ?? 'Há um checkout pendente.'); return; }
       if (!res.ok) throw new Error(body?.error || body?.message || 'Falha ao iniciar assinatura');
       if (body?.checkoutUrl) { window.location.href = body.checkoutUrl; return; }
       if (body?.clientSecret) {
@@ -165,6 +170,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   }, [open, onClose]);
 
   const disabled = !!loadingAction;
+  const shouldBlockSubscribe = hasPremiumAccess || needsPaymentAction;
 
   return (
     <div
@@ -267,9 +273,15 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
                     {hasPremiumAccess && !billingStatusLoading && (
                       <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo.</p>
                     )}
+                    {needsPaymentAction && !billingStatusLoading && (
+                      <p className="text-xs text-amber-700 text-center">
+                        Pagamento pendente. Atualize sua cobrança em{" "}
+                        <a href="/dashboard/billing" className="underline">Billing</a>.
+                      </p>
+                    )}
 
                     <div className="grid grid-cols-1 gap-3">
-                        <button onClick={handleStart} disabled={disabled || !codeIsValid || hasPremiumAccess || billingStatusLoading} className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50" aria-busy={loadingAction === 'subscribe'}>
+                        <button onClick={handleStart} disabled={disabled || !codeIsValid || shouldBlockSubscribe || billingStatusLoading} className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50" aria-busy={loadingAction === 'subscribe'}>
                             {loadingAction === 'subscribe' ? 'Processando…' : 'Ativar meu Plano Agência'}
                         </button>
                     </div>

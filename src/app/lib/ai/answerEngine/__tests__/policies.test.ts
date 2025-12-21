@@ -7,7 +7,10 @@ import type { UserBaselines } from '../types';
 describe('answerEngine policies', () => {
   const base: UserBaselines = {
     totalInteractionsP50: 100,
+    totalInteractionsP75: 120,
+    totalInteractionsP90: 180,
     engagementRateP50: 0.05,
+    engagementRateP60: 0.06,
     perFormat: {},
     sampleSize: 10,
     computedAt: Date.now(),
@@ -23,25 +26,25 @@ describe('answerEngine policies', () => {
 
   it('builds thresholds combining relative and absolute rules', () => {
     const thr = buildThresholds(base, 8000);
-    // P50*1.25 = 125, but min absolute for 8k followers is 30 -> expect 125
-    expect(thr.effectiveInteractions).toBe(125);
+    // baseInteractions * 1.5 = 150, minAbs = 30 -> expect 150
+    expect(thr.effectiveInteractions).toBe(150);
     expect(thr.minRelativeInteractions).toBe(125);
     expect(thr.minAbsolute).toBe(30);
     expect(thr.effectiveEr).toBeCloseTo(0.0575);
   });
 
   it('detects top performance intent from query', () => {
-    const intent = detectAnswerIntent('Quero os posts com maior engajamento e os top do mês', null);
-    expect(intent).toBe('top_performance_inspirations');
+    const res = detectAnswerIntent('Quero os posts com maior engajamento e os top do mês', null);
+    expect(res.intent).toBe('top_performance_inspirations');
   });
 
   it('detects diagnosis intent for viraliza without ask for examples', () => {
-    const intent = detectAnswerIntent('por que meus conteúdos não viralizam', null);
-    expect(intent).toBe('underperformance_diagnosis');
+    const res = detectAnswerIntent('por que não viralizo', null);
+    expect(res.intent).toBe('underperformance_diagnosis');
   });
 
   it('still routes to inspiration when explicitly asking for examples', () => {
-    const intent = detectAnswerIntent('me mostre reels virais', null);
-    expect(intent).not.toBe('underperformance_diagnosis');
+    const res = detectAnswerIntent('me mostre reels virais', null);
+    expect(res.intent).not.toBe('underperformance_diagnosis');
   });
 });

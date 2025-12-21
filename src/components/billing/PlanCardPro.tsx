@@ -145,6 +145,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
+    needsPaymentAction,
   } = useBillingStatus();
 
   // Hidrata código salvo (localStorage/cookie)
@@ -288,6 +289,14 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
           setAffiliateError(json?.message || 'Código inválido ou expirado.');
         } else if (json?.code === 'SELF_REFERRAL') {
           setAffiliateError('Você não pode usar seu próprio código.');
+        } else if (json?.code === 'SUBSCRIPTION_PAST_DUE') {
+          setError(json?.message || 'Pagamento pendente. Atualize em Billing.');
+        } else if (json?.code === 'SUBSCRIPTION_ACTIVE') {
+          setError(json?.message || 'Você já possui uma assinatura ativa.');
+        } else if (json?.code === 'SUBSCRIPTION_NON_RENEWING') {
+          setError(json?.message || 'Assinatura com cancelamento agendado. Reative em Billing.');
+        } else if (json?.code === 'SUBSCRIPTION_INCOMPLETE') {
+          setError(json?.message || 'Há um checkout pendente.');
         } else {
           setError(msg);
         }
@@ -464,7 +473,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       <div className="flex flex-col sm:flex-row gap-2">
         <button
           onClick={handleSubscribe}
-          disabled={loading || isPreviewLoading || !preview || preview.total == null}
+          disabled={loading || isPreviewLoading || !preview || preview.total == null || hasPremiumAccess || needsPaymentAction || billingStatusLoading}
           className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-2 sm:py-3 text-white font-semibold
                      transition-all duration-300 ease-in-out
                      hover:shadow-lg hover:shadow-brand-pink/40
@@ -481,6 +490,12 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       {hasPremiumAccess && !billingStatusLoading && (
         <p className="mt-2 text-center text-xs text-gray-600">
           Você já possui um plano ativo.
+        </p>
+      )}
+      {needsPaymentAction && !billingStatusLoading && (
+        <p className="mt-2 text-center text-xs text-amber-700">
+          Pagamento pendente. Atualize sua cobrança em{" "}
+          <a href="/dashboard/billing" className="underline">Billing</a>.
         </p>
       )}
     </motion.div>

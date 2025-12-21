@@ -83,6 +83,104 @@ export function sanitizeTables(markdown: string): string {
   return output.join('\n');
 }
 
+const isHttpUrl = (value?: string | null): value is string =>
+  typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+
+const isInstagramPostUrl = (url?: string | null) => {
+  if (!isHttpUrl(url)) return false;
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    if (!(host.endsWith('instagram.com') || host === 'instagr.am')) return false;
+    return /\/(p|reel|tv)\/[^/]+/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+};
+
+const normalizeInstagramUrl = (url?: string | null) => {
+  if (!isInstagramPostUrl(url)) return null;
+  try {
+    const parsed = new URL(url!.trim());
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    const path = parsed.pathname.replace(/\/+$/, '');
+    return `${host}${path}`;
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeInstagramLinks = (markdown: string, allowed: Set<string>) => {
+  if (!markdown) return markdown;
+  const allowSet = allowed || new Set<string>();
+  let updated = markdown.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/gi, (full, label, url) => {
+    const normalized = normalizeInstagramUrl(url);
+    if (!normalized) return full;
+    if (!allowSet.has(normalized)) return label;
+    return full;
+  });
+  updated = updated.replace(/https?:\/\/[^\s)]+/gi, (raw) => {
+    const trimmed = raw.replace(/[),.;!?]+$/, '');
+    const suffix = raw.slice(trimmed.length);
+    const normalized = normalizeInstagramUrl(trimmed);
+    if (!normalized) return raw;
+    if (!allowSet.has(normalized)) {
+      return suffix;
+    }
+    return raw;
+  });
+  return updated;
+};
+
+const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => {
+  const inspirations: any[] = [];
+  let meta: {
+    matchType?: string;
+    usedFilters?: {
+      proposal?: string;
+      context?: string;
+      format?: string;
+      tone?: string;
+      reference?: string;
+      primaryObjective?: string;
+    };
+    fallbackMessage?: string;
+  } | null = null;
+  for (const msg of history) {
+    if (msg.role !== 'function') continue;
+    const fnName = (msg as any)?.name;
+    if (fnName !== 'fetchCommunityInspirations') continue;
+    const content = (msg as any)?.content;
+    if (!content) continue;
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed?.inspirations)) {
+        inspirations.push(...parsed.inspirations);
+      }
+      if (parsed?.matchType || parsed?.usedFilters || parsed?.fallbackMessage) {
+        const rawFilters = parsed?.usedFilters || {};
+        meta = {
+          matchType: typeof parsed.matchType === 'string' ? parsed.matchType : undefined,
+          usedFilters: {
+            proposal: typeof rawFilters.proposal === 'string' ? rawFilters.proposal : undefined,
+            context: typeof rawFilters.context === 'string' ? rawFilters.context : undefined,
+            format: typeof rawFilters.format === 'string' ? rawFilters.format : undefined,
+            tone: typeof rawFilters.tone === 'string' ? rawFilters.tone : undefined,
+            reference: typeof rawFilters.reference === 'string' ? rawFilters.reference : undefined,
+            primaryObjective: typeof rawFilters.primaryObjectiveAchieved_Qualitative === 'string'
+              ? rawFilters.primaryObjectiveAchieved_Qualitative
+              : undefined,
+          },
+          fallbackMessage: typeof parsed.fallbackMessage === 'string' ? parsed.fallbackMessage : undefined,
+        };
+      }
+    } catch {
+      // ignore parse failures
+    }
+  }
+  return { inspirations, meta };
+};
+
 const SURVEY_STALE_MS = 1000 * 60 * 60 * 24 * 120; // ~4 meses
 
 function evaluateSurveyFreshness(profile: any) {
@@ -667,9 +765,11 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     let finalText = '';
     let userMessageId: string | null = null;
     let assistantMessageId: string | null = null;
+    let historyPromise: Promise<ChatCompletionMessageParam[]> | null = null;
     try {
       const llmStartedAt = Date.now();
-      const { stream } = await askLLMWithEnrichedContext(enriched, truncatedQuery.trim(), effectiveIntent);
+      const { stream, historyPromise: hp } = await askLLMWithEnrichedContext(enriched, truncatedQuery.trim(), effectiveIntent);
+      historyPromise = hp;
       const reader = stream.getReader();
       while (true) {
         const { value, done } = await reader.read();
@@ -711,7 +811,108 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     }
     const hasAnswerEvidence = Boolean(answerEngineResult?.topPosts?.length || answerEngineResult?.contextPack?.top_posts?.length);
     sanitizedResponse = stripUnprovenCommunityClaims(sanitizedResponse, hasAnswerEvidence);
-    const answerEvidence = answerEngineResult
+    let communityInspirations: Array<{
+      id: string;
+      title?: string;
+      description?: string;
+      highlights?: string[];
+      permalink?: string;
+      proposal?: string;
+      context?: string;
+      format?: string;
+      tone?: string;
+      reference?: string;
+      primaryObjective?: string;
+      source: 'community';
+      linkVerified?: boolean;
+    }> = [];
+    let communityMeta: {
+      matchType?: string;
+      usedFilters?: {
+        proposal?: string;
+        context?: string;
+        format?: string;
+        tone?: string;
+        reference?: string;
+        primaryObjective?: string;
+      };
+      fallbackMessage?: string;
+    } | null = null;
+    if (historyPromise) {
+      try {
+        const history = await historyPromise;
+        const extracted = extractCommunityInspirations(history);
+        const rawInspirations = extracted.inspirations;
+        communityMeta = extracted.meta;
+        const seen = new Set<string>();
+        communityInspirations = rawInspirations.reduce((acc: typeof communityInspirations, insp: any, idx: number) => {
+          const rawId = insp?.id || insp?._id || insp?.originalInstagramPostUrl;
+          if (!rawId) return acc;
+          const id = String(rawId);
+          if (seen.has(id)) return acc;
+          seen.add(id);
+          const permalink = isInstagramPostUrl(insp?.originalInstagramPostUrl) ? String(insp.originalInstagramPostUrl).trim() : undefined;
+          const highlights = Array.isArray(insp?.performanceHighlights_Qualitative)
+            ? insp.performanceHighlights_Qualitative.map((h: any) => String(h).trim()).filter(Boolean)
+            : [];
+          const proposal = typeof insp?.proposal === 'string' ? insp.proposal.trim() : '';
+          const context = typeof insp?.context === 'string' ? insp.context.trim() : '';
+          const format = typeof insp?.format === 'string' ? insp.format.trim() : '';
+          const tone = typeof insp?.tone === 'string' ? insp.tone.trim() : '';
+          const reference = typeof insp?.reference === 'string' ? insp.reference.trim() : '';
+          const primaryObjective = typeof insp?.primaryObjectiveAchieved_Qualitative === 'string'
+            ? insp.primaryObjectiveAchieved_Qualitative.trim()
+            : '';
+          const summary = typeof insp?.contentSummary === 'string' ? insp.contentSummary.trim() : '';
+          const title = proposal || [format, context].filter(Boolean).join(' • ') || reference || `Inspiração ${idx + 1}`;
+          acc.push({
+            id,
+            title,
+            description: summary || undefined,
+            highlights,
+            permalink,
+            proposal: proposal || undefined,
+            context: context || undefined,
+            format: format || undefined,
+            tone: tone || undefined,
+            reference: reference || undefined,
+            primaryObjective: primaryObjective || undefined,
+            source: 'community',
+            linkVerified: Boolean(permalink),
+          });
+          return acc;
+        }, []);
+      } catch (error) {
+        logger.warn('[ai/chat] failed to parse community inspirations from tool history', error);
+      }
+    }
+
+    const mapEvidencePost = (p: any) => {
+      const permalink = isInstagramPostUrl(p?.permalink) ? String(p.permalink).trim() : undefined;
+      return {
+        id: p.id,
+        permalink,
+        format: p.format,
+        tags: p.tags,
+        source: 'user' as const,
+        linkVerified: Boolean(permalink),
+        stats: {
+          ...p.stats,
+          er_by_reach: p.stats?.engagement_rate_on_reach ?? null,
+        },
+        score: p.score,
+        vsBaseline: {
+          interactionsPct: p.baselineDelta ?? null,
+          erPct: p.erDelta ?? null,
+          reachPct: p.reachDelta ?? null,
+        },
+        title: p.title,
+        captionSnippet: p.captionSnippet,
+        thumbUrl: p.thumbUrl,
+      };
+    };
+
+    let answerEvidence = answerEngineResult
       ? {
           version: 'v1',
           intent: answerEngineResult.intent,
@@ -739,22 +940,9 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
               }),
             ),
           },
-          topPosts: answerEngineResult.topPosts.slice(0, 8).map((p: any) => ({
-            id: p.id,
-            permalink: p.permalink,
-            format: p.format,
-            tags: p.tags,
-            stats: {
-              ...p.stats,
-              er_by_reach: p.stats?.engagement_rate_on_reach ?? null,
-            },
-            score: p.score,
-            vsBaseline: {
-              interactionsPct: p.baselineDelta ?? null,
-              erPct: p.erDelta ?? null,
-              reachPct: p.reachDelta ?? null,
-            },
-          })),
+          topPosts: answerEngineResult.topPosts.slice(0, 8).map(mapEvidencePost),
+          communityInspirations: communityInspirations.length ? communityInspirations : undefined,
+          communityMeta: communityMeta || undefined,
           relaxApplied: answerEngineResult.telemetry?.relaxApplied,
           diagnosticEvidence: answerEngineResult.diagnosticEvidence
             ? {
@@ -767,9 +955,11 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
                   deltas: block.deltas,
                   lowPosts: (block.lowPosts || []).map((p: any) => ({
                     id: p.id,
-                    permalink: p.permalink,
+                    permalink: isInstagramPostUrl(p.permalink) ? String(p.permalink).trim() : undefined,
                     format: p.format,
                     tags: p.tags,
+                    source: 'user',
+                    linkVerified: isInstagramPostUrl(p.permalink),
                     stats: p.stats,
                     vsBaseline: {
                       interactionsPct: p.baselineDelta ?? null,
@@ -782,9 +972,11 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
                   })),
                   highPosts: (block.highPosts || []).map((p: any) => ({
                     id: p.id,
-                    permalink: p.permalink,
+                    permalink: isInstagramPostUrl(p.permalink) ? String(p.permalink).trim() : undefined,
                     format: p.format,
                     tags: p.tags,
+                    source: 'user',
+                    linkVerified: isInstagramPostUrl(p.permalink),
                     stats: p.stats,
                     vsBaseline: {
                       interactionsPct: p.baselineDelta ?? null,
@@ -799,7 +991,46 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
               }
             : null,
         }
-      : null;
+      : (communityInspirations.length
+          ? {
+              version: 'v1',
+              intent: effectiveIntent,
+              intent_group: 'inspiration',
+              asked_for_examples: true,
+              thresholds: {},
+              baselines: {
+                windowDays: 0,
+              },
+              topPosts: [],
+              communityInspirations,
+              communityMeta: communityMeta || undefined,
+            }
+          : null);
+
+    const allowedLinks = new Set<string>();
+    if (answerEvidence) {
+      const pushAllowed = (url?: string | null, verified?: boolean) => {
+        const normalized = normalizeInstagramUrl(url || undefined);
+        if (!normalized) return;
+        if (verified === false) return;
+        allowedLinks.add(normalized);
+      };
+      answerEvidence.topPosts?.forEach((post: any) => {
+        if (post?.source && post.source !== 'user') return;
+        pushAllowed(post.permalink, post.linkVerified);
+      });
+      answerEvidence.communityInspirations?.forEach((insp: any) => {
+        pushAllowed(insp.permalink, insp.linkVerified);
+      });
+      const diagnosticBlocks = (answerEvidence as any)?.diagnosticEvidence?.perFormat || [];
+      if (Array.isArray(diagnosticBlocks)) {
+        diagnosticBlocks.forEach((block: any) => {
+          const posts = [...(block?.lowPosts || []), ...(block?.highPosts || [])];
+          posts.forEach((post: any) => pushAllowed(post?.permalink, post?.linkVerified));
+        });
+      }
+    }
+    sanitizedResponse = sanitizeInstagramLinks(sanitizedResponse, allowedLinks);
     const surveyNudgeNeeded = !access.isAdmin && (surveyFreshness.isStale || surveyFreshness.missingCore.length > 0);
     const surveyNudgeText = surveyNudgeNeeded
       ? `Para personalizar com o que você preencheu na pesquisa, confirme seu ${surveyFreshness.missingCore.join('/') || 'perfil'} rapidinho (leva 2 min).`

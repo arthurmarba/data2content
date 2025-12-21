@@ -223,10 +223,148 @@ export const MessageBubble = React.memo(function MessageBubble({
         return renderFormatted(labelSafeText, isUser ? 'inverse' : 'default', {
             ...resolvedRenderOptions,
             normalizedText: normalizedDisplayText ?? undefined,
+            onSendPrompt: onSendPrompt,
         });
     }, [labelSafeText, isUser, normalizedDisplayText, resolvedRenderOptions, shouldRenderMarkdown]);
 
-    const isHttpUrl = (url?: string | null) => !!url && /^https?:\/\//i.test(url.trim());
+    const isHttpUrl = (url?: string | null): url is string =>
+        typeof url === 'string' && /^https?:\/\//i.test(url.trim());
+    const isInstagramPostUrl = (url?: string | null) => {
+        if (!isHttpUrl(url)) return false;
+        try {
+            const parsed = new URL(url.trim());
+            const host = parsed.hostname.replace(/^www\./, '');
+            if (!(host.endsWith('instagram.com') || host === 'instagr.am')) return false;
+            return /\/(p|reel|tv)\/[^/]+/i.test(parsed.pathname);
+        } catch {
+            return false;
+        }
+    };
+
+    const humanizeToken = (value?: string | null) => {
+        if (!value) return '';
+        const cleaned = value.replace(/[_-]+/g, ' ').trim();
+        if (!cleaned) return '';
+        return cleaned.replace(/\b\w/g, (match) => match.toUpperCase());
+    };
+
+    const toneLabel = (value?: string | null) => {
+        const tone = value?.toLowerCase();
+        if (!tone) return '';
+        const map: Record<string, string> = {
+            humorous: 'Humor',
+            inspirational: 'Inspiracional',
+            educational: 'Educativo',
+            critical: 'Crítico',
+            promotional: 'Promocional',
+            neutral: 'Neutro',
+        };
+        return map[tone] || humanizeToken(value);
+    };
+
+    const matchTypeLabel = (value?: string | null) => {
+        const match = value?.toLowerCase();
+        if (!match) return '';
+        const map: Record<string, string> = {
+            exact: 'Exato',
+            broad_context: 'Contexto semelhante',
+            proposal_only: 'Proposta semelhante',
+            context_only: 'Contexto semelhante',
+            unknown: 'Semelhante',
+        };
+        return map[match] || humanizeToken(value);
+    };
+
+    const linkAllowList = React.useMemo(() => {
+        const links = new Set<string>();
+        const evidence = message.answerEvidence;
+        if (!evidence) return [];
+        const pushLink = (url?: string | null, verified?: boolean) => {
+            if (!isInstagramPostUrl(url)) return;
+            if (verified === false) return;
+            links.add(url!.trim());
+        };
+        evidence.topPosts?.forEach((post) => {
+            if (post?.source && post.source !== 'user') return;
+            pushLink(post.permalink, post.linkVerified);
+        });
+        evidence.communityInspirations?.forEach((insp) => {
+            pushLink(insp.permalink, insp.linkVerified);
+        });
+        return Array.from(links);
+    }, [message.answerEvidence]);
+
+    const communityOverrideCards = React.useMemo(() => {
+        const inspirations = (message.answerEvidence?.communityInspirations || []).filter((insp) => insp.source === 'community');
+        if (!inspirations.length) return [];
+        return inspirations.map((insp, idx) => {
+            const hasLink = isInstagramPostUrl(insp.permalink) && (insp.linkVerified ?? true);
+            const metaTags = [
+                insp.proposal,
+                insp.context,
+                insp.tone ? `Tom: ${toneLabel(insp.tone)}` : null,
+                insp.reference ? `Ref: ${humanizeToken(insp.reference)}` : null,
+                insp.primaryObjective ? `Objetivo: ${humanizeToken(insp.primaryObjective)}` : null,
+            ].filter(Boolean) as string[];
+            return {
+                label: insp.format || undefined,
+                title: insp.title || `Inspiração ${idx + 1}`,
+                description: insp.description || undefined,
+                highlights: Array.isArray(insp.highlights) ? insp.highlights : [],
+                metaTags,
+                link: hasLink && insp.permalink ? { url: insp.permalink, label: 'Ver post' } : undefined,
+            };
+        });
+    }, [message.answerEvidence]);
+
+    const communityHeader = React.useMemo(() => {
+        const evidence = message.answerEvidence;
+        if (!evidence?.communityInspirations?.length) return null;
+        const filters = evidence.communityMeta?.usedFilters || {};
+        const fallback = evidence.communityInspirations?.[0] || null;
+        const proposal = filters.proposal || fallback?.proposal;
+        const context = filters.context || fallback?.context;
+        const format = filters.format || fallback?.format;
+        const tone = filters.tone || fallback?.tone;
+        const reference = filters.reference || fallback?.reference;
+        const primaryObjective = filters.primaryObjective || fallback?.primaryObjective;
+        const metaChips = [
+            proposal ? `Proposta: ${proposal}` : null,
+            context ? `Contexto: ${context}` : null,
+            format ? `Formato: ${format}` : null,
+            tone ? `Tom: ${toneLabel(tone)}` : null,
+            reference ? `Referência: ${humanizeToken(reference)}` : null,
+            primaryObjective ? `Objetivo: ${humanizeToken(primaryObjective)}` : null,
+        ].filter(Boolean) as string[];
+        const matchLabel = matchTypeLabel(evidence.communityMeta?.matchType || '');
+        const count = evidence.communityInspirations.length;
+        const introOverride = (() => {
+            if (!count) return undefined;
+            const matchType = evidence.communityMeta?.matchType;
+            if (matchType === 'exact') {
+                return `Separei ${count} inspirações reais da comunidade alinhadas ao seu pedido.`;
+            }
+            if (matchType === 'proposal_only') {
+                return `Não encontrei match exato; trouxe ${count} inspirações com a mesma proposta.`;
+            }
+            if (matchType === 'context_only' || matchType === 'broad_context') {
+                return `Não encontrei match exato; trouxe ${count} inspirações com contexto semelhante.`;
+            }
+            return `Separei ${count} inspirações reais da comunidade para você.`;
+        })();
+        const quickActions = [
+            format ? { label: `Mais ${format}`, prompt: `Me traga mais inspirações em formato ${format}.` } : null,
+            context ? { label: `Mais ${context}`, prompt: `Me traga mais inspirações no contexto ${context}.` } : null,
+            proposal ? { label: `Mais ${proposal}`, prompt: `Me traga mais inspirações com proposta ${proposal}.` } : null,
+        ].filter(Boolean) as Array<{ label: string; prompt: string }>;
+        return {
+            header: 'Inspirações da comunidade',
+            subheader: matchLabel ? `Match: ${matchLabel}` : undefined,
+            metaChips: metaChips.slice(0, 4),
+            introOverride,
+            quickActions: quickActions.slice(0, 3),
+        };
+    }, [message.answerEvidence]);
 
     const communityContent = React.useMemo(() => {
         const renderComponent = () => (
@@ -237,22 +375,55 @@ export const MessageBubble = React.memo(function MessageBubble({
                 sessionId={message.sessionId || null}
                 intent={message.intent || message.messageType || null}
                 onSendPrompt={onSendPrompt}
+                linkAllowList={linkAllowList}
+                cardsOverride={communityOverrideCards.length ? communityOverrideCards : undefined}
+                header={communityHeader?.header}
+                subheader={communityHeader?.subheader}
+                metaChips={communityHeader?.metaChips}
+                introOverride={communityHeader?.introOverride}
+                hideRawIntro={communityOverrideCards.length > 0}
+                quickActions={communityHeader?.quickActions}
             />
         );
-        // Prefer evidence topPosts for inspiration cards
+        const parsed = parseCommunityInspirationText(labelSafeText);
+        if (message.messageType === 'community_inspiration') {
+            if (parsed.cards.length || communityOverrideCards.length) return renderComponent();
+            return null;
+        }
+        const cardsWithContent = parsed.cards.filter((card) => {
+            const hasTitleOrDescription = Boolean(card.title?.trim() || card.description?.trim());
+            const hasDetail = Boolean(card.description?.trim() || (card.highlights?.length ?? 0) > 0 || isHttpUrl(card.link?.url));
+            return hasTitleOrDescription && hasDetail;
+        });
+        const hasValidLink = cardsWithContent.some((card) => isHttpUrl(card.link?.url));
+        if ((cardsWithContent.length >= 2) || (cardsWithContent.length >= 1 && hasValidLink)) {
+            return renderComponent();
+        }
+
         const evidence = message.answerEvidence;
         const evidenceAllowsInspiration = evidence && evidence.intent_group === 'inspiration' && evidence.asked_for_examples;
-        if (evidenceAllowsInspiration && evidence.topPosts?.length) {
-            const cards = evidence.topPosts.map((p, idx) => ({
-                title: p.title || p.tags?.[0] || (Array.isArray(p.format) ? p.format[0] : p.format) || `Post ${idx + 1}`,
-                description: p.captionSnippet || undefined,
-                highlights: [],
-                link: isHttpUrl(p.permalink) ? { url: p.permalink as string, label: 'Ver post' } : undefined,
-            }));
+        const evidenceIntent = evidence?.intent || '';
+        const isCommunityEvidence = evidenceIntent === 'community_examples';
+        const isTopPostEvidence = evidenceIntent === 'top_performance_inspirations' || evidenceIntent.startsWith('top_');
+        const shouldRenderEvidenceCards = evidenceAllowsInspiration && (isCommunityEvidence || isTopPostEvidence);
+        if (shouldRenderEvidenceCards && evidence?.topPosts?.length) {
+            const cards = evidence.topPosts
+                .filter((p) => !p.source || p.source === 'user')
+                .map((p, idx) => {
+                    const isIgLink = isInstagramPostUrl(p.permalink);
+                    const isVerified = typeof p.linkVerified === 'boolean' ? p.linkVerified : isIgLink;
+                    return {
+                        title: p.title || p.tags?.[0] || (Array.isArray(p.format) ? p.format[0] : p.format) || `Post ${idx + 1}`,
+                        description: p.captionSnippet || undefined,
+                        highlights: [],
+                        link: isVerified && isIgLink && p.permalink ? { url: p.permalink as string, label: 'Ver post' } : undefined,
+                    };
+                });
             if (cards.length) {
+                const headerLabel = isCommunityEvidence ? 'Inspirações da comunidade' : 'Posts do seu perfil';
                 return (
                     <div className="mt-2 space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Inspirações validadas</div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{headerLabel}</div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             {cards.map((card, idx2) => (
                                 <div key={card.title + idx2} className="rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
@@ -277,22 +448,20 @@ export const MessageBubble = React.memo(function MessageBubble({
                 );
             }
         }
-
-        if (message.messageType === 'community_inspiration') {
-            return renderComponent();
-        }
-        const parsed = parseCommunityInspirationText(labelSafeText);
-        const cardsWithContent = parsed.cards.filter((card) => {
-            const hasTitleOrDescription = Boolean(card.title?.trim() || card.description?.trim());
-            const hasDetail = Boolean(card.description?.trim() || (card.highlights?.length ?? 0) > 0 || isHttpUrl(card.link?.url));
-            return hasTitleOrDescription && hasDetail;
-        });
-        const hasValidLink = cardsWithContent.some((card) => isHttpUrl(card.link?.url));
-        if ((cardsWithContent.length >= 2) || (cardsWithContent.length >= 1 && hasValidLink)) {
-            return renderComponent();
-        }
         return null;
-    }, [isUser, message.messageType, labelSafeText, message.answerEvidence]);
+    }, [
+        isUser,
+        message.messageType,
+        message.messageId,
+        message.sessionId,
+        message.intent,
+        labelSafeText,
+        message.answerEvidence,
+        linkAllowList,
+        communityOverrideCards,
+        communityHeader,
+        onSendPrompt,
+    ]);
 
     const virtualizationStyle = virtualize
         ? ({ contentVisibility: 'auto', containIntrinsicSize: '1px 240px' } as React.CSSProperties)
@@ -363,7 +532,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                                 className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors w-full sm:w-auto ${isUser
                                     ? 'bg-white text-brand-primary hover:bg-brand-magenta-soft'
                                     : 'bg-brand-primary text-white hover:bg-brand-primary-dark'
-                                }`}
+                                    }`}
                                 onClick={() => {
                                     if (message.cta?.action === 'connect_instagram') return onConnectInstagram();
                                     if (message.cta?.action === 'go_to_billing') {

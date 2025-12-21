@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { PromptChip } from './PromptChip';
 
 /* ---------- Renderização tipográfica “chat-like” ---------- */
 
@@ -17,6 +18,7 @@ export type RenderOptions = {
     normalizedText?: string;
     onToggleDisclosure?: (payload: { title: string; open: boolean }) => void;
     onCopyCode?: (payload: { code: string; language?: string | null }) => void;
+    onSendPrompt?: (prompt: string) => void | Promise<void>;
 };
 
 export type NormalizationStats = {
@@ -124,7 +126,7 @@ function slugifyHeading(value: string) {
     return cleaned.replace(/\s+/g, '-');
 }
 
-type SectionKind = 'summary' | 'insights' | 'actions';
+type SectionKind = 'summary' | 'insights' | 'actions' | 'diagnosis' | 'plan';
 
 function getSectionKind(value: string): SectionKind | null {
     const normalized = normalizeHeading(value);
@@ -132,6 +134,8 @@ function getSectionKind(value: string): SectionKind | null {
     if (['resumo', 'resumo executivo'].some((label) => normalized.startsWith(label))) return 'summary';
     if (['principais insights', 'insights', 'pontos chave', 'pontos principais'].some((label) => normalized.startsWith(label))) return 'insights';
     if (['proximas acoes', 'proximos passos', 'acoes'].some((label) => normalized.startsWith(label))) return 'actions';
+    if (['diagnostico', 'analise', 'diagnostico do canal'].some((label) => normalized.startsWith(label))) return 'diagnosis';
+    if (['plano de acao', 'plano estrategico', 'estrategia', 'plano'].some((label) => normalized.startsWith(label))) return 'plan';
     return null;
 }
 
@@ -290,11 +294,13 @@ type Block =
     | { type: 'code'; content: string; language?: string }
     | { type: 'table'; headers: string[]; rows: string[][] }
     | { type: 'tableFromDl'; titleLabel: string; labels: string[]; rows: { title: string; values: string[] }[]; topValues?: Record<string, string> }
-    | { type: 'ul'; items: string[] }
-    | { type: 'ol'; items: string[] }
+    | { type: 'ul'; items: { text: string; level: number }[] }
+    | { type: 'ol'; items: { text: string; level: number }[] }
     | { type: 'checklist'; items: { text: string; checked: boolean }[] }
     | { type: 'dl'; items: { label: string; value: string }[] }
     | { type: 'labels'; items: string[] }
+    | { type: 'suggestedActions'; items: string[] }
+    | { type: 'caption'; content: string; label: string }
     | { type: 'disclosure'; title: string; level: 1 | 2 | 3; blocks: Block[] };
 
 type ParsedBlocksCacheEntry = {
@@ -331,10 +337,17 @@ const parseTextToBlocks = (text: string): Block[] => {
         const first = (lines[idx] ?? "").trim();
         const second = (lines[idx + 1] ?? "").trim();
         if (!first || !second) return false;
-        if (!first.includes("|") || !second.includes("|")) return false;
-        if (/---/.test(second)) return true;
-        const normFirst = first.replace(/^[^|]*\|/, "|");
-        return normFirst.includes("|") && /---/.test(second);
+
+        // Check for common table header pattern even without leading pipe
+        const hasPipe = first.includes("|");
+        const hasSeparator = /^[|\s]*:?-{3,}:?[|\s-]*$/.test(second);
+
+        if (hasPipe && hasSeparator) return true;
+
+        // Fallback for cases where the AI forgot the first pipe but the second line is clearly a separator
+        if (hasSeparator && first.split('|').length >= 2) return true;
+
+        return false;
     };
 
     for (let i = 0; i < lines.length; i++) {
@@ -443,21 +456,26 @@ const parseTextToBlocks = (text: string): Block[] => {
             continue;
         }
 
-        // Listas com - ou *
-        if (/^[-*]\s+/.test(line)) {
+        // Listas com -, *, +, •
+        const ulMatch = rawLine.match(/^(\s*)([-*+•])\s+(.*)$/);
+        if (ulMatch) {
             flushParagraph();
-            const items: string[] = [];
+            const items: { text: string; level: number }[] = [];
             let j = i;
             while (j < lines.length) {
-                const candidate = (lines[j] ?? "").trim();
-                if (!/^[-*]\s+/.test(candidate)) break;
-                items.push(candidate.replace(/^[-*]\s+/, ""));
+                const currentRaw = lines[j] ?? "";
+                const match = currentRaw.match(/^(\s*)([-*+•])\s+(.*)$/);
+                if (!match) break;
+
+                const indentation = match[1]?.length ?? 0;
+                const level = Math.floor(indentation / 2);
+                items.push({ text: match[3] ?? "", level });
                 j++;
             }
             i = j - 1;
 
             const checklistItems = items.map((item) => {
-                const match = item.match(/^\[( |x|X)\]\s+(.*)$/);
+                const match = item.text.match(/^\[( |x|X)\]\s+(.*)$/);
                 if (!match) return null;
                 const checked = (match[1] ?? '').toLowerCase() === 'x';
                 const text = stripLooseMarkers(match[2] ?? '');
@@ -470,7 +488,7 @@ const parseTextToBlocks = (text: string): Block[] => {
             }
 
             const parsedItems = items.map((it) => {
-                const match = it.match(/^([^:]+):\s*(.*)$/);
+                const match = it.text.match(/^([^:]+):\s*(.*)$/);
                 if (!match) return null;
                 const rawLabel = match[1] ?? '';
                 const rawValue = match[2] ?? '';
@@ -494,22 +512,26 @@ const parseTextToBlocks = (text: string): Block[] => {
             } else {
                 blocks.push({
                     type: 'ul',
-                    items: items.map((it) => stripLooseMarkers(it)),
+                    items: items.map((it) => ({ text: stripLooseMarkers(it.text), level: it.level })),
                 });
             }
             continue;
         }
 
         // Listas numeradas
-        if (/^\d+\.\s+/.test(line)) {
+        const olMatch = rawLine.match(/^(\s*)(\d+\.)\s+(.*)$/);
+        if (olMatch) {
             flushParagraph();
-            const items: string[] = [];
+            const items: { text: string; level: number }[] = [];
             let j = i;
             while (j < lines.length) {
-                const candidate = (lines[j] ?? "").trim();
-                if (!/^\d+\.\s+/.test(candidate)) break;
-                const cleaned = stripLooseMarkers(candidate.replace(/^\d+\.\s+/, ""));
-                items.push(cleaned);
+                const currentRaw = lines[j] ?? "";
+                const match = currentRaw.match(/^(\s*)(\d+\.)\s+(.*)$/);
+                if (!match) break;
+
+                const indentation = match[1]?.length ?? 0;
+                const level = Math.floor(indentation / 2);
+                items.push({ text: stripLooseMarkers(match[3] ?? ""), level });
                 j++;
             }
             i = j - 1;
@@ -557,6 +579,50 @@ const parseTextToBlocks = (text: string): Block[] => {
                         value: stripLooseMarkers(p.value),
                     })),
                 });
+                continue;
+            }
+        }
+
+        // Suggested Actions (ex.: "[BUTTON: Ver mais]", "[OPÇÃO: ...]")
+        const actionMatch = line.match(/^\[(BUTTON|OPÇÃO):\s*([^\]]+)\]$/i);
+        if (actionMatch) {
+            flushParagraph();
+            const actionItems: string[] = [];
+            let j = i;
+            while (j < lines.length) {
+                const candidate = (lines[j] ?? "").trim();
+                const m = candidate.match(/^\[(BUTTON|OPÇÃO):\s*([^\]]+)\]$/i);
+                if (!m) break;
+                actionItems.push(m[2]?.trim() || '');
+                j++;
+            }
+            i = j - 1;
+            if (actionItems.length) {
+                blocks.push({ type: 'suggestedActions', items: actionItems });
+                continue;
+            }
+        }
+
+        // Caption Blocks (ex.: "[LEGENDA]" ... "[/LEGENDA]" or "[ROTEIRO]" ... "[/ROTEIRO]")
+        const captionStartMatch = line.match(/^\[(LEGENDA|ROTEIRO)\]$/i);
+        if (captionStartMatch) {
+            flushParagraph();
+            const captionType = captionStartMatch[1]?.toUpperCase() || 'LEGENDA';
+            const captionLabel = captionType === 'ROTEIRO' ? 'Roteiro' : 'Legenda';
+            const captionLines: string[] = [];
+            let j = i + 1;
+            while (j < lines.length) {
+                const candidate = (lines[j] ?? "").trim();
+                if (candidate.match(/^\[\/(LEGENDA|ROTEIRO)\]$/i)) {
+                    break;
+                }
+                captionLines.push(lines[j] ?? "");
+                j++;
+            }
+            i = j; // Skip the closing tag
+            const captionContent = captionLines.join('\n').trim();
+            if (captionContent) {
+                blocks.push({ type: 'caption', content: captionContent, label: captionLabel });
                 continue;
             }
         }
@@ -759,6 +825,72 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, theme, onCopy }) 
             </pre>
         </div>
     );
+}
+
+type CaptionBlockProps = {
+    content: string;
+    label: string;
+    theme: RenderTheme;
+};
+
+const CaptionBlock: React.FC<CaptionBlockProps> = ({ content, label, theme }) => {
+    const [copied, setCopied] = React.useState(false);
+    const timeoutRef = React.useRef<number | null>(null);
+
+    React.useEffect(() => {
+        return () => {
+            if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+        };
+    }, []);
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(content);
+            setCopied(true);
+            if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+            timeoutRef.current = window.setTimeout(() => setCopied(false), 1600);
+        } catch (error) {
+            console.error('[chat] falha ao copiar legenda', error);
+        }
+    };
+
+    const wrapperClass =
+        theme === 'inverse'
+            ? 'border-white/15 bg-white/10 text-white'
+            : 'border-brand-primary/20 bg-brand-primary/5 text-gray-900 shadow-sm shadow-brand-primary/5';
+
+    const headerClass =
+        theme === 'inverse'
+            ? 'border-b border-white/10 text-white/80'
+            : 'border-b border-brand-primary/10 text-brand-primary font-bold';
+
+    const contentClass = theme === 'inverse' ? 'text-white/90' : 'text-gray-800';
+    const copyLabel = copied ? 'Copiado!' : 'Copiar';
+
+    return (
+        <div className={`my-4 overflow-hidden rounded-2xl border ${wrapperClass}`}>
+            <div className={`flex items-center justify-between gap-2 px-4 py-2 text-[11px] uppercase tracking-wider ${headerClass}`}>
+                <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse" />
+                    <span>{label} Sugerida</span>
+                </div>
+                <button
+                    type="button"
+                    onClick={handleCopy}
+                    className={`rounded-full px-3 py-1 text-[10px] font-bold transition-all active:scale-95 ${theme === 'inverse'
+                        ? 'bg-white/10 text-white hover:bg-white/20'
+                        : 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-sm'}`}
+                >
+                    {copyLabel}
+                </button>
+            </div>
+            <div className="px-4 py-4 whitespace-pre-wrap italic">
+                <p className={`text-[15px] leading-relaxed font-medium ${contentClass}`}>
+                    {content}
+                </p>
+            </div>
+        </div>
+    );
 };
 
 type DisclosureProps = {
@@ -869,6 +1001,8 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
     const summaryCardClass = 'my-4 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-4 text-gray-800 shadow-sm';
     const insightsCardClass = 'my-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-4 text-gray-800 shadow-sm';
     const actionsCardClass = 'my-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-4 text-gray-800 shadow-sm';
+    const diagnosisCardClass = 'my-4 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-4 text-gray-800 shadow-sm';
+    const planCardClass = 'my-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-4 text-gray-800 shadow-sm';
 
     const alertBaseClass = "my-4 rounded-xl p-4 text-sm border-l-4";
     const alertStyles: Record<AlertType, string> = {
@@ -932,24 +1066,31 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
     const renderValueChipsOrText = (val: string, labelHint?: string) => {
         const cleanValue = stripLooseMarkers(val);
         const isPriority = labelHint && /prioridade/i.test(labelHint) && /alta|m[eé]dia|baixa/i.test(cleanValue);
-        if (cleanValue.includes(',')) {
+
+        // Refined chip logic: only split if there are at least 2 commas AND chips are short.
+        // This avoids turning full sentences into fragments.
+        const commasCount = (cleanValue.match(/,/g) || []).length;
+        if (commasCount >= 2) {
             const chips = cleanValue.split(',').map((p) => p.trim()).filter(Boolean);
-            return (
-                <span className="flex flex-wrap gap-1.5">
-                    {chips.map((chip, idx) => (
-                        <span
-                            key={idx}
-                            className={
-                                isInverse
-                                    ? 'inline-flex items-center rounded-full bg-white/10 px-2.5 py-0.5 text-[12px] font-medium text-white'
-                                    : 'inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[12px] font-medium text-gray-700'
-                            }
-                        >
-                            {chip}
-                        </span>
-                    ))}
-                </span>
-            );
+            const allShort = chips.every(c => c.length <= 35);
+            if (allShort) {
+                return (
+                    <span className="flex flex-wrap gap-1.5">
+                        {chips.map((chip, idx) => (
+                            <span
+                                key={idx}
+                                className={
+                                    isInverse
+                                        ? 'inline-flex items-center rounded-full bg-white/10 px-2.5 py-0.5 text-[12px] font-medium text-white'
+                                        : 'inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[12px] font-medium text-gray-700'
+                                }
+                            >
+                                {chip}
+                            </span>
+                        ))}
+                    </span>
+                );
+            }
         }
         if (isPriority) {
             const tone =
@@ -997,7 +1138,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     break;
                 case 'ul':
                 case 'ol':
-                    items.push(...block.items);
+                    items.push(...block.items.map(it => it.text));
                     break;
                 case 'checklist':
                     items.push(...block.items.map((item) => item.text));
@@ -1025,7 +1166,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     break;
                 case 'ul':
                 case 'ol':
-                    items.push(...block.items.map((text) => ({ text, checked: false })));
+                    items.push(...block.items.map((it) => ({ text: it.text, checked: false })));
                     break;
                 case 'paragraph':
                     items.push({ text: block.content, checked: false });
@@ -1071,18 +1212,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
     );
 
     const renderTableCellValue = (value: string, labelHint?: string) => {
-        if (labelHint) return renderValueChipsOrText(value, labelHint);
-        if (value.includes(",")) {
-            const parts = value.split(",").map((p) => p.trim()).filter(Boolean);
-            return (
-                <div className="space-y-1">
-                    {parts.map((part, idx) => (
-                        <div key={idx} dangerouslySetInnerHTML={{ __html: inlineHtml(part) }} />
-                    ))}
-                </div>
-            );
-        }
-        return <span dangerouslySetInnerHTML={{ __html: inlineHtml(value) }} />;
+        return renderValueChipsOrText(value, labelHint);
     };
 
     const TableBlock: React.FC<{ block: Extract<Block, { type: 'table' | 'tableFromDl' }>; keyBase: string }> = ({
@@ -1139,7 +1269,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                             {block.rows.map((row, rIdx) => (
                                 <tr key={rIdx} className={rIdx % 2 === 1 ? tableStripeClass : undefined}>
                                     {row.map((cell, cIdx) => {
-                                        const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(cell));
+                                        const numeric = /^[<>~]?\s*[-+]?(?:\d[\d.,]*|R\$)\s*[%kM]?\s*$/i.test(stripLooseMarkers(cell));
                                         const html = applyInlineMarkup(escapeHtml(cell), theme);
                                         return (
                                             <td
@@ -1183,7 +1313,7 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                                 <td className={tableCellClass}>{inlineMarkup(row.title)}</td>
                                 {row.values.map((val, cIdx) => {
                                     const labelHint = block.labels[cIdx] ?? '';
-                                    const numeric = /^-?\d[\d.,]*\s*%?$/.test(stripLooseMarkers(val));
+                                    const numeric = /^[<>~]?\s*[-+]?(?:\d[\d.,]*|R\$)\s*[%kM]?\s*$/i.test(stripLooseMarkers(val));
                                     return (
                                         <td key={cIdx} className={`${tableCellClass} ${numeric ? 'text-right border-l border-current/10 min-w-[72px]' : cIdx > 0 ? 'border-l border-current/10' : ''}`}>
                                             {renderValueChipsOrText(val, labelHint)}
@@ -1304,15 +1434,22 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     const sectionItems = sectionKind === 'actions' ? null : extractSectionItems(collected);
                     const actionItems = sectionKind === 'actions' ? extractActionItems(collected) : null;
 
-                    if (sectionKind === 'summary' && sectionItems?.length) {
+                    if ((sectionKind === 'summary' || sectionKind === 'diagnosis' || sectionKind === 'plan') && sectionItems?.length) {
+                        const isDiagnosis = sectionKind === 'diagnosis';
+                        const isPlan = sectionKind === 'plan';
+                        const cardClass = isDiagnosis ? diagnosisCardClass : (isPlan ? planCardClass : summaryCardClass);
+                        const label = isDiagnosis ? 'Diagnóstico' : (isPlan ? 'Plano Estratégico' : 'Resumo');
+                        const iconChar = isDiagnosis ? 'D' : (isPlan ? 'P' : 'R');
+                        const iconBg = isDiagnosis ? 'bg-sky-100 text-sky-800' : (isPlan ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800');
+
                         elements.push(
-                            <section key={`section-summary-${keyBase}`} id={headingId} className={summaryCardClass} data-testid="chat-section-summary">
+                            <section key={`section-${sectionKind}-${keyBase}`} id={headingId} className={cardClass} data-testid={`chat-section-${sectionKind}`}>
                                 <div className="mb-2 flex items-center gap-2">
-                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-800 text-[12px] font-bold">R</span>
-                                    <h3 className="text-lg font-semibold text-gray-900">Resumo</h3>
+                                    <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold ${iconBg}`}>{iconChar}</span>
+                                    <h3 className="text-lg font-semibold text-gray-900">{label}</h3>
                                 </div>
                                 <div className="space-y-2 text-[15px] leading-[1.6] text-gray-800">
-                                    {sectionItems.slice(0, 4).map((item, i) => (
+                                    {sectionItems.slice(0, 6).map((item, i) => (
                                         <p key={i} dangerouslySetInnerHTML={{ __html: inlineHtml(item) }} />
                                     ))}
                                 </div>
@@ -1369,6 +1506,33 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         continue;
                     }
                 }
+            }
+
+            if (block.type === 'caption') {
+                elements.push(
+                    <CaptionBlock
+                        key={`caption-${keyBase}`}
+                        content={block.content}
+                        label={block.label}
+                        theme={theme}
+                    />
+                );
+                continue;
+            }
+
+            if (block.type === 'suggestedActions') {
+                elements.push(
+                    <div key={`actions-${keyBase}`} className="my-6 flex flex-wrap justify-center gap-3">
+                        {block.items.map((label, idx) => (
+                            <PromptChip
+                                key={idx}
+                                label={label}
+                                onClick={() => options.onSendPrompt?.(label)}
+                            />
+                        ))}
+                    </div>
+                );
+                continue;
             }
 
             if (block.type === 'hr') {
@@ -1449,13 +1613,17 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                 continue;
             }
             if (block.type === 'ul') {
-                const hasTitleBullet = block.items.length > 1 && Boolean(block.items[0]?.trim()?.endsWith(':'));
-                const allLongSentences = block.items.length >= 2 && block.items.every((it) => (it ?? '').length > 80);
+                const hasNestedItems = block.items.some((item) => item.level > 0);
+                const itemTexts = block.items.map((item) => item.text ?? '');
+                const firstText = itemTexts[0] ?? '';
+                const hasTitleBullet = !hasNestedItems && itemTexts.length > 1 && firstText.trim().endsWith(':');
+                const allLongSentences = !hasNestedItems && itemTexts.length >= 2 && itemTexts.every((text) => text.length > 80);
                 const allShortLabels =
-                    block.items.length > 0 &&
-                    block.items.length <= 8 &&
-                    block.items.every((it) => {
-                        const trimmed = (it ?? '').trim();
+                    !hasNestedItems &&
+                    itemTexts.length > 0 &&
+                    itemTexts.length <= 8 &&
+                    itemTexts.every((text) => {
+                        const trimmed = text.trim();
                         return trimmed.length > 0 && trimmed.length <= 24 && !/[.!?]$/.test(trimmed);
                     });
 
@@ -1468,14 +1636,14 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                                     className={`inline-flex items-center rounded-full border px-3 py-1 text-[12px] font-semibold ${isInverse
                                         ? 'border-white/20 bg-white/10 text-white'
                                         : 'border-gray-200 bg-gray-50 text-gray-700'}`}
-                                    dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(item), theme) }}
+                                    dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(item.text), theme) }}
                                 />
                             ))}
                         </div>
                     );
                 } else if (hasTitleBullet || allLongSentences) {
                     if (hasTitleBullet) {
-                        const title = (block.items[0] ?? '').trim().replace(/:\s*$/, '');
+                        const title = firstText.trim().replace(/:\s*$/, '');
                         elements.push(
                             <p
                                 key={`ul-title-${keyBase}`}
@@ -1484,21 +1652,28 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                             />
                         );
                         block.items.slice(1).forEach((it, jdx) => {
-                            const html = applyInlineMarkup(escapeHtml(it), theme);
+                            const html = applyInlineMarkup(escapeHtml(it.text), theme);
                             elements.push(<p key={`ul-title-item-${keyBase}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
                         });
                     } else {
                         block.items.forEach((it, jdx) => {
-                            const html = applyInlineMarkup(escapeHtml(it), theme);
+                            const html = applyInlineMarkup(escapeHtml(it.text), theme);
                             elements.push(<p key={`ul-paragraph-${keyBase}-${jdx}`} className={paragraphClass} dangerouslySetInnerHTML={{ __html: html }} />);
                         });
                     }
                 } else {
                     elements.push(
-                        <ul key={`ul-${keyBase}`} className={`list-disc pl-5 space-y-1.5 ${listClass}`}>
+                        <ul key={`ul-${keyBase}`} className={`list-disc space-y-1.5 ${listClass}`}>
                             {block.items.map((it, jdx) => {
-                                const html = applyInlineMarkup(escapeHtml(it), theme);
-                                return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
+                                const html = applyInlineMarkup(escapeHtml(it.text), theme);
+                                return (
+                                    <li
+                                        key={jdx}
+                                        className="ml-5"
+                                        style={{ marginLeft: `${20 + (it.level * 20)}px` }}
+                                        dangerouslySetInnerHTML={{ __html: html }}
+                                    />
+                                );
                             })}
                         </ul>
                     );
@@ -1539,15 +1714,25 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     elements.push(
                         <ol key={`ol-steps-${keyBase}`} className={`space-y-2 ${listClass}`}>
                             {block.items.map((it, jdx) => {
-                                const html = applyInlineMarkup(escapeHtml(it), theme);
+                                const html = applyInlineMarkup(escapeHtml(it.text), theme);
                                 return (
-                                    <li key={jdx} className="flex items-start gap-3">
-                                        <span
-                                            aria-hidden
-                                            className={`mt-0.5 flex items-center justify-center rounded-full border font-semibold ${stepSizeClass} ${stepCircleClass}`}
-                                        >
-                                            {jdx + 1}
-                                        </span>
+                                    <li
+                                        key={jdx}
+                                        className="flex items-start gap-3"
+                                        style={{ marginLeft: `${it.level * 20}px` }}
+                                    >
+                                        {it.level === 0 ? (
+                                            <span
+                                                aria-hidden
+                                                className={`mt-0.5 flex items-center justify-center rounded-full border font-semibold ${stepSizeClass} ${stepCircleClass}`}
+                                            >
+                                                {jdx + 1}
+                                            </span>
+                                        ) : (
+                                            <span className="mt-0.5 w-6 text-right font-medium text-[13px] text-gray-400">
+                                                {jdx + 1}.
+                                            </span>
+                                        )}
                                         <span className="flex-1" dangerouslySetInnerHTML={{ __html: html }} />
                                     </li>
                                 );
@@ -1556,10 +1741,17 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     );
                 } else {
                     elements.push(
-                        <ol key={`ol-${keyBase}`} className={`list-decimal pl-5 space-y-1.5 ${listClass}`}>
+                        <ol key={`ol-${keyBase}`} className={`list-decimal space-y-1.5 ${listClass}`}>
                             {block.items.map((it, jdx) => {
-                                const html = applyInlineMarkup(escapeHtml(it), theme);
-                                return <li key={jdx} dangerouslySetInnerHTML={{ __html: html }} />;
+                                const html = applyInlineMarkup(escapeHtml(it.text), theme);
+                                return (
+                                    <li
+                                        key={jdx}
+                                        className="ml-5"
+                                        style={{ marginLeft: `${20 + (it.level * 20)}px` }}
+                                        dangerouslySetInnerHTML={{ __html: html }}
+                                    />
+                                );
                             })}
                         </ol>
                     );

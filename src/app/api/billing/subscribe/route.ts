@@ -7,6 +7,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import Stripe from "stripe";
+import crypto from "crypto";
 import { checkRateLimit } from "@/utils/rateLimit";
 import {
   cancelBlockingIncompleteSubs,
@@ -29,6 +30,27 @@ function getPriceId(plan: Plan, currency: Currency) {
   if (plan === "monthly" && currency === "USD") return process.env.STRIPE_PRICE_MONTHLY_USD!;
   if (plan === "annual" && currency === "USD") return process.env.STRIPE_PRICE_ANNUAL_USD!;
   throw new Error("PriceId não configurado para este plano/moeda");
+}
+
+function buildIdempotencyKey(params: {
+  scope: "sub_create" | "checkout_session";
+  userId: string;
+  priceId: string;
+  plan: Plan;
+  currency: Currency;
+  affiliateCode?: string;
+}) {
+  const bucket = Math.floor(Date.now() / (1000 * 60 * 5)); // 5 min window
+  const raw = [
+    params.scope,
+    params.userId,
+    params.priceId,
+    params.plan,
+    params.currency,
+    params.affiliateCode || "",
+    String(bucket),
+  ].join(":");
+  return crypto.createHash("sha256").update(raw).digest("hex");
 }
 
 async function resolveManualDiscountFields(
@@ -158,6 +180,67 @@ export async function POST(req: NextRequest) {
       await cancelBlockingIncompleteSubs(customerId);
     } catch {}
 
+    const subsList = await stripe.subscriptions.list({
+      customer: customerId!,
+      status: "all",
+      limit: 10,
+    });
+
+    const activeSub = subsList.data.find((s) => ["active", "trialing"].includes(s.status));
+    const nonRenewingSub = subsList.data.find(
+      (s) =>
+        ["active", "trialing"].includes(s.status) &&
+        Boolean((s as any).cancel_at_period_end)
+    );
+    const delinquentSub = subsList.data.find((s) => ["past_due", "unpaid"].includes(s.status));
+    const incompleteSub = subsList.data.find((s) => ["incomplete", "incomplete_expired"].includes(s.status));
+
+    if (delinquentSub) {
+      return NextResponse.json(
+        {
+          code: "SUBSCRIPTION_PAST_DUE",
+          message:
+            "Seu pagamento está pendente. Atualize o método de pagamento em Billing para evitar novas tentativas.",
+          subscriptionId: delinquentSub.id,
+        },
+        { status: 409 }
+      );
+    }
+
+    if (nonRenewingSub) {
+      return NextResponse.json(
+        {
+          code: "SUBSCRIPTION_NON_RENEWING",
+          message:
+            "Sua assinatura está com cancelamento agendado. Reative em Billing antes de assinar novamente.",
+          subscriptionId: nonRenewingSub.id,
+        },
+        { status: 409 }
+      );
+    }
+
+    if (activeSub) {
+      return NextResponse.json(
+        {
+          code: "SUBSCRIPTION_ACTIVE",
+          message: "Você já possui uma assinatura ativa. Gerencie sua assinatura em Billing.",
+          subscriptionId: activeSub.id,
+        },
+        { status: 409 }
+      );
+    }
+
+    if (incompleteSub) {
+      return NextResponse.json(
+        {
+          code: "SUBSCRIPTION_INCOMPLETE",
+          message: "Existe um pagamento pendente. Retome o checkout em Billing.",
+          subscriptionId: incompleteSub.id,
+        },
+        { status: 409 }
+      );
+    }
+
     let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
@@ -165,12 +248,7 @@ export async function POST(req: NextRequest) {
       } catch { /* ignore */ }
     }
     if (!existing) {
-      const list = await stripe.subscriptions.list({
-        customer: customerId!,
-        status: "all",
-        limit: 10,
-      });
-      const reuse = list.data.find(
+      const reuse = subsList.data.find(
         (s) =>
           s.items.data.some((i) => i.price.id === priceId) &&
           s.status !== "incomplete_expired"
@@ -269,6 +347,15 @@ export async function POST(req: NextRequest) {
         expand: ["latest_invoice.payment_intent"],
         metadata,
         ...(discounts ? { discounts } : {}),
+      }, {
+        idempotencyKey: buildIdempotencyKey({
+          scope: "sub_create",
+          userId: String(user._id),
+          priceId,
+          plan,
+          currency,
+          affiliateCode,
+        }),
       });
     }
 
@@ -341,6 +428,15 @@ export async function POST(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       client_reference_id: String(user._id),
+    }, {
+      idempotencyKey: buildIdempotencyKey({
+        scope: "checkout_session",
+        userId: String(user._id),
+        priceId,
+        plan,
+        currency,
+        affiliateCode,
+      }),
     });
 
     return NextResponse.json({

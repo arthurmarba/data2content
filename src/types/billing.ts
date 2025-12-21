@@ -32,6 +32,7 @@ export interface PlanStatusExtras {
   normalizedStatus?: string | null;
   hasPremiumAccess?: boolean;
   isGracePeriod?: boolean;
+  needsBilling?: boolean;
 }
 
 export interface PlanStatusResponse {

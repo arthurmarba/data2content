@@ -791,19 +791,23 @@ const getDayPCOStats: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetDay
     const flattenedItems: any[] = [];
     const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
+    const formatMetricValue = (val: number, metricName: string) => {
+      if (metricName === 'reach' || metricName === 'views' || metricName === 'total_interactions') {
+        if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+        if (val >= 1000) return `${(val / 1000).toFixed(1)}k`;
+      }
+      return Math.round(val).toString();
+    };
+
     for (const [dayStr, propObj] of Object.entries(pcoData)) {
       const dayIndex = Number(dayStr);
       const dayName = dayNames[dayIndex] || `Dia ${dayIndex}`;
 
       for (const [proposal, ctxObj] of Object.entries(propObj as any)) {
         for (const [context, val] of Object.entries(ctxObj as any)) {
-          // CORRECTION: The 'val' object IS the stats object (DayPCOPerformanceStats).
-          // It has properties like avgShares, avgLikes, avgTotalInteractions directly.
-          // It does NOT have a 'stats' sub-object.
           const statsObj = val as any;
 
           let value = 0;
-          // Map the requested 'metric' (enum) to the actual property name in pcoData (prefixed with 'avg')
           switch (metric) {
             case 'shares': value = statsObj.avgShares || 0; break;
             case 'saved': value = statsObj.avgSaved || 0; break;
@@ -815,49 +819,40 @@ const getDayPCOStats: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetDay
             default: value = statsObj.avgShares || 0;
           }
 
-          let bestHour = 'N/A';
+          let peakHour = 'N/A';
           if (statsObj.bestPostDate) {
             const date = new Date(statsObj.bestPostDate);
             if (!isNaN(date.getTime())) {
-              bestHour = `${date.getHours()}h`;
+              peakHour = `${date.getHours()}h`;
             }
           }
 
           flattenedItems.push({
             day: dayName,
-            proposal,
-            context,
-            metric: metric,
-            value: Number(value),
-            horario: bestHour
+            contentProposal: proposal,
+            contentContext: context,
+            metricRequested: metric,
+            rawAverageValue: Number(value),
+            formattedAverageValue: formatMetricValue(Number(value), metric),
+            peakHour: peakHour
           });
         }
       }
     }
 
-    // Sort descending
-    flattenedItems.sort((a, b) => b.value - a.value);
+    // Sort descending by raw value
+    flattenedItems.sort((a, b) => b.rawAverageValue - a.rawAverageValue);
 
     // Slice limit
     const topItems = flattenedItems.slice(0, limit);
 
-    // Generate Markdown Table Server-Side
-    const header = "| Dia | Proposta | Contexto | Horário | Valor |";
-    const separator = "| :--- | :--- | :--- | :--- | :--- |";
-    const rows = topItems.map(item => {
-      return `| ${item.day} | ${item.proposal} | ${item.context} | ${item.horario || 'N/A'} | ${item.value} |`;
-    }).join('\n');
-    const markdownTable = `${header}\n${separator}\n${rows}`;
-
     logger.info(`${fnTag} Ranking gerado com ${topItems.length} itens.`);
 
-    // SCORCHED EARTH POLICY: Do not return the raw 'ranking' array.
-    // This forces the LLM to use the 'markdown_table' string because it has no other data source.
     return {
-      markdown_table: markdownTable,
+      ranking: topItems,
       metric: metric,
-      formatting_instruction: "CRITICAL: The raw data has been hidden. You MUST display the 'markdown_table' string below exactly as is. It contains the requested ranking.",
-      note: "Dados baseados na agregação por Dia, Proposta e Contexto."
+      note: "Dados baseados na performance média por combinação de Dia, Proposta e Contexto nos últimos 180 dias.",
+      formatting_hint: "Apresente esses dados em uma tabela Markdown. Use colunas claras como 'Dia', 'Conteúdo (Proposta/Contexto)', 'Melhor Horário' e a métrica correspondente (ex: 'Interações')."
     };
 
   } catch (err) {

@@ -61,6 +61,8 @@ export type BillingStatus = {
   instagram: InstagramSnapshot | null;
   perks: BillingPerks;
   extras?: BillingExtras;
+  needsBilling?: boolean;
+  needsPaymentAction?: boolean;
   /** Ajuda a UI a decidir qual CTA exibir */
   nextAction?: "cancel" | "reactivate" | "resubscribe";
   normalizedStatus?: string | null;
@@ -278,6 +280,7 @@ export function useBillingStatus(opts: Options = {}) {
     const normalizedStatus = data.extras?.normalizedStatus ?? baseMeta.normalizedStatus;
     const planHasPremiumAccess = data.extras?.hasPremiumAccess ?? baseMeta.hasPremiumAccess;
     const isGracePeriod = data.extras?.isGracePeriod ?? baseMeta.isGracePeriod ?? false;
+    const needsBilling = data.extras?.needsBilling ?? baseMeta.needsBilling ?? false;
 
     const trialExpiresAt = data.trial?.expiresAt ?? null;
     const trialActive =
@@ -305,6 +308,12 @@ export function useBillingStatus(opts: Options = {}) {
         normalizedStatus === "unpaid" ||
         normalizedStatus === "incomplete_expired");
 
+    const needsPaymentAction =
+      normalizedStatus === "past_due" ||
+      normalizedStatus === "unpaid" ||
+      normalizedStatus === "incomplete" ||
+      normalizedStatus === "pending";
+
     const nextAction: "cancel" | "reactivate" | "resubscribe" = trialActive
       ? "cancel"
       : shouldResubscribe
@@ -324,6 +333,8 @@ export function useBillingStatus(opts: Options = {}) {
       isMonthly,
       hasPremiumAccess,
       isGracePeriod,
+      needsBilling,
+      needsPaymentAction,
       normalizedStatus,
       nextAction,
       isTrialActive: trialActive,
@@ -347,6 +358,8 @@ export function useBillingStatus(opts: Options = {}) {
       nextAction: flags.nextAction,
       hasPremiumAccess: flags.hasPremiumAccess,
       isGracePeriod: flags.isGracePeriod,
+      needsBilling: flags.needsBilling,
+      needsPaymentAction: flags.needsPaymentAction,
       normalizedStatus: flags.normalizedStatus,
       isTrialActive: flags.isTrialActive,
       trialRemainingMs: flags.trialRemainingMs,

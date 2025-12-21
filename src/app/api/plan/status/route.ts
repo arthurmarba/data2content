@@ -303,6 +303,7 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
       normalizedStatus: planMeta.normalizedStatus,
       hasPremiumAccess,
       isGracePeriod,
+      needsBilling: planMeta.needsBilling,
     },
   };
 

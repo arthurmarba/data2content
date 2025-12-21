@@ -5,12 +5,24 @@ jest.mock('@/app/lib/logger', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
+jest.mock('../../../dataService/marketAnalysis/segmentService', () => ({
+  fetchMarketPerformance: jest.fn().mockResolvedValue({
+    avgEngagementRate: 0.05,
+    avgShares: 50,
+    avgLikes: 200,
+    postCount: 1000,
+  }),
+}));
+
 import { runAnswerEngine } from '../engine';
 import type { CandidatePost, UserBaselines } from '../types';
 
 const baselines: UserBaselines = {
   totalInteractionsP50: 60,
+  totalInteractionsP75: 70,
+  totalInteractionsP90: 100,
   engagementRateP50: 0.03,
+  engagementRateP60: 0.04,
   perFormat: {},
   sampleSize: 5,
   computedAt: Date.now(),
@@ -24,6 +36,7 @@ const candidates: CandidatePost[] = [
     postDate: new Date('2024-01-05'),
     format: ['reel'],
     stats: { total_interactions: 120, saves: 18, shares: 12, comments: 8, likes: 70, reach: 1800, engagement_rate_on_reach: 0.07 },
+    description: 'Hook incrível para capturar sua atenção logo de cara!',
   },
   {
     id: 'low-1',
@@ -38,7 +51,7 @@ describe('runAnswerEngine (with overrides)', () => {
   it('filters by threshold and monta contexto estruturado', async () => {
     const res = await runAnswerEngine({
       user: { _id: 'user1', followers_count: 9000 } as any,
-      query: 'quero maior engajamento',
+      query: 'me mostre meus melhores posts',
       explicitIntent: 'top_performance_inspirations',
       surveyProfile: { niches: ['fitness'], mainGoal3m: 'crescer seguidores' },
       candidateOverride: candidates,
@@ -47,8 +60,11 @@ describe('runAnswerEngine (with overrides)', () => {
     });
 
     expect(res.topPosts.length).toBe(1);
-    expect(res.topPosts[0].id).toBe('ok-1');
-    expect(res.contextPack.top_posts[0].total_interactions).toBeGreaterThanOrEqual(res.policy.thresholds.effectiveInteractions);
+    expect(res.topPosts[0]!.id).toBe('ok-1');
+    expect(res.contextPack.top_posts[0]!.total_interactions).toBeGreaterThanOrEqual(res.policy.thresholds.effectiveInteractions);
+    expect(res.contextPack.top_posts[0]!.legenda).toBe('Hook incrível para capturar sua atenção logo de cara!');
+    expect(res.contextPack.market_benchmark).toBeDefined();
+    expect(res.contextPack.market_benchmark?.niche).toBe('fitness');
   });
 
   it('enforces reach requirement for top_reach intent', async () => {
@@ -80,7 +96,7 @@ describe('runAnswerEngine (with overrides)', () => {
     });
 
     expect(res.topPosts.length).toBe(1);
-    expect(res.topPosts[0].id).toBe('with-reach');
+    expect(res.topPosts[0]!.id).toBe('with-reach');
   });
 
   it('locks format when user asks for reels', async () => {
@@ -112,7 +128,7 @@ describe('runAnswerEngine (with overrides)', () => {
     });
 
     expect(res.topPosts.length).toBe(1);
-    expect(res.topPosts[0].id).toBe('reel-ok');
-    expect(res.topPosts[0].format).toContain('reel');
+    expect(res.topPosts[0]!.id).toBe('reel-ok');
+    expect(res.topPosts[0]!.format).toContain('reel');
   });
 });

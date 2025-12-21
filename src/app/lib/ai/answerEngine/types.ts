@@ -28,13 +28,19 @@ export interface ProfileSignals {
 
 export interface BaselineByFormat {
   totalInteractionsP50: number;
+  totalInteractionsP75: number;
+  totalInteractionsP90: number;
   engagementRateP50: number | null;
+  engagementRateP60: number | null;
   sampleSize: number;
 }
 
 export interface UserBaselines {
   totalInteractionsP50: number;
+  totalInteractionsP75: number;
+  totalInteractionsP90: number;
   engagementRateP50: number | null;
+  engagementRateP60: number | null;
   perFormat: Record<string, BaselineByFormat>;
   sampleSize: number;
   computedAt: number;
@@ -48,7 +54,10 @@ export interface Thresholds {
   effectiveInteractions: number;
   effectiveEr?: number | null;
   baselineInteractionP50: number;
+  baselineInteractionP75: number;
   baselineErP50: number | null;
+  baselineErP60: number | null;
+  strictMode?: boolean;
 }
 
 export interface AnswerEnginePolicy {
@@ -79,6 +88,7 @@ export interface CandidatePost {
     watch_time?: number | null;
     retention_rate?: number | null;
   };
+  description?: string | null;
   raw?: any;
 }
 
@@ -118,7 +128,15 @@ export interface ContextPack {
     baseline_delta?: number | null;
     reach_delta?: number | null;
     post_date?: string | null;
+    legenda?: string | null;
   }>;
+  market_benchmark?: {
+    avgEngagementRate: number;
+    avgShares: number;
+    avgLikes: number;
+    postCount: number;
+    niche: string;
+  };
   generated_at: string;
   query: string;
   intent: AnswerIntent;
@@ -152,6 +170,7 @@ export interface AnswerEngineResult {
   baselines: UserBaselines;
   ranked: RankedCandidate[];
   topPosts: RankedCandidate[];
+  topPostsEmpty?: boolean;
   contextPack: ContextPack;
   telemetry: {
     candidatesConsidered: number;
@@ -175,6 +194,7 @@ export interface AnswerEngineResult {
       highPosts: RankedCandidate[];
     }>;
   };
+  market_benchmark?: ContextPack['market_benchmark'];
 }
 
 export interface AnswerEngineRequest {

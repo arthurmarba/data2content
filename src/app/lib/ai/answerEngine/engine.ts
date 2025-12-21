@@ -2,8 +2,9 @@ import { logger } from '@/app/lib/logger';
 import MetricModel, { IMetric } from '@/app/models/Metric';
 import * as stateService from '@/app/lib/stateService';
 import { buildProfileSignals } from './profile';
-import { detectAnswerIntent, resolvePolicy, coerceToAnswerIntent, detectRequestedFormat, type IntentDetectionResult } from './policies';
 import { rankCandidates } from './ranker';
+import { minAbsoluteByFollowers } from './policies'; // Need to export this
+import { fetchMarketPerformance } from '../../dataService/marketAnalysis/segmentService';
 import type {
   AnswerEngineRequest,
   AnswerEngineResult,
@@ -12,20 +13,34 @@ import type {
   UserBaselines,
   ContextPack,
 } from './types';
+import {
+  detectAnswerIntent,
+  coerceToAnswerIntent,
+  resolvePolicy,
+  detectRequestedFormat,
+  IntentDetectionResult,
+} from './policies';
 
 const BASELINE_TTL_SECONDS = 6 * 60 * 60; // 6h
 
-function median(values: number[]): number {
+function percentile(values: number[], p: number): number {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  if (sorted.length === 1) return sorted[0] ?? 0;
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 0) {
-    const left = sorted[mid - 1] ?? sorted[0] ?? 0;
-    const right = sorted[mid] ?? sorted[sorted.length - 1] ?? left;
-    return (left + right) / 2;
+  const pos = (sorted.length - 1) * p;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  const v1 = sorted[base];
+  const v2 = sorted[base + 1];
+  if (v1 !== undefined && v2 !== undefined) {
+    return v1 + rest * (v2 - v1);
+  } else if (v1 !== undefined) {
+    return v1;
   }
-  return sorted[mid] ?? sorted[sorted.length - 1] ?? 0;
+  return 0;
+}
+
+function median(values: number[]): number {
+  return percentile(values, 0.5);
 }
 
 function computeEngagementRate(stats: any) {
@@ -42,6 +57,7 @@ async function computeBaselinesForUser(
   userId: string,
   windowDays: number,
   now: Date,
+  followersCount?: number | null,
 ): Promise<UserBaselines> {
   const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
   const docs: Array<IMetric & { _id: string }> = await MetricModel.find({
@@ -63,9 +79,9 @@ async function computeBaselinesForUser(
     const interactions = typeof (doc as any)?.stats?.total_interactions === 'number'
       ? (doc as any).stats.total_interactions
       : ((doc as any)?.stats?.likes || 0) +
-        ((doc as any)?.stats?.comments || 0) +
-        ((doc as any)?.stats?.shares || 0) +
-        ((doc as any)?.stats?.saved || 0);
+      ((doc as any)?.stats?.comments || 0) +
+      ((doc as any)?.stats?.shares || 0) +
+      ((doc as any)?.stats?.saved || 0);
     interactionValues.push(interactions);
     const er = computeEngagementRate((doc as any).stats);
     if (typeof er === 'number' && er > 0) erValues.push(er);
@@ -81,19 +97,50 @@ async function computeBaselinesForUser(
     }
   }
 
+  // HARDENING: Small Sample Logic & Outlier Clamping (Phase 4)
+  const isSmallSample = interactionValues.length < 10;
+  const minAbs = minAbsoluteByFollowers(followersCount);
+
+  // Helper to safely compute P75/90 with clamping
+  const computeSafePercentiles = (values: number[]) => {
+    if (values.length < 5) {
+      // Too few for meaningful percentiles -> Start with Median
+      const med = median(values);
+      return { p75: med, p90: med };
+    }
+    const p75 = percentile(values, 0.75);
+    let p90 = percentile(values, 0.90);
+
+    // Outlier Clamp: P90 cannot exceed 2.5x P75 (unless P75 is very low, close to minAbs)
+    if (p90 > p75 * 2.5 && p75 > minAbs) {
+      p90 = p75 * 2.5;
+    }
+    return { p75, p90 };
+  };
+
+  const interactionsStats = computeSafePercentiles(interactionValues);
+
   for (const fmt of Object.keys(perFormatInteractions)) {
     const fmtInteractions = perFormatInteractions[fmt] || [];
     const fmtEr = perFormatEr[fmt] || [];
+    const fmtStats = computeSafePercentiles(fmtInteractions);
+
     perFormat[fmt] = {
       totalInteractionsP50: median(fmtInteractions),
+      totalInteractionsP75: isSmallSample ? median(fmtInteractions) : fmtStats.p75,
+      totalInteractionsP90: isSmallSample ? median(fmtInteractions) : fmtStats.p90,
       engagementRateP50: fmtEr.length ? median(fmtEr) : null,
+      engagementRateP60: fmtEr.length ? percentile(fmtEr, 0.60) : null,
       sampleSize: fmtInteractions.length,
     };
   }
 
   return {
     totalInteractionsP50: median(interactionValues),
+    totalInteractionsP75: isSmallSample ? median(interactionValues) : interactionsStats.p75,
+    totalInteractionsP90: isSmallSample ? median(interactionValues) : interactionsStats.p90,
     engagementRateP50: median(erValues),
+    engagementRateP60: percentile(erValues, 0.60),
     perFormat,
     sampleSize: interactionValues.length,
     computedAt: now.getTime(),
@@ -101,7 +148,7 @@ async function computeBaselinesForUser(
   };
 }
 
-async function getBaselinesCached(userId: string, windowDays: number, now: Date): Promise<UserBaselines> {
+async function getBaselinesCached(userId: string, windowDays: number, now: Date, followersCount?: number | null): Promise<UserBaselines> {
   const cacheKey = `answerEngine:baselines:${userId}:${windowDays}`;
   try {
     const cached = await stateService.getFromCache(cacheKey);
@@ -113,7 +160,7 @@ async function getBaselinesCached(userId: string, windowDays: number, now: Date)
     logger.warn('[answer-engine] baseline cache read failed', err);
   }
 
-  const computed = await computeBaselinesForUser(userId, windowDays, now);
+  const computed = await computeBaselinesForUser(userId, windowDays, now, followersCount);
   try {
     await stateService.setInCache(cacheKey, JSON.stringify(computed), BASELINE_TTL_SECONDS);
   } catch (err) {
@@ -148,6 +195,7 @@ function toCandidate(doc: any): CandidatePost {
       watch_time: stats.ig_reels_video_view_total_time ?? null,
       retention_rate: stats.retention_rate ?? null,
     },
+    description: doc.description || doc.text_content || null,
     raw: doc,
   };
 }
@@ -156,34 +204,45 @@ async function fetchCandidates(
   userId: string,
   windowDays: number,
   minAbsoluteInteractions: number,
-  options: { formatLocked?: string | null; tags?: string[]; relaxApplied: Array<{ step: string; reason: string }> },
+  options: {
+    formatLocked?: string | null;
+    tags?: string[];
+    relaxApplied: Array<{ step: string; reason: string }>;
+    strictMode?: boolean;
+  },
 ): Promise<{ candidates: CandidatePost[]; appliedTags?: string[] }> {
   const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
   const baseQuery: any = {
     user: userId,
-    postDate: { $gte: since },
-    'stats.total_interactions': { $gte: minAbsoluteInteractions * 0.6 },
   };
+
+  // STRICT MODE IMPLEMENTATION (Phase 3)
+  if (options.strictMode) {
+    baseQuery['stats.total_interactions'] = { $gte: minAbsoluteInteractions };
+  } else {
+    // Relaxed default behavior
+    baseQuery['stats.total_interactions'] = { $gte: minAbsoluteInteractions * 0.6 };
+  }
   if (options.formatLocked) {
     baseQuery.format = { $in: [options.formatLocked] };
   }
 
   const tagFilter = options.tags && options.tags.length
     ? {
-        $or: [
-          { context: { $in: options.tags } },
-          { proposal: { $in: options.tags } },
-          { tone: { $in: options.tags } },
-        ],
-      }
+      $or: [
+        { context: { $in: options.tags } },
+        { proposal: { $in: options.tags } },
+        { tone: { $in: options.tags } },
+      ],
+    }
     : null;
 
   const queryWithTags = tagFilter ? { ...baseQuery, ...tagFilter } : baseQuery;
 
   const findWithQuery = async (query: any) => {
     const docs = await MetricModel.find(query)
-      .select('stats postDate format proposal context tone postLink coverUrl updatedAt')
-      .sort({ postDate: -1 })
+      .select('stats postDate format proposal context tone postLink coverUrl description text_content updatedAt description')
+      .sort(options.strictMode ? { 'stats.total_interactions': -1 } : { postDate: -1 })
       .limit(400)
       .lean();
     return docs.map(toCandidate);
@@ -208,6 +267,7 @@ function buildContextPack(
   query: string,
   relaxApplied: Array<{ step: string; reason: string }>,
   diagnostic?: AnswerEngineResult['diagnosticEvidence'],
+  marketBenchmark?: AnswerEngineResult['market_benchmark'],
 ): ContextPack {
   const notes: string[] = [];
   notes.push(`threshold_interactions=${policy.thresholds.effectiveInteractions}`);
@@ -228,7 +288,8 @@ function buildContextPack(
     engagement_rate_by_reach: p.stats.engagement_rate_on_reach ?? null,
     baseline_delta: p.baselineDelta ?? null,
     reach_delta: p.reachDelta ?? null,
-    post_date: p.postDate ? new Date(p.postDate).toISOString() : null,
+    post_date: p.postDate ? new Date(p.postDate).toISOString().split('T')[0] : null,
+    legenda: p.description || null,
   });
   return {
     user_profile: profileSignals,
@@ -244,29 +305,30 @@ function buildContextPack(
     generated_at: new Date().toISOString(),
     query,
     intent: policy.intent,
+    market_benchmark: marketBenchmark,
     notes,
     relaxApplied: relaxApplied.length ? relaxApplied : undefined,
     diagnostic:
       diagnostic && diagnostic.perFormat && diagnostic.perFormat.length
         ? {
-            insufficient: diagnostic.insufficient,
-            per_format: diagnostic.perFormat.map((fmt) => ({
-              format: fmt.format,
-              sample_size: fmt.sampleSize,
-              insufficient: !!fmt.insufficient,
-              reason: fmt.reason,
-              deltas: fmt.deltas
-                ? {
-                    reach_pct: fmt.deltas.reachPct ?? null,
-                    er_pct: fmt.deltas.erPct ?? null,
-                    shares_pct: fmt.deltas.sharesPct ?? null,
-                    saves_pct: fmt.deltas.savesPct ?? null,
-                  }
-                : undefined,
-              low_posts: fmt.lowPosts.map(toContextPost),
-              high_posts: fmt.highPosts.map(toContextPost),
-            })),
-          }
+          insufficient: diagnostic.insufficient,
+          per_format: diagnostic.perFormat.map((fmt) => ({
+            format: fmt.format,
+            sample_size: fmt.sampleSize,
+            insufficient: !!fmt.insufficient,
+            reason: fmt.reason,
+            deltas: fmt.deltas
+              ? {
+                reach_pct: fmt.deltas.reachPct ?? null,
+                er_pct: fmt.deltas.erPct ?? null,
+                shares_pct: fmt.deltas.sharesPct ?? null,
+                saves_pct: fmt.deltas.savesPct ?? null,
+              }
+              : undefined,
+            low_posts: fmt.lowPosts.map(toContextPost),
+            high_posts: fmt.highPosts.map(toContextPost),
+          })),
+        }
         : undefined,
   };
 }
@@ -278,13 +340,16 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
   const intent = intentResult.intent;
   const baselines =
     request.baselineOverride ||
-    (await getBaselinesCached(String(request.user._id), 90, now).catch((err) => {
+    (await getBaselinesCached(String(request.user._id), 90, now, (request.user as any)?.followers_count).catch((err) => {
       logger.error('[answer-engine] baseline computation failed', err);
       return null;
     })) ||
     {
       totalInteractionsP50: 0,
+      totalInteractionsP75: 0,
+      totalInteractionsP90: 0,
       engagementRateP50: null,
+      engagementRateP60: null,
       perFormat: {},
       sampleSize: 0,
       computedAt: now.getTime(),
@@ -301,16 +366,17 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
   const candidateFetchResult =
     request.candidateOverride
       ? {
-          candidates: policy.formatLocked
-            ? request.candidateOverride.filter((c) => (c.format || []).includes(policy.formatLocked as string))
-            : request.candidateOverride,
-          appliedTags: tagsForFilter,
-        }
+        candidates: policy.formatLocked
+          ? request.candidateOverride.filter((c) => (c.format || []).includes(policy.formatLocked as string))
+          : request.candidateOverride,
+        appliedTags: tagsForFilter,
+      }
       : await fetchCandidates(String(request.user._id), policy.windowDays, policy.thresholds.minAbsolute, {
-          formatLocked: requestedFormat,
-          tags: tagsForFilter,
-          relaxApplied,
-        });
+        formatLocked: requestedFormat,
+        tags: tagsForFilter,
+        relaxApplied,
+        strictMode: policy.thresholds.strictMode,
+      });
 
   const candidates = candidateFetchResult.candidates;
 
@@ -438,6 +504,30 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
     });
   }
 
+  // Phase 5: Fetch Market Benchmarking
+  let marketBenchmark: ContextPack['market_benchmark'] | undefined;
+  if (profileSignals.nicho) {
+    try {
+      const marketStats = await fetchMarketPerformance({
+        format: requestedFormat || 'reel', // Fallback to reel if no format locked
+        proposal: 'conteudo_relevante', // Use a generic proposal or detect from query if possible
+        days: 90
+      }).catch(() => null);
+
+      if (marketStats && marketStats.postCount > 0) {
+        marketBenchmark = {
+          avgEngagementRate: marketStats.avgEngagementRate || 0,
+          avgShares: marketStats.avgShares || 0,
+          avgLikes: marketStats.avgLikes || 0,
+          postCount: marketStats.postCount,
+          niche: profileSignals.nicho
+        };
+      }
+    } catch (err) {
+      logger.warn('[answer-engine] market benchmark fetch failed', err);
+    }
+  }
+
   const contextPack = buildContextPack(
     ranked,
     topForPack,
@@ -447,6 +537,7 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
     request.query,
     relaxApplied,
     diagnosticEvidence,
+    marketBenchmark,
   );
 
   logger.info('[answer-engine] chat_answer_intent_detected', {
@@ -470,6 +561,20 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
     });
   }
 
+  // HARDENING: Log why candidates failed
+  const candidatesFailedGates = ranked.length - topPosts.length;
+  if (candidatesFailedGates > 0) {
+    logger.info('[answer-engine] chat_gates_filtering', {
+      total: ranked.length,
+      passed: topPosts.length,
+      failed: candidatesFailedGates,
+      reasons: {
+        // We can infer reasons or log more detailed per-candidate if needed
+        // For now, aggregate count is good.
+      }
+    });
+  }
+
   return {
     intent,
     intentGroup: intentResult.intentGroup,
@@ -479,6 +584,7 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
     baselines: baselines as any,
     ranked,
     topPosts: topForPack,
+    topPostsEmpty: !topForPack.length,
     contextPack,
     telemetry: {
       candidatesConsidered: candidates.length,
@@ -486,5 +592,6 @@ export async function runAnswerEngine(request: AnswerEngineRequest): Promise<Ans
       relaxApplied,
     },
     diagnosticEvidence,
+    market_benchmark: marketBenchmark,
   };
 }

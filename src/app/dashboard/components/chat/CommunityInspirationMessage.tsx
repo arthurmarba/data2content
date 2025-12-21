@@ -7,6 +7,7 @@ type InspirationCard = {
     title: string;
     description?: string;
     highlights: string[];
+    metaTags?: string[];
     link?: { url: string; label?: string };
 };
 
@@ -50,6 +51,27 @@ const splitHighlights = (raw: string): string[] => {
         .split(/[\n;•●.]+/)
         .map((item) => item.replace(/^\s*[-*]\s*/, '').trim())
         .filter(Boolean);
+};
+
+const formatHighlightLabel = (value: string): string => {
+    const normalized = value.trim();
+    if (!normalized) return '';
+    const map: Record<string, string> = {
+        excelente_para_gerar_salvamentos: 'Excelente para gerar salvamentos',
+        viralizou_nos_compartilhamentos: 'Viralizou nos compartilhamentos',
+        alto_engajamento_nos_comentarios: 'Alto engajamento nos comentários',
+        alcance_superior_a_media_de_seguidores: 'Alcance acima da média de seguidores',
+        excelente_retencao_em_reels: 'Excelente retenção em Reels',
+        boa_receptividade_curtidas: 'Boa receptividade em curtidas',
+        sem_metricas_detalhadas_para_analise: 'Sem métricas detalhadas para análise',
+        baixo_volume_de_dados: 'Pouco volume de dados',
+        desempenho_padrao: 'Desempenho padrão',
+        outro_destaque_qualitativo: 'Destaque qualitativo',
+    };
+    if (map[normalized]) return map[normalized];
+    if (!/[_-]/.test(normalized)) return normalized;
+    const cleaned = normalized.replace(/[_-]+/g, ' ').trim();
+    return cleaned.replace(/\b\w/g, (match) => match.toUpperCase());
 };
 
 const sanitizeCardText = (value?: string | null): string => {
@@ -111,6 +133,8 @@ const parseStructuredInspiration = (text: string): ParsedCommunityInspiration | 
     const trimmed = text.trim();
     if (!trimmed.startsWith('{') && !trimmed.includes('{')) return null;
     const jsonCandidate = (() => {
+        const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fenced?.[1]) return fenced[1].trim();
         if (trimmed.startsWith('{')) return trimmed;
         const match = trimmed.match(/\{[\s\S]*\}/);
         return match?.[0] || null;
@@ -120,7 +144,12 @@ const parseStructuredInspiration = (text: string): ParsedCommunityInspiration | 
     try {
         parsed = JSON.parse(jsonCandidate);
     } catch {
-        return null;
+        const relaxed = jsonCandidate.replace(/,\s*([}\]])/g, '$1');
+        try {
+            parsed = JSON.parse(relaxed);
+        } catch {
+            return null;
+        }
     }
     const schemaVersionRaw = parsed.schema_version ?? parsed.schemaVersion ?? 1;
     const schemaVersion = typeof schemaVersionRaw === 'number' ? schemaVersionRaw : Number(schemaVersionRaw) || 1;
@@ -168,6 +197,18 @@ const isValidUrl = (url?: string | null) => {
         return parsed.protocol === 'http:' || parsed.protocol === 'https:';
     } catch {
         return false;
+    }
+};
+
+const normalizeUrlForMatch = (url?: string | null) => {
+    if (!url) return null;
+    try {
+        const parsed = new URL(url.trim());
+        const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+        const path = parsed.pathname.replace(/\/+$/, '');
+        return `${host}${path}`;
+    } catch {
+        return null;
     }
 };
 
@@ -367,6 +408,14 @@ type CommunityInspirationMessageProps = {
     sessionId?: string | null;
     intent?: string | null;
     onSendPrompt?: (prompt: string) => Promise<void> | void;
+    linkAllowList?: string[];
+    cardsOverride?: InspirationCard[];
+    header?: string;
+    subheader?: string;
+    metaChips?: string[];
+    introOverride?: string;
+    hideRawIntro?: boolean;
+    quickActions?: Array<{ label: string; prompt: string }>;
 };
 
 const impressionCache = new Set<string>();
@@ -378,53 +427,108 @@ export function CommunityInspirationMessage({
     sessionId = null,
     intent = null,
     onSendPrompt,
+    linkAllowList,
+    cardsOverride,
+    header,
+    subheader,
+    metaChips,
+    introOverride,
+    hideRawIntro = false,
+    quickActions,
 }: CommunityInspirationMessageProps) {
     const parsed = React.useMemo(() => parseCommunityInspirationText(text), [text]);
     const isInverse = theme === 'inverse';
     const parseTrackedRef = React.useRef(false);
     const impressionTrackedRef = React.useRef(false);
     const [expanded, setExpanded] = React.useState<Record<number, boolean>>({});
+    const [expandedHighlights, setExpandedHighlights] = React.useState<Record<number, boolean>>({});
     const [ctaCopied, setCtaCopied] = React.useState<Record<number, boolean>>({});
     const [footerCopied, setFooterCopied] = React.useState<Record<number, boolean>>({});
     const [manualCopyCard, setManualCopyCard] = React.useState<Record<number, string>>({});
     const [manualCopyFooter, setManualCopyFooter] = React.useState<Record<number, string>>({});
+    const [quickActionSent, setQuickActionSent] = React.useState<Record<number, boolean>>({});
 
     React.useEffect(() => {
         setCtaCopied({});
         setFooterCopied({});
         setManualCopyCard({});
         setManualCopyFooter({});
+        setQuickActionSent({});
+        setExpanded({});
+        setExpandedHighlights({});
     }, [text, messageId]);
 
+    const normalizedAllowList = React.useMemo(() => {
+        if (!linkAllowList) return null;
+        const normalized = new Set<string>();
+        linkAllowList.forEach((link) => {
+            const safe = normalizeUrlForMatch(link);
+            if (safe) normalized.add(safe);
+        });
+        return normalized;
+    }, [linkAllowList]);
+
+    const resolvedCards = React.useMemo(() => {
+        const baseCards = cardsOverride && cardsOverride.length ? cardsOverride : parsed.cards;
+        const sanitizedCards = baseCards.map((card, idx) => {
+            const cleanedLabel = sanitizeCardText(card.label || '');
+            const cleanedTitle = sanitizeCardText(card.title) || card.title || `Inspiração ${idx + 1}`;
+            const cleanedDescription = sanitizeCardText(card.description || '');
+            const rawHighlights = Array.isArray(card.highlights) ? card.highlights : [];
+            const cleanedHighlights = Array.from(new Set(rawHighlights.map((h) => sanitizeCardText(h)).filter(Boolean)));
+            const cleanedLinkLabel = sanitizeCardText(card.link?.label || '');
+            const cleanedLinkUrl = card.link?.url?.trim();
+            return {
+                ...card,
+                label: cleanedLabel || undefined,
+                title: cleanedTitle,
+                description: cleanedDescription || undefined,
+                highlights: cleanedHighlights,
+                link: cleanedLinkUrl ? { url: cleanedLinkUrl, label: cleanedLinkLabel || undefined } : undefined,
+            };
+        });
+        if (!normalizedAllowList) return sanitizedCards;
+        return sanitizedCards.map((card) => {
+            if (!card.link?.url) return card;
+            const normalized = normalizeUrlForMatch(card.link.url);
+            if (!normalized || !normalizedAllowList.has(normalized)) {
+                return { ...card, link: undefined };
+            }
+            return card;
+        });
+    }, [cardsOverride, normalizedAllowList, parsed.cards]);
+
     React.useEffect(() => {
-        if (parsed.cards.length === 0 && !parseTrackedRef.current) {
+        if (resolvedCards.length === 0 && !parseTrackedRef.current) {
             parseTrackedRef.current = true;
             track('community_inspiration_render_parse_failed', { reason: 'no_cards' });
         }
-    }, [parsed.cards.length]);
+    }, [resolvedCards.length]);
 
     React.useEffect(() => {
-        if (!parsed.cards.length) return;
+        if (!resolvedCards.length) return;
         const key = `${sessionId || 'no-session'}:${messageId || text.length}:${intent || 'unknown'}`;
         if (impressionCache.has(key)) return;
         if (impressionTrackedRef.current) return;
         impressionTrackedRef.current = true;
         impressionCache.add(key);
         track('community_inspiration_card_impression', {
-            cards: parsed.cards.length,
+            cards: resolvedCards.length,
             session_id: sessionId || null,
             message_id: messageId || null,
             intent: intent || null,
         });
-    }, [intent, messageId, parsed.cards.length, sessionId, text.length]);
+    }, [intent, messageId, resolvedCards.length, sessionId, text.length]);
 
-    if (!parsed.cards.length) return null;
+    if (!resolvedCards.length) return null;
 
     const textClass = isInverse ? 'text-white/90' : 'text-gray-800';
     const headingClass = isInverse ? 'text-white' : 'text-gray-900';
     const borderClass = isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-white';
     const badgeClass = isInverse ? 'bg-indigo-100/10 text-indigo-50 ring-1 ring-indigo-200/40' : 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100';
     const contextCardClass = isInverse ? 'border-white/20 bg-white/5 text-white' : 'border-gray-200 bg-gray-50 text-gray-800';
+    const headerChipClass = isInverse ? 'bg-white/10 text-white/80' : 'bg-gray-100 text-gray-700';
+    const introText = introOverride || (!hideRawIntro ? parsed.intro : null);
 
     const copyPrompt = async (value: string) => {
         try {
@@ -448,23 +552,58 @@ export function CommunityInspirationMessage({
 
     return (
         <div className="space-y-3" data-testid="community-inspiration-wrapper">
-            {parsed.intro ? (
+            {header || subheader || (metaChips && metaChips.length) ? (
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {header ? (
+                            <span className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
+                                {header}
+                            </span>
+                        ) : null}
+                        {subheader ? (
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${headerChipClass}`}>
+                                {subheader}
+                            </span>
+                        ) : null}
+                    </div>
+                    {metaChips && metaChips.length ? (
+                        <div className="flex flex-wrap gap-2">
+                            {metaChips.map((chip, idx) => (
+                                <span
+                                    key={`meta-${idx}`}
+                                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-100'}`}
+                                >
+                                    {chip}
+                                </span>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
+            {introText ? (
                 <p
                     className={`text-[14px] leading-[1.6] ${textClass}`}
-                    dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(parsed.intro), theme) }}
+                    dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(introText), theme) }}
                 />
             ) : null}
             <div className="grid gap-3">
-                {parsed.cards.map((card, idx) => {
+                {resolvedCards.map((card, idx) => {
                     const validLink = isValidUrl(card.link?.url);
-                    const displayHighlights = card.highlights.slice(0, 3);
-                    const extraHighlights = card.highlights.length - displayHighlights.length;
+                    const safeHighlights = card.highlights.map((h) => formatHighlightLabel(h)).filter(Boolean);
+                    const highlightsExpanded = expandedHighlights[idx] === true;
+                    const displayHighlights = highlightsExpanded ? safeHighlights : safeHighlights.slice(0, 3);
+                    const extraHighlights = highlightsExpanded ? 0 : safeHighlights.length - displayHighlights.length;
                     const description = card.description || '';
-                    const shouldClamp = description.length > 320;
+                    const shouldClamp = description.length > 220;
                     const isExpanded = expanded[idx] === true;
-                    const shownDescription = shouldClamp && !isExpanded ? `${description.slice(0, 280)}…` : description;
-                    const badgeLabel = card.label && card.label.trim().length ? card.label : `Reel ${idx + 1}`;
+                    const shownDescription = shouldClamp && !isExpanded ? `${description.slice(0, 180)}…` : description;
+                    const badgeLabel = card.label && card.label.trim().length ? card.label : `Inspiração ${idx + 1}`;
                     const ideaPrompt = `Quero roteirizar a ideia "${card.title || `Inspiração ${idx + 1}`}".`;
+                    const metaTags = Array.isArray(card.metaTags)
+                        ? Array.from(new Set(card.metaTags.filter(Boolean)))
+                        : [];
+                    const metaPreview = metaTags.slice(0, 3);
+                    const metaOverflow = metaTags.length - metaPreview.length;
 
                     return (
                         <div key={`${card.title}-${idx}`} className={`rounded-2xl border ${borderClass} p-4 shadow-sm`} data-testid="community-inspiration-card">
@@ -476,6 +615,23 @@ export function CommunityInspirationMessage({
                             <p className={`text-[15px] font-semibold leading-[1.5] ${headingClass}`}>
                                 {card.title || `Inspiração ${idx + 1}`}
                             </p>
+                            {metaPreview.length ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {metaPreview.map((tag, tagIdx) => (
+                                        <span
+                                            key={`${card.title}-meta-${tagIdx}`}
+                                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'}`}
+                                        >
+                                            {tag}
+                                        </span>
+                                    ))}
+                                    {metaOverflow > 0 ? (
+                                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                                            +{metaOverflow}
+                                        </span>
+                                    ) : null}
+                                </div>
+                            ) : null}
                             {card.description ? (
                                 <div className="mt-2 space-y-1">
                                     <p
@@ -505,15 +661,36 @@ export function CommunityInspirationMessage({
                                         {displayHighlights.map((highlight, hIdx) => (
                                             <span
                                                 key={`${card.title}-highlight-${hIdx}`}
-                                                className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-100'}`}
+                                                className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold whitespace-normal break-words ${isInverse ? 'bg-white/10 text-white' : 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-100'}`}
                                             >
                                                 {highlight}
                                             </span>
                                         ))}
                                         {extraHighlights > 0 ? (
-                                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700 ring-1 ring-gray-200'}`}>
+                                            <button
+                                                type="button"
+                                                aria-expanded={highlightsExpanded}
+                                                className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${isInverse ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 ring-1 ring-gray-200 hover:bg-gray-200'}`}
+                                                onClick={() => {
+                                                    setExpandedHighlights((prev) => ({ ...prev, [idx]: true }));
+                                                    track('community_inspiration_expand_highlights', { card_index: idx, expanded: true });
+                                                }}
+                                            >
                                                 +{extraHighlights}
-                                            </span>
+                                            </button>
+                                        ) : null}
+                                        {highlightsExpanded && safeHighlights.length > 3 ? (
+                                            <button
+                                                type="button"
+                                                aria-expanded={highlightsExpanded}
+                                                className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${isInverse ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 ring-1 ring-gray-200 hover:bg-gray-200'}`}
+                                                onClick={() => {
+                                                    setExpandedHighlights((prev) => ({ ...prev, [idx]: false }));
+                                                    track('community_inspiration_expand_highlights', { card_index: idx, expanded: false });
+                                                }}
+                                            >
+                                                Mostrar menos
+                                            </button>
                                         ) : null}
                                     </div>
                                 </div>
@@ -704,6 +881,41 @@ export function CommunityInspirationMessage({
                             );
                         })}
                     </div>
+                </div>
+            ) : null}
+            {quickActions && quickActions.length ? (
+                <div className="flex flex-wrap gap-2">
+                    {quickActions.map((action, idx) => {
+                        const sent = quickActionSent[idx] === true;
+                        return (
+                            <button
+                                key={`quick-${idx}`}
+                                type="button"
+                                className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${isInverse
+                                    ? 'bg-white/10 text-white hover:bg-white/20'
+                                    : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'}`}
+                                onClick={async () => {
+                                    if (onSendPrompt) {
+                                        try {
+                                            await onSendPrompt(action.prompt);
+                                            setQuickActionSent((prev) => ({ ...prev, [idx]: true }));
+                                            window.setTimeout(() => setQuickActionSent((prev) => ({ ...prev, [idx]: false })), 1400);
+                                            return;
+                                        } catch {
+                                            // fallback to copy
+                                        }
+                                    }
+                                    const ok = await copyPrompt(action.prompt);
+                                    if (ok) {
+                                        setQuickActionSent((prev) => ({ ...prev, [idx]: true }));
+                                        window.setTimeout(() => setQuickActionSent((prev) => ({ ...prev, [idx]: false })), 1400);
+                                    }
+                                }}
+                            >
+                                {sent ? 'Enviado!' : action.label}
+                            </button>
+                        );
+                    })}
                 </div>
             ) : null}
             {parsed.contextNote ? (
