@@ -68,17 +68,17 @@ function withStrictProxy(url: string) {
 
 async function fetchImage(url: string) {
   const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok || !res.body) return null;
+  if (!res.ok) return null;
   const contentType = res.headers.get('content-type') || 'image/jpeg';
-  return { body: res.body, contentType };
+  const buffer = await res.arrayBuffer();
+  return { body: new Uint8Array(buffer), contentType };
 }
 
 async function loadFallbackImage() {
   const fallbackPath = path.join(process.cwd(), 'public', 'images', 'default-profile.png');
   try {
     const buffer = await fs.promises.readFile(fallbackPath);
-    const body = new Uint8Array(buffer);
-    return new Response(body, {
+    return new Response(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
@@ -96,9 +96,7 @@ export async function GET(
   await connectToDatabase();
 
   const user = await UserModel.findOne({ mediaKitSlug: params.token })
-    .select(
-      'profile_picture_url image instagram availableIgAccounts.profile_picture_url'
-    )
+    .select('profile_picture_url image instagram availableIgAccounts.profile_picture_url')
     .lean();
 
   if (!user) {
