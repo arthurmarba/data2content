@@ -47,6 +47,7 @@ const ALLOWED_HOSTS_SUFFIX = [
   "lookaside.instagram.com",
   "lookaside.fbsbx.com",
   "platform-lookaside.fbsbx.com",
+  "graph.facebook.com",
   "lh3.googleusercontent.com",
   "placehold.co",
   "i.ibb.co",
