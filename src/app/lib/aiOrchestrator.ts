@@ -79,7 +79,8 @@ const MONETIZATION_KEYWORDS = [
     'quanto cobrar', 'quanto devo cobrar', 'preço', 'valor', 'cache', 'cachê',
     'publi', 'publicidade', 'parceria', 'patrocínio', 'patrocinio', 'marca',
     'mediakit', 'media kit', 'mídia kit', 'midia kit', 'proposta', 'orçamento',
-    'negociar', 'contrato', 'deliverables', 'combo', 'pacote'
+    'negociar', 'contrato', 'deliverables', 'combo', 'pacote',
+    'contraproposta', 'contra proposta', 'contra-proposta'
 ];
 
 const BUG_KEYWORDS = [

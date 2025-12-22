@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -36,6 +36,7 @@ export default function BillingPanel() {
   const [s, setS] = useState<BillingStatus | null>(null);
   const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | 'abort' | 'resume' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const resyncRef = useRef(false);
 
   const fetchStatus = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -64,6 +65,22 @@ export default function BillingPanel() {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  useEffect(() => {
+    if (!s || resyncRef.current) return;
+    if (s.planStatus !== 'non_renewing' || !s.planExpiresAt) return;
+    const expiresAt = new Date(s.planExpiresAt);
+    if (Number.isNaN(expiresAt.getTime())) return;
+    if (expiresAt.getTime() > Date.now()) return;
+    resyncRef.current = true;
+    (async () => {
+      try {
+        await fetch('/api/billing/subscription', { cache: 'no-store' });
+      } finally {
+        fetchStatus();
+      }
+    })();
+  }, [s, fetchStatus]);
 
   const openPortal = async (): Promise<void> => {
     setDoing('portal');
@@ -153,14 +170,17 @@ export default function BillingPanel() {
         const code = data?.code;
         if (code === 'NOT_REACTIVATABLE_USE_SUBSCRIBE') {
           toast.error(data?.message ?? 'Assinatura cancelada definitivamente. Assine novamente.');
+          await fetchStatus();
           return;
         }
         if (code === 'NOT_REACTIVATABLE_NOT_CANCELING') {
           toast.error(data?.message ?? 'Assinatura já está ativa e sem cancelamento agendado.');
+          await fetchStatus();
           return;
         }
         if (code === 'NOT_REACTIVATABLE_STATUS') {
           toast.error(data?.message ?? 'Assinatura não está ativa para reativação.');
+          await fetchStatus();
           return;
         }
         toast.error(data?.message ?? 'Falha ao reativar');
@@ -320,7 +340,7 @@ export default function BillingPanel() {
             </>
           )}
           {showSubscribeCta && (
-            <a href="/pricing" className="inline-flex items-center px-3 py-2 rounded-lg bg-black text-white hover:opacity-90">
+            <a href="/dashboard/billing/checkout" className="inline-flex items-center px-3 py-2 rounded-lg bg-black text-white hover:opacity-90">
               {status === 'canceled' ? 'Assinar novamente' : 'Assinar agora'}
             </a>
           )}

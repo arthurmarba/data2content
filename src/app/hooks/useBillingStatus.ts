@@ -299,7 +299,13 @@ export function useBillingStatus(opts: Options = {}) {
       normalizedStatus === "active" ||
       normalizedStatus === "trialing" ||
       normalizedStatus === "trial";
-    const isNonRenewing = normalizedStatus === "non_renewing" || data.cancelAtPeriodEnd === true;
+    const isActiveLikeStatus =
+      normalizedStatus === "active" ||
+      normalizedStatus === "trialing" ||
+      normalizedStatus === "trial";
+    const isNonRenewing =
+      normalizedStatus === "non_renewing" ||
+      (isActiveLikeStatus && data.cancelAtPeriodEnd === true);
     const isAnnual = data.interval === "year";
     const isMonthly = data.interval === "month";
 

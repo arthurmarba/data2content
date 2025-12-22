@@ -98,6 +98,21 @@ export async function POST() {
     const currentStatus = (current as any).status as string | undefined
     // Casos não reativáveis
     if (currentStatus === 'canceled' || currentStatus === 'incomplete_expired') {
+      const firstItem = current.items?.data?.[0]
+      const stripePriceId = firstItem?.price?.id ?? null
+      const planInterval = getInterval(current)
+      const planExpiresAt = resolvePlanExpiresAt(current)
+      const cancelAtPeriodEnd = Boolean((current as any).cancel_at_period_end)
+      if (currentStatus) {
+        user.planStatus = currentStatus as any
+      }
+      if (planInterval !== undefined) user.planInterval = planInterval
+      user.planExpiresAt = planExpiresAt
+      ;(user as any).currentPeriodEnd = planExpiresAt
+      user.stripePriceId = stripePriceId
+      user.cancelAtPeriodEnd = cancelAtPeriodEnd
+      await user.save()
+
       logger.info('billing_reactivate_blocked', {
         endpoint: 'POST /api/billing/reactivate',
         userId: String(user._id),

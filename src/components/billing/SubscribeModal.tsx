@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FaCheckCircle, FaLock, FaTimes } from 'react-icons/fa';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
+import { mapSubscribeError } from '@/app/lib/billing/errors';
 
 type Plan = 'monthly' | 'annual';
 type Cur = 'brl' | 'usd';
@@ -90,11 +91,16 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   const [affiliateCode, setAffiliateCode] = useState('');
   const [loadingAction, setLoadingAction] = useState<null | 'subscribe'>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
     needsPaymentAction,
+    needsPaymentUpdate,
+    needsCheckout,
+    needsAbort,
+    normalizedStatus,
   } = useBillingStatus();
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -111,11 +117,13 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
   const normalizedCode = affiliateCode.trim().toUpperCase();
   const codeIsValid = normalizedCode === '' || /^[A-Z0-9-]{3,24}$/.test(normalizedCode);
+  const isNonRenewing = normalizedStatus === 'non_renewing';
 
   async function handleStart() {
     if (loadingAction) return;
     setLoadingAction('subscribe');
     setError(null);
+    setErrorAction(null);
     setCodeError(null);
     try {
       const res = await fetch('/api/billing/subscribe', {
@@ -128,12 +136,26 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
         }),
       });
       const body = await res.json();
-      if (res.status === 422 || body?.code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
-      if (!res.ok && body?.code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
-      if (!res.ok && body?.code === 'SUBSCRIPTION_PAST_DUE') { setError(body?.message ?? 'Pagamento pendente. Atualize em Billing.'); return; }
-      if (!res.ok && body?.code === 'SUBSCRIPTION_ACTIVE') { setError(body?.message ?? 'Você já possui uma assinatura ativa.'); return; }
-      if (!res.ok && body?.code === 'SUBSCRIPTION_NON_RENEWING') { setError(body?.message ?? 'Assinatura com cancelamento agendado. Reative em Billing.'); return; }
-      if (!res.ok && body?.code === 'SUBSCRIPTION_INCOMPLETE') { setError(body?.message ?? 'Há um checkout pendente.'); return; }
+      if (res.status === 422 || body?.code === 'INVALID_CODE') {
+        setCodeError(body?.message ?? 'Código inválido ou expirado.');
+        return;
+      }
+      if (!res.ok && body?.code === 'SELF_REFERRAL') {
+        setCodeError(body?.message ?? 'Você não pode usar seu próprio código.');
+        return;
+      }
+      if (!res.ok) {
+        const mapped = mapSubscribeError(body?.code, body?.message);
+        if (mapped) {
+          setError(mapped.message);
+          setErrorAction(
+            mapped.actionLabel && mapped.actionHref
+              ? { label: mapped.actionLabel, href: mapped.actionHref }
+              : null
+          );
+          return;
+        }
+      }
       if (!res.ok) throw new Error(body?.error || body?.message || 'Falha ao iniciar assinatura');
       if (body?.checkoutUrl) { window.location.href = body.checkoutUrl; return; }
       if (body?.clientSecret) {
@@ -171,6 +193,25 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
   const disabled = !!loadingAction;
   const shouldBlockSubscribe = hasPremiumAccess || needsPaymentAction;
+  const statusHint = !billingStatusLoading
+    ? isNonRenewing
+      ? 'Sua assinatura está com cancelamento agendado.'
+      : needsPaymentUpdate
+      ? 'Pagamento pendente. Atualize sua cobrança.'
+      : needsAbort
+      ? 'Tentativa expirada. Aborte e inicie um novo checkout.'
+      : needsCheckout
+      ? 'Há um checkout pendente. Continue ou aborte.'
+      : hasPremiumAccess
+      ? 'Você já possui um plano ativo.'
+      : null
+    : null;
+  const statusHintAction =
+    isNonRenewing || needsPaymentUpdate || needsAbort || needsCheckout
+      ? { label: 'Ir para Billing', href: '/dashboard/billing' }
+      : null;
+  const statusHintTone =
+    needsPaymentUpdate || needsAbort || needsCheckout ? 'text-amber-700' : 'text-gray-600';
 
   return (
     <div
@@ -270,14 +311,22 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
                     </div>
 
                     {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-                    {hasPremiumAccess && !billingStatusLoading && (
-                      <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo.</p>
+                    {errorAction && (
+                      <div className="text-center">
+                        <Link href={errorAction.href} className="text-sm font-semibold text-pink-600 hover:text-pink-700">
+                          {errorAction.label}
+                        </Link>
+                      </div>
                     )}
-                    {needsPaymentAction && !billingStatusLoading && (
-                      <p className="text-xs text-amber-700 text-center">
-                        Pagamento pendente. Atualize sua cobrança em{" "}
-                        <a href="/dashboard/billing" className="underline">Billing</a>.
-                      </p>
+                    {statusHint && (
+                      <p className={`text-xs text-center ${statusHintTone}`}>{statusHint}</p>
+                    )}
+                    {statusHintAction && (
+                      <div className="text-center">
+                        <Link href={statusHintAction.href} className="text-xs font-semibold text-pink-600 hover:text-pink-700">
+                          {statusHintAction.label}
+                        </Link>
+                      </div>
                     )}
 
                     <div className="grid grid-cols-1 gap-3">

@@ -111,6 +111,32 @@ export async function GET(_req: NextRequest) {
       }
     }
 
+    if (
+      sub &&
+      customerId &&
+      (sub.status === "canceled" ||
+        sub.status === "incomplete" ||
+        sub.status === "incomplete_expired")
+    ) {
+      try {
+        const listed = await stripe.subscriptions.list({
+          customer: customerId as string,
+          status: "all",
+          limit: 10,
+          expand: subscriptionListExpand,
+        } as any);
+        listedSuccessfully = true;
+        const pick = pickBestSubscription(listed.data ?? []);
+        if (pick && pick.id !== sub.id) {
+          sub = (await stripe.subscriptions.retrieve(pick.id, {
+            expand: subscriptionExpand,
+          })) as Stripe.Subscription;
+        }
+      } catch {
+        // fallback: mantém a assinatura original
+      }
+    }
+
     if (!sub && customerId) {
       try {
         const listed = await stripe.subscriptions.list({
@@ -173,7 +199,7 @@ export async function GET(_req: NextRequest) {
     const endSec = cancelAtSec ?? subCpeSec ?? minItemEndSec;
     const periodEndIso = endSec ? new Date(endSec * 1000).toISOString() : null;
 
-    const cancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end);
+    let cancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end);
     const planInterval = getPlanInterval(sub);
     const planType = planTypeFromInterval(planInterval);
 
@@ -202,11 +228,23 @@ export async function GET(_req: NextRequest) {
     // ---------- Status efetivo ----------
     const rawStatus = sub.status as string;
     const inTrialNow = typeof trialEndSec === "number" && trialEndSec * 1000 > Date.now();
-    const statusForDb = rawStatus === "incomplete" ? "pending" : rawStatus;
+    let statusForDb = rawStatus === "incomplete" ? "pending" : rawStatus;
 
     // (1) Força 'trialing' se há trial em andamento, mesmo se Stripe trouxer 'active'
     let effectiveStatus: "active" | "trialing" | "non_renewing" | "pending" | typeof rawStatus =
       inTrialNow ? "trialing" : rawStatus;
+
+    const nonRenewingEnded =
+      cancelAtPeriodEnd &&
+      typeof endSec === "number" &&
+      endSec * 1000 <= Date.now() &&
+      (rawStatus === "active" || rawStatus === "trialing");
+
+    if (nonRenewingEnded) {
+      effectiveStatus = "canceled";
+      statusForDb = "canceled";
+      cancelAtPeriodEnd = false;
+    }
 
     // (2) Se houve agendamento de cancelamento e a sub está ativa/trial → 'non_renewing'
     if (cancelAtPeriodEnd && (effectiveStatus === "active" || effectiveStatus === "trialing")) {

@@ -9,6 +9,7 @@ import CheckoutForm from "./CheckoutForm";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDebounce } from "use-debounce";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { mapSubscribeError } from "@/app/lib/billing/errors";
 
 // --- Tipos e Constantes ---
 type Plan = "monthly" | "annual";
@@ -89,6 +90,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
   const [loading, setLoading] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
 
   // <<< ALTERAÇÃO 4: Remover o useEffect que lia a URL, pois isso agora é feito no Server Component pai >>>
   // O código que estava aqui foi removido para simplificar e evitar lógica duplicada.
@@ -121,6 +123,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
     const run = async () => {
       setIsPreviewLoading(true);
       setErr(null);
+      setErrorAction(null);
       setAffiliateError(null);
       try {
         const { ok, data } = await fetchPreview(plan, currency, debouncedAffiliateCode || "");
@@ -205,6 +208,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
     if (billingStatus.needsAbort) {
       resumeAttemptedRef.current = true;
       setErr("Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.");
+      setErrorAction({ label: "Resolver pendencia", href: "/dashboard/billing" });
       return;
     }
     if (!billingStatus.needsCheckout) return;
@@ -213,27 +217,33 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
     const run = async () => {
       setResumeLoading(true);
       setErr(null);
+      setErrorAction(null);
       try {
         const res = await fetch("/api/billing/resume", { method: "POST" });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           if (data?.code === "SUBSCRIPTION_INCOMPLETE_EXPIRED") {
             setErr(data?.message || "Tentativa expirada. Aborte a tentativa e faça um novo checkout.");
+            setErrorAction({ label: "Resolver pendencia", href: "/dashboard/billing" });
             return;
           }
           if (data?.code === "PAYMENT_ISSUE") {
             setErr(data?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
+            setErrorAction({ label: "Atualizar pagamento", href: "/dashboard/billing" });
             return;
           }
           if (data?.code === "SUBSCRIPTION_ACTIVE") {
             setErr(data?.message || "Assinatura já está ativa.");
+            setErrorAction({ label: "Ir para Billing", href: "/dashboard/billing" });
             return;
           }
           if (data?.code === "BILLING_RESUME_NOT_PENDING") {
             setErr(data?.message || "Não há checkout pendente para retomar. Aborte a tentativa em Billing.");
+            setErrorAction({ label: "Resolver pendencia", href: "/dashboard/billing" });
             return;
           }
           setErr(data?.message || "Não foi possível retomar o checkout.");
+          setErrorAction({ label: "Ir para Billing", href: "/dashboard/billing" });
           return;
         }
         if (data?.clientSecret) {
@@ -260,6 +270,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
     setApplyLoading(true);
     setAffiliateError(null);
     setErr(null);
+    setErrorAction(null);
     try {
       const { ok, data } = await fetchPreview(plan, currency, trimmed);
       if (!ok) {
@@ -288,6 +299,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
     try {
       setLoading(true);
       setErr(null);
+      setErrorAction(null);
       const res = await fetch("/api/billing/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -308,24 +320,14 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
           setAffiliateError(data?.message || "Código inválido ou expirado.");
           return;
         }
-        if (data?.code === "PAYMENT_ISSUE") {
-          setErr(data?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
-          return;
-        }
-        if (data?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE" || data?.code === "SUBSCRIPTION_INCOMPLETE") {
-          setErr(data?.message || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
-          return;
-        }
-        if (data?.code === "BILLING_IN_PROGRESS") {
-          setErr(data?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
-          return;
-        }
-        if (data?.code === "SUBSCRIPTION_ACTIVE_DB" || data?.code === "SUBSCRIPTION_ACTIVE" || data?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
-          setErr(data?.message || "Você já possui uma assinatura ativa.");
-          return;
-        }
-        if (data?.code === "SUBSCRIPTION_NON_RENEWING" || data?.code === "SUBSCRIPTION_NON_RENEWING_DB") {
-          setErr(data?.message || "Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.");
+        const mapped = mapSubscribeError(data?.code, data?.message);
+        if (mapped) {
+          setErr(mapped.message);
+          setErrorAction(
+            mapped.actionLabel && mapped.actionHref
+              ? { label: mapped.actionLabel, href: mapped.actionHref }
+              : null
+          );
           return;
         }
         throw new Error(data?.message || data?.error || "Falha ao iniciar assinatura");
@@ -555,7 +557,16 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
                 </motion.div>
               </AnimatePresence>
 
-              {err && <p className="text-sm text-red-600 text-center pt-2">{err}</p>}
+              {err && (
+                <div className="text-center pt-2">
+                  <p className="text-sm text-red-600">{err}</p>
+                  {errorAction && (
+                    <a href={errorAction.href} className="mt-1 inline-flex text-xs font-semibold text-pink-600">
+                      {errorAction.label}
+                    </a>
+                  )}
+                </div>
+              )}
 
               <button
                 onClick={startCheckout}

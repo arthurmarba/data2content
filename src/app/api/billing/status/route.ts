@@ -50,7 +50,7 @@ export async function GET() {
 
     // Status bruto salvo no DB (real do Stripe) + normalização
     const rawDb = normalizePlanStatusValue((user as any).planStatus);
-    const cancelAtPeriodEnd = Boolean((user as any).cancelAtPeriodEnd);
+    let cancelAtPeriodEnd = Boolean((user as any).cancelAtPeriodEnd);
 
     const expiresAt = (user as any).planExpiresAt ?? null;
     const expiresAtDate =
@@ -61,12 +61,26 @@ export async function GET() {
       !Number.isNaN(expiresAtDate.getTime()) &&
       expiresAtDate.getTime() <= Date.now();
 
-    // Para a UI: quando há cancelamento agendado, mostramos "non_renewing"
-    const uiStatus: PlanStatus = cancelAtPeriodEnd
-      ? "non_renewing"
-      : trialExpired
-      ? "expired"
-      : rawDb ?? "inactive";
+    const isActiveLike = rawDb === "active" || rawDb === "trialing";
+    const nonRenewingEnded =
+      !trialExpired &&
+      cancelAtPeriodEnd &&
+      expiresAtDate instanceof Date &&
+      !Number.isNaN(expiresAtDate.getTime()) &&
+      expiresAtDate.getTime() <= Date.now();
+
+    if (nonRenewingEnded) {
+      cancelAtPeriodEnd = false;
+    }
+
+    const uiStatus: PlanStatus =
+      nonRenewingEnded
+        ? "canceled"
+        : rawDb === "non_renewing" || (cancelAtPeriodEnd && isActiveLike)
+        ? "non_renewing"
+        : trialExpired
+        ? "expired"
+        : rawDb ?? "inactive";
 
     // Só mostrar intervalo quando a assinatura "existe" (evita exibir Mensal pra inativo)
     const showIntervalStatuses: ReadonlySet<PlanStatus> = new Set([
@@ -117,13 +131,13 @@ export async function GET() {
       { headers: cacheHeader }
     );
 
-    if (trialExpired) {
+    if (trialExpired || nonRenewingEnded) {
       try {
         await User.updateOne(
           { _id: (user as any)?._id },
           {
             $set: {
-              planStatus: "expired",
+              planStatus: trialExpired ? "expired" : "canceled",
               cancelAtPeriodEnd: false,
             },
           }

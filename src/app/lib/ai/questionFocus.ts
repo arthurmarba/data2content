@@ -67,7 +67,18 @@ const METRIC_KEYWORDS: Array<{ metric: string; keywords: string[] }> = [
     { metric: 'retention', keywords: ['retencao', 'retention'] },
 ];
 
-const PRICE_KEYWORDS = ['quanto cobrar', 'preco', 'valor', 'cobrar', 'precificar', 'publi', 'parceria'];
+const PRICE_KEYWORDS = [
+    'quanto cobrar',
+    'preco',
+    'valor',
+    'cobrar',
+    'precificar',
+    'publi',
+    'parceria',
+    'contraproposta',
+    'contra proposta',
+    'contra-proposta',
+];
 
 const DELIVERABLE_KEYWORDS = ['reel', 'reels', 'story', 'stories', 'carrossel', 'foto', 'combo', 'pacote', 'post'];
 const RANKING_KEYWORDS = ['melhores', 'piores', 'ranking', 'top', 'lista de', 'qual melhor'];

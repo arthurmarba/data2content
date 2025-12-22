@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { mapSubscribeError } from "@/app/lib/billing/errors";
 
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
@@ -21,6 +22,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
   const [plan, setPlan] = useState<Plan>("monthly");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
   const {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
@@ -56,6 +58,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
     try {
       setLoading(true);
       setErrorMsg(null);
+      setErrorAction(null);
 
       const code = (affiliateCode || "").trim();
 
@@ -78,20 +81,20 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
 
       const json = await res.json();
       if (!res.ok) {
-        if (json?.code === "PAYMENT_ISSUE") {
-          throw new Error(json?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
+        if (json?.code === "SELF_REFERRAL") {
+          throw new Error(json?.message || "Você não pode usar seu próprio código.");
         }
-        if (json?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE" || json?.code === "SUBSCRIPTION_INCOMPLETE") {
-          throw new Error(json?.message || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
+        if (json?.code === "INVALID_CODE") {
+          throw new Error(json?.message || "Código inválido ou expirado.");
         }
-        if (json?.code === "SUBSCRIPTION_ACTIVE_DB" || json?.code === "SUBSCRIPTION_ACTIVE" || json?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
-          throw new Error(json?.message || "Você já possui um plano ativo.");
-        }
-        if (json?.code === "SUBSCRIPTION_NON_RENEWING" || json?.code === "SUBSCRIPTION_NON_RENEWING_DB") {
-          throw new Error(json?.message || "Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.");
-        }
-        if (json?.code === "BILLING_IN_PROGRESS") {
-          throw new Error(json?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
+        const mapped = mapSubscribeError(json?.code, json?.message);
+        if (mapped) {
+          setErrorAction(
+            mapped.actionLabel && mapped.actionHref
+              ? { label: mapped.actionLabel, href: mapped.actionHref }
+              : null
+          );
+          throw new Error(mapped.message);
         }
         throw new Error(json?.message || json?.error || "Falha ao iniciar assinatura.");
       }
@@ -156,7 +159,16 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
         )}
       </div>
 
-      {errorMsg && <p className="mb-3 text-center text-sm text-red-600">{errorMsg}</p>}
+      {errorMsg && (
+        <div className="mb-3 text-center text-sm text-red-600">
+          <p>{errorMsg}</p>
+          {errorAction && (
+            <a href={errorAction.href} className="mt-1 inline-flex text-xs font-semibold text-pink-600">
+              {errorAction.label}
+            </a>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-2">
         <button

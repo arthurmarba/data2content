@@ -199,49 +199,78 @@ export async function POST(req: NextRequest) {
     const dbStatusRaw = (user as any).planStatus ?? null;
     const dbStatus = typeof dbStatusRaw === "string" ? dbStatusRaw.toLowerCase() : "";
     const dbCancelAtPeriodEnd = Boolean((user as any).cancelAtPeriodEnd);
-
-    if (dbStatus === "active" || dbStatus === "trialing" || dbStatus === "trial") {
-      const isTrial = dbStatus === "trial" || dbStatus === "trialing";
-      logger.info("billing_subscribe_blocked_db_active", {
-        endpoint: "POST /api/billing/subscribe",
-        userId,
-        customerId: (user as any).stripeCustomerId ?? null,
-        subscriptionId: (user as any).stripeSubscriptionId ?? null,
-        statusDb: dbStatus,
-        statusStripe: null,
-        errorCode: "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN",
-        stripeRequestId: null,
-      });
-      return NextResponse.json(
-        {
-          code: "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN",
-          message: isTrial
-            ? "Você está em período de teste. A troca de plano fica disponível após o trial."
-            : "Você já possui uma assinatura ativa. Para trocar de plano, use a mudança de plano em Billing.",
-        },
-        { status: 409 }
-      );
-    }
+    const dbStatusIsActive =
+      dbStatus === "active" || dbStatus === "trialing" || dbStatus === "trial";
+    const dbStatusIsTrial = dbStatus === "trial" || dbStatus === "trialing";
 
     if (dbStatus === "non_renewing" || dbCancelAtPeriodEnd) {
-      logger.info("billing_subscribe_blocked_db_non_renewing", {
-        endpoint: "POST /api/billing/subscribe",
-        userId,
-        customerId: (user as any).stripeCustomerId ?? null,
-        subscriptionId: (user as any).stripeSubscriptionId ?? null,
-        statusDb: dbStatus || "non_renewing",
-        statusStripe: null,
-        errorCode: "SUBSCRIPTION_NON_RENEWING_DB",
-        stripeRequestId: null,
-      });
-      return NextResponse.json(
-        {
-          code: "SUBSCRIPTION_NON_RENEWING_DB",
-          message:
-            "Sua assinatura está com cancelamento agendado. Reative em Billing antes de assinar novamente.",
-        },
-        { status: 409 }
-      );
+      let stripeStatus: string | null = null;
+      let stripeCancelAtPeriodEnd = false;
+      let shouldSave = false;
+
+      if ((user as any).stripeSubscriptionId) {
+        try {
+          const sub = await stripe.subscriptions.retrieve((user as any).stripeSubscriptionId, {
+            expand: ["items.data.price"],
+          } as any);
+          stripeStatus = typeof sub.status === "string" ? sub.status : null;
+          stripeCancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end);
+
+          if (stripeStatus) {
+            const normalizedStatus =
+              stripeStatus === "incomplete" ? "pending" : stripeStatus;
+            if ((user as any).planStatus !== normalizedStatus) {
+              (user as any).planStatus = normalizedStatus as any;
+              shouldSave = true;
+            }
+            if (stripeCancelAtPeriodEnd !== Boolean((user as any).cancelAtPeriodEnd)) {
+              (user as any).cancelAtPeriodEnd = stripeCancelAtPeriodEnd;
+              shouldSave = true;
+            }
+          }
+        } catch {
+          stripeStatus = null;
+        }
+      }
+
+      if (stripeStatus) {
+        if (
+          (stripeStatus === "active" || stripeStatus === "trialing") &&
+          stripeCancelAtPeriodEnd
+        ) {
+          if (shouldSave) await user.save();
+          logger.info("billing_subscribe_blocked_db_non_renewing", {
+            endpoint: "POST /api/billing/subscribe",
+            userId,
+            customerId: (user as any).stripeCustomerId ?? null,
+            subscriptionId: (user as any).stripeSubscriptionId ?? null,
+            statusDb: dbStatus || "non_renewing",
+            statusStripe: stripeStatus,
+            errorCode: "SUBSCRIPTION_NON_RENEWING_DB",
+            stripeRequestId: null,
+          });
+          return NextResponse.json(
+            {
+              code: "SUBSCRIPTION_NON_RENEWING_DB",
+              message:
+                "Sua assinatura está com cancelamento agendado. Reative em Billing antes de assinar novamente.",
+            },
+            { status: 409 }
+          );
+        }
+
+        if (
+          stripeStatus === "canceled" ||
+          stripeStatus === "incomplete_expired" ||
+          stripeStatus === "past_due" ||
+          stripeStatus === "unpaid" ||
+          stripeStatus === "incomplete" ||
+          stripeStatus === "active" ||
+          stripeStatus === "trialing"
+        ) {
+          if (shouldSave) await user.save();
+        }
+      }
     }
 
     if (dbStatus === "past_due" || dbStatus === "unpaid") {
@@ -365,20 +394,27 @@ export async function POST(req: NextRequest) {
     }
 
     if (activeSub) {
-      logger.info("billing_subscribe_blocked_active", {
+      const code = dbStatusIsActive ? "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN" : "SUBSCRIPTION_ACTIVE";
+      const message = dbStatusIsActive
+        ? dbStatusIsTrial
+          ? "Você está em período de teste. A troca de plano fica disponível após o trial."
+          : "Você já possui uma assinatura ativa. Para trocar de plano, use a mudança de plano em Billing."
+        : "Você já possui uma assinatura ativa. Gerencie sua assinatura em Billing.";
+      const logEvent = dbStatusIsActive ? "billing_subscribe_blocked_db_active" : "billing_subscribe_blocked_active";
+      logger.info(logEvent, {
         endpoint: "POST /api/billing/subscribe",
         userId,
         customerId,
         subscriptionId: activeSub.id,
         statusDb: dbStatus || null,
         statusStripe: activeSub.status,
-        errorCode: "SUBSCRIPTION_ACTIVE",
+        errorCode: code,
         stripeRequestId: getStripeRequestId(subsList),
       });
       return NextResponse.json(
         {
-          code: "SUBSCRIPTION_ACTIVE",
-          message: "Você já possui uma assinatura ativa. Gerencie sua assinatura em Billing.",
+          code,
+          message,
           subscriptionId: activeSub.id,
         },
         { status: 409 }

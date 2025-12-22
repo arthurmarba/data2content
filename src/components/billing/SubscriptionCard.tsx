@@ -86,7 +86,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
           Você ainda não possui uma assinatura ativa. Escolha um plano para desbloquear todos os recursos da plataforma.
         </p>
         <a
-          href="/pricing"
+          href="/dashboard/billing/checkout"
           className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
         >
           Assinar agora
@@ -240,6 +240,8 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
         const code = data?.code;
         if (code === 'NOT_REACTIVATABLE_USE_SUBSCRIBE') {
           toast.error(data?.message || 'Assinatura cancelada definitivamente. Assine novamente.');
+          await refresh();
+          router.push('/dashboard/billing/checkout');
           return;
         }
         if (code === 'NOT_REACTIVATABLE_NOT_CANCELING') {
@@ -423,7 +425,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
 
           {showSubscribeAgain && (
             <a
-              href="/pricing"
+              href="/dashboard/billing/checkout"
               className="w-full min-h-[44px] rounded-[8px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
             >
               {isCanceled ? 'Assinar novamente' : 'Assinar agora'}

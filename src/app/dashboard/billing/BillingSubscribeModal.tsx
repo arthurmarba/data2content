@@ -9,6 +9,7 @@ import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
 import { buildCheckoutUrl } from "@/app/lib/checkoutRedirect";
+import { mapSubscribeError } from "@/app/lib/billing/errors";
 
 interface BillingSubscribeModalProps {
   open: boolean;
@@ -130,6 +131,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const router = useRouter();
   const [prices, setPrices] = useState<PricesShape | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingRedirect, setLoadingRedirect] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
@@ -316,6 +318,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
 
     setLoading(true);
     setError(null);
+    setErrorAction(null);
     try {
       const res = await fetch("/api/billing/prices", {
         cache: "no-store",
@@ -349,6 +352,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     if (pricesCache) {
       setPrices(pricesCache);
       setError(null);
+      setErrorAction(null);
       return;
     }
     void loadPrices();
@@ -402,18 +406,23 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       context: effectiveContext === "default" ? "paywall" : effectiveContext,
     });
     setError(null);
+    setErrorAction(null);
     setLoadingRedirect(true);
     try {
       if (hasPremiumAccess) {
+        setErrorAction({ label: "Trocar plano", href: "/dashboard/billing" });
         throw new Error("Você já possui um plano ativo ou em teste.");
       }
       if (needsPaymentUpdate) {
+        setErrorAction({ label: "Atualizar pagamento", href: "/dashboard/billing" });
         throw new Error("Existe um pagamento pendente. Atualize o método de pagamento em Billing.");
       }
       if (needsCheckout) {
+        setErrorAction({ label: "Resolver pendência", href: "/dashboard/billing" });
         throw new Error("Existe um checkout pendente. Retome ou aborte a tentativa em Billing.");
       }
       if (needsAbort) {
+        setErrorAction({ label: "Resolver pendência", href: "/dashboard/billing" });
         throw new Error("Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.");
       }
       const payload = {
@@ -440,20 +449,14 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       }
 
       if (!response.ok) {
-        if (body?.code === "PAYMENT_ISSUE") {
-          throw new Error(body?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
-        }
-        if (body?.code === "BILLING_BLOCKED_PENDING_OR_INCOMPLETE" || body?.code === "SUBSCRIPTION_INCOMPLETE") {
-          throw new Error(body?.message || "Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.");
-        }
-        if (body?.code === "SUBSCRIPTION_ACTIVE_DB" || body?.code === "SUBSCRIPTION_ACTIVE" || body?.code === "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN") {
-          throw new Error(body?.message || "Você já possui um plano ativo.");
-        }
-        if (body?.code === "SUBSCRIPTION_NON_RENEWING" || body?.code === "SUBSCRIPTION_NON_RENEWING_DB") {
-          throw new Error(body?.message || "Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.");
-        }
-        if (body?.code === "BILLING_IN_PROGRESS") {
-          throw new Error(body?.message || "Já existe uma tentativa em andamento. Aguarde alguns segundos.");
+        const mapped = mapSubscribeError(body?.code, body?.message);
+        if (mapped) {
+          setErrorAction(
+            mapped.actionLabel && mapped.actionHref
+              ? { label: mapped.actionLabel, href: mapped.actionHref }
+              : null
+          );
+          throw new Error(mapped.message);
         }
         throw new Error(body?.error || body?.message || "Não foi possível iniciar o checkout.");
       }
@@ -712,7 +715,12 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
             <div className="px-5 sm:px-6 py-4">
               {!!error && (
                 <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
+                  <p>{error}</p>
+                  {errorAction && (
+                    <Link href={errorAction.href} className="mt-1 inline-flex text-xs font-semibold text-pink-600">
+                      {errorAction.label}
+                    </Link>
+                  )}
                 </div>
               )}
 

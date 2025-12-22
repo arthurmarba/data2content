@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
+import { mapSubscribeError } from '@/app/lib/billing/errors';
 
 type Plan = 'monthly' | 'annual';
 type Currency = 'BRL' | 'USD';
@@ -64,6 +65,7 @@ function PlanTeaserContent() {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
 
   // Pré-preenche afiliado por ?ref=
   useEffect(() => {
@@ -91,6 +93,7 @@ function PlanTeaserContent() {
     const run = async () => {
       setIsPreviewLoading(true);
       setErrorMsg(null);
+      setErrorAction(null);
       setAffiliateError(null);
       try {
         const { ok, data } = await fetchPreview(plan, currency, debouncedAffiliate || '');
@@ -188,6 +191,7 @@ function PlanTeaserContent() {
     try {
       setLoading(true);
       setErrorMsg(null);
+      setErrorAction(null);
       const body: any = { plan, currency };
       if (affiliate.trim()) body.affiliateCode = affiliate.trim().toUpperCase();
       if (showCoupon) {
@@ -206,18 +210,18 @@ function PlanTeaserContent() {
           setAffiliateError('Você não pode usar seu próprio código.');
         } else if (json?.code === 'INVALID_CODE' || (json?.message || '').toLowerCase().includes('inválido')) {
           setAffiliateError(json?.message || 'Código inválido ou expirado.');
-        } else if (json?.code === 'PAYMENT_ISSUE' || json?.code === 'SUBSCRIPTION_PAST_DUE') {
-          setErrorMsg(json?.message || 'Pagamento pendente. Atualize em Billing.');
-        } else if (json?.code === 'BILLING_BLOCKED_PENDING_OR_INCOMPLETE' || json?.code === 'SUBSCRIPTION_INCOMPLETE') {
-          setErrorMsg(json?.message || 'Há um checkout pendente. Retome ou aborte a tentativa.');
-        } else if (json?.code === 'SUBSCRIPTION_ACTIVE' || json?.code === 'SUBSCRIPTION_ACTIVE_DB' || json?.code === 'SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN') {
-          setErrorMsg(json?.message || 'Você já possui uma assinatura ativa.');
-        } else if (json?.code === 'SUBSCRIPTION_NON_RENEWING' || json?.code === 'SUBSCRIPTION_NON_RENEWING_DB') {
-          setErrorMsg(json?.message || 'Assinatura com cancelamento agendado. Reative em Billing.');
-        } else if (json?.code === 'BILLING_IN_PROGRESS') {
-          setErrorMsg(json?.message || 'Já existe uma tentativa em andamento. Aguarde alguns segundos.');
         } else {
-          setErrorMsg(json?.error || json?.message || 'Falha ao iniciar assinatura.');
+          const mapped = mapSubscribeError(json?.code, json?.message);
+          if (mapped) {
+            setErrorMsg(mapped.message);
+            setErrorAction(
+              mapped.actionLabel && mapped.actionHref
+                ? { label: mapped.actionLabel, href: mapped.actionHref }
+                : null
+            );
+          } else {
+            setErrorMsg(json?.error || json?.message || 'Falha ao iniciar assinatura.');
+          }
         }
         return;
       }
@@ -392,7 +396,16 @@ function PlanTeaserContent() {
       )}
 
       {/* CTA */}
-      {errorMsg && <p className="mb-3 text-sm text-red-600">{errorMsg}</p>}
+      {errorMsg && (
+        <div className="mb-3 text-sm text-red-600">
+          <p>{errorMsg}</p>
+          {errorAction && (
+            <a href={errorAction.href} className="mt-1 inline-flex text-xs font-semibold text-pink-600">
+              {errorAction.label}
+            </a>
+          )}
+        </div>
+      )}
       <button
         onClick={handleSubscribe}
         disabled={loading || (!current && !preview) || isPreviewLoading}

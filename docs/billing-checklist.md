@@ -16,3 +16,6 @@
 - [ ] 5. Past_due/unpaid -> subscribe bloqueia e envia para pagamento
   - `/api/billing/subscribe` retorna 409 `PAYMENT_ISSUE`
   - UI guia para portal/atualizar cartão
+- [ ] 6. Canceled definitivo (pós período) -> reativar não aparece e "Assinar novamente" abre checkout
+  - `/api/billing/reactivate` retorna 409 `NOT_REACTIVATABLE_USE_SUBSCRIBE`
+  - UI redireciona para `/pricing` e permite novo checkout

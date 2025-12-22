@@ -7,6 +7,7 @@ import { track } from '@/lib/track';
 import { useSession } from 'next-auth/react';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
+import { mapSubscribeError } from '@/app/lib/billing/errors';
 
 type Plan = 'monthly'|'annual';
 type Cur = 'brl'|'usd';
@@ -25,6 +26,7 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
   const [affiliateCode, setAffiliateCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
+  const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
   const [codeError, setCodeError] = useState<string|null>(null);
   const {
     isLoading: billingStatusLoading,
@@ -41,6 +43,7 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
     setLoading(true);
     setError(null);
     setCodeError(null);
+    setErrorAction(null);
     try {
       const res = await fetch('/api/billing/subscribe', {
         method: 'POST',
@@ -56,33 +59,19 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       }
       if (!res.ok && body?.code === 'SELF_REFERRAL') {
         setCodeError(body?.message ?? 'Você não pode usar seu próprio código.');
-        setLoading(false);
         return;
       }
-      if (!res.ok && body?.code === 'PAYMENT_ISSUE') {
-        setError(body?.message ?? 'Pagamento pendente. Atualize o método de pagamento no Billing.');
-        setLoading(false);
-        return;
-      }
-      if (!res.ok && (body?.code === 'BILLING_BLOCKED_PENDING_OR_INCOMPLETE' || body?.code === 'SUBSCRIPTION_INCOMPLETE')) {
-        setError(body?.message ?? 'Existe um pagamento pendente. Retome o checkout ou aborte a tentativa.');
-        setLoading(false);
-        return;
-      }
-      if (!res.ok && (body?.code === 'SUBSCRIPTION_ACTIVE_DB' || body?.code === 'SUBSCRIPTION_ACTIVE' || body?.code === 'SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN')) {
-        setError(body?.message ?? 'Você já possui um plano ativo.');
-        setLoading(false);
-        return;
-      }
-      if (!res.ok && (body?.code === 'SUBSCRIPTION_NON_RENEWING' || body?.code === 'SUBSCRIPTION_NON_RENEWING_DB')) {
-        setError(body?.message ?? 'Sua assinatura está com cancelamento agendado. Reative antes de assinar novamente.');
-        setLoading(false);
-        return;
-      }
-      if (!res.ok && body?.code === 'BILLING_IN_PROGRESS') {
-        setError(body?.message ?? 'Já existe uma tentativa em andamento. Aguarde alguns segundos.');
-        setLoading(false);
-        return;
+      if (!res.ok) {
+        const mapped = mapSubscribeError(body?.code, body?.message);
+        if (mapped) {
+          setError(mapped.message);
+          setErrorAction(
+            mapped.actionLabel && mapped.actionHref
+              ? { label: mapped.actionLabel, href: mapped.actionHref }
+              : null
+          );
+          return;
+        }
       }
 
       if (!res.ok) throw new Error(body?.error || body?.message || 'Falha ao iniciar assinatura');
@@ -162,7 +151,16 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         {codeError && <p className="text-sm text-red-600 mt-1">{codeError}</p>}
       </div>
 
-      {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+      {error && (
+        <div className="text-center">
+          <p className="text-sm text-red-600">{error}</p>
+          {errorAction && (
+            <a href={errorAction.href} className="mt-1 inline-flex text-xs font-semibold text-pink-600">
+              {errorAction.label}
+            </a>
+          )}
+        </div>
+      )}
       {hasPremiumAccess && !billingStatusLoading && (
         <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo.</p>
       )}

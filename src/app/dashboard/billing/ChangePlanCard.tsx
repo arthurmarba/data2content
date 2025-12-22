@@ -138,7 +138,7 @@ export default function ChangePlanCard() {
   // Locks de UI
   const trialLock = status?.planStatus === "trialing";
   const cancelLock =
-    status?.planStatus === "non_renewing" || status?.cancelAtPeriodEnd === true || status?.planStatus === "canceled";
+    status?.planStatus === "non_renewing" || status?.cancelAtPeriodEnd === true;
 
   const trialEndsLabel =
     status?.planExpiresAt

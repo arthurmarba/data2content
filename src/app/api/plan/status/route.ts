@@ -24,8 +24,9 @@ function mapStripeToUiStatus(
   raw: string | null | undefined,
   cancelAtPeriodEnd: boolean | null | undefined
 ): UiPlanStatus | null {
-  if (cancelAtPeriodEnd) return "non_renewing";
   const v = (raw || "").toString().toLowerCase();
+  const activeLike = v === "active" || v === "trial" || v === "trialing" || v === "non_renewing";
+  if (cancelAtPeriodEnd && activeLike) return "non_renewing";
   switch (v) {
     case "active":
     case "trial": // normaliza legado de DB
@@ -35,7 +36,10 @@ function mapStripeToUiStatus(
       return "non_renewing";
     case "past_due":
     case "incomplete":
+    case "pending":
       return "pending";
+    case "expired":
+      return "expired";
     case "unpaid":
     case "incomplete_expired":
     case "canceled":
@@ -64,7 +68,8 @@ function coerceInterval(v: any): "month" | "year" | undefined {
 function normalizeFromSubscription(sub: Stripe.Subscription) {
   const cancelAtPeriodEnd = !!(sub as any).cancel_at_period_end;
   const baseStatus = ((sub as any).status ?? "inactive") as NormalizedPlanStatus;
-  const planStatus: NormalizedPlanStatus = cancelAtPeriodEnd ? "non_renewing" : baseStatus;
+  const activeLike = baseStatus === "active" || baseStatus === "trialing";
+  const planStatus: NormalizedPlanStatus = cancelAtPeriodEnd && activeLike ? "non_renewing" : baseStatus;
 
   const item = sub.items?.data?.[0];
   const planInterval = coerceInterval(item?.price?.recurring?.interval);
@@ -84,6 +89,24 @@ function normalizeFromSubscription(sub: Stripe.Subscription) {
   const stripePriceId = item?.price?.id ?? null;
 
   return { planStatus, planInterval, planExpiresAt, cancelAtPeriodEnd, stripePriceId };
+}
+
+function pickLatest(subs: Stripe.Subscription[]): Stripe.Subscription | null {
+  if (!subs.length) return null;
+  return subs.sort((a, b) => (b.created ?? 0) - (a.created ?? 0))[0] ?? null;
+}
+
+function pickBestSubscription(subs: Stripe.Subscription[]): Stripe.Subscription | null {
+  const pickByStatus = (statuses: string[]) =>
+    pickLatest(subs.filter((s) => statuses.includes(String(s.status))));
+  return (
+    pickByStatus(["active", "trialing"]) ||
+    pickByStatus(["past_due", "unpaid"]) ||
+    pickByStatus(["incomplete"]) ||
+    pickByStatus(["incomplete_expired"]) ||
+    pickByStatus(["canceled"]) ||
+    null
+  );
 }
 
 function isPendingPlanChangePayment(inv: Stripe.Invoice | null | undefined) {
@@ -231,7 +254,7 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
     options.priceId !== undefined ? options.priceId : (user as any)?.stripePriceId ?? null;
   const planStatusRaw =
     options.planStatus !== undefined ? options.planStatus : (user as any)?.planStatus ?? null;
-  const cancelAtPeriodEnd =
+  let cancelAtPeriodEnd =
     options.cancelAtPeriodEnd !== undefined
       ? options.cancelAtPeriodEnd
       : Boolean((user as any)?.cancelAtPeriodEnd);
@@ -267,6 +290,20 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
     updates.planStatus = "expired";
   }
 
+  const nonRenewingEnded =
+    !trialExpired &&
+    cancelAtPeriodEnd &&
+    effectivePlanExpiresAtDate &&
+    effectivePlanExpiresAtDate.getTime() <= Date.now();
+
+  if (nonRenewingEnded) {
+    normalizedStatus = "canceled";
+    cancelAtPeriodEnd = false;
+    if (!updates) updates = {};
+    updates.planStatus = "canceled";
+    updates.cancelAtPeriodEnd = false;
+  }
+
   const planMeta = getPlanAccessMeta(normalizedStatus, cancelAtPeriodEnd);
   const hasPremiumAccess = planMeta.hasPremiumAccess || trialInfo.state === "active";
   const isGracePeriod = planMeta.isGracePeriod || false;
@@ -276,13 +313,6 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
       ? options.uiStatus ?? null
       : mapStripeToUiStatus(normalizedStatus, cancelAtPeriodEnd);
 
-  if (
-    uiStatus === "inactive" &&
-    effectivePlanExpiresAtDate &&
-    effectivePlanExpiresAtDate.getTime() < Date.now()
-  ) {
-    uiStatus = "expired";
-  }
 
   const payload: PlanStatusResponse = {
     ok: true,
@@ -380,7 +410,7 @@ export async function GET(req: Request) {
         limit: 5,
         expand: ["data.items.data.price", "data.latest_invoice.payment_intent"],
       } as any);
-      sub = listed.data.find((s: any) => !s.cancel_at_period_end) ?? listed.data[0] ?? null;
+      sub = pickBestSubscription(listed.data ?? []);
     }
   } catch {
     return respondFromDb();

@@ -545,7 +545,8 @@ export function validateRelevance(answer: string, spec: AnswerSpec): RelevanceRe
 const buildMissingMessage = (missing: string[], anchor: string) => {
     const labels = buildMissingLabelList(missing);
     if (labels) {
-        return `Faltam ${labels} para responder sobre "${anchor}".`;
+        const isPlural = labels.includes(',') || labels.includes(' e ');
+        return `${isPlural ? 'Faltam' : 'Falta'} ${labels} para responder sobre "${anchor}".`;
     }
     return `Falta contexto para responder sobre "${anchor}".`;
 };
@@ -574,22 +575,47 @@ const buildButtonsForMissing = (missing: string[]) => {
 
 export function buildClarifyingResponse(focus: QuestionFocus): string {
     const missing = focus.missing || [];
-    const message = buildMissingMessage(missing, focus.anchor || 'sua pergunta');
-    const question = focus.clarificationQuestion || 'Pode detalhar o que voce quer exatamente?';
+    const normalizedQuestion = normalizeText(focus.question || '');
+    const wantsCounterproposal = normalizedQuestion.includes('contraproposta') ||
+        normalizedQuestion.includes('contra proposta') ||
+        normalizedQuestion.includes('contra-proposta');
+    const target = focus.question && focus.question.length <= 90
+        ? focus.question
+        : (focus.anchor || 'sua pergunta');
+
+    let message = buildMissingMessage(missing, target);
+    let planLine = 'Assim que voce responder, eu preparo um plano direto e especifico.';
+    let question = focus.clarificationQuestion || 'Pode detalhar o que voce quer exatamente?';
+    let exampleLine: string | null = null;
+
+    if (focus.type === 'price') {
+        message = wantsCounterproposal
+            ? 'Para simular uma contraproposta de publi com preco seguro, faltam detalhes da entrega e condicoes comerciais.'
+            : 'Para estimar um preco seguro de publi, faltam detalhes da entrega e condicoes comerciais.';
+        planLine = 'Com esses detalhes eu simulo a faixa de preco e monto sua contraproposta com justificativa.';
+        question = 'Me diga: plataforma, entregaveis (Reels/Stories/Combo), exclusividade/uso de imagem, prazo de veiculacao e o orcamento oferecido (se houver).';
+        exampleLine = 'Ex.: IG, 1 Reels + 3 Stories, exclusividade 30 dias, uso de imagem 3 meses, oferta R$1200.';
+    }
+
     const buttons = buildButtonsForMissing(missing);
+    if (focus.type === 'price' && buttons.length < 4 && !buttons.includes('Tenho proposta da marca')) {
+        buttons.push('Tenho proposta da marca');
+    }
 
     const buttonLines = buttons.map((label) => `[BUTTON: ${label}]`).join('\n');
 
-    return [
+    const responseLines = [
         '### Diagnostico',
         message,
         '',
         '### Plano Estrategico',
-        'Assim que voce responder, eu preparo um plano direto e especifico.',
+        planLine,
         '',
         '### Proximo Passo',
         question,
-        '',
-        buttonLines,
-    ].join('\n');
+    ];
+    if (exampleLine) responseLines.push(exampleLine);
+    responseLines.push('', buttonLines);
+
+    return responseLines.join('\n');
 }
