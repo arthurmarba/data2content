@@ -8,8 +8,10 @@
 - [ ] 3. Canceled definitivo -> reativar falha + CTA subscribe
   - `/api/billing/reactivate` retorna 409 `NOT_REACTIVATABLE_USE_SUBSCRIBE`
   - UI mostra “Assinar novamente”, nunca “Reativar”
-- [ ] 4. Incomplete -> abort -> libera novo subscribe
+- [ ] 4. Pending/incomplete -> retomar checkout / expirada -> abort
   - `/api/billing/subscribe` retorna 409 `BILLING_BLOCKED_PENDING_OR_INCOMPLETE`
+  - `/api/billing/resume` retorna `clientSecret` para continuar o pagamento
+  - `incomplete_expired` orienta abortar e liberar novo checkout
   - `/api/billing/abort` cancela pendências, limpa DB e permite novo checkout
 - [ ] 5. Past_due/unpaid -> subscribe bloqueia e envia para pagamento
   - `/api/billing/subscribe` retorna 409 `PAYMENT_ISSUE`

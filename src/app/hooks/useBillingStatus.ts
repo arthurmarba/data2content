@@ -63,6 +63,9 @@ export type BillingStatus = {
   extras?: BillingExtras;
   needsBilling?: boolean;
   needsPaymentAction?: boolean;
+  needsCheckout?: boolean;
+  needsAbort?: boolean;
+  needsPaymentUpdate?: boolean;
   /** Ajuda a UI a decidir qual CTA exibir */
   nextAction?: "cancel" | "reactivate" | "resubscribe";
   normalizedStatus?: string | null;
@@ -308,11 +311,12 @@ export function useBillingStatus(opts: Options = {}) {
         normalizedStatus === "unpaid" ||
         normalizedStatus === "incomplete_expired");
 
-    const needsPaymentAction =
-      normalizedStatus === "past_due" ||
-      normalizedStatus === "unpaid" ||
-      normalizedStatus === "incomplete" ||
-      normalizedStatus === "pending";
+    const needsPaymentUpdate =
+      normalizedStatus === "past_due" || normalizedStatus === "unpaid";
+    const needsCheckout =
+      normalizedStatus === "incomplete" || normalizedStatus === "pending";
+    const needsAbort = normalizedStatus === "incomplete_expired";
+    const needsPaymentAction = needsPaymentUpdate || needsCheckout || needsAbort;
 
     const nextAction: "cancel" | "reactivate" | "resubscribe" = trialActive
       ? "cancel"
@@ -335,6 +339,9 @@ export function useBillingStatus(opts: Options = {}) {
       isGracePeriod,
       needsBilling,
       needsPaymentAction,
+      needsCheckout,
+      needsAbort,
+      needsPaymentUpdate,
       normalizedStatus,
       nextAction,
       isTrialActive: trialActive,
@@ -360,6 +367,9 @@ export function useBillingStatus(opts: Options = {}) {
       isGracePeriod: flags.isGracePeriod,
       needsBilling: flags.needsBilling,
       needsPaymentAction: flags.needsPaymentAction,
+      needsCheckout: flags.needsCheckout,
+      needsAbort: flags.needsAbort,
+      needsPaymentUpdate: flags.needsPaymentUpdate,
       normalizedStatus: flags.normalizedStatus,
       isTrialActive: flags.isTrialActive,
       trialRemainingMs: flags.trialRemainingMs,

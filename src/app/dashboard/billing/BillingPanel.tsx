@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
 
 type PlanStatus =
   | 'active'
@@ -29,9 +31,10 @@ export type BillingStatus = {
 };
 
 export default function BillingPanel() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [s, setS] = useState<BillingStatus | null>(null);
-  const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | 'abort' | null>(null);
+  const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | 'abort' | 'resume' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async (): Promise<void> => {
@@ -64,57 +67,132 @@ export default function BillingPanel() {
 
   const openPortal = async (): Promise<void> => {
     setDoing('portal');
-    const res = await fetch('/api/billing/portal', { method: 'POST' });
-    const data = await res.json();
-    setDoing(null);
-    if (!res.ok) {
-      toast.error(data?.message ?? 'Falha ao abrir portal');
-      return;
+    try {
+      const res = await fetch('/api/billing/portal', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.message ?? 'Falha ao abrir portal');
+        return;
+      }
+      window.location.href = data.url;
+    } catch (err: any) {
+      toast.error(err?.message || 'Falha ao abrir portal');
+    } finally {
+      setDoing(null);
     }
-    window.location.href = data.url;
+  };
+
+  const resumeCheckout = async (): Promise<void> => {
+    setDoing('resume');
+    try {
+      const res = await fetch('/api/billing/resume', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const code = data?.code;
+        if (code === 'SUBSCRIPTION_INCOMPLETE_EXPIRED') {
+          toast.error(data?.message ?? 'Tentativa expirada. Aborte a tentativa e faça um novo checkout.');
+          await fetchStatus();
+          return;
+        }
+        if (code === 'PAYMENT_ISSUE') {
+          toast.error(data?.message ?? 'Pagamento pendente. Atualize o método de pagamento no portal.');
+          await fetchStatus();
+          return;
+        }
+        if (code === 'SUBSCRIPTION_ACTIVE') {
+          toast.success(data?.message ?? 'Assinatura já está ativa.');
+          await fetchStatus();
+          return;
+        }
+        if (code === 'BILLING_RESUME_NOT_PENDING') {
+          toast.error(data?.message ?? 'Não há checkout pendente para retomar.');
+          await fetchStatus();
+          return;
+        }
+        toast.error(data?.message ?? 'Falha ao retomar o checkout.');
+        return;
+      }
+      if (!data?.clientSecret) {
+        toast.error('Não foi possível retomar o pagamento. Tente novamente.');
+        return;
+      }
+      router.push(buildCheckoutUrl(data.clientSecret, data.subscriptionId));
+    } catch (err: any) {
+      toast.error(err?.message || 'Falha ao retomar o checkout.');
+    } finally {
+      setDoing(null);
+    }
   };
 
   const cancelAtPeriodEnd = async (): Promise<void> => {
     const ok = confirm('Cancelar ao fim do período? Você continuará com acesso até a data de renovação.');
     if (!ok) return;
     setDoing('cancel');
-    const res = await fetch('/api/billing/cancel', { method: 'POST' });
-    const data = await res.json();
-    setDoing(null);
-    if (!res.ok) {
-      toast.error(data?.message ?? 'Falha ao cancelar');
-      return;
+    try {
+      const res = await fetch('/api/billing/cancel', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.message ?? 'Falha ao cancelar');
+        return;
+      }
+      toast.success('Cancelamento agendado.');
+      await fetchStatus();
+    } catch (err: any) {
+      toast.error(err?.message || 'Falha ao cancelar');
+    } finally {
+      setDoing(null);
     }
-    toast.success('Cancelamento agendado.');
-    await fetchStatus();
   };
 
   const reactivate = async (): Promise<void> => {
     setDoing('reactivate');
-    const res = await fetch('/api/billing/reactivate', { method: 'POST' });
-    const data = await res.json();
-    setDoing(null);
-    if (!res.ok) {
-      toast.error(data?.message ?? 'Falha ao reativar');
-      return;
+    try {
+      const res = await fetch('/api/billing/reactivate', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const code = data?.code;
+        if (code === 'NOT_REACTIVATABLE_USE_SUBSCRIBE') {
+          toast.error(data?.message ?? 'Assinatura cancelada definitivamente. Assine novamente.');
+          return;
+        }
+        if (code === 'NOT_REACTIVATABLE_NOT_CANCELING') {
+          toast.error(data?.message ?? 'Assinatura já está ativa e sem cancelamento agendado.');
+          return;
+        }
+        if (code === 'NOT_REACTIVATABLE_STATUS') {
+          toast.error(data?.message ?? 'Assinatura não está ativa para reativação.');
+          return;
+        }
+        toast.error(data?.message ?? 'Falha ao reativar');
+        return;
+      }
+      toast.success('Assinatura reativada.');
+      await fetchStatus();
+    } catch (err: any) {
+      toast.error(err?.message || 'Não foi possível reativar a assinatura.');
+    } finally {
+      setDoing(null);
     }
-    toast.success('Assinatura reativada.');
-    await fetchStatus();
   };
 
   const abortPending = async (): Promise<void> => {
     const ok = confirm('Abortar tentativa pendente? Isso libera um novo checkout.');
     if (!ok) return;
     setDoing('abort');
-    const res = await fetch('/api/billing/abort', { method: 'POST' });
-    const data = await res.json();
-    setDoing(null);
-    if (!res.ok) {
-      toast.error(data?.message ?? data?.error ?? 'Falha ao abortar tentativa');
-      return;
+    try {
+      const res = await fetch('/api/billing/abort', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.message ?? data?.error ?? 'Falha ao abortar tentativa');
+        return;
+      }
+      toast.success('Tentativa cancelada. Você pode assinar novamente.');
+      await fetchStatus();
+    } catch (err: any) {
+      toast.error(err?.message || 'Falha ao abortar tentativa');
+    } finally {
+      setDoing(null);
     }
-    toast.success('Tentativa cancelada. Você pode assinar novamente.');
-    await fetchStatus();
   };
 
   if (loading && !s && !error) return <div className="text-sm text-muted-foreground">Carregando informações do plano…</div>;
@@ -139,9 +217,10 @@ export default function BillingPanel() {
   const status: PlanStatus = s.planStatus ?? 'inactive';
   const intervalLabel = s.planInterval === 'year' ? 'Anual' : s.planInterval === 'month' ? 'Mensal' : null;
   const cancelable = (status === 'active' || status === 'trialing') && !s.cancelAtPeriodEnd;
-  const canReactivate = s.cancelAtPeriodEnd === true;
+  const canReactivate = status === 'non_renewing' && s.cancelAtPeriodEnd === true;
   const portalBlockedStatuses: PlanStatus[] = ['pending', 'expired', 'incomplete', 'incomplete_expired'];
   const showPortal = (status === 'active' || status === 'non_renewing' || status === 'trialing' || status === 'past_due' || status === 'unpaid') && !portalBlockedStatuses.includes(status);
+  const canResumeCheckout = status === 'pending' || status === 'incomplete';
   const needsCheckout = ['pending', 'incomplete', 'incomplete_expired'].includes(status);
   const showSubscribeCta = status === 'inactive' || status === 'canceled' || status === 'expired';
 
@@ -164,7 +243,7 @@ export default function BillingPanel() {
       statusDescription = <>Pagamento não finalizado • conclua o checkout para ativar.</>;
       break;
     case 'incomplete_expired':
-      statusDescription = <>Tentativa de pagamento expirada • inicie um novo checkout.</>;
+      statusDescription = <>Tentativa de pagamento expirada • aborte a tentativa para iniciar um novo checkout.</>;
       break;
     case 'pending':
       statusDescription = <>Processando ativação • finalize o checkout para liberar o acesso.</>;
@@ -195,17 +274,17 @@ export default function BillingPanel() {
         </div>
         <div className="flex flex-wrap gap-2">
           {cancelable && (
-            <button onClick={cancelAtPeriodEnd} disabled={doing === 'cancel'} className="px-3 py-2 rounded-lg border hover:bg-muted">
+            <button type="button" onClick={cancelAtPeriodEnd} disabled={doing === 'cancel'} className="px-3 py-2 rounded-lg border hover:bg-muted">
               {doing === 'cancel' ? 'Cancelando…' : 'Cancelar plano'}
             </button>
           )}
           {canReactivate && (
-            <button onClick={reactivate} disabled={doing === 'reactivate'} className="px-3 py-2 rounded-lg border hover:bg-muted">
+            <button type="button" onClick={reactivate} disabled={doing === 'reactivate'} className="px-3 py-2 rounded-lg border hover:bg-muted">
               {doing === 'reactivate' ? 'Reativando…' : 'Reativar'}
             </button>
           )}
           {showPortal && (
-            <button onClick={openPortal} disabled={doing === 'portal'} className="px-3 py-2 rounded-lg border hover:bg-muted">
+            <button type="button" onClick={openPortal} disabled={doing === 'portal'} className="px-3 py-2 rounded-lg border hover:bg-muted">
               {doing === 'portal'
                 ? 'Abrindo…'
                 : status === 'past_due' || status === 'unpaid'
@@ -220,10 +299,18 @@ export default function BillingPanel() {
         <div className="flex flex-col gap-2 text-sm">
           {needsCheckout && (
             <>
-              <a href="/dashboard/billing/checkout" className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
-                Retomar pagamento
-              </a>
+              {canResumeCheckout && (
+                <button
+                  type="button"
+                  onClick={resumeCheckout}
+                  disabled={doing === 'resume'}
+                  className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-60"
+                >
+                  {doing === 'resume' ? 'Continuando…' : 'Continuar checkout'}
+                </button>
+              )}
               <button
+                type="button"
                 onClick={abortPending}
                 disabled={doing === 'abort'}
                 className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-60"

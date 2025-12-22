@@ -10,6 +10,8 @@ export type DiscoverCtaState =
   | "trial_active"
   | "plan_active"
   | "reactivate_plan"
+  | "checkout_pending"
+  | "checkout_expired"
   | "payment_issue"
   | "subscribe";
 
@@ -52,7 +54,9 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
     instagram,
     isLoading,
     isTrialActive,
-    needsPaymentAction,
+    needsCheckout,
+    needsAbort,
+    needsPaymentUpdate,
     nextAction,
     trial,
     trialRemainingMs,
@@ -67,7 +71,9 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
     if (needsReconnect) return "instagram_reconnect";
     if (isTrialActive) return "trial_active";
     if (hasPremiumAccess) return "plan_active";
-    if (needsPaymentAction) return "payment_issue";
+    if (needsPaymentUpdate) return "payment_issue";
+    if (needsAbort) return "checkout_expired";
+    if (needsCheckout) return "checkout_pending";
     if (nextAction === "reactivate") return "reactivate_plan";
     if (trialState === "eligible") return "subscribe";
     if (nextAction === "resubscribe") return "subscribe";
@@ -75,7 +81,17 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
       return "subscribe";
     }
     return "subscribe";
-  }, [hasPremiumAccess, instagramConnected, isTrialActive, needsReconnect, needsPaymentAction, nextAction, trialState]);
+  }, [
+    hasPremiumAccess,
+    instagramConnected,
+    isTrialActive,
+    needsReconnect,
+    needsCheckout,
+    needsAbort,
+    needsPaymentUpdate,
+    nextAction,
+    trialState,
+  ]);
 
   const countdownLabel = useMemo(() => formatCountdown(trialRemainingMs), [trialRemainingMs]);
 
@@ -107,15 +123,15 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           disabled: isLoading,
         };
       case "reactivate_plan":
-      return {
-        state,
-        kind: "action",
-        label: "Reativar Plano Agência",
-        description: "Volte a receber análises automáticas, alertas no WhatsApp e oportunidades de publicidade sem exclusividade.",
-        stageLabel: "Recupere o acesso ao Plano Agência",
-        step: 4,
-        totalSteps,
-        onPress: openSubscribeModal,
+        return {
+          state,
+          kind: "action",
+          label: "Reativar Plano Agência",
+          description: "Volte a receber análises automáticas, alertas no WhatsApp e oportunidades de publicidade sem exclusividade.",
+          stageLabel: "Recupere o acesso ao Plano Agência",
+          step: 4,
+          totalSteps,
+          href: "/dashboard/billing",
           disabled: isLoading,
         };
       case "payment_issue":
@@ -130,16 +146,40 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           href: "/dashboard/billing",
           disabled: isLoading,
         };
+      case "checkout_pending":
+        return {
+          state,
+          kind: "action",
+          label: "Continuar checkout",
+          description: "Existe um checkout pendente. Retome ou aborte a tentativa para voltar ao Plano Agência.",
+          stageLabel: "Checkout pendente",
+          step: 4,
+          totalSteps,
+          href: "/dashboard/billing",
+          disabled: isLoading,
+        };
+      case "checkout_expired":
+        return {
+          state,
+          kind: "action",
+          label: "Abortar tentativa",
+          description: "Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.",
+          stageLabel: "Checkout expirado",
+          step: 4,
+          totalSteps,
+          href: "/dashboard/billing",
+          disabled: isLoading,
+        };
       case "subscribe":
-      return {
-        state,
-        kind: "action",
-        label: "Assinar Plano Agência",
-        description: "Ative a IA ilimitada, análises comparativas e receba oportunidades de publicidade sem comissão.",
-        stageLabel: "Completar acesso ao Plano Agência",
-        step: 4,
-        totalSteps,
-        onPress: openSubscribeModal,
+        return {
+          state,
+          kind: "action",
+          label: "Assinar Plano Agência",
+          description: "Ative a IA ilimitada, análises comparativas e receba oportunidades de publicidade sem comissão.",
+          stageLabel: "Completar acesso ao Plano Agência",
+          step: 4,
+          totalSteps,
+          onPress: openSubscribeModal,
           disabled: isLoading,
         };
       case "trial_active":

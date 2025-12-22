@@ -4,8 +4,8 @@ export type SubResp = {
   planName: string;
   currency: string;
   nextInvoiceAmountCents: number;
-  nextInvoiceDate: string;
-  currentPeriodEnd: string;
+  nextInvoiceDate: string | null;
+  currentPeriodEnd: string | null;
   status: string;
   cancelAtPeriodEnd: boolean;
   paymentMethodLast4?: string | null;

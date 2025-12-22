@@ -145,6 +145,9 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const hasPremiumAccess = Boolean(billingStatus.hasPremiumAccess);
   const isTrialActive = Boolean(billingStatus.isTrialActive);
   const needsPaymentAction = Boolean(billingStatus.needsPaymentAction);
+  const needsCheckout = Boolean(billingStatus.needsCheckout);
+  const needsAbort = Boolean(billingStatus.needsAbort);
+  const needsPaymentUpdate = Boolean(billingStatus.needsPaymentUpdate);
   const effectiveContext = context ?? "default";
   const paywallCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const bulletItems = paywallCopy.bullets && paywallCopy.bullets.length > 0 ? paywallCopy.bullets : FEATURES;
@@ -404,8 +407,14 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       if (hasPremiumAccess) {
         throw new Error("Você já possui um plano ativo ou em teste.");
       }
-      if (needsPaymentAction) {
+      if (needsPaymentUpdate) {
         throw new Error("Existe um pagamento pendente. Atualize o método de pagamento em Billing.");
+      }
+      if (needsCheckout) {
+        throw new Error("Existe um checkout pendente. Retome ou aborte a tentativa em Billing.");
+      }
+      if (needsAbort) {
+        throw new Error("Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.");
       }
       const payload = {
         plan: period,              // "monthly" | "annual"
@@ -785,9 +794,19 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                   Você já possui um plano ativo ou em período de teste.
                 </p>
               )}
-              {needsPaymentAction && !billingStatusLoading && (
+              {needsPaymentUpdate && !billingStatusLoading && (
                 <p className="mt-2 text-center text-xs text-amber-700">
                   Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+                </p>
+              )}
+              {needsCheckout && !billingStatusLoading && (
+                <p className="mt-2 text-center text-xs text-amber-700">
+                  Existe um checkout pendente. Retome ou aborte a tentativa em Billing.
+                </p>
+              )}
+              {needsAbort && !billingStatusLoading && (
+                <p className="mt-2 text-center text-xs text-amber-700">
+                  Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.
                 </p>
               )}
             </div>

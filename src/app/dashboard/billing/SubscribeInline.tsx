@@ -30,6 +30,9 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
     isLoading: billingStatusLoading,
     hasPremiumAccess,
     needsPaymentAction,
+    needsCheckout,
+    needsAbort,
+    needsPaymentUpdate,
   } = useBillingStatus();
 
   const priceShown = plan === 'monthly' ? prices.monthly[currency] : prices.annual[currency];
@@ -163,9 +166,19 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       {hasPremiumAccess && !billingStatusLoading && (
         <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo.</p>
       )}
-      {needsPaymentAction && !billingStatusLoading && (
+      {needsPaymentUpdate && !billingStatusLoading && (
         <p className="text-xs text-amber-700 text-center">
           Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+        </p>
+      )}
+      {needsCheckout && !billingStatusLoading && (
+        <p className="text-xs text-amber-700 text-center">
+          Existe um checkout pendente. Retome ou aborte a tentativa em Billing.
+        </p>
+      )}
+      {needsAbort && !billingStatusLoading && (
+        <p className="text-xs text-amber-700 text-center">
+          Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.
         </p>
       )}
 

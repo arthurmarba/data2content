@@ -4,7 +4,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  currentPeriodEnd?: string;
+  currentPeriodEnd?: string | null;
 }
 
 export default function CancelSubscriptionModal({ open, onClose, onConfirm, currentPeriodEnd }: Props) {

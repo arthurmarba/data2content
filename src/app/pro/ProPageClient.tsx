@@ -212,7 +212,20 @@ export default function ProPageClient({
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess ?? initialPlanStatus.hasProAccess);
   const isTrialActive = Boolean(billingStatus.isTrialActive ?? initialPlanStatus.isTrialActive);
   const needsPaymentAction = Boolean(billingStatus.needsPaymentAction);
+  const needsCheckout = Boolean(billingStatus.needsCheckout);
+  const needsAbort = Boolean(billingStatus.needsAbort);
+  const needsPaymentUpdate = Boolean(billingStatus.needsPaymentUpdate);
   const canSubscribe = !hasProAccess && !needsPaymentAction;
+  const blockedCtaLabel = needsAbort
+    ? "Abortar tentativa"
+    : needsCheckout
+    ? "Continuar checkout"
+    : "Atualizar pagamento";
+  const blockedMessage = needsAbort
+    ? "Tentativa expirada. Aborte a tentativa em Billing para assinar novamente."
+    : needsCheckout
+    ? "Existe um checkout pendente. Retome ou aborte a tentativa em Billing."
+    : "Existe um pagamento pendente. Atualize o método de pagamento em Billing.";
 
   useEffect(() => {
     track("pro_page_viewed", {
@@ -336,15 +349,17 @@ export default function ProPageClient({
           )}
           {!hasProAccess && needsPaymentAction && (
             <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm">
-              <p className="font-semibold">Pagamento pendente</p>
+              <p className="font-semibold">
+                {needsCheckout ? "Checkout pendente" : "Pagamento pendente"}
+              </p>
               <p className="mt-1 text-amber-800">
-                Atualize o método de pagamento em Billing para liberar novas assinaturas.
+                {blockedMessage}
               </p>
               <Link
                 href="/dashboard/billing"
                 className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100"
               >
-                Ir para Billing
+                {blockedCtaLabel}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </div>
@@ -587,12 +602,12 @@ export default function ProPageClient({
                           href="/dashboard/billing"
                           className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-white px-6 py-4 text-base font-bold text-amber-900 shadow-sm transition hover:bg-amber-50"
                         >
-                          Atualizar pagamento
+                          {blockedCtaLabel}
                         </Link>
                       )}
                       {needsPaymentAction && (
                         <p className="text-sm text-amber-700">
-                          Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+                          {blockedMessage}
                         </p>
                       )}
                     </div>
@@ -682,7 +697,7 @@ export default function ProPageClient({
                   href="/dashboard/billing"
                   className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-8 py-4 text-base font-bold text-amber-900 shadow-sm transition hover:bg-amber-50"
                 >
-                  Atualizar pagamento
+                  {blockedCtaLabel}
                   <ArrowUpRight className="h-5 w-5" />
                 </Link>
               )}
@@ -695,7 +710,7 @@ export default function ProPageClient({
             </div>
             {needsPaymentAction && (
               <p className="mt-4 text-sm text-amber-700">
-                Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+                {blockedMessage}
               </p>
             )}
           </section>

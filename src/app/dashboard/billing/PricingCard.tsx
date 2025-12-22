@@ -25,6 +25,9 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
     isLoading: billingStatusLoading,
     hasPremiumAccess,
     needsPaymentAction,
+    needsCheckout,
+    needsAbort,
+    needsPaymentUpdate,
   } = useBillingStatus();
 
   const current = useMemo(() => {
@@ -173,9 +176,19 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
           Você já possui um plano ativo.
         </p>
       )}
-      {needsPaymentAction && !billingStatusLoading && (
+      {needsPaymentUpdate && !billingStatusLoading && (
         <p className="mt-1 text-center text-xs text-amber-700">
           Existe um pagamento pendente. Atualize o método de pagamento em Billing.
+        </p>
+      )}
+      {needsCheckout && !billingStatusLoading && (
+        <p className="mt-1 text-center text-xs text-amber-700">
+          Existe um checkout pendente. Retome ou aborte a tentativa em Billing.
+        </p>
+      )}
+      {needsAbort && !billingStatusLoading && (
+        <p className="mt-1 text-center text-xs text-amber-700">
+          Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.
         </p>
       )}
     </div>

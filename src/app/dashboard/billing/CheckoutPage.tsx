@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
@@ -8,6 +8,7 @@ import { stripePromise } from "@/app/lib/stripe-browser";
 import CheckoutForm from "./CheckoutForm";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDebounce } from "use-debounce";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
 
 // --- Tipos e Constantes ---
 type Plan = "monthly" | "annual";
@@ -62,6 +63,8 @@ const fmt = (amount: number, currencyRaw: string) => {
 // <<< ALTERAÇÃO 2: Receber a propriedade `affiliateCode` e renomeá-la para evitar conflito >>>
 export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: CheckoutPageProps) {
   const params = useSearchParams();
+  const billingStatus = useBillingStatus();
+  const resumeAttemptedRef = useRef(false);
   const [step, setStep] = useState<"config" | "pay">("config");
   const [plan, setPlan] = useState<Plan>("monthly");
   const [currency, setCurrency] = useState<Currency>("BRL");
@@ -84,6 +87,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   // <<< ALTERAÇÃO 4: Remover o useEffect que lia a URL, pois isso agora é feito no Server Component pai >>>
@@ -192,6 +196,62 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
       setStep("pay");
     }
   }, [params]);
+
+  // Auto-retomar checkout quando existe pendência
+  useEffect(() => {
+    if (resumeAttemptedRef.current) return;
+    if (params.get("cs")) return;
+    if (billingStatus.isLoading) return;
+    if (billingStatus.needsAbort) {
+      resumeAttemptedRef.current = true;
+      setErr("Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.");
+      return;
+    }
+    if (!billingStatus.needsCheckout) return;
+    resumeAttemptedRef.current = true;
+
+    const run = async () => {
+      setResumeLoading(true);
+      setErr(null);
+      try {
+        const res = await fetch("/api/billing/resume", { method: "POST" });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          if (data?.code === "SUBSCRIPTION_INCOMPLETE_EXPIRED") {
+            setErr(data?.message || "Tentativa expirada. Aborte a tentativa e faça um novo checkout.");
+            return;
+          }
+          if (data?.code === "PAYMENT_ISSUE") {
+            setErr(data?.message || "Pagamento pendente. Atualize o método de pagamento em Billing.");
+            return;
+          }
+          if (data?.code === "SUBSCRIPTION_ACTIVE") {
+            setErr(data?.message || "Assinatura já está ativa.");
+            return;
+          }
+          if (data?.code === "BILLING_RESUME_NOT_PENDING") {
+            setErr(data?.message || "Não há checkout pendente para retomar. Aborte a tentativa em Billing.");
+            return;
+          }
+          setErr(data?.message || "Não foi possível retomar o checkout.");
+          return;
+        }
+        if (data?.clientSecret) {
+          setClientSecret(data.clientSecret);
+          setSubscriptionId(data.subscriptionId || null);
+          setStep("pay");
+          return;
+        }
+        setErr("Não foi possível retomar o checkout. Tente novamente.");
+      } catch (e: any) {
+        setErr(e?.message || "Erro ao retomar o checkout.");
+      } finally {
+        setResumeLoading(false);
+      }
+    };
+
+    run();
+  }, [billingStatus.isLoading, billingStatus.needsAbort, billingStatus.needsCheckout, params]);
 
   // --- Aplicar código manualmente ---
   const handleApplyAffiliate = useCallback(async () => {
@@ -499,11 +559,11 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
 
               <button
                 onClick={startCheckout}
-                disabled={loading || isPreviewLoading || !preview}
+                disabled={loading || resumeLoading || isPreviewLoading || !preview}
                 className="w-full px-4 py-3 rounded-lg bg-gray-900 text-white font-semibold disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
               >
                 <LockIcon />
-                {loading ? "Preparando..." : "Pagar com Segurança"}
+                {loading || resumeLoading ? "Preparando..." : "Pagar com Segurança"}
               </button>
 
               {/* Economia destacada quando Anual selecionado */}
