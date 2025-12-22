@@ -382,6 +382,14 @@ function pickFallbackBg(seed?: string | null) {
   const index = Math.abs(hash) % FALLBACK_COLORS.length;
   return FALLBACK_COLORS[index];
 }
+
+function withStrictProxy(src?: string | null) {
+  if (!src) return null;
+  if (src.startsWith("/api/proxy/thumbnail/")) {
+    return src.includes("?") ? `${src}&strict=1` : `${src}?strict=1`;
+  }
+  return src;
+}
 export default function CastingPageClient({ initialCreators }: CastingPageClientProps) {
   const [creators, setCreators] = React.useState(initialCreators ?? []);
   const [loading, setLoading] = React.useState(!initialCreators || initialCreators.length === 0);
@@ -771,6 +779,8 @@ function CastingRankCard({
   const engagementRate = computeEngagementRate(creator);
   const initials = getInitials(creator.name, creator.username);
   const fallbackBg = pickFallbackBg(creator.id || creator.username || creator.name);
+  const avatarSrc = withStrictProxy(creator.avatarUrl);
+  const [avatarFailed, setAvatarFailed] = React.useState(false);
   const mediaKitHref = creator.mediaKitSlug ? `/mediakit/${creator.mediaKitSlug}` : null;
   const cardClasses = [
     "rounded-3xl border border-[#E8ECF5] bg-white shadow-[0_8px_18px_rgba(20,33,61,0.08)] transition duration-200 hover:-translate-y-0.5",
@@ -779,6 +789,12 @@ function CastingRankCard({
   ]
     .filter(Boolean)
     .join(" ");
+
+  React.useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarSrc]);
+
+  const showAvatar = Boolean(avatarSrc) && !avatarFailed;
 
   return (
     <article className={cardClasses}>
@@ -789,21 +805,30 @@ function CastingRankCard({
       <div className="mt-1 h-1 w-10 rounded-full bg-[#FF9FC4] px-3 sm:px-4" />
       <div className="px-3 sm:px-4">
         <div className="mt-3 overflow-hidden rounded-2xl bg-[#F7F8FB]">
-          {creator.avatarUrl ? (
-            <div className="relative aspect-square w-full">
+          <div className="relative w-full pb-[100%]">
+            {showAvatar ? (
               <Image
-                src={creator.avatarUrl}
+                src={avatarSrc as string}
                 alt={`Avatar de ${creator.name}`}
                 fill
                 sizes="(max-width: 640px) 100vw, 260px"
                 className="object-cover"
+                onError={() => setAvatarFailed(true)}
+                onLoadingComplete={(img) => {
+                  if (img.naturalWidth <= 2 && img.naturalHeight <= 2) {
+                    setAvatarFailed(true);
+                  }
+                }}
               />
-            </div>
-          ) : (
-            <div className={`aspect-square w-full ${fallbackBg} flex items-center justify-center text-lg font-semibold text-white`}>
-              {initials}
-            </div>
-          )}
+            ) : (
+              <div
+                className={`absolute inset-0 ${fallbackBg} flex items-center justify-center text-lg font-semibold text-white`}
+                aria-label={`Avatar de ${creator.name}`}
+              >
+                {initials}
+              </div>
+            )}
+          </div>
         </div>
         <div className="mt-4 space-y-0.5">
           <p className="text-sm font-semibold text-[#141C2F] leading-tight sm:text-base">{creator.name}</p>

@@ -44,6 +44,9 @@ const ALLOWED_HOSTS_SUFFIX = [
   "fbcdn.net",
   "xx.fbcdn.net",
   "cdninstagram.com",
+  "lookaside.instagram.com",
+  "lookaside.fbsbx.com",
+  "platform-lookaside.fbsbx.com",
   "lh3.googleusercontent.com",
   "placehold.co",
   "i.ibb.co",
@@ -116,6 +119,7 @@ export async function GET(
     return new Response("Only HTTPS is allowed", { status: 400 });
   }
   if (!isAllowedHost(urlObj.hostname)) {
+    logger.warn("[thumbnail-proxy] Blocked host.", { host: urlObj.hostname });
     return new Response("Host not allowed", { status: 403 });
   }
 

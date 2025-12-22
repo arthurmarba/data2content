@@ -28,7 +28,9 @@ type SubscriberUser = {
   username?: string | null;
   followers_count?: number | null;
   profile_picture_url?: string | null;
+  image?: string | null;
   mediaKitSlug?: string | null;
+  availableIgAccounts?: Array<{ profile_picture_url?: string | null }> | null;
    creatorProfileExtended?: {
     niches?: string[] | null;
     brandTerritories?: string[] | null;
@@ -181,6 +183,30 @@ function sortCreators(
   return sorted;
 }
 
+function normalizeAvatarCandidate(value?: string | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return null;
+  return trimmed;
+}
+
+function pickAvailableIgAvatar(creator: SubscriberUser): string | null {
+  if (!Array.isArray(creator.availableIgAccounts)) return null;
+  for (const account of creator.availableIgAccounts) {
+    const candidate = normalizeAvatarCandidate(account?.profile_picture_url ?? null);
+    if (candidate) return candidate;
+  }
+  return null;
+}
+
+function pickUserAvatar(creator: SubscriberUser): string | null {
+  return (
+    normalizeAvatarCandidate(creator.profile_picture_url ?? null) ||
+    normalizeAvatarCandidate(creator.image ?? null) ||
+    pickAvailableIgAvatar(creator)
+  );
+}
+
 async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
   const TAG = `${SERVICE_TAG}[buildCastingCreators]`;
   logger.info(`${TAG} Building casting creators list.`);
@@ -199,7 +225,9 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
       username: 1,
       followers_count: 1,
       profile_picture_url: 1,
+      image: 1,
       mediaKitSlug: 1,
+      "availableIgAccounts.profile_picture_url": 1,
       "creatorProfileExtended.niches": 1,
       "creatorProfileExtended.brandTerritories": 1,
       "creatorProfileExtended.stage": 1,
@@ -270,7 +298,7 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
   );
 
   const missingAvatarIds = subscribers
-    .filter((creator) => !creator.profile_picture_url)
+    .filter((creator) => !pickUserAvatar(creator))
     .map((creator) => creator._id)
     .filter((id): id is Types.ObjectId => Boolean(id));
 
@@ -404,15 +432,15 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
 
     avatarByUserId = Object.fromEntries(
       insightAvatars
-        .filter((doc) => doc.profilePicture)
-        .map((doc) => [doc._id.toString(), doc.profilePicture as string]),
+        .map((doc) => [doc._id.toString(), normalizeAvatarCandidate(doc.profilePicture ?? null)] as const)
+        .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
     );
   }
 
   const creators = subscribers.map((creator) => {
     const userId = creator._id.toString();
     const metrics = metricsByUser.get(userId);
-    const avatar = creator.profile_picture_url ?? avatarByUserId[userId] ?? null;
+    const avatar = pickUserAvatar(creator) ?? normalizeAvatarCandidate(avatarByUserId[userId] ?? null);
     const niches = sanitizeTags(creator.creatorProfileExtended?.niches);
     const brandTerritories = sanitizeTags(creator.creatorProfileExtended?.brandTerritories);
     const contextId = creator.creatorContext?.id ?? null;

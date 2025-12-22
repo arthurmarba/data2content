@@ -57,6 +57,21 @@ const nextConfig = {
         hostname: '**.cdninstagram.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'lookaside.instagram.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lookaside.fbsbx.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'platform-lookaside.fbsbx.com',
+        pathname: '/**',
+      },
 
       // Ex.: imagens hospedadas no i.ibb.co
       {
