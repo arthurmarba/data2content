@@ -8,7 +8,6 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import MediaKitPackage from '@/app/models/MediaKitPackage';
-import AccountInsightModel from '@/app/models/AccountInsight';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
 
@@ -37,32 +36,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const runtime = 'nodejs';
 
-/** Helpers para imagem OG/Twitter */
-function toProxyUrl(raw?: string | null) {
-  if (!raw) return '';
-  if (raw.startsWith('/api/proxy/thumbnail/')) return raw;
-  if (/^https?:\/\//i.test(raw)) {
-    return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
-  }
-  return raw;
-}
-
-function normalizeMetaValue(raw?: string | null) {
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
-  return trimmed;
-}
-
-function pickAvailableIgAvatar(user: any) {
-  if (!user?.availableIgAccounts || !Array.isArray(user.availableIgAccounts)) return null;
-  for (const account of user.availableIgAccounts) {
-    const candidate = normalizeMetaValue(account?.profile_picture_url ?? null);
-    if (candidate) return candidate;
-  }
-  return null;
-}
-
+/** Helpers para metadados */
 function absoluteUrl(path: string) {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
@@ -75,17 +49,6 @@ function absoluteUrl(path: string) {
   return `${proto}://${host}${path.startsWith('/') ? path : '/' + path}`;
 }
 
-function resolveOgImageUrl(raw?: string | null) {
-  const normalized = normalizeMetaValue(raw);
-  if (!normalized) return '';
-  const proxied = toProxyUrl(normalized);
-  const abs = absoluteUrl(proxied);
-  if (proxied.startsWith('/api/proxy/thumbnail/')) {
-    return abs.includes('?') ? `${abs}&strict=1` : `${abs}?strict=1`;
-  }
-  return abs;
-}
-
 // Gera metadados dinâmicos para que o link do mídia kit apresente informações
 // personalizadas do criador nas prévias de compartilhamento.
 export async function generateMetadata(
@@ -94,7 +57,7 @@ export async function generateMetadata(
   await connectToDatabase();
 
   const user = await UserModel.findOne({ mediaKitSlug: params.token })
-    .select('name mediaKitDisplayName biography profile_picture_url image instagram availableIgAccounts.profile_picture_url profileCoverUrl profile_cover_url bannerUrl cover_url ogImage mediaKitCoverUrl')
+    .select('name mediaKitDisplayName biography')
     .lean();
 
   if (!user) {
@@ -110,61 +73,8 @@ export async function generateMetadata(
     ? String(user.biography).slice(0, 160)
     : `Dados de desempenho e publicações de destaque de ${displayName}.`;
 
-  let rawAvatar =
-    normalizeMetaValue((user as any).profile_picture_url) ||
-    normalizeMetaValue((user as any).image) ||
-    normalizeMetaValue((user as any)?.instagram?.profile_picture_url) ||
-    normalizeMetaValue((user as any)?.instagram?.profilePictureUrl) ||
-    normalizeMetaValue(pickAvailableIgAvatar(user as any));
-
-  if (!rawAvatar && (user as any)?._id) {
-    const insight = await AccountInsightModel.findOne({
-      user: (user as any)._id,
-      'accountDetails.profile_picture_url': { $exists: true, $nin: [null, ''] },
-    })
-      .sort({ recordedAt: -1 })
-      .select('accountDetails.profile_picture_url')
-      .lean();
-    rawAvatar = normalizeMetaValue(insight?.accountDetails?.profile_picture_url ?? null);
-  }
-
-  const rawCover =
-    normalizeMetaValue((user as any).profileCoverUrl) ||
-    normalizeMetaValue((user as any).profile_cover_url) ||
-    normalizeMetaValue((user as any).bannerUrl) ||
-    normalizeMetaValue((user as any).cover_url) ||
-    normalizeMetaValue((user as any).ogImage) ||
-    normalizeMetaValue((user as any).mediaKitCoverUrl);
-
-  const fallbackOg = 'https://placehold.co/1200x630/png';
-  const ogImages = [
-    rawAvatar
-      ? {
-          url: resolveOgImageUrl(rawAvatar),
-          width: 600,
-          height: 600,
-          alt: `Foto de ${displayName}`,
-        }
-      : null,
-    rawCover
-      ? {
-          url: resolveOgImageUrl(rawCover),
-          width: 1200,
-          height: 630,
-          alt: `Mídia Kit de ${displayName}`,
-        }
-      : null,
-  ].filter(Boolean) as Array<{ url: string; width?: number; height?: number; alt?: string }>;
-
-  if (!ogImages.length) {
-    ogImages.push({
-      url: resolveOgImageUrl(fallbackOg),
-      width: 1200,
-      height: 630,
-      alt: `Mídia Kit de ${displayName}`,
-    });
-  }
   const pageUrl = absoluteUrl(`/mediakit/${params.token}`);
+  const ogImage = absoluteUrl(`/api/mediakit/${params.token}/og-image`);
 
   return {
     title,
@@ -174,13 +84,13 @@ export async function generateMetadata(
       description,
       type: 'website',
       url: pageUrl,
-      images: ogImages,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ogImages.map((image) => image.url),
+      images: [ogImage],
     },
     alternates: { canonical: pageUrl },
   };
