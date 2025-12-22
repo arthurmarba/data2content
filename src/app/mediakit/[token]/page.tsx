@@ -8,6 +8,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import MediaKitPackage from '@/app/models/MediaKitPackage';
+import AccountInsightModel from '@/app/models/AccountInsight';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
 
@@ -93,7 +94,7 @@ export async function generateMetadata(
   await connectToDatabase();
 
   const user = await UserModel.findOne({ mediaKitSlug: params.token })
-    .select('name mediaKitDisplayName biography profile_picture_url image availableIgAccounts.profile_picture_url profileCoverUrl profile_cover_url bannerUrl cover_url ogImage mediaKitCoverUrl')
+    .select('name mediaKitDisplayName biography profile_picture_url image instagram availableIgAccounts.profile_picture_url profileCoverUrl profile_cover_url bannerUrl cover_url ogImage mediaKitCoverUrl')
     .lean();
 
   if (!user) {
@@ -109,10 +110,23 @@ export async function generateMetadata(
     ? String(user.biography).slice(0, 160)
     : `Dados de desempenho e publicações de destaque de ${displayName}.`;
 
-  const rawAvatar =
+  let rawAvatar =
     normalizeMetaValue((user as any).profile_picture_url) ||
     normalizeMetaValue((user as any).image) ||
+    normalizeMetaValue((user as any)?.instagram?.profile_picture_url) ||
+    normalizeMetaValue((user as any)?.instagram?.profilePictureUrl) ||
     normalizeMetaValue(pickAvailableIgAvatar(user as any));
+
+  if (!rawAvatar && (user as any)?._id) {
+    const insight = await AccountInsightModel.findOne({
+      user: (user as any)._id,
+      'accountDetails.profile_picture_url': { $exists: true, $nin: [null, ''] },
+    })
+      .sort({ recordedAt: -1 })
+      .select('accountDetails.profile_picture_url')
+      .lean();
+    rawAvatar = normalizeMetaValue(insight?.accountDetails?.profile_picture_url ?? null);
+  }
 
   const rawCover =
     normalizeMetaValue((user as any).profileCoverUrl) ||
