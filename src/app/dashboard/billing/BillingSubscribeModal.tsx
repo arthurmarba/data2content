@@ -144,17 +144,23 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const trackedOpenRef = useRef(false);
   const billingStatus = useBillingStatus();
   const billingStatusLoading = Boolean(billingStatus.isLoading);
+  const billingStatusError = billingStatus.error;
   const hasPremiumAccess = Boolean(billingStatus.hasPremiumAccess);
   const isTrialActive = Boolean(billingStatus.isTrialActive);
   const needsPaymentAction = Boolean(billingStatus.needsPaymentAction);
   const needsCheckout = Boolean(billingStatus.needsCheckout);
   const needsAbort = Boolean(billingStatus.needsAbort);
   const needsPaymentUpdate = Boolean(billingStatus.needsPaymentUpdate);
+  const billingNormalizedStatus = billingStatus.normalizedStatus ?? null;
+  const refetchBillingStatus = billingStatus.refetch;
   const effectiveContext = context ?? "default";
   const paywallCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const bulletItems = paywallCopy.bullets && paywallCopy.bullets.length > 0 ? paywallCopy.bullets : FEATURES;
   const primaryCtaLabel = paywallCopy.ctaLabel || "Ativar Plano Agência";
   const isDefaultContext = effectiveContext === "default";
+  const shouldBlockSubscribe =
+    !billingStatusError && (hasPremiumAccess || isTrialActive || needsPaymentAction);
+  const didRefetchRef = useRef(false);
 
   // Fecha com ESC
   useEffect(() => {
@@ -194,7 +200,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
 
     if (!trackedOpenRef.current) {
       trackedOpenRef.current = true;
-      const normalizedPlan = billingStatus.normalizedStatus ?? null;
+      const normalizedPlan = billingNormalizedStatus ?? null;
       const telemetryContext: "other" | "planner" | "planning" | "discover" | "whatsapp_ai" | "reply_email" | "ai_analysis" | "calculator" | null = (() => {
         switch (effectiveContext) {
           case "planning":
@@ -217,7 +223,17 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
         plan: normalizedPlan,
       });
     }
-  }, [open, effectiveContext, billingStatus.normalizedStatus]);
+  }, [open, effectiveContext, billingNormalizedStatus]);
+
+  useEffect(() => {
+    if (!open) {
+      didRefetchRef.current = false;
+      return;
+    }
+    if (didRefetchRef.current) return;
+    didRefetchRef.current = true;
+    refetchBillingStatus?.();
+  }, [open, refetchBillingStatus]);
 
   useEffect(() => {
     if (!open) return;
@@ -420,10 +436,6 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       if (needsCheckout) {
         setErrorAction({ label: "Resolver pendência", href: "/dashboard/billing" });
         throw new Error("Existe um checkout pendente. Retome ou aborte a tentativa em Billing.");
-      }
-      if (needsAbort) {
-        setErrorAction({ label: "Resolver pendência", href: "/dashboard/billing" });
-        throw new Error("Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.");
       }
       const payload = {
         plan: period,              // "monthly" | "annual"
@@ -746,13 +758,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
               <button
                 type="button"
                 onClick={handleSubscribe}
-                disabled={
-                  loadingRedirect ||
-                  hasPremiumAccess ||
-                  isTrialActive ||
-                  needsPaymentAction ||
-                  billingStatusLoading
-                }
+                disabled={loadingRedirect || billingStatusLoading || shouldBlockSubscribe}
                 className="w-full inline-flex items-center justify-center rounded-md bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loadingRedirect ? (
@@ -814,7 +820,19 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
               )}
               {needsAbort && !billingStatusLoading && (
                 <p className="mt-2 text-center text-xs text-amber-700">
-                  Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.
+                  Tentativa expirada. Voce pode iniciar um novo checkout agora.
+                </p>
+              )}
+              {billingStatusError && !billingStatusLoading && (
+                <p className="mt-2 text-center text-xs text-amber-700">
+                  Nao foi possivel validar seu status.{" "}
+                  <button
+                    type="button"
+                    onClick={() => billingStatus.refetch?.()}
+                    className="underline underline-offset-2"
+                  >
+                    Atualizar status
+                  </button>
                 </p>
               )}
             </div>

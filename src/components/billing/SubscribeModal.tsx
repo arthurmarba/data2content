@@ -101,6 +101,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
     needsCheckout,
     needsAbort,
     normalizedStatus,
+    refetch: refetchBillingStatus,
   } = useBillingStatus();
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -191,6 +192,11 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    refetchBillingStatus?.();
+  }, [open, refetchBillingStatus]);
+
   const disabled = !!loadingAction;
   const shouldBlockSubscribe = hasPremiumAccess || needsPaymentAction;
   const statusHint = !billingStatusLoading
@@ -199,7 +205,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
       : needsPaymentUpdate
       ? 'Pagamento pendente. Atualize sua cobrança.'
       : needsAbort
-      ? 'Tentativa expirada. Aborte e inicie um novo checkout.'
+      ? 'Tentativa expirada. Voce pode iniciar um novo checkout.'
       : needsCheckout
       ? 'Há um checkout pendente. Continue ou aborte.'
       : hasPremiumAccess

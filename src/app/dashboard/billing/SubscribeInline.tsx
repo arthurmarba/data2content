@@ -176,7 +176,7 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       )}
       {needsAbort && !billingStatusLoading && (
         <p className="text-xs text-amber-700 text-center">
-          Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.
+          Tentativa expirada. Voce pode iniciar um novo checkout agora.
         </p>
       )}
 

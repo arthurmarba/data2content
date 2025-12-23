@@ -41,7 +41,11 @@ export default function AccountSettingsPage() {
   const isNonRenewing = statusValue === 'non_renewing' || (cancelAtPeriodEnd && isActiveLike);
   const canCancel = isActiveLike && !cancelAtPeriodEnd;
   const canReactivate = isNonRenewing;
-  const canResubscribe = statusValue === 'inactive' || statusValue === 'expired' || statusValue === 'canceled';
+  const canResubscribe =
+    statusValue === 'inactive' ||
+    statusValue === 'expired' ||
+    statusValue === 'canceled' ||
+    statusValue === 'incomplete_expired';
   const canDelete = !billingLoading && !hasPremiumAccess && !needsPaymentAction && statusValue !== 'unknown';
   const isBusy = action !== null;
   const deleteBlockMessage = billingLoading
@@ -56,7 +60,7 @@ export default function AccountSettingsPage() {
   if (needsPaymentUpdate) {
     statusNote = 'Pagamento pendente. Atualize sua cobrança para evitar bloqueio.';
   } else if (needsAbort) {
-    statusNote = 'Tentativa expirada. Aborte a tentativa e inicie um novo checkout.';
+    statusNote = 'Tentativa expirada. Voce pode iniciar um novo checkout.';
   } else if (needsCheckout) {
     statusNote = 'Checkout pendente. Continue ou aborte a tentativa.';
   } else if (isNonRenewing) {

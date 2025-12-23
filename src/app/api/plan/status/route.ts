@@ -103,7 +103,6 @@ function pickBestSubscription(subs: Stripe.Subscription[]): Stripe.Subscription 
     pickByStatus(["active", "trialing"]) ||
     pickByStatus(["past_due", "unpaid"]) ||
     pickByStatus(["incomplete"]) ||
-    pickByStatus(["incomplete_expired"]) ||
     pickByStatus(["canceled"]) ||
     null
   );

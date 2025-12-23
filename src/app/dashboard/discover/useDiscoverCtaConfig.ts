@@ -71,12 +71,12 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
     if (needsReconnect) return "instagram_reconnect";
     if (isTrialActive) return "trial_active";
     if (hasPremiumAccess) return "plan_active";
-    if (needsPaymentUpdate) return "payment_issue";
-    if (needsAbort) return "checkout_expired";
-    if (needsCheckout) return "checkout_pending";
     if (nextAction === "reactivate") return "reactivate_plan";
-    if (trialState === "eligible") return "subscribe";
     if (nextAction === "resubscribe") return "subscribe";
+    if (needsPaymentUpdate) return "payment_issue";
+    if (needsCheckout) return "checkout_pending";
+    if (needsAbort) return "checkout_expired";
+    if (trialState === "eligible") return "subscribe";
     if (trialState === "expired" || trialState === "converted" || trialState === "unavailable") {
       return "subscribe";
     }
@@ -162,12 +162,12 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
         return {
           state,
           kind: "action",
-          label: "Abortar tentativa",
-          description: "Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.",
+          label: "Assinar Plano Agência",
+          description: "Tentativa expirada. Voce pode iniciar um novo checkout agora.",
           stageLabel: "Checkout expirado",
           step: 4,
           totalSteps,
-          href: "/dashboard/billing",
+          onPress: openSubscribeModal,
           disabled: isLoading,
         };
       case "subscribe":

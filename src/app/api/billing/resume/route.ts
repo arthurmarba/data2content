@@ -180,7 +180,7 @@ export async function POST() {
           {
             ok: false,
             code: "SUBSCRIPTION_INCOMPLETE_EXPIRED",
-            message: "Tentativa expirada. Aborte a tentativa e faça um novo checkout.",
+            message: "Tentativa expirada. Inicie um novo checkout.",
           },
           { status: 409, headers: cacheHeader }
         );
@@ -190,7 +190,7 @@ export async function POST() {
           {
             ok: false,
             code: "BILLING_RESUME_NOT_PENDING",
-            message: "Não há checkout pendente para retomar. Se estiver travado, aborte a tentativa em Billing.",
+            message: "Nao ha checkout pendente para retomar. Inicie um novo checkout.",
           },
           { status: 409, headers: cacheHeader }
         );
@@ -246,7 +246,7 @@ export async function POST() {
           {
             ok: false,
             code: "BILLING_RESUME_NOT_PENDING",
-            message: "Não há checkout pendente para retomar. Se estiver travado, aborte a tentativa em Billing.",
+            message: "Nao ha checkout pendente para retomar. Inicie um novo checkout.",
           },
           { status: 409, headers: cacheHeader }
         );
@@ -262,7 +262,7 @@ export async function POST() {
         {
           ok: false,
           code: "SUBSCRIPTION_INCOMPLETE_EXPIRED",
-          message: "Tentativa expirada. Aborte a tentativa e faça um novo checkout.",
+          message: "Tentativa expirada. Inicie um novo checkout.",
         },
         { status: 409, headers: cacheHeader }
       );

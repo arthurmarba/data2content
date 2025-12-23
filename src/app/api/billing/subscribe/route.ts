@@ -273,6 +273,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (dbStatusIsActive && !dbCancelAtPeriodEnd) {
+      logger.info("billing_subscribe_blocked_db_active", {
+        endpoint: "POST /api/billing/subscribe",
+        userId,
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: (user as any).stripeSubscriptionId ?? null,
+        statusDb: dbStatus || null,
+        statusStripe: null,
+        errorCode: "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN",
+        stripeRequestId: null,
+      });
+      return NextResponse.json(
+        {
+          code: "SUBSCRIPTION_ACTIVE_USE_CHANGE_PLAN",
+          message: dbStatusIsTrial
+            ? "Você está em período de teste. A troca de plano fica disponível após o trial."
+            : "Você já possui uma assinatura ativa. Para trocar de plano, use a mudança de plano em Billing.",
+          subscriptionId: (user as any).stripeSubscriptionId ?? null,
+        },
+        { status: 409 }
+      );
+    }
+
     if (dbStatus === "past_due" || dbStatus === "unpaid") {
       logger.info("billing_subscribe_blocked_db_payment_issue", {
         endpoint: "POST /api/billing/subscribe",
@@ -295,7 +318,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (dbStatus === "pending" || dbStatus === "incomplete" || dbStatus === "incomplete_expired") {
+    if (dbStatus === "pending" || dbStatus === "incomplete") {
       logger.info("billing_subscribe_blocked_db_pending", {
         endpoint: "POST /api/billing/subscribe",
         userId,
@@ -347,7 +370,7 @@ export async function POST(req: NextRequest) {
         Boolean((s as any).cancel_at_period_end)
     );
     const delinquentSub = subsList.data.find((s) => ["past_due", "unpaid"].includes(s.status));
-    const incompleteSub = subsList.data.find((s) => ["incomplete", "incomplete_expired"].includes(s.status));
+    const incompleteSub = subsList.data.find((s) => s.status === "incomplete");
 
     if (delinquentSub) {
       logger.info("billing_subscribe_blocked_payment_issue", {

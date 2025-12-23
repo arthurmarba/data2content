@@ -200,7 +200,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       )}
       {needsAbort && !billingStatusLoading && (
         <p className="mt-1 text-center text-xs text-amber-700">
-          Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.
+          Tentativa expirada. Voce pode iniciar um novo checkout agora.
         </p>
       )}
     </div>

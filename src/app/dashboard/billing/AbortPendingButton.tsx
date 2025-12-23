@@ -9,6 +9,7 @@ export default function AbortPendingButton() {
   const { data: session, update } = useSession();
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const planStatus = session?.user?.planStatus;
   if (!["pending", "incomplete", "incomplete_expired"].includes(String(planStatus || ""))) return null;
@@ -20,15 +21,24 @@ export default function AbortPendingButton() {
     });
     try {
       setSubmitting(true);
-      await fetch("/api/billing/abort", {
+      setError(null);
+      const res = await fetch("/api/billing/abort", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.message || data?.error || "Falha ao abortar tentativa.");
+        return;
+      }
       await update?.();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("billing-status-refresh"));
+      }
       router.refresh();
     } catch {
-      /* ignore */
+      setError("Falha ao abortar tentativa.");
     } finally {
       setSubmitting(false);
     }
@@ -43,6 +53,7 @@ export default function AbortPendingButton() {
       >
         {submitting ? "Cancelando..." : "Cancelar tentativa de assinatura"}
       </button>
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
   );
 }

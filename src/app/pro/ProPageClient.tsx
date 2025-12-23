@@ -222,7 +222,7 @@ export default function ProPageClient({
     ? "Continuar checkout"
     : "Atualizar pagamento";
   const blockedMessage = needsAbort
-    ? "Tentativa expirada. Aborte a tentativa em Billing para assinar novamente."
+    ? "Tentativa expirada. Voce pode iniciar um novo checkout em Billing."
     : needsCheckout
     ? "Existe um checkout pendente. Retome ou aborte a tentativa em Billing."
     : "Existe um pagamento pendente. Atualize o método de pagamento em Billing.";

@@ -66,7 +66,8 @@ describe("POST /api/billing/reactivate", () => {
 
   it("blocks when subscription is canceled", async () => {
     mockGetServerSession.mockResolvedValue({ user: { id: "u1" } });
-    mockFindById.mockResolvedValue({ _id: "u1", stripeSubscriptionId: "sub_1" });
+    const save = jest.fn();
+    mockFindById.mockResolvedValue({ _id: "u1", stripeSubscriptionId: "sub_1", save });
     mockRetrieve.mockResolvedValue({
       id: "sub_1",
       status: "canceled",
@@ -79,5 +80,6 @@ describe("POST /api/billing/reactivate", () => {
     const body = await res.json();
     expect(body.code).toBe("NOT_REACTIVATABLE_USE_SUBSCRIBE");
     expect(mockUpdate).not.toHaveBeenCalled();
+    expect(save).toHaveBeenCalled();
   });
 });

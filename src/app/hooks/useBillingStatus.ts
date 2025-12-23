@@ -273,6 +273,17 @@ export function useBillingStatus(opts: Options = {}) {
   }, [auto, fetchOnce, stopPolling, clearRetryTimer]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleRefresh = () => {
+      refetch();
+    };
+    window.addEventListener("billing-status-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("billing-status-refresh", handleRefresh);
+    };
+  }, [refetch]);
+
+  useEffect(() => {
     if (!data.planStatus) return;
     if (pollOn.includes(data.planStatus)) startPolling();
     else stopPolling();
@@ -322,7 +333,7 @@ export function useBillingStatus(opts: Options = {}) {
     const needsCheckout =
       normalizedStatus === "incomplete" || normalizedStatus === "pending";
     const needsAbort = normalizedStatus === "incomplete_expired";
-    const needsPaymentAction = needsPaymentUpdate || needsCheckout || needsAbort;
+    const needsPaymentAction = needsPaymentUpdate || needsCheckout;
 
     const nextAction: "cancel" | "reactivate" | "resubscribe" = trialActive
       ? "cancel"

@@ -111,7 +111,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
   const canCancel = (isActive || isTrialing) && !subscription.cancelAtPeriodEnd;
   const canResumeCheckout = isPending;
   const canAbortCheckout = isPending || isIncompleteExpired;
-  const showSubscribeAgain = isCanceled || isInactive;
+  const showSubscribeAgain = isCanceled || isInactive || isIncompleteExpired;
   const canChangePlan = isActive;
   const showChangePlanButton = canChangePlan;
   const showPortal =
@@ -195,7 +195,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
   const statusHint: string = isPending
     ? 'Checkout pendente — conclua o pagamento para ativar o plano.'
     : isIncompleteExpired
-    ? 'Tentativa expirada — aborte a tentativa para iniciar um novo checkout.'
+    ? 'Tentativa expirada — voce pode iniciar um novo checkout.'
     : isPastDue || isUnpaid
     ? 'Pagamento pendente — atualize o método de pagamento para liberar o acesso.'
     : isNonRenewing
@@ -224,6 +224,9 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
         isTrialing ? 'Teste não será renovado. Atualizando...' : 'Renovação cancelada. Atualizando...'
       );
       await refresh();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('billing-status-refresh'));
+      }
     } catch {
       toast.error('Não foi possível concluir no momento. Tente novamente.');
     } finally {
@@ -257,6 +260,9 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       }
       toast.success('Assinatura reativada. Atualizando...');
       await refresh();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('billing-status-refresh'));
+      }
     } catch {
       toast.error('Não foi possível concluir no momento. Tente novamente.');
     } finally {
@@ -289,7 +295,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       if (!res.ok) {
         const code = data?.code;
         if (code === 'SUBSCRIPTION_INCOMPLETE_EXPIRED') {
-          toast.error(data?.message || 'Tentativa expirada. Aborte a tentativa e faça um novo checkout.');
+          toast.error(data?.message || 'Tentativa expirada. Voce pode iniciar um novo checkout.');
           await refresh();
           return;
         }
@@ -320,6 +326,9 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       toast.error('Falha ao retomar o checkout.');
     } finally {
       setResuming(false);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('billing-status-refresh'));
+      }
     }
   }
 
@@ -336,6 +345,9 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       }
       toast.success('Tentativa cancelada. Você pode assinar novamente.');
       await refresh();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('billing-status-refresh'));
+      }
     } catch {
       toast.error('Falha ao abortar tentativa.');
     } finally {

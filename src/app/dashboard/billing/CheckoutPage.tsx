@@ -207,7 +207,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
     if (billingStatus.isLoading) return;
     if (billingStatus.needsAbort) {
       resumeAttemptedRef.current = true;
-      setErr("Tentativa expirada. Aborte a tentativa em Billing para assinar novamente.");
+      setErr("Tentativa expirada. Voce pode iniciar um novo checkout agora.");
       setErrorAction({ label: "Resolver pendencia", href: "/dashboard/billing" });
       return;
     }
@@ -223,7 +223,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           if (data?.code === "SUBSCRIPTION_INCOMPLETE_EXPIRED") {
-            setErr(data?.message || "Tentativa expirada. Aborte a tentativa e faça um novo checkout.");
+            setErr(data?.message || "Tentativa expirada. Inicie um novo checkout.");
             setErrorAction({ label: "Resolver pendencia", href: "/dashboard/billing" });
             return;
           }
@@ -238,7 +238,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
             return;
           }
           if (data?.code === "BILLING_RESUME_NOT_PENDING") {
-            setErr(data?.message || "Não há checkout pendente para retomar. Aborte a tentativa em Billing.");
+            setErr(data?.message || "Nao ha checkout pendente para retomar. Inicie um novo checkout.");
             setErrorAction({ label: "Resolver pendencia", href: "/dashboard/billing" });
             return;
           }

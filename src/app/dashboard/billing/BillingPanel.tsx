@@ -38,6 +38,11 @@ export default function BillingPanel() {
   const [error, setError] = useState<string | null>(null);
   const resyncRef = useRef(false);
 
+  const notifyBillingRefresh = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('billing-status-refresh'));
+  }, []);
+
   const fetchStatus = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -107,7 +112,7 @@ export default function BillingPanel() {
       if (!res.ok) {
         const code = data?.code;
         if (code === 'SUBSCRIPTION_INCOMPLETE_EXPIRED') {
-          toast.error(data?.message ?? 'Tentativa expirada. Aborte a tentativa e faça um novo checkout.');
+          toast.error(data?.message ?? 'Tentativa expirada. Voce pode iniciar um novo checkout.');
           await fetchStatus();
           return;
         }
@@ -154,6 +159,7 @@ export default function BillingPanel() {
       }
       toast.success('Cancelamento agendado.');
       await fetchStatus();
+      notifyBillingRefresh();
     } catch (err: any) {
       toast.error(err?.message || 'Falha ao cancelar');
     } finally {
@@ -188,6 +194,7 @@ export default function BillingPanel() {
       }
       toast.success('Assinatura reativada.');
       await fetchStatus();
+      notifyBillingRefresh();
     } catch (err: any) {
       toast.error(err?.message || 'Não foi possível reativar a assinatura.');
     } finally {
@@ -208,6 +215,7 @@ export default function BillingPanel() {
       }
       toast.success('Tentativa cancelada. Você pode assinar novamente.');
       await fetchStatus();
+      notifyBillingRefresh();
     } catch (err: any) {
       toast.error(err?.message || 'Falha ao abortar tentativa');
     } finally {
@@ -241,8 +249,9 @@ export default function BillingPanel() {
   const portalBlockedStatuses: PlanStatus[] = ['pending', 'expired', 'incomplete', 'incomplete_expired'];
   const showPortal = (status === 'active' || status === 'non_renewing' || status === 'trialing' || status === 'past_due' || status === 'unpaid') && !portalBlockedStatuses.includes(status);
   const canResumeCheckout = status === 'pending' || status === 'incomplete';
-  const needsCheckout = ['pending', 'incomplete', 'incomplete_expired'].includes(status);
-  const showSubscribeCta = status === 'inactive' || status === 'canceled' || status === 'expired';
+  const needsCheckout = ['pending', 'incomplete'].includes(status);
+  const showSubscribeCta =
+    status === 'inactive' || status === 'canceled' || status === 'expired' || status === 'incomplete_expired';
 
   let statusDescription: React.ReactNode = <>Status indisponível.</>;
   switch (status) {
@@ -263,7 +272,7 @@ export default function BillingPanel() {
       statusDescription = <>Pagamento não finalizado • conclua o checkout para ativar.</>;
       break;
     case 'incomplete_expired':
-      statusDescription = <>Tentativa de pagamento expirada • aborte a tentativa para iniciar um novo checkout.</>;
+      statusDescription = <>Tentativa expirada • você pode iniciar um novo checkout.</>;
       break;
     case 'pending':
       statusDescription = <>Processando ativação • finalize o checkout para liberar o acesso.</>;

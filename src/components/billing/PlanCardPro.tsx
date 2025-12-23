@@ -342,7 +342,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       : needsPaymentUpdate
       ? 'Pagamento pendente. Atualize sua cobrança.'
       : needsAbort
-      ? 'Tentativa expirada. Aborte e inicie um novo checkout.'
+      ? 'Tentativa expirada. Voce pode iniciar um novo checkout.'
       : needsCheckout
       ? 'Há um checkout pendente. Continue ou aborte.'
       : hasPremiumAccess
