@@ -17,12 +17,13 @@ export default function ChatCard() {
         rounded-2xl
         p-4
         flex flex-col
+        min-h-0
       "
     >
       <h2 className="text-lg font-semibold text-gray-800 mb-3">
         Consultor de Métricas
       </h2>
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
+      <div className="flex-1 min-h-0">
         <ChatPanel />
       </div>
     </div>

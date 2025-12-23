@@ -166,9 +166,9 @@ export default function ChatHomePage() {
   }
 
   return (
-    <div className="relative w-full bg-white text-gray-900 flex overflow-hidden flex-1 min-h-0">
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex-col overflow-hidden w-full h-full flex">
+    <div className="relative w-full h-full min-h-0 bg-white text-gray-900 flex overflow-hidden flex-1">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full">
+        <div className="flex flex-col overflow-hidden w-full h-full min-h-0">
           {/* Card de conexão IG quando voltamos do OAuth */}
           <div className="mx-auto max-w-6xl w-full px-4 pt-2 space-y-2">
             {showIgConnect && (
@@ -183,7 +183,7 @@ export default function ChatHomePage() {
           </div>
 
           {/* Chat ocupa todo o restante */}
-          <div className="flex-1 w-full min-h-0 relative">
+          <div className="flex-1 w-full min-h-0 h-full relative">
             <ChatPanel
               onUpsellClick={() => openPaywallModal({ context: "default", source: "chat_panel" })}
               calculationContext={calcContext}

@@ -51,7 +51,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const matchPath = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
 
-  const isChatPage = matchPath("/dashboard/chat");
+  const isChatPage = matchPath("/dashboard/chat") || matchPath("/planning/chat");
   const isMediaKitPage = matchPath("/dashboard/media-kit") || matchPath("/media-kit");
   const isSettingsPage = matchPath("/dashboard/settings") || matchPath("/settings");
   const isBillingPage = matchPath("/dashboard/billing") || matchPath("/settings/billing");
@@ -88,7 +88,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const mainOffset = isGuidedFlow ? "" : "lg:ml-16";
 
-  const mainScrollClass = isChatPage ? "overflow-hidden" : "overflow-y-auto";
+  const mainScrollClass = isChatPage ? "overflow-hidden flex flex-col" : "overflow-y-auto";
 
   const wantsStickyHeader = headerConfig?.sticky !== false;
   const isMobileDocked = Boolean(headerConfig?.mobileDocked && wantsStickyHeader);
@@ -109,6 +109,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       ? baseTopPadding
       : resolvedContentTopPadding ?? "0px";
 
+  const shellClassName = isChatPage
+    ? "flex flex-col w-full h-[100dvh] min-h-0 overflow-hidden"
+    : "flex flex-col w-full min-h-screen";
+
   return (
     <>
       {!isGuidedFlow && <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />}
@@ -121,20 +125,26 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className="flex flex-col w-full min-h-screen" id="dashboard-shell">
+      <div className={shellClassName} id="dashboard-shell">
         <Header />
 
         <main
           id="dashboard-main"
-          className={`flex flex-col flex-1 min-h-0 ${mainOffset} bg-white lg:rounded-tl-3xl`}
+          className={`flex flex-col flex-1 min-h-0 ${mainOffset} bg-white lg:rounded-tl-3xl ${isChatPage ? "overflow-hidden" : ""}`}
           style={{ paddingTop: resolvedPaddingTop }}
         >
           <div className={`flex-1 min-h-0 w-full ${mainScrollClass}`}>
-            <div className="dashboard-page-shell space-y-4 pt-4">
+            <div className={`dashboard-page-shell space-y-4 pt-4 ${isChatPage ? "flex-none" : ""}`}>
               <InstagramReconnectBanner />
               <TrialBanner />
             </div>
-            {children}
+            {isChatPage ? (
+              <div className="flex-1 min-h-0 w-full h-full overflow-hidden">
+                {children}
+              </div>
+            ) : (
+              children
+            )}
           </div>
         </main>
       </div>

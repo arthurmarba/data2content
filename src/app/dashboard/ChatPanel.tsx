@@ -873,8 +873,8 @@ export default function ChatPanel({
     <div
       className="relative flex flex-col w-full bg-white overflow-hidden min-h-0"
       style={{
-        height: fullHeight ? '100%' : '100svh',
-        minHeight: fullHeight ? '0' : '100svh',
+        height: fullHeight ? '100%' : 'auto',
+        minHeight: '0px',
       }}
     >
 
@@ -886,6 +886,7 @@ export default function ChatPanel({
         style={{
           paddingBottom: 'calc(var(--composer-h, 160px) + 16px)',
           scrollPaddingBottom: 'calc(var(--composer-h, 160px) + 16px)',
+          scrollbarGutter: 'stable',
           WebkitOverflowScrolling: 'touch',
         }}
       >
