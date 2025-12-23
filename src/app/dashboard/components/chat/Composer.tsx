@@ -53,8 +53,6 @@ export const Composer = React.memo(function Composer({
     onClearChat,
 }: ComposerProps) {
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
-    const inputWrapperRef = useRef<HTMLDivElement>(null);
-    const safeBottom = 'env(safe-area-inset-bottom, 0px)';
 
     // auto-resize do textarea
     useEffect(() => {
@@ -64,22 +62,9 @@ export const Composer = React.memo(function Composer({
         el.style.height = `${el.scrollHeight}px`;
     }, [input]);
 
-    // mede a altura do composer em --composer-h
-    useEffect(() => {
-        const el = inputWrapperRef.current;
-        if (!el) return;
-        const ro = new ResizeObserver(() => {
-            document.documentElement.style.setProperty("--composer-h", `${el.offsetHeight}px`);
-        });
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, []);
-
     return (
         <div
-            ref={inputWrapperRef}
-            className="sticky bottom-0 left-0 right-0 flex-none bg-white px-4 py-2 z-20 shadow-[0_-6px_24px_-12px_rgba(15,23,42,0.3)]"
-            style={{ paddingBottom: `calc(${safeBottom} + 8px)` }}
+            className="sticky bottom-0 left-0 right-0 flex-none bg-white px-4 pt-2 pb-safe z-20 shadow-[0_-6px_24px_-12px_rgba(15,23,42,0.3)]"
         >
             {/* Gradient Fade - Positioned absolutely above the composer */}
             <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/60 to-transparent pointer-events-none" />
@@ -114,11 +99,11 @@ export const Composer = React.memo(function Composer({
                     )}
                 </AnimatePresence>
 
-                <div className="relative flex items-end gap-2 bg-white rounded-[28px] border border-gray-200/80 focus-within:border-brand-primary/40 focus-within:shadow-lg focus-within:shadow-brand-primary/10 transition-all duration-300 p-1.5">
+                <div className="relative flex items-end gap-1.5 sm:gap-2 bg-white rounded-[28px] border border-gray-200/80 focus-within:border-brand-primary/40 focus-within:shadow-lg focus-within:shadow-brand-primary/10 transition-all duration-300 p-1.5">
                     <div className="flex items-center gap-1">
                         <button
                             onClick={onOpenTools}
-                            className={`relative flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-full transition-all ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir ferramentas"
                             title="Ferramentas"
                         >
@@ -133,11 +118,12 @@ export const Composer = React.memo(function Composer({
                                     onOpenAlerts();
                                 }
                             }}
-                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-3 h-11 text-[13px] font-semibold transition-all border ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-2.5 sm:px-3 h-10 sm:h-11 text-[12px] sm:text-[13px] font-semibold transition-all border ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir conversas"
                             title="Conversas"
                         >
-                            Conversas
+                            <FaBell className="text-[12px] sm:text-[13px]" />
+                            <span className="hidden sm:inline">Conversas</span>
                             {alertsBadgeCount > 0 && (
                                 <span className="ml-2 inline-flex min-w-[18px] rounded-full bg-red-500 px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
                                     {alertsBadgeCount > 99 ? '99+' : alertsBadgeCount}
@@ -172,7 +158,7 @@ export const Composer = React.memo(function Composer({
                         }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onSend}
-                        className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 ${input.trim().length > 0
+                        className={`flex-shrink-0 flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full transition-all duration-300 ${input.trim().length > 0
                             ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-md shadow-brand-primary/25'
                             : 'bg-gray-200 text-gray-400'
                             }`}

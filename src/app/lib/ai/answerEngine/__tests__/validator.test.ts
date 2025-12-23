@@ -64,4 +64,22 @@ describe('validator', () => {
     expect(result.fallbackUsed).toBe(true);
     expect(result.sanitizedResponse).toContain('Não encontrei posts acima do critério');
   });
+
+  it('skips fallback for empty pack on pricing intent', () => {
+    const emptyPricingPack = {
+      ...pack,
+      top_posts: [],
+      intent: 'pricing_suggestion',
+      policy: {
+        ...pack.policy,
+        intent: 'pricing_suggestion',
+        requireHighEngagement: false,
+        metricsRequired: undefined,
+      },
+    };
+    const response = 'Posso estimar a faixa de preço com base nas entregas.';
+    const result = validateAnswerWithContext(response, emptyPricingPack);
+    expect(result.fallbackUsed).toBe(false);
+    expect(result.sanitizedResponse).toContain('faixa de preço');
+  });
 });

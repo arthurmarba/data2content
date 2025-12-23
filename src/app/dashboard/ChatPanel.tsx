@@ -388,15 +388,44 @@ export default function ChatPanel({
   }, [calculationContext, preloadedMessages, pricingAnalysisContext, isAutoPricingRunningRef, lastPricingCalcIdRef, autoScrollOnNext, setMessages, setInlineAlert]);
 
 
-  // mede a altura do composer em --composer-h
+  // mede a altura do composer em --composer-h (inclui safe-area e resize de teclado no iOS)
   useEffect(() => {
     const el = inputWrapperRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      document.documentElement.style.setProperty("--composer-h", `${el.offsetHeight}px`);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
+
+    const updateHeight = () => {
+      const height = Math.round(el.getBoundingClientRect().height);
+      if (height > 0) {
+        document.documentElement.style.setProperty("--composer-h", `${height}px`);
+      }
+    };
+
+    updateHeight();
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(updateHeight);
+      ro.observe(el);
+    }
+
+    const viewport = window.visualViewport;
+    if (viewport) {
+      viewport.addEventListener('resize', updateHeight);
+      viewport.addEventListener('scroll', updateHeight);
+    } else {
+      window.addEventListener('resize', updateHeight);
+    }
+    const rafId = window.requestAnimationFrame(updateHeight);
+
+    return () => {
+      ro?.disconnect();
+      if (viewport) {
+        viewport.removeEventListener('resize', updateHeight);
+        viewport.removeEventListener('scroll', updateHeight);
+      } else {
+        window.removeEventListener('resize', updateHeight);
+      }
+      window.cancelAnimationFrame(rafId);
+    };
   }, []);
 
   useEffect(() => {
@@ -455,7 +484,7 @@ export default function ChatPanel({
   const isWelcome = messages.length === 0;
   const fullName = (session?.user?.name || "").trim();
   const firstName = fullName ? fullName.split(" ")[0] : "visitante";
-  const messageSpacingClass = viewMode === 'compact' ? 'space-y-3' : 'space-y-6';
+  const messageSpacingClass = viewMode === 'compact' ? 'space-y-2 sm:space-y-3' : 'space-y-4 sm:space-y-6';
   const renderDensity: RenderDensity = viewMode === 'compact' ? 'compact' : 'comfortable';
   const shouldVirtualize = messages.length >= 60;
 
@@ -842,10 +871,10 @@ export default function ChatPanel({
 
   return (
     <div
-      className="relative flex flex-col w-full bg-white overflow-hidden"
+      className="relative flex flex-col w-full bg-white overflow-hidden min-h-0"
       style={{
-        height: fullHeight ? 'calc(100svh - var(--header-h, 0px))' : '100svh',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        height: fullHeight ? '100%' : '100svh',
+        minHeight: fullHeight ? '0' : '100svh',
       }}
     >
 
@@ -853,9 +882,10 @@ export default function ChatPanel({
       {/* timeline (único scroll) */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide overscroll-contain px-4 py-6"
+        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide overscroll-contain px-3 py-5 sm:px-4 sm:py-6"
         style={{
-          paddingBottom: 'calc(var(--composer-h, 140px) + env(safe-area-inset-bottom, 0px) + 24px)',
+          paddingBottom: 'calc(var(--composer-h, 160px) + 16px)',
+          scrollPaddingBottom: 'calc(var(--composer-h, 160px) + 16px)',
           WebkitOverflowScrolling: 'touch',
         }}
       >
@@ -1027,7 +1057,11 @@ export default function ChatPanel({
                 )}
               </AnimatePresence>
             </ul>
-            <div ref={messagesEndRef} className="h-px" />
+            <div
+              ref={messagesEndRef}
+              className="h-px"
+              style={{ scrollMarginBottom: 'calc(var(--composer-h, 160px) + 16px)' }}
+            />
           </div>
         )}
       </div>
@@ -1182,7 +1216,7 @@ export default function ChatPanel({
       ) : null}
 
       {/* Composer — Fixed at bottom */}
-      <div ref={inputWrapperRef}>
+      <div ref={inputWrapperRef} className="flex-none">
         <Composer
           input={input}
           setInput={setInput}

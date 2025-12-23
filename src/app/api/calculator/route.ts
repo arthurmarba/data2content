@@ -5,23 +5,22 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import UserModel, { IUser } from '@/app/models/User';
-import { fetchAndPrepareReportData, getAdDealInsights } from '@/app/lib/dataService';
-import { resolveSegmentCpm } from '@/app/lib/cpmBySegment';
+import {
+  runPubliCalculator,
+  VALID_FORMATS,
+  VALID_EXCLUSIVITIES,
+  VALID_USAGE_RIGHTS,
+  VALID_COMPLEXITIES,
+  VALID_AUTHORITIES,
+  VALID_SEASONALITIES,
+  type CalculatorParams,
+} from '@/app/lib/pricing/publiCalculator';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
-import { subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 
 export const runtime = 'nodejs';
 
 const ROUTE_TAG = '[POST /api/calculator]';
-
-const VALID_FORMATS = new Set(['post', 'reels', 'stories', 'pacote']);
-const VALID_EXCLUSIVITIES = new Set(['nenhuma', '7d', '15d', '30d']);
-const VALID_USAGE_RIGHTS = new Set(['organico', 'midiapaga', 'global']);
-
-const VALID_COMPLEXITIES = new Set(['simples', 'roteiro', 'profissional']);
-const VALID_AUTHORITIES = new Set(['padrao', 'ascensao', 'autoridade', 'celebridade']);
-const VALID_SEASONALITIES = new Set(['normal', 'alta', 'baixa']);
 
 interface CalculatorPayload {
   format?: string;
@@ -34,8 +33,6 @@ interface CalculatorPayload {
   periodDays?: number;
   explanation?: string;
 }
-
-const roundCurrency = (value: number): number => Math.round(value * 100) / 100;
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession({ req: request, ...authOptions });
@@ -90,143 +87,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
     }
 
-    const sinceDate = subDays(new Date(), periodDays);
-    const [{ enrichedReport }, adDealInsights] = await Promise.all([
-      fetchAndPrepareReportData({ user, analysisSinceDate: sinceDate }),
-      getAdDealInsights(userId, periodDays <= 30 ? 'last30d' : periodDays <= 90 ? 'last90d' : 'all').catch((err) => {
-        logger.error(`${ROUTE_TAG} Falha ao buscar insights de AdDeals`, err);
-        return null;
-      }),
-    ]);
+    const formatValue = format as CalculatorParams['format'];
+    const exclusivityValue = exclusivity as CalculatorParams['exclusivity'];
+    const usageRightsValue = usageRights as CalculatorParams['usageRights'];
+    const complexityValue = complexity as CalculatorParams['complexity'];
+    const authorityValue = authority as CalculatorParams['authority'];
+    const seasonalityValue = seasonality as CalculatorParams['seasonality'];
 
-    const profileSegment = enrichedReport.profileSegment || 'default';
-    const overallStats = (enrichedReport.overallStats ?? {}) as Record<string, unknown>;
-    const reachAvgRaw = typeof overallStats.avgReach === 'number' ? overallStats.avgReach : 0;
-    const engagementRateRaw =
-      typeof overallStats.avgEngagementRate === 'number'
-        ? overallStats.avgEngagementRate
-        : typeof overallStats.avgEngagement === 'number'
-          ? overallStats.avgEngagement
-          : 0;
+    const calcParams: CalculatorParams = {
+      format: formatValue,
+      exclusivity: exclusivityValue,
+      usageRights: usageRightsValue,
+      complexity: complexityValue,
+      authority: authorityValue,
+      seasonality: seasonalityValue,
+    };
 
-    if (!Number.isFinite(reachAvgRaw) || reachAvgRaw <= 0) {
-      return NextResponse.json({ error: 'Métricas insuficientes para calcular o valor sugerido. Registre novos conteúdos e tente novamente.' }, { status: 422 });
-    }
-
-    const reachAvg = Math.round(reachAvgRaw);
-    const engagementRateNormalized = Number.isFinite(engagementRateRaw) ? engagementRateRaw : 0;
-    const engagementPercent = engagementRateNormalized > 1 ? engagementRateNormalized : engagementRateNormalized * 100;
-    const engagementFactor = 1 + engagementPercent / 100;
-
-    const { value: cpmValue, source: cpmSource } = await resolveSegmentCpm(profileSegment);
-    const valorBase = (reachAvgRaw / 1000) * cpmValue;
-
-    const multiplicadores = {
-      formato: {
-        post: 1.0,
-        reels: 1.4,
-        stories: 0.8,
-        pacote: 1.6,
-      },
-      exclusividade: {
-        nenhuma: 1.0,
-        '7d': 1.1,
-        '15d': 1.2,
-        '30d': 1.3,
-      },
-      usoImagem: {
-        organico: 1.0,
-        midiapaga: 1.2,
-        global: 1.4,
-      },
-      complexidade: {
-        simples: 1.0,
-        roteiro: 1.1,
-        profissional: 1.3,
-      },
-      autoridade: {
-        padrao: 1.0,
-        ascensao: 1.2,
-        autoridade: 1.5,
-        celebridade: 2.0,
-      },
-      sazonalidade: {
-        normal: 1.0,
-        alta: 1.2,
-        baixa: 0.9,
-      },
-    } as const;
-
-    const formatKey = format as keyof typeof multiplicadores.formato;
-    const exclusivityKey = exclusivity as keyof typeof multiplicadores.exclusividade;
-    const usageRightsKey = usageRights as keyof typeof multiplicadores.usoImagem;
-    const complexityKey = complexity as keyof typeof multiplicadores.complexidade;
-    const authorityKey = authority as keyof typeof multiplicadores.autoridade;
-    const seasonalityKey = seasonality as keyof typeof multiplicadores.sazonalidade;
-
-    const ajuste =
-      multiplicadores.formato[formatKey] *
-      multiplicadores.exclusividade[exclusivityKey] *
-      multiplicadores.usoImagem[usageRightsKey] *
-      multiplicadores.complexidade[complexityKey] *
-      multiplicadores.autoridade[authorityKey] *
-      multiplicadores.sazonalidade[seasonalityKey] *
-      engagementFactor;
-
-    const valorJusto = roundCurrency(valorBase * ajuste);
-    const valorEstrategico = roundCurrency(valorJusto * 0.75);
-    const valorPremium = roundCurrency(valorJusto * 1.4);
-
-    const averageDealRaw = adDealInsights?.averageDealValueBRL;
-    const avgTicketValue =
-      typeof averageDealRaw === 'number' && Number.isFinite(averageDealRaw) ? roundCurrency(averageDealRaw) : null;
-    const totalDeals = adDealInsights?.totalDeals ?? 0;
-
-    const explanationParts = [
-      `CPM base aplicado: R$ ${cpmValue.toFixed(2)}.`,
-      `Alcance médio considerado: ${reachAvg.toLocaleString('pt-BR')} pessoas.`,
-      `Fator de engajamento: ${engagementFactor.toFixed(2)}x.`,
-      seasonalityKey !== 'normal' ? `Sazonalidade (${seasonalityKey}): ${multiplicadores.sazonalidade[seasonalityKey]}x.` : null,
-      avgTicketValue ? `Ticket médio de publis recentes: R$ ${avgTicketValue.toFixed(2)}.` : null,
-      totalDeals > 0 ? `Total de publis analisadas: ${totalDeals}.` : null,
-    ].filter(Boolean);
-    const explanationPrefix = payload.explanation ? `${payload.explanation.trim()} ` : '';
-    const explanation = `${explanationPrefix}${explanationParts.join(' ')}`.trim();
+    const calculationPayload = await runPubliCalculator({
+      user,
+      params: calcParams,
+      periodDays,
+      explanationPrefix: payload.explanation,
+    });
 
     const calculation = await PubliCalculation.create({
       userId,
-      metrics: {
-        reach: reachAvg,
-        engagement: roundCurrency(engagementPercent),
-        profileSegment,
-      },
+      metrics: calculationPayload.metrics,
       params: {
-        format,
-        exclusivity,
-        usageRights,
-        complexity,
-        authority,
-        seasonality,
+        format: formatValue,
+        exclusivity: exclusivityValue,
+        usageRights: usageRightsValue,
+        complexity: complexityValue,
+        authority: authorityValue,
+        seasonality: seasonalityValue,
       },
-      result: {
-        estrategico: valorEstrategico,
-        justo: valorJusto,
-        premium: valorPremium,
-      },
-      cpmApplied: cpmValue,
-      cpmSource,
-      explanation: explanation || undefined,
-      avgTicket: avgTicketValue ?? undefined,
-      totalDeals,
+      result: calculationPayload.result,
+      cpmApplied: calculationPayload.cpmApplied,
+      cpmSource: calculationPayload.cpmSource,
+      explanation: calculationPayload.explanation || undefined,
+      avgTicket: calculationPayload.avgTicket ?? undefined,
+      totalDeals: calculationPayload.totalDeals,
     });
 
     return NextResponse.json(
       {
-        estrategico: valorEstrategico,
-        justo: valorJusto,
-        premium: valorPremium,
-        cpm: cpmValue,
-        cpmSource,
+        estrategico: calculationPayload.result.estrategico,
+        justo: calculationPayload.result.justo,
+        premium: calculationPayload.result.premium,
+        cpm: calculationPayload.cpmApplied,
+        cpmSource: calculationPayload.cpmSource,
         params: {
           format: calculation.params?.format,
           exclusivity: calculation.params?.exclusivity,
@@ -236,20 +145,25 @@ export async function POST(request: NextRequest) {
           seasonality: calculation.params?.seasonality,
         },
         metrics: {
-          reach: reachAvg,
-          engagement: roundCurrency(engagementPercent),
-          profileSegment,
+          reach: calculationPayload.metrics.reach,
+          engagement: calculationPayload.metrics.engagement,
+          profileSegment: calculationPayload.metrics.profileSegment,
         },
-        avgTicket: avgTicketValue,
-        totalDeals,
+        avgTicket: calculationPayload.avgTicket,
+        totalDeals: calculationPayload.totalDeals,
         calculationId: calculation._id.toString(),
-        explanation: explanation || null,
+        explanation: calculationPayload.explanation || null,
         createdAt: calculation.createdAt?.toISOString?.() ?? new Date().toISOString(),
       },
       { status: 201 }
     );
   } catch (error) {
+    const status = (error as any)?.status || 500;
+    const message =
+      status === 422
+        ? (error as Error).message
+        : 'Erro interno ao calcular o valor sugerido.';
     logger.error(`${ROUTE_TAG} Erro inesperado`, error);
-    return NextResponse.json({ error: 'Erro interno ao calcular o valor sugerido.' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status });
   }
 }

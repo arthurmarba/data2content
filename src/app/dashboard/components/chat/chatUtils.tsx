@@ -1443,11 +1443,11 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
         return (
             <div className="my-3" data-testid="chat-table-container">
                 {showToggle ? (
-                    <div className="mb-2 flex items-center justify-between text-[11px]" data-testid="chat-table-toggle">
+                    <div className="mb-2 flex flex-col gap-2 text-[11px] sm:flex-row sm:items-center sm:justify-between" data-testid="chat-table-toggle">
                         <span className={isInverse ? 'text-white/60' : 'text-gray-500'}>
                             Visualização da tabela
                         </span>
-                        <div className="flex items-center rounded-full border p-0.5">
+                        <div className="flex items-center rounded-full border p-0.5 self-start sm:self-auto">
                             <button
                                 type="button"
                                 onClick={() => setMode('table')}

@@ -27,6 +27,14 @@ import { runAnswerEngine } from "@/app/lib/ai/answerEngine/engine";
 import { validateAnswerWithContext } from "@/app/lib/ai/answerEngine/validator";
 import { coerceToAnswerIntent } from "@/app/lib/ai/answerEngine/policies";
 import { stripUnprovenCommunityClaims } from "@/app/lib/text/sanitizeCommunityClaims";
+import {
+  buildChatPricingClarification,
+  buildChatPricingInsufficientData,
+  buildChatPricingResponse,
+  parseChatPricingInput,
+  shouldHandleChatPricing,
+} from "@/app/lib/pricing/chatPricing";
+import { runPubliCalculator, type CalculatorParams } from "@/app/lib/pricing/publiCalculator";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -730,9 +738,34 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       experimentId,
     });
 
+    const pricingParse = parseChatPricingInput(truncatedQuery);
+    let pricingResponse: string | null = null;
+    let skipLLM = false;
+
+    if (shouldHandleChatPricing(pricingParse, dialogueState?.lastResponseContext?.topic)) {
+      if (pricingParse.missing.length) {
+        pricingResponse = buildChatPricingClarification(pricingParse.missing);
+        skipLLM = true;
+      } else {
+        try {
+          const calculation = await runPubliCalculator({
+            user: targetUser,
+            params: pricingParse.params as CalculatorParams,
+          });
+          pricingResponse = buildChatPricingResponse({ calculation, parse: pricingParse });
+          skipLLM = true;
+        } catch (error) {
+          if ((error as any)?.status === 422) {
+            pricingResponse = buildChatPricingInsufficientData((error as Error).message);
+            skipLLM = true;
+          }
+        }
+      }
+    }
+
     let answerEngineResult: any = null;
     let answerEngineDuration = 0;
-    if (ANSWER_ENGINE_ENABLED) {
+    if (ANSWER_ENGINE_ENABLED && !skipLLM) {
       try {
         const started = Date.now();
         answerEngineResult = await runAnswerEngine({
@@ -766,27 +799,33 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     let userMessageId: string | null = null;
     let assistantMessageId: string | null = null;
     let historyPromise: Promise<ChatCompletionMessageParam[]> | null = null;
-    try {
-      const llmStartedAt = Date.now();
-      const { stream, historyPromise: hp } = await askLLMWithEnrichedContext(enriched, truncatedQuery.trim(), effectiveIntent);
-      historyPromise = hp;
-      const reader = stream.getReader();
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (typeof value === 'string') finalText += value;
+    if (skipLLM && pricingResponse) {
+      finalText = pricingResponse;
+    } else {
+      try {
+        const llmStartedAt = Date.now();
+        const { stream, historyPromise: hp } = await askLLMWithEnrichedContext(enriched, truncatedQuery.trim(), effectiveIntent);
+        historyPromise = hp;
+        const reader = stream.getReader();
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (typeof value === 'string') finalText += value;
+        }
+        perfMarks.llmMs = Date.now() - llmStartedAt;
+      } catch (error) {
+        logger.error('[ai/chat] Falha na chamada da LLM (web chat):', error);
+        finalText = 'Tive um problema técnico para gerar a resposta agora. Pode tentar novamente em instantes?';
       }
-      perfMarks.llmMs = Date.now() - llmStartedAt;
-    } catch (error) {
-      logger.error('[ai/chat] Falha na chamada da LLM (web chat):', error);
-      finalText = 'Tive um problema técnico para gerar a resposta agora. Pode tentar novamente em instantes?';
     }
 
     if (!finalText.trim()) {
       finalText = 'Hum... não consegui gerar uma resposta completa agora. Pode tentar reformular ou perguntar novamente?';
     }
 
-    const instigatingQuestion = await generateInstigatingQuestion(finalText, dialogueState, access.targetUserId);
+    const instigatingQuestion = skipLLM
+      ? null
+      : await generateInstigatingQuestion(finalText, dialogueState, access.targetUserId);
     const fullResponse = instigatingQuestion ? `${finalText.trim()}\n\n${instigatingQuestion}` : finalText.trim();
     let sanitizedResponse = sanitizeTables(fullResponse);
     if (answerEngineResult?.contextPack) {

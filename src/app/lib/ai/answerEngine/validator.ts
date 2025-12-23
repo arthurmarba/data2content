@@ -47,7 +47,13 @@ export function validateAnswerWithContext(
   pack: ContextPack | null | undefined,
 ): ValidationResult {
   if (!pack) return { sanitizedResponse: response, badRecoPrevented: 0, fallbackUsed: false };
+  const shouldFallbackForEmptyPack = pack.intent !== 'pricing_suggestion' && Boolean(
+    pack.policy.requireHighEngagement || (pack.policy.metricsRequired?.length ?? 0) > 0
+  );
   if (!pack.top_posts.length) {
+    if (!shouldFallbackForEmptyPack) {
+      return { sanitizedResponse: response, badRecoPrevented: 0, fallbackUsed: false, reason: 'empty_pack_skipped' };
+    }
     return { sanitizedResponse: buildFallback(pack, 'empty'), badRecoPrevented: 0, fallbackUsed: true, reason: 'empty_pack' };
   }
 
@@ -76,7 +82,7 @@ export function validateAnswerWithContext(
 
   let sanitized = filtered.join('\n').trim();
   if (!sanitized) {
-    sanitized = buildFallback(pack, 'removed_all');
+    sanitized = shouldFallbackForEmptyPack ? buildFallback(pack, 'removed_all') : response;
   }
 
   return {
