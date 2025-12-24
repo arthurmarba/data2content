@@ -398,7 +398,9 @@ export default function ChatPanel({
 
     const updateHeight = () => {
       const height = Math.round(el.getBoundingClientRect().height);
-      if (height <= 0 || height === lastHeight) return;
+      if (height <= 0) return;
+      if (lastHeight > 0 && Math.abs(height - lastHeight) < 2) return;
+      if (height === lastHeight) return;
       lastHeight = height;
       document.documentElement.style.setProperty("--composer-h", `${height}px`);
     };
