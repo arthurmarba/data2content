@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaPlus, FaPaperPlane, FaInstagram, FaCheckCircle, FaExclamationTriangle, FaBell } from 'react-icons/fa';
 import { ToolsDrawer } from './ToolsDrawer';
@@ -53,6 +53,67 @@ export const Composer = React.memo(function Composer({
     onClearChat,
 }: ComposerProps) {
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const suppressNextClickRef = useRef(false);
+
+    const dismissActiveInput = useCallback(() => {
+        if (typeof document === 'undefined') return false;
+        const active = document.activeElement as HTMLElement | null;
+        if (!active) return false;
+        const tagName = active.tagName;
+        if (tagName === 'INPUT' || tagName === 'TEXTAREA' || active.isContentEditable) {
+            active.blur();
+            return true;
+        }
+        return false;
+    }, []);
+
+    const triggerTouchAction = useCallback(
+        (action: () => void, event: { preventDefault: () => void }) => {
+            if (suppressNextClickRef.current) return;
+            const didBlur = dismissActiveInput();
+            if (!didBlur) return;
+            suppressNextClickRef.current = true;
+            event.preventDefault();
+            if (typeof window !== 'undefined') {
+                window.setTimeout(() => {
+                    suppressNextClickRef.current = false;
+                }, 250);
+            }
+            action();
+        },
+        [dismissActiveInput]
+    );
+
+    const handlePointerActivation = useCallback(
+        (action: () => void, event: React.PointerEvent<HTMLElement>) => {
+            if (event.pointerType === 'mouse') return;
+            triggerTouchAction(action, event);
+        },
+        [triggerTouchAction]
+    );
+
+    const handleTouchStartActivation = useCallback(
+        (action: () => void, event: React.TouchEvent<HTMLElement>) => {
+            triggerTouchAction(action, event);
+        },
+        [triggerTouchAction]
+    );
+
+    const runWithClickSuppression = useCallback((action: () => void) => {
+        if (suppressNextClickRef.current) {
+            suppressNextClickRef.current = false;
+            return;
+        }
+        action();
+    }, []);
+
+    const toggleAlerts = useCallback(() => {
+        if (isAlertsOpen) {
+            onCloseAlerts();
+        } else {
+            onOpenAlerts();
+        }
+    }, [isAlertsOpen, onCloseAlerts, onOpenAlerts]);
 
     // auto-resize do textarea
     useEffect(() => {
@@ -102,7 +163,9 @@ export const Composer = React.memo(function Composer({
                 <div className="relative flex items-end gap-1.5 sm:gap-2 bg-white rounded-[28px] border border-gray-200/80 focus-within:border-brand-primary/40 focus-within:shadow-lg focus-within:shadow-brand-primary/10 transition-all duration-300 p-1.5">
                     <div className="flex items-center gap-1">
                         <button
-                            onClick={onOpenTools}
+                            onPointerDown={(event) => handlePointerActivation(onOpenTools, event)}
+                            onTouchStart={(event) => handleTouchStartActivation(onOpenTools, event)}
+                            onClick={() => runWithClickSuppression(onOpenTools)}
                             className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir ferramentas"
                             title="Ferramentas"
@@ -111,13 +174,9 @@ export const Composer = React.memo(function Composer({
                         </button>
 
                         <button
-                            onClick={() => {
-                                if (isAlertsOpen) {
-                                    onCloseAlerts();
-                                } else {
-                                    onOpenAlerts();
-                                }
-                            }}
+                            onPointerDown={(event) => handlePointerActivation(toggleAlerts, event)}
+                            onTouchStart={(event) => handleTouchStartActivation(toggleAlerts, event)}
+                            onClick={() => runWithClickSuppression(toggleAlerts)}
                             className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-2.5 sm:px-3 h-10 sm:h-11 text-[12px] sm:text-[13px] font-semibold transition-all border ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir conversas"
                             title="Conversas"

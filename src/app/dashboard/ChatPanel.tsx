@@ -394,12 +394,13 @@ export default function ChatPanel({
   useEffect(() => {
     const el = inputWrapperRef.current;
     if (!el) return;
+    let lastHeight = 0;
 
     const updateHeight = () => {
       const height = Math.round(el.getBoundingClientRect().height);
-      if (height > 0) {
-        document.documentElement.style.setProperty("--composer-h", `${height}px`);
-      }
+      if (height <= 0 || height === lastHeight) return;
+      lastHeight = height;
+      document.documentElement.style.setProperty("--composer-h", `${height}px`);
     };
 
     updateHeight();
@@ -412,7 +413,6 @@ export default function ChatPanel({
     const viewport = window.visualViewport;
     if (viewport) {
       viewport.addEventListener('resize', updateHeight);
-      viewport.addEventListener('scroll', updateHeight);
     } else {
       window.addEventListener('resize', updateHeight);
     }
@@ -422,7 +422,6 @@ export default function ChatPanel({
       ro?.disconnect();
       if (viewport) {
         viewport.removeEventListener('resize', updateHeight);
-        viewport.removeEventListener('scroll', updateHeight);
       } else {
         window.removeEventListener('resize', updateHeight);
       }

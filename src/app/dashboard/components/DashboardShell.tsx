@@ -91,22 +91,24 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
 
     const root = document.documentElement;
+    let lastHeight = 0;
     const updateAppHeight = () => {
       const nextHeight = window.visualViewport?.height ?? window.innerHeight;
       if (!Number.isFinite(nextHeight)) return;
-      root.style.setProperty("--app-height", `${Math.round(nextHeight)}px`);
+      const rounded = Math.round(nextHeight);
+      if (rounded === lastHeight) return;
+      lastHeight = rounded;
+      root.style.setProperty("--app-height", `${rounded}px`);
     };
 
     updateAppHeight();
 
     const viewport = window.visualViewport;
     viewport?.addEventListener("resize", updateAppHeight);
-    viewport?.addEventListener("scroll", updateAppHeight);
     window.addEventListener("resize", updateAppHeight);
 
     return () => {
       viewport?.removeEventListener("resize", updateAppHeight);
-      viewport?.removeEventListener("scroll", updateAppHeight);
       window.removeEventListener("resize", updateAppHeight);
     };
   }, [isChatPage]);

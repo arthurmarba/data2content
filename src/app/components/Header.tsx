@@ -229,6 +229,59 @@ export default function Header() {
   const headerRef = useRef<HTMLElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const lastHeightRef = useRef<number>(64);
+  const suppressNextClickRef = useRef(false);
+
+  const dismissActiveInput = useCallback(() => {
+    if (typeof document === "undefined") return false;
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return false;
+    const tagName = active.tagName;
+    if (tagName === "INPUT" || tagName === "TEXTAREA" || active.isContentEditable) {
+      active.blur();
+      return true;
+    }
+    return false;
+  }, []);
+
+  const triggerTouchAction = useCallback(
+    (action: () => void, event: { preventDefault: () => void }) => {
+      if (suppressNextClickRef.current) return;
+      const didBlur = dismissActiveInput();
+      if (!didBlur) return;
+      suppressNextClickRef.current = true;
+      event.preventDefault();
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => {
+          suppressNextClickRef.current = false;
+        }, 250);
+      }
+      action();
+    },
+    [dismissActiveInput]
+  );
+
+  const handlePointerActivation = useCallback(
+    (action: () => void, event: React.PointerEvent<HTMLElement>) => {
+      if (event.pointerType === "mouse") return;
+      triggerTouchAction(action, event);
+    },
+    [triggerTouchAction]
+  );
+
+  const handleTouchStartActivation = useCallback(
+    (action: () => void, event: React.TouchEvent<HTMLElement>) => {
+      triggerTouchAction(action, event);
+    },
+    [triggerTouchAction]
+  );
+
+  const runWithClickSuppression = useCallback((action: () => void) => {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+    action();
+  }, []);
 
   const condensed = useHeaderVisibility({
     disabled: !config.condensedOnScroll,
@@ -294,6 +347,10 @@ export default function Header() {
   const handleOpenSubscribeModal = useCallback(() => {
     if (typeof window === "undefined") return;
     window.dispatchEvent(new Event("open-subscribe-modal"));
+  }, []);
+
+  const toggleUserMenu = useCallback(() => {
+    setUserMenuOpen((prev) => !prev);
   }, []);
 
 
@@ -387,7 +444,9 @@ export default function Header() {
         <div className="order-1 flex items-center gap-3 min-w-0 pointer-events-auto sm:order-1 sm:flex-none">
           {config.showSidebarToggle && (
             <motion.button
-              onClick={() => toggleSidebar()}
+              onPointerDown={(event) => handlePointerActivation(() => toggleSidebar(), event)}
+              onTouchStart={(event) => handleTouchStartActivation(() => toggleSidebar(), event)}
+              onClick={() => runWithClickSuppression(() => toggleSidebar())}
               whileTap={{ scale: 0.92 }}
               transition={{ duration: 0.12, ease: "easeOut" }}
               className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
@@ -418,7 +477,9 @@ export default function Header() {
           {config.showUserMenu && (
             <div className="relative">
               <button
-                onClick={() => setUserMenuOpen((prev) => !prev)}
+                onPointerDown={(event) => handlePointerActivation(toggleUserMenu, event)}
+                onTouchStart={(event) => handleTouchStartActivation(toggleUserMenu, event)}
+                onClick={() => runWithClickSuppression(toggleUserMenu)}
                 className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
