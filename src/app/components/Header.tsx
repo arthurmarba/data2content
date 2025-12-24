@@ -28,6 +28,53 @@ import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 
+const TAP_DEBUG =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).has("tapdebug");
+
+type ActiveElementInfo = {
+  tagName: string;
+  id: string | null;
+  className: string | null;
+};
+
+function getActiveElementInfo(): ActiveElementInfo | null {
+  if (typeof document === "undefined") return null;
+  const active = document.activeElement as HTMLElement | null;
+  if (!active) return null;
+  return {
+    tagName: active.tagName,
+    id: active.id || null,
+    className: active.className ? String(active.className) : null,
+  };
+}
+
+function getViewportHeight() {
+  if (typeof window === "undefined") return null;
+  return window.visualViewport?.height ?? null;
+}
+
+function logTapDebug(label: string, payload: Record<string, unknown>) {
+  if (!TAP_DEBUG) return;
+  console.log(`[tapdebug] ${label}`, payload);
+}
+
+function buildTapDebugPayload(
+  event: React.SyntheticEvent<HTMLElement> | undefined,
+  suppressNextClick: boolean,
+  didBlur: boolean | null
+) {
+  return {
+    type: event?.type ?? null,
+    target: event?.target ?? null,
+    currentTarget: event?.currentTarget ?? null,
+    activeElement: getActiveElementInfo(),
+    viewportHeight: getViewportHeight(),
+    suppressNextClick,
+    didBlur,
+  };
+}
+
 interface SessionUser {
   id?: string;
   name?: string | null;
@@ -245,22 +292,43 @@ export default function Header() {
   }, []);
 
   const triggerTouchAction = useCallback(
-    (action: () => void, event: { preventDefault: () => void }) => {
-      if (suppressNextClickRef.current) return;
+    (action: () => void, event: React.SyntheticEvent<HTMLElement>) => {
+      if (suppressNextClickRef.current) {
+        logTapDebug(
+          "triggerTouchAction:suppressed",
+          buildTapDebugPayload(event, suppressNextClickRef.current, null)
+        );
+        return;
+      }
       const didBlur = dismissActiveInput();
+      if (didBlur) {
+        suppressNextClickRef.current = true;
+      }
+      logTapDebug(
+        "triggerTouchAction",
+        buildTapDebugPayload(event, suppressNextClickRef.current, didBlur)
+      );
       if (!didBlur) return;
-      suppressNextClickRef.current = true;
       event.preventDefault();
       if (typeof window !== "undefined") {
+        const vv = window.visualViewport;
+        let cleared = false;
+        const clearSuppression = () => {
+          if (cleared) return;
+          cleared = true;
+          suppressNextClickRef.current = false;
+          if (suppressTimeoutRef.current) {
+            window.clearTimeout(suppressTimeoutRef.current);
+            suppressTimeoutRef.current = null;
+          }
+          vv?.removeEventListener("resize", clearSuppression);
+        };
+        vv?.addEventListener("resize", clearSuppression, { once: true });
         if (suppressTimeoutRef.current) {
           window.clearTimeout(suppressTimeoutRef.current);
         }
-        suppressTimeoutRef.current = window.setTimeout(() => {
-          suppressNextClickRef.current = false;
-          suppressTimeoutRef.current = null;
-        }, 700);
+        suppressTimeoutRef.current = window.setTimeout(clearSuppression, 600);
       }
-      action();
     },
     [dismissActiveInput]
   );
@@ -280,17 +348,24 @@ export default function Header() {
     [triggerTouchAction]
   );
 
-  const runWithClickSuppression = useCallback((action: () => void) => {
-    if (suppressNextClickRef.current) {
-      suppressNextClickRef.current = false;
-      if (suppressTimeoutRef.current) {
-        window.clearTimeout(suppressTimeoutRef.current);
-        suppressTimeoutRef.current = null;
+  const runWithClickSuppression = useCallback(
+    (action: () => void, event?: React.SyntheticEvent<HTMLElement>) => {
+      logTapDebug(
+        "runWithClickSuppression",
+        buildTapDebugPayload(event, suppressNextClickRef.current, null)
+      );
+      if (suppressNextClickRef.current) {
+        suppressNextClickRef.current = false;
+        if (suppressTimeoutRef.current) {
+          window.clearTimeout(suppressTimeoutRef.current);
+          suppressTimeoutRef.current = null;
+        }
+        return;
       }
-      return;
-    }
-    action();
-  }, []);
+      action();
+    },
+    []
+  );
 
   const condensed = useHeaderVisibility({
     disabled: !config.condensedOnScroll,
@@ -464,7 +539,7 @@ export default function Header() {
             <motion.button
               onPointerDown={(event) => handlePointerActivation(() => toggleSidebar(), event)}
               onTouchStart={(event) => handleTouchStartActivation(() => toggleSidebar(), event)}
-              onClick={() => runWithClickSuppression(() => toggleSidebar())}
+              onClick={(event) => runWithClickSuppression(() => toggleSidebar(), event)}
               whileTap={{ scale: 0.92 }}
               transition={{ duration: 0.12, ease: "easeOut" }}
               className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
@@ -497,7 +572,7 @@ export default function Header() {
               <button
                 onPointerDown={(event) => handlePointerActivation(toggleUserMenu, event)}
                 onTouchStart={(event) => handleTouchStartActivation(toggleUserMenu, event)}
-                onClick={() => runWithClickSuppression(toggleUserMenu)}
+                onClick={(event) => runWithClickSuppression(toggleUserMenu, event)}
                 className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
