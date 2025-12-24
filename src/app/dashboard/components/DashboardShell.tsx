@@ -46,6 +46,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const overlayIgnoreUntilRef = React.useRef(0);
   const pathname = usePathname();
   const { config: headerConfig } = useHeaderConfig();
 
@@ -65,6 +66,12 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const isOpen = !isCollapsed;
   const hasPageOverride = isMediaKitPage || isPlannerPage || isDiscover;
+
+  React.useEffect(() => {
+    if (isOpen) {
+      overlayIgnoreUntilRef.current = Date.now() + 500;
+    }
+  }, [isOpen]);
 
   const layoutHeaderConfig = useMemo<Partial<HeaderConfig> | undefined>(() => {
     if (hasPageOverride) return undefined;
@@ -147,7 +154,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
       {isOpen && !isGuidedFlow && (
         <div
-          onClick={() => toggleSidebar(true)}
+          onClick={() => {
+            if (Date.now() < overlayIgnoreUntilRef.current) return;
+            toggleSidebar(true);
+          }}
           className="lg:hidden fixed inset-0 bg-black/40 z-50"
           aria-hidden="true"
         />

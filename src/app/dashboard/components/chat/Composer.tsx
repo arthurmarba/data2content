@@ -54,6 +54,7 @@ export const Composer = React.memo(function Composer({
 }: ComposerProps) {
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     const suppressNextClickRef = useRef(false);
+    const suppressTimeoutRef = useRef<number | null>(null);
 
     const dismissActiveInput = useCallback(() => {
         if (typeof document === 'undefined') return false;
@@ -75,9 +76,13 @@ export const Composer = React.memo(function Composer({
             suppressNextClickRef.current = true;
             event.preventDefault();
             if (typeof window !== 'undefined') {
-                window.setTimeout(() => {
+                if (suppressTimeoutRef.current) {
+                    window.clearTimeout(suppressTimeoutRef.current);
+                }
+                suppressTimeoutRef.current = window.setTimeout(() => {
                     suppressNextClickRef.current = false;
-                }, 250);
+                    suppressTimeoutRef.current = null;
+                }, 700);
             }
             action();
         },
@@ -102,9 +107,22 @@ export const Composer = React.memo(function Composer({
     const runWithClickSuppression = useCallback((action: () => void) => {
         if (suppressNextClickRef.current) {
             suppressNextClickRef.current = false;
+            if (suppressTimeoutRef.current) {
+                window.clearTimeout(suppressTimeoutRef.current);
+                suppressTimeoutRef.current = null;
+            }
             return;
         }
         action();
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (suppressTimeoutRef.current) {
+                window.clearTimeout(suppressTimeoutRef.current);
+                suppressTimeoutRef.current = null;
+            }
+        };
     }, []);
 
     const toggleAlerts = useCallback(() => {

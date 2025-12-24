@@ -230,6 +230,7 @@ export default function Header() {
   const innerRef = useRef<HTMLDivElement>(null);
   const lastHeightRef = useRef<number>(64);
   const suppressNextClickRef = useRef(false);
+  const suppressTimeoutRef = useRef<number | null>(null);
 
   const dismissActiveInput = useCallback(() => {
     if (typeof document === "undefined") return false;
@@ -251,9 +252,13 @@ export default function Header() {
       suppressNextClickRef.current = true;
       event.preventDefault();
       if (typeof window !== "undefined") {
-        window.setTimeout(() => {
+        if (suppressTimeoutRef.current) {
+          window.clearTimeout(suppressTimeoutRef.current);
+        }
+        suppressTimeoutRef.current = window.setTimeout(() => {
           suppressNextClickRef.current = false;
-        }, 250);
+          suppressTimeoutRef.current = null;
+        }, 700);
       }
       action();
     },
@@ -278,6 +283,10 @@ export default function Header() {
   const runWithClickSuppression = useCallback((action: () => void) => {
     if (suppressNextClickRef.current) {
       suppressNextClickRef.current = false;
+      if (suppressTimeoutRef.current) {
+        window.clearTimeout(suppressTimeoutRef.current);
+        suppressTimeoutRef.current = null;
+      }
       return;
     }
     action();
@@ -333,6 +342,15 @@ export default function Header() {
     if (inner) ro.observe(inner);
     return () => ro.disconnect();
   }, [updateHeaderMetrics]);
+
+  useEffect(() => {
+    return () => {
+      if (suppressTimeoutRef.current) {
+        window.clearTimeout(suppressTimeoutRef.current);
+        suppressTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!config.showUserMenu) {
