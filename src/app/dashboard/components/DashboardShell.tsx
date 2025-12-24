@@ -94,6 +94,18 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }, [isGeminiHeaderPage]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tapdebug = new URLSearchParams(window.location.search).has("tapdebug");
+    if (!tapdebug) return;
+    const handler = (event: PointerEvent) => {
+      const el = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      console.log("[tapdebug] top element:", el?.tagName, el?.id, el?.className);
+    };
+    document.addEventListener("pointerdown", handler, true);
+    return () => document.removeEventListener("pointerdown", handler, true);
+  }, []);
+
+  useEffect(() => {
     if (!isChatPage) return;
     if (typeof window === "undefined") return;
 
@@ -152,13 +164,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <>
       {!isGuidedFlow && <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />}
 
-      {isOpen && !isGuidedFlow && (
+      {!isGuidedFlow && (
         <div
           onClick={() => {
+            if (!isOpen) return;
             if (Date.now() < overlayIgnoreUntilRef.current) return;
             toggleSidebar(true);
           }}
-          className="lg:hidden fixed inset-0 bg-black/40 z-50"
+          className={`lg:hidden fixed inset-0 bg-black/40 z-50 transition-opacity ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            }`}
           aria-hidden="true"
         />
       )}
