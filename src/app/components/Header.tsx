@@ -32,6 +32,12 @@ const TAP_DEBUG =
   typeof window !== "undefined" &&
   new URLSearchParams(window.location.search).has("tapdebug");
 
+const IS_IOS_SAFARI =
+  typeof navigator !== "undefined" &&
+  /iP(hone|od|ad)/.test(navigator.userAgent) &&
+  /Safari/.test(navigator.userAgent) &&
+  !/CriOS|FxiOS/.test(navigator.userAgent);
+
 type ActiveElementInfo = {
   tagName: string;
   id: string | null;
@@ -73,6 +79,34 @@ function buildTapDebugPayload(
     suppressNextClick,
     didBlur,
   };
+}
+
+function runAfterKeyboardSettles(action: () => void) {
+  if (typeof window === "undefined") {
+    action();
+    return;
+  }
+  const vv = window.visualViewport;
+  let done = false;
+  let timeoutId: number | null = null;
+
+  function run() {
+    if (done) return;
+    done = true;
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    vv?.removeEventListener("resize", handleResize);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(action));
+  }
+
+  function handleResize() {
+    run();
+  }
+
+  vv?.addEventListener("resize", handleResize, { once: true });
+  timeoutId = window.setTimeout(run, 450);
 }
 
 interface SessionUser {
@@ -311,23 +345,35 @@ export default function Header() {
       if (!didBlur) return;
       event.preventDefault();
       if (typeof window !== "undefined") {
-        const vv = window.visualViewport;
-        let cleared = false;
-        const clearSuppression = () => {
-          if (cleared) return;
-          cleared = true;
-          suppressNextClickRef.current = false;
-          if (suppressTimeoutRef.current) {
-            window.clearTimeout(suppressTimeoutRef.current);
-            suppressTimeoutRef.current = null;
-          }
-          vv?.removeEventListener("resize", clearSuppression);
-        };
-        vv?.addEventListener("resize", clearSuppression, { once: true });
         if (suppressTimeoutRef.current) {
           window.clearTimeout(suppressTimeoutRef.current);
         }
-        suppressTimeoutRef.current = window.setTimeout(clearSuppression, 600);
+        if (IS_IOS_SAFARI) {
+          suppressTimeoutRef.current = window.setTimeout(() => {
+            suppressNextClickRef.current = false;
+            suppressTimeoutRef.current = null;
+          }, 600);
+        } else {
+          const vv = window.visualViewport;
+          let cleared = false;
+          const clearSuppression = () => {
+            if (cleared) return;
+            cleared = true;
+            suppressNextClickRef.current = false;
+            if (suppressTimeoutRef.current) {
+              window.clearTimeout(suppressTimeoutRef.current);
+              suppressTimeoutRef.current = null;
+            }
+            vv?.removeEventListener("resize", clearSuppression);
+          };
+          vv?.addEventListener("resize", clearSuppression, { once: true });
+          suppressTimeoutRef.current = window.setTimeout(clearSuppression, 600);
+        }
+      }
+      if (IS_IOS_SAFARI) {
+        runAfterKeyboardSettles(() => {
+          action();
+        });
       }
     },
     [dismissActiveInput]

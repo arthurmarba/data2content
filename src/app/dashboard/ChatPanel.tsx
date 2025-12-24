@@ -390,7 +390,7 @@ export default function ChatPanel({
   }, [calculationContext, preloadedMessages, pricingAnalysisContext, isAutoPricingRunningRef, lastPricingCalcIdRef, autoScrollOnNext, setMessages, setInlineAlert]);
 
 
-  // mede a altura do composer em --composer-h (inclui safe-area e resize de teclado no iOS)
+  // mede a altura do composer em --composer-h
   useEffect(() => {
     const el = inputWrapperRef.current;
     if (!el) return;
@@ -404,15 +404,11 @@ export default function ChatPanel({
     };
 
     updateHeight();
+    const hasResizeObserver = typeof ResizeObserver !== 'undefined';
     let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
+    if (hasResizeObserver) {
       ro = new ResizeObserver(updateHeight);
       ro.observe(el);
-    }
-
-    const viewport = window.visualViewport;
-    if (viewport) {
-      viewport.addEventListener('resize', updateHeight);
     } else {
       window.addEventListener('resize', updateHeight);
     }
@@ -420,9 +416,7 @@ export default function ChatPanel({
 
     return () => {
       ro?.disconnect();
-      if (viewport) {
-        viewport.removeEventListener('resize', updateHeight);
-      } else {
+      if (!hasResizeObserver) {
         window.removeEventListener('resize', updateHeight);
       }
       window.cancelAnimationFrame(rafId);
