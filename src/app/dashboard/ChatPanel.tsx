@@ -77,6 +77,16 @@ const parseResponseSections = (text: string) => {
   };
 };
 
+type TapDebugState = {
+  innerHeight: number | null;
+  viewportHeight: number | null;
+  appHeightVar: string | null;
+  composerHeightVar: string | null;
+  activeElement: string | null;
+  lastTapTarget: string | null;
+  lastTapType: string | null;
+};
+
 /* ---------- Componente principal ---------- */
 
 export default function ChatPanel({
@@ -98,6 +108,10 @@ export default function ChatPanel({
 } = {}) {
   const { data: session } = useSession();
   const router = useRouter();
+  const tapDebugEnabled = React.useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).has("tapdebug");
+  }, []);
 
   const role = String((session?.user as any)?.role || '').toLowerCase();
   const isAdmin = role === 'admin';
@@ -118,6 +132,8 @@ export default function ChatPanel({
 
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [tapDebugState, setTapDebugState] = useState<TapDebugState | null>(null);
+  const lastTapInfoRef = useRef<{ target: string | null; type: string | null } | null>(null);
   const [skipAutoSelect, setSkipAutoSelect] = useState(false);
   const { selectedThreadId: storedThreadId, setSelectedThreadId: setStoredThreadId } = useThreadSelection(selectedThreadId);
   const effectiveThreadId = selectedThreadId ?? storedThreadId;
@@ -426,6 +442,79 @@ export default function ChatPanel({
   }, []);
 
   useEffect(() => {
+    if (!tapDebugEnabled) return;
+    if (typeof window === "undefined") return;
+
+    const formatElement = (element: Element | null) => {
+      if (!element) return null;
+      const el = element as HTMLElement;
+      const tag = el.tagName.toLowerCase();
+      const id = el.id ? `#${el.id}` : "";
+      const className =
+        typeof el.className === "string"
+          ? el.className.trim().split(/\s+/).slice(0, 3).join(".")
+          : "";
+      const classes = className ? `.${className}` : "";
+      return `${tag}${id}${classes}`;
+    };
+
+    const readCssVar = (name: string) => {
+      const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return value || null;
+    };
+
+    let rafId = 0;
+    const updateState = () => {
+      const active = formatElement(document.activeElement);
+      const lastTap = lastTapInfoRef.current;
+      setTapDebugState({
+        innerHeight: Number.isFinite(window.innerHeight) ? window.innerHeight : null,
+        viewportHeight: window.visualViewport?.height ?? null,
+        appHeightVar: readCssVar("--app-height"),
+        composerHeightVar: readCssVar("--composer-h"),
+        activeElement: active,
+        lastTapTarget: lastTap?.target ?? null,
+        lastTapType: lastTap?.type ?? null,
+      });
+    };
+
+    const scheduleUpdate = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        updateState();
+      });
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const topElement = document.elementFromPoint(event.clientX, event.clientY);
+      lastTapInfoRef.current = {
+        target: formatElement(topElement),
+        type: event.type,
+      };
+      scheduleUpdate();
+    };
+
+    const handleResize = () => {
+      scheduleUpdate();
+    };
+
+    scheduleUpdate();
+    document.addEventListener("pointerdown", handlePointerDown, { capture: true });
+    window.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("resize", handleResize);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, { capture: true } as any);
+      window.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [tapDebugEnabled]);
+
+  useEffect(() => {
     ensureAlertsLoaded();
   }, [ensureAlertsLoaded]);
 
@@ -644,6 +733,7 @@ export default function ChatPanel({
   const [csatDismissed, setCsatDismissed] = useState(false);
   const [lastAssistantTs, setLastAssistantTs] = useState<number | null>(null);
   const [lastUserActivity, setLastUserActivity] = useState<number>(() => Date.now());
+  const lastActivityUpdateRef = useRef<number>(Date.now());
   const [activeFeedbackSurface, setActiveFeedbackSurface] = useState<'none' | 'message' | 'csat'>('none');
   const [suppressCsatUntil, setSuppressCsatUntil] = useState<number>(0);
   const [feedbackByMessage, setFeedbackByMessage] = useState<Record<string, 'up' | 'down'>>({});
@@ -653,7 +743,12 @@ export default function ChatPanel({
 
   // Marca última atividade do usuário (keydown, click, scroll)
   useEffect(() => {
-    const markActivity = () => setLastUserActivity(Date.now());
+    const markActivity = () => {
+      const now = Date.now();
+      if (now - lastActivityUpdateRef.current < 1000) return;
+      lastActivityUpdateRef.current = now;
+      setLastUserActivity(now);
+    };
     const events: Array<keyof WindowEventMap> = ['keydown', 'click', 'scroll', 'touchstart'];
     events.forEach((e) => window.addEventListener(e, markActivity, { passive: true }));
     return () => events.forEach((e) => window.removeEventListener(e, markActivity));
@@ -874,6 +969,18 @@ export default function ChatPanel({
         minHeight: '0px',
       }}
     >
+      {tapDebugEnabled && tapDebugState ? (
+        <div className="fixed right-2 top-2 z-[9999] pointer-events-none rounded-md bg-black/80 px-2 py-1 text-[10px] leading-tight text-white">
+          <div>
+            inner: {tapDebugState.innerHeight ?? "-"} / vv: {tapDebugState.viewportHeight ?? "-"}
+          </div>
+          <div>--app-height: {tapDebugState.appHeightVar ?? "-"}</div>
+          <div>--composer-h: {tapDebugState.composerHeightVar ?? "-"}</div>
+          <div>active: {tapDebugState.activeElement ?? "-"}</div>
+          <div>top: {tapDebugState.lastTapTarget ?? "-"}</div>
+          <div>event: {tapDebugState.lastTapType ?? "-"}</div>
+        </div>
+      ) : null}
 
 
       {/* timeline (único scroll) */}

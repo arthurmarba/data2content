@@ -19,12 +19,6 @@ type DashboardShellProps = {
   children: React.ReactNode;
 };
 
-const IS_IOS_SAFARI =
-  typeof navigator !== "undefined" &&
-  /iP(hone|od|ad)/.test(navigator.userAgent) &&
-  /Safari/.test(navigator.userAgent) &&
-  !/CriOS|FxiOS/.test(navigator.userAgent);
-
 export default function DashboardShell({ children }: DashboardShellProps) {
   React.useEffect(() => {
     if (typeof document === "undefined") return;
@@ -53,7 +47,6 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const overlayIgnoreUntilRef = React.useRef(0);
-  const viewportFreezeUntilRef = React.useRef(0);
   const pathname = usePathname();
   const { config: headerConfig } = useHeaderConfig();
 
@@ -79,17 +72,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       overlayIgnoreUntilRef.current = Date.now() + 500;
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const handlePointerDown = () => {
-      viewportFreezeUntilRef.current = Date.now() + 350;
-    };
-    document.addEventListener("pointerdown", handlePointerDown, { capture: true });
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, { capture: true } as any);
-    };
-  }, []);
 
   const layoutHeaderConfig = useMemo<Partial<HeaderConfig> | undefined>(() => {
     if (hasPageOverride) return undefined;
@@ -123,93 +105,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
 
-  useEffect(() => {
-    if (!isChatPage) return;
-    if (typeof window === "undefined") return;
-
-    const root = document.documentElement;
-    const viewport = window.visualViewport;
-    let lastHeight = -1;
-    let lastWidth = -1;
-    let lastKeyboardOpen: boolean | null = null;
-    let rafId = 0;
-    let freezeTimeoutId: number | null = null;
-
-    const isTextInputActive = () => {
-      const active = document.activeElement as HTMLElement | null;
-      if (!active) return false;
-      const tagName = active.tagName;
-      return tagName === "INPUT" || tagName === "TEXTAREA" || active.isContentEditable;
-    };
-
-    const isKeyboardLikelyOpen = () => {
-      if (!viewport) return isTextInputActive();
-      const diff = window.innerHeight - viewport.height;
-      return isTextInputActive() || diff > 120;
-    };
-
-    const requestApply = () => {
-      if (rafId) return;
-      rafId = window.requestAnimationFrame(applyHeight);
-    };
-
-    const applyHeight = () => {
-      rafId = 0;
-      if (Date.now() < viewportFreezeUntilRef.current) {
-        if (freezeTimeoutId === null) {
-          const delay = Math.max(viewportFreezeUntilRef.current - Date.now(), 0);
-          freezeTimeoutId = window.setTimeout(() => {
-            freezeTimeoutId = null;
-            requestApply();
-          }, delay);
-        }
-        return;
-      }
-      if (IS_IOS_SAFARI) {
-        const keyboardOpen = isKeyboardLikelyOpen();
-        const width = window.innerWidth;
-        const widthChanged = width !== lastWidth;
-        if (widthChanged) {
-          lastWidth = width;
-          lastKeyboardOpen = keyboardOpen;
-        } else if (lastKeyboardOpen === null) {
-          lastKeyboardOpen = keyboardOpen;
-        } else if (!keyboardOpen && lastKeyboardOpen === false) {
-          return;
-        } else if (keyboardOpen !== lastKeyboardOpen) {
-          lastKeyboardOpen = keyboardOpen;
-        }
-      }
-      const nextHeight = viewport?.height ?? window.innerHeight;
-      if (!Number.isFinite(nextHeight)) return;
-      const rounded = Math.round(nextHeight);
-      if (lastHeight >= 0 && Math.abs(rounded - lastHeight) < 2) return;
-      if (rounded === lastHeight) return;
-      lastHeight = rounded;
-      root.style.setProperty("--app-height", `${rounded}px`);
-    };
-
-    const onResize = () => {
-      requestApply();
-    };
-
-    requestApply();
-
-    viewport?.addEventListener("resize", onResize);
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      viewport?.removeEventListener("resize", onResize);
-      window.removeEventListener("resize", onResize);
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-      if (freezeTimeoutId !== null) {
-        window.clearTimeout(freezeTimeoutId);
-      }
-    };
-  }, [isChatPage]);
-
   const mainOffset = isGuidedFlow ? "" : "lg:ml-16";
 
   const mainScrollClass = isChatPage ? "overflow-hidden flex flex-col" : "overflow-y-auto";
@@ -236,7 +131,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const shellClassName = isChatPage
     ? "flex flex-col w-full min-h-0"
     : "flex flex-col w-full min-h-screen";
-  const shellStyle = isChatPage ? { height: "var(--app-height, 100vh)" } : undefined;
+  const shellStyle = isChatPage ? { height: "100dvh", minHeight: "100vh" } : undefined;
 
   return (
     <>

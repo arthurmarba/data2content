@@ -97,13 +97,6 @@ export const Composer = React.memo(function Composer({
         [triggerTouchAction]
     );
 
-    const handleTouchStartActivation = useCallback(
-        (action: () => void, event: React.TouchEvent<HTMLElement>) => {
-            triggerTouchAction(action, event);
-        },
-        [triggerTouchAction]
-    );
-
     const runWithClickSuppression = useCallback((action: () => void) => {
         if (suppressNextClickRef.current) {
             suppressNextClickRef.current = false;
@@ -182,9 +175,8 @@ export const Composer = React.memo(function Composer({
                     <div className="flex items-center gap-1">
                         <button
                             onPointerDown={(event) => handlePointerActivation(onOpenTools, event)}
-                            onTouchStart={(event) => handleTouchStartActivation(onOpenTools, event)}
                             onClick={() => runWithClickSuppression(onOpenTools)}
-                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all touch-manipulation ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir ferramentas"
                             title="Ferramentas"
                         >
@@ -193,9 +185,8 @@ export const Composer = React.memo(function Composer({
 
                         <button
                             onPointerDown={(event) => handlePointerActivation(toggleAlerts, event)}
-                            onTouchStart={(event) => handleTouchStartActivation(toggleAlerts, event)}
                             onClick={() => runWithClickSuppression(toggleAlerts)}
-                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-2.5 sm:px-3 h-10 sm:h-11 text-[12px] sm:text-[13px] font-semibold transition-all border ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-2.5 sm:px-3 h-10 sm:h-11 text-[12px] sm:text-[13px] font-semibold transition-all border touch-manipulation ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
                             aria-label="Abrir conversas"
                             title="Conversas"
                         >
