@@ -341,13 +341,6 @@ export default function Header() {
     [triggerTouchAction]
   );
 
-  const handleTouchStartActivation = useCallback(
-    (action: () => void, event: React.TouchEvent<HTMLElement>) => {
-      triggerTouchAction(action, event);
-    },
-    [triggerTouchAction]
-  );
-
   const runWithClickSuppression = useCallback(
     (action: () => void, event?: React.SyntheticEvent<HTMLElement>) => {
       logTapDebug(
@@ -538,11 +531,10 @@ export default function Header() {
           {config.showSidebarToggle && (
             <motion.button
               onPointerDown={(event) => handlePointerActivation(() => toggleSidebar(), event)}
-              onTouchStart={(event) => handleTouchStartActivation(() => toggleSidebar(), event)}
               onClick={(event) => runWithClickSuppression(() => toggleSidebar(), event)}
               whileTap={{ scale: 0.92 }}
               transition={{ duration: 0.12, ease: "easeOut" }}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 touch-manipulation lg:hidden"
               aria-label="Alternar menu lateral"
               title="Menu"
             >
@@ -571,9 +563,8 @@ export default function Header() {
             <div className="relative">
               <button
                 onPointerDown={(event) => handlePointerActivation(toggleUserMenu, event)}
-                onTouchStart={(event) => handleTouchStartActivation(toggleUserMenu, event)}
                 onClick={(event) => runWithClickSuppression(toggleUserMenu, event)}
-                className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 touch-manipulation"
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
                 aria-label="Abrir menu do usuário"
