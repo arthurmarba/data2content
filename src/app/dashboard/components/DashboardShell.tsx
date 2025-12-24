@@ -86,6 +86,31 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [isGeminiHeaderPage]);
 
+  useEffect(() => {
+    if (!isChatPage) return;
+    if (typeof window === "undefined") return;
+
+    const root = document.documentElement;
+    const updateAppHeight = () => {
+      const nextHeight = window.visualViewport?.height ?? window.innerHeight;
+      if (!Number.isFinite(nextHeight)) return;
+      root.style.setProperty("--app-height", `${Math.round(nextHeight)}px`);
+    };
+
+    updateAppHeight();
+
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", updateAppHeight);
+    viewport?.addEventListener("scroll", updateAppHeight);
+    window.addEventListener("resize", updateAppHeight);
+
+    return () => {
+      viewport?.removeEventListener("resize", updateAppHeight);
+      viewport?.removeEventListener("scroll", updateAppHeight);
+      window.removeEventListener("resize", updateAppHeight);
+    };
+  }, [isChatPage]);
+
   const mainOffset = isGuidedFlow ? "" : "lg:ml-16";
 
   const mainScrollClass = isChatPage ? "overflow-hidden flex flex-col" : "overflow-y-auto";
@@ -110,8 +135,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       : resolvedContentTopPadding ?? "0px";
 
   const shellClassName = isChatPage
-    ? "flex flex-col w-full h-[100dvh] min-h-0 overflow-hidden"
+    ? "flex flex-col w-full min-h-0"
     : "flex flex-col w-full min-h-screen";
+  const shellStyle = isChatPage ? { height: "var(--app-height, 100vh)" } : undefined;
 
   return (
     <>
@@ -125,7 +151,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className={shellClassName} id="dashboard-shell">
+      <div className={shellClassName} id="dashboard-shell" style={shellStyle}>
         <Header />
 
         <main
