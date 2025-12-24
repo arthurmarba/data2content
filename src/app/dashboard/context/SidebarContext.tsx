@@ -21,19 +21,7 @@ const Ctx = createContext<SidebarCtx | null>(null);
 const STORAGE_KEY = "sidebar:collapsed"; // persiste preferência
 const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
 
-const getInitialCollapsed = () => {
-  if (typeof window === "undefined") return true;
-  try {
-    const mq = window.matchMedia(DESKTOP_MEDIA_QUERY);
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (mq.matches) {
-      return stored !== null ? stored === "1" : false;
-    }
-    return true;
-  } catch {
-    return true;
-  }
-};
+const getInitialCollapsed = () => true;
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(getInitialCollapsed);

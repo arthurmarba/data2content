@@ -112,6 +112,9 @@ export default function ClientHooksWrapper() {
         });
         analyticsSignatureRef.current = signature;
       } catch (error) {
+        if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+          return;
+        }
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[ClientHooksWrapper] analytics context fetch failed', error);
         }
