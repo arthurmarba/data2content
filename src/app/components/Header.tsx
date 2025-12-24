@@ -83,8 +83,6 @@ function buildShellClasses(
     "transition-all",
     "duration-200",
     "will-change-[background,box-shadow,transform]",
-    // ↓ não captura cliques fora do seu conteúdo interno
-    "pointer-events-none",
   ];
 
   if (variant === "immersive") {

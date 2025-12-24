@@ -83,6 +83,7 @@ export default function ChatPanel({
   onUpsellClick,
   calculationContext,
   fullHeight = false,
+  topSlot,
   selectedThreadId,
   onThreadCreated,
   onSelectThread,
@@ -90,6 +91,7 @@ export default function ChatPanel({
   onUpsellClick?: () => void;
   calculationContext?: ChatCalculationContext | null;
   fullHeight?: boolean;
+  topSlot?: React.ReactNode;
   selectedThreadId?: string | null;
   onThreadCreated?: (id: string) => void;
   onSelectThread?: (id: string | null) => void;
@@ -890,6 +892,11 @@ export default function ChatPanel({
           WebkitOverflowScrolling: 'touch',
         }}
       >
+        {topSlot ? (
+          <div className="mx-auto w-full max-w-6xl">
+            {topSlot}
+          </div>
+        ) : null}
         {isWelcome ? (
           <div className="h-full flex flex-col items-center justify-center pb-10">
             <div className="w-full max-w-6xl text-center px-4">

@@ -160,10 +160,12 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           style={{ paddingTop: resolvedPaddingTop }}
         >
           <div className={`flex-1 min-h-0 w-full ${mainScrollClass}`}>
-            <div className={`dashboard-page-shell space-y-4 pt-4 ${isChatPage ? "flex-none" : ""}`}>
-              <InstagramReconnectBanner />
-              <TrialBanner />
-            </div>
+            {!isChatPage && (
+              <div className="dashboard-page-shell space-y-4 pt-4">
+                <InstagramReconnectBanner />
+                <TrialBanner />
+              </div>
+            )}
             {isChatPage ? (
               <div className="flex-1 min-h-0 w-full h-full overflow-hidden">
                 {children}
