@@ -5,7 +5,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 // IMetric agora inclui o campo 'type' a partir da v1.4
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric';
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
-import { InstagramMedia } from '../types'; 
+import { InstagramMedia } from '../types';
 import { mapMediaTypeToFormat } from '../utils/helpers';
 import { Client } from '@upstash/qstash';
 import { differenceInDays, startOfDay } from 'date-fns';
@@ -44,24 +44,27 @@ export async function saveMetricData(
     throw new Error("instagramMediaId ausente, não é possível salvar a métrica.");
   }
 
-  // Saída antecipada para STORY, pois são tratados em outro fluxo.
-  if (media.media_type === 'STORY') {
-    logger.debug(`${TAG} Ignorando salvamento de STORY ${media.id} via saveMetricData (tratado por webhook ou outro fluxo).`);
-    return;
-  }
+  // REMOVIDO: Saída antecipada para STORY.
+  // Anteriormente, stories eram ignorados aqui sob a premissa de serem tratados apenas por webhook.
+  // No entanto, para que apareçam na página "Minhas Publis" (que lê de MetricModel) e sejam atualizados
+  // pelo Cron Job (que chama esta função), precisamos permitir que sejam salvos aqui também.
+  // if (media.media_type === 'STORY') {
+  //   logger.debug(`${TAG} Ignorando salvamento de STORY ${media.id} via saveMetricData (tratado por webhook ou outro fluxo).`);
+  //   return;
+  // }
 
   let savedMetric: IMetric | null = null;
   try {
     await connectToDatabase();
 
     const filter = { user: userId, instagramMediaId: media.id };
-    const format = mapMediaTypeToFormat(media.media_type); 
-    
+    const format = mapMediaTypeToFormat(media.media_type);
+
     let metricType: IMetric['type'] = 'UNKNOWN';
     if (media.media_product_type === 'REELS') {
-        metricType = 'REEL';
+      metricType = 'REEL';
     } else if (media.media_type === 'IMAGE' || media.media_type === 'CAROUSEL_ALBUM' || media.media_type === 'VIDEO') {
-        metricType = media.media_type;
+      metricType = media.media_type;
     }
     // O bloco 'else if (media.media_type)' anterior foi removido pois era inalcançável
     // de forma segura devido à saída antecipada para 'STORY' e à tipagem de media.media_type.
@@ -81,21 +84,21 @@ export async function saveMetricData(
     // Determine the best cover URL based on media type
     let coverUrl: string | null = null;
     if (media.media_type === 'CAROUSEL_ALBUM') {
-        const firstChild = media.children?.data?.[0];
-        if (firstChild) {
-            if (firstChild.media_type === 'VIDEO') {
-                coverUrl = firstChild.thumbnail_url || firstChild.media_url || null;
-            } else {
-                coverUrl = firstChild.media_url || null;
-            }
+      const firstChild = media.children?.data?.[0];
+      if (firstChild) {
+        if (firstChild.media_type === 'VIDEO') {
+          coverUrl = firstChild.thumbnail_url || firstChild.media_url || null;
+        } else {
+          coverUrl = firstChild.media_url || null;
         }
+      }
     } else if (media.media_type === 'VIDEO') {
-        coverUrl = media.thumbnail_url || media.media_url || null;
+      coverUrl = media.thumbnail_url || media.media_url || null;
     } else {
-        coverUrl = media.media_url || null;
+      coverUrl = media.media_url || null;
     }
 
-    const finalUpdateOperation:any = {
+    const finalUpdateOperation: any = {
       $set: {
         user: userId,
         instagramMediaId: media.id,
@@ -115,7 +118,7 @@ export async function saveMetricData(
       }
     };
     if (Object.keys(statsUpdate).length === 0 && finalUpdateOperation.$set.stats) {
-        delete finalUpdateOperation.$set.stats;
+      delete finalUpdateOperation.$set.stats;
     }
 
     const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true };
@@ -180,8 +183,8 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
   try {
     await connectToDatabase();
 
-    const metricPostDate = startOfDay(new Date(metric.postDate)); 
-    const todayNormalized = startOfDay(new Date()); 
+    const metricPostDate = startOfDay(new Date(metric.postDate));
+    const todayNormalized = startOfDay(new Date());
 
     const cutoffDaysForSnapshot = 30;
     const cutoffDateForThisMetric = new Date(metricPostDate);
@@ -197,8 +200,8 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
 
     const dayNumber = differenceInDays(snapshotDateToUse, metricPostDate) + 1;
     if (dayNumber <= 0) {
-        logger.warn(`${SNAPSHOT_TAG} dayNumber calculado é ${dayNumber} (snapshotDate: ${snapshotDateToUse}, postDate: ${metricPostDate}) para Métrica ${metric._id}. Isso não deveria acontecer se o snapshot é para hoje e postDate é no passado. Verifique as datas. Pulando snapshot.`);
-        return;
+      logger.warn(`${SNAPSHOT_TAG} dayNumber calculado é ${dayNumber} (snapshotDate: ${snapshotDateToUse}, postDate: ${metricPostDate}) para Métrica ${metric._id}. Isso não deveria acontecer se o snapshot é para hoje e postDate é no passado. Verifique as datas. Pulando snapshot.`);
+      return;
     }
     logger.debug(`${SNAPSHOT_TAG} DayNumber calculado: ${dayNumber} para Métrica ${metric._id}.`);
 
@@ -244,7 +247,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
       const currentVal = Number((currentMetricStats as any)[metricName] ?? 0);
       if (isNaN(currentVal)) {
         logger.warn(`${SNAPSHOT_TAG} Valor inválido para '${String(metricName)}' na Métrica ${metric._id}. Valor: ${(currentMetricStats as any)[String(metricName)]}`);
-        continue; 
+        continue;
       }
       const previousVal = (previousCumulativeStats as any)[String(metricName)] ?? 0;
       const metricNameStr = String(metricName);
@@ -254,10 +257,10 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
         logger.warn(`${SNAPSHOT_TAG} Valor cumulativo '${metricNameStr}' diminuiu para Métrica ${metric._id}. Atual: ${currentVal}, Anterior Cumulativo: ${previousVal}. Delta diário setado para 0.`);
       }
     }
-    
+
     const currentReelsVideoViewTotalTimeRaw = currentMetricStats.ig_reels_video_view_total_time;
     const currentReelsVideoViewTotalTime = typeof currentReelsVideoViewTotalTimeRaw === 'number' && !isNaN(currentReelsVideoViewTotalTimeRaw) ? currentReelsVideoViewTotalTimeRaw : 0;
-    
+
     const previousReelsVideoViewTotalTime = previousCumulativeStats.reelsVideoViewTotalTime ?? 0;
     dailyStats.dailyReelsVideoViewTotalTime = Math.max(0, currentReelsVideoViewTotalTime - previousReelsVideoViewTotalTime);
     if (currentReelsVideoViewTotalTime < previousReelsVideoViewTotalTime && previousReelsVideoViewTotalTime > 0) {
@@ -270,7 +273,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
     const snapshotData: Omit<Partial<IDailyMetricSnapshot>, '_id' | 'metric' | 'date'> & { metric: Types.ObjectId; date: Date; dayNumber: number; } = {
       metric: metric._id,
       date: snapshotDateToUse,
-      dayNumber: dayNumber, 
+      dayNumber: dayNumber,
       dailyViews: dailyStats.dailyViews,
       dailyLikes: dailyStats.dailyLikes,
       dailyComments: dailyStats.dailyComments,
@@ -281,7 +284,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
       dailyProfileVisits: dailyStats.dailyProfileVisits,
       dailyReelsVideoViewTotalTime: dailyStats.dailyReelsVideoViewTotalTime,
       dailyImpressions: dailyStats.dailyImpressions,
-      
+
       cumulativeViews: Number(currentMetricStats.views ?? 0),
       cumulativeLikes: Number(currentMetricStats.likes ?? 0),
       cumulativeComments: Number(currentMetricStats.comments ?? 0),

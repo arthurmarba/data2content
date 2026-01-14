@@ -3,8 +3,9 @@ import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser, { IUser } from '@/app/models/User';
 import StoryMetricModel, { IStoryStats } from '@/app/models/StoryMetric';
+import MetricModel from '@/app/models/Metric';
 // CORREÇÃO: Removido InstagramWebhookValue da importação
-import { InstagramWebhookPayload, StoryWebhookValue } from '../types'; 
+import { InstagramWebhookPayload, StoryWebhookValue } from '../types';
 
 /**
  * Processa o payload de um webhook de insights de Story do Instagram.
@@ -18,11 +19,11 @@ import { InstagramWebhookPayload, StoryWebhookValue } from '../types';
  * @returns Uma promessa que resolve para um objeto indicando sucesso ou falha.
  */
 export async function processStoryWebhookPayload(
-  mediaId: string, 
-  webhookAccountId: string | undefined, 
-  value: StoryWebhookValue 
+  mediaId: string,
+  webhookAccountId: string | undefined,
+  value: StoryWebhookValue
 ): Promise<{ success: boolean; error?: string; message?: string }> { // Adicionado message ao tipo de retorno
-  const TAG = '[processStoryWebhookPayload v2.0]'; 
+  const TAG = '[processStoryWebhookPayload v2.0]';
   logger.debug(`${TAG} Recebido webhook para Story Media ID: ${mediaId}, Conta do Webhook (IG User ID): ${webhookAccountId}.`);
 
   if (!webhookAccountId) {
@@ -42,7 +43,7 @@ export async function processStoryWebhookPayload(
     await connectToDatabase();
 
     const user = await DbUser.findOne({ instagramAccountId: webhookAccountId })
-      .select('_id instagramAccountId') 
+      .select('_id instagramAccountId')
       .lean<Pick<IUser, '_id' | 'instagramAccountId'>>();
 
     if (!user) {
@@ -50,7 +51,7 @@ export async function processStoryWebhookPayload(
       return { success: true, message: 'Usuário não encontrado para este ID de conta, webhook ignorado.' };
     }
 
-    const userId = user._id; 
+    const userId = user._id;
 
     const stats: Partial<IStoryStats> = {
       impressions: value.impressions,
@@ -78,10 +79,10 @@ export async function processStoryWebhookPayload(
     const filter = { user: userId, instagramMediaId: mediaId };
     const updateOperation = {
       $set: {
-        stats: stats as IStoryStats, 
-        lastWebhookAt: new Date(), 
+        stats: stats as IStoryStats,
+        lastWebhookAt: new Date(),
       },
-      $setOnInsert: { 
+      $setOnInsert: {
         user: userId,
         instagramMediaId: mediaId,
         createdAt: new Date(),
@@ -97,6 +98,37 @@ export async function processStoryWebhookPayload(
     }
 
     logger.info(`${TAG} Insights de Story ${mediaId} (Webhook) processados e salvos com sucesso para User ${userId}. StoryMetric ID: ${savedStoryMetric._id}`);
+
+    // --- NOVO: Sincronizar com MetricModel (Dashboard Principal "Minhas Publis") ---
+    // O dashboard lê de MetricModel. Se não atualizarmos lá, o usuário não vê em "tempo real".
+    try {
+      const metricFilter = { user: userId, instagramMediaId: mediaId };
+      // Mapear stats do Story para o formato do MetricModel.stats
+      // MetricModel.stats é flexível (Mixed), mas usamos convenções.
+      const metricStatsUpdate: any = {};
+      if (stats.impressions !== undefined) metricStatsUpdate['stats.impressions'] = stats.impressions;
+      if (stats.reach !== undefined) metricStatsUpdate['stats.reach'] = stats.reach;
+      if (stats.replies !== undefined) metricStatsUpdate['stats.replies'] = stats.replies;
+
+      // Salvar outros dados específicos de story se necessário, ou confiar que stats é Mixed
+      if (stats.taps_forward !== undefined) metricStatsUpdate['stats.taps_forward'] = stats.taps_forward;
+      if (stats.taps_back !== undefined) metricStatsUpdate['stats.taps_back'] = stats.taps_back;
+      if (stats.exits !== undefined) metricStatsUpdate['stats.exits'] = stats.exits;
+
+      if (Object.keys(metricStatsUpdate).length > 0) {
+        metricStatsUpdate['updatedAt'] = new Date();
+        const metricUpdateResult = await MetricModel.updateOne(metricFilter, { $set: metricStatsUpdate });
+        if (metricUpdateResult.matchedCount > 0) {
+          logger.info(`${TAG} MetricModel principal também atualizado para Story ${mediaId} (Via Webhook).`);
+        } else {
+          logger.debug(`${TAG} Story ${mediaId} ainda não existe no MetricModel principal. Webhook apenas atualizou StoryMetric.`);
+        }
+      }
+    } catch (metricSyncError) {
+      logger.error(`${TAG} Erro não-fatal ao tentar sincronizar Webhook Story com MetricModel:`, metricSyncError);
+    }
+    // --- Fim Sincronização MetricModel ---
+
     return { success: true };
 
   } catch (error) {
@@ -121,14 +153,14 @@ export async function handleInstagramWebhook(payload: InstagramWebhookPayload): 
   }
 
   for (const entry of payload.entry) {
-    const instagramAccountId = entry.id; 
+    const instagramAccountId = entry.id;
     logger.info(`${TAG} Processando entrada para IG Account ID: ${instagramAccountId}. ${entry.changes?.length || 0} alteração(ões).`);
 
     for (const change of entry.changes) {
       if (change.field === 'story_insights') {
         logger.info(`${TAG} Alteração de 'story_insights' detectada para IG Account ${instagramAccountId}. Media ID: ${change.value?.media_id}`);
         // change.value aqui é do tipo StoryWebhookValue, conforme definido em InstagramWebhookChange
-        if (change.value && change.value.media_id) { 
+        if (change.value && change.value.media_id) {
           await processStoryWebhookPayload(
             change.value.media_id,
             instagramAccountId,

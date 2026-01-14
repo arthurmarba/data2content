@@ -71,7 +71,7 @@ const PubliCard: React.FC<PubliCardProps> = ({ publi, onShare, onAnalyze }) => {
                 <div className="grid grid-cols-3 gap-2 mb-4 text-center">
                     <div className="bg-gray-50 p-2 rounded">
                         <EyeIcon className="w-4 h-4 mx-auto text-gray-500 mb-1" />
-                        <span className="text-xs font-bold text-gray-900">{formatNumber(stats?.reach || stats?.views)}</span>
+                        <span className="text-xs font-bold text-gray-900">{formatNumber(stats?.views || stats?.reach)}</span>
                     </div>
                     <div className="bg-gray-50 p-2 rounded">
                         <ChatBubbleLeftIcon className="w-4 h-4 mx-auto text-gray-500 mb-1" />

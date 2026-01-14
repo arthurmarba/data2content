@@ -16,8 +16,8 @@ export function calcFormulas(
 ): Record<string, unknown> {
   const TAG = '[calcFormulas v1.1]';
   if (!rawDataArray || rawDataArray.length === 0) {
-      logger.warn(`${TAG} rawDataArray vazio ou inválido. Retornando objeto vazio.`);
-      return {};
+    logger.warn(`${TAG} rawDataArray vazio ou inválido. Retornando objeto vazio.`);
+    return {};
   }
 
   // Como processMultipleImages agora consolida tudo num objeto antes,
@@ -48,8 +48,21 @@ export function calcFormulas(
   const saved = getNumber("saved");
   const reach = getNumber("reach");
   const impressions = getNumber("impressions");
-  const views = getNumber("views"); // Usando 'views' como chave principal
-  const initial_plays = getNumber("initial_plays");
+  // ATUALIZAÇÃO: Lógica robusta para 'views'.
+  // A API pode retornar 'views', 'video_views', 'plays' ou apenas 'impressions'/'reach' dependendo do tipo.
+  let views = getNumber("views");
+  const video_views = getNumber("video_views");
+  const plays = getNumber("plays");
+  const ig_reels_video_view_total_time = getNumber("ig_reels_video_view_total_time");
+
+  // Se 'views' for 0, tentar preencher com métricas equivalentes
+  if (views === 0) {
+    if (video_views > 0) {
+      views = video_views;
+    } else if (plays > 0) {
+      views = plays;
+    }
+  }
   const repeats = getNumber("repeats");
   const reel_interactions = getNumber("reel_interactions"); // Usado?
   const engaged_accounts = getNumber("engaged_accounts"); // Usado?
@@ -69,8 +82,8 @@ export function calcFormulas(
   // Soma de interações principais (se não vier da API ou para recalcular)
   // Usar total_interactions_manual se existir, senão soma básica
   const totalInteractions = total_interactions_manual > 0
-                            ? total_interactions_manual
-                            : likes + comments + shares + saved;
+    ? total_interactions_manual
+    : likes + comments + shares + saved;
 
   // Função auxiliar para calcular ratio seguro (evita divisão por zero)
   function safeRatio(numerator: number, denominator: number): number {
@@ -145,14 +158,14 @@ export function calcFormulas(
 
   // Remove chaves com valor 0 ou NaN para limpeza (opcional)
   Object.keys(calculatedStats).forEach(key => {
-      const value = calculatedStats[key];
-      if (value === 0 || (typeof value === 'number' && isNaN(value))) {
-          // delete calculatedStats[key]; // Descomentar para remover zeros/NaN
-      }
-      // Arredonda números para X casas decimais (ex: 4)
-      if (typeof value === 'number' && !Number.isInteger(value)) {
-          calculatedStats[key] = parseFloat(value.toFixed(4));
-      }
+    const value = calculatedStats[key];
+    if (value === 0 || (typeof value === 'number' && isNaN(value))) {
+      // delete calculatedStats[key]; // Descomentar para remover zeros/NaN
+    }
+    // Arredonda números para X casas decimais (ex: 4)
+    if (typeof value === 'number' && !Number.isInteger(value)) {
+      calculatedStats[key] = parseFloat(value.toFixed(4));
+    }
   });
 
 
