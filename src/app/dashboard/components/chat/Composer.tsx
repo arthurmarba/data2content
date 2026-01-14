@@ -136,7 +136,7 @@ export const Composer = React.memo(function Composer({
 
     return (
         <div
-            className="sticky bottom-0 left-0 right-0 flex-none bg-white px-4 pt-2 pb-safe z-20 shadow-[0_-6px_24px_-12px_rgba(15,23,42,0.3)]"
+            className="relative w-full flex-none bg-white px-4 pt-2 pb-safe z-20 shadow-[0_-6px_24px_-12px_rgba(15,23,42,0.3)]"
         >
             {/* Gradient Fade - Positioned absolutely above the composer */}
             <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/60 to-transparent pointer-events-none" />
@@ -212,7 +212,7 @@ export const Composer = React.memo(function Composer({
                             }
                         }}
                         placeholder="Digite sua mensagem..."
-                        className="flex-1 min-h-[44px] resize-none overflow-hidden bg-transparent py-2.5 px-2.5 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-400 text-gray-900 max-h-[200px] rounded-2xl focus:bg-white/50 transition-colors break-words"
+                        className="flex-1 min-h-[44px] resize-none overflow-hidden bg-transparent py-2.5 px-2.5 border-0 ring-0 focus:ring-0 outline-none text-base leading-6 placeholder-gray-400 text-gray-900 max-h-[200px] rounded-2xl focus:bg-white/50 transition-colors break-words"
                         style={{ minHeight: '44px' }}
                         disabled={isSending}
                         data-testid="chat-input"

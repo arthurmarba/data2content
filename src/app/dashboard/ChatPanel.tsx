@@ -988,8 +988,8 @@ export default function ChatPanel({
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto scrollbar-hide overscroll-contain px-3 py-5 sm:px-4 sm:py-6"
         style={{
-          paddingBottom: 'calc(var(--composer-h, 160px) + 16px)',
-          scrollPaddingBottom: 'calc(var(--composer-h, 160px) + 16px)',
+          paddingBottom: '2.5rem',
+          scrollPaddingBottom: '2.5rem',
           scrollbarGutter: 'stable',
           WebkitOverflowScrolling: 'touch',
         }}
@@ -1007,10 +1007,10 @@ export default function ChatPanel({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               >
-                <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-gray-900 mb-4">
+                <h1 className="text-3xl sm:text-6xl font-bold tracking-tight text-gray-900 mb-4">
                   Olá, <span className="text-brand-primary">{firstName}</span>
                 </h1>
-                <p className="text-xl sm:text-2xl text-gray-500 font-medium">O que vamos criar hoje?</p>
+                <p className="text-lg sm:text-2xl text-gray-500 font-medium">O que vamos criar hoje?</p>
                 {surveyReminderLabel ? (
                   <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 border border-amber-200">
                     <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden />
@@ -1408,7 +1408,8 @@ export default function ChatPanel({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             onClick={scrollToBottom}
-            className="absolute bottom-24 right-6 z-20 p-3 bg-brand-primary text-white rounded-full shadow-lg hover:bg-brand-primary-dark transition-colors"
+            className="absolute right-6 z-20 p-3 bg-brand-primary text-white rounded-full shadow-lg hover:bg-brand-primary-dark transition-colors"
+            style={{ bottom: 'calc(var(--composer-h, 80px) + 1rem)' }}
             aria-label="Voltar ao fim"
           >
             <FaArrowDown />

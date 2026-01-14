@@ -45,7 +45,7 @@ export default async function RootLayout({
     <html lang="pt-BR" className={`${poppins.variable} h-full`}>
       <head>
         {/* viewport-fit=cover para habilitar env(safe-area-inset-*) no iOS */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
         <link rel="preconnect" href="https://www.youtube.com" />
         <link rel="preconnect" href="https://www.google.com" />
         <link rel="preconnect" href="https://img.youtube.com" />

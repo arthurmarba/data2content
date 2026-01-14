@@ -131,7 +131,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const shellClassName = isChatPage
     ? "flex flex-col w-full min-h-0"
     : "flex flex-col w-full min-h-screen";
-  const shellStyle = isChatPage ? { height: "100dvh", minHeight: "100vh" } : undefined;
+  const shellStyle = isChatPage ? { height: "100dvh", minHeight: "100dvh" } : undefined;
 
   return (
     <>

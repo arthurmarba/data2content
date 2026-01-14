@@ -45,7 +45,7 @@ export const ToolsDrawer = React.memo(function ToolsDrawer({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
                         transition={{ type: "spring", duration: 0.3 }}
-                        className="absolute bottom-full left-0 mb-3 w-full sm:w-[400px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-[110] overflow-hidden origin-bottom-left"
+                        className="absolute bottom-full left-0 mb-3 w-full sm:w-[400px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-[110] origin-bottom-left max-h-[75vh] overflow-y-auto"
                     >
                         <div className="px-4 pb-4 pt-4">
                             <div className="flex justify-between items-center mb-4 px-1">
