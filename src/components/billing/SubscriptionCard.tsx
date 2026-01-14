@@ -146,39 +146,38 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
   const statusLabel: string = isTrialing
     ? 'Período de teste'
     : isNonRenewing
-    ? 'Cancelamento agendado'
-    : isActive
-    ? 'Ativo'
-    : isPastDue
-    ? 'Pagamento pendente'
-    : isUnpaid
-    ? 'Pagamento recusado'
-    : isPending
-    ? 'Pagamento pendente'
-    : isIncompleteExpired
-    ? 'Pagamento expirado'
-    : isCanceled
-    ? 'Assinatura cancelada'
-    : isInactive
-    ? 'Sem assinatura'
-    : status
-    ? status.charAt(0).toUpperCase() + status.slice(1)
-    : '—';
+      ? 'Cancelamento agendado'
+      : isActive
+        ? 'Ativo'
+        : isPastDue
+          ? 'Pagamento pendente'
+          : isUnpaid
+            ? 'Pagamento recusado'
+            : isPending
+              ? 'Pagamento pendente'
+              : isIncompleteExpired
+                ? 'Pagamento expirado'
+                : isCanceled
+                  ? 'Assinatura cancelada'
+                  : isInactive
+                    ? 'Sem assinatura'
+                    : status
+                      ? status.charAt(0).toUpperCase() + status.slice(1)
+                      : '—';
 
   // Valores de “próxima cobrança”
   const amount =
     typeof subscription.nextInvoiceAmountCents === 'number'
       ? (subscription.nextInvoiceAmountCents / 100).toLocaleString(undefined, {
-          style: 'currency',
-          currency: (subscription.currency || 'BRL').toUpperCase(),
-        })
+        style: 'currency',
+        currency: (subscription.currency || 'BRL').toUpperCase(),
+      })
       : null;
 
   const hasPM =
     !!subscription.paymentMethodLast4 || !!subscription.defaultPaymentMethodBrand;
   const pmLabel = hasPM
-    ? `${subscription.defaultPaymentMethodBrand ?? ''} ${
-        subscription.paymentMethodLast4 ? `**** ${subscription.paymentMethodLast4}` : ''
+    ? `${subscription.defaultPaymentMethodBrand ?? ''} ${subscription.paymentMethodLast4 ? `**** ${subscription.paymentMethodLast4}` : ''
       }`.trim()
     : '—';
 
@@ -195,33 +194,45 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
   const statusHint: string = isPending
     ? 'Checkout pendente — conclua o pagamento para ativar o plano.'
     : isIncompleteExpired
-    ? 'Tentativa expirada — voce pode iniciar um novo checkout.'
-    : isPastDue || isUnpaid
-    ? 'Pagamento pendente — atualize o método de pagamento para liberar o acesso.'
-    : isNonRenewing
-    ? 'Cancelamento agendado — reative se quiser continuar no próximo ciclo.'
-    : isTrialing
-    ? 'Teste ativo — troca de plano disponível após o fim do período.'
-    : isCanceled
-    ? 'Assinatura cancelada — você pode assinar novamente quando quiser.'
-    : isInactive
-    ? 'Nenhuma assinatura ativa no momento.'
-    : isActive
-    ? 'Assinatura ativa — você pode gerenciar cobrança ou cancelar a renovação.'
-    : 'Acompanhe detalhes da sua assinatura e mantenha seus dados de cobrança atualizados.';
+      ? 'Tentativa expirada — voce pode iniciar um novo checkout.'
+      : isPastDue || isUnpaid
+        ? 'Pagamento pendente — atualize o método de pagamento para liberar o acesso.'
+        : isNonRenewing
+          ? 'Cancelamento agendado — reative se quiser continuar no próximo ciclo.'
+          : isTrialing
+            ? 'Teste ativo — troca de plano disponível após o fim do período.'
+            : isCanceled
+              ? 'Assinatura cancelada — você pode assinar novamente quando quiser.'
+              : isInactive
+                ? 'Nenhuma assinatura ativa no momento.'
+                : isActive
+                  ? 'Assinatura ativa — você pode gerenciar cobrança ou cancelar a renovação.'
+                  : 'Acompanhe detalhes da sua assinatura e mantenha seus dados de cobrança atualizados.';
 
   // Cancelar (agendar no fim do ciclo; no trial vira "não renovar ao final do teste")
-  async function cancel() {
+  async function cancel({
+    reasons,
+    comment,
+  }: {
+    reasons: string[];
+    comment: string;
+  }) {
     try {
       setCanceling(true);
-      const res = await fetch('/api/billing/cancel', { method: 'POST' });
+      const res = await fetch('/api/billing/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reasons, comment }),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         toast.error(data?.message || 'Não foi possível cancelar a renovação.');
         return;
       }
       toast.success(
-        isTrialing ? 'Teste não será renovado. Atualizando...' : 'Renovação cancelada. Atualizando...'
+        isTrialing
+          ? 'Teste não será renovado. Atualizando...'
+          : 'Renovação cancelada. Atualizando...'
       );
       await refresh();
       if (typeof window !== 'undefined') {
@@ -492,8 +503,8 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       <CancelSubscriptionModal
         open={showModal}
         onClose={() => setShowModal(false)}
-        onConfirm={() => {
-          cancel();
+        onConfirm={(data) => {
+          cancel(data);
           setShowModal(false);
         }}
         currentPeriodEnd={subscription.currentPeriodEnd}

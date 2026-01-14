@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
@@ -7,6 +5,7 @@ import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { track } from "@/lib/track";
+import CancelSubscriptionModal from "@/components/billing/CancelSubscriptionModal";
 
 export default function CancelRenewalCard() {
   const { data: session } = useSession();
@@ -14,17 +13,25 @@ export default function CancelRenewalCard() {
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   const canCancel = planStatus === "active";
   const alreadyCancelled = (planStatus as string) === "canceled";
 
-  // <<< INÍCIO DA CORREÇÃO >>>
-  async function cancelRenewal() {
+  async function cancelRenewal({
+    reasons,
+    comment,
+  }: {
+    reasons: string[];
+    comment: string;
+  }) {
     setLoading(true);
-    setErr(null);
     try {
-      const res = await fetch("/api/billing/cancel", { method: "POST" });
+      const res = await fetch("/api/billing/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reasons, comment }),
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -47,22 +54,18 @@ export default function CancelRenewalCard() {
         });
       }
 
-      // Força a recarga da página para buscar a sessão e o status mais recentes.
-      // Esta é a forma mais robusta de garantir a sincronia da UI.
       window.location.reload();
 
     } catch (e: any) {
       const msg = e?.message || "Ocorreu um erro inesperado";
-      setErr(msg);
       toast({
         variant: "error",
         title: "Falha ao cancelar",
         description: String(msg),
       });
-      setLoading(false); // Desativa o loading apenas em caso de erro
+      setLoading(false);
     }
   }
-  // <<< FIM DA CORREÇÃO >>>
 
   const getStatusLabel = (status: string | null | undefined) => {
     switch (status) {
@@ -105,8 +108,6 @@ export default function CancelRenewalCard() {
         )}
       </div>
 
-      {err && <p className="text-sm text-red-600 font-medium">{err}</p>}
-
       {alreadyCancelled && (
         <p className="text-sm text-green-700 bg-green-50 p-3 rounded-md font-medium">
           A renovação automática já está cancelada.
@@ -116,7 +117,7 @@ export default function CancelRenewalCard() {
       {canCancel && (
         <>
           <button
-            onClick={cancelRenewal}
+            onClick={() => setShowModal(true)}
             disabled={loading}
             className="px-4 py-2 rounded-md bg-gray-800 text-white text-sm font-medium hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
@@ -128,6 +129,20 @@ export default function CancelRenewalCard() {
           </p>
         </>
       )}
+
+      <CancelSubscriptionModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onConfirm={(data) => {
+          cancelRenewal(data);
+          setShowModal(false);
+        }}
+        currentPeriodEnd={
+          planExpiresAt instanceof Date
+            ? planExpiresAt.toISOString()
+            : (planExpiresAt as string | null)
+        }
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
+import CancelSubscriptionModal from '@/components/billing/CancelSubscriptionModal';
 
 type PlanStatus =
   | 'active'
@@ -36,6 +37,7 @@ export default function BillingPanel() {
   const [s, setS] = useState<BillingStatus | null>(null);
   const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | 'abort' | 'resume' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const resyncRef = useRef(false);
 
   const notifyBillingRefresh = useCallback(() => {
@@ -146,12 +148,20 @@ export default function BillingPanel() {
     }
   };
 
-  const cancelAtPeriodEnd = async (): Promise<void> => {
-    const ok = confirm('Cancelar ao fim do período? Você continuará com acesso até a data de renovação.');
-    if (!ok) return;
+  const cancelWithReason = async ({
+    reasons,
+    comment,
+  }: {
+    reasons: string[];
+    comment: string;
+  }): Promise<void> => {
     setDoing('cancel');
     try {
-      const res = await fetch('/api/billing/cancel', { method: 'POST' });
+      const res = await fetch('/api/billing/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reasons, comment }),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         toast.error(data?.message ?? 'Falha ao cancelar');
@@ -303,7 +313,12 @@ export default function BillingPanel() {
         </div>
         <div className="flex flex-wrap gap-2">
           {cancelable && (
-            <button type="button" onClick={cancelAtPeriodEnd} disabled={doing === 'cancel'} className="px-3 py-2 rounded-lg border hover:bg-muted">
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(true)}
+              disabled={doing === 'cancel'}
+              className="px-3 py-2 rounded-lg border hover:bg-muted"
+            >
               {doing === 'cancel' ? 'Cancelando…' : 'Cancelar plano'}
             </button>
           )}
@@ -317,8 +332,8 @@ export default function BillingPanel() {
               {doing === 'portal'
                 ? 'Abrindo…'
                 : status === 'past_due' || status === 'unpaid'
-                ? 'Atualizar pagamento'
-                : 'Gerenciar pagamento'}
+                  ? 'Atualizar pagamento'
+                  : 'Gerenciar pagamento'}
             </button>
           )}
         </div>
@@ -354,6 +369,18 @@ export default function BillingPanel() {
             </a>
           )}
         </div>
+      )}
+
+      {s && (
+        <CancelSubscriptionModal
+          open={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={(data) => {
+            cancelWithReason(data);
+            setShowCancelModal(false);
+          }}
+          currentPeriodEnd={s.planExpiresAt}
+        />
       )}
     </div>
   );

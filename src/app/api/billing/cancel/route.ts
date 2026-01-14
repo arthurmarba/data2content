@@ -53,7 +53,7 @@ function computeExpiresAtAfterUpdate(sub: Stripe.Subscription): Date | null {
   return resolvePlanExpiresAt(sub);
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -62,6 +62,16 @@ export async function POST() {
         { status: 401, headers: cacheHeader }
       );
     }
+
+    // Parse reasons/comment from body if available
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      // ignore JSON parse error (empty body)
+    }
+
+    const { reasons, comment } = body;
 
     await connectToDatabase();
     const user = await User.findById(session.user.id);
@@ -78,19 +88,36 @@ export async function POST() {
       { expand: ["items.data.price"] }
     );
 
+    // Prepare metadata
+    const metadata: Stripe.MetadataParam = {};
+    if (Array.isArray(reasons) && reasons.length > 0) {
+      metadata["cancellation_reasons"] = reasons.join(", ");
+    }
+    if (typeof comment === "string" && comment.trim()) {
+      metadata["cancellation_comment"] = comment.substring(0, 500); // Limit length
+    }
+
     // 2) Ação: cancela na hora se estiver problemática, senão agenda no fim do ciclo
     let finalSubscription: Stripe.Subscription;
     if (
       subscription.status === "past_due" ||
       subscription.status === "incomplete"
     ) {
+      if (Object.keys(metadata).length > 0) {
+        await stripe.subscriptions.update(user.stripeSubscriptionId, {
+          metadata,
+        });
+      }
       finalSubscription = await stripe.subscriptions.cancel(
         user.stripeSubscriptionId
       );
     } else {
       finalSubscription = await stripe.subscriptions.update(
         user.stripeSubscriptionId,
-        { cancel_at_period_end: true }
+        {
+          cancel_at_period_end: true,
+          metadata: Object.keys(metadata).length ? metadata : undefined,
+        }
       );
     }
 
@@ -129,6 +156,8 @@ export async function POST() {
       statusStripe: finalSubscription.status ?? null,
       errorCode: null,
       stripeRequestId: (finalSubscription as any)?.lastResponse?.requestId ?? null,
+      reasons,
+      hasComment: !!comment
     });
 
     return NextResponse.json(
