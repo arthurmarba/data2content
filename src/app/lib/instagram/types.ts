@@ -1,6 +1,6 @@
 // src/app/lib/instagram/types.ts
-import { IUser } from "@/app/models/User"; 
-import { IMetricStats } from "@/app/models/Metric"; 
+import { IUser } from "@/app/models/User";
+import { IMetricStats } from "@/app/models/Metric";
 
 // --- Tipos de Erro da API do Facebook/Instagram ---
 
@@ -13,10 +13,10 @@ export interface FacebookApiErrorStructure {
   type: string;
   code: number;
   error_subcode?: number;
-  error_user_title?: string; 
-  error_user_msg?: string;   
+  error_user_title?: string;
+  error_user_msg?: string;
   fbtrace_id: string;
-  is_transient?: boolean;    
+  is_transient?: boolean;
 }
 
 /**
@@ -35,7 +35,7 @@ export interface InstagramApiErrorDetail {
   fbtrace_id: string;
   is_transient?: boolean;
   // Outros campos que podem vir no erro
-  [key: string]: any; 
+  [key: string]: any;
 }
 
 /**
@@ -91,19 +91,20 @@ export interface AvailableInstagramAccount {
 export interface FetchInstagramAccountsResult {
   success: true;
   accounts: AvailableInstagramAccount[];
-  longLivedAccessToken: string | null; 
+  longLivedAccessToken: string | null;
+  longLivedAccessTokenExpiresAt?: Date;
 }
 
 export interface FetchInstagramAccountsError {
   success: false;
   error: string;
-  errorCode?: number; 
+  errorCode?: number;
 }
 
 
 // --- Tipos de Mídia do Instagram ---
 
-export interface InstagramMediaChild { 
+export interface InstagramMediaChild {
   id: string;
   media_type?: 'IMAGE' | 'VIDEO';
   media_product_type?: string; // Adicionado para consistência
@@ -117,47 +118,47 @@ export interface InstagramMediaChild {
  * ATUALIZADO: Adicionados media_product_type, parent_id e media_product_type em children.
  */
 export interface InstagramMedia {
-  id: string; 
+  id: string;
   media_type?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' | 'STORY';
   media_product_type?: 'FEED' | 'STORY' | 'REELS' | 'AD' | 'IGTV'; // IGTV é depreciado
-  timestamp?: string; 
-  caption?: string; 
-  permalink?: string; 
-  media_url?: string; 
-  thumbnail_url?: string; 
-  username?: string; 
-  is_published?: boolean; 
+  timestamp?: string;
+  caption?: string;
+  permalink?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  username?: string;
+  is_published?: boolean;
   children?: { // Presente se media_type for CAROUSEL_ALBUM
     data: InstagramMediaChild[]; // Usando o tipo definido acima
   };
   parent_id?: string; // ID da mídia pai se esta for uma mídia filha
-  owner?: { id: string }; 
-  like_count?: number; 
-  comments_count?: number; 
+  owner?: { id: string };
+  like_count?: number;
+  comments_count?: number;
 }
 
 export interface FetchMediaResult {
   success: boolean;
   data?: InstagramMedia[];
   error?: string;
-  nextPageUrl?: string | null; 
+  nextPageUrl?: string | null;
 }
 
 
 // --- Tipos de Insights da API do Instagram ---
 
 export interface InstagramApiInsightValue {
-  value: number | string | { [key: string]: number | { [key: string]: number } }; 
+  value: number | string | { [key: string]: number | { [key: string]: number } };
   end_time?: string; // end_time é opcional em algumas respostas de insight
 }
 
 export interface InstagramApiInsightItem {
-  name: string; 
-  period: string; 
+  name: string;
+  period: string;
   values: InstagramApiInsightValue[];
   title?: string; // title e description são opcionais
-  description?: string; 
-  id?: string; 
+  description?: string;
+  id?: string;
 }
 
 // Removido InstagramApiDemographicItem pois InstagramApiInsightItem é genérico o suficiente.
@@ -173,8 +174,8 @@ export interface InstagramApiInsightItem {
 export interface FetchInsightsResult<T = Record<string, any>> {
   success: boolean;
   data?: T;
-  error?: string | null; 
-  errorMessage?: string | null; 
+  error?: string | null;
+  errorMessage?: string | null;
   requestedMetrics?: string; // Para depuração
 }
 
@@ -183,7 +184,7 @@ export interface FetchInsightsResult<T = Record<string, any>> {
  */
 export interface FetchBasicAccountDataResult {
   success: boolean;
-  data?: Partial<IUser>; 
+  data?: Partial<IUser>;
   error?: string;
 }
 
@@ -194,7 +195,7 @@ export interface InsightTaskSkippedResult {
   mediaId: string;
   status: 'skipped';
   reason: string;
-  media: InstagramMedia; 
+  media: InstagramMedia;
   insightsResult: { success: false; error: string; data?: undefined; errorMessage?: undefined, requestedMetrics?: string }; // Adicionado requestedMetrics
   insightTokenSource?: undefined;
 }
@@ -203,9 +204,9 @@ export interface InsightTaskProcessedResult {
   mediaId: string;
   status: 'processed';
   reason?: undefined;
-  media: InstagramMedia; 
+  media: InstagramMedia;
   insightsResult: FetchInsightsResult<IMetricStats>; // Usa IMetricStats
-  insightTokenSource: string; 
+  insightTokenSource: string;
 }
 
 export type InsightTaskInternalResult = InsightTaskSkippedResult | InsightTaskProcessedResult;
@@ -213,29 +214,29 @@ export type InsightTaskInternalResult = InsightTaskSkippedResult | InsightTaskPr
 
 // --- Tipos para Webhooks (Exemplo para Stories, pode ser expandido) ---
 export interface StoryWebhookValue {
-    media_id: string; 
-    impressions?: number; // Manter para webhooks se a API ainda enviar, mas 'views' é o novo padrão
-    views?: number;       // Adicionar 'views'
-    reach?: number;
-    taps_forward?: number;
-    taps_back?: number;
-    exits?: number;
-    replies?: number;
-    // Adicione outras métricas de story que o webhook possa enviar
+  media_id: string;
+  impressions?: number; // Manter para webhooks se a API ainda enviar, mas 'views' é o novo padrão
+  views?: number;       // Adicionar 'views'
+  reach?: number;
+  taps_forward?: number;
+  taps_back?: number;
+  exits?: number;
+  replies?: number;
+  // Adicione outras métricas de story que o webhook possa enviar
 }
 
 export interface InstagramWebhookChange {
-    field: 'story_insights'; 
-    value: StoryWebhookValue;
+  field: 'story_insights';
+  value: StoryWebhookValue;
 }
 
 export interface InstagramWebhookEntry {
-    id: string; 
-    time: number; 
-    changes: InstagramWebhookChange[];
+  id: string;
+  time: number;
+  changes: InstagramWebhookChange[];
 }
 
 export interface InstagramWebhookPayload {
-    object: 'instagram';
-    entry: InstagramWebhookEntry[];
+  object: 'instagram';
+  entry: InstagramWebhookEntry[];
 }

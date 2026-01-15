@@ -8,7 +8,9 @@
 // Cliente da API (geralmente usado internamente pelos fetchers, pode não precisar ser público)
 // export * from './api/client';
 export * from './api/fetchers'; // Funções como fetchInstagramMedia, fetchMediaInsights, etc.
+export * from './api/fetchers'; // Funções como fetchInstagramMedia, fetchMediaInsights, etc.
 export * from './api/accountDiscovery'; // Função fetchAvailableInstagramAccounts
+export * from './api/auth'; // Função refreshLongLivedUserAccessToken
 
 // --- Funções de Banco de Dados (DB) ---
 export * from './db/userActions'; // Funções como getInstagramConnectionDetails, updateUserBasicInstagramProfile

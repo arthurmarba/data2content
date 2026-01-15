@@ -19,17 +19,17 @@ import {
   FacebookApiErrorStructure,
 } from '../types';
 import { isTokenInvalidError } from '../utils/tokenUtils';
-import { clearInstagramConnection } from '@/app/lib/instagram'; 
+import { clearInstagramConnection } from '@/app/lib/instagram';
 
 // Tipo local para dados de página (reutilizado)
 type PageAccountData = {
   id: string; // Page ID
   name: string; // Page Name
-  access_token?: string; 
+  access_token?: string;
   instagram_business_account?: {
     id: string; // Instagram Business Account ID
     username?: string;
-    profile_picture_url?: string; 
+    profile_picture_url?: string;
   };
 };
 
@@ -51,12 +51,12 @@ type BusinessData = {
  * @returns Uma promessa que resolve para FetchInstagramAccountsResult ou FetchInstagramAccountsError.
  */
 export async function fetchAvailableInstagramAccounts(
-  shortLivedUserAccessToken: string, 
-  userId: string 
+  shortLivedUserAccessToken: string,
+  userId: string
 ): Promise<FetchInstagramAccountsResult | FetchInstagramAccountsError> {
   // NOTA PARA O DESENVOLVEDOR: Certifique-se de que seu app solicita a permissão 'business_management'
   // durante o fluxo de OAuth para que a busca via Business Manager funcione.
-  const TAG = '[fetchAvailableInstagramAccounts v3.0_user_token_and_biz_api]'; 
+  const TAG = '[fetchAvailableInstagramAccounts v3.0_user_token_and_biz_api]';
   logger.info(`${TAG} Iniciando busca de contas IG e LLAT para User ID: ${userId}.`);
 
   if (!process.env.FACEBOOK_CLIENT_ID || !process.env.FACEBOOK_CLIENT_SECRET) {
@@ -76,21 +76,22 @@ export async function fetchAvailableInstagramAccounts(
   }
 
   let userLongLivedAccessToken: string | null = null;
+  let llatResponseData: ({ access_token?: string; token_type?: string; expires_in?: number; } & FacebookApiError) | null = null;
 
   // Etapa 1: Obter o Token de Longa Duração (LLAT) do usuário
   try {
     logger.debug(`${TAG} Tentando obter LLAT do usuário ${userId}...`);
     const llatUrl = `${BASE_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_CLIENT_ID}&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}&fb_exchange_token=${shortLivedUserAccessToken}`;
 
-    const llatResponseData = await retry(async (bail, attemptNum) => {
+    llatResponseData = await retry(async (bail, attemptNum) => {
       if (attemptNum > 1) logger.warn(`${TAG} Tentativa ${attemptNum} para obter LLAT do usuário.`);
       const response: FetchResponse = await fetch(llatUrl);
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-          const responseText = await response.text().catch(() => 'Falha ao ler corpo da resposta não-JSON.');
-          logger.error(`${TAG} Resposta não-JSON (Status: ${response.status}) ao obter LLAT. Conteúdo: ${responseText.substring(0,200)}`);
-          bail(new Error(`API retornou resposta não-JSON (Status: ${response.status}) ao obter LLAT.`));
-          return null; 
+        const responseText = await response.text().catch(() => 'Falha ao ler corpo da resposta não-JSON.');
+        logger.error(`${TAG} Resposta não-JSON (Status: ${response.status}) ao obter LLAT. Conteúdo: ${responseText.substring(0, 200)}`);
+        bail(new Error(`API retornou resposta não-JSON (Status: ${response.status}) ao obter LLAT.`));
+        return null;
       }
       const data: { access_token?: string; token_type?: string; expires_in?: number; } & FacebookApiError = await response.json();
 
@@ -99,11 +100,11 @@ export async function fetchAvailableInstagramAccounts(
         logger.error(`${TAG} Erro API (Tentativa ${attemptNum}) ao obter LLAT do usuário:`, JSON.stringify(errorDetail));
         if (response.status === 400 || isTokenInvalidError(errorDetail.code, errorDetail.error_subcode, errorDetail.message)) {
           bail(new Error(errorDetail.message || 'Falha ao obter token de longa duração (SLT inválido/expirado?).'));
-          return null; 
+          return null;
         }
         if (response.status >= 400 && response.status < 500 && response.status !== 429) {
           bail(new Error(errorDetail.message || `Falha não recuperável (${response.status}) ao obter LLAT.`));
-          return null; 
+          return null;
         }
         throw new Error(errorDetail.message || `Erro temporário ${response.status} ao obter LLAT.`);
       }
@@ -111,7 +112,7 @@ export async function fetchAvailableInstagramAccounts(
     }, RETRY_OPTIONS);
 
     if (!llatResponseData || !llatResponseData.access_token) {
-        throw new Error('Falha ao obter access_token do LLAT após retentativas.');
+      throw new Error('Falha ao obter access_token do LLAT após retentativas.');
     }
 
     userLongLivedAccessToken = llatResponseData.access_token;
@@ -121,7 +122,7 @@ export async function fetchAvailableInstagramAccounts(
     if (llatError.message && (llatError.message.toLowerCase().includes('token') || isTokenInvalidError(undefined, undefined, llatError.message))) {
       logger.warn(`${TAG} Erro de token ao obter LLAT. Limpando conexão IG existente (se houver) para User ${userId}.`);
       const userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
-      await clearInstagramConnection(userObjectId, 'Token de usuário inválido ao obter LLAT.', 'TOKEN_INVALID'); 
+      await clearInstagramConnection(userObjectId, 'Token de usuário inválido ao obter LLAT.', 'TOKEN_INVALID');
     }
     return { success: false, error: `Falha ao obter token de acesso de longa duração necessário: ${llatError.message}` };
   }
@@ -130,7 +131,7 @@ export async function fetchAvailableInstagramAccounts(
   try {
     let allPagesData: PageAccountData[] = [];
     let fetchError: Error | null = null;
-    
+
     // Etapa 2a: Tentar listar Páginas via /me/accounts (fluxo padrão)
     const fetchLogContextMeAccounts = `${TAG} (User LLAT Flow - /me/accounts)`;
     logger.info(`${fetchLogContextMeAccounts} Utilizando User LLAT e /me/accounts para listar contas para o usuário ${userId}.`);
@@ -157,7 +158,7 @@ export async function fetchAvailableInstagramAccounts(
             logger.error(`${fetchLogContextMeAccounts} Erro API (Tentativa ${attemptNum}) pág ${pageCountMe}:`, JSON.stringify(errorDetail));
             if (isTokenInvalidError(errorDetail.code, errorDetail.error_subcode, errorDetail.message)) { bail(new Error('Token de longa duração (LLAT) do usuário inválido/expirado.')); return null; }
             if (errorDetail.code === 10 || (errorDetail.message && errorDetail.message.includes("permission"))) { // Permissao 10: pages_show_list
-              bail(new Error('Permissão `pages_show_list` (ou outra) ausente para o usuário para /me/accounts.')); return null; 
+              bail(new Error('Permissão `pages_show_list` (ou outra) ausente para o usuário para /me/accounts.')); return null;
             }
             if (response.status >= 400 && response.status < 500 && response.status !== 429) { bail(new Error(`Falha pág ${pageCountMe} /me/accounts: ${errorDetail.message}`)); return null; }
             throw new Error(errorDetail.message || `Erro temp ${response.status} pág ${pageCountMe}.`);
@@ -175,7 +176,7 @@ export async function fetchAvailableInstagramAccounts(
       }
     }
     if (pageCountMe >= MAX_ACCOUNT_FETCH_PAGES && currentPageUrlMe) logger.warn(`${fetchLogContextMeAccounts} Limite ${MAX_ACCOUNT_FETCH_PAGES} págs /me/accounts atingido.`);
-    
+
     if (fetchError) {
       // Se o erro for de token ou permissão, não necessariamente impede a tentativa via Business Manager,
       // mas registramos e continuamos para ver se o outro fluxo funciona.
@@ -183,7 +184,7 @@ export async function fetchAvailableInstagramAccounts(
       // Resetar fetchError para não contaminar o resultado final se o fluxo BM for bem-sucedido
       // fetchError = null; // Comentado pois o erro original pode ser relevante se o fluxo BM também falhar.
     }
-    
+
     logger.info(`${fetchLogContextMeAccounts} Busca via /me/accounts concluída para User ${userId}. ${allPagesData.length} Páginas FB encontradas por este método.`);
 
     // Etapa 2b: Se nenhuma página foi encontrada via /me/accounts, tentar via Business Manager
@@ -191,12 +192,12 @@ export async function fetchAvailableInstagramAccounts(
     if (allPagesData.length === 0 && userLongLivedAccessToken) {
       const fetchLogContextBiz = `${TAG} (User LLAT Flow - Business API)`;
       logger.info(`${fetchLogContextBiz} Nenhuma página encontrada via /me/accounts. Tentando buscar via Business Manager para User ${userId}.`);
-      
+
       try {
         // 1. Listar Portfólios (Businesses) do usuário
         const businessesUrl = `${BASE_URL}/${API_VERSION}/me/businesses?access_token=${userLongLivedAccessToken}`;
         logger.debug(`${fetchLogContextBiz} Buscando Portfólios em ${businessesUrl}`);
-        
+
         const businessesResponse = await retry(async (bail, attemptNum) => {
           if (attemptNum > 1) logger.warn(`${fetchLogContextBiz} Tentativa ${attemptNum} para /me/businesses.`);
           const response: FetchResponse = await fetch(businessesUrl);
@@ -223,7 +224,7 @@ export async function fetchAvailableInstagramAccounts(
           // Não definir fetchError aqui, pois a ausência de Portfólios não é um erro se /me/accounts também não retornou nada.
         } else {
           logger.info(`${fetchLogContextBiz} Encontrados ${businesses.length} Portfólio(s) Empresarial(is) para User ${userId}. Buscando páginas dentro de cada um...`);
-          
+
           for (const business of businesses) {
             logger.debug(`${fetchLogContextBiz} Processando Portfólio ID: ${business.id}, Nome: ${business.name}`);
             let currentPageUrlBizPages: string | null = `${BASE_URL}/${API_VERSION}/${business.id}/owned_pages?fields=id,name,instagram_business_account{id,username,profile_picture_url}&limit=25&access_token=${userLongLivedAccessToken}`;
@@ -245,7 +246,7 @@ export async function fetchAvailableInstagramAccounts(
                     if (isTokenInvalidError(errorDetail.code, errorDetail.error_subcode, errorDetail.message)) { bail(new Error('Token LLAT do usuário inválido/expirado ao acessar owned_pages.')); return null; }
                     // Permissões como pages_show_list podem ser verificadas aqui também se aplicável no contexto do BM
                     if (errorDetail.code === 10 || (errorDetail.message && errorDetail.message.toLowerCase().includes("permission"))) {
-                       bail(new Error(`Permissão ausente para acessar owned_pages do Portfólio ${business.id}.`)); return null;
+                      bail(new Error(`Permissão ausente para acessar owned_pages do Portfólio ${business.id}.`)); return null;
                     }
                     if (response.status >= 400 && response.status < 500 && response.status !== 429) { bail(new Error(`Falha pág ${pageCountBiz} owned_pages (Portfólio ${business.id}): ${errorDetail.message}`)); return null; }
                     throw new Error(errorDetail.message || `Erro temp ${response.status} pág ${pageCountBiz} owned_pages.`);
@@ -281,9 +282,9 @@ export async function fetchAvailableInstagramAccounts(
         logger.error(`${fetchLogContextBiz} Erro CRÍTICO durante o fluxo do Business Manager para User ${userId}:`, bizError);
         fetchError = bizError; // Define o erro principal se o fluxo do BM falhar catastroficamente
         if (bizError.message && (bizError.message.toLowerCase().includes('token') || isTokenInvalidError(undefined, undefined, bizError.message))) {
-            logger.warn(`${fetchLogContextBiz} Erro de token durante o fluxo do Business Manager. Limpando conexão IG para User ${userId}.`);
-            const userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
-            await clearInstagramConnection(userObjectId, 'Falha ao obter contas via Business Manager.', 'TOKEN_INVALID');
+          logger.warn(`${fetchLogContextBiz} Erro de token durante o fluxo do Business Manager. Limpando conexão IG para User ${userId}.`);
+          const userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+          await clearInstagramConnection(userObjectId, 'Falha ao obter contas via Business Manager.', 'TOKEN_INVALID');
         }
       }
     } // Fim do if (allPagesData.length === 0 && userLongLivedAccessToken)
@@ -302,7 +303,7 @@ export async function fetchAvailableInstagramAccounts(
       logger.warn(`${TAG} ${errorMsgNoPages} User: ${userId}.`);
       return { success: false, error: errorMsgNoPages, errorCode: 404 };
     }
-    
+
     logger.info(`${TAG} Processamento final de contas para User ${userId}. Total de ${allPagesData.length} Páginas FB encontradas globalmente.`);
     const availableIgAccounts: AvailableInstagramAccount[] = [];
     const uniqueIgAccountIds = new Set<string>();
@@ -332,14 +333,27 @@ export async function fetchAvailableInstagramAccounts(
 
     logger.info(`${TAG} Encontradas ${availableIgAccounts.length} contas IG ÚNICAS vinculadas para User ${userId}.`);
     logger.debug(`${TAG} Contas IG: ${JSON.stringify(availableIgAccounts.map(acc => acc.igAccountId))}`);
-    return { success: true, accounts: availableIgAccounts, longLivedAccessToken: userLongLivedAccessToken! }; // userLongLivedAccessToken é garantido aqui
+
+    // Calcula a data de expiração se disponível
+    let longLivedAccessTokenExpiresAt: Date | undefined;
+    if (llatResponseData?.expires_in) {
+      // expires_in é em segundos
+      longLivedAccessTokenExpiresAt = new Date(Date.now() + (llatResponseData.expires_in * 1000));
+    }
+
+    return {
+      success: true,
+      accounts: availableIgAccounts,
+      longLivedAccessToken: userLongLivedAccessToken!, // userLongLivedAccessToken é garantido aqui
+      longLivedAccessTokenExpiresAt
+    };
 
   } catch (generalError: unknown) {
     const errorMsg = generalError instanceof Error ? generalError.message : String(generalError);
     logger.error(`${TAG} Erro GERAL CRÍTICO durante busca de contas IG para User ${userId}:`, generalError);
     // Tenta ser um pouco mais específico se o erro for conhecido
     if (errorMsg.toLowerCase().includes('token') || errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('falha')) {
-        return { success: false, error: errorMsg };
+      return { success: false, error: errorMsg };
     }
     return { success: false, error: `Erro interno inesperado ao buscar contas: ${errorMsg}` };
   }
