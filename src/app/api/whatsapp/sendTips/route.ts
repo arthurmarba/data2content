@@ -1,15 +1,21 @@
 // src/app/api/whatsapp/sendTips/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import { guardPremiumRequest }        from "@/app/lib/planGuard";
-import { getServerSession }           from "next-auth/next";
-import { connectToDatabase }          from "@/app/lib/mongoose";
-import User, { type IUser }          from "@/app/models/User";
-import { DailyMetric, IDailyMetric }  from "@/app/models/DailyMetric";
-import { callOpenAIForTips }          from "@/app/lib/aiService";
-import { sendTemplateMessage }        from "@/app/lib/whatsappService";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
+import { getServerSession } from "next-auth/next";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import User, { type IUser } from "@/app/models/User";
+import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
+import { callOpenAIForTips } from "@/app/lib/aiService";
+import { sendTemplateMessage } from "@/app/lib/whatsappService";
 import { Model, Types, type FilterQuery } from "mongoose";
 import { isActiveLike, type ActiveLikeStatus } from "@/app/lib/isActiveLike";
 import Alert from "@/app/models/Alert";
+import ruleEngineInstance from '@/app/lib/ruleEngine';
+import { getFallbackInsight } from '@/app/lib/fallbackInsightService';
+import { getDialogueState } from '@/app/lib/stateService';
+import { fetchAndPrepareReportData, getLatestAccountInsights, lookupUserById } from '@/app/lib/dataService';
+import { IUserModel } from "@/app/lib/fallbackInsightService/fallbackInsight.types";
 
 /* ────────────────────────────────────────────────────────── *
  * Tipos auxiliares                                           *
@@ -22,12 +28,13 @@ interface DailyMetricDoc {
 
 interface TipsData {
   titulo?: string;           // “💡 Dicas da Semana”…
-  dicas ?: string[];         // lista com os bullets
+  dicas?: string[];         // lista com os bullets
 }
 
-async function recordAlertForUser(userId: string, tips: TipsData, messageText: string) {
+async function recordAlertForUser(userId: string, tips: TipsData, messageText: string, alertId: Types.ObjectId) {
   try {
     await Alert.create({
+      _id: alertId,
       user: userId,
       title: tips.titulo || "Dicas da Semana",
       body: messageText,
@@ -76,6 +83,7 @@ function formatTipsMessage({ titulo = "💡 Dicas da Semana", dicas = [] }: Tips
   if (dicas.length) {
     dicas.forEach((d, i) => { msg += `${i + 1}. ${d}\n`; });
   } else {
+    // Caso de fallback genérico se vier vazio, mas o código deve evitar isso.
     msg += "Nenhuma dica específica para esta semana. Continue postando! 🚀\n";
   }
   return msg + "\nBons posts e até a próxima! ✨";
@@ -85,6 +93,10 @@ function formatTipsMessage({ titulo = "💡 Dicas da Semana", dicas = [] }: Tips
    POST /api/whatsapp/sendTips
    Envia dicas semanais a todos os usuários com plano ativo-like
    (active | non_renewing | trial | trialing) e WhatsApp verificado
+   PRIORIDADE:
+   1. Rule Engine (Alertas específicos ex: Pico de Shares)
+   2. Fallback Service (Insights de métricas ex: Crescimento de seguidores)
+   3. Genérico OpenAI (Dicas gerais baseadas em média semanal)
    ================================================================== */
 export async function POST(request: NextRequest) {
   const guardResponse = await guardPremiumRequest(request);
@@ -92,7 +104,7 @@ export async function POST(request: NextRequest) {
 
   const tag = "[whatsapp/sendTips]";
 
-  /* 1) Autenticação da chamada (ex.: proteger para staff/admin) */
+  /* 1) Autenticação da chamada */
   const authOptions = await resolveAuthOptions();
   const session = (await getServerSession({ req: request, ...authOptions })) as { user?: { id?: string } } | null;
   if (!session?.user?.id) {
@@ -102,7 +114,6 @@ export async function POST(request: NextRequest) {
   /* 2) DB */
   await connectToDatabase();
 
-  // ✅ Considera active-like; envia pelo WhatsApp quando possível, mas registra alerta mesmo sem telefone
   const now = new Date();
   const trialWindowFilter: FilterQuery<IUser> = {
     $or: [
@@ -119,6 +130,7 @@ export async function POST(request: NextRequest) {
     "trial",
     "trialing",
   ].filter(isActiveLike);
+
   const users = await User.find({
     planStatus: { $in: ACTIVE_LIKE },
     ...trialWindowFilter,
@@ -128,49 +140,102 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Nenhum usuário elegível para receber dicas." }, { status: 200 });
   }
 
-  /* 3) Janela de 7 dias */
-  const to   = new Date();
+  /* 3) Janela de 7 dias para o cálculo genérico (se necessário) */
+  const to = new Date();
   const from = new Date(); from.setDate(to.getDate() - 7);
 
   /* 4) Processa todos em paralelo */
   const results = await Promise.allSettled<ReportResult>(
-    users.map<Promise<ReportResult>>(async u => {
-      const userId = u._id?.toString() ?? "UNKNOWN";
+    users.map<Promise<ReportResult>>(async (uLean) => {
+      const userId = uLean._id?.toString() ?? "UNKNOWN";
       try {
-        // 4a) coleta curtidas simplificadas
-        const dailyModel = DailyMetric as Model<IDailyMetric>;
-        const dms: DailyMetricDoc[] = await dailyModel
-          .find({
-            user: new Types.ObjectId(userId),
-            postDate: { $gte: from } // últimos 7 dias
-          })
-          .select("stats.curtidas")
-          .lean();
+        const dialogueState = await getDialogueState(userId);
+        let tips: TipsData | null = null;
+        let source: string = 'generic_openai';
 
-        if (!dms.length) return { userId, success: false, delivered: false };
+        // --- TIER 1: RULE ENGINE ---
+        const ruleEvent = await ruleEngineInstance.runAllRules(userId, dialogueState);
 
-        // 4b) agrega & chama IA
-        const weekly = aggregateWeeklyMetrics(dms);
-
-        const rawTips = await callOpenAIForTips(JSON.stringify(weekly));
-        let tips: TipsData;
-        try {
-          tips = typeof rawTips === "string" ? JSON.parse(rawTips) : (rawTips as TipsData);
-        } catch (e) {
-          console.warn(`${tag} IA retornou texto não-JSON p/ ${userId}:`, rawTips);
-          tips = { dicas: [String(rawTips)] };
+        if (ruleEvent) {
+          // Detectamos evento específico!
+          tips = {
+            titulo: `🔔 ${(ruleEvent.detailsForLog as any).title || 'Alerta Importante'}`,
+            dicas: [ruleEvent.messageForAI] // Usamos a mensagem gerada como o "corpo" da dica
+          };
+          source = `rule_engine:${ruleEvent.type}`;
         }
 
-        // 4c) monta mensagem e registra alerta na plataforma
-        const messageText = formatTipsMessage(tips);
-        await recordAlertForUser(userId, tips, messageText);
+        // --- TIER 2: FALLBACK INSIGHT SERVICE ---
+        if (!tips) {
+          // Converter lean user p/ IUserModel type se necessário ou buscar full via dataService se faltar campos
+          // Para segurança, vamos buscar via dataService que já retorna tipado corretamente
+          let fullUser: IUserModel | null = null;
+          try {
+            fullUser = await lookupUserById(userId);
+          } catch (e) { console.warn(`${tag} user lookup failed`, e); }
+
+          if (fullUser) {
+            const [reportData, accountInsights] = await Promise.all([
+              fetchAndPrepareReportData({ user: fullUser as any }), // defaults
+              getLatestAccountInsights(userId)
+            ]);
+
+            const fallback = await getFallbackInsight(fullUser, reportData.enrichedReport, accountInsights, dialogueState);
+            if (fallback.text && fallback.type) {
+              tips = {
+                titulo: "💡 Insight da Semana",
+                dicas: [fallback.text]
+              };
+              source = `fallback_insight:${fallback.type}`;
+            }
+          }
+        }
+
+        // --- TIER 3: GENERIC OPENAI (Existing Logic) ---
+        if (!tips) {
+          const dailyModel = DailyMetric as Model<IDailyMetric>;
+          const dms: DailyMetricDoc[] = await dailyModel
+            .find({
+              user: new Types.ObjectId(userId),
+              postDate: { $gte: from }
+            })
+            .select("stats.curtidas")
+            .lean();
+
+          if (!dms.length) return { userId, success: false, delivered: false };
+
+          const weekly = aggregateWeeklyMetrics(dms);
+          const rawTips = await callOpenAIForTips(JSON.stringify(weekly));
+          try {
+            tips = typeof rawTips === "string" ? JSON.parse(rawTips) : (rawTips as TipsData);
+          } catch (e) {
+            console.warn(`${tag} IA retornou texto não-JSON p/ ${userId}:`, rawTips);
+            tips = { dicas: [String(rawTips)] };
+          }
+          source = 'generic_openai_weekly';
+        }
+
+        if (!tips) {
+          // Se falhar tudo (ex: sem posts recentes para generic), ignora
+          return { userId, success: false, delivered: false };
+        }
+
+        // 4c) monta mensagem com link deep e registra alerta na plataforma
+        const alertId = new Types.ObjectId();
+        const baseMessage = formatTipsMessage(tips);
+        const link = `\n\n💬 Continuar conversa: https://data2content.ai/dashboard/chat?alertId=${alertId.toString()}`;
+        const messageText = baseMessage + link;
+
+        // Log source for debugging
+        console.log(`${tag} sending to ${userId} via ${source}`);
+        await recordAlertForUser(userId, tips, messageText, alertId);
 
         // 4d) envia WhatsApp se houver número; caso contrário, apenas registra
         let delivered = false;
-        if (u.whatsappOptOut) {
+        if (uLean.whatsappOptOut) {
           console.warn(`${tag} Usuário em opt-out; não enviando WhatsApp`, { userId });
-        } else if (u.whatsappPhone && u.whatsappVerified) {
-          await sendTipsTemplate(u.whatsappPhone, tips);
+        } else if (uLean.whatsappPhone && uLean.whatsappVerified) {
+          await sendTipsTemplate(uLean.whatsappPhone, tips);
           delivered = true;
         }
 

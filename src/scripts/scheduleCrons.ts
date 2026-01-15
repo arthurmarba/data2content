@@ -48,6 +48,13 @@ const CRONS = [
     method: 'POST',
     body: '[BILLING_EXPIRE_TRIALS] Marcar trials expirados como inativos',
   },
+  {
+    id: 'whatsapp-tips-4x-week',
+    destination: 'https://data2content.ai/api/whatsapp/sendTips',
+    cron: '0 14 * * 1,3,5,0',
+    method: 'POST',
+    body: '[WHATSAPP_TIPS] Enviar dicas semanais (Seg, Qua, Sex, Dom)',
+  },
 ] as const;
 
 async function createCrons() {

@@ -12,6 +12,8 @@ import {
   Heart,
   Eye,
   MessageSquare,
+  Search,
+  Download,
   Share2,
   Bookmark,
   ArrowUpRight,
@@ -33,6 +35,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { motion } from 'framer-motion';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
@@ -2360,6 +2364,7 @@ export default function MediaKitView({
   return (
     <GlobalTimePeriodProvider>
       <div
+        id="media-kit-content"
         className="min-h-screen font-sans text-[#0F172A]"
         style={{ background: landingSunriseBackground }}
       >
@@ -2433,6 +2438,36 @@ export default function MediaKitView({
                     >
                       <Share2 className="mr-2 h-4 w-4" />
                       Compartilhar
+                    </ButtonPrimary>
+                    <ButtonPrimary
+                      onClick={async () => {
+                        const element = document.getElementById('media-kit-content');
+                        if (!element) return;
+
+                        const canvas = await html2canvas(element, {
+                          scale: 2,
+                          useCORS: true,
+                          logging: false,
+                          windowWidth: element.scrollWidth,
+                          windowHeight: element.scrollHeight,
+                        });
+
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new jsPDF({
+                          orientation: 'p',
+                          unit: 'px',
+                          format: [canvas.width, canvas.height],
+                        });
+
+                        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                        pdf.save(`media-kit-${mediaKitSlug || 'export'}.pdf`);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Salvar PDF
                     </ButtonPrimary>
                     {onEditName && showOwnerCtas && (
                       <ButtonPrimary
@@ -2595,9 +2630,8 @@ export default function MediaKitView({
                     {showOwnerCtas ? (
                       <div className="mt-2 flex flex-col gap-2">
                         <span
-                          className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                            pricingPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                          }`}
+                          className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${pricingPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                            }`}
                         >
                           {pricingPublished ? 'Publicado no Mídia Kit público' : 'Oculto no Mídia Kit público'}
                         </span>
