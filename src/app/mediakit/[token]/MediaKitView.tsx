@@ -2448,13 +2448,13 @@ export default function MediaKitView({
                           useCORS: true,
                           logging: false,
                           backgroundColor: '#FFFFFF',
-                          windowWidth: element.scrollWidth,
-                          windowHeight: element.scrollHeight,
                         });
 
                         const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                        const orientation = canvas.width > canvas.height ? 'l' : 'p';
+
                         const pdf = new jsPDF({
-                          orientation: 'p',
+                          orientation,
                           unit: 'px',
                           format: [canvas.width, canvas.height],
                         });
