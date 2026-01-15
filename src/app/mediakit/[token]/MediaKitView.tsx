@@ -2364,11 +2364,10 @@ export default function MediaKitView({
   return (
     <GlobalTimePeriodProvider>
       <div
-        id="media-kit-content"
         className="min-h-screen font-sans text-[#0F172A]"
         style={{ background: landingSunriseBackground }}
       >
-        <div className={mainContainerClass}>
+        <div id="media-kit-content" className={mainContainerClass}>
           <div className={sectionsWrapperClass}>
             <motion.section
               variants={cardVariants}
@@ -2448,6 +2447,7 @@ export default function MediaKitView({
                           scale: 1.5,
                           useCORS: true,
                           logging: false,
+                          backgroundColor: '#FFFFFF',
                           windowWidth: element.scrollWidth,
                           windowHeight: element.scrollHeight,
                         });
