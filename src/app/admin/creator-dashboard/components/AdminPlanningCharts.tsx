@@ -293,6 +293,18 @@ export default function AdminPlanningCharts({ userId, hideHeatmap = false }: Adm
     [normalizedPosts, openSliceModal]
   );
 
+  const handleHourClick = React.useCallback(
+    (hour: number, subtitle: string) => {
+      const posts = sortPostsByDateDesc(filterPostsByHour(normalizedPosts, hour));
+      openSliceModal({
+        title: `Posts às ${hour}h`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
+
   useEffect(() => {
     const list = Array.isArray(postsData?.posts)
       ? postsData.posts
@@ -687,7 +699,17 @@ export default function AdminPlanningCharts({ userId, hideHeatmap = false }: Adm
               <p className="text-sm text-slate-500">Sem dados suficientes.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={hourBars} margin={{ top: 6, right: 8, left: -6, bottom: 0 }}>
+                <BarChart
+                  data={hourBars}
+                  margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const hour = data.activePayload[0].payload.hour;
+                      handleHourClick(hour, "Entrega por Hora");
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                   <XAxis
                     dataKey="hour"
