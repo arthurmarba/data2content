@@ -3,6 +3,8 @@
 import React, { memo, useMemo } from "react";
 import { LightBulbIcon } from "@heroicons/react/24/solid";
 import useUserDemographics from "@/hooks/useUserDemographics";
+import DemographicBarList from "@/app/components/DemographicBarList";
+import { Users, CalendarDays, MapPin } from "lucide-react";
 
 interface UserDemographicsWidgetProps {
   userId: string | null;
@@ -26,7 +28,7 @@ const genderSummaryMap: Record<string, string> = {
 };
 
 const generateSummary = (demo: any): string => {
-  if (!demo?.follower_demographics) return "Dados demogr\xE1ficos n\xE3o dispon\xEDveis.";
+  if (!demo?.follower_demographics) return "Dados demográficos não disponíveis.";
   const { gender, age, city, country } = demo.follower_demographics;
   const topGenderEntry = getTopEntry(gender);
   const topAgeEntry = getTopEntry(age);
@@ -34,23 +36,13 @@ const generateSummary = (demo: any): string => {
   const topCountryEntry = getTopEntry(country);
   const topLocation = topCityEntry?.[0] || topCountryEntry?.[0];
   if (!topGenderEntry || !topAgeEntry || !topLocation) {
-    return "Perfil de p\xFAblico diversificado.";
+    return "Perfil de público diversificado.";
   }
   const dominantGender = genderSummaryMap[topGenderEntry[0].toLowerCase()] || topGenderEntry[0];
-  return `Mais popular entre o p\xFAblico ${dominantGender}, ${topAgeEntry[0]} anos, em ${topLocation}.`;
+  return `Mais popular entre o público ${dominantGender}, ${topAgeEntry[0]} anos, em ${topLocation}.`;
 };
 
-const DemographicRow: React.FC<{ label: string; percentage: number }> = ({ label, percentage }) => (
-  <div className="flex items-center justify-between text-xs py-0.5">
-    <span className="text-gray-600 truncate" title={label}>{label}</span>
-    <div className="flex items-center gap-2 w-2/3">
-      <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
-        <div className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500" style={{ width: `${percentage}%` }} />
-      </div>
-      <span className="font-semibold text-gray-800">{percentage.toFixed(1)}%</span>
-    </div>
-  </div>
-);
+const highlightCardClass = 'rounded-[28px] border border-white/60 bg-white/95 shadow-[0_2px_10px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,23,42,0.16)]';
 
 const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId }) => {
   const { data, loading, error, refresh } = useUserDemographics(userId);
@@ -70,51 +62,73 @@ const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId 
     };
     return {
       gender: calc(gender),
-      age: calc(age).slice(0, 5),
-      location: calc(city).slice(0, 3),
+      age: calc(age),
+      location: calc(city),
     };
   }, [data]);
 
+  const genderBarData = useMemo(() => {
+    if (!breakdowns) return [];
+    return breakdowns.gender.map(item => ({
+      label: genderLabelMap[item.label.toLowerCase()] || item.label,
+      percentage: item.percentage
+    }));
+  }, [breakdowns]);
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm h-full">
+    <div className="h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-slate-900">Demografia de Seguidores</h3>
         {!loading && !error && userId && (
           <button onClick={refresh} className="text-xs text-indigo-600 hover:underline">Atualizar</button>
         )}
       </div>
+
       {loading && <div className="text-center py-2 text-xs text-gray-500">A carregar...</div>}
       {error && <div className="text-center py-2 text-xs text-red-500">Erro: {error}</div>}
-      {!loading && !error && !data && <p className="text-xs text-gray-400">Nenhum dado dispon\xEDvel.</p>}
+      {!loading && !error && !data && <p className="text-xs text-gray-400">Nenhum dado disponível.</p>}
+
       {data && breakdowns && (
-        <div className="space-y-4 mt-2">
+        <div className="space-y-6">
           <div className="p-2 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
             <LightBulbIcon className="w-4 h-4 text-yellow-500 flex-shrink-0" />
             <span>{summary}</span>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            {breakdowns.gender.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-gray-600 mb-1">G\xEAnero</h4>
-                {breakdowns.gender.map((item) => (
-                  <DemographicRow key={item.label} label={genderLabelMap[item.label.toLowerCase()] || item.label} percentage={item.percentage} />
-                ))}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {genderBarData.length > 0 && (
+              <div className={`${highlightCardClass} p-6`}>
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-semibold text-slate-900">
+                    <Users className="h-5 w-5 text-[#D62E5E]" />
+                    Gênero
+                  </div>
+                </div>
+                <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
               </div>
             )}
+
             {breakdowns.age.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-gray-600 mb-1">Faixas Et\xE1rias</h4>
-                {breakdowns.age.map((item) => (
-                  <DemographicRow key={item.label} label={item.label} percentage={item.percentage} />
-                ))}
+              <div className={`${highlightCardClass} p-6`}>
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-semibold text-slate-900">
+                    <CalendarDays className="h-5 w-5 text-[#6E1F93]" />
+                    Idade
+                  </div>
+                </div>
+                <DemographicBarList data={breakdowns.age} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
               </div>
             )}
+
             {breakdowns.location.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-gray-600 mb-1">Cidades</h4>
-                {breakdowns.location.map((item) => (
-                  <DemographicRow key={item.label} label={item.label} percentage={item.percentage} />
-                ))}
+              <div className={`${highlightCardClass} p-6`}>
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-semibold text-slate-900">
+                    <MapPin className="h-5 w-5 text-[#D62E5E]" />
+                    Localização
+                  </div>
+                </div>
+                <DemographicBarList data={breakdowns.location} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
               </div>
             )}
           </div>
@@ -125,4 +139,5 @@ const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId 
 };
 
 export default memo(UserDemographicsWidget);
+
 

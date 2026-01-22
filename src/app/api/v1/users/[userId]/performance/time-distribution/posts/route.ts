@@ -119,6 +119,8 @@ export async function GET(
           context: 1,
           tone: 1,
           references: 1,
+          stats: 1,
+          postDate: 1,
           creatorName: '$creator.name',
           creatorPhotoUrl: '$creator.profile_picture_url',
           metricValue: `$${metric}`,

@@ -46,6 +46,7 @@ import { useGlobalTimePeriod, GlobalTimePeriodProvider } from '@/app/admin/creat
 import { getCategoryById, commaSeparatedIdsToLabels } from '@/app/lib/classification';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
 import ButtonPrimary from '@/app/landing/components/ButtonPrimary';
+import DemographicBarList from '@/app/components/DemographicBarList';
 import { useSession } from 'next-auth/react';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
@@ -966,35 +967,7 @@ const SparklineChart = ({ values, color = '#6E1F93' }: { values: number[]; color
   );
 };
 
-const DemographicBarList = ({
-  data,
-  maxItems = 4,
-  accentClass = 'from-[#D62E5E] to-[#6E1F93]',
-}: {
-  data: Array<{ label: string; percentage: number }>;
-  maxItems?: number;
-  accentClass?: string;
-}) => {
-  if (!data?.length) return null;
-  return (
-    <div className="space-y-4">
-      {data.slice(0, maxItems).map((item) => (
-        <div key={`${item.label}-${item.percentage}`}>
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-slate-700">{item.label}</span>
-            <span className="font-bold text-slate-900">{Math.round(item.percentage)}%</span>
-          </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={`h-full rounded-full bg-gradient-to-r ${accentClass}`}
-              style={{ width: `${Math.min(item.percentage, 100)}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
+
 
 type InsightMetricCard = {
   key: string;
