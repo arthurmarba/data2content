@@ -26,6 +26,7 @@ interface Filters {
   region?: string;
   gender?: 'F' | 'M' | 'U';
   ageRange?: '13-17' | '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+';
+  userId?: string;
 }
 
 export default async function aggregateAudienceByRegion(
@@ -37,7 +38,12 @@ export default async function aggregateAudienceByRegion(
 
   try {
     const pipeline: any[] = [];
-    if (agencyId) {
+
+    // Filtro por Usuário (Prioridade sobre Agência)
+    if (filters.userId) {
+      pipeline.push({ $match: { user: new Types.ObjectId(filters.userId) } });
+    } else if (agencyId) {
+      // Filtro por Agência (apenas se não houver usuário específico)
       const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
       if (!agencyUserIds.length) {
         return [];
@@ -81,7 +87,7 @@ export default async function aggregateAudienceByRegion(
           demographicProportion = ageCount / totalAgeFollowers;
         }
       }
-      
+
       for (const [originalCityName, count] of Object.entries(followerDemographics.city)) {
         if (typeof count !== 'number') continue;
 
@@ -91,7 +97,7 @@ export default async function aggregateAudienceByRegion(
         const cleanedCityName = (originalCityName.split(',')[0] ?? '').trim();
         const normalized = normalizeCityName(cleanedCityName);
         const stateAbbr = BRAZIL_CITY_TO_STATE_MAP[normalized];
-        
+
         if (!stateAbbr || (allowedStates && !allowedStates.has(stateAbbr))) continue;
 
         if (!stateResults[stateAbbr]) {
@@ -122,8 +128,8 @@ export default async function aggregateAudienceByRegion(
         stateInfo.density = (stateInfo.count / population);
       }
       stateInfo.count = Math.round(stateInfo.count);
-      for(const city in stateInfo.cities){
-          stateInfo.cities[city]!.count = Math.round(stateInfo.cities[city]!.count);
+      for (const city in stateInfo.cities) {
+        stateInfo.cities[city]!.count = Math.round(stateInfo.cities[city]!.count);
       }
     }
 

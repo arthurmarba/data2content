@@ -13,6 +13,7 @@ const querySchema = z.object({
   region: z.enum(['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']).optional(),
   gender: z.enum(['F', 'M', 'U']).optional(),
   ageRange: z.enum(['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+']).optional(),
+  userId: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const params = Object.fromEntries(searchParams.entries());
-  
+
   // Valida os novos parâmetros (região, gênero e idade)
   const validated = querySchema.safeParse(params);
   if (!validated.success) {

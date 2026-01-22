@@ -10,31 +10,31 @@ parâmetros de filtro corretamente para a API.
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
-import { formatCategories, proposalCategories, contextCategories } from "@/app/lib/classification";
-import TimeSlotTopPostsModal from './TimeSlotTopPostsModal';
+import { formatCategories, proposalCategories, contextCategories, idsToLabels } from "@/app/lib/classification";
+import PostsBySliceModal from '@/app/dashboard/planning/components/PostsBySliceModal';
 import { LightBulbIcon, CalendarDaysIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 
 // --- Funções Auxiliares ---
 
 const getPortugueseWeekdayNameForList = (day: number): string => {
-    switch (day) {
-        case 1: return 'Domingo';
-        case 2: return 'Segunda';
-        case 3: return 'Terça';
-        case 4: return 'Quarta';
-        case 5: return 'Quinta';
-        case 6: return 'Sexta';
-        case 7: return 'Sábado';
-        default: return '';
-    }
+  switch (day) {
+    case 1: return 'Domingo';
+    case 2: return 'Segunda';
+    case 3: return 'Terça';
+    case 4: return 'Quarta';
+    case 5: return 'Quinta';
+    case 6: return 'Sexta';
+    case 7: return 'Sábado';
+    default: return '';
+  }
 };
 
 // Função auxiliar para converter a hora de volta para o formato de bloco, para o modal.
 const hourToTimeBlock = (hour: number): string => {
-    if (hour <= 5) return "0-6";
-    if (hour <= 11) return "6-12";
-    if (hour <= 17) return "12-18";
-    return "18-24";
+  if (hour <= 5) return "0-6";
+  if (hour <= 11) return "6-12";
+  if (hour <= 17) return "12-18";
+  return "18-24";
 };
 
 const createOptionsFromCategories = (categories: any[]) => {
@@ -53,27 +53,27 @@ const createOptionsFromCategories = (categories: any[]) => {
 };
 
 const SkeletonLoader = () => (
-    <div className="animate-pulse">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border">
-            <div className="h-10 bg-gray-200 rounded-md"></div>
-            <div className="h-10 bg-gray-200 rounded-md"></div>
-            <div className="h-10 bg-gray-200 rounded-md"></div>
-            <div className="h-10 bg-gray-200 rounded-md"></div>
-        </div>
-        <div className="h-64 bg-gray-200 rounded-lg"></div>
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-24 bg-gray-200 rounded-lg"></div>
-            <div className="h-24 bg-gray-200 rounded-lg"></div>
-        </div>
+  <div className="animate-pulse">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border">
+      <div className="h-10 bg-gray-200 rounded-md"></div>
+      <div className="h-10 bg-gray-200 rounded-md"></div>
+      <div className="h-10 bg-gray-200 rounded-md"></div>
+      <div className="h-10 bg-gray-200 rounded-md"></div>
     </div>
+    <div className="h-64 bg-gray-200 rounded-lg"></div>
+    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="h-24 bg-gray-200 rounded-lg"></div>
+      <div className="h-24 bg-gray-200 rounded-lg"></div>
+    </div>
+  </div>
 );
 
 const EmptyState = ({ message }: { message: string }) => (
-    <div className="text-center py-10">
-        <ChartBarIcon className="mx-auto h-12 w-12 text-gray-300" />
-        <h3 className="mt-2 text-sm font-semibold text-gray-800">Nenhum dado encontrado</h3>
-        <p className="mt-1 text-sm text-gray-500">{message}</p>
-    </div>
+  <div className="text-center py-10">
+    <ChartBarIcon className="mx-auto h-12 w-12 text-gray-300" />
+    <h3 className="mt-2 text-sm font-semibold text-gray-800">Nenhum dado encontrado</h3>
+    <p className="mt-1 text-sm text-gray-500">{message}</p>
+  </div>
 );
 
 
@@ -119,13 +119,21 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
   const [data, setData] = useState<TimePerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [format, setFormat] = useState('');
   const [proposal, setProposal] = useState('');
   const [context, setContext] = useState('');
   const [metric, setMetric] = useState(metricOptions[0]!.value);
-  
-  const [selectedSlot, setSelectedSlot] = useState<{ dayOfWeek: number; hour: number } | null>(null);
+
+  // Modal State
+  const [sliceModal, setSliceModal] = useState<{ open: boolean; title: string; subtitle?: string; posts: any[] }>({
+    open: false,
+    title: "",
+    subtitle: "",
+    posts: [],
+  });
+
+  const [postsLoading, setPostsLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -154,6 +162,94 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
     }
   }, [timePeriod, format, proposal, context, metric, userId, apiPrefix, onlyActiveSubscribers, forcedCreatorContext]);
 
+  const handleSlotClick = async (dayOfWeek: number, hour: number, value: number, count: number) => {
+    if (count === 0) return;
+
+    setSliceModal({
+      open: true,
+      title: "Carregando posts...",
+      subtitle: `${getPortugueseWeekdayNameForList(dayOfWeek)} ${hour}h`,
+      posts: []
+    });
+    setPostsLoading(true);
+
+    try {
+      const params = new URLSearchParams({
+        dayOfWeek: String(dayOfWeek),
+        hour: String(hour),
+        timePeriod,
+        metric,
+      });
+      if (format) params.append('format', format);
+      if (proposal) params.append('proposal', proposal);
+      if (context) params.append('context', context);
+      if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+
+      const base = userId
+        ? `/api/v1/users/${userId}/performance/time-distribution/posts`
+        : '/api/v1/platform/performance/time-distribution/posts';
+
+      const res = await fetch(`${base}?${params.toString()}`);
+      if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+      const json = await res.json();
+
+      // Normalize posts for PostsBySliceModal (similar to AdminPlanningCharts)
+      const normalizedPosts = (json.posts || []).map((p: any) => {
+        const toArray = (v: any) => (Array.isArray(v) ? v : (v ? [v] : []));
+
+        // IDs to Labels conversion using idsToLabels from classification lib
+        // The API returns IDs usually, so ensure we have labels
+        const fmt = idsToLabels(toArray(p.format), 'format');
+        const prop = idsToLabels(toArray(p.proposal), 'proposal');
+        const ctx = idsToLabels(toArray(p.context), 'context');
+        const tone = idsToLabels(toArray(p.tone), 'tone');
+        const refs = idsToLabels(toArray(p.references), 'reference');
+
+        const metaLabel = [
+          fmt.length ? `Formato: ${fmt.join(", ")}` : null,
+          prop.length ? `Proposta: ${prop.join(", ")}` : null,
+          ctx.length ? `Contexto: ${ctx.join(", ")}` : null
+        ].filter(Boolean).join(" • ");
+
+        return {
+          ...p,
+          format: fmt,
+          proposal: prop,
+          context: ctx,
+          tone: tone,
+          references: refs,
+          metaLabel,
+          postDate: p.postDate, // Already ISODate usually
+          stats: {
+            reach: p.stats?.reach || p.metricValue || 0, // Fallback if metricValue represents reach
+            total_interactions: p.stats?.total_interactions || 0,
+            likes: p.stats?.likes || 0,
+            comments: p.stats?.comments || 0,
+            shares: p.stats?.shares || 0,
+            saved: p.stats?.saved || p.stats?.saves || 0
+          },
+          // Map coverUrl to thumbnailUrl for the modal if needed, but Modal checks both
+          thumbnailUrl: p.coverUrl
+        };
+      });
+
+      setSliceModal(prev => ({
+        ...prev,
+        title: `Top posts (${count})`,
+        posts: normalizedPosts
+      }));
+    } catch (e: any) {
+      console.error(e);
+      setSliceModal(prev => ({
+        ...prev,
+        title: "Erro ao carregar posts",
+        subtitle: "Tente novamente"
+      }));
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (forcedContext) {
       setContext(forcedContext);
@@ -175,8 +271,8 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
     <>
       <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
         <div className="flex items-center gap-3 mb-4">
-            <CalendarDaysIcon className="w-6 h-6 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-gray-800">Análise de Performance por Horário</h3>
+          <CalendarDaysIcon className="w-6 h-6 text-indigo-600" />
+          <h3 className="text-lg font-semibold text-gray-800">Análise de Performance por Horário</h3>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border">
@@ -202,104 +298,103 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
         {!loading && !error && data && (
           <div>
             {data.buckets.length === 0 ? (
-                <EmptyState message="Tente ajustar os filtros ou o período de tempo." />
+              <EmptyState message="Tente ajustar os filtros ou o período de tempo." />
             ) : (
-            <>
+              <>
                 <div className="overflow-x-auto">
-                <table className="w-full text-center text-xs border-separate border-spacing-px table-fixed">
+                  <table className="w-full text-center text-xs border-separate border-spacing-px table-fixed">
                     <thead>
-                    <tr>
-                        <th className="p-1 w-10"></th> 
+                      <tr>
+                        <th className="p-1 w-10"></th>
                         {HOURS.map(h => (
-                        <th key={h} className="p-1 font-normal text-gray-500 text-[9px]">{h.toString().padStart(2, '0')}h</th>
+                          <th key={h} className="p-1 font-normal text-gray-500 text-[9px]">{h.toString().padStart(2, '0')}h</th>
                         ))}
-                    </tr>
+                      </tr>
                     </thead>
                     <tbody>
-                    {DAYS.map((d, idx) => (
+                      {DAYS.map((d, idx) => (
                         <tr key={d}>
-                        <td className="p-1 font-semibold text-gray-600 text-right">{d}</td>
-                        {HOURS.map(h => {
+                          <td className="p-1 font-semibold text-gray-600 text-right">{d}</td>
+                          {HOURS.map(h => {
                             const cell = getCell(idx + 1, h);
                             const val = cell ? cell.average : 0;
                             const intensity = maxValue === 0 ? 0 : 0.15 + (val / maxValue) * 0.85;
                             const style = val === 0 ? { backgroundColor: '#f8fafc' } : { backgroundColor: `rgba(79, 70, 229, ${intensity})` };
-                            const tooltip = cell ? `${val.toLocaleString('pt-BR', {maximumFractionDigits: 1})} de média de engajamento (${cell.count} post${cell.count > 1 ? 's' : ''})` : 'Nenhum post';
+                            const tooltip = cell ? `${val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} de média de engajamento (${cell.count} post${cell.count > 1 ? 's' : ''})` : 'Nenhum post';
                             return (
-                            <td
+                              <td
                                 key={h}
                                 className="h-8 cursor-pointer rounded-sm transition-all duration-200 hover:scale-125 hover:shadow-lg hover:z-10"
                                 style={style}
                                 title={tooltip}
-                                onClick={() => cell && cell.count > 0 && setSelectedSlot({ dayOfWeek: cell.dayOfWeek, hour: cell.hour })}
-                            >
-                            </td>
+                                onClick={() => cell && cell.count > 0 && handleSlotClick(cell.dayOfWeek, cell.hour, val, cell.count)}
+                              >
+                              </td>
                             );
-                        })}
+                          })}
                         </tr>
-                    ))}
+                      ))}
                     </tbody>
-                </table>
+                  </table>
                 </div>
-                
+
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                {data.bestSlots.length > 0 && (
+                  {data.bestSlots.length > 0 && (
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <p className="font-semibold mb-1 text-green-800">✅ Melhores Horários</p>
-                    <p className="text-green-700 text-[11px] mb-2">{selectedMetricLabel}</p>
-                    <ul className="space-y-2">
-                        {data.bestSlots.slice(0,3).map((s, i) => (
-                        <li key={i} className="space-y-1">
+                      <p className="font-semibold mb-1 text-green-800">✅ Melhores Horários</p>
+                      <p className="text-green-700 text-[11px] mb-2">{selectedMetricLabel}</p>
+                      <ul className="space-y-2">
+                        {data.bestSlots.slice(0, 3).map((s, i) => (
+                          <li key={i} className="space-y-1">
                             <div className="flex justify-between items-center">
-                            <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
-                            <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', {maximumFractionDigits: 1})}</span>
+                              <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
+                              <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</span>
                             </div>
                             <div className="w-full bg-green-200 rounded-full h-1.5">
-                            <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(s.average / maxValue) * 100}%` }}></div>
+                              <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(s.average / maxValue) * 100}%` }}></div>
                             </div>
-                        </li>
+                          </li>
                         ))}
-                    </ul>
+                      </ul>
                     </div>
-                )}
-                {data.worstSlots.length > 0 && (
+                  )}
+                  {data.worstSlots.length > 0 && (
                     <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                    <p className="font-semibold mb-1 text-red-800">❌ Piores Horários</p>
-                    <p className="text-red-700 text-[11px] mb-2">{selectedMetricLabel}</p>
-                    <ul className="space-y-2">
-                        {data.worstSlots.slice(0,3).map((s, i) => (
-                        <li key={i} className="space-y-1">
+                      <p className="font-semibold mb-1 text-red-800">❌ Piores Horários</p>
+                      <p className="text-red-700 text-[11px] mb-2">{selectedMetricLabel}</p>
+                      <ul className="space-y-2">
+                        {data.worstSlots.slice(0, 3).map((s, i) => (
+                          <li key={i} className="space-y-1">
                             <div className="flex justify-between items-center">
-                            <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
-                            <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', {maximumFractionDigits: 1})}</span>
+                              <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
+                              <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</span>
                             </div>
                             <div className="w-full bg-red-200 rounded-full h-1.5">
-                            <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${(s.average / maxValue) * 100}%` }}></div>
+                              <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${(s.average / maxValue) * 100}%` }}></div>
                             </div>
-                        </li>
+                          </li>
                         ))}
-                    </ul>
+                      </ul>
                     </div>
-                )}
+                  )}
                 </div>
                 {data.insightSummary && (
-                    <div className="mt-4 p-3 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
-                        <LightBulbIcon className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                        <span>{data.insightSummary}</span>
-                    </div>
+                  <div className="mt-4 p-3 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
+                    <LightBulbIcon className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                    <span>{data.insightSummary}</span>
+                  </div>
                 )}
-            </>
+              </>
             )}
           </div>
         )}
       </div>
-      <TimeSlotTopPostsModal
-        isOpen={!!selectedSlot}
-        onClose={() => setSelectedSlot(null)}
-        dayOfWeek={selectedSlot?.dayOfWeek || 0}
-        hour={selectedSlot?.hour || 0}
-        filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric, onlyActiveSubscribers }}
-        userId={userId || undefined}
+      <PostsBySliceModal
+        isOpen={sliceModal.open}
+        title={sliceModal.title}
+        subtitle={sliceModal.subtitle}
+        posts={sliceModal.posts}
+        onClose={() => setSliceModal(prev => ({ ...prev, open: false }))}
       />
     </>
   );

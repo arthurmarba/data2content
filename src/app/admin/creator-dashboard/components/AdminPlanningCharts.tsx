@@ -17,8 +17,7 @@ import {
 } from "recharts";
 import { Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
 import { TopDiscoveryTable } from "@/app/dashboard/planning/components/TopDiscoveryTable";
-import VideoDrillDownModal from "./VideoDrillDownModal";
-import TimeSlotTopPostsModal from "./TimeSlotTopPostsModal";
+import PostsBySliceModal from "@/app/dashboard/planning/components/PostsBySliceModal";
 
 const cardBase = "rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
@@ -45,49 +44,134 @@ const getWeekKey = (d: string | Date) => {
   return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
 };
 
-const getWeekRange = (weekKey?: string | null) => {
-  if (!weekKey) return null;
-  const [yearStr, weekStr] = weekKey.split("-W");
-  const year = parseInt(yearStr ?? "0", 10);
-  const week = parseInt(weekStr ?? "0", 10);
-  if (!year || !week) return null;
+const normalizeWeekKey = (value: string | Date | null) => {
+  if (!value) return null;
+  const direct = getWeekKey(value);
+  if (direct) return direct;
+  if (typeof value === "string") {
+    const match = value.match(/(\d{4}).*?W?(\d{1,2})/i);
+    if (match && match[1] && match[2]) return `${match[1]}-W${match[2].padStart(2, "0")}`;
+  }
+  return null;
+};
 
-  const oneJan = new Date(year, 0, 1);
-  const daysOffset = oneJan.getDay();
+const toArray = (value: any): string[] => {
+  if (Array.isArray(value)) return value.filter(Boolean).map((v) => String(v));
+  if (value) return [String(value)];
+  return [];
+};
 
-  const start = new Date(year, 0, 1 - daysOffset + (week - 1) * 7);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-
-  const toISODate = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+const normalizePost = (post: any) => {
+  const formatRaw = toArray(post?.format).length ? toArray(post?.format) : toArray(post?.mediaType);
+  const format = formatRaw.map((f) => f.trim());
+  const proposal = toArray(post?.proposal);
+  const context = toArray(post?.context);
+  const tone = toArray(post?.tone);
+  const references = toArray(post?.references ?? post?.reference);
+  const metaLabel = [
+    format.length ? `Formato: ${format.join(", ")}` : null,
+    proposal.length ? `Proposta: ${proposal.join(", ")}` : null,
+    context.length ? `Contexto: ${context.join(", ")}` : null,
+    tone.length ? `Tom: ${tone.join(", ")}` : null,
+    references.length ? `Ref: ${references.join(", ")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
 
   return {
-    start: toISODate(start),
-    end: toISODate(end),
+    ...post,
+    format,
+    proposal,
+    context,
+    tone,
+    references,
+    metaLabel,
+    postDate: post?.postDate,
+    stats: post?.stats ?? {},
   };
 };
 
+const filterPostsByWeek = (posts: any[], weekKey: string | null) => {
+  const target = normalizeWeekKey(weekKey);
+  if (!target) return [];
+  return posts.filter((p) => p?.postDate && normalizeWeekKey(p.postDate) === target);
+};
+
+const filterPostsByDayHour = (posts: any[], day: number, startHour: number, endHour: number) =>
+  posts.filter((p) => {
+    if (!p?.postDate) return false;
+    const d = new Date(p.postDate);
+    if (Number.isNaN(d.getTime())) return false;
+    const dow = d.getDay() === 0 ? 7 : d.getDay();
+    const h = d.getHours();
+    return dow === day && h >= startHour && h <= endHour;
+  });
+
+const filterPostsByHour = (posts: any[], hour: number) =>
+  posts.filter((p) => {
+    if (!p?.postDate) return false;
+    const d = new Date(p.postDate);
+    return !Number.isNaN(d.getTime()) && d.getHours() === hour;
+  });
+
+const formatAliases: Record<string, string> = {
+  photo: "foto",
+  imagem: "foto",
+  image: "foto",
+  carousel: "carrossel",
+  carrossel: "carrossel",
+  reel: "reels",
+  reels: "reels",
+  video: "video",
+  "vídeo": "video",
+};
+
+const stripAccents = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const normalizeLabel = (value: string) => stripAccents(value).trim().toLowerCase();
+
+const matchesValue = (list: string[], target: string) => {
+  const targetNorm = normalizeLabel(target);
+  return list.some((item) => {
+    const norm = normalizeLabel(item);
+    if (norm === targetNorm) return true;
+    const alias = formatAliases[norm];
+    const aliasTarget = formatAliases[targetNorm];
+    if (alias && alias === targetNorm) return true;
+    if (aliasTarget && aliasTarget === norm) return true;
+    return false;
+  });
+};
+
+const filterPostsByCategory = (posts: any[], field: "format" | "proposal" | "context" | "tone" | "references", value: string) =>
+  posts.filter((p) => Array.isArray(p?.[field]) && matchesValue(p[field], value));
+
+const sortPostsByDateDesc = (posts: any[]) =>
+  posts.slice().sort((a, b) => {
+    const aDate = a?.postDate ? new Date(a.postDate).getTime() : 0;
+    const bDate = b?.postDate ? new Date(b.postDate).getTime() : 0;
+    return bDate - aDate;
+  });
+
+
+
 interface AdminPlanningChartsProps {
   userId: string;
+  hideHeatmap?: boolean;
 }
 
-export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps) {
+export default function AdminPlanningCharts({ userId, hideHeatmap = false }: AdminPlanningChartsProps) {
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const PAGE_LIMIT = 200;
 
   // Modal States
-  const [weeklyModalOpen, setWeeklyModalOpen] = useState(false);
-  const [selectedWeekRange, setSelectedWeekRange] = useState<{ start: string; end: string } | null>(null);
-  const [selectedFilters, setSelectedFilters] = useState<any>({});
+  const [sliceModal, setSliceModal] = useState<{ open: boolean; title: string; subtitle?: string; posts: any[] }>({
+    open: false,
+    title: "",
+    subtitle: "",
+    posts: [],
+  });
 
-  const [timeSlotModalOpen, setTimeSlotModalOpen] = useState(false);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ day: number; hour: number } | null>(null);
 
   const { data: trendData, isLoading: loadingTrend } = useSWR(
     userId ? `/api/v1/users/${userId}/trends/reach-engagement?granularity=weekly&timePeriod=${TIME_PERIOD}` : null,
@@ -155,6 +239,59 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
   }, [trendData]);
 
   const postsSource = postsCache;
+
+  const normalizedPosts = useMemo(
+    () => (Array.isArray(postsSource) ? postsSource.map((p) => normalizePost(p)) : []),
+    [postsSource]
+  );
+
+  const openSliceModal = React.useCallback(
+    ({ title, subtitle, posts }: { title: string; subtitle?: string; posts: any[] }) => {
+      setSliceModal({ open: true, title, subtitle, posts });
+    },
+    []
+  );
+
+  const closeSliceModal = React.useCallback(() => {
+    setSliceModal((prev) => ({ ...prev, open: false }));
+  }, []);
+
+  const handleWeekClick = React.useCallback(
+    (weekKey: string | null, subtitle: string) => {
+      if (!weekKey) return;
+      const posts = sortPostsByDateDesc(filterPostsByWeek(normalizedPosts, weekKey));
+      openSliceModal({
+        title: `Posts da semana ${weekKey}`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
+
+  const handleCategoryClick = React.useCallback(
+    (field: "format" | "proposal" | "context" | "tone" | "references", value: string, subtitle: string) => {
+      const posts = sortPostsByDateDesc(filterPostsByCategory(normalizedPosts, field, value));
+      openSliceModal({
+        title: `Posts com ${field}: ${value}`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
+
+  const handleDayHourClick = React.useCallback(
+    (day: number, startHour: number, endHour: number, subtitle: string) => {
+      const posts = sortPostsByDateDesc(filterPostsByDayHour(normalizedPosts, day, startHour, endHour));
+      openSliceModal({
+        title: `Posts em ${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][day - 1]} entre ${startHour}h e ${endHour}h`,
+        subtitle,
+        posts,
+      });
+    },
+    [normalizedPosts, openSliceModal]
+  );
 
   useEffect(() => {
     const list = Array.isArray(postsData?.posts)
@@ -512,9 +649,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const weekKey = data.activePayload[0].payload.date;
-                      const range = getWeekRange(weekKey);
-                      setSelectedWeekRange(range);
-                      setWeeklyModalOpen(true);
+                      handleWeekClick(weekKey, "Alcance x Interações");
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -598,8 +733,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const context = data.activePayload[0].payload.name;
-                      setSelectedFilters({ context });
-                      setWeeklyModalOpen(true);
+                      handleCategoryClick("context", context, "Interação por Contexto");
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -647,8 +781,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const proposal = data.activePayload[0].payload.name;
-                      setSelectedFilters({ proposal });
-                      setWeeklyModalOpen(true);
+                      handleCategoryClick("proposal", proposal, "Interação por Proposta");
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -698,8 +831,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const tone = data.activePayload[0].payload.name;
-                      setSelectedFilters({ tone });
-                      setWeeklyModalOpen(true);
+                      handleCategoryClick("tone", tone, "Interação por Tom");
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -747,8 +879,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const references = data.activePayload[0].payload.name;
-                      setSelectedFilters({ references });
-                      setWeeklyModalOpen(true);
+                      handleCategoryClick("references", references, "Interação por Referência");
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -776,58 +907,59 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <article className={cardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Heatmap</p>
-              <h2 className="text-base font-semibold text-slate-900">Melhores janelas por dia e hora</h2>
-              <p className="text-xs text-slate-500">Quanto mais escuro, mais interações médias.</p>
-            </div>
-            <Clock3 className="h-5 w-5 text-indigo-500" />
-          </header>
-          <div className="mt-4">
-            {loadingTime ? (
-              <p className="text-sm text-slate-500">Carregando heatmap...</p>
-            ) : heatmap.length === 0 ? (
-              <p className="text-sm text-slate-500">Sem dados para montar o heatmap.</p>
-            ) : (
-              <div className="grid grid-cols-8 gap-1 text-[11px] text-slate-500">
-                <div />
-                {Array.from({ length: 7 }).map((_, idx) => (
-                  <div key={idx} className="text-center">{`${idx * 4}h`}</div>
-                ))}
-                {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
-                  <React.Fragment key={dow}>
-                    <div className="pr-2 text-right">{["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]}</div>
-                    {Array.from({ length: 7 }).map((_, hIdx) => {
-                      const h = hIdx * 4;
-                      const match = heatmap.reduce((best, curr) => {
-                        if (Math.abs(curr.hour - h) <= 1 && curr.day === dow) {
-                          return curr.score > (best?.score ?? 0) ? curr : best;
-                        }
-                        return best;
-                      }, null as any);
-                      const score = match?.score ?? 0;
-                      const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
-                      return (
-                        <div
-                          key={hIdx}
-                          className="aspect-square rounded border border-slate-100 cursor-pointer hover:ring-2 hover:ring-indigo-400 transition-all"
-                          style={{ background: bg }}
-                          onClick={() => {
-                            setSelectedTimeSlot({ day: dow, hour: h });
-                            setTimeSlotModalOpen(true);
-                          }}
-                          title={`Ver posts de ${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]} às ${h}h`}
-                        />
-                      );
-                    })}
-                  </React.Fragment>
-                ))}
+        {!hideHeatmap && (
+          <article className={cardBase}>
+            <header className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Heatmap</p>
+                <h2 className="text-base font-semibold text-slate-900">Melhores janelas por dia e hora</h2>
+                <p className="text-xs text-slate-500">Quanto mais escuro, mais interações médias.</p>
               </div>
-            )}
-          </div>
-        </article>
+              <Clock3 className="h-5 w-5 text-indigo-500" />
+            </header>
+            <div className="mt-4">
+              {loadingTime ? (
+                <p className="text-sm text-slate-500">Carregando heatmap...</p>
+              ) : heatmap.length === 0 ? (
+                <p className="text-sm text-slate-500">Sem dados para montar o heatmap.</p>
+              ) : (
+                <div className="grid grid-cols-8 gap-1 text-[11px] text-slate-500">
+                  <div />
+                  {Array.from({ length: 7 }).map((_, idx) => (
+                    <div key={idx} className="text-center">{`${idx * 4}h`}</div>
+                  ))}
+                  {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
+                    <React.Fragment key={dow}>
+                      <div className="pr-2 text-right">{["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]}</div>
+                      {Array.from({ length: 7 }).map((_, hIdx) => {
+                        const h = hIdx * 4;
+                        const match = heatmap.reduce((best, curr) => {
+                          if (Math.abs(curr.hour - h) <= 1 && curr.day === dow) {
+                            return curr.score > (best?.score ?? 0) ? curr : best;
+                          }
+                          return best;
+                        }, null as any);
+                        const score = match?.score ?? 0;
+                        const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
+                        const startHour = Math.min(h, 23);
+                        const endHour = Math.min(h + 3, 23);
+                        return (
+                          <div
+                            key={hIdx}
+                            className="aspect-square rounded border border-slate-100 cursor-pointer hover:ring-2 hover:ring-indigo-400 transition-all"
+                            style={{ background: bg }}
+                            onClick={() => handleDayHourClick(dow, startHour, endHour, "Heatmap de janelas")}
+                            title={`Ver posts de ${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]} entre ${startHour}h e ${endHour}h`}
+                          />
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </div>
+          </article>
+        )}
 
         <article className={cardBase}>
           <header className="flex items-center justify-between gap-3">
@@ -850,8 +982,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const format = data.activePayload[0].payload.name;
-                      setSelectedFilters({ format });
-                      setWeeklyModalOpen(true);
+                      handleCategoryClick("format", format, "Interação por Formato");
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -901,9 +1032,7 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
                       const weekKey = data.activePayload[0].payload.date;
-                      const range = getWeekRange(weekKey);
-                      setSelectedWeekRange(range);
-                      setWeeklyModalOpen(true);
+                      handleWeekClick(weekKey, "Consistência");
                     }
                   }}
                   style={{ cursor: 'pointer' }}
@@ -940,7 +1069,18 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem dados de engajamento profundo.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={deepEngagement} layout="vertical" margin={{ top: 6, right: 12, left: 30, bottom: 0 }}>
+                <BarChart
+                  data={deepEngagement}
+                  layout="vertical"
+                  margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const format = data.activePayload[0].payload.format;
+                      handleCategoryClick("format", format, "Engajamento Profundo");
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
                   <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <YAxis
@@ -978,7 +1118,17 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem dados de taxa.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyEngagementRate} margin={{ top: 6, right: 8, left: -6, bottom: 0 }}>
+                <AreaChart
+                  data={weeklyEngagementRate}
+                  margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const weekKey = data.activePayload[0].payload.date;
+                      handleWeekClick(weekKey, "Taxa de Engajamento");
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <defs>
                     <linearGradient id="rateGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -1012,7 +1162,17 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
               <p className="text-sm text-slate-500">Sem dados de compartilhamento.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={shareVelocitySeries} margin={{ top: 6, right: 8, left: -6, bottom: 0 }}>
+                <LineChart
+                  data={shareVelocitySeries}
+                  margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const weekKey = data.activePayload[0].payload.date;
+                      handleWeekClick(weekKey, "Velocidade de Compartilhamento");
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                   <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
@@ -1042,35 +1202,13 @@ export default function AdminPlanningCharts({ userId }: AdminPlanningChartsProps
       </section>
 
       {/* Modals */}
-      <VideoDrillDownModal
-        isOpen={weeklyModalOpen}
-        onClose={() => {
-          setWeeklyModalOpen(false);
-          setSelectedWeekRange(null);
-          setSelectedFilters({});
-        }}
-        userId={userId}
-        timePeriod={TIME_PERIOD}
-        drillDownMetric="postDate"
-        startDate={selectedWeekRange?.start}
-        endDate={selectedWeekRange?.end}
-        initialFilters={selectedFilters}
+      <PostsBySliceModal
+        isOpen={sliceModal.open}
+        title={sliceModal.title}
+        subtitle={sliceModal.subtitle}
+        posts={sliceModal.posts}
+        onClose={closeSliceModal}
       />
-
-      {selectedTimeSlot && (
-        <TimeSlotTopPostsModal
-          isOpen={timeSlotModalOpen}
-          onClose={() => setTimeSlotModalOpen(false)}
-          dayOfWeek={selectedTimeSlot.day}
-          hour={selectedTimeSlot.hour}
-          filters={{
-            timePeriod: TIME_PERIOD,
-            metric: 'stats.total_interactions',
-            onlyActiveSubscribers: false
-          }}
-          userId={userId}
-        />
-      )}
     </div>
   );
 }

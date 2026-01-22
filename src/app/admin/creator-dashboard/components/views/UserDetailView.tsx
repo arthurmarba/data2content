@@ -9,6 +9,8 @@ import UserVideoPerformanceMetrics from "../UserVideoPerformanceMetrics";
 import UserAlertsWidget from "../widgets/UserAlertsWidget";
 import UserDemographicsWidget from "../UserDemographicsWidget";
 import AdminPlanningCharts from "../AdminPlanningCharts";
+import CreatorBrazilMap from "../CreatorBrazilMap";
+import TimePerformanceHeatmap from "../TimePerformanceHeatmap";
 
 interface UserDetailViewProps {
   userId: string;
@@ -23,9 +25,6 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   userPhotoUrl,
   onBack,
 }) => {
-  const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<
-    "last_7_days" | "last_30_days" | "last_90_days"
-  >("last_30_days");
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -77,7 +76,19 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
 
       {/* Main Charts Section (Replaces old Trends) */}
       <section>
-        <AdminPlanningCharts userId={userId} />
+        <AdminPlanningCharts userId={userId} hideHeatmap={true} />
+      </section>
+
+      {/* Demographics & Region Section */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UserDemographicsWidget userId={userId} />
+        {/* Usamos o mesmo componente de mapa da visão geral, mas filtrado pelo usuário */}
+        <CreatorBrazilMap userId={userId} />
+      </section>
+
+      {/* Time Performance Heatmap Section */}
+      <section>
+        <TimePerformanceHeatmap userId={userId} />
       </section>
 
       {/* Secondary Metrics Grid */}
@@ -90,7 +101,6 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         {/* Widgets Column */}
         <div className="space-y-6">
           <UserAlertsWidget userId={userId} />
-          <UserDemographicsWidget userId={userId} />
         </div>
       </div>
     </div>
