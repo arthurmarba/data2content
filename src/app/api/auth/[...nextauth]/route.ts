@@ -510,6 +510,7 @@ export const authOptions: NextAuthOptions = {
                     logger.info(`${TAG_SIGNIN} [Facebook] ${igAccountsResult.accounts.length} contas IG; LLAT ${igAccountsResult.longLivedAccessToken ? "OK" : "N/A"}.`);
                     dbUserRecord.availableIgAccounts = igAccountsResult.accounts;
                     dbUserRecord.instagramAccessToken = igAccountsResult.longLivedAccessToken ?? undefined;
+                    dbUserRecord.instagramAccessTokenExpiresAt = (igAccountsResult as any).longLivedAccessTokenExpiresAt ?? undefined;
                     dbUserRecord.isInstagramConnected = false;
                     dbUserRecord.instagramAccountId = null;
                     dbUserRecord.username = null;
@@ -602,6 +603,7 @@ export const authOptions: NextAuthOptions = {
                   logger.info(`${TAG_SIGNIN} [Facebook] (fallback sessão) ${igAccountsResult.accounts.length} contas IG; LLAT ${igAccountsResult.longLivedAccessToken ? "OK" : "N/A"}.`);
                   dbUserRecord.availableIgAccounts = igAccountsResult.accounts;
                   dbUserRecord.instagramAccessToken = igAccountsResult.longLivedAccessToken ?? undefined;
+                  dbUserRecord.instagramAccessTokenExpiresAt = (igAccountsResult as any).longLivedAccessTokenExpiresAt ?? undefined;
                   dbUserRecord.isInstagramConnected = false;
                   dbUserRecord.instagramAccountId = null;
                   dbUserRecord.username = null;
@@ -912,12 +914,12 @@ export const authOptions: NextAuthOptions = {
             const dbUser = await DbUser.findById(token.id)
               .select(
                 "name email image role agency provider providerAccountId facebookProviderAccountId " +
-                  "isNewUserForOnboarding onboardingCompletedAt " +
-                  "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount " +
-                  "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd proTrialStatus proTrialActivatedAt proTrialExpiresAt " +
-                  "stripeCustomerId stripeSubscriptionId stripePriceId " +
-                  "affiliateCode availableIgAccounts instagramAccessToken affiliateBalances " +
-                  "paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
+                "isNewUserForOnboarding onboardingCompletedAt " +
+                "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount " +
+                "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd proTrialStatus proTrialActivatedAt proTrialExpiresAt " +
+                "stripeCustomerId stripeSubscriptionId stripePriceId " +
+                "affiliateCode availableIgAccounts instagramAccessToken affiliateBalances " +
+                "paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
               )
               .lean<IUser>();
 
@@ -1006,8 +1008,7 @@ export const authOptions: NextAuthOptions = {
               }
 
               logger.info(
-                `${TAG_JWT} Token atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${
-                  token.igConnectionError ? "Sim (" + String(token.igConnectionError).substring(0, 30) + "...)" : "Não"
+                `${TAG_JWT} Token atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${token.igConnectionError ? "Sim (" + String(token.igConnectionError).substring(0, 30) + "...)" : "Não"
                 }`
               );
             } else {
@@ -1121,8 +1122,8 @@ export const authOptions: NextAuthOptions = {
         const dbUserCheck = await DbUser.findById(token.id)
           .select(
             "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
-              "stripeCustomerId stripeSubscriptionId stripePriceId " +
-              "name role image proTrialStatus proTrialActivatedAt proTrialExpiresAt"
+            "stripeCustomerId stripeSubscriptionId stripePriceId " +
+            "name role image proTrialStatus proTrialActivatedAt proTrialExpiresAt"
           )
           .lean<
             Pick<
