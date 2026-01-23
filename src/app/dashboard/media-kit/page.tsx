@@ -357,6 +357,9 @@ function SelfMediaKitContent({
       handle: profile.handle ?? undefined,
       email: fallbackEmail ?? profile.email ?? undefined,
       profile_picture_url: picture,
+      image: profile.image ?? undefined,
+      availableIgAccounts: profile.availableIgAccounts ?? undefined,
+      mediaKitSlug: profile.mediaKitSlug ?? undefined,
       biography: profile.biography ?? undefined,
       headline: profile.headline ?? undefined,
       mission: profile.mission ?? undefined,
@@ -500,6 +503,7 @@ function SelfMediaKitContent({
         showOwnerCtas={true}
         compactPadding={compactPadding}
         publicUrlForCopy={publicUrlForCopy || undefined}
+        mediaKitSlug={user.mediaKitSlug ?? undefined}
         premiumAccess={premiumAccess}
         pricing={pricing}
         onClearPricing={handleClearPricing}

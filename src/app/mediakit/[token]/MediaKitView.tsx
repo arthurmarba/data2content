@@ -1690,15 +1690,20 @@ export default function MediaKitView({
     }
     return cleaned.length > 120 ? `${cleaned.slice(0, 117).trim()}…` : cleaned;
   }, [heroBio, user]);
+  const ogAvatarFallback = useMemo(() => {
+    if (!mediaKitSlug) return null;
+    return `/api/mediakit/${mediaKitSlug}/og-image`;
+  }, [mediaKitSlug]);
   const heroAvatarUrl = useMemo(() => {
     return (
       normalizeAvatarCandidate((user as any)?.profile_picture_url) ||
       normalizeAvatarCandidate((user as any)?.image) ||
       normalizeAvatarCandidate((user as any)?.instagram?.profile_picture_url) ||
       normalizeAvatarCandidate((user as any)?.instagram?.profilePictureUrl) ||
-      pickAvailableIgAvatar(user)
+      pickAvailableIgAvatar(user) ||
+      ogAvatarFallback
     );
-  }, [user]);
+  }, [ogAvatarFallback, user]);
 
   const demographicBreakdowns = useMemo<DemographicBreakdowns | null>(() => {
     if (!demographics?.follower_demographics) return null;

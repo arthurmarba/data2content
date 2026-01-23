@@ -4,10 +4,61 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
+import AccountInsightModel from '@/app/models/AccountInsight';
 
 export const runtime = 'nodejs';
 
-function serializeUser(doc: any) {
+function normalizeAvatarCandidate(raw?: string | null) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
+  return trimmed;
+}
+
+function pickAvailableIgAvatar(doc: any) {
+  const accounts = doc?.availableIgAccounts;
+  if (!Array.isArray(accounts)) return null;
+
+  const accountId = doc?.instagramAccountId;
+  const match = accountId ? accounts.find((account) => account?.igAccountId === accountId) : null;
+  const matchCandidate = normalizeAvatarCandidate(match?.profile_picture_url ?? null);
+  if (matchCandidate) return matchCandidate;
+
+  for (const account of accounts) {
+    const candidate = normalizeAvatarCandidate(account?.profile_picture_url ?? null);
+    if (candidate) return candidate;
+  }
+  return null;
+}
+
+function resolveAvatarFromDoc(doc: any) {
+  const instagram = doc?.instagram || {};
+  return (
+    normalizeAvatarCandidate(doc?.profile_picture_url ?? null) ||
+    normalizeAvatarCandidate(doc?.image ?? null) ||
+    normalizeAvatarCandidate(instagram.profile_picture_url ?? null) ||
+    normalizeAvatarCandidate(instagram.profilePictureUrl ?? null) ||
+    pickAvailableIgAvatar(doc)
+  );
+}
+
+async function resolveAvatar(doc: any) {
+  const direct = resolveAvatarFromDoc(doc);
+  if (direct) return direct;
+  if (!doc?._id) return null;
+
+  const insight = await AccountInsightModel.findOne({
+    user: doc._id,
+    'accountDetails.profile_picture_url': { $exists: true, $nin: [null, ''] },
+  })
+    .sort({ recordedAt: -1 })
+    .select('accountDetails.profile_picture_url')
+    .lean();
+
+  return normalizeAvatarCandidate(insight?.accountDetails?.profile_picture_url ?? null);
+}
+
+function serializeUser(doc: any, resolvedAvatar?: string | null) {
   if (!doc) return null;
   const instagram = doc.instagram || {};
   const resolvedFollowers =
@@ -35,11 +86,8 @@ function serializeUser(doc: any) {
     country: doc.country ?? null,
     mediaKitDisplayName: doc.mediaKitDisplayName ?? null,
     biography: doc.biography ?? instagram.biography ?? null,
-    profile_picture_url:
-      doc.profile_picture_url ||
-      instagram.profile_picture_url ||
-      instagram.profilePictureUrl ||
-      null,
+    profile_picture_url: resolvedAvatar ?? null,
+    mediaKitSlug: doc.mediaKitSlug ?? null,
     followers_count: resolvedFollowers,
     followersCount: resolvedFollowers,
     mediaKitPricingPublished: Boolean(doc.mediaKitPricingPublished),
@@ -77,7 +125,7 @@ export async function GET() {
   await connectToDatabase();
   const user = await User.findById(userId)
     .select(
-      'name mediaKitDisplayName username handle email profile_picture_url biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count mediaKitPricingPublished'
+      'name mediaKitDisplayName username handle email profile_picture_url image mediaKitSlug biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count mediaKitPricingPublished instagramAccountId availableIgAccounts.profile_picture_url'
     )
     .lean()
     .exec();
@@ -86,7 +134,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
   }
 
-  const payload = serializeUser(user);
+  const resolvedAvatar = await resolveAvatar(user);
+  const payload = serializeUser(user, resolvedAvatar);
 
   return NextResponse.json({ user: payload });
 }
@@ -128,7 +177,7 @@ export async function PATCH(req: Request) {
 
   await connectToDatabase();
   const user = await User.findById(userId)
-    .select('mediaKitDisplayName name username handle email profile_picture_url instagram instagramUsername followers_count')
+    .select('mediaKitDisplayName name username handle email profile_picture_url image mediaKitSlug instagram instagramUsername followers_count instagramAccountId availableIgAccounts.profile_picture_url')
     .exec();
 
   if (!user) {
@@ -138,6 +187,7 @@ export async function PATCH(req: Request) {
   user.mediaKitDisplayName = normalizedName.length ? normalizedName : null;
   await user.save();
 
-  const payload = serializeUser(user.toObject());
+  const resolvedAvatar = await resolveAvatar(user.toObject());
+  const payload = serializeUser(user.toObject(), resolvedAvatar);
   return NextResponse.json({ user: payload });
 }
