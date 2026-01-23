@@ -78,6 +78,29 @@ function extractIgBio(obj: any): string | null {
   return null;
 }
 
+function normalizeAvatarCandidate(raw?: string | null) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
+  return trimmed;
+}
+
+function pickAvailableIgAvatar(user: any): string | null {
+  const accounts = user?.availableIgAccounts;
+  if (!Array.isArray(accounts)) return null;
+
+  const accountId = user?.instagramAccountId;
+  const match = accountId ? accounts.find((account) => account?.igAccountId === accountId) : null;
+  const matchCandidate = normalizeAvatarCandidate(match?.profile_picture_url ?? null);
+  if (matchCandidate) return matchCandidate;
+
+  for (const account of accounts) {
+    const candidate = normalizeAvatarCandidate(account?.profile_picture_url ?? null);
+    if (candidate) return candidate;
+  }
+  return null;
+}
+
 const AFFILIATE_LANDING_PATH = '/';
 
 const resolveAppOrigin = () => {
@@ -1667,6 +1690,15 @@ export default function MediaKitView({
     }
     return cleaned.length > 120 ? `${cleaned.slice(0, 117).trim()}…` : cleaned;
   }, [heroBio, user]);
+  const heroAvatarUrl = useMemo(() => {
+    return (
+      normalizeAvatarCandidate((user as any)?.profile_picture_url) ||
+      normalizeAvatarCandidate((user as any)?.image) ||
+      normalizeAvatarCandidate((user as any)?.instagram?.profile_picture_url) ||
+      normalizeAvatarCandidate((user as any)?.instagram?.profilePictureUrl) ||
+      pickAvailableIgAvatar(user)
+    );
+  }, [user]);
 
   const demographicBreakdowns = useMemo<DemographicBreakdowns | null>(() => {
     if (!demographics?.follower_demographics) return null;
@@ -2352,7 +2384,7 @@ export default function MediaKitView({
               <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
                 <div className="relative">
                   <div className="rounded-full bg-white p-1.5 shadow-xl ring-1 ring-slate-900/5">
-                    <UserAvatar name={user.name || 'Criador'} src={user.profile_picture_url} size={160} />
+                    <UserAvatar name={user.name || 'Criador'} src={heroAvatarUrl} size={160} />
                   </div>
                 </div>
 

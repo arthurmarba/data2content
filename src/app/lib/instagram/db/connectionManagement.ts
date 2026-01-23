@@ -57,7 +57,8 @@ export async function connectInstagramAccount(
   try {
     await connectToDatabase();
 
-    const existingUser = await DbUser.findById(userId).select('planStatus planExpiresAt role email name');
+    const existingUser = await DbUser.findById(userId)
+      .select('planStatus planExpiresAt role email name availableIgAccounts profile_picture_url image');
     if (!existingUser) {
       const errorMsg = `Usuário ${userId} não encontrado no DB para conectar conta IG.`;
       logger.error(`${TAG} ${errorMsg}`);
@@ -73,6 +74,18 @@ export async function connectInstagramAccount(
       instagramSyncErrorCode: null,
       instagramReconnectNotifiedAt: null,
     };
+
+    const matchingAccount = Array.isArray(existingUser.availableIgAccounts)
+      ? existingUser.availableIgAccounts.find((account) => account?.igAccountId === instagramAccountId)
+      : null;
+    const resolvedProfilePicture =
+      typeof matchingAccount?.profile_picture_url === 'string' && matchingAccount.profile_picture_url.trim()
+        ? matchingAccount.profile_picture_url.trim()
+        : null;
+    if (resolvedProfilePicture) {
+      updateData.profile_picture_url = resolvedProfilePicture;
+      updateData.image = resolvedProfilePicture;
+    }
 
     if (longLivedAccessToken) {
       updateData.instagramAccessToken = longLivedAccessToken;
