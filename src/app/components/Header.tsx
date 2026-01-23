@@ -25,6 +25,7 @@ import {
 } from "../dashboard/context/HeaderContext";
 import { useHeaderVisibility } from "@/hooks/useHeaderVisibility";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
+import { UserAvatar } from "./UserAvatar";
 
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 
@@ -615,17 +616,12 @@ export default function Header() {
                 aria-expanded={userMenuOpen}
                 aria-label="Abrir menu do usuário"
               >
-                {user?.image ? (
-                  <Image
-                    src={user.image}
-                    alt={user.name || "Usuário"}
-                    width={44}
-                    height={44}
-                    className="w-full h-full object-cover object-center"
-                  />
-                ) : (
-                  <FaUserCircle className="w-full h-full text-gray-400" />
-                )}
+                <UserAvatar
+                  name={user?.name || "Usuário"}
+                  src={user?.image}
+                  size={40}
+                  className="w-full h-full"
+                />
               </button>
               <AnimatePresence>
                 {userMenuOpen && <UserMenu user={user} onClose={() => setUserMenuOpen(false)} />}

@@ -94,10 +94,10 @@ export async function updateUserBasicInstagramProfile(
 
   if (basicProfileData.profile_picture_url !== undefined) {
     updatePayload.profile_picture_url = basicProfileData.profile_picture_url;
-    // Se quiser que a imagem principal do usuário (user.image) seja atualizada com a do IG:
-    // updatePayload.image = basicProfileData.profile_picture_url;
-    // No entanto, isso também sobrescreveria a imagem do Google. Decida a estratégia desejada.
-    // Por agora, manteremos a imagem principal separada.
+    // SINCRONIZAÇÃO: Se temos uma foto do IG, usamos ela como a imagem principal do usuário
+    // para que apareça em todo o sistema (Header, Cards, etc) sem depender de cada componente
+    // saber se deve olhar para profile_picture_url ou image.
+    updatePayload.image = basicProfileData.profile_picture_url;
   }
   if (basicProfileData.followers_count !== undefined) updatePayload.followers_count = basicProfileData.followers_count;
   if (basicProfileData.media_count !== undefined) updatePayload.media_count = basicProfileData.media_count;

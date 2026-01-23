@@ -18,7 +18,9 @@ function isBlockedHost(url?: string | null): boolean {
     return (
       host.endsWith('fbcdn.net') ||
       host.endsWith('xx.fbcdn.net') ||
-      host.endsWith('cdninstagram.com')
+      host.endsWith('cdninstagram.com') ||
+      host.endsWith('instagram.com') ||
+      host.endsWith('fbsbx.com')
     );
   } catch {
     return false;
