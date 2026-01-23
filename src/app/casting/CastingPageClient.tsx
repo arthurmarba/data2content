@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 
 import LandingHeader from "../landing/components/LandingHeader";
+import { UserAvatar } from "../components/UserAvatar";
 import ButtonPrimary from "../landing/components/ButtonPrimary";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
@@ -358,30 +359,7 @@ function computeEngagementRate(creator: LandingCreatorHighlight): number | null 
   return Number.isFinite(rate) ? Number(rate) : null;
 }
 
-function getInitials(name?: string | null, username?: string | null) {
-  const source = (name || username || "D2C").trim();
-  if (!source) return "D2C";
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) {
-    const clean = (parts[0] ?? "").replace(/^@/, "");
-    return clean.slice(0, 2).toUpperCase() || "D2C";
-  }
-  const first = parts[0]?.[0] ?? "";
-  const second = parts[1]?.[0] ?? "";
-  const initials = (first + second).trim();
-  return initials ? initials.toUpperCase() : "D2C";
-}
 
-function pickFallbackBg(seed?: string | null) {
-  const text = seed ?? "";
-  let hash = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    hash = (hash << 5) - hash + text.charCodeAt(i);
-    hash |= 0;
-  }
-  const index = Math.abs(hash) % FALLBACK_COLORS.length;
-  return FALLBACK_COLORS[index];
-}
 
 function withStrictProxy(src?: string | null) {
   if (!src) return null;
@@ -777,10 +755,6 @@ function CastingRankCard({
       ? compactNumber.format(creator.avgInteractionsPerPost)
       : "–";
   const engagementRate = computeEngagementRate(creator);
-  const initials = getInitials(creator.name, creator.username);
-  const fallbackBg = pickFallbackBg(creator.id || creator.username || creator.name);
-  const avatarSrc = withStrictProxy(creator.avatarUrl);
-  const [avatarFailed, setAvatarFailed] = React.useState(false);
   const mediaKitHref = creator.mediaKitSlug ? `/mediakit/${creator.mediaKitSlug}` : null;
   const cardClasses = [
     "rounded-3xl border border-[#E8ECF5] bg-white shadow-[0_8px_18px_rgba(20,33,61,0.08)] transition duration-200 hover:-translate-y-0.5",
@@ -790,11 +764,6 @@ function CastingRankCard({
     .filter(Boolean)
     .join(" ");
 
-  React.useEffect(() => {
-    setAvatarFailed(false);
-  }, [avatarSrc]);
-
-  const showAvatar = Boolean(avatarSrc) && !avatarFailed;
 
   return (
     <article className={cardClasses}>
@@ -806,28 +775,12 @@ function CastingRankCard({
       <div className="px-3 sm:px-4">
         <div className="mt-3 overflow-hidden rounded-2xl bg-[#F7F8FB]">
           <div className="relative w-full pb-[100%]">
-            {showAvatar ? (
-              <Image
-                src={avatarSrc as string}
-                alt={`Avatar de ${creator.name}`}
-                fill
-                sizes="(max-width: 640px) 100vw, 260px"
-                className="object-cover"
-                onError={() => setAvatarFailed(true)}
-                onLoadingComplete={(img) => {
-                  if (img.naturalWidth <= 2 && img.naturalHeight <= 2) {
-                    setAvatarFailed(true);
-                  }
-                }}
-              />
-            ) : (
-              <div
-                className={`absolute inset-0 ${fallbackBg} flex items-center justify-center text-lg font-semibold text-white`}
-                aria-label={`Avatar de ${creator.name}`}
-              >
-                {initials}
-              </div>
-            )}
+            <UserAvatar
+              name={creator.name || creator.username || 'Criador'}
+              src={creator.avatarUrl}
+              size={260}
+              className="absolute inset-0 h-full w-full rounded-none"
+            />
           </div>
         </div>
         <div className="mt-4 space-y-0.5">

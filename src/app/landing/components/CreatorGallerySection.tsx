@@ -4,6 +4,7 @@ import Image from "next/image";
 import React from "react";
 import { track } from "@/lib/track";
 import type { LandingCreatorHighlight } from "@/types/landing";
+import { UserAvatar } from "../../components/UserAvatar";
 
 type CreatorGallerySectionProps = {
   creators: LandingCreatorHighlight[];
@@ -38,30 +39,7 @@ const FALLBACK_COLORS = [
   "bg-gradient-to-br from-brand-dark/80 to-brand-accent",
 ];
 
-function getInitials(name?: string | null, username?: string | null) {
-  const source = (name || username || "D2C").trim();
-  if (!source) return "D2C";
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) {
-    const clean = (parts[0] ?? "").replace(/^@/, "");
-    return clean.slice(0, 2).toUpperCase() || "D2C";
-  }
-  const first = parts[0]?.[0] ?? "";
-  const second = parts[1]?.[0] ?? "";
-  const initials = (first + second).trim();
-  return initials ? initials.toUpperCase() : "D2C";
-}
 
-function pickFallbackBg(seed?: string | null) {
-  const text = seed ?? "";
-  let hash = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    hash = (hash << 5) - hash + text.charCodeAt(i);
-    hash |= 0;
-  }
-  const index = Math.abs(hash) % FALLBACK_COLORS.length;
-  return FALLBACK_COLORS[index];
-}
 
 function computeEngagementRate(creator: LandingCreatorHighlight): number | null {
   const followers = creator.followers ?? 0;
@@ -218,8 +196,7 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
                   text: creator.rank <= 3 ? "text-brand-primary" : "text-brand-dark/80",
                   divider: creator.rank <= 3 ? "bg-brand-primary/20" : "bg-brand-dark/10",
                 } as const;
-                const initials = getInitials(creator.name, creator.username);
-                const fallbackBg = pickFallbackBg(creator.id || creator.username || creator.name);
+
 
                 return (
                   <article
@@ -232,22 +209,12 @@ const CreatorGallerySection: React.FC<CreatorGallerySectionProps> = ({
                     </div>
                     <div className={`h-1 w-10 rounded-full ${paletteStyles.divider}`} />
                     <div className="aspect-square w-full overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50">
-                      {creator.avatarUrl ? (
-                        <Image
-                          src={creator.avatarUrl}
-                          alt={creator.name}
-                          width={360}
-                          height={360}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className={`flex h-full w-full items-center justify-center text-lg font-bold text-white ${fallbackBg}`}
-                          aria-label={`Avatar de ${creator.name}`}
-                        >
-                          {initials}
-                        </div>
-                      )}
+                      <UserAvatar
+                        name={creator.name || creator.username || 'Criador'}
+                        src={creator.avatarUrl}
+                        size={360}
+                        className="h-full w-full rounded-none"
+                      />
                     </div>
                     <div className="flex flex-col gap-1 text-left">
                       <h3 className="text-sm font-semibold text-brand-dark">{creator.name}</h3>
@@ -311,8 +278,6 @@ function RankCard({
   const followersText = numberFormatter.format(Math.max(creator.followers ?? 0, 0));
   const avgText = creator.avgInteractionsPerPost ? numberFormatter.format(creator.avgInteractionsPerPost) : "–";
   const engagementRate = computeEngagementRate(creator);
-  const initials = getInitials(creator.name, creator.username);
-  const fallbackBg = pickFallbackBg(creator.id || creator.username || creator.name);
   const mediaKitHref = creator.mediaKitSlug ? `/mediakit/${creator.mediaKitSlug}` : null;
 
   return (
@@ -324,20 +289,12 @@ function RankCard({
       <div className="mt-1 h-1 w-10 rounded-full bg-[#FF9FC4] px-3 sm:px-4" />
       <div className="px-3 sm:px-4">
         <div className="mt-3 overflow-hidden rounded-2xl bg-[#F7F8FB]">
-          {creator.avatarUrl ? (
-            <Image
-              src={creator.avatarUrl}
-              alt={`Avatar de ${creator.name}`}
-              width={480}
-              height={480}
-              className="aspect-square w-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className={`aspect-square w-full ${fallbackBg} flex items-center justify-center text-lg font-semibold text-white`}>
-              {initials}
-            </div>
-          )}
+          <UserAvatar
+            name={creator.name || creator.username || 'Criador'}
+            src={creator.avatarUrl}
+            size={480}
+            className="aspect-square w-full rounded-none"
+          />
         </div>
         <div className="mt-4 space-y-0.5">
           <p className="text-sm font-semibold text-[#141C2F] leading-tight sm:text-base">{creator.name}</p>

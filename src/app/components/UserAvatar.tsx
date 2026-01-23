@@ -20,7 +20,8 @@ function isBlockedHost(url?: string | null): boolean {
       host.endsWith('xx.fbcdn.net') ||
       host.endsWith('cdninstagram.com') ||
       host.endsWith('instagram.com') ||
-      host.endsWith('fbsbx.com')
+      host.endsWith('fbsbx.com') ||
+      host.endsWith('facebook.com')
     );
   } catch {
     return false;
@@ -43,12 +44,14 @@ export function UserAvatar({
   const showImage = !!src && !errored;
 
   const initials = getInitials(name);
-  const baseClasses = `rounded-full object-cover ${className}`;
+  const isCircular = !className.includes('rounded-');
+  const borderRadiusClass = isCircular ? 'rounded-full' : '';
+  const baseClasses = `${borderRadiusClass} object-cover ${className}`;
 
   if (!showImage) {
     return (
       <div
-        className={`flex items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-pink-600 text-white font-semibold select-none ${className}`}
+        className={`flex items-center justify-center ${borderRadiusClass} bg-gradient-to-br from-pink-500 to-pink-600 text-white font-semibold select-none ${className}`}
         style={{ width: size, height: size, fontSize: Math.max(12, Math.floor(size / 3)) }}
         aria-label={name}
         title={name}
