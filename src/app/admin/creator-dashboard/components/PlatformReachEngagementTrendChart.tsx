@@ -28,6 +28,13 @@ interface PlatformReachEngagementTrendChartProps {
   onlyActiveSubscribers?: boolean;
   contextFilter?: string;
   creatorContextFilter?: string;
+  dataOverride?: PlatformChartResponse['chartData'] | null;
+  insightOverride?: string;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
+  granularityOverride?: string;
+  onGranularityChange?: (value: string) => void;
 }
 
 const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendChartProps> = ({
@@ -36,6 +43,13 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
   onlyActiveSubscribers = false,
   contextFilter,
   creatorContextFilter,
+  dataOverride,
+  insightOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+  granularityOverride,
+  onGranularityChange,
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformChartResponse['chartData']>([]);
@@ -43,12 +57,18 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [granularity, setGranularity] = useState<string>(initialGranularity);
+  const granularityValue = granularityOverride ?? granularity;
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined'
+    || typeof insightOverride !== 'undefined';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ timePeriod, granularity });
+      const params = new URLSearchParams({ timePeriod, granularity: granularityValue });
       if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
       if (contextFilter) params.append('context', contextFilter);
       if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
@@ -68,25 +88,37 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
+  }, [timePeriod, granularityValue, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!hasOverride) {
+      fetchData();
+    }
+  }, [fetchData, hasOverride]);
 
   const handleGranularityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setGranularity(e.target.value);
+    const nextValue = e.target.value;
+    if (onGranularityChange) {
+      onGranularityChange(nextValue);
+    } else {
+      setGranularity(nextValue);
+    }
   };
 
   const yAxisFormatter = (value: number) => formatAxisNumberCompact(value);
   const tooltipFormatter = (value: number, name: string) => formatNullableNumberTooltip(value, name);
 
   const xAxisTickFormatter = (tick: string) => {
-    if (granularity === 'weekly' && tick.includes('-')) {
+    if (granularityValue === 'weekly' && tick.includes('-')) {
         return `S${tick.split('-')[1]}`;
     }
     return tick;
   };
+
+  const finalData = hasOverride ? (dataOverride ?? []) : data;
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : loading;
+  const finalError = hasOverride ? (errorOverride ?? null) : error;
+  const finalInsight = hasOverride ? insightOverride : insightSummary;
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
@@ -99,9 +131,9 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
             <label htmlFor="granularityReachEngPlatform" className="sr-only">Granularidade:</label>
             <select
                 id="granularityReachEngPlatform"
-                value={granularity}
+                value={granularityValue}
                 onChange={handleGranularityChange}
-                disabled={loading}
+                disabled={finalLoading}
                 className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             >
                 {GRANULARITY_OPTIONS.map(option => (
@@ -112,11 +144,11 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
       </div>
 
       <div style={{ width: '100%', height: 300 }}>
-        {loading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
-        {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
-        {!loading && !error && data.length > 0 && (
+        {finalLoading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
+        {finalError && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {finalError}</p></div>}
+        {!finalLoading && !finalError && finalData.length > 0 && (
           <ResponsiveContainer>
-            <LineChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+            <LineChart data={finalData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="reachStroke" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#8884d8" stopOpacity={1} />
@@ -166,14 +198,14 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
             </LineChart>
           </ResponsiveContainer>
         )}
-        {!loading && !error && data.length === 0 && (
+        {!finalLoading && !finalError && finalData.length === 0 && (
           <div className="flex justify-center items-center h-full"><p className="text-gray-500">Sem dados no período selecionado.</p></div>
         )}
       </div>
-      {insightSummary && !loading && !error && (
+      {finalInsight && !finalLoading && !finalError && (
         <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200 flex items-start">
           <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
-          {insightSummary}
+          {finalInsight}
         </p>
       )}
     </div>

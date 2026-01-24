@@ -2,12 +2,16 @@
 
 import React, { memo, useMemo } from "react";
 import { LightBulbIcon } from "@heroicons/react/24/solid";
-import useUserDemographics from "@/hooks/useUserDemographics";
+import useUserDemographics, { DemographicsData } from "@/hooks/useUserDemographics";
 import DemographicBarList from "@/app/components/DemographicBarList";
 import { Users, CalendarDays, MapPin } from "lucide-react";
 
 interface UserDemographicsWidgetProps {
   userId: string | null;
+  dataOverride?: DemographicsData | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
 const genderLabelMap: Record<string, string> = {
@@ -44,14 +48,27 @@ const generateSummary = (demo: any): string => {
 
 const highlightCardClass = 'rounded-[28px] border border-white/60 bg-white/95 shadow-[0_2px_10px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,23,42,0.16)]';
 
-const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId }) => {
-  const { data, loading, error, refresh } = useUserDemographics(userId);
+const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({
+  userId,
+  dataOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+}) => {
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
+  const { data, loading, error, refresh } = useUserDemographics(userId, { enabled: !hasOverride });
+  const resolvedData = hasOverride ? (dataOverride ?? null) : data;
+  const resolvedLoading = hasOverride ? (loadingOverride ?? false) : loading;
+  const resolvedError = hasOverride ? (errorOverride ?? null) : error;
 
-  const summary = useMemo(() => generateSummary(data), [data]);
+  const summary = useMemo(() => generateSummary(resolvedData), [resolvedData]);
 
   const breakdowns = useMemo(() => {
-    if (!data?.follower_demographics) return null;
-    const { gender, age, city } = data.follower_demographics;
+    if (!resolvedData?.follower_demographics) return null;
+    const { gender, age, city } = resolvedData.follower_demographics;
     const calc = (d?: Record<string, number>) => {
       if (!d) return [] as { label: string; percentage: number }[];
       const total = Object.values(d).reduce((s, c) => s + c, 0);
@@ -65,7 +82,7 @@ const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId 
       age: calc(age),
       location: calc(city),
     };
-  }, [data]);
+  }, [resolvedData]);
 
   const genderBarData = useMemo(() => {
     if (!breakdowns) return [];
@@ -79,16 +96,16 @@ const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId 
     <div className="h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-slate-900">Demografia de Seguidores</h3>
-        {!loading && !error && userId && (
+        {!resolvedLoading && !resolvedError && userId && !hasOverride && (
           <button onClick={refresh} className="text-xs text-indigo-600 hover:underline">Atualizar</button>
         )}
       </div>
 
-      {loading && <div className="text-center py-2 text-xs text-gray-500">A carregar...</div>}
-      {error && <div className="text-center py-2 text-xs text-red-500">Erro: {error}</div>}
-      {!loading && !error && !data && <p className="text-xs text-gray-400">Nenhum dado disponível.</p>}
+      {resolvedLoading && <div className="text-center py-2 text-xs text-gray-500">A carregar...</div>}
+      {resolvedError && <div className="text-center py-2 text-xs text-red-500">Erro: {resolvedError}</div>}
+      {!resolvedLoading && !resolvedError && !resolvedData && <p className="text-xs text-gray-400">Nenhum dado disponível.</p>}
 
-      {data && breakdowns && (
+      {resolvedData && breakdowns && (
         <div className="space-y-6">
           <div className="p-2 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
             <LightBulbIcon className="w-4 h-4 text-yellow-500 flex-shrink-0" />
@@ -139,5 +156,3 @@ const UserDemographicsWidget: React.FC<UserDemographicsWidgetProps> = ({ userId 
 };
 
 export default memo(UserDemographicsWidget);
-
-

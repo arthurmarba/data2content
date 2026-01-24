@@ -32,6 +32,11 @@ interface UserAlertsResponse {
 interface UserAlertsWidgetProps {
   userId: string | null;
   initialLimit?: number;
+  dataOverride?: UserAlertsResponse | null;
+  dataOverrideFilters?: { timePeriod: string; limit: number; userId?: string | null };
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
 const getAlertStyle = (type: AlertTypeEnum | string) => {
@@ -95,6 +100,11 @@ const renderDetails = (details: any) => {
 const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
   userId,
   initialLimit = 3,
+  dataOverride,
+  dataOverrideFilters,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
 }) => {
   const [alertsResponse, setAlertsResponse] = useState<UserAlertsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -103,6 +113,26 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
   const [expandedAlerts, setExpandedAlerts] = useState<Set<string>>(new Set());
   const [hideNoEventAlerts, setHideNoEventAlerts] = useState<boolean>(false);
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
+  const overrideMatches = Boolean(
+    dataOverride
+    && (!dataOverrideFilters
+      || ((dataOverrideFilters.timePeriod || '') === globalTimePeriod
+        && (dataOverrideFilters.limit ?? initialLimit) === limit
+        && (dataOverrideFilters.userId || null) === (userId || null)))
+  );
+  const shouldBlockFetch = Boolean(loadingOverride) && !overrideMatches;
+  const shouldFetch = !disableFetch && !overrideMatches && !shouldBlockFetch;
+
+  const filterAlerts = useCallback((response: UserAlertsResponse | null) => {
+    if (!response) return null;
+    const today = new Date();
+    const startDate = getStartDateFromTimePeriod(today, globalTimePeriod);
+    const filteredAlerts = response.alerts.filter(a => {
+      const dt = new Date(a.date + 'T00:00:00Z');
+      return dt >= startDate && dt <= today;
+    });
+    return { ...response, alerts: filteredAlerts };
+  }, [globalTimePeriod]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -120,29 +150,26 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
       const result: UserAlertsResponse = await response.json();
-      const today = new Date();
-      const startDate = getStartDateFromTimePeriod(today, globalTimePeriod);
-      const filteredAlerts = result.alerts.filter(a => {
-        const dt = new Date(a.date + 'T00:00:00Z');
-        return dt >= startDate && dt <= today;
-      });
-      setAlertsResponse({ ...result, alerts: filteredAlerts });
+      const filtered = filterAlerts(result);
+      setAlertsResponse(filtered);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
       setAlertsResponse(null);
     } finally {
       setLoading(false);
     }
-  }, [userId, limit, globalTimePeriod]);
+  }, [userId, limit, globalTimePeriod, filterAlerts]);
 
   useEffect(() => {
-    if (userId) {
-      fetchData();
-    } else {
+    if (!userId) {
       setAlertsResponse(null);
       setLoading(false);
+      return;
     }
-  }, [userId, fetchData]);
+    if (shouldFetch) {
+      fetchData();
+    }
+  }, [userId, fetchData, shouldFetch]);
 
   const toggleAlertExpansion = (alertId: string) => {
     setExpandedAlerts(prev => {
@@ -160,6 +187,10 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
     setLimit(prevLimit => prevLimit + 3);
   }
 
+  const resolvedAlertsResponse = overrideMatches ? filterAlerts(dataOverride ?? null) : alertsResponse;
+  const resolvedLoading = shouldBlockFetch ? true : (overrideMatches ? (loadingOverride ?? false) : loading);
+  const resolvedError = shouldBlockFetch ? (errorOverride ?? null) : (overrideMatches ? (errorOverride ?? null) : error);
+
   if (!userId) {
     return null;
   }
@@ -172,7 +203,7 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
           <h3 className="text-base font-semibold text-slate-900">
             Alertas Recentes
           </h3>
-        </div>{alertsResponse && alertsResponse.alerts.length > 0 && (
+        </div>{resolvedAlertsResponse && resolvedAlertsResponse.alerts.length > 0 && (
           <label className="text-xs text-gray-500 flex items-center space-x-1 cursor-pointer hover:text-gray-700">
             <input
               type="checkbox"
@@ -185,19 +216,19 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
         )}
       </div>
 
-      {alertsResponse?.insightSummary && (
+      {resolvedAlertsResponse?.insightSummary && (
         <div className="bg-yellow-50 border border-yellow-100 rounded-md p-3 mb-4 flex items-start gap-2">
           <LightBulbIcon className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-yellow-800">{alertsResponse.insightSummary}</p>
+          <p className="text-sm text-yellow-800">{resolvedAlertsResponse.insightSummary}</p>
         </div>
       )}
 
-      {loading && <div className="flex justify-center items-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}
-      {error && <div className="text-center py-4 text-red-500 text-sm">Erro: {error}</div>}
+      {resolvedLoading && <div className="flex justify-center items-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>}
+      {resolvedError && <div className="text-center py-4 text-red-500 text-sm">Erro: {resolvedError}</div>}
 
-      {!loading && !error && alertsResponse && alertsResponse.alerts.length > 0 && (
+      {!resolvedLoading && !resolvedError && resolvedAlertsResponse && resolvedAlertsResponse.alerts.length > 0 && (
         <div className="space-y-3">
-          {alertsResponse.alerts
+          {resolvedAlertsResponse.alerts
             .filter(alert => !hideNoEventAlerts || alert.type !== AlertTypeEnum.NO_EVENT_FOUND_TODAY_WITH_INSIGHT)
             .map((alert) => {
               const style = getAlertStyle(alert.type);
@@ -242,22 +273,22 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
                 </div>
               );
             })}
-        </div>
+          </div>
       )}
 
-      {!loading && !error && alertsResponse && alertsResponse.alerts.length === 0 && (
+      {!resolvedLoading && !resolvedError && resolvedAlertsResponse && resolvedAlertsResponse.alerts.length === 0 && (
         <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
           <p className="text-sm text-gray-500">Nenhum alerta recente encontrado.</p>
         </div>
       )}
 
-      {!loading && !error && alertsResponse && alertsResponse.totalAlerts > alertsResponse.alerts.length && (
+      {!resolvedLoading && !resolvedError && resolvedAlertsResponse && resolvedAlertsResponse.totalAlerts > resolvedAlertsResponse.alerts.length && (
         <div className="mt-4 text-center">
           <button
             onClick={showMoreAlerts}
             className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
           >
-            Carregar mais alertas ({alertsResponse.totalAlerts - alertsResponse.alerts.length} restantes)
+            Carregar mais alertas ({resolvedAlertsResponse.totalAlerts - resolvedAlertsResponse.alerts.length} restantes)
           </button>
         </div>
       )}
@@ -266,4 +297,3 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
 };
 
 export default React.memo(UserAlertsWidget);
-

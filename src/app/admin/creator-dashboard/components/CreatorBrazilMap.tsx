@@ -36,7 +36,23 @@ const MapLegend: React.FC<{ mode: 'count' | 'density' }> = ({ mode }) => (
   </div>
 );
 
-export default function CreatorBrazilMap({ apiPrefix = '/api/admin', userId }: { apiPrefix?: string; userId?: string }) {
+export default function CreatorBrazilMap({
+  apiPrefix = '/api/admin',
+  userId,
+  dataOverride,
+  dataOverrideFilters,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+}: {
+  apiPrefix?: string;
+  userId?: string;
+  dataOverride?: Record<string, StateBreakdown> | null;
+  dataOverrideFilters?: { region: string; gender: string; ageRange: string; userId?: string; apiPrefix?: string };
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
+}) {
   // --- PASSO 1: Adicionar estados para os novos filtros ---
   const [region, setRegion] = useState<string>("");
   const [gender, setGender] = useState<string>("");
@@ -47,21 +63,39 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin', userId }: {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   // --- PASSO 2: Passar os novos filtros para o hook ---
+  const overrideMatches = Boolean(
+    dataOverride
+    && (!dataOverrideFilters
+      || ((dataOverrideFilters.region || '') === region
+        && (dataOverrideFilters.gender || '') === gender
+        && (dataOverrideFilters.ageRange || '') === ageRange
+        && (dataOverrideFilters.userId || '') === (userId || '')
+        && (dataOverrideFilters.apiPrefix || '') === (apiPrefix || '')))
+  );
+  const shouldBlockFetch = Boolean(loadingOverride) && !overrideMatches;
+  const shouldFetch = !disableFetch && !overrideMatches && !shouldBlockFetch;
   const { data, loading, error } = useAudienceRegionSummary({
     region,
     gender,
     ageRange,
     userId,
     apiPrefix,
+    enabled: shouldFetch,
   });
+  const resolvedData = useMemo(
+    () => (overrideMatches ? (dataOverride ?? {}) : (data ?? {})),
+    [overrideMatches, dataOverride, data]
+  );
+  const resolvedLoading = shouldBlockFetch ? true : (overrideMatches ? (loadingOverride ?? false) : loading);
+  const resolvedError = shouldBlockFetch ? (errorOverride ?? null) : (overrideMatches ? (errorOverride ?? null) : error);
 
   const { maxCount, maxDensity } = useMemo(() => {
-    const values = Object.values(data || {});
+    const values = Object.values(resolvedData || {});
     if (values.length === 0) return { maxCount: 0, maxDensity: 0 };
     const maxCount = Math.max(0, ...values.map(d => d.count || 0));
     const maxDensity = Math.max(0, ...values.map(d => d.density || 0));
     return { maxCount, maxDensity };
-  }, [data]);
+  }, [resolvedData]);
 
   const handleMouseMove = useCallback((evt: React.MouseEvent) => {
     setTooltipPosition({ x: evt.clientX, y: evt.clientY });
@@ -101,8 +135,8 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin', userId }: {
         </select>
       </div>
 
-      {loading && <p className="text-center text-sm text-gray-500 py-4">Carregando mapa...</p>}
-      {!loading && error && <p className="text-center text-sm text-red-500 py-4">Erro ao carregar dados: {error}</p>}
+      {resolvedLoading && <p className="text-center text-sm text-gray-500 py-4">Carregando mapa...</p>}
+      {!resolvedLoading && resolvedError && <p className="text-center text-sm text-red-500 py-4">Erro ao carregar dados: {resolvedError}</p>}
 
       <div className="border border-gray-300 rounded-md p-2">
         <ComposableMap
@@ -114,7 +148,7 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin', userId }: {
             {({ geographies }) =>
               geographies.map(geo => {
                 const stateId = geo.properties.sigla;
-                const stateData = data?.[stateId];
+                const stateData = resolvedData?.[stateId];
                 const value = viewMode === 'count' ? (stateData?.count || 0) : (stateData?.density || 0);
                 const max = viewMode === 'count' ? maxCount : maxDensity;
                 return (
@@ -141,7 +175,7 @@ export default function CreatorBrazilMap({ apiPrefix = '/api/admin', userId }: {
 
       <MapLegend mode={viewMode} />
 
-      {!loading && !error && Object.keys(data || {}).length === 0 && (
+      {!resolvedLoading && !resolvedError && Object.keys(resolvedData || {}).length === 0 && (
         <p className="text-center text-sm text-gray-500 pt-4">Sem dados de audiência para os filtros selecionados.</p>
       )}
 

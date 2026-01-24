@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, memo } from 'react';
+import React, { useCallback, useMemo, memo } from 'react';
+import useSWR from 'swr';
 import PlatformKpiCard from '../PlatformKpiCard';
 import {
   UserGroupIcon,
@@ -18,6 +19,11 @@ interface PlatformSummaryData {
   averageReachInPeriod: number;
 }
 
+interface PlatformSummaryResponse {
+  current: PlatformSummaryData;
+  previous: PlatformSummaryData;
+}
+
 interface PlatformSummaryKpisProps {
   apiPrefix?: string;
   startDate: string;
@@ -27,6 +33,16 @@ interface PlatformSummaryKpisProps {
   creatorContextFilter?: string;
 }
 
+type PlatformSummaryKey = [
+  'platform-summary',
+  string,
+  string,
+  string,
+  boolean,
+  string | undefined,
+  string | undefined,
+];
+
 const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({
   apiPrefix = '/api/admin',
   startDate,
@@ -35,63 +51,40 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({
   contextFilter,
   creatorContextFilter,
 }) => {
-  const [data, setData] = useState<PlatformSummaryData | null>(null);
-  const [prevData, setPrevData] = useState<PlatformSummaryData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const swrKey = useMemo<PlatformSummaryKey>(() => ([
+    'platform-summary',
+    apiPrefix,
+    startDate,
+    endDate,
+    onlyActiveSubscribers,
+    contextFilter,
+    creatorContextFilter,
+  ]), [apiPrefix, startDate, endDate, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams({ startDate, endDate });
-        if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
-        if (contextFilter) params.append('context', contextFilter);
-        if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+  const fetcher = useCallback(async (key: PlatformSummaryKey): Promise<PlatformSummaryResponse> => {
+    const [, apiPrefix, startDate, endDate, onlyActiveSubscribers, contextFilter, creatorContextFilter] = key;
+    const params = new URLSearchParams({ startDate, endDate });
+    if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+    if (contextFilter) params.append('context', contextFilter);
+    if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const diffMs = end.getTime() - start.getTime();
-        const prevEnd = new Date(start.getTime() - 1000);
-        const prevStart = new Date(prevEnd.getTime() - diffMs);
-        const prevParams = new URLSearchParams({
-          startDate: prevStart.toISOString(),
-          endDate: prevEnd.toISOString(),
-        });
-        if (onlyActiveSubscribers) prevParams.append('onlyActiveSubscribers', 'true');
-        if (contextFilter) prevParams.append('context', contextFilter);
-        if (creatorContextFilter) prevParams.append('creatorContext', creatorContextFilter);
+    const response = await fetch(`${apiPrefix}/dashboard/platform-summary/batch?${params.toString()}`, { cache: 'no-store' });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
+    }
 
-        const [response, prevResponse] = await Promise.all([
-          fetch(`${apiPrefix}/dashboard/platform-summary?${params.toString()}`, { cache: 'no-store' }),
-          fetch(`${apiPrefix}/dashboard/platform-summary?${prevParams.toString()}`, { cache: 'no-store' }),
-        ]);
+    return response.json() as Promise<PlatformSummaryResponse>;
+  }, []);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
-        }
-        if (!prevResponse.ok) {
-          const errorData = await prevResponse.json().catch(() => ({}));
-          throw new Error(`Erro HTTP: ${prevResponse.status} - ${errorData.error || prevResponse.statusText}`);
-        }
-
-        const result: PlatformSummaryData = await response.json();
-        const prevResult: PlatformSummaryData = await prevResponse.json();
-        setData(result);
-        setPrevData(prevResult);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
-        setData(null);
-        setPrevData(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [startDate, endDate, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
+  const { data, error, isLoading } = useSWR<PlatformSummaryResponse>(
+    swrKey,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const currentData = errorMessage ? null : data?.current ?? null;
+  const prevData = errorMessage ? null : data?.previous ?? null;
 
   const formatPercentage = (num?: number | null) => {
     if (num === null || typeof num === 'undefined') return null;
@@ -121,50 +114,50 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
       <PlatformKpiCard
         title="Criadores Totais"
-        value={data?.totalCreators ?? null}
-        {...buildChange(data?.totalCreators, prevData?.totalCreators)}
-        isLoading={loading}
-        error={error}
+        value={currentData?.totalCreators ?? null}
+        {...buildChange(currentData?.totalCreators, prevData?.totalCreators)}
+        isLoading={isLoading}
+        error={errorMessage}
         tooltip="Número total de criadores cadastrados."
         icon={UserGroupIcon}
         iconClassName="text-indigo-500"
       />
       <PlatformKpiCard
         title="Criadores Pendentes"
-        value={data?.pendingCreators ?? null}
-        {...buildChange(data?.pendingCreators, prevData?.pendingCreators)}
-        isLoading={loading}
-        error={error}
+        value={currentData?.pendingCreators ?? null}
+        {...buildChange(currentData?.pendingCreators, prevData?.pendingCreators)}
+        isLoading={isLoading}
+        error={errorMessage}
         tooltip="Criadores aguardando aprovação."
         icon={ExclamationTriangleIcon}
         iconClassName="text-yellow-500"
       />
       <PlatformKpiCard
         title="Ativos no Período"
-        value={data?.activeCreatorsInPeriod ?? null}
-        {...buildChange(data?.activeCreatorsInPeriod, prevData?.activeCreatorsInPeriod)}
-        isLoading={loading}
-        error={error}
+        value={currentData?.activeCreatorsInPeriod ?? null}
+        {...buildChange(currentData?.activeCreatorsInPeriod, prevData?.activeCreatorsInPeriod)}
+        isLoading={isLoading}
+        error={errorMessage}
         tooltip="Criadores que postaram no período informado."
         icon={UsersIcon}
         iconClassName="text-green-600"
       />
       <PlatformKpiCard
         title="Engajamento Médio"
-        value={formatPercentage(data?.averageEngagementRateInPeriod)}
-        {...buildChange(data?.averageEngagementRateInPeriod, prevData?.averageEngagementRateInPeriod)}
-        isLoading={loading}
-        error={error}
+        value={formatPercentage(currentData?.averageEngagementRateInPeriod)}
+        {...buildChange(currentData?.averageEngagementRateInPeriod, prevData?.averageEngagementRateInPeriod)}
+        isLoading={isLoading}
+        error={errorMessage}
         tooltip="Taxa média de engajamento sobre alcance no período."
         icon={SparklesIcon}
         iconClassName="text-indigo-500"
       />
       <PlatformKpiCard
         title="Alcance Médio"
-        value={data?.averageReachInPeriod ?? null}
-        {...buildChange(data?.averageReachInPeriod, prevData?.averageReachInPeriod)}
-        isLoading={loading}
-        error={error}
+        value={currentData?.averageReachInPeriod ?? null}
+        {...buildChange(currentData?.averageReachInPeriod, prevData?.averageReachInPeriod)}
+        isLoading={isLoading}
+        error={errorMessage}
         tooltip="Alcance médio das postagens no período."
         icon={EyeIcon}
         iconClassName="text-indigo-500"

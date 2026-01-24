@@ -58,6 +58,7 @@ export default function ComparisonTargetSearch({ segments, onSelect }: Compariso
         }}
         placeholder="Buscar usuário ou segmento..."
         // ===== CORREÇÃO APLICADA AQUI: Prop 'debounceMs' removida =====
+        debounceMs={0}
         className="w-60"
       />
       {showDropdown && (searchTerm || isLoading) && (

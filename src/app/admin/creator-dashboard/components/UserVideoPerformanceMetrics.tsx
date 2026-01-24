@@ -32,6 +32,11 @@ const TIME_PERIOD_OPTIONS = [
 interface UserVideoPerformanceMetricsProps {
   userId: string | null;
   chartTitle?: string;
+  dataOverride?: VideoMetricsResponse | null;
+  dataOverrideFilters?: { timePeriod: string; userId?: string | null };
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
 const formatWatchTime = (seconds: number): string => {
@@ -97,7 +102,15 @@ const MetricDisplay: React.FC<{
 
 const UserVideoPerformanceMetrics: React.FC<
   UserVideoPerformanceMetricsProps
-> = ({ userId, chartTitle = "Performance de Vídeos do Criador" }) => {
+> = ({
+  userId,
+  chartTitle = "Performance de Vídeos do Criador",
+  dataOverride,
+  dataOverrideFilters,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+}) => {
   const [metrics, setMetrics] = useState<VideoMetricsData | null>(null);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(
     undefined,
@@ -119,6 +132,28 @@ const UserVideoPerformanceMetrics: React.FC<
   useEffect(() => {
     setTimePeriod(globalTimePeriod);
   }, [globalTimePeriod]);
+  const overrideMatches = Boolean(
+    dataOverride
+    && (!dataOverrideFilters
+      || (dataOverrideFilters.timePeriod === timePeriod
+        && (dataOverrideFilters.userId || null) === (userId || null)))
+  );
+  const shouldBlockFetch = Boolean(loadingOverride) && !overrideMatches;
+  const shouldFetch = !disableFetch && !overrideMatches && !shouldBlockFetch;
+  const resolvedLoading = shouldBlockFetch ? true : (overrideMatches ? (loadingOverride ?? false) : loading);
+  const resolvedError = shouldBlockFetch ? (errorOverride ?? null) : (overrideMatches ? (errorOverride ?? null) : error);
+  const resolvedMetrics = overrideMatches
+    ? (dataOverride ? {
+        averageViews: dataOverride.averageViews ?? null,
+        averageWatchTimeSeconds: dataOverride.averageWatchTimeSeconds ?? null,
+        averageLikes: dataOverride.averageLikes ?? null,
+        averageComments: dataOverride.averageComments ?? null,
+        numberOfVideoPosts: dataOverride.numberOfVideoPosts ?? null,
+        averageShares: dataOverride.averageShares ?? null,
+        averageSaves: dataOverride.averageSaves ?? null,
+      } : null)
+    : metrics;
+  const resolvedInsightSummary = overrideMatches ? dataOverride?.insightSummary : insightSummary;
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -161,13 +196,15 @@ const UserVideoPerformanceMetrics: React.FC<
   }, [userId, timePeriod]);
 
   useEffect(() => {
-    if (userId) {
-      fetchData();
-    } else {
+    if (!userId) {
       setMetrics(null);
       setLoading(false);
+      return;
     }
-  }, [userId, fetchData]);
+    if (shouldFetch) {
+      fetchData();
+    }
+  }, [userId, fetchData, shouldFetch]);
 
   const handleTimePeriodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTimePeriod(e.target.value);
@@ -206,7 +243,7 @@ const UserVideoPerformanceMetrics: React.FC<
             id={`timePeriodUserVideo-${userId || "default"}`}
             value={timePeriod}
             onChange={handleTimePeriodChange}
-            disabled={loading}
+            disabled={resolvedLoading}
             className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
           >
             {TIME_PERIOD_OPTIONS.map((option) => (
@@ -218,18 +255,18 @@ const UserVideoPerformanceMetrics: React.FC<
         </div>
       </div>
 
-      {loading && (
+      {resolvedLoading && (
         <div className="text-center py-5">
           <p className="text-gray-500">Carregando métricas de vídeo...</p>
         </div>
       )}
-      {error && (
+      {resolvedError && (
         <div className="text-center py-5">
-          <p className="text-red-500">Erro: {error}</p>
+          <p className="text-red-500">Erro: {resolvedError}</p>
         </div>
       )}
 
-      {!loading && !error && metrics && (
+      {!resolvedLoading && !resolvedError && resolvedMetrics && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4">
             <div
@@ -238,7 +275,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Visualizações Médias"
-                value={formatCompactNumber(metrics.averageViews)}
+                value={formatCompactNumber(resolvedMetrics.averageViews)}
                 tooltip="Média de visualizações por vídeo."
               />
             </div>
@@ -249,8 +286,8 @@ const UserVideoPerformanceMetrics: React.FC<
               <MetricDisplay
                 label="Tempo Médio de Visualização"
                 value={
-                  metrics.averageWatchTimeSeconds !== null
-                    ? formatWatchTime(metrics.averageWatchTimeSeconds)
+                  resolvedMetrics.averageWatchTimeSeconds !== null
+                    ? formatWatchTime(resolvedMetrics.averageWatchTimeSeconds)
                     : null
                 }
                 tooltip="Tempo médio que os espectadores passam assistindo a cada vídeo."
@@ -262,7 +299,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Curtidas Médias"
-                value={formatCompactNumber(metrics.averageLikes)}
+                value={formatCompactNumber(resolvedMetrics.averageLikes)}
                 tooltip="Média de curtidas por vídeo."
               />
             </div>
@@ -272,7 +309,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Comentários Médios"
-                value={formatCompactNumber(metrics.averageComments)}
+                value={formatCompactNumber(resolvedMetrics.averageComments)}
                 tooltip="Média de comentários por vídeo."
               />
             </div>
@@ -282,7 +319,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Total de Vídeos Analisados"
-                value={metrics.numberOfVideoPosts}
+                value={resolvedMetrics.numberOfVideoPosts}
                 tooltip="Número de posts de vídeo considerados para estas métricas no período."
               />
             </div>
@@ -292,7 +329,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Compartilhamentos Médios"
-                value={formatCompactNumber(metrics.averageShares)}
+                value={formatCompactNumber(resolvedMetrics.averageShares)}
                 tooltip="Média de compartilhamentos por vídeo."
               />
             </div>
@@ -302,7 +339,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Salvamentos Médios"
-                value={formatCompactNumber(metrics.averageSaves)}
+                value={formatCompactNumber(resolvedMetrics.averageSaves)}
                 tooltip="Média de salvamentos por vídeo."
               />
             </div>
@@ -317,15 +354,15 @@ const UserVideoPerformanceMetrics: React.FC<
             }}
           />
 
-          {insightSummary && (
+          {resolvedInsightSummary && (
             <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-gray-100 flex items-start">
               <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
-              {insightSummary}
+              {resolvedInsightSummary}
             </p>
           )}
         </>
       )}
-      {!loading && !error && !metrics && (
+      {!resolvedLoading && !resolvedError && !resolvedMetrics && (
         <div className="text-center py-5">
           <p className="text-gray-500">Nenhuma métrica de vídeo encontrada.</p>
         </div>

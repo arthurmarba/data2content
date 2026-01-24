@@ -1,8 +1,9 @@
 'use client';
 
 // CORREÇÃO: Removidas todas as classes de tema escuro (dark:) para unificar o design.
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Image from 'next/image';
+import useSWR from 'swr';
 import { useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import {
@@ -32,6 +33,18 @@ import { TrendChart } from '../widgets/TopMoversWidget';
 interface PeriodState {
     startDate: string;
     endDate: string;
+}
+
+interface IFetchTopMoversArgs {
+    entityType: TopMoverEntityType;
+    metric: TopMoverMetric;
+    previousPeriod: IPeriod;
+    currentPeriod: IPeriod;
+    topN: number;
+    sortBy: TopMoverSortBy;
+    contentFilters?: ISegmentDefinition;
+    creatorFilters?: any;
+    onlyActiveSubscribers?: boolean;
 }
 
 const initialPeriodState: PeriodState = { startDate: '', endDate: '' };
@@ -98,31 +111,30 @@ export default function TopMoversWidget({
   const [sortBy, setSortBy] = useState<TopMoverSortBy>('absoluteChange_increase');
 
   const [contentFilters, setContentFilters] = useState<ISegmentDefinition>({});
-  const [contextOptions, setContextOptions] = useState<string[]>(DEFAULT_CONTEXTS);
   
-  const [results, setResults] = useState<ITopMoverResult[] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [useCompactNumbers, setUseCompactNumbers] = useState(true);
 
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
 
-  useEffect(() => {
-    async function loadContexts() {
-      try {
-        const contextsUrl = `${apiPrefix}/dashboard/contexts`;
-        const res = await fetch(contextsUrl);
-        if (res.ok) {
-          const data = await res.json();
-          setContextOptions(['', ...data.contexts]);
-        }
-      } catch (e) {
-        console.error('Failed to load contexts', e);
-      }
+  const contextsUrl = useMemo(() => `${apiPrefix}/dashboard/contexts`, [apiPrefix]);
+  const fetchContexts = useCallback(async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Falha ao carregar contextos');
     }
-    loadContexts();
-  }, [apiPrefix]);
+    return res.json() as Promise<{ contexts: string[] }>;
+  }, []);
+  const { data: contextsData } = useSWR<{ contexts: string[] }>(
+    contextsUrl,
+    fetchContexts,
+    { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
+  );
+  const contextOptions = useMemo(() => {
+    if (!contextsData?.contexts?.length) return DEFAULT_CONTEXTS;
+    return ['', ...contextsData.contexts];
+  }, [contextsData]);
 
   useEffect(() => {
     const today = new Date();
@@ -165,32 +177,20 @@ export default function TopMoversWidget({
 
   const hasActiveFilters = Object.keys(contentFilters).length > 0;
 
-  const handleFetchTopMovers = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    setResults(null);
-    
-    interface IFetchTopMoversArgs {
-        entityType: TopMoverEntityType;
-        metric: TopMoverMetric;
-        previousPeriod: IPeriod;
-        currentPeriod: IPeriod;
-        topN: number;
-        sortBy: TopMoverSortBy;
-        contentFilters?: ISegmentDefinition;
-        creatorFilters?: any;
-    }
+  const shouldFetch = Boolean(previousPeriod.startDate && currentPeriod.startDate);
+  const apiPayload = useMemo<IFetchTopMoversArgs | null>(() => {
+    if (!shouldFetch) return null;
 
-    const apiPayload: IFetchTopMoversArgs = {
+    const payload: IFetchTopMoversArgs = {
       entityType,
       metric,
       previousPeriod: {
         startDate: new Date(previousPeriod.startDate),
-        endDate: new Date(previousPeriod.endDate)
+        endDate: new Date(previousPeriod.endDate),
       },
       currentPeriod: {
         startDate: new Date(currentPeriod.startDate),
-        endDate: new Date(currentPeriod.endDate)
+        endDate: new Date(currentPeriod.endDate),
       },
       topN,
       sortBy,
@@ -198,40 +198,40 @@ export default function TopMoversWidget({
     };
 
     if (entityType === 'content') {
-      apiPayload.contentFilters = { ...contentFilters };
-      if (contextFilter) apiPayload.contentFilters.context = contextFilter;
+      payload.contentFilters = { ...contentFilters };
+      if (contextFilter) payload.contentFilters.context = contextFilter;
     } else if (entityType === 'creator') {
-      apiPayload.creatorFilters = {};
-      if (contextFilter) apiPayload.creatorFilters.context = contextFilter;
-      if (creatorContext) apiPayload.creatorFilters.creatorContext = creatorContext;
+      payload.creatorFilters = {};
+      if (contextFilter) payload.creatorFilters.context = contextFilter;
+      if (creatorContext) payload.creatorFilters.creatorContext = creatorContext;
     }
 
-    try {
-      const topMoversUrl = `${apiPrefix}/dashboard/top-movers`;
-      const response = await fetch(topMoversUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(apiPayload),
-      });
+    return payload;
+  }, [shouldFetch, entityType, metric, previousPeriod.startDate, previousPeriod.endDate, currentPeriod.startDate, currentPeriod.endDate, topN, sortBy, contentFilters, onlyActiveSubscribers, contextFilter, creatorContext]);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Falha ao buscar Top Movers`);
-      }
-      const data: ITopMoverResult[] = await response.json();
-      setResults(data);
-    } catch (e: any) {
-      setError(e.message);
-      setResults(null);
-    } finally {
-      setIsLoading(false);
+  const topMoversUrl = `${apiPrefix}/dashboard/top-movers`;
+  const fetcher = useCallback(async (url: string, payload: IFetchTopMoversArgs) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Falha ao buscar Top Movers');
     }
-  }, [entityType, metric, previousPeriod, currentPeriod, topN, sortBy, contentFilters, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContext]);
 
-  useEffect(() => {
-    if (!previousPeriod.startDate || !currentPeriod.startDate) return;
-    handleFetchTopMovers();
-  }, [entityType, metric, sortBy, topN, contentFilters, previousPeriod, currentPeriod, handleFetchTopMovers]);
+    return response.json() as Promise<ITopMoverResult[]>;
+  }, []);
+
+  const { data: results, error, isLoading } = useSWR<ITopMoverResult[]>(
+    apiPayload ? [topMoversUrl, apiPayload] : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const showPromptState = !isLoading && !errorMessage && !Array.isArray(results);
 
 
   return (
@@ -339,14 +339,14 @@ export default function TopMoversWidget({
       {/* --- Área de Resultados --- */}
       <div className="mt-6">
         {isLoading && (<SkeletonBlock height="h-48" />)}
-        {error && ( <div className="text-center py-4 text-red-500">Erro: {error}</div> )}
-        {!isLoading && !error && results === null && (
+        {errorMessage && ( <div className="text-center py-4 text-red-500">Erro: {errorMessage}</div> )}
+        {showPromptState && (
             <EmptyState icon={<ChartBarIcon className="w-12 h-12"/>} title="Analisar Top Movers" message="Configure os parâmetros e aguarde a atualização automática." />
         )}
-        {!isLoading && !error && results?.length === 0 && (
+        {!isLoading && !errorMessage && Array.isArray(results) && results.length === 0 && (
             <EmptyState icon={<ArrowsUpDownIcon className="w-12 h-12"/>} title="Nenhum 'Mover' Encontrado" message="Não foram encontradas variações com os filtros selecionados." />
         )}
-        {!isLoading && !error && results && results.length > 0 && (
+        {!isLoading && !errorMessage && results && results.length > 0 && (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">

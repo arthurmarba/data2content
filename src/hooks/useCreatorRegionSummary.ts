@@ -31,6 +31,7 @@ export interface UseAudienceRegionSummaryOptions {
   gender?: string;
   ageRange?: string;
   userId?: string;
+  enabled?: boolean;
 }
 
 // O nome da função foi atualizado para refletir o seu propósito
@@ -62,5 +63,6 @@ export default function useAudienceRegionSummary(options: UseAudienceRegionSumma
 
   }, [queryString, apiPrefix]);
 
-  return useCachedFetch<Record<string, StateBreakdown>>(key, fetcher);
+  const enabled = options.enabled ?? true;
+  return useCachedFetch<Record<string, StateBreakdown>>(key, fetcher, 10 * 60 * 1000, enabled);
 }

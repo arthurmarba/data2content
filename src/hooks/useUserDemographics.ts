@@ -10,7 +10,14 @@ export interface DemographicsData {
   };
 }
 
-export default function useUserDemographics(userId: string | null): UseCachedFetchReturn<DemographicsData> {
+interface UseUserDemographicsOptions {
+  enabled?: boolean;
+}
+
+export default function useUserDemographics(
+  userId: string | null,
+  options: UseUserDemographicsOptions = {}
+): UseCachedFetchReturn<DemographicsData> {
   const fetcher = useCallback(async (): Promise<DemographicsData> => {
     if (!userId) {
       throw new Error("ID de usuário inválido.");
@@ -23,7 +30,13 @@ export default function useUserDemographics(userId: string | null): UseCachedFet
     return res.json();
   }, [userId]);
 
-  const result = useCachedFetch<DemographicsData>(`user_demographics_${userId}`, fetcher, 10 * 60 * 1000);
+  const enabled = Boolean(userId) && (options.enabled ?? true);
+  const result = useCachedFetch<DemographicsData>(
+    `user_demographics_${userId || 'unknown'}`,
+    fetcher,
+    10 * 60 * 1000,
+    enabled
+  );
 
   if (!userId) {
     return { data: null, loading: false, error: null, refresh: async () => {} };

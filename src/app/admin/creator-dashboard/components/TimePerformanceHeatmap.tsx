@@ -8,7 +8,8 @@ parâmetros de filtro corretamente para a API.
 */
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { formatCategories, proposalCategories, contextCategories, idsToLabels } from "@/app/lib/classification";
 import PostsBySliceModal from '@/app/dashboard/planning/components/PostsBySliceModal';
@@ -112,17 +113,37 @@ interface TimePerformanceHeatmapProps {
   onlyActiveSubscribers?: boolean;
   forcedContext?: string;
   forcedCreatorContext?: string;
+  dataOverride?: TimePerformanceResponse | null;
+  dataOverrideFilters?: {
+    timePeriod: string;
+    metric: string;
+    format: string;
+    proposal: string;
+    context: string;
+    onlyActiveSubscribers?: boolean;
+    creatorContext?: string;
+    userId?: string | null;
+  };
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
 }
 
-const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId, apiPrefix = '/api/admin', onlyActiveSubscribers = false, forcedContext, forcedCreatorContext }) => {
+const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
+  userId,
+  apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  forcedContext,
+  forcedCreatorContext,
+  dataOverride,
+  dataOverrideFilters,
+  loadingOverride,
+  errorOverride,
+}) => {
   const { timePeriod } = useGlobalTimePeriod();
-  const [data, setData] = useState<TimePerformanceResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [format, setFormat] = useState('');
   const [proposal, setProposal] = useState('');
-  const [context, setContext] = useState('');
+  const [context, setContext] = useState(forcedContext || '');
   const [metric, setMetric] = useState(metricOptions[0]!.value);
 
   // Modal State
@@ -135,32 +156,54 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
 
   const [postsLoading, setPostsLoading] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({ timePeriod, metric });
-      if (format) params.set('format', format);
-      if (proposal) params.set('proposal', proposal);
-      if (context) params.set('context', context);
-      if (onlyActiveSubscribers) params.set('onlyActiveSubscribers', 'true');
-      if (forcedCreatorContext) params.set('creatorContext', forcedCreatorContext);
+  const apiUrl = useMemo(() => {
+    const params = new URLSearchParams({ timePeriod, metric });
+    if (format) params.set('format', format);
+    if (proposal) params.set('proposal', proposal);
+    if (context) params.set('context', context);
+    if (onlyActiveSubscribers) params.set('onlyActiveSubscribers', 'true');
+    if (forcedCreatorContext) params.set('creatorContext', forcedCreatorContext);
 
-      const baseUrl = userId
-        ? `${apiPrefix}/dashboard/users/${userId}/performance/time-distribution`
-        : `${apiPrefix}/dashboard/performance/time-distribution`;
-      console.log("URL da API sendo chamada:", baseUrl);
-      const res = await fetch(`${baseUrl}?${params.toString()}`);
-      if (!res.ok) throw new Error(`Erro ao buscar dados: ${res.statusText}`);
-      const json: TimePerformanceResponse = await res.json();
-      setData(json);
-    } catch (e: any) {
-      setError(e.message || 'Erro ao carregar dados');
-      setData(null);
-    } finally {
-      setLoading(false);
+    const baseUrl = userId
+      ? `${apiPrefix}/dashboard/users/${userId}/performance/time-distribution`
+      : `${apiPrefix}/dashboard/performance/time-distribution`;
+    return `${baseUrl}?${params.toString()}`;
+  }, [timePeriod, metric, format, proposal, context, onlyActiveSubscribers, forcedCreatorContext, userId, apiPrefix]);
+
+  const fetcher = useCallback(async (url: string): Promise<TimePerformanceResponse> => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || res.statusText);
     }
-  }, [timePeriod, format, proposal, context, metric, userId, apiPrefix, onlyActiveSubscribers, forcedCreatorContext]);
+    return res.json() as Promise<TimePerformanceResponse>;
+  }, []);
+
+  const overrideMatches = Boolean(
+    dataOverride
+    && dataOverrideFilters
+    && dataOverrideFilters.timePeriod === timePeriod
+    && dataOverrideFilters.metric === metric
+    && (dataOverrideFilters.format || '') === format
+    && (dataOverrideFilters.proposal || '') === proposal
+    && (dataOverrideFilters.context || '') === context
+    && Boolean(dataOverrideFilters.onlyActiveSubscribers) === Boolean(onlyActiveSubscribers)
+    && (dataOverrideFilters.creatorContext || '') === (forcedCreatorContext || '')
+    && (dataOverrideFilters.userId || null) === (userId || null)
+  );
+  const shouldBlockFetch = Boolean(loadingOverride) && !overrideMatches;
+  const fallbackData = overrideMatches ? dataOverride ?? undefined : undefined;
+
+  const { data: swrData, error: swrError, isLoading: swrLoading } = useSWR<TimePerformanceResponse>(
+    shouldBlockFetch ? null : apiUrl,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60 * 1000,
+      fallbackData,
+      revalidateOnMount: !overrideMatches,
+    }
+  );
 
   const handleSlotClick = async (dayOfWeek: number, hour: number, value: number, count: number) => {
     if (count === 0) return;
@@ -251,20 +294,21 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
   };
 
   useEffect(() => {
-    if (forcedContext) {
+    if (typeof forcedContext === "string") {
       setContext(forcedContext);
     }
   }, [forcedContext]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const errorMessage = swrError ? (swrError instanceof Error ? swrError.message : String(swrError)) : null;
+  const finalData = overrideMatches ? (dataOverride ?? null) : (swrData ?? null);
+  const finalLoading = shouldBlockFetch ? true : (overrideMatches ? (loadingOverride ?? false) : swrLoading);
+  const finalError = shouldBlockFetch ? (errorOverride ?? null) : (overrideMatches ? (errorOverride ?? null) : errorMessage);
 
   const getCell = (day: number, hour: number) => {
-    return data?.buckets.find(b => b.dayOfWeek === day && b.hour === hour);
+    return finalData?.buckets.find(b => b.dayOfWeek === day && b.hour === hour);
   };
 
-  const maxValue = data?.buckets.reduce((max, c) => Math.max(max, c.average), 0) || 0;
+  const maxValue = finalData?.buckets.reduce((max, c) => Math.max(max, c.average), 0) || 0;
   const selectedMetricLabel = metricOptions.find(opt => opt.value === metric)?.label || '';
 
   return (
@@ -293,11 +337,11 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
           </select>
         </div>
 
-        {loading && <SkeletonLoader />}
-        {error && <div className="text-center text-sm text-red-600 p-10">Erro: {error}</div>}
-        {!loading && !error && data && (
+        {finalLoading && <SkeletonLoader />}
+        {finalError && <div className="text-center text-sm text-red-600 p-10">Erro: {finalError}</div>}
+        {!finalLoading && !finalError && finalData && (
           <div>
-            {data.buckets.length === 0 ? (
+            {finalData.buckets.length === 0 ? (
               <EmptyState message="Tente ajustar os filtros ou o período de tempo." />
             ) : (
               <>
@@ -339,12 +383,12 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  {data.bestSlots.length > 0 && (
+                  {finalData.bestSlots.length > 0 && (
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                       <p className="font-semibold mb-1 text-green-800">✅ Melhores Horários</p>
                       <p className="text-green-700 text-[11px] mb-2">{selectedMetricLabel}</p>
                       <ul className="space-y-2">
-                        {data.bestSlots.slice(0, 3).map((s, i) => (
+                        {finalData.bestSlots.slice(0, 3).map((s, i) => (
                           <li key={i} className="space-y-1">
                             <div className="flex justify-between items-center">
                               <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
@@ -358,12 +402,12 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
                       </ul>
                     </div>
                   )}
-                  {data.worstSlots.length > 0 && (
+                  {finalData.worstSlots.length > 0 && (
                     <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                       <p className="font-semibold mb-1 text-red-800">❌ Piores Horários</p>
                       <p className="text-red-700 text-[11px] mb-2">{selectedMetricLabel}</p>
                       <ul className="space-y-2">
-                        {data.worstSlots.slice(0, 3).map((s, i) => (
+                        {finalData.worstSlots.slice(0, 3).map((s, i) => (
                           <li key={i} className="space-y-1">
                             <div className="flex justify-between items-center">
                               <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
@@ -378,10 +422,10 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
                     </div>
                   )}
                 </div>
-                {data.insightSummary && (
+                {finalData.insightSummary && (
                   <div className="mt-4 p-3 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
                     <LightBulbIcon className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                    <span>{data.insightSummary}</span>
+                    <span>{finalData.insightSummary}</span>
                   </div>
                 )}
               </>

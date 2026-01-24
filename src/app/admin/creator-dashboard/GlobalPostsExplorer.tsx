@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo, type CSSProperties } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import {
@@ -19,7 +20,6 @@ import {
   toneCategories,
   referenceCategories,
   idsToLabels,
-  commaSeparatedIdsToLabels,
 } from '../../lib/classification';
 import { ArrowTopRightOnSquareIcon, ClipboardIcon } from '@heroicons/react/24/outline';
 
@@ -31,6 +31,9 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', varia
   const shapeClass = variant === 'circle' ? 'rounded-full' : 'rounded';
   return <div data-testid="skeleton-block" className={`${baseClasses} ${width} ${height} ${shapeClass} ${className}`}></div>;
 };
+
+const POSTS_CACHE_TTL = 60 * 1000;
+const MAX_POSTS_CACHE = 20;
 
 const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => (
   <div className="text-center py-8">
@@ -123,6 +126,160 @@ interface IGlobalPostResult {
     shares?: number;
   };
 }
+
+interface TagItem {
+  label: string;
+  color: string;
+  title: string;
+}
+
+interface ColumnDef {
+  key: string;
+  label: string;
+  sortable: boolean;
+  getVal: (post: IGlobalPostResult) => unknown;
+  headerClassName?: string;
+}
+
+const formatDate = (dateString?: Date | string) => !dateString ? 'N/A' : new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A') => path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? defaultValue;
+const formatNumberStd = (val: any) => !isNaN(parseFloat(String(val))) ? parseFloat(String(val)).toLocaleString('pt-BR') : 'N/A';
+const toDisplayValue = (value: unknown): React.ReactNode => {
+  if (React.isValidElement(value)) return value;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+  return String(value);
+};
+
+const getTagLabels = (post: IGlobalPostResult): TagItem[] => {
+  const items: TagItem[] = [];
+  const push = (labels: string[] | string | undefined, color: string, titlePrefix: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
+    if (!labels) return;
+    const arr = Array.isArray(labels) ? labels : (labels ? String(labels).split(',') : []);
+    const resolved = idsToLabels(arr, type).filter(Boolean);
+    resolved.forEach(l => items.push({ label: l, color, title: `${titlePrefix}: ${l}` }));
+  };
+  push(post.format as any, 'bg-blue-50 text-blue-700 ring-blue-200', 'Formato', 'format');
+  push(post.proposal as any, 'bg-violet-50 text-violet-700 ring-violet-200', 'Proposta', 'proposal');
+  push(post.context as any, 'bg-amber-50 text-amber-700 ring-amber-200', 'Contexto', 'context');
+  push(post.tone as any, 'bg-teal-50 text-teal-700 ring-teal-200', 'Tom', 'tone');
+  push(post.references as any, 'bg-rose-50 text-rose-700 ring-rose-200', 'Referência', 'reference');
+  return items;
+};
+
+const TagChip = ({ label, color, title }: TagItem) => (
+  <span title={title} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium ring-1 ring-inset ${color} mr-1 mb-1 max-w-[120px] truncate`}>
+    {label}
+  </span>
+);
+
+const rowStyle = { contentVisibility: 'auto', containIntrinsicSize: '120px 1px' } as CSSProperties;
+
+interface PostsTableRowProps {
+  post: IGlobalPostResult;
+  columns: ColumnDef[];
+  onOpenPostDetailModal: (postId: string) => void;
+  onOpenTrendChart: (postId: string) => void;
+  onOpenExternalLink: (post: IGlobalPostResult) => void;
+  onCopyLink: (post: IGlobalPostResult) => void;
+}
+
+const PostsTableRow = memo(function PostsTableRow({
+  post,
+  columns,
+  onOpenPostDetailModal,
+  onOpenTrendChart,
+  onOpenExternalLink,
+  onCopyLink,
+}: PostsTableRowProps) {
+  return (
+    <tr className="hover:bg-gray-50 transition-colors" style={rowStyle}>
+      {columns.map(col => {
+        const rawValue = col.getVal(post);
+        let displayValue: React.ReactNode = toDisplayValue(rawValue);
+        if (col.key.startsWith('stats.')) {
+          displayValue = (
+            <span title={String(rawValue)} className="tabular-nums font-medium text-gray-700">{formatNumberStd(rawValue)}</span>
+          );
+        }
+        if (col.key === 'cover') {
+          return (
+            <td key={col.key} className="px-3 py-2 whitespace-nowrap w-24">
+              {rawValue ? (
+                <Image
+                  src={String(rawValue)}
+                  alt="capa"
+                  width={96}
+                  height={96}
+                  className="w-24 h-24 object-cover rounded border border-gray-100"
+                  onError={(e) => {
+                    const t = e.currentTarget as HTMLImageElement;
+                    t.onerror = null;
+                    t.src = 'https://placehold.co/96x96?text=%3F';
+                  }}
+                />
+              ) : (
+                <div className="w-24 h-24 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Sem img</div>
+              )}
+            </td>
+          );
+        }
+        if (col.key === 'tags') {
+          const chips = (rawValue as TagItem[]) || [];
+          const MAX = 3;
+          const shown = chips.slice(0, MAX);
+          const extra = chips.length - shown.length;
+          return (
+            <td key={col.key} className="px-4 py-3 text-left max-w-xs">
+              <div className="flex flex-wrap gap-1">
+                {shown.map((c, i) => <TagChip key={`${c.label}_${i}`} label={c.label} color={c.color} title={c.title} />)}
+                {extra > 0 && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200">+{extra}</span>
+                )}
+              </div>
+            </td>
+          );
+        }
+        if (col.key === 'actions') {
+          const externalLink = post.postLink || (post.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
+          return (
+            <td key={col.key} className="px-4 py-3 whitespace-nowrap text-center">
+              <div className="flex items-center justify-center space-x-2">
+                <button onClick={() => onOpenPostDetailModal(post._id!.toString())} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Ver detalhes">
+                  <DocumentMagnifyingGlassIcon className="w-5 h-5" />
+                </button>
+                <button onClick={() => onOpenTrendChart(post._id!.toString())} className="text-gray-400 hover:text-green-600 transition-colors" title="Ver tendência">
+                  <ChartBarIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => externalLink && onOpenExternalLink(post)}
+                  className={`text-gray-400 transition-colors ${externalLink ? 'hover:text-blue-600' : 'opacity-40 cursor-not-allowed'}`}
+                  title={externalLink ? 'Abrir post original' : 'Link indisponível'}
+                  disabled={!externalLink}
+                >
+                  <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => externalLink && onCopyLink(post)}
+                  className={`text-gray-400 transition-colors ${externalLink ? 'hover:text-amber-600' : 'opacity-40 cursor-not-allowed'}`}
+                  title={externalLink ? 'Copiar link' : 'Link indisponível'}
+                  disabled={!externalLink}
+                >
+                  <ClipboardIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </td>
+          );
+        }
+        return (
+          <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'}`}>
+            <span title={String(rawValue)} className="block max-w-[200px] truncate">{displayValue}</span>
+          </td>
+        );
+      })}
+    </tr>
+  );
+});
 
 // CORRIGIDO: Adicionado apiPrefix para futuras chamadas de API
 interface ContentTrendChartProps {
@@ -277,10 +434,23 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
 
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
 
+  const postsAbortRef = useRef<AbortController | null>(null);
+  const analysisAbortRef = useRef<AbortController | null>(null);
+  const postsCacheRef = useRef(new Map<string, { posts: IGlobalPostResult[]; totalPosts: number; ts: number }>());
+
   const [isPostDetailModalOpen, setIsPostDetailModalOpen] = useState(false);
   const [selectedPostIdForModal, setSelectedPostIdForModal] = useState<string | null>(null);
   const [isTrendChartOpen, setIsTrendChartOpen] = useState(false);
   const [selectedPostIdForTrend, setSelectedPostIdForTrend] = useState<string | null>(null);
+  const { ref: postsTableRef, inView: postsTableInView } = useInView({ triggerOnce: true, rootMargin: '200px' });
+  const shouldFetchPosts = viewMode === 'explorer' || postsTableInView;
+
+  useEffect(() => {
+    return () => {
+      postsAbortRef.current?.abort();
+      analysisAbortRef.current?.abort();
+    };
+  }, []);
   useEffect(() => {
     if (forceOnlyActiveSubscribers) {
       setOnlyActiveSubscribers(true);
@@ -379,60 +549,113 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
   }, [dateRangeFilter, creatorContextFilter, forceContext, forceOnlyActiveSubscribers]);
 
   const fetchPosts = useCallback(async () => {
-    // REMOVED: if (viewMode !== 'explorer') return;  <-- Now runs in both modes
-    setIsLoading(true);
+    postsAbortRef.current?.abort();
+    const controller = new AbortController();
+    postsAbortRef.current = controller;
     setError(null);
 
     const params = buildQueryParams(activeFilters, sortConfig, { page: currentPage, limit });
+    const cacheKey = params.toString();
+    const cached = postsCacheRef.current.get(cacheKey);
+    if (cached && Date.now() - cached.ts < POSTS_CACHE_TTL) {
+      setPosts(cached.posts);
+      setTotalPosts(cached.totalPosts);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const postsUrl = `${apiPrefix}/dashboard/posts?${params.toString()}`;
-      const response = await fetch(postsUrl);
+      const response = await fetch(postsUrl, { signal: controller.signal });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `Failed to fetch posts: ${response.statusText}`);
       }
       const data = await response.json();
-      setPosts(data.posts || []);
-      setTotalPosts(data.totalPosts || 0);
+      const nextPosts = data.posts || [];
+      const nextTotal = data.totalPosts || 0;
+      setPosts(nextPosts);
+      setTotalPosts(nextTotal);
+      if (postsCacheRef.current.size >= MAX_POSTS_CACHE) {
+        const oldestKey = postsCacheRef.current.keys().next().value;
+        if (oldestKey) postsCacheRef.current.delete(oldestKey);
+      }
+      postsCacheRef.current.set(cacheKey, { posts: nextPosts, totalPosts: nextTotal, ts: Date.now() });
+
+      const totalPages = Math.ceil(nextTotal / limit);
+      const nextPage = currentPage + 1;
+      if (nextPage <= totalPages) {
+        const nextParams = buildQueryParams(activeFilters, sortConfig, { page: nextPage, limit });
+        const nextKey = nextParams.toString();
+        if (!postsCacheRef.current.has(nextKey)) {
+          void (async () => {
+            try {
+              const res = await fetch(`${apiPrefix}/dashboard/posts?${nextParams.toString()}`);
+              if (!res.ok) return;
+              const prefetchData = await res.json();
+              const prefetchPosts = prefetchData.posts || [];
+              const prefetchTotal = prefetchData.totalPosts || 0;
+              if (postsCacheRef.current.size >= MAX_POSTS_CACHE) {
+                const oldestKey = postsCacheRef.current.keys().next().value;
+                if (oldestKey) postsCacheRef.current.delete(oldestKey);
+              }
+              postsCacheRef.current.set(nextKey, { posts: prefetchPosts, totalPosts: prefetchTotal, ts: Date.now() });
+            } catch {
+              /* no-op */
+            }
+          })();
+        }
+      }
     } catch (e: any) {
+      if (e?.name === 'AbortError') return;
       setError(e.message);
     } finally {
-      setIsLoading(false);
+      if (postsAbortRef.current === controller && !controller.signal.aborted) {
+        setIsLoading(false);
+      }
     }
   }, [currentPage, limit, sortConfig, activeFilters, apiPrefix, buildQueryParams]); // Removed viewMode dependency
 
   const fetchAnalysis = useCallback(async () => {
     if (viewMode !== 'analysis') return;
+    analysisAbortRef.current?.abort();
+    const controller = new AbortController();
+    analysisAbortRef.current = controller;
     setIsAnalysisLoading(true);
     setError(null);
 
     try {
       // Fetch Best
       const bestParams = buildQueryParams(activeFilters, { sortBy: 'stats.total_interactions', sortOrder: 'desc' }, { page: 1, limit: 3 });
-      const bestRes = await fetch(`${apiPrefix}/dashboard/posts?${bestParams.toString()}`);
-      const bestData = await bestRes.json();
-      setBestPosts(bestData.posts || []);
-
-      // Fetch Worst
-      // For worst, we might want to filter out posts with 0 interactions if that's too common/uninteresting, 
-      // but for now let's just take the lowest.
       const worstParams = buildQueryParams(activeFilters, { sortBy: 'stats.total_interactions', sortOrder: 'asc' }, { page: 1, limit: 3 });
-      const worstRes = await fetch(`${apiPrefix}/dashboard/posts?${worstParams.toString()}`);
-      const worstData = await worstRes.json();
+      const [bestRes, worstRes] = await Promise.all([
+        fetch(`${apiPrefix}/dashboard/posts?${bestParams.toString()}`, { signal: controller.signal }),
+        fetch(`${apiPrefix}/dashboard/posts?${worstParams.toString()}`, { signal: controller.signal }),
+      ]);
+      if (!bestRes.ok || !worstRes.ok) {
+        const errorData = await (bestRes.ok ? worstRes : bestRes).json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch analysis data');
+      }
+      const [bestData, worstData] = await Promise.all([bestRes.json(), worstRes.json()]);
+      setBestPosts(bestData.posts || []);
       setWorstPosts(worstData.posts || []);
 
     } catch (e: any) {
+      if (e?.name === 'AbortError') return;
       setError(e.message);
     } finally {
-      setIsAnalysisLoading(false);
+      if (analysisAbortRef.current === controller && !controller.signal.aborted) {
+        setIsAnalysisLoading(false);
+      }
     }
   }, [activeFilters, apiPrefix, viewMode, buildQueryParams]);
 
   useEffect(() => {
-    fetchPosts();
+    if (shouldFetchPosts) fetchPosts();
     if (viewMode === 'analysis') fetchAnalysis();
-  }, [fetchPosts, fetchAnalysis, viewMode]);
+  }, [fetchPosts, fetchAnalysis, viewMode, shouldFetchPosts]);
 
   const handleApplyLocalFilters = useCallback(() => {
     setCurrentPage(1);
@@ -460,44 +683,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
 
   const totalPages = Math.ceil(totalPosts / limit);
   const handlePageChange = useCallback((newPage: number) => { if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage); }, [totalPages]);
-  const formatDate = (dateString?: Date | string) => !dateString ? 'N/A' : new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A') => path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? defaultValue;
-  const formatNumberStd = (val: any) => !isNaN(parseFloat(String(val))) ? parseFloat(String(val)).toLocaleString('pt-BR') : 'N/A';
 
-  const formatClassValue = (val: string[] | string | undefined, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
-    if (!val) return 'N/A';
-    if (Array.isArray(val)) {
-      const labels = idsToLabels(val, type);
-      return labels.length > 0 ? labels.join(', ') : 'N/A';
-    }
-    const labels = commaSeparatedIdsToLabels(val, type);
-    return labels || 'N/A';
-  };
-
-  // Etiquetas (chips) combinadas para otimizar espaço
-  const getTagLabels = (post: IGlobalPostResult) => {
-    const items: { label: string; color: string; title: string }[] = [];
-    const push = (labels: string[] | string | undefined, color: string, titlePrefix: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
-      if (!labels) return;
-      const arr = Array.isArray(labels) ? labels : (labels ? String(labels).split(',') : []);
-      const resolved = idsToLabels(arr, type).filter(Boolean);
-      resolved.forEach(l => items.push({ label: l, color, title: `${titlePrefix}: ${l}` }));
-    };
-    push(post.format as any, 'bg-blue-50 text-blue-700 ring-blue-200', 'Formato', 'format');
-    push(post.proposal as any, 'bg-violet-50 text-violet-700 ring-violet-200', 'Proposta', 'proposal');
-    push(post.context as any, 'bg-amber-50 text-amber-700 ring-amber-200', 'Contexto', 'context');
-    push(post.tone as any, 'bg-teal-50 text-teal-700 ring-teal-200', 'Tom', 'tone');
-    push(post.references as any, 'bg-rose-50 text-rose-700 ring-rose-200', 'Referência', 'reference');
-    return items;
-  };
-
-  const TagChip = ({ label, color, title }: { label: string; color: string; title: string }) => (
-    <span title={title} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium ring-1 ring-inset ${color} mr-1 mb-1 max-w-[120px] truncate`}>
-      {label}
-    </span>
-  );
-
-  const columns = useMemo(() => [
+  const columns = useMemo<ColumnDef[]>(() => [
     { key: 'cover', label: 'Imagem', sortable: false, getVal: (p: IGlobalPostResult) => p.coverUrl || '' },
     { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (p: IGlobalPostResult) => p.text_content || p.description || 'N/A' },
     { key: 'creatorName', label: 'Criador', sortable: true, getVal: (p: IGlobalPostResult) => p.creatorName || 'N/A' },
@@ -724,9 +911,13 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
           )}
 
           {/* MAIN POSTS TABLE (Visible in both modes) */}
-          <div className="mt-6">
+          <div className="mt-6" ref={postsTableRef}>
             {viewMode === 'analysis' && <h4 className="text-lg font-semibold text-gray-800 mb-4">Todos os Posts</h4>}
-            {isLoading ? (
+            {viewMode === 'analysis' && !postsTableInView ? (
+              <div className="py-10 text-center text-gray-500">
+                Role para carregar os posts.
+              </div>
+            ) : isLoading ? (
               <div className="text-center py-10"><SkeletonBlock width="w-48" height="h-6" className="mx-auto" /></div>
             ) : error ? (
               <div className="text-center py-10"><p className="text-red-500">Erro ao carregar posts: {error}</p></div>
@@ -741,89 +932,15 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {posts.map((post) => (
-                        <tr key={post._id?.toString()} className="hover:bg-gray-50 transition-colors">
-                          {columns.map(col => {
-                            const rawValue = col.getVal(post);
-                            let displayValue: React.ReactNode = rawValue;
-                            if (col.key.startsWith('stats.')) displayValue = (
-                              <span title={String(rawValue)} className="tabular-nums font-medium text-gray-700">{formatNumberStd(rawValue)}</span>
-                            );
-                            if (col.key === 'cover') {
-                              return (
-                                <td key="cover" className="px-3 py-2 whitespace-nowrap w-24">
-                                  {rawValue ? ( // eslint-disable-next-line @next/next/no-img-element
-                                    <Image
-                                      src={rawValue}
-                                      alt="capa"
-                                      width={96}
-                                      height={96}
-                                      className="w-24 h-24 object-cover rounded border border-gray-100" // eslint-disable-line @next/next/no-img-element
-                                      onError={(e) => {
-                                        const t = e.currentTarget as HTMLImageElement;
-                                        t.onerror = null;
-                                        t.src = 'https://placehold.co/96x96?text=%3F';
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="w-24 h-24 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Sem img</div>
-                                  )}
-                                </td>
-                              );
-                            }
-                            if (col.key === 'tags') {
-                              const chips = rawValue as ReturnType<typeof getTagLabels>;
-                              const MAX = 3;
-                              const shown = chips.slice(0, MAX);
-                              const extra = chips.length - shown.length;
-                              return (
-                                <td key="tags" className="px-4 py-3 text-left max-w-xs">
-                                  <div className="flex flex-wrap gap-1">
-                                    {shown.map((c, i) => <TagChip key={`${c.label}_${i}`} label={c.label} color={c.color} title={c.title} />)}
-                                    {extra > 0 && (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200">+{extra}</span>
-                                    )}
-                                  </div>
-                                </td>
-                              );
-                            }
-                            if (col.key === 'actions') {
-                              const externalLink = post.postLink || (post.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
-                              return (
-                                <td key={col.key} className="px-4 py-3 whitespace-nowrap text-center">
-                                  <div className="flex items-center justify-center space-x-2">
-                                    <button onClick={() => handleOpenPostDetailModal(post._id!.toString())} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Ver detalhes">
-                                      <DocumentMagnifyingGlassIcon className="w-5 h-5" />
-                                    </button>
-                                    <button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-gray-400 hover:text-green-600 transition-colors" title="Ver tendência">
-                                      <ChartBarIcon className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => externalLink && handleOpenExternalLink(post)}
-                                      className={`text-gray-400 transition-colors ${externalLink ? 'hover:text-blue-600' : 'opacity-40 cursor-not-allowed'}`}
-                                      title={externalLink ? 'Abrir post original' : 'Link indisponível'}
-                                      disabled={!externalLink}
-                                    >
-                                      <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                      onClick={() => externalLink && handleCopyLink(post)}
-                                      className={`text-gray-400 transition-colors ${externalLink ? 'hover:text-amber-600' : 'opacity-40 cursor-not-allowed'}`}
-                                      title={externalLink ? 'Copiar link' : 'Link indisponível'}
-                                      disabled={!externalLink}
-                                    >
-                                      <ClipboardIcon className="w-5 h-5" />
-                                    </button>
-                                  </div>
-                                </td>
-                              );
-                            }
-                            return (
-                              <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'}`}>
-                                <span title={String(rawValue)} className="block max-w-[200px] truncate">{displayValue}</span>
-                              </td>
-                            );
-                          })}
-                        </tr>
+                        <PostsTableRow
+                          key={post._id?.toString()}
+                          post={post}
+                          columns={columns}
+                          onOpenPostDetailModal={handleOpenPostDetailModal}
+                          onOpenTrendChart={handleOpenTrendChart}
+                          onOpenExternalLink={handleOpenExternalLink}
+                          onCopyLink={handleCopyLink}
+                        />
                       ))}
                     </tbody>
                   </table>

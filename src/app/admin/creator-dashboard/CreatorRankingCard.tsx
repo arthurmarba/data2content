@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
+import useSWR from 'swr';
 import { ICreatorMetricRankItem } from '@/app/lib/dataService/marketAnalysisService';
 import SkeletonBlock from './SkeletonBlock';
 import CreatorRankingModal from './CreatorRankingModal';
@@ -21,6 +22,10 @@ interface CreatorRankingCardProps {
   onlyActiveSubscribers?: boolean;
   contextFilter?: string;
   creatorContextFilter?: string;
+  dataOverride?: ICreatorMetricRankItem[] | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
 const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -51,40 +56,33 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   onlyActiveSubscribers = false,
   contextFilter,
   creatorContextFilter,
+  dataOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
 }) => {
-  const [rankingData, setRankingData] = useState<ICreatorMetricRankItem[] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [failedImgIds, setFailedImgIds] = useState<Set<string>>(new Set());
+  const startDateValue = dateRangeFilter?.startDate;
+  const endDateValue = dateRangeFilter?.endDate;
+  const hasOverride = disableFetch
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
 
-  const fetchData = useCallback(async () => {
-    if (!dateRangeFilter?.startDate || !dateRangeFilter?.endDate) {
-      setRankingData(null); // Clear data if date range is incomplete
-      // Optionally set a specific message or do nothing if parent handles this state
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
+  const requestUrl = useMemo(() => {
+    if (!startDateValue || !endDateValue) return null;
     const params = new URLSearchParams({
       limit: String(limit),
     });
 
-    if (dateRangeFilter.startDate) {
-      // Ensure we are treating the date as local and converting to UTC start of day
-      const localStartDate = new Date(dateRangeFilter.startDate);
-      const utcStartDate = new Date(Date.UTC(localStartDate.getFullYear(), localStartDate.getMonth(), localStartDate.getDate(), 0, 0, 0, 0));
-      params.append('startDate', utcStartDate.toISOString());
-    }
-
-    if (dateRangeFilter.endDate) {
-      // Ensure we are treating the date as local and converting to UTC end of day
-      const localEndDate = new Date(dateRangeFilter.endDate);
-      const utcEndDate = new Date(Date.UTC(localEndDate.getFullYear(), localEndDate.getMonth(), localEndDate.getDate(), 23, 59, 59, 999));
-      params.append('endDate', utcEndDate.toISOString());
-    }
+    // Ensure we are treating the date as local and converting to UTC start/end of day
+    const localStartDate = new Date(startDateValue);
+    const utcStartDate = new Date(Date.UTC(localStartDate.getFullYear(), localStartDate.getMonth(), localStartDate.getDate(), 0, 0, 0, 0));
+    const localEndDate = new Date(endDateValue);
+    const utcEndDate = new Date(Date.UTC(localEndDate.getFullYear(), localEndDate.getMonth(), localEndDate.getDate(), 23, 59, 59, 999));
+    params.append('startDate', utcStartDate.toISOString());
+    params.append('endDate', utcEndDate.toISOString());
 
     if (onlyActiveSubscribers) {
       params.append('onlyActiveSubscribers', 'true');
@@ -96,25 +94,33 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
       params.append('creatorContext', creatorContextFilter);
     }
 
-    try {
-      const response = await fetch(`${apiEndpoint}?${params.toString()}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to fetch ${title}`);
-      }
-      const data: ICreatorMetricRankItem[] = await response.json();
-      setRankingData(data);
-    } catch (e: any) {
-      setError(e.message);
-      setRankingData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [apiEndpoint, dateRangeFilter, limit, title, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
+    return `${apiEndpoint}?${params.toString()}`;
+  }, [apiEndpoint, startDateValue, endDateValue, limit, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const fetcher = useCallback(async (url: string) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to fetch ${title}`);
+    }
+    return response.json() as Promise<ICreatorMetricRankItem[]>;
+  }, [title]);
+
+  const shouldFetch = !disableFetch && Boolean(requestUrl);
+  const {
+    data,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<ICreatorMetricRankItem[]>(
+    shouldFetch ? requestUrl : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const rankingData = hasOverride ? (dataOverride ?? null) : (data ?? null);
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : isLoading;
+  const finalError = hasOverride ? (errorOverride ?? null) : errorMessage;
 
   const formatMetricValue = (value: number): string => {
     if (Number.isInteger(value)) {
@@ -159,19 +165,21 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
       {dateRangeLabel && (
         <p className="text-xs text-gray-500 mb-3">{dateRangeLabel}</p>
       )}
-      {isLoading && renderSkeleton()}
-      {!isLoading && error && (
+      {finalLoading && renderSkeleton()}
+      {!finalLoading && finalError && (
         <div className="text-center py-4 flex-grow flex flex-col justify-center items-center">
-          <p className="text-xs text-red-500 px-2">Erro: {error}</p>
-          <button
-            onClick={fetchData}
-            className="mt-2 px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
-          >
-            Tentar Novamente
-          </button>
+          <p className="text-xs text-red-500 px-2">Erro: {finalError}</p>
+          {shouldFetch && (
+            <button
+              onClick={() => mutate()}
+              className="mt-2 px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
+            >
+              Tentar Novamente
+            </button>
+          )}
         </div>
       )}
-      {!isLoading && !error && rankingData && rankingData.length > 0 && (
+      {!finalLoading && !finalError && rankingData && rankingData.length > 0 && (
         <ol className="space-y-2 text-sm flex-grow">
           {rankingData.map((item, index) => (
             <li key={item.creatorId.toString()} className="flex items-center space-x-2.5 py-1">
@@ -204,7 +212,7 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
           ))}
         </ol>
       )}
-      {!isLoading && !error && (!rankingData || rankingData.length === 0) && (
+      {!finalLoading && !finalError && (!rankingData || rankingData.length === 0) && (
         <div className="text-center py-4 text-xs text-gray-400 flex-grow flex flex-col justify-center items-center">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-1">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />

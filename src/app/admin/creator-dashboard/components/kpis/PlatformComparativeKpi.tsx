@@ -44,6 +44,10 @@ interface PlatformComparativeKpiProps {
   onlyActiveSubscribers?: boolean;
   contextFilter?: string;
   creatorContextFilter?: string;
+  dataOverride?: KPIComparisonData | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
 const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
@@ -55,11 +59,19 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   onlyActiveSubscribers = false,
   contextFilter,
   creatorContextFilter,
+  dataOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
 }) => {
   const [kpiData, setKpiData] = useState<KPIComparisonData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   // const [insight, setInsight] = useState<string | undefined>(undefined); // Insight específico do KPI não usado por enquanto
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -102,27 +114,34 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   }, [comparisonPeriod, kpiName, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
+    if (hasOverride) {
+      return;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, hasOverride]);
+
+  const finalData = hasOverride ? (dataOverride ?? null) : kpiData;
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : loading;
+  const finalError = hasOverride ? (errorOverride ?? null) : error;
 
   let changeString: string | null = null;
   let changeType: 'positive' | 'negative' | 'neutral' = 'neutral';
 
-  if (kpiData && kpiData.percentageChange !== null) {
-    const pc = kpiData.percentageChange * 100;
+  if (finalData && finalData.percentageChange !== null) {
+    const pc = finalData.percentageChange * 100;
     changeString = `${pc > 0 ? '+' : ''}${pc.toFixed(1)}% vs período anterior`;
     if (pc > 0.01) changeType = 'positive';
     else if (pc < -0.01) changeType = 'negative';
     else changeType = 'neutral';
 
-  } else if (kpiData && kpiData.currentValue !== null && kpiData.previousValue !== null) {
-    if (kpiData.currentValue > kpiData.previousValue) {
+  } else if (finalData && finalData.currentValue !== null && finalData.previousValue !== null) {
+    if (finalData.currentValue > finalData.previousValue) {
         changeString = "Aumento vs período anterior"; // Fallback se % não calculado
         changeType = 'positive';
-    } else if (kpiData.currentValue < kpiData.previousValue) {
+    } else if (finalData.currentValue < finalData.previousValue) {
         changeString = "Redução vs período anterior";
         changeType = 'negative';
-    } else if (kpiData.currentValue === kpiData.previousValue) {
+    } else if (finalData.currentValue === finalData.previousValue) {
         changeString = "Sem alteração vs período anterior";
         changeType = 'neutral';
     }
@@ -132,13 +151,13 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   return (
     <PlatformKpiCard
       title={title}
-      value={kpiData?.currentValue ?? (loading ? null : 0)}
-      isLoading={loading}
-      error={error}
+      value={finalData?.currentValue ?? (finalLoading ? null : 0)}
+      isLoading={finalLoading}
+      error={finalError}
       tooltip={tooltip}
       change={changeString}
       changeType={changeType}
-      chartData={kpiData?.chartData} // Passar chartData para o PlatformKpiCard
+      chartData={finalData?.chartData} // Passar chartData para o PlatformKpiCard
     />
   );
 };

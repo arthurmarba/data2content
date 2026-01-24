@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Toaster } from 'react-hot-toast';
 import AdminAuthGuard from './components/AdminAuthGuard';
+import { SWRConfig } from 'swr';
 import {
   Bars3Icon,
   UserGroupIcon,
@@ -135,54 +136,56 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <AdminAuthGuard>
-      <Toaster
-        position="top-right"
-        toastOptions={{ duration: 5000 }}
-      />
-      <div className="flex min-h-screen bg-gray-50">
-        {/* Sidebar para Desktop */}
-        <aside
-          className={`hidden md:flex md:flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'
-            }`}
-        >
-          <SidebarContent collapsed={isCollapsed} />
-        </aside>
+      <SWRConfig value={{ revalidateOnFocus: false, dedupingInterval: 60 * 1000 }}>
+        <Toaster
+          position="top-right"
+          toastOptions={{ duration: 5000 }}
+        />
+        <div className="flex min-h-screen bg-gray-50">
+          {/* Sidebar para Desktop */}
+          <aside
+            className={`hidden md:flex md:flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'
+              }`}
+          >
+            <SidebarContent collapsed={isCollapsed} />
+          </aside>
 
-        {/* Sidebar para Mobile (Overlay) */}
-        {isSidebarOpen && (
-          <div className="fixed inset-0 z-40 flex md:hidden" role="dialog" aria-modal="true">
-            <div
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-black/60"
-              aria-hidden="true"
-            ></div>
-            <aside className="relative w-64 bg-white border-r border-gray-200 flex flex-col">
-              <SidebarContent />
-            </aside>
+          {/* Sidebar para Mobile (Overlay) */}
+          {isSidebarOpen && (
+            <div className="fixed inset-0 z-40 flex md:hidden" role="dialog" aria-modal="true">
+              <div
+                onClick={() => setIsSidebarOpen(false)}
+                className="fixed inset-0 bg-black/60"
+                aria-hidden="true"
+              ></div>
+              <aside className="relative w-64 bg-white border-r border-gray-200 flex flex-col">
+                <SidebarContent />
+              </aside>
+            </div>
+          )}
+
+          {/* Conteúdo Principal */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Topbar com botão hamburger (apenas em mobile) */}
+            <header className="flex items-center justify-between bg-white p-4 border-b border-gray-200 md:hidden sticky top-0 z-30">
+              <button
+                onClick={() => setIsSidebarOpen(prev => !prev)}
+                className="p-2 rounded-md text-gray-500 hover:bg-gray-200"
+                aria-label="Abrir menu"
+              >
+                <Bars3Icon className="w-6 h-6" />
+              </button>
+              <h1 className="text-lg font-bold text-gray-800">Admin</h1>
+              <div className="w-8 h-8" /> {/* Espaço para alinhar o título ao centro */}
+            </header>
+
+            {/* Conteúdo da Página */}
+            <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto">
+              {children}
+            </main>
           </div>
-        )}
-
-        {/* Conteúdo Principal */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Topbar com botão hamburger (apenas em mobile) */}
-          <header className="flex items-center justify-between bg-white p-4 border-b border-gray-200 md:hidden sticky top-0 z-30">
-            <button
-              onClick={() => setIsSidebarOpen(prev => !prev)}
-              className="p-2 rounded-md text-gray-500 hover:bg-gray-200"
-              aria-label="Abrir menu"
-            >
-              <Bars3Icon className="w-6 h-6" />
-            </button>
-            <h1 className="text-lg font-bold text-gray-800">Admin</h1>
-            <div className="w-8 h-8" /> {/* Espaço para alinhar o título ao centro */}
-          </header>
-
-          {/* Conteúdo da Página */}
-          <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto">
-            {children}
-          </main>
         </div>
-      </div>
+      </SWRConfig>
     </AdminAuthGuard>
   );
 }

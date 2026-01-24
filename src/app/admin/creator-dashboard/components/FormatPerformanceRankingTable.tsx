@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import useSWR from 'swr';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { commaSeparatedIdsToLabels } from '../../../lib/classification';
 import { FullDataModal } from './FullDataModal';
@@ -13,40 +14,65 @@ const DEFAULT_METRIC = 'stats.total_interactions';
 
 interface FormatPerformanceRankingTableProps {
   apiPrefix?: string;
+  dataOverride?: DataPoint[] | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
-const FormatPerformanceRankingTable: React.FC<FormatPerformanceRankingTableProps> = ({ apiPrefix = '/api/admin' }) => {
+const FormatPerformanceRankingTable: React.FC<FormatPerformanceRankingTableProps> = ({
+  apiPrefix = '/api/admin',
+  dataOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+}) => {
   const { timePeriod } = useGlobalTimePeriod();
-  const [data, setData] = useState<DataPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const apiUrl = `${apiPrefix}/dashboard/performance/average-engagement?timePeriod=${timePeriod}&groupBy=format&sortOrder=desc&engagementMetricField=${DEFAULT_METRIC}`;
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-      const result = await res.json();
-      const mapped: DataPoint[] = result.chartData.map((d: any) => ({
-        name: commaSeparatedIdsToLabels(d.name, 'format') || d.name,
-        value: d.value,
-        postsCount: d.postsCount,
-      }));
-      setData(mapped);
-    } catch (e: any) {
-      setError(e.message || 'Erro ao carregar ranking.');
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [timePeriod, apiPrefix]);
+  const swrKey = useMemo(() => ([
+    'format-performance',
+    apiPrefix,
+    timePeriod,
+    DEFAULT_METRIC,
+  ]), [apiPrefix, timePeriod]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const fetcher = useCallback(async (): Promise<DataPoint[]> => {
+    const apiUrl = `${apiPrefix}/dashboard/performance/average-engagement?timePeriod=${timePeriod}&groupBy=format&sortOrder=desc&engagementMetricField=${DEFAULT_METRIC}`;
+    const res = await fetch(apiUrl);
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const result = await res.json();
+    return result.chartData.map((d: any) => ({
+      name: d.name,
+      value: d.value,
+      postsCount: d.postsCount,
+    }));
+  }, [apiPrefix, timePeriod]);
 
-  const totalPosts = data.reduce((sum, d) => sum + d.postsCount, 0);
+  const shouldFetch = !hasOverride;
+  const { data, error, isLoading } = useSWR<DataPoint[]>(
+    shouldFetch ? swrKey : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : isLoading;
+  const finalError = hasOverride ? (errorOverride ?? null) : errorMessage;
+  const rawData = useMemo(
+    () => (hasOverride ? (dataOverride ?? []) : (data ?? [])),
+    [hasOverride, dataOverride, data]
+  );
+  const tableData = useMemo(() => (
+    rawData.map((d) => ({
+      ...d,
+      name: commaSeparatedIdsToLabels(d.name, 'format') || d.name,
+    }))
+  ), [rawData]);
+  const totalPosts = tableData.reduce((sum, d) => sum + d.postsCount, 0);
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
@@ -56,9 +82,9 @@ const FormatPerformanceRankingTable: React.FC<FormatPerformanceRankingTableProps
           Ver Análise Completa
         </button>
       </div>
-      {loading && <p className="text-center py-6 text-gray-500">Carregando ranking...</p>}
-      {error && <p className="text-center py-6 text-red-500">Erro: {error}</p>}
-      {!loading && !error && data.length > 0 && (
+      {finalLoading && <p className="text-center py-6 text-gray-500">Carregando ranking...</p>}
+      {finalError && <p className="text-center py-6 text-red-500">Erro: {finalError}</p>}
+      {!finalLoading && !finalError && tableData.length > 0 && (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
@@ -70,7 +96,7 @@ const FormatPerformanceRankingTable: React.FC<FormatPerformanceRankingTableProps
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {data.map((item, index) => {
+              {tableData.map((item, index) => {
                 const pct = totalPosts > 0 ? (item.postsCount / totalPosts) * 100 : 0;
                 return (
                   <tr key={item.name} className="hover:bg-gray-50">
@@ -92,7 +118,7 @@ const FormatPerformanceRankingTable: React.FC<FormatPerformanceRankingTableProps
           </table>
         </div>
       )}
-      {!loading && !error && data.length === 0 && (
+      {!finalLoading && !finalError && tableData.length === 0 && (
         <p className="text-center py-6 text-gray-500">Nenhum dado disponível.</p>
       )}
 

@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
+import useSWR from 'swr';
 import SkeletonBlock from './SkeletonBlock';
 import { TopCreatorMetric } from '@/app/lib/dataService/marketAnalysisService';
 import { useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
@@ -37,6 +38,10 @@ interface TopCreatorsWidgetProps {
   tooltip?: string;
   apiPrefix?: string;
   onlyActiveSubscribers?: boolean;
+  dataOverride?: any[] | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
 const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
@@ -51,21 +56,23 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   apiPrefix = '/api/admin',
   onlyActiveSubscribers = false,
   creatorContext,
+  dataOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
 }) => {
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const effectiveTimePeriod: TimePeriod = timePeriod || (globalTimePeriod as TimePeriod);
   const days = timePeriodToDays(effectiveTimePeriod);
 
-  const [rankingData, setRankingData] = useState<any[] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [failedImgIds, setFailedImgIds] = useState<Set<string>>(new Set());
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
+  const requestUrl = useMemo(() => {
     const params = new URLSearchParams({
       days: String(days),
       limit: String(limit),
@@ -75,30 +82,36 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
     } else {
       params.append('metric', metric);
     }
-    const effectiveContext = context;
-    if (effectiveContext) params.append('context', effectiveContext);
+    if (context) params.append('context', context);
     if (creatorContext) params.append('creatorContext', creatorContext);
     if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+    return `${apiPrefix}/dashboard/rankings/top-creators?${params.toString()}`;
+  }, [apiPrefix, days, limit, compositeRanking, metric, context, creatorContext, onlyActiveSubscribers]);
 
-    try {
-      const response = await fetch(`${apiPrefix}/dashboard/rankings/top-creators?${params.toString()}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch rankings');
-      }
-      const data = await response.json();
-      setRankingData(data);
-    } catch (e: any) {
-      setError(e.message);
-      setRankingData(null);
-    } finally {
-      setIsLoading(false);
+  const fetcher = useCallback(async (url: string) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch rankings');
     }
-  }, [context, creatorContext, metric, days, limit, compositeRanking, apiPrefix, onlyActiveSubscribers]);
+    return response.json();
+  }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const shouldFetch = !hasOverride && Boolean(requestUrl);
+  const {
+    data: rankingData,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<any[]>(
+    shouldFetch ? requestUrl : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const finalData = hasOverride ? (dataOverride ?? null) : (rankingData ?? null);
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : isLoading;
+  const finalError = hasOverride ? (errorOverride ?? null) : errorMessage;
 
   const formatMetricValue = (value: number): string => {
     if (compositeRanking) {
@@ -142,21 +155,23 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
           </div>
         )}
       </div>
-      {isLoading && renderSkeleton()}
-      {!isLoading && error && (
+      {finalLoading && renderSkeleton()}
+      {!finalLoading && finalError && (
         <div className="text-center py-4 flex-grow flex flex-col justify-center items-center">
-          <p className="text-xs text-red-500 px-2">Erro: {error}</p>
-          <button
-            onClick={fetchData}
-            className="mt-2 px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
-          >
-            Tentar Novamente
-          </button>
+          <p className="text-xs text-red-500 px-2">Erro: {finalError}</p>
+          {shouldFetch && (
+            <button
+              onClick={() => mutate()}
+              className="mt-2 px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
+            >
+              Tentar Novamente
+            </button>
+          )}
         </div>
       )}
-      {!isLoading && !error && rankingData && rankingData.length > 0 && (
+      {!finalLoading && !finalError && finalData && finalData.length > 0 && (
         <ol className="space-y-2 text-sm flex-grow">
-          {rankingData.map((item: any, index: number) => (
+          {finalData.map((item: any, index: number) => (
             <li key={item.creatorId.toString()} className="flex items-center space-x-2.5 py-1">
               <span className="text-xs font-medium text-gray-500 w-5 text-center">{index + 1}.</span>
               {item.profilePictureUrl && !failedImgIds.has(String(item.creatorId)) ? (
@@ -187,7 +202,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
           ))}
         </ol>
       )}
-      {!isLoading && !error && (!rankingData || rankingData.length === 0) && (
+      {!finalLoading && !finalError && (!finalData || finalData.length === 0) && (
         <div className="text-center py-4 text-xs text-gray-400 flex-grow flex flex-col justify-center items-center">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-1">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />

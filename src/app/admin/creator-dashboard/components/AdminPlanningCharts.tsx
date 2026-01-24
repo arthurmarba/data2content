@@ -159,6 +159,15 @@ interface AdminPlanningChartsProps {
   hideHeatmap?: boolean;
 }
 
+interface PlanningBatchResponse {
+  trendData: { chartData?: Array<{ date: string; reach: number; totalInteractions: number }> };
+  timeData: { buckets?: Array<{ dayOfWeek: number; hour: number; average: number; count: number }> };
+  formatData: { chartData?: Array<{ name: string; value: number; percentage: number }> };
+  proposalData: { chartData?: Array<{ name: string; value: number; postsCount: number }> };
+  toneData: { chartData?: Array<{ name: string; value: number; postsCount: number }> };
+  referenceData: { chartData?: Array<{ name: string; value: number; postsCount: number }> };
+}
+
 export default function AdminPlanningCharts({ userId, hideHeatmap = false }: AdminPlanningChartsProps) {
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
@@ -172,39 +181,35 @@ export default function AdminPlanningCharts({ userId, hideHeatmap = false }: Adm
     posts: [],
   });
 
+  const planningBatchUrl = useMemo(() => {
+    if (!userId) return null;
+    const params = new URLSearchParams({
+      timePeriod: TIME_PERIOD,
+      granularity: "weekly",
+      metric: "stats.total_interactions",
+      engagementMetricField: "stats.total_interactions",
+    });
+    return `/api/admin/dashboard/users/${userId}/planning/batch?${params.toString()}`;
+  }, [userId]);
 
-  const { data: trendData, isLoading: loadingTrend } = useSWR(
-    userId ? `/api/v1/users/${userId}/trends/reach-engagement?granularity=weekly&timePeriod=${TIME_PERIOD}` : null,
+  const { data: planningBatch, isLoading: loadingMetrics } = useSWR<PlanningBatchResponse>(
+    planningBatchUrl,
     fetcher
   );
-  const { data: timeData, isLoading: loadingTime } = useSWR(
-    userId ? `/api/v1/users/${userId}/performance/time-distribution?metric=stats.total_interactions&timePeriod=${TIME_PERIOD}` : null,
-    fetcher
-  );
-  const { data: formatData, isLoading: loadingFormat } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/performance/engagement-distribution-format?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions`
-      : null,
-    fetcher
-  );
-  const { data: proposalData, isLoading: loadingProposal } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions&groupBy=proposal`
-      : null,
-    fetcher
-  );
-  const { data: toneData, isLoading: loadingTone } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions&groupBy=tone`
-      : null,
-    fetcher
-  );
-  const { data: referenceData, isLoading: loadingReference } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${TIME_PERIOD}&engagementMetricField=stats.total_interactions&groupBy=references`
-      : null,
-    fetcher
-  );
+
+  const trendData = planningBatch?.trendData;
+  const timeData = planningBatch?.timeData;
+  const formatData = planningBatch?.formatData;
+  const proposalData = planningBatch?.proposalData;
+  const toneData = planningBatch?.toneData;
+  const referenceData = planningBatch?.referenceData;
+
+  const loadingTrend = loadingMetrics;
+  const loadingTime = loadingMetrics;
+  const loadingFormat = loadingMetrics;
+  const loadingProposal = loadingMetrics;
+  const loadingTone = loadingMetrics;
+  const loadingReference = loadingMetrics;
   const { data: postsData, isLoading: loadingPosts } = useSWR(
     userId
       ? `/api/v1/users/${userId}/videos/list?timePeriod=${TIME_PERIOD}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`

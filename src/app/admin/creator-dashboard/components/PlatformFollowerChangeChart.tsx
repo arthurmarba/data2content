@@ -22,14 +22,34 @@ interface PlatformFollowerChangeChartProps {
   onlyActiveSubscribers?: boolean;
   contextFilter?: string;
   creatorContextFilter?: string;
+  dataOverride?: PlatformFollowerChangeResponse['chartData'] | null;
+  insightOverride?: string;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
-const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = ({ apiPrefix = '/api/admin', onlyActiveSubscribers = false, contextFilter, creatorContextFilter }) => {
+const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = ({
+  apiPrefix = '/api/admin',
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
+  dataOverride,
+  insightOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+}) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformFollowerChangeResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined'
+    || typeof insightOverride !== 'undefined';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -58,13 +78,20 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
   }, [timePeriod, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!hasOverride) {
+      fetchData();
+    }
+  }, [fetchData, hasOverride]);
 
   const tooltipFormatter: TooltipProps<number, string>["formatter"] = (
     value,
     name
   ) => formatNullableNumberTooltip(value as number | null, name);
+
+  const finalData = hasOverride ? (dataOverride ?? []) : data;
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : loading;
+  const finalError = hasOverride ? (errorOverride ?? null) : error;
+  const finalInsight = hasOverride ? insightOverride : insightSummary;
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
@@ -74,11 +101,11 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
         </h2>
       </div>
       <div style={{ width: '100%', height: 300 }}>
-        {loading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
-        {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
-        {!loading && !error && data.length > 0 && (
+        {finalLoading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
+        {finalError && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {finalError}</p></div>}
+        {!finalLoading && !finalError && finalData.length > 0 && (
           <ResponsiveContainer>
-            <BarChart data={data} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+            <BarChart data={finalData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 12 }} tickFormatter={formatDateLabel} />
               <YAxis stroke="#666" tick={{ fontSize: 12 }} tickFormatter={formatAxisNumberCompact} />
@@ -87,14 +114,14 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
             </BarChart>
           </ResponsiveContainer>
         )}
-        {!loading && !error && data.length === 0 && (
+        {!finalLoading && !finalError && finalData.length === 0 && (
           <div className="flex justify-center items-center h-full"><p className="text-gray-500">Sem dados no período selecionado.</p></div>
         )}
       </div>
-      {insightSummary && !loading && !error && (
+      {finalInsight && !finalLoading && !finalError && (
         <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200 flex items-start">
           <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
-          {insightSummary}
+          {finalInsight}
         </p>
       )}
     </div>

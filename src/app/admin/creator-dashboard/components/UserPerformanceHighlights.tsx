@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { TrendingUp, TrendingDown, Sparkles, CalendarDays } from "lucide-react";
@@ -34,6 +34,11 @@ interface PerformanceSummaryResponse {
 interface UserPerformanceHighlightsProps {
   userId: string | null;
   sectionTitle?: string;
+  summaryOverride?: PerformanceSummaryResponse | null;
+  formatRankingOverride?: Array<{ name: string; value: number; postsCount: number }> | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
 }
 
 // Ícone de Informação (mantido como estava)
@@ -62,6 +67,11 @@ const getPortugueseWeekdayName = (day: number): string => {
 const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   userId,
   sectionTitle = "Destaques de Performance do Criador",
+  summaryOverride,
+  formatRankingOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
 }) => {
   const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(
     null,
@@ -70,6 +80,11 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const { timePeriod } = useGlobalTimePeriod();
+  const hasOverride = Boolean(disableFetch)
+    || typeof summaryOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
+  const hasFormatRankingOverride = typeof formatRankingOverride !== 'undefined';
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -131,15 +146,45 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   }, [userId, timePeriod]);
 
   useEffect(() => {
-    if (userId) {
-      fetchData();
-    } else {
+    if (!userId) {
       setSummary(null);
       setLoading(false);
+      return;
     }
-  }, [userId, fetchData]);
+    if (hasOverride || disableFetch) {
+      return;
+    }
+    fetchData();
+  }, [userId, fetchData, hasOverride, disableFetch]);
 
-  if (!userId && !loading) {
+  const resolvedError = hasOverride ? (errorOverride ?? null) : error;
+  const resolvedLoading = hasOverride ? (loadingOverride ?? false) : loading;
+  const resolvedSummary = hasOverride ? (summaryOverride ?? null) : summary;
+  const normalizedSummary = useMemo(() => {
+    if (!resolvedSummary) return null;
+    const normalize = (
+      item: PerformanceHighlightItem | null,
+      kind: 'format' | 'context' | 'proposal' | 'tone' | 'reference',
+    ) => {
+      if (!item) return null;
+      return {
+        ...item,
+        name: commaSeparatedIdsToLabels(item.name, kind) || item.name,
+      };
+    };
+    return {
+      ...resolvedSummary,
+      topPerformingFormat: normalize(resolvedSummary.topPerformingFormat, 'format'),
+      lowPerformingFormat: normalize(resolvedSummary.lowPerformingFormat, 'format'),
+      topPerformingContext: normalize(resolvedSummary.topPerformingContext, 'context'),
+      topPerformingProposal: normalize(resolvedSummary.topPerformingProposal, 'proposal'),
+      topPerformingTone: normalize(resolvedSummary.topPerformingTone, 'tone'),
+      topPerformingReference: normalize(resolvedSummary.topPerformingReference, 'reference'),
+    };
+  }, [resolvedSummary]);
+  const displaySummary = resolvedError ? null : normalizedSummary;
+
+  if (!userId && !resolvedLoading) {
     return null;
   }
 
@@ -152,82 +197,88 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
         {/* período controlado globalmente */}
       </div>
 
-      {loading && (
+      {resolvedLoading && (
         <div className="text-center py-5">
           <p className="text-gray-500">Carregando destaques...</p>
         </div>
       )}
-      {error && (
+      {resolvedError && (
         <div className="text-center py-5">
-          <p className="text-red-500">Erro: {error}</p>
+          <p className="text-red-500">Erro: {resolvedError}</p>
         </div>
       )}
 
-      {!loading && !error && summary && (
+      {!resolvedLoading && !resolvedError && displaySummary && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
             <HighlightCard
               title="Melhor Formato"
-              highlight={summary.topPerformingFormat}
+              highlight={displaySummary.topPerformingFormat}
               icon={<TrendingUp size={18} className="mr-2 text-green-500" />}
               bgColorClass="bg-green-50"
               textColorClass="text-green-600"
             />
             <HighlightCard
               title="Contexto Principal"
-              highlight={summary.topPerformingContext}
+              highlight={displaySummary.topPerformingContext}
               icon={<Sparkles size={18} className="mr-2 text-blue-500" />}
               bgColorClass="bg-blue-50"
               textColorClass="text-blue-600"
             />
             <HighlightCard
               title="Menor Performance (Formato)"
-              highlight={summary.lowPerformingFormat}
+              highlight={displaySummary.lowPerformingFormat}
               icon={<TrendingDown size={18} className="mr-2 text-red-500" />}
               bgColorClass="bg-red-50"
               textColorClass="text-red-600"
             />
             <HighlightCard
               title="Melhor Proposta"
-              highlight={summary.topPerformingProposal}
+              highlight={displaySummary.topPerformingProposal}
               icon={<Sparkles size={18} className="mr-2 text-purple-500" />}
               bgColorClass="bg-purple-50"
               textColorClass="text-purple-600"
             />
             <HighlightCard
               title="Melhor Tom"
-              highlight={summary.topPerformingTone}
+              highlight={displaySummary.topPerformingTone}
               icon={<Sparkles size={18} className="mr-2 text-amber-500" />}
               bgColorClass="bg-amber-50"
               textColorClass="text-amber-600"
             />
             <HighlightCard
               title="Melhor Referência"
-              highlight={summary.topPerformingReference}
+              highlight={displaySummary.topPerformingReference}
               icon={<Sparkles size={18} className="mr-2 text-teal-500" />}
               bgColorClass="bg-teal-50"
               textColorClass="text-teal-600"
             />
             <HighlightCard
               title="Melhor Dia"
-              highlight={summary.bestDay ? { name: `🗓️ ${getPortugueseWeekdayName(summary.bestDay.dayOfWeek)}`, metricName: 'Interações (média)', value: summary.bestDay.average, valueFormatted: summary.bestDay.average.toFixed(1) } : null}
+              highlight={displaySummary.bestDay ? { name: `🗓️ ${getPortugueseWeekdayName(displaySummary.bestDay.dayOfWeek)}`, metricName: 'Interações (média)', value: displaySummary.bestDay.average, valueFormatted: displaySummary.bestDay.average.toFixed(1) } : null}
               icon={<CalendarDays size={18} className="mr-2 text-indigo-500" />}
               bgColorClass="bg-indigo-50"
               textColorClass="text-indigo-600"
             />
           </div>
-          {summary.insightSummary && (
+          {displaySummary.insightSummary && (
             <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200 flex items-start">
               <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
-              {summary.insightSummary}
+              {displaySummary.insightSummary}
             </p>
           )}
           <div className="mt-6">
-            <UserFormatPerformanceRankingTable userId={userId} />
+            <UserFormatPerformanceRankingTable
+              userId={userId}
+              dataOverride={formatRankingOverride ?? null}
+              loadingOverride={resolvedLoading}
+              errorOverride={resolvedError}
+              disableFetch={disableFetch || hasFormatRankingOverride}
+            />
           </div>
         </>
       )}
-      {!loading && !error && !summary && (
+      {!resolvedLoading && !resolvedError && !displaySummary && (
         <div className="text-center py-5">
           <p className="text-gray-500">
             Nenhum destaque de performance encontrado.

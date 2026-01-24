@@ -44,7 +44,7 @@ describe('UserVideoPerformanceMetrics', () => {
           videos: [
             {
               _id: 'v1',
-              description: 'Video 1',
+              caption: 'Video 1',
               thumbnailUrl: null,
               stats: { views: 100, likes: 10, comments: 1 },
               postDate: '2024-01-01T00:00:00Z',
@@ -90,7 +90,8 @@ describe('UserVideoPerformanceMetrics', () => {
   it('opens drill down modal with "views" when "Ver Todos os Vídeos" button is clicked', async () => {
     render(<UserVideoPerformanceMetrics userId="u1" />);
     await waitFor(() => expect(screen.getByText('100')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Ver Todos os Vídeos'));
+    const expandButton = await screen.findByText('Ver Todos os Vídeos');
+    fireEvent.click(expandButton);
     expect(MockVideoDrillDownModal).toHaveBeenLastCalledWith(
       expect.objectContaining({ isOpen: true, drillDownMetric: 'views' }),
       {}
@@ -101,6 +102,6 @@ describe('UserVideoPerformanceMetrics', () => {
   it('renders video list preview automatically', async () => {
     render(<UserVideoPerformanceMetrics userId="u1" />);
     expect(await screen.findByTestId('video-list-preview')).toBeInTheDocument();
-    expect(screen.getByText('Video 1')).toBeInTheDocument();
+    expect(await screen.findByText('Video 1')).toBeInTheDocument();
   });
 });

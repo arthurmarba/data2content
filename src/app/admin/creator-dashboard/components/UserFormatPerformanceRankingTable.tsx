@@ -11,14 +11,33 @@ interface DataPoint {
 
 const DEFAULT_METRIC = 'stats.total_interactions';
 
-interface Props { userId: string | null; }
+interface Props {
+  userId: string | null;
+  dataOverride?: DataPoint[] | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
+}
 
-const UserFormatPerformanceRankingTable: React.FC<Props> = ({ userId }) => {
+const UserFormatPerformanceRankingTable: React.FC<Props> = ({
+  userId,
+  dataOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+}) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
+  const resolvedLoading = hasOverride ? (loadingOverride ?? false) : loading;
+  const resolvedError = hasOverride ? (errorOverride ?? null) : error;
+  const resolvedData = hasOverride ? (dataOverride ?? []) : data;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -43,9 +62,16 @@ const UserFormatPerformanceRankingTable: React.FC<Props> = ({ userId }) => {
     }
   }, [timePeriod, userId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (hasOverride || disableFetch) return;
+    fetchData();
+  }, [fetchData, hasOverride, disableFetch]);
 
-  const totalPosts = data.reduce((sum, d) => sum + d.postsCount, 0);
+  const normalizedData = resolvedData.map((d) => ({
+    ...d,
+    name: commaSeparatedIdsToLabels(d.name, 'format') || d.name,
+  }));
+  const totalPosts = normalizedData.reduce((sum, d) => sum + d.postsCount, 0);
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
@@ -55,9 +81,9 @@ const UserFormatPerformanceRankingTable: React.FC<Props> = ({ userId }) => {
           Ver Análise Completa
         </button>
       </div>
-      {loading && <p className="text-center py-6 text-gray-500">Carregando ranking...</p>}
-      {error && <p className="text-center py-6 text-red-500">Erro: {error}</p>}
-      {!loading && !error && data.length > 0 && (
+      {resolvedLoading && <p className="text-center py-6 text-gray-500">Carregando ranking...</p>}
+      {resolvedError && <p className="text-center py-6 text-red-500">Erro: {resolvedError}</p>}
+      {!resolvedLoading && !resolvedError && normalizedData.length > 0 && (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
@@ -69,7 +95,7 @@ const UserFormatPerformanceRankingTable: React.FC<Props> = ({ userId }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {data.map((item, index) => {
+              {normalizedData.map((item, index) => {
                 const pct = totalPosts > 0 ? (item.postsCount / totalPosts) * 100 : 0;
                 return (
                   <tr key={item.name} className="hover:bg-gray-50">
@@ -91,7 +117,7 @@ const UserFormatPerformanceRankingTable: React.FC<Props> = ({ userId }) => {
           </table>
         </div>
       )}
-      {!loading && !error && data.length === 0 && (
+      {!resolvedLoading && !resolvedError && normalizedData.length === 0 && (
         <p className="text-center py-6 text-gray-500">Nenhum dado disponível.</p>
       )}
 

@@ -149,6 +149,7 @@ export default function CreatorQuickSearch({
         ariaLabel="Buscar criador"
         isLoading={isLoading}
         variant="minimal"
+        debounceMs={0}
         // ===== CORREÇÃO APLICADA AQUI =====
         // Desabilita o campo de busca apenas se houver um criador selecionado
         disabled={!!selectedCreatorName}

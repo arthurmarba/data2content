@@ -41,6 +41,13 @@ interface PlatformMovingAverageEngagementChartProps {
   onlyActiveSubscribers?: boolean;
   contextFilter?: string;
   creatorContextFilter?: string;
+  dataOverride?: PlatformMovingAverageResponse['series'] | null;
+  insightOverride?: string;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
+  avgWindowOverride?: string;
+  onAvgWindowChange?: (value: string) => void;
 }
 
 const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngagementChartProps> = ({
@@ -49,6 +56,13 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
   onlyActiveSubscribers = false,
   contextFilter,
   creatorContextFilter,
+  dataOverride,
+  insightOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+  avgWindowOverride,
+  onAvgWindowChange,
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformMovingAverageResponse['series']>([]);
@@ -58,13 +72,27 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
 
   const dataWindowInDays = timePeriodToDataWindowDays(timePeriod);
   const [avgWindow, setAvgWindow] = useState<string>(initialAvgWindow);
+  const avgWindowValue = avgWindowOverride ?? avgWindow;
+  const avgWindowDays = parseInt(avgWindowValue, 10);
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined'
+    || typeof insightOverride !== 'undefined';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    const currentAvgWindowDays = parseInt(avgWindow, 10);
-    if (currentAvgWindowDays > dataWindowInDays) {
+    if (!Number.isFinite(avgWindowDays) || avgWindowDays <= 0) {
+      setError("A janela da media movel deve ser um numero positivo.");
+      setLoading(false);
+      setData([]);
+      setInsightSummary(undefined);
+      return;
+    }
+
+    if (avgWindowDays > dataWindowInDays) {
       setError("A janela da média móvel não pode ser maior que a janela de dados.");
       setLoading(false);
       setData([]);
@@ -75,7 +103,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     try {
       const params = new URLSearchParams({
         dataWindowInDays: String(dataWindowInDays),
-        movingAverageWindowInDays: String(currentAvgWindowDays),
+        movingAverageWindowInDays: String(avgWindowDays),
       });
       if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
       if (contextFilter) params.append('context', contextFilter);
@@ -96,14 +124,23 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     } finally {
       setLoading(false);
     }
-  }, [dataWindowInDays, avgWindow, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
+  }, [dataWindowInDays, avgWindowDays, apiPrefix, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!hasOverride) {
+      fetchData();
+    }
+  }, [fetchData, hasOverride]);
 
   const yAxisFormatter = (value: number) => formatAxisNumberCompact(value);
   const tooltipFormatter = (value: number, name: string) => formatNullableNumberTooltip(value, name);
+  const validationError = !Number.isFinite(avgWindowDays) || avgWindowDays <= 0 || avgWindowDays > dataWindowInDays
+    ? "A janela da média móvel não pode ser maior que a janela de dados."
+    : null;
+  const finalData = hasOverride ? (dataOverride ?? []) : data;
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : loading;
+  const finalError = hasOverride ? (errorOverride ?? validationError) : error;
+  const finalInsight = hasOverride ? insightOverride : insightSummary;
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
@@ -116,9 +153,16 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
           <label htmlFor="avgWindowMovingAvgPlatform" className="sr-only">Janela da Média Móvel:</label>
           <select
             id="avgWindowMovingAvgPlatform"
-            value={avgWindow}
-            onChange={(e) => setAvgWindow(e.target.value)}
-            disabled={loading}
+            value={avgWindowValue}
+            onChange={(e) => {
+              const nextValue = e.target.value;
+              if (onAvgWindowChange) {
+                onAvgWindowChange(nextValue);
+              } else {
+                setAvgWindow(nextValue);
+              }
+            }}
+            disabled={finalLoading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {MOVING_AVERAGE_WINDOW_OPTIONS.map(option => (
@@ -129,11 +173,11 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
       </div>
 
       <div style={{ width: '100%', height: 300 }}>
-        {loading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
-        {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
-        {!loading && !error && data.length > 0 && (
+        {finalLoading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
+        {finalError && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {finalError}</p></div>}
+        {!finalLoading && !finalError && finalData.length > 0 && (
           <ResponsiveContainer>
-            <LineChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+            <LineChart data={finalData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="movingAvgStroke" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#82ca9d" stopOpacity={1} />
@@ -149,7 +193,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
               <Line
                 type="monotone"
                 dataKey="movingAverageEngagement"
-                name={`Tendência (${avgWindow}d)`}
+                name={`Tendência (${avgWindowValue}d)`}
                 stroke="url(#movingAvgStroke)"
                 strokeWidth={2}
                 dot={false}
@@ -159,14 +203,14 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
             </LineChart>
           </ResponsiveContainer>
         )}
-        {!loading && !error && data.length === 0 && (
+        {!finalLoading && !finalError && finalData.length === 0 && (
           <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado disponível para os filtros selecionados.</p></div>
         )}
       </div>
-      {insightSummary && !loading && !error && (
+      {finalInsight && !finalLoading && !finalError && (
         <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200 flex items-start">
           <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
-          {insightSummary}
+          {finalInsight}
         </p>
       )}
     </div>

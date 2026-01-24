@@ -15,10 +15,11 @@ export interface UseCachedFetchReturn<T> {
 export default function useCachedFetch<T>(
   key: string,
   fetcher: () => Promise<T>,
-  ttl = 10 * 60 * 1000 // 10 minutos
+  ttl = 10 * 60 * 1000, // 10 minutos
+  enabled = true
 ): UseCachedFetchReturn<T> {
   const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (forceRefresh = false) => {
@@ -54,10 +55,23 @@ export default function useCachedFetch<T>(
   }, [key, fetcher, ttl]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, enabled]);
   
-  const refresh = useCallback(() => fetchData(true), [fetchData]);
+  const refresh = useCallback(async () => {
+    if (!enabled) return;
+    await fetchData(true);
+  }, [fetchData, enabled]);
 
-  return { data, loading, error, refresh };
+  return {
+    data: enabled ? data : null,
+    loading: enabled ? loading : false,
+    error: enabled ? error : null,
+    refresh,
+  };
 }

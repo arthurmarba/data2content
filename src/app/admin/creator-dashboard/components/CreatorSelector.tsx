@@ -116,7 +116,7 @@ export default function CreatorSelector({ isOpen, onClose, onSelect }: CreatorSe
                 onSearchChange={setSearchTerm}
                 placeholder="Buscar por nome ou email..."
                 autoFocus
-                debounceMs={200}
+                debounceMs={0}
                 // ===== CORREÇÃO 2: PROP 'variant' REMOVIDA =====
                 isLoading={isLoading}
               />

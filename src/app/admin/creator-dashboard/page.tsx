@@ -3,21 +3,16 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Head from 'next/head';
+import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
 import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
 import PlatformSummaryKpis from './components/kpis/PlatformSummaryKpis';
-import PlatformOverviewSection from './components/views/PlatformOverviewSection';
-import PlatformContentAnalysisSection from './components/views/PlatformContentAnalysisSection';
-import CategoryRankingsSection from './components/CategoryRankingsSection';
 import CreatorRankingSection from './components/views/CreatorRankingSection';
-import TopMoversSection from './components/views/TopMoversSection';
-import UserDetailView from './components/views/UserDetailView';
 import CreatorQuickSearch from './components/CreatorQuickSearch';
 import ScrollToTopButton from '@/app/components/ScrollToTopButton';
-import GlobalPostsExplorer from './GlobalPostsExplorer';
-import CreatorHighlightsSection from './components/views/CreatorHighlightsSection';
+import DeferredSection from './components/DeferredSection';
 import { Category, contextCategories } from '@/app/lib/classification';
 
 // --- Tipos e Funções Auxiliares ---
@@ -33,6 +28,19 @@ const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date
 };
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }) => (
   <div className={`bg-gray-200 animate-pulse rounded ${width} ${height} ${className}`}></div>
+);
+
+const SectionPlaceholder = () => (
+  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+    <div className="flex items-center justify-between mb-4">
+      <div className="space-y-2">
+        <SkeletonBlock width="w-48" height="h-4" />
+        <SkeletonBlock width="w-64" height="h-3" />
+      </div>
+      <SkeletonBlock width="w-24" height="h-6" />
+    </div>
+    <SkeletonBlock height="h-32" />
+  </div>
 );
 
 const buildContextOptions = (categories: Category[]) => {
@@ -51,6 +59,14 @@ const buildContextOptions = (categories: Category[]) => {
   return options;
 };
 
+const PlatformOverviewSection = dynamic(() => import('./components/views/PlatformOverviewSection'));
+const PlatformContentAnalysisSection = dynamic(() => import('./components/views/PlatformContentAnalysisSection'));
+const CategoryRankingsSection = dynamic(() => import('./components/CategoryRankingsSection'));
+const CreatorHighlightsSection = dynamic(() => import('./components/views/CreatorHighlightsSection'));
+const TopMoversSection = dynamic(() => import('./components/views/TopMoversSection'));
+const GlobalPostsExplorer = dynamic(() => import('./GlobalPostsExplorer'));
+const UserDetailView = dynamic(() => import('./components/views/UserDetailView'));
+
 const AdminCreatorDashboardContent: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
@@ -59,7 +75,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const [onlyActiveSubscribers, setOnlyActiveSubscribers] = useState(false);
   const [selectedContext, setSelectedContext] = useState<string>('');
   const [selectedCreatorContext, setSelectedCreatorContext] = useState<string>('');
-  const [deferredSectionsReady, setDeferredSectionsReady] = useState(false);
   const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
   const router = useRouter();
   const pathname = usePathname();
@@ -88,12 +103,18 @@ const AdminCreatorDashboardContent: React.FC = () => {
     setIsInitializing(false);
   }, [searchParams]); // A dependência agora é APENAS a URL, como recomendado.
 
-  const today = new Date();
-  const startDateObj = getStartDateFromTimePeriod(today, globalTimePeriod as TimePeriod);
-  const startDate = startDateObj.toISOString();
-  const endDate = today.toISOString();
-  const rankingDateRange = { startDate, endDate };
-  const rankingDateLabel = `${startDateObj.toLocaleDateString("pt-BR")} - ${today.toLocaleDateString("pt-BR")}`;
+  const { startDate, endDate, rankingDateRange, rankingDateLabel } = useMemo(() => {
+    const now = new Date();
+    const startDateObj = getStartDateFromTimePeriod(now, globalTimePeriod as TimePeriod);
+    const startDate = startDateObj.toISOString();
+    const endDate = now.toISOString();
+    return {
+      startDate,
+      endDate,
+      rankingDateRange: { startDate, endDate },
+      rankingDateLabel: `${startDateObj.toLocaleDateString("pt-BR")} - ${now.toLocaleDateString("pt-BR")}`,
+    };
+  }, [globalTimePeriod]);
 
   // ===== CORREÇÃO APLICADA: Handlers apenas modificam a URL =====
   const handleUserSelect = useCallback((creator: { id: string; name: string; profilePictureUrl?: string | null }) => {
@@ -107,11 +128,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
     router.push(pathname, { scroll: false });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [pathname, router]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDeferredSectionsReady(true), 300);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   if (isInitializing) {
     return <div className="flex justify-center items-center h-screen"><SkeletonBlock height="h-12" width="w-12" /></div>;
@@ -225,42 +241,50 @@ const AdminCreatorDashboardContent: React.FC = () => {
                   contextFilter={selectedContext || undefined}
                   creatorContextFilter={selectedCreatorContext || undefined}
                 />
-                <PlatformContentAnalysisSection
-                  startDate={startDate}
-                  endDate={endDate}
-                  onlyActiveSubscribers={onlyActiveSubscribers}
-                  contextFilter={selectedContext || undefined}
-                  creatorContextFilter={selectedCreatorContext || undefined}
-                />
-                <CategoryRankingsSection
-                  startDate={startDate}
-                  endDate={endDate}
-                  selectedUserId={selectedUserId}
-                  onlyActiveSubscribers={onlyActiveSubscribers}
-                  contextFilter={selectedContext || undefined}
-                  creatorContextFilter={selectedCreatorContext || undefined}
-                />
-                <CreatorHighlightsSection creatorContextFilter={selectedCreatorContext || undefined} />
-                <PlatformOverviewSection
-                  onlyActiveSubscribers={onlyActiveSubscribers}
-                  contextFilter={selectedContext || undefined}
-                  creatorContextFilter={selectedCreatorContext || undefined}
-                />
-                {deferredSectionsReady && (
-                  <>
-                    <TopMoversSection
-                      onlyActiveSubscribers={onlyActiveSubscribers}
-                      contextFilter={selectedContext || undefined}
-                      creatorContextFilter={selectedCreatorContext || undefined}
-                    />
-                    <GlobalPostsExplorer
-                      dateRangeFilter={{ startDate, endDate }}
-                      forceOnlyActiveSubscribers={onlyActiveSubscribers}
-                      forceContext={selectedContext ? [selectedContext] : undefined}
-                      creatorContextFilter={selectedCreatorContext || undefined}
-                    />
-                  </>
-                )}
+                <DeferredSection minHeight="420px" placeholder={<SectionPlaceholder />}>
+                  <PlatformContentAnalysisSection
+                    startDate={startDate}
+                    endDate={endDate}
+                    onlyActiveSubscribers={onlyActiveSubscribers}
+                    contextFilter={selectedContext || undefined}
+                    creatorContextFilter={selectedCreatorContext || undefined}
+                  />
+                </DeferredSection>
+                <DeferredSection minHeight="520px" placeholder={<SectionPlaceholder />}>
+                  <CategoryRankingsSection
+                    startDate={startDate}
+                    endDate={endDate}
+                    selectedUserId={selectedUserId}
+                    onlyActiveSubscribers={onlyActiveSubscribers}
+                    contextFilter={selectedContext || undefined}
+                    creatorContextFilter={selectedCreatorContext || undefined}
+                  />
+                </DeferredSection>
+                <DeferredSection minHeight="360px" placeholder={<SectionPlaceholder />}>
+                  <CreatorHighlightsSection creatorContextFilter={selectedCreatorContext || undefined} />
+                </DeferredSection>
+                <DeferredSection minHeight="520px" placeholder={<SectionPlaceholder />}>
+                  <PlatformOverviewSection
+                    onlyActiveSubscribers={onlyActiveSubscribers}
+                    contextFilter={selectedContext || undefined}
+                    creatorContextFilter={selectedCreatorContext || undefined}
+                  />
+                </DeferredSection>
+                <DeferredSection minHeight="420px" placeholder={<SectionPlaceholder />}>
+                  <TopMoversSection
+                    onlyActiveSubscribers={onlyActiveSubscribers}
+                    contextFilter={selectedContext || undefined}
+                    creatorContextFilter={selectedCreatorContext || undefined}
+                  />
+                </DeferredSection>
+                <DeferredSection minHeight="640px" placeholder={<SectionPlaceholder />}>
+                  <GlobalPostsExplorer
+                    dateRangeFilter={{ startDate, endDate }}
+                    forceOnlyActiveSubscribers={onlyActiveSubscribers}
+                    forceContext={selectedContext ? [selectedContext] : undefined}
+                    creatorContextFilter={selectedCreatorContext || undefined}
+                  />
+                </DeferredSection>
               </motion.div>
             )}
           </AnimatePresence>

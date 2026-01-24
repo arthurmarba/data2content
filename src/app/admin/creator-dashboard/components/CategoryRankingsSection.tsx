@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import useSWR from "swr";
 import GlobalPeriodIndicator from "./GlobalPeriodIndicator";
 import { getCategoryById } from "@/app/lib/classification";
 
 type CategoryKey = 'format' | 'proposal' | 'context' | 'tone' | 'references';
+type MetricKey = 'posts' | 'avg_total_interactions';
 
 interface Props {
   startDate: string;
@@ -18,11 +20,12 @@ interface Props {
 }
 
 interface RankItem { category: string; value: number; }
+type CategoryRankingsBatch = Record<CategoryKey, Record<MetricKey, RankItem[]>>;
 
 const MetricCard: React.FC<{
   title: string;
   category: CategoryKey;
-  metric: 'posts' | 'avg_total_interactions';
+  metric: MetricKey;
   startDate: string;
   endDate: string;
   apiPrefix: string;
@@ -31,46 +34,78 @@ const MetricCard: React.FC<{
   onlyActiveSubscribers?: boolean;
   contextFilter?: string;
   creatorContextFilter?: string;
-}> = ({ title, category, metric, startDate, endDate, apiPrefix, limit, userId, onlyActiveSubscribers = false, contextFilter, creatorContextFilter }) => {
-  const [items, setItems] = useState<RankItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const run = async () => {
-      setLoading(true); setError(null);
-      try {
-        const params = new URLSearchParams({
-          category,
-          metric,
-          startDate,
-          endDate,
-          limit: String(limit),
-        });
-        if (userId) params.append('userId', userId);
-        if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
-        if (contextFilter) params.append('context', contextFilter);
-        if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
-        const url = `${apiPrefix}/dashboard/rankings/categories?${params.toString()}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error((await res.json()).error || 'Falha ao carregar ranking');
-        const data: RankItem[] = await res.json();
-        setItems(data);
-      } catch (e: any) {
-        setError(e.message);
-        setItems(null);
-      } finally { setLoading(false); }
-    };
-    run();
+  dataOverride?: RankItem[] | null;
+  loadingOverride?: boolean;
+  errorOverride?: string | null;
+  disableFetch?: boolean;
+}> = ({
+  title,
+  category,
+  metric,
+  startDate,
+  endDate,
+  apiPrefix,
+  limit,
+  userId,
+  onlyActiveSubscribers = false,
+  contextFilter,
+  creatorContextFilter,
+  dataOverride,
+  loadingOverride,
+  errorOverride,
+  disableFetch = false,
+}) => {
+  const hasOverride = Boolean(disableFetch)
+    || typeof dataOverride !== 'undefined'
+    || typeof loadingOverride !== 'undefined'
+    || typeof errorOverride !== 'undefined';
+  const requestUrl = useMemo(() => {
+    if (!startDate || !endDate) return null;
+    const params = new URLSearchParams({
+      category,
+      metric,
+      limit: String(limit),
+    });
+    const localStartDate = new Date(startDate);
+    const utcStartDate = new Date(Date.UTC(localStartDate.getFullYear(), localStartDate.getMonth(), localStartDate.getDate(), 0, 0, 0, 0));
+    const localEndDate = new Date(endDate);
+    const utcEndDate = new Date(Date.UTC(localEndDate.getFullYear(), localEndDate.getMonth(), localEndDate.getDate(), 23, 59, 59, 999));
+    params.append('startDate', utcStartDate.toISOString());
+    params.append('endDate', utcEndDate.toISOString());
+    if (userId) params.append('userId', userId);
+    if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+    if (contextFilter) params.append('context', contextFilter);
+    if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+    return `${apiPrefix}/dashboard/rankings/categories?${params.toString()}`;
   }, [category, metric, startDate, endDate, apiPrefix, limit, userId, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
+
+  const fetcher = useCallback(async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Falha ao carregar ranking');
+    }
+    return res.json() as Promise<RankItem[]>;
+  }, []);
+
+  const shouldFetch = !disableFetch && Boolean(requestUrl);
+  const { data, error, isLoading } = useSWR<RankItem[]>(
+    shouldFetch ? requestUrl : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const items = hasOverride ? (dataOverride ?? null) : (data ?? null);
+  const finalLoading = hasOverride ? (loadingOverride ?? false) : isLoading;
+  const finalError = hasOverride ? (errorOverride ?? null) : errorMessage;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <h4 className="text-sm font-semibold text-gray-800 mb-2">{title}</h4>
-      {loading ? (
+      {finalLoading ? (
         <p className="text-xs text-gray-400 py-6">Carregando...</p>
-      ) : error ? (
-        <p className="text-xs text-red-500 py-6">{error}</p>
+      ) : finalError ? (
+        <p className="text-xs text-red-500 py-6">{finalError}</p>
       ) : !items || items.length === 0 ? (
         <p className="text-xs text-gray-400 py-6">Sem dados.</p>
       ) : (
@@ -103,6 +138,49 @@ const CategoryRankingsSection: React.FC<Props> = ({
 }) => {
   const [scope, setScope] = useState<'global' | 'creator'>('global');
   const effectiveUserId = scope === 'creator' ? (selectedUserId ?? undefined) : undefined;
+  const dateRangeParams = useMemo(() => {
+    if (!startDate || !endDate) return null;
+    const localStartDate = new Date(startDate);
+    const localEndDate = new Date(endDate);
+    const utcStartDate = new Date(Date.UTC(localStartDate.getFullYear(), localStartDate.getMonth(), localStartDate.getDate(), 0, 0, 0, 0));
+    const utcEndDate = new Date(Date.UTC(localEndDate.getFullYear(), localEndDate.getMonth(), localEndDate.getDate(), 23, 59, 59, 999));
+    return {
+      startDate: utcStartDate.toISOString(),
+      endDate: utcEndDate.toISOString(),
+    };
+  }, [startDate, endDate]);
+
+  const batchUrl = useMemo(() => {
+    if (!dateRangeParams) return null;
+    const params = new URLSearchParams({
+      startDate: dateRangeParams.startDate,
+      endDate: dateRangeParams.endDate,
+      limit: String(limit),
+    });
+    if (effectiveUserId) params.append('userId', effectiveUserId);
+    if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
+    if (contextFilter) params.append('context', contextFilter);
+    if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+    return `${apiPrefix}/dashboard/rankings/categories/batch?${params.toString()}`;
+  }, [apiPrefix, dateRangeParams, limit, effectiveUserId, onlyActiveSubscribers, contextFilter, creatorContextFilter]);
+
+  const fetcher = useCallback(async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Falha ao carregar rankings');
+    }
+    return res.json() as Promise<CategoryRankingsBatch>;
+  }, []);
+
+  const { data, error, isLoading } = useSWR<CategoryRankingsBatch>(
+    batchUrl,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const batchData = data ?? null;
+  const sharedCardProps = { loadingOverride: isLoading, errorOverride: errorMessage, disableFetch: true };
   return (
     <section id="category-rankings" className="mb-10">
       <div className="flex items-end justify-between mb-6">
@@ -127,40 +205,40 @@ const CategoryRankingsSection: React.FC<Props> = ({
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Formato</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="format" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-            <MetricCard title="Maior Média de Interações" category="format" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Mais Publicados" category="format" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.format?.posts ?? null} {...sharedCardProps} />
+            <MetricCard title="Maior Média de Interações" category="format" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.format?.avg_total_interactions ?? null} {...sharedCardProps} />
           </div>
         </div>
         {/* Proposta */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Proposta</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="proposal" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-            <MetricCard title="Maior Média de Interações" category="proposal" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Mais Publicados" category="proposal" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.proposal?.posts ?? null} {...sharedCardProps} />
+            <MetricCard title="Maior Média de Interações" category="proposal" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.proposal?.avg_total_interactions ?? null} {...sharedCardProps} />
           </div>
         </div>
         {/* Contexto */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Contexto</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="context" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-            <MetricCard title="Maior Média de Interações" category="context" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Mais Publicados" category="context" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.context?.posts ?? null} {...sharedCardProps} />
+            <MetricCard title="Maior Média de Interações" category="context" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.context?.avg_total_interactions ?? null} {...sharedCardProps} />
           </div>
         </div>
         {/* Tom */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Tom</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="tone" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-            <MetricCard title="Maior Média de Interações" category="tone" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Mais Publicados" category="tone" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.tone?.posts ?? null} {...sharedCardProps} />
+            <MetricCard title="Maior Média de Interações" category="tone" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.tone?.avg_total_interactions ?? null} {...sharedCardProps} />
           </div>
         </div>
         {/* Referências */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">Referências</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <MetricCard title="Mais Publicados" category="references" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
-            <MetricCard title="Maior Média de Interações" category="references" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} />
+            <MetricCard title="Mais Publicados" category="references" metric="posts" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.references?.posts ?? null} {...sharedCardProps} />
+            <MetricCard title="Maior Média de Interações" category="references" metric="avg_total_interactions" startDate={startDate} endDate={endDate} apiPrefix={apiPrefix} limit={limit} userId={effectiveUserId} onlyActiveSubscribers={onlyActiveSubscribers} contextFilter={contextFilter} creatorContextFilter={creatorContextFilter} dataOverride={batchData?.references?.avg_total_interactions ?? null} {...sharedCardProps} />
           </div>
         </div>
       </div>

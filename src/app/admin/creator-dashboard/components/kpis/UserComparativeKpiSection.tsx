@@ -33,15 +33,32 @@ const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
 
 interface UserComparativeKpiSectionProps {
     userId: string;
+    dataOverride?: UserPeriodicComparisonResponse | null;
+    loadingOverride?: boolean;
+    errorOverride?: string | null;
+    disableFetch?: boolean;
 }
 
-const UserComparativeKpiSection: React.FC<UserComparativeKpiSectionProps> = ({ userId }) => {
+const UserComparativeKpiSection: React.FC<UserComparativeKpiSectionProps> = ({
+    userId,
+    dataOverride,
+    loadingOverride,
+    errorOverride,
+    disableFetch = false,
+}) => {
     const [data, setData] = useState<UserPeriodicComparisonResponse | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const { timePeriod } = useGlobalTimePeriod();
     const effectiveComparisonPeriod =
         TIME_PERIOD_TO_COMPARISON[timePeriod] || 'month_vs_previous';
+    const hasOverride = Boolean(disableFetch)
+        || typeof dataOverride !== 'undefined'
+        || typeof loadingOverride !== 'undefined'
+        || typeof errorOverride !== 'undefined';
+    const resolvedData = hasOverride ? (dataOverride ?? null) : data;
+    const resolvedLoading = hasOverride ? (loadingOverride ?? false) : loading;
+    const resolvedError = hasOverride ? (errorOverride ?? null) : error;
 
     const fetchData = useCallback(async () => {
         if (!userId) return;
@@ -61,15 +78,16 @@ const UserComparativeKpiSection: React.FC<UserComparativeKpiSectionProps> = ({ u
     }, [userId, effectiveComparisonPeriod]);
 
     useEffect(() => {
+        if (hasOverride || disableFetch) return;
         fetchData();
-    }, [fetchData]);
+    }, [fetchData, hasOverride, disableFetch]);
 
     const renderCard = (
         kpiKey: keyof UserPeriodicComparisonResponse,
         title: string,
         tooltip: string
     ) => {
-        const kpi = data?.[kpiKey];
+        const kpi = resolvedData?.[kpiKey];
         let changeString: string | null = null;
         let changeType: 'positive' | 'negative' | 'neutral' = 'neutral';
 
@@ -83,9 +101,9 @@ const UserComparativeKpiSection: React.FC<UserComparativeKpiSectionProps> = ({ u
         return (
             <PlatformKpiCard
                 title={title}
-                value={loading ? null : (kpi?.currentValue ?? 0)}
-                isLoading={loading}
-                error={error}
+                value={resolvedLoading ? null : (kpi?.currentValue ?? null)}
+                isLoading={resolvedLoading}
+                error={resolvedError}
                 tooltip={tooltip}
                 change={changeString}
                 changeType={changeType}
