@@ -22,6 +22,13 @@ function formatDate(value?: string | Date) {
   return d.toLocaleDateString("pt-BR");
 }
 
+function resolveImageSrc(value?: string) {
+  if (!value) return "";
+  if (value.startsWith("/api/proxy/thumbnail/")) return value;
+  if (/^https?:\/\//i.test(value)) return `/api/proxy/thumbnail/${encodeURIComponent(value)}`;
+  return value;
+}
+
 export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onClose }: PostsBySliceModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -91,7 +98,7 @@ export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onCl
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                     {post.thumbnailUrl || post.coverUrl || post.thumbnail ? (
                       <Image
-                        src={post.thumbnailUrl || post.coverUrl || post.thumbnail}
+                        src={resolveImageSrc(post.thumbnailUrl || post.coverUrl || post.thumbnail)}
                         alt={post.caption || "Post"}
                         fill
                         className="object-cover"

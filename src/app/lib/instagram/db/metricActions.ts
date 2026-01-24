@@ -98,6 +98,16 @@ export async function saveMetricData(
       coverUrl = media.media_url || null;
     }
 
+    let mediaUrl: string | null = media.media_url || null;
+    let thumbnailUrl: string | null = media.thumbnail_url || null;
+    if (media.media_type === 'CAROUSEL_ALBUM') {
+      const firstChild = media.children?.data?.[0];
+      if (firstChild) {
+        if (!mediaUrl) mediaUrl = firstChild.media_url || null;
+        if (!thumbnailUrl) thumbnailUrl = firstChild.thumbnail_url || null;
+      }
+    }
+
     const finalUpdateOperation: any = {
       $set: {
         user: userId,
@@ -111,6 +121,8 @@ export async function saveMetricData(
         updatedAt: new Date(),
         ...(Object.keys(statsUpdate).length > 0 ? statsUpdate : {}),
         ...(coverUrl ? { coverUrl } : {}),
+        ...(mediaUrl ? { mediaUrl } : {}),
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
       },
       $setOnInsert: {
         createdAt: new Date(),

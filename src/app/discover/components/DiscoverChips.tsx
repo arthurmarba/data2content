@@ -106,6 +106,11 @@ const buildSelectedFromParams = (params: SearchParamsLike): SelectedFilters => {
   return state;
 };
 
+const isVideoOnlyParam = (params: SearchParamsLike): boolean => {
+  const raw = params.get("videoOnly");
+  return raw === "1" || raw === "true" || raw === "yes";
+};
+
 export default function DiscoverChips({ defaultView = "master", onViewChange }: DiscoverChipsProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
@@ -117,12 +122,17 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   const [appliedFilters, setAppliedFilters] = useState<SelectedFilters>(
     () => buildSelectedFromParams(params)
   );
+  const [videoOnly, setVideoOnly] = useState<boolean>(() => isVideoOnlyParam(params));
+  const [appliedVideoOnly, setAppliedVideoOnly] = useState<boolean>(() => isVideoOnlyParam(params));
   const [currentView, setCurrentView] = useState<ViewState>(defaultView);
 
   useEffect(() => {
     const next = buildSelectedFromParams(params);
     setSelectedFilters(next);
     setAppliedFilters(next);
+    const nextVideoOnly = isVideoOnlyParam(params);
+    setVideoOnly(nextVideoOnly);
+    setAppliedVideoOnly(nextVideoOnly);
   }, [params]);
 
   useEffect(() => {
@@ -135,7 +145,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
 
   const hasSelections = MASTER_ORDER.some(
     (key) => selectedFilters[key].length > 0
-  );
+  ) || videoOnly;
 
   const filtersMatch = useCallback((a: SelectedFilters, b: SelectedFilters) => {
     return MASTER_ORDER.every((key) => {
@@ -147,7 +157,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   }, []);
 
   const updateUrl = useCallback(
-    (nextState: SelectedFilters) => {
+    (nextState: SelectedFilters, nextVideoOnly: boolean) => {
       const search = new URLSearchParams(params.toString());
       MASTER_ORDER.forEach((key) => {
         const values = nextState[key];
@@ -157,6 +167,11 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
           search.delete(key);
         }
       });
+      if (nextVideoOnly) {
+        search.set("videoOnly", "1");
+      } else {
+        search.delete("videoOnly");
+      }
       const query = search.toString();
       const href = query ? `${pathname}?${query}` : pathname;
       router.replace(href, { scroll: false });
@@ -165,14 +180,15 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   );
 
   const hasPendingChanges = useMemo(
-    () => !filtersMatch(selectedFilters, appliedFilters),
-    [filtersMatch, selectedFilters, appliedFilters]
+    () => !filtersMatch(selectedFilters, appliedFilters) || videoOnly !== appliedVideoOnly,
+    [filtersMatch, selectedFilters, appliedFilters, videoOnly, appliedVideoOnly]
   );
 
   const applyFilters = useCallback(
-    (nextState: SelectedFilters) => {
+    (nextState: SelectedFilters, nextVideoOnly: boolean) => {
       setAppliedFilters(nextState);
-      updateUrl(nextState);
+      setAppliedVideoOnly(nextVideoOnly);
+      updateUrl(nextState, nextVideoOnly);
     },
     [updateUrl]
   );
@@ -203,13 +219,14 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   const handleClearAll = useCallback(() => {
     const emptyState = createEmptySelection();
     setSelectedFilters(emptyState);
-    applyFilters(emptyState);
+    setVideoOnly(false);
+    applyFilters(emptyState, false);
     setCurrentView("master");
   }, [applyFilters]);
 
   const handleApplyFilters = useCallback(() => {
-    applyFilters(selectedFilters);
-  }, [applyFilters, selectedFilters]);
+    applyFilters(selectedFilters, videoOnly);
+  }, [applyFilters, selectedFilters, videoOnly]);
 
   const currentCategory =
     currentView === "master"
@@ -241,6 +258,17 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
 
       {currentView === "master" && (
         <>
+          <button
+            type="button"
+            onClick={() => setVideoOnly((prev) => !prev)}
+            className={`filter-button-master inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${videoOnly
+                ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
+              }`}
+            aria-pressed={videoOnly}
+          >
+            Somente vídeos
+          </button>
           {FILTER_DATA.map((category) => {
             const hasSelection = selectedFilters[category.id].length > 0;
             return (

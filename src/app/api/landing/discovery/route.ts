@@ -108,6 +108,7 @@ export async function GET(req: NextRequest) {
       sortOrder: 'desc',
       limit: fetchLimit,
       page: 1,
+      skipCount: true,
       onlyOptIn: true,
       minInteractions: 10,
     });

@@ -4,11 +4,14 @@
 import Image from 'next/image';
 import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/track';
-// (Preferimos abrir direto no Instagram; modal não é mais usado)
+import DiscoverVideoModal from './DiscoverVideoModal';
 
 type PostCard = {
   id: string;
   coverUrl?: string | null;
+  videoUrl?: string;
+  mediaType?: string;
+  isVideo?: boolean;
   caption?: string;
   postDate?: string;
   creatorName?: string;
@@ -56,12 +59,29 @@ export default function DiscoverCard({
   const caption = (item?.caption || '').trim();
   const short = caption.length > 110 ? caption.slice(0, 107) + '…' : caption;
   const [imgFailed, setImgFailed] = useState(false);
-  // Modal removido: abrimos direto no Instagram
+  const [videoOpen, setVideoOpen] = useState(false);
 
   const isGrid = variant === 'grid';
   const formats = item.categories?.format?.map(f => f.toLowerCase()) || [];
   const isReel = formats.some(f => f.includes('reel'));
   const aspectClass = isReel ? 'aspect-[9/16]' : 'aspect-[4/5]';
+  const canPlayInline = Boolean(item.videoUrl || item.isVideo);
+  const imageSizes = isGrid
+    ? "(min-width: 1280px) 240px, (min-width: 768px) 200px, 160px"
+    : "(min-width: 1280px) 220px, (min-width: 768px) 200px, 160px";
+
+  const openVideo = () => {
+    setVideoOpen(true);
+    try { track('discover_card_click', { id: item.id, action: 'play_video', ...(trackContext || {}) }); } catch { }
+  };
+
+  const handleOpenVideo = (event: React.MouseEvent) => {
+    if (!canPlayInline) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openVideo();
+  };
 
   useEffect(() => {
     if (imgFailed && onUnavailable) {
@@ -83,11 +103,11 @@ export default function DiscoverCard({
           href={item.postLink}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => {
+          onClick={canPlayInline ? handleOpenVideo : () => {
             try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch { }
           }}
           className={`relative block h-full ${aspectClass} overflow-hidden rounded-lg bg-gray-100 shadow-sm`}
-          aria-label="Abrir no Instagram"
+          aria-label={canPlayInline ? "Assistir vídeo" : "Abrir no Instagram"}
         >
           {item.coverUrl ? (
             <Image
@@ -96,6 +116,7 @@ export default function DiscoverCard({
               fill
               className="w-full h-full object-cover"
               loading="lazy"
+              sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}
               onError={() => setImgFailed(true)}
@@ -104,6 +125,14 @@ export default function DiscoverCard({
 
           {/* Overlay: Gradiente mais suave e informações internas */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+
+          {canPlayInline && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="rounded-full bg-black/60 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+                ▶ Assistir aqui
+              </div>
+            </div>
+          )}
 
           <div className="absolute top-2 right-2">
             {metrics && (
@@ -123,7 +152,22 @@ export default function DiscoverCard({
           </div>
         </a>
       ) : (
-        <div className={`relative h-full ${aspectClass} overflow-hidden rounded-lg bg-gray-100 shadow-sm`}>
+        <div
+          className={`relative h-full ${aspectClass} overflow-hidden rounded-lg bg-gray-100 shadow-sm`}
+          onClick={canPlayInline ? handleOpenVideo : undefined}
+          onKeyDown={
+            canPlayInline
+              ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  openVideo();
+                }
+              }
+              : undefined
+          }
+          role={canPlayInline ? "button" : undefined}
+          tabIndex={canPlayInline ? 0 : undefined}
+        >
           {item.coverUrl ? (
             <Image
               src={item.coverUrl}
@@ -131,6 +175,7 @@ export default function DiscoverCard({
               fill
               className="w-full h-full object-cover"
               loading="lazy"
+              sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}
               onError={() => setImgFailed(true)}
@@ -138,6 +183,14 @@ export default function DiscoverCard({
           ) : null}
           {/* Overlay: Gradiente mais suave e informações internas */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+
+          {canPlayInline && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="rounded-full bg-black/60 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+                ▶ Assistir aqui
+              </div>
+            </div>
+          )}
 
           <div className="absolute top-2 right-2">
             {metrics && (
@@ -157,6 +210,14 @@ export default function DiscoverCard({
           </div>
         </div>
       )}
+
+      <DiscoverVideoModal
+        open={videoOpen}
+        onClose={() => setVideoOpen(false)}
+        postLink={item.postLink || undefined}
+        videoUrl={item.videoUrl}
+        posterUrl={item.coverUrl || undefined}
+      />
 
     </article>
   );

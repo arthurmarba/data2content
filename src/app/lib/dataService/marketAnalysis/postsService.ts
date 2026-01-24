@@ -41,6 +41,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     page = 1, limit = 10,
     sortBy = 'stats.total_interactions', sortOrder = 'desc', dateRange, creatorContext,
   } = args;
+  const skipCount = Boolean(args.skipCount);
 
   try {
     await connectToDatabase();
@@ -71,6 +72,8 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     if (propVals.length) andClauses.push({ $or: propVals.map(v => buildClassFilter(v, 'proposal')) });
     const ctxVals = normalizeValues(context);
     if (ctxVals.length) andClauses.push({ $or: ctxVals.map(v => buildClassFilter(v, 'context')) });
+    const mediaTypeVals = normalizeValues(args.mediaType).map((v) => v.toUpperCase());
+    if (mediaTypeVals.length) andClauses.push({ type: { $in: mediaTypeVals } });
     const toneVals = normalizeValues(tone);
     if (toneVals.length) andClauses.push({ $or: toneVals.map(v => buildClassFilter(v, 'tone')) });
     const refVals = normalizeValues(references);
@@ -149,9 +152,12 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
       { $match: matchStage },
     ];
 
-    const countPipeline: PipelineStage[] = [...baseAggregation, { $count: 'totalPosts' }];
-    const totalPostsResult = await MetricModel.aggregate(countPipeline);
-    const totalPosts = totalPostsResult.length > 0 ? totalPostsResult[0].totalPosts : 0;
+    let totalPosts = 0;
+    if (!skipCount) {
+      const countPipeline: PipelineStage[] = [...baseAggregation, { $count: 'totalPosts' }];
+      const totalPostsResult = await MetricModel.aggregate(countPipeline);
+      totalPosts = totalPostsResult.length > 0 ? totalPostsResult[0].totalPosts : 0;
+    }
 
     const postsPipeline: PipelineStage[] = [...baseAggregation];
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
@@ -173,7 +179,10 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         'stats.views': '$stats.views',
         'stats.video_duration_seconds': '$stats.video_duration_seconds',
         'stats.impressions': '$stats.impressions',
+        type: 1,
         coverUrl: 1,
+        mediaUrl: { $ifNull: ['$mediaUrl', '$media_url'] },
+        thumbnailUrl: { $ifNull: ['$thumbnailUrl', '$thumbnail_url'] },
         instagramMediaId: 1,
         postLink: 1,
       }
@@ -190,7 +199,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         coverUrl: isProxied ? raw : (isHttp ? toProxyUrl(raw) : p.coverUrl),
       };
     });
-    return { posts: normalizedPosts, totalPosts, page, limit };
+    return { posts: normalizedPosts, totalPosts: skipCount ? normalizedPosts.length : totalPosts, page, limit };
   } catch (error: any) {
     logger.error(`${TAG} Erro ao executar busca global:`, error);
     throw new DatabaseError(`Falha ao buscar posts globais: ${error.message}`);

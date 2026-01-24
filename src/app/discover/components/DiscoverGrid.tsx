@@ -43,6 +43,7 @@ function GridCard({ item }: { item: PostCard }) {
   const metrics = views ? `${formatCompact(views)} ${item?.stats?.views !== undefined ? 'views' : 'interações'}` : '';
   const caption = (item?.caption || '').trim();
   const short = caption.length > 110 ? caption.slice(0, 107) + '…' : caption;
+  const imageSizes = "(min-width: 1280px) 320px, (min-width: 768px) 240px, 50vw";
 
   const secs = Number(item?.stats?.video_duration_seconds || 0);
   const dur = secs > 0 ? new Date(secs * 1000).toISOString().substring(secs >= 3600 ? 11 : 14, 19) : '';
@@ -55,12 +56,20 @@ function GridCard({ item }: { item: PostCard }) {
           fill
           className="w-full h-full object-cover"
           loading="lazy"
+          sizes={imageSizes}
           referrerPolicy="no-referrer"
           draggable={false}
           onError={() => setImgFailed(true)}
         />
       ) : (
-        <Image fill src={fallbackCover} alt="Sem capa" className="w-full h-full object-cover opacity-70" draggable={false} />
+        <Image
+          fill
+          src={fallbackCover}
+          alt="Sem capa"
+          className="w-full h-full object-cover opacity-70"
+          sizes={imageSizes}
+          draggable={false}
+        />
       )}
       {/* Menu ⋮ */}
       <div className="absolute top-1 right-1">

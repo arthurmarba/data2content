@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 function buildInstagramEmbed(postLink: string): string | null {
   try {
@@ -20,8 +20,25 @@ function buildInstagramEmbed(postLink: string): string | null {
   }
 }
 
-export default function DiscoverVideoModal({ open, onClose, postLink }: { open: boolean; onClose: () => void; postLink: string }) {
-  const embedUrl = buildInstagramEmbed(postLink);
+export default function DiscoverVideoModal({
+  open,
+  onClose,
+  postLink,
+  videoUrl,
+  posterUrl,
+}: {
+  open: boolean;
+  onClose: () => void;
+  postLink?: string;
+  videoUrl?: string;
+  posterUrl?: string;
+}) {
+  const embedUrl = postLink ? buildInstagramEmbed(postLink) : null;
+  const [videoFailed, setVideoFailed] = useState(false);
+
+  useEffect(() => {
+    if (open) setVideoFailed(false);
+  }, [open, videoUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,7 +61,18 @@ export default function DiscoverVideoModal({ open, onClose, postLink }: { open: 
         >
           Fechar
         </button>
-        {embedUrl ? (
+        {videoUrl && !videoFailed ? (
+          <video
+            src={videoUrl}
+            className="w-full h-full"
+            controls
+            autoPlay
+            playsInline
+            preload="metadata"
+            poster={posterUrl}
+            onError={() => setVideoFailed(true)}
+          />
+        ) : embedUrl ? (
           <iframe
             src={embedUrl}
             className="w-full h-full"
@@ -56,7 +84,11 @@ export default function DiscoverVideoModal({ open, onClose, postLink }: { open: 
           <div className="w-full h-full grid place-items-center text-white">
             <div className="text-center space-y-3">
               <p>Não foi possível incorporar este vídeo.</p>
-              <a href={postLink} target="_blank" rel="noopener noreferrer" className="underline">Abrir no Instagram</a>
+              {postLink ? (
+                <a href={postLink} target="_blank" rel="noopener noreferrer" className="underline">
+                  Abrir no Instagram
+                </a>
+              ) : null}
             </div>
           </div>
         )}
@@ -64,4 +96,3 @@ export default function DiscoverVideoModal({ open, onClose, postLink }: { open: 
     </div>
   );
 }
-

@@ -67,6 +67,8 @@ export interface IMetric extends Document {
   collab?: boolean;
   collabCreator?: string;
   coverUrl?: string;
+  mediaUrl?: string;
+  thumbnailUrl?: string;
   instagramMediaId?: string;
   source: 'manual' | 'api' | 'document_ai';
   classificationStatus: 'pending' | 'completed' | 'failed';
@@ -95,6 +97,8 @@ const metricSchema = new Schema<IMetric>(
     collab: { type: Boolean, default: false },
     collabCreator: { type: String, trim: true, default: null },
     coverUrl: { type: String, trim: true, default: null },
+    mediaUrl: { type: String, trim: true, default: null },
+    thumbnailUrl: { type: String, trim: true, default: null },
     instagramMediaId: { type: String, index: true, sparse: true, default: null },
     source: { type: String, enum: ['manual', 'api', 'document_ai'], required: true, default: 'manual', index: true },
     classificationStatus: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending', index: true },

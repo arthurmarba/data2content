@@ -29,6 +29,9 @@ type SectionsResponse =
 type PostCard = {
   id: string;
   coverUrl?: string | null;
+  videoUrl?: string;
+  mediaType?: string;
+  isVideo?: boolean;
   caption?: string;
   postDate?: string;
   creatorName?: string;
@@ -63,6 +66,30 @@ function toProxyUrl(raw?: string | null): string | null | undefined {
   return raw;
 }
 
+const DISABLE_VIDEO_PROXY = ['1', 'true', 'yes'].includes(
+  String(process.env.DISABLE_VIDEO_PROXY || '').toLowerCase()
+);
+
+function toVideoProxyUrl(raw?: string | null): string | null | undefined {
+  if (!raw) return raw;
+  if (raw.startsWith('/api/proxy/video/')) return raw;
+  if (/^https?:\/\//i.test(raw)) {
+    return DISABLE_VIDEO_PROXY ? raw : `/api/proxy/video/${encodeURIComponent(raw)}`;
+  }
+  return raw;
+}
+
+function resolveVideoMeta(rawType?: string | null, rawUrl?: string | null) {
+  const mediaType = rawType ? String(rawType).toUpperCase() : undefined;
+  const isVideo = mediaType === 'VIDEO' || mediaType === 'REEL';
+  const proxyUrl = isVideo ? toVideoProxyUrl(rawUrl) : undefined;
+  return {
+    mediaType,
+    isVideo,
+    videoUrl: proxyUrl || undefined,
+  };
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse<SectionsResponse>> {
   const session = (await getServerSession(authOptions as any)) as Session | null;
   const userId = session?.user?.id as string | undefined;
@@ -78,12 +105,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const expParam = searchParams.get('exp');
   const exp = expParam || undefined;
   const viewParam = searchParams.get('view');
+  const shelfKey = searchParams.get('shelfKey') || undefined;
   // Optional category filters (comma-separated)
   const formatFilter = searchParams.get('format') || undefined;
   const proposalFilter = searchParams.get('proposal') || undefined;
   const contextFilter = searchParams.get('context') || undefined;
   const toneFilter = searchParams.get('tone') || undefined;
   const referencesFilter = searchParams.get('references') || undefined;
+  const videoOnly = ['1', 'true', 'yes'].includes((searchParams.get('videoOnly') || '').toLowerCase());
 
   const now = new Date();
   const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -104,6 +133,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     'reels_15_45',
     'reels_gt_45',
   ]);
+  const shouldBuildShelf = (key: string) => !shelfKey || shelfKey === key;
 
   const pushSection = (s: Section) => {
     const dedup: PostCard[] = [];
@@ -136,10 +166,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
 
   // --- leve cache (somente quando sem filtros) para seções globais ---
   type CacheBucket = { expires: number; items: PostCard[] };
-  const noFilter = !formatFilter && !proposalFilter && !contextFilter && !toneFilter && !referencesFilter;
+  const noFilter = !formatFilter && !proposalFilter && !contextFilter && !toneFilter && !referencesFilter && !videoOnly;
   const TTL_MS = clamp(parseInt(process.env.DISCOVER_TTL_MS || '' + (7 * 60 * 1000)) || (7 * 60 * 1000), 60_000, 30 * 60_000);
   if (!(global as any).__discoverCaches) (global as any).__discoverCaches = {} as Record<string, CacheBucket>; // module-level caches (persistem no escopo do módulo enquanto o processo vive)
   const caches = (global as any).__discoverCaches as Record<string, CacheBucket>;
+  const mediaTypeFilter = videoOnly ? ['VIDEO', 'REEL'] : undefined;
 
   try {
     logger.info('[discover/debug] start', {
@@ -153,6 +184,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         contextFilter,
         toneFilter,
         referencesFilter,
+        videoOnly,
         exp: exp || null,
         view: viewParam || null,
       },
@@ -188,6 +220,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     const recipe = getRecipe({ exp, view: viewParam, allowedPersonalized, topContextIds: topContextIdsForRecipe });
     if (recipe && recipe.shelves.length > 0) {
       const tasksRecipe: Array<Promise<void>> = [];
+      const shelvesToRun = shelfKey
+        ? recipe.shelves.filter((s) => s.key === shelfKey)
+        : recipe.shelves;
+      if (shelfKey && shelvesToRun.length === 0) {
+        const caps = computeCapabilities([]);
+        return NextResponse.json({ ok: true, generatedAt: new Date().toISOString(), sections: [], allowedPersonalized, capabilities: caps });
+      }
       const toCsv = (arr?: string[]) => (arr && arr.length ? arr.join(',') : undefined);
       const runShelf = async (spec: ShelfSpec) => {
         try {
@@ -200,6 +239,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             sortOrder: spec.sortOrder || 'desc',
             page: 1,
             limit: (spec.limitMultiplier ? spec.limitMultiplier : 2) * limitPerRow,
+            skipCount: true,
             minInteractions: spec.minInteractions ?? 0,
             onlyOptIn: spec.onlyOptIn ?? true,
             format: fmtCsv,
@@ -207,10 +247,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             context: ctxCsv,
             tone: toneFilter,
             references: referencesFilter,
+            mediaType: mediaTypeFilter,
           });
           let items: PostCard[] = (res.posts || []).map((p: any) => ({
             id: String(p._id),
             coverUrl: toProxyUrl(p.coverUrl || null),
+            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
             caption: p.description || p.text_content || '',
             postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
             creatorName: (p as any).creatorName,
@@ -329,7 +371,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           logger.debug('[discover/recipe_shelf] failed', { shelf: spec.key, err });
         }
       };
-      for (const shelf of recipe.shelves) tasksRecipe.push(runShelf(shelf));
+      for (const shelf of shelvesToRun) tasksRecipe.push(runShelf(shelf));
       await Promise.allSettled(tasksRecipe);
       // Compute capabilities for chip gating
       const caps = computeCapabilities(sections);
@@ -350,34 +392,94 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     logger.info('[discover/debug] reels_flag', { isReelsSelected, formatFilter });
 
     // Em alta agora (Trending)
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        let items: PostCard[] | undefined;
-        const cacheKey = 'trending_default';
-        if (noFilter && caches[cacheKey] && caches[cacheKey].expires > Date.now()) {
-          items = caches[cacheKey].items;
-        } else {
-          const trending = await findGlobalPostsByCriteria({
+    if (shouldBuildShelf('trending')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          let items: PostCard[] | undefined;
+          const cacheKey = 'trending_default';
+          if (noFilter && caches[cacheKey] && caches[cacheKey].expires > Date.now()) {
+            items = caches[cacheKey].items;
+          } else {
+            const trending = await findGlobalPostsByCriteria({
+              dateRange: { startDate, endDate },
+              sortBy: 'stats.total_interactions',
+              sortOrder: 'desc',
+              page: 1,
+              limit: limitPerRow * 2,
+              skipCount: true,
+              minInteractions: 10,
+              onlyOptIn: true,
+              format: formatFilter || expFilters.format,
+              proposal: proposalFilter || expFilters.proposal,
+              context: contextFilter || expFilters.context,
+              tone: toneFilter,
+              references: referencesFilter,
+              mediaType: mediaTypeFilter,
+            });
+            items = (trending.posts || []).map((p: any) => ({
+              id: String(p._id),
+              coverUrl: toProxyUrl(p.coverUrl || null),
+              ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
+              caption: p.description || p.text_content || '',
+              postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+              creatorName: p.creatorName,
+              creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+              postLink: (p as any).postLink,
+              stats: {
+                total_interactions: p?.stats?.total_interactions,
+                likes: p?.stats?.likes,
+                comments: p?.stats?.comments,
+                shares: p?.stats?.shares,
+                views: p?.stats?.views,
+                video_duration_seconds: p?.stats?.video_duration_seconds,
+                saved: p?.stats?.saved,
+              },
+              categories: {
+                format: Array.isArray(p?.format) ? p.format : undefined,
+                proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+                context: Array.isArray(p?.context) ? p.context : undefined,
+                tone: Array.isArray(p?.tone) ? p.tone : undefined,
+                references: Array.isArray(p?.references) ? p.references : undefined,
+              },
+            }));
+            if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
+          }
+          pushSection({ key: 'trending', title: 'Em alta agora', items: items || [] });
+          logger.info('[discover/trending] ok', { ms: Date.now() - t0, count: items?.length || 0 });
+        } catch (e) {
+          logger.warn('[discover/trending] failed', e);
+        }
+      })());
+    }
+
+    // Campeões em salvamentos
+    if (shouldBuildShelf('top_saved')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          const res = await findGlobalPostsByCriteria({
             dateRange: { startDate, endDate },
-            sortBy: 'stats.total_interactions',
+            sortBy: 'stats.saved',
             sortOrder: 'desc',
             page: 1,
-            limit: limitPerRow * 2,
-            minInteractions: 10,
-            onlyOptIn: true,
-            format: formatFilter || expFilters.format,
-            proposal: proposalFilter || expFilters.proposal,
-            context: contextFilter || expFilters.context,
-            tone: toneFilter,
-            references: referencesFilter,
-          });
-          items = (trending.posts || []).map((p: any) => ({
-            id: String(p._id),
-            coverUrl: toProxyUrl(p.coverUrl || null),
-            caption: p.description || p.text_content || '',
+          limit: limitPerRow * 2,
+          skipCount: true,
+          onlyOptIn: true,
+          format: formatFilter,
+          proposal: proposalFilter,
+          context: contextFilter,
+          tone: toneFilter,
+          references: referencesFilter,
+          mediaType: mediaTypeFilter,
+        });
+        const items: PostCard[] = (res.posts || []).map((p: any) => ({
+          id: String(p._id),
+          coverUrl: toProxyUrl(p.coverUrl || null),
+          ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
+          caption: p.description || p.text_content || '',
             postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-            creatorName: p.creatorName,
+            creatorName: (p as any).creatorName,
             creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
             postLink: (p as any).postLink,
             stats: {
@@ -397,161 +499,121 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               references: Array.isArray(p?.references) ? p.references : undefined,
             },
           }));
-          if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
+          pushSection({ key: 'top_saved', title: 'Campeões em salvamentos', items });
+          logger.info('[discover/top_saved] ok', { ms: Date.now() - t0, count: items.length });
+        } catch (e) {
+          logger.warn('[discover/top_saved] failed', e);
         }
-        pushSection({ key: 'trending', title: 'Em alta agora', items: items || [] });
-        logger.info('[discover/trending] ok', { ms: Date.now() - t0, count: items?.length || 0 });
-      } catch (e) {
-        logger.warn('[discover/trending] failed', e);
-      }
-    })());
-
-    // Campeões em salvamentos
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        const res = await findGlobalPostsByCriteria({
-          dateRange: { startDate, endDate },
-          sortBy: 'stats.saved',
-          sortOrder: 'desc',
-          page: 1,
-          limit: limitPerRow * 2,
-          onlyOptIn: true,
-          format: formatFilter,
-          proposal: proposalFilter,
-          context: contextFilter,
-          tone: toneFilter,
-          references: referencesFilter,
-        });
-        const items: PostCard[] = (res.posts || []).map((p: any) => ({
-          id: String(p._id),
-          coverUrl: toProxyUrl(p.coverUrl || null),
-          caption: p.description || p.text_content || '',
-          postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-          creatorName: (p as any).creatorName,
-          creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-          postLink: (p as any).postLink,
-          stats: {
-            total_interactions: p?.stats?.total_interactions,
-            likes: p?.stats?.likes,
-            comments: p?.stats?.comments,
-            shares: p?.stats?.shares,
-            views: p?.stats?.views,
-            video_duration_seconds: p?.stats?.video_duration_seconds,
-            saved: p?.stats?.saved,
-          },
-          categories: {
-            format: Array.isArray(p?.format) ? p.format : undefined,
-            proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-            context: Array.isArray(p?.context) ? p.context : undefined,
-            tone: Array.isArray(p?.tone) ? p.tone : undefined,
-            references: Array.isArray(p?.references) ? p.references : undefined,
-          },
-        }));
-        pushSection({ key: 'top_saved', title: 'Campeões em salvamentos', items });
-        logger.info('[discover/top_saved] ok', { ms: Date.now() - t0, count: items.length });
-      } catch (e) {
-        logger.warn('[discover/top_saved] failed', e);
-      }
-    })());
+      })());
+    }
 
     // Campeões em comentários
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        const res = await findGlobalPostsByCriteria({
-          dateRange: { startDate, endDate },
-          sortBy: 'stats.comments',
-          sortOrder: 'desc',
-          page: 1,
-          limit: limitPerRow * 2,
-          onlyOptIn: true,
-          format: formatFilter,
-          proposal: proposalFilter,
-          context: contextFilter,
-          tone: toneFilter,
-          references: referencesFilter,
-        });
-        const items: PostCard[] = (res.posts || []).map((p: any) => ({
-          id: String(p._id),
-          coverUrl: toProxyUrl(p.coverUrl || null),
-          caption: p.description || p.text_content || '',
-          postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-          creatorName: (p as any).creatorName,
-          creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-          postLink: (p as any).postLink,
-          stats: {
-            total_interactions: p?.stats?.total_interactions,
-            likes: p?.stats?.likes,
-            comments: p?.stats?.comments,
-            shares: p?.stats?.shares,
-            views: p?.stats?.views,
-            video_duration_seconds: p?.stats?.video_duration_seconds,
-            saved: p?.stats?.saved,
-          },
-          categories: {
-            format: Array.isArray(p?.format) ? p.format : undefined,
-            proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-            context: Array.isArray(p?.context) ? p.context : undefined,
-            tone: Array.isArray(p?.tone) ? p.tone : undefined,
-            references: Array.isArray(p?.references) ? p.references : undefined,
-          },
-        }));
-        pushSection({ key: 'top_comments', title: 'Campeões em comentários', items });
-        logger.info('[discover/top_comments] ok', { ms: Date.now() - t0, count: items.length });
-      } catch (e) {
-        logger.warn('[discover/top_comments] failed', e);
-      }
-    })());
+    if (shouldBuildShelf('top_comments')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          const res = await findGlobalPostsByCriteria({
+            dateRange: { startDate, endDate },
+            sortBy: 'stats.comments',
+            sortOrder: 'desc',
+            page: 1,
+            limit: limitPerRow * 2,
+            skipCount: true,
+            onlyOptIn: true,
+            format: formatFilter,
+            proposal: proposalFilter,
+            context: contextFilter,
+            tone: toneFilter,
+            references: referencesFilter,
+            mediaType: mediaTypeFilter,
+          });
+          const items: PostCard[] = (res.posts || []).map((p: any) => ({
+            id: String(p._id),
+            coverUrl: toProxyUrl(p.coverUrl || null),
+            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
+            caption: p.description || p.text_content || '',
+            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+            creatorName: (p as any).creatorName,
+            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+            postLink: (p as any).postLink,
+            stats: {
+              total_interactions: p?.stats?.total_interactions,
+              likes: p?.stats?.likes,
+              comments: p?.stats?.comments,
+              shares: p?.stats?.shares,
+              views: p?.stats?.views,
+              video_duration_seconds: p?.stats?.video_duration_seconds,
+              saved: p?.stats?.saved,
+            },
+            categories: {
+              format: Array.isArray(p?.format) ? p.format : undefined,
+              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+              context: Array.isArray(p?.context) ? p.context : undefined,
+              tone: Array.isArray(p?.tone) ? p.tone : undefined,
+              references: Array.isArray(p?.references) ? p.references : undefined,
+            },
+          }));
+          pushSection({ key: 'top_comments', title: 'Campeões em comentários', items });
+          logger.info('[discover/top_comments] ok', { ms: Date.now() - t0, count: items.length });
+        } catch (e) {
+          logger.warn('[discover/top_comments] failed', e);
+        }
+      })());
+    }
 
     // Campeões em compartilhamentos
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        const res = await findGlobalPostsByCriteria({
-          dateRange: { startDate, endDate },
-          sortBy: 'stats.shares',
-          sortOrder: 'desc',
-          page: 1,
-          limit: limitPerRow * 2,
-          onlyOptIn: true,
-          format: formatFilter,
-          proposal: proposalFilter,
-          context: contextFilter,
-          tone: toneFilter,
-          references: referencesFilter,
-        });
-        const items: PostCard[] = (res.posts || []).map((p: any) => ({
-          id: String(p._id),
-          coverUrl: toProxyUrl(p.coverUrl || null),
-          caption: p.description || p.text_content || '',
-          postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-          creatorName: (p as any).creatorName,
-          creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-          postLink: (p as any).postLink,
-          stats: {
-            total_interactions: p?.stats?.total_interactions,
-            likes: p?.stats?.likes,
-            comments: p?.stats?.comments,
-            shares: p?.stats?.shares,
-            views: p?.stats?.views,
-            video_duration_seconds: p?.stats?.video_duration_seconds,
-            saved: p?.stats?.saved,
-          },
-          categories: {
-            format: Array.isArray(p?.format) ? p.format : undefined,
-            proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-            context: Array.isArray(p?.context) ? p.context : undefined,
-            tone: Array.isArray(p?.tone) ? p.tone : undefined,
-            references: Array.isArray(p?.references) ? p.references : undefined,
-          },
-        }));
-        pushSection({ key: 'top_shares', title: 'Campeões em compartilhamentos', items });
-        logger.info('[discover/top_shares] ok', { ms: Date.now() - t0, count: items.length });
-      } catch (e) {
-        logger.warn('[discover/top_shares] failed', e);
-      }
-    })());
+    if (shouldBuildShelf('top_shares')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          const res = await findGlobalPostsByCriteria({
+            dateRange: { startDate, endDate },
+            sortBy: 'stats.shares',
+            sortOrder: 'desc',
+            page: 1,
+            limit: limitPerRow * 2,
+            skipCount: true,
+            onlyOptIn: true,
+            format: formatFilter,
+            proposal: proposalFilter,
+            context: contextFilter,
+            tone: toneFilter,
+            references: referencesFilter,
+            mediaType: mediaTypeFilter,
+          });
+          const items: PostCard[] = (res.posts || []).map((p: any) => ({
+            id: String(p._id),
+            coverUrl: toProxyUrl(p.coverUrl || null),
+            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
+            caption: p.description || p.text_content || '',
+            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+            creatorName: (p as any).creatorName,
+            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+            postLink: (p as any).postLink,
+            stats: {
+              total_interactions: p?.stats?.total_interactions,
+              likes: p?.stats?.likes,
+              comments: p?.stats?.comments,
+              shares: p?.stats?.shares,
+              views: p?.stats?.views,
+              video_duration_seconds: p?.stats?.video_duration_seconds,
+              saved: p?.stats?.saved,
+            },
+            categories: {
+              format: Array.isArray(p?.format) ? p.format : undefined,
+              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+              context: Array.isArray(p?.context) ? p.context : undefined,
+              tone: Array.isArray(p?.tone) ? p.tone : undefined,
+              references: Array.isArray(p?.references) ? p.references : undefined,
+            },
+          }));
+          pushSection({ key: 'top_shares', title: 'Campeões em compartilhamentos', items });
+          logger.info('[discover/top_shares] ok', { ms: Date.now() - t0, count: items.length });
+        } catch (e) {
+          logger.warn('[discover/top_shares] failed', e);
+        }
+      })());
+    }
 
     // Duração: Reels < 15s, 15–45s, > 45s (somente quando Reels estiver selecionado nos chips)
     if (isReelsSelected) {
@@ -563,6 +625,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             sortOrder: 'desc',
             page: 1,
             limit: limitPerRow * 4, // margem para filtragem por duração
+            skipCount: true,
             onlyOptIn: true,
             format: formatFilter || expFilters.format,
             proposal: proposalFilter || expFilters.proposal,
@@ -570,10 +633,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             tone: toneFilter,
             references: referencesFilter,
             minInteractions: 0,
+            mediaType: mediaTypeFilter,
           });
           let items: PostCard[] = (res.posts || []).map((p: any) => ({
             id: String(p._id),
             coverUrl: toProxyUrl(p.coverUrl || null),
+            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
             caption: p.description || p.text_content || '',
             postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
             creatorName: (p as any).creatorName,
@@ -609,28 +674,36 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         }
       };
 
-      tasks.push(buildDurationRail('reels_lt_15', 'Reels até 15s', (s) => s <= 15));
-      tasks.push(buildDurationRail('reels_15_45', 'Reels de 15 a 45s', (s) => s > 15 && s <= 45));
-      tasks.push(buildDurationRail('reels_gt_45', 'Reels acima de 45s', (s) => s > 45));
+      if (shouldBuildShelf('reels_lt_15')) {
+        tasks.push(buildDurationRail('reels_lt_15', 'Reels até 15s', (s) => s <= 15));
+      }
+      if (shouldBuildShelf('reels_15_45')) {
+        tasks.push(buildDurationRail('reels_15_45', 'Reels de 15 a 45s', (s) => s > 15 && s <= 45));
+      }
+      if (shouldBuildShelf('reels_gt_45')) {
+        tasks.push(buildDurationRail('reels_gt_45', 'Reels acima de 45s', (s) => s > 45));
+      }
     }
 
     // (Removido) Horários quentes — não gerado mais
 
     // Ideias para o fim de semana (últimos 2 fins de semana)
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        const weekendStart = new Date(endDate);
-        weekendStart.setDate(weekendStart.getDate() - 16);
-        // Se o filtro de dias for mais restritivo (ex: 7 dias), respeitar o startDate global
-        const effectiveWeekendStart = (limitByDays && startDate > weekendStart) ? startDate : weekendStart;
+    if (shouldBuildShelf('weekend_ideas')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          const weekendStart = new Date(endDate);
+          weekendStart.setDate(weekendStart.getDate() - 16);
+          // Se o filtro de dias for mais restritivo (ex: 7 dias), respeitar o startDate global
+          const effectiveWeekendStart = (limitByDays && startDate > weekendStart) ? startDate : weekendStart;
 
-        const raw = await findGlobalPostsByCriteria({
-          dateRange: { startDate: effectiveWeekendStart, endDate },
-          sortBy: 'stats.total_interactions',
-          sortOrder: 'desc',
-          page: 1,
+          const raw = await findGlobalPostsByCriteria({
+            dateRange: { startDate: effectiveWeekendStart, endDate },
+            sortBy: 'stats.total_interactions',
+            sortOrder: 'desc',
+            page: 1,
           limit: limitPerRow * 3,
+          skipCount: true,
           minInteractions: 5,
           onlyOptIn: true,
           format: formatFilter || expFilters.format,
@@ -638,6 +711,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           context: contextFilter || expFilters.context,
           tone: toneFilter,
           references: referencesFilter,
+          mediaType: mediaTypeFilter,
         });
         const weekendItems: PostCard[] = (raw.posts || [])
           .filter((p: any) => {
@@ -649,40 +723,42 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           .map((p: any) => ({
             id: String(p._id),
             coverUrl: toProxyUrl(p.coverUrl || null),
+            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
             caption: p.description || p.text_content || '',
-            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-            creatorName: p.creatorName,
-            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-            postLink: (p as any).postLink,
-            stats: {
-              total_interactions: p?.stats?.total_interactions,
-              likes: p?.stats?.likes,
-              comments: p?.stats?.comments,
-              shares: p?.stats?.shares,
-              views: p?.stats?.views,
-              video_duration_seconds: p?.stats?.video_duration_seconds,
-              saved: p?.stats?.saved,
-            },
-            categories: {
-              format: Array.isArray(p?.format) ? p.format : undefined,
-              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-              context: Array.isArray(p?.context) ? p.context : undefined,
-              tone: Array.isArray(p?.tone) ? p.tone : undefined,
-              references: Array.isArray(p?.references) ? p.references : undefined,
-            },
-          }));
-        pushSection({ key: 'weekend_ideas', title: 'Ideias para o fim de semana', items: weekendItems });
-        logger.info('[discover/weekend] ok', { ms: Date.now() - t0, count: weekendItems.length });
-      } catch (e) {
-        logger.warn('[discover/weekend] failed', e);
-      }
-    })());
+              postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+              creatorName: p.creatorName,
+              creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+              postLink: (p as any).postLink,
+              stats: {
+                total_interactions: p?.stats?.total_interactions,
+                likes: p?.stats?.likes,
+                comments: p?.stats?.comments,
+                shares: p?.stats?.shares,
+                views: p?.stats?.views,
+                video_duration_seconds: p?.stats?.video_duration_seconds,
+                saved: p?.stats?.saved,
+              },
+              categories: {
+                format: Array.isArray(p?.format) ? p.format : undefined,
+                proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+                context: Array.isArray(p?.context) ? p.context : undefined,
+                tone: Array.isArray(p?.tone) ? p.tone : undefined,
+                references: Array.isArray(p?.references) ? p.references : undefined,
+              },
+            }));
+          pushSection({ key: 'weekend_ideas', title: 'Ideias para o fim de semana', items: weekendItems });
+          logger.info('[discover/weekend] ok', { ms: Date.now() - t0, count: weekendItems.length });
+        } catch (e) {
+          logger.warn('[discover/weekend] failed', e);
+        }
+      })());
+    }
 
     // (Removido) Para você — desativado conforme solicitação
 
     // Sugeridos ao usuário (baseado em categorias de melhor performance)
     // Fallback: usa categorias globais se o usuário não tiver histórico suficiente
-    if (userId) {
+    if (userId && shouldBuildShelf('user_suggested')) {
       tasks.push((async () => {
         try {
           const t0 = Date.now();
@@ -709,6 +785,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 sortOrder: 'desc',
                 page: 1,
                 limit: limitPerRow * 2,
+                skipCount: true,
                 onlyOptIn: true,
                 // Merge filtros atuais com a categoria destacada do usuário
                 format: mergeCsv(formatFilter, expFilters.format),
@@ -717,11 +794,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 tone: toneFilter,
                 references: referencesFilter,
                 minInteractions: 5,
+                mediaType: mediaTypeFilter,
               });
               for (const p of res.posts || []) {
                 pool.push({
                   id: String(p._id),
                   coverUrl: toProxyUrl(p.coverUrl || null),
+                  ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
                   caption: p.description || p.text_content || '',
                   postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
                   creatorName: (p as any).creatorName,
@@ -764,7 +843,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     // (Removido) Tendências fixas por categoria — não geradas mais
 
     // Top no seu formato — fallback global quando não houver histórico do usuário
-    if (userId) {
+    if (userId && shouldBuildShelf('top_in_your_format')) {
       tasks.push((async () => {
         try {
           const t0 = Date.now();
@@ -786,6 +865,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 sortOrder: 'desc',
                 page: 1,
                 limit: limitPerRow,
+                skipCount: true,
                 onlyOptIn: true,
                 format: mergeCsv([fmt, formatFilter].filter(Boolean).join(',') || fmt, expFilters.format),
                 proposal: mergeCsv(proposalFilter, expFilters.proposal),
@@ -793,11 +873,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 tone: toneFilter,
                 references: referencesFilter,
                 minInteractions: 5,
+                mediaType: mediaTypeFilter,
               });
               for (const p of byFmt.posts || []) {
                 pool.push({
                   id: String(p._id),
                   coverUrl: toProxyUrl(p.coverUrl || null),
+                  ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
                   caption: p.description || p.text_content || '',
                   postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
                   creatorName: (p as any).creatorName,
@@ -834,23 +916,114 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     }
 
     // Colaborações em destaque (collab = true)
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        const cacheKey = 'collabs_default';
-        let items: PostCard[] | undefined;
-        if (noFilter && caches[cacheKey] && caches[cacheKey].expires > Date.now()) {
-          items = caches[cacheKey].items;
-        } else {
-          const match: any = { postDate: { $gte: startDate, $lte: endDate }, collab: true };
-          const fCsvC = mergeCsv(formatFilter, expFilters.format);
-          const pCsvC = mergeCsv(proposalFilter, expFilters.proposal);
-          const cCsvC = mergeCsv(contextFilter, expFilters.context);
-          if (fCsvC) match.format = { $in: fCsvC.split(',').map(s => s.trim()).filter(Boolean) };
-          if (pCsvC) match.proposal = { $in: pCsvC.split(',').map(s => s.trim()).filter(Boolean) };
-          if (cCsvC) match.context = { $in: cCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+    if (shouldBuildShelf('collabs')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          const cacheKey = 'collabs_default';
+          let items: PostCard[] | undefined;
+          if (noFilter && caches[cacheKey] && caches[cacheKey].expires > Date.now()) {
+            items = caches[cacheKey].items;
+          } else {
+            const match: any = { postDate: { $gte: startDate, $lte: endDate }, collab: true };
+            const fCsvC = mergeCsv(formatFilter, expFilters.format);
+            const pCsvC = mergeCsv(proposalFilter, expFilters.proposal);
+            const cCsvC = mergeCsv(contextFilter, expFilters.context);
+            if (fCsvC) match.format = { $in: fCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (pCsvC) match.proposal = { $in: pCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (cCsvC) match.context = { $in: cCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (toneFilter) match.tone = { $in: toneFilter.split(',').map(s => s.trim()).filter(Boolean) };
+            if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(s => s.trim()).filter(Boolean) };
+            if (mediaTypeFilter) match.type = { $in: mediaTypeFilter };
+            const rows = await MetricModel.aggregate([
+              { $match: match },
+              {
+                $lookup: {
+                  from: 'users',
+                  localField: 'user',
+                  foreignField: '_id',
+                  as: 'creatorInfo',
+                }
+              },
+              { $unwind: { path: '$creatorInfo', preserveNullAndEmptyArrays: true } },
+              { $match: { 'creatorInfo.communityInspirationOptIn': true } },
+              { $sort: { 'stats.total_interactions': -1 } },
+              { $limit: limitPerRow * 2 },
+              {
+                $project: {
+                  description: 1,
+                  postDate: 1,
+                  coverUrl: 1,
+                  postLink: 1,
+                  'creatorInfo.username': 1,
+                  'creatorInfo.profile_picture_url': 1,
+                  'stats.total_interactions': 1,
+                  'stats.likes': 1,
+                  'stats.comments': 1,
+                  'stats.shares': 1,
+                  'stats.views': 1,
+                  'stats.video_duration_seconds': 1,
+                  'stats.saved': 1,
+                  type: 1,
+                  mediaUrl: { $ifNull: ['$mediaUrl', '$media_url'] },
+                  thumbnailUrl: { $ifNull: ['$thumbnailUrl', '$thumbnail_url'] },
+                  format: 1,
+                  proposal: 1,
+                  context: 1,
+                  tone: 1,
+                  references: 1,
+                }
+              },
+            ]).exec();
+            items = rows.map((r: any) => ({
+              id: String(r._id),
+              coverUrl: toProxyUrl(r.coverUrl || null),
+              ...resolveVideoMeta(r?.type, r?.mediaUrl || r?.media_url || null),
+              caption: r.description || '',
+              postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
+              creatorName: r?.creatorInfo?.username,
+              creatorAvatarUrl: toProxyUrl(r?.creatorInfo?.profile_picture_url || null) || null,
+              postLink: r.postLink || undefined,
+              stats: {
+                total_interactions: r?.stats?.total_interactions,
+                likes: r?.stats?.likes,
+                comments: r?.stats?.comments,
+                shares: r?.stats?.shares,
+                views: r?.stats?.views,
+                video_duration_seconds: r?.stats?.video_duration_seconds,
+                saved: r?.stats?.saved,
+              },
+              categories: {
+                format: Array.isArray(r?.format) ? r.format : undefined,
+                proposal: Array.isArray(r?.proposal) ? r.proposal : undefined,
+                context: Array.isArray(r?.context) ? r.context : undefined,
+                tone: Array.isArray(r?.tone) ? r.tone : undefined,
+                references: Array.isArray(r?.references) ? r.references : undefined,
+              },
+            }));
+            if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
+          }
+          pushSection({ key: 'collabs', title: 'Colaborações em destaque', items: items || [] });
+          logger.info('[discover/collabs] ok', { ms: Date.now() - t0, count: items?.length || 0 });
+        } catch (e) {
+          logger.warn('[discover/collabs] failed', e);
+        }
+      })());
+    }
+
+    // Novidades da comunidade (recentes)
+    if (shouldBuildShelf('community_new')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          const match: any = { postDate: { $gte: startDate, $lte: endDate } };
+          if (formatFilter) match.format = { $in: formatFilter.split(',').map(s => s.trim()).filter(Boolean) };
+          if (proposalFilter) match.proposal = { $in: proposalFilter.split(',').map(s => s.trim()).filter(Boolean) };
+          if (contextFilter) match.context = { $in: contextFilter.split(',').map(s => s.trim()).filter(Boolean) };
           if (toneFilter) match.tone = { $in: toneFilter.split(',').map(s => s.trim()).filter(Boolean) };
           if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mediaTypeFilter) match.type = { $in: mediaTypeFilter };
+
           const rows = await MetricModel.aggregate([
             { $match: match },
             {
@@ -863,7 +1036,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             },
             { $unwind: { path: '$creatorInfo', preserveNullAndEmptyArrays: true } },
             { $match: { 'creatorInfo.communityInspirationOptIn': true } },
-            { $sort: { 'stats.total_interactions': -1 } },
+            { $sort: { postDate: -1 } },
             { $limit: limitPerRow * 2 },
             {
               $project: {
@@ -880,6 +1053,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 'stats.views': 1,
                 'stats.video_duration_seconds': 1,
                 'stats.saved': 1,
+                type: 1,
+                mediaUrl: { $ifNull: ['$mediaUrl', '$media_url'] },
+                thumbnailUrl: { $ifNull: ['$thumbnailUrl', '$thumbnail_url'] },
                 format: 1,
                 proposal: 1,
                 context: 1,
@@ -888,9 +1064,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               }
             },
           ]).exec();
-          items = rows.map((r: any) => ({
+
+          const items: PostCard[] = rows.map((r: any) => ({
             id: String(r._id),
             coverUrl: toProxyUrl(r.coverUrl || null),
+            ...resolveVideoMeta(r?.type, r?.mediaUrl || r?.media_url || null),
             caption: r.description || '',
             postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
             creatorName: r?.creatorInfo?.username,
@@ -913,95 +1091,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               references: Array.isArray(r?.references) ? r.references : undefined,
             },
           }));
-          if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
+          pushSection({ key: 'community_new', title: 'Novidades da comunidade', items });
+          logger.info('[discover/community_new] ok', { ms: Date.now() - t0, count: items.length });
+        } catch (e) {
+          logger.warn('[discover/community_new] failed', e);
         }
-        pushSection({ key: 'collabs', title: 'Colaborações em destaque', items: items || [] });
-        logger.info('[discover/collabs] ok', { ms: Date.now() - t0, count: items?.length || 0 });
-      } catch (e) {
-        logger.warn('[discover/collabs] failed', e);
-      }
-    })());
-
-    // Novidades da comunidade (recentes)
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        const match: any = { postDate: { $gte: startDate, $lte: endDate } };
-        if (formatFilter) match.format = { $in: formatFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (proposalFilter) match.proposal = { $in: proposalFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (contextFilter) match.context = { $in: contextFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (toneFilter) match.tone = { $in: toneFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(s => s.trim()).filter(Boolean) };
-
-        const rows = await MetricModel.aggregate([
-          { $match: match },
-          {
-            $lookup: {
-              from: 'users',
-              localField: 'user',
-              foreignField: '_id',
-              as: 'creatorInfo',
-            }
-          },
-          { $unwind: { path: '$creatorInfo', preserveNullAndEmptyArrays: true } },
-          { $match: { 'creatorInfo.communityInspirationOptIn': true } },
-          { $sort: { postDate: -1 } },
-          { $limit: limitPerRow * 2 },
-          {
-            $project: {
-              description: 1,
-              postDate: 1,
-              coverUrl: 1,
-              postLink: 1,
-              'creatorInfo.username': 1,
-              'creatorInfo.profile_picture_url': 1,
-              'stats.total_interactions': 1,
-              'stats.likes': 1,
-              'stats.comments': 1,
-              'stats.shares': 1,
-              'stats.views': 1,
-              'stats.video_duration_seconds': 1,
-              'stats.saved': 1,
-              format: 1,
-              proposal: 1,
-              context: 1,
-              tone: 1,
-              references: 1,
-            }
-          },
-        ]).exec();
-
-        const items: PostCard[] = rows.map((r: any) => ({
-          id: String(r._id),
-          coverUrl: toProxyUrl(r.coverUrl || null),
-          caption: r.description || '',
-          postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
-          creatorName: r?.creatorInfo?.username,
-          creatorAvatarUrl: toProxyUrl(r?.creatorInfo?.profile_picture_url || null) || null,
-          postLink: r.postLink || undefined,
-          stats: {
-            total_interactions: r?.stats?.total_interactions,
-            likes: r?.stats?.likes,
-            comments: r?.stats?.comments,
-            shares: r?.stats?.shares,
-            views: r?.stats?.views,
-            video_duration_seconds: r?.stats?.video_duration_seconds,
-            saved: r?.stats?.saved,
-          },
-          categories: {
-            format: Array.isArray(r?.format) ? r.format : undefined,
-            proposal: Array.isArray(r?.proposal) ? r.proposal : undefined,
-            context: Array.isArray(r?.context) ? r.context : undefined,
-            tone: Array.isArray(r?.tone) ? r.tone : undefined,
-            references: Array.isArray(r?.references) ? r.references : undefined,
-          },
-        }));
-        pushSection({ key: 'community_new', title: 'Novidades da comunidade', items });
-        logger.info('[discover/community_new] ok', { ms: Date.now() - t0, count: items.length });
-      } catch (e) {
-        logger.warn('[discover/community_new] failed', e);
-      }
-    })());
+      })());
+    }
 
     await Promise.allSettled(tasks);
     logger.info('[discover/debug] final_sections', { keys: sections.map(s => s.key) });

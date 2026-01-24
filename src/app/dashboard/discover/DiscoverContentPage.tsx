@@ -20,11 +20,14 @@ export const dynamic = "force-dynamic";
 
 const MAX_POST_AGE_DAYS = 80;
 const MAX_POST_AGE_MS = MAX_POST_AGE_DAYS * 24 * 60 * 60 * 1000;
-const LIST_SAMPLE_SIZE = 36;
+const LIST_SAMPLE_SIZE = 24;
 
 type PostCard = {
   id: string;
   coverUrl?: string | null;
+  videoUrl?: string;
+  mediaType?: string;
+  isVideo?: boolean;
   caption?: string;
   postDate?: string;
   creatorName?: string;
@@ -100,7 +103,12 @@ export default async function DiscoverContentPage({
     if (Array.isArray(v)) params.set(k, v.join(","));
     else params.set(k, String(v));
   }
+  const videoOnlyParam = searchParams?.videoOnly;
+  if (videoOnlyParam && (Array.isArray(videoOnlyParam) ? videoOnlyParam[0] : videoOnlyParam)) {
+    params.set("videoOnly", "1");
+  }
   params.set("limitPerRow", String(LIST_SAMPLE_SIZE));
+  params.set("days", String(MAX_POST_AGE_DAYS));
   const qs = params.toString();
 
   const result = await fetchFeed(qs).catch(

@@ -87,6 +87,7 @@ export interface FindGlobalPostsArgs {
   format?: string | string[];
   tone?: string | string[];
   references?: string | string[];
+  mediaType?: string | string[];
   creatorContext?: string;
   /** Quando true, só retorna posts de criadores com opt-in da comunidade */
   onlyOptIn?: boolean;
@@ -97,6 +98,8 @@ export interface FindGlobalPostsArgs {
   page?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  /** Quando true, evita a etapa de contagem total (mais rápido). */
+  skipCount?: boolean;
   dateRange?: {
     startDate?: Date;
     endDate?: Date;
@@ -115,11 +118,16 @@ export interface IGlobalPostResult {
   coverUrl?: string;
   postLink?: string;
   instagramMediaId?: string;
+  type?: string;
   format?: string;
   proposal?: string;
   context?: string;
   tone?: string;
   references?: string;
+  mediaUrl?: string;
+  thumbnailUrl?: string;
+  media_url?: string;
+  thumbnail_url?: string;
   stats?: {
     total_interactions?: number;
     likes?: number;

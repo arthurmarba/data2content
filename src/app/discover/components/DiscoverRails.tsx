@@ -9,6 +9,9 @@ import { useSearchParams } from 'next/navigation';
 type PostCard = {
   id: string;
   coverUrl?: string | null;
+  videoUrl?: string;
+  mediaType?: string;
+  isVideo?: boolean;
   caption?: string;
   postDate?: string;
   creatorName?: string;
@@ -37,6 +40,7 @@ const CTA_LABEL_OVERRIDES: Record<string, string> = {
 
 export default function DiscoverRails({ sections, exp, primaryKey }: { sections: Section[]; exp?: string; primaryKey?: string | null }) {
   const searchParams = useSearchParams();
+  const EXPANDED_LIMIT = 120;
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<PostCard[] | null>(null);
   const [expandedError, setExpandedError] = useState<string | null>(null);
@@ -133,11 +137,11 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
       setExpandedItems(base.items || []);
       setExpandedLoading(true);
 
-      const qs = searchParams?.toString() || '';
-      const queryPrefix = qs ? `?${qs}` : '';
-      const connector = qs ? '&' : '?';
+      const nextParams = new URLSearchParams(searchParams?.toString() || '');
+      nextParams.set('limitPerRow', String(EXPANDED_LIMIT));
+      nextParams.set('shelfKey', sectionKey);
       try {
-        const response = await fetch(`/api/discover/feed${queryPrefix}${connector}limitPerRow=120`, {
+        const response = await fetch(`/api/discover/feed?${nextParams.toString()}`, {
           method: 'GET',
           cache: 'no-store',
         });
@@ -254,13 +258,16 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
         const description = DESCRIPTIONS[s.key];
         const isPrimary = s.key === primaryKey;
         const useAltBackground = index % 2 === 1;
+        const visibilityStyle = isPrimary
+          ? undefined
+          : ({ contentVisibility: 'auto', containIntrinsicSize: '360px' } as React.CSSProperties);
         const containerClass = isPrimary
           ? "border border-transparent bg-transparent"
           : "border border-transparent bg-transparent";
         const gradientClass = useAltBackground ? "from-slate-50/80" : "from-white";
         const ctaLabel = CTA_LABEL_OVERRIDES[s.key] || "Ver coleção completa";
         return (
-          <section key={s.key} aria-label={title} className="w-full">
+          <section key={s.key} aria-label={title} className="w-full" style={visibilityStyle}>
             <div
               className={`py-1 sm:py-2 ${containerClass}`}
             >
