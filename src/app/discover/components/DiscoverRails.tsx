@@ -38,6 +38,14 @@ const CTA_LABEL_OVERRIDES: Record<string, string> = {
   top_shares: "Ver ideias muito compartilhadas",
 };
 
+function findNextPlayable(items: PostCard[], startIndex: number) {
+  for (let i = startIndex + 1; i < items.length; i += 1) {
+    const item = items[i];
+    if (item?.videoUrl || item?.isVideo) return item;
+  }
+  return null;
+}
+
 export default function DiscoverRails({ sections, exp, primaryKey }: { sections: Section[]; exp?: string; primaryKey?: string | null }) {
   const searchParams = useSearchParams();
   const EXPANDED_LIMIT = 120;
@@ -224,6 +232,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
               <DiscoverCard
                 key={`${item.id}-${idx}`}
                 item={item as any}
+                nextItem={findNextPlayable(expandedItems, idx)}
                 trackContext={{ shelf_key: expandedSectionMeta.key, rank: idx + 1, exp, view: 'expanded' }}
                 variant="grid"
                 onUnavailable={handleCardUnavailable}
@@ -290,6 +299,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
                     <DiscoverCard
                       key={it.id}
                       item={it as any}
+                      nextItem={findNextPlayable(s.items || [], idx)}
                       trackContext={{ shelf_key: s.key, rank: idx + 1, exp }}
                       variant="rail"
                       onUnavailable={handleCardUnavailable}

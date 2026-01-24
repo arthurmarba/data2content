@@ -32,6 +32,17 @@ type PostCard = {
   };
 };
 
+type NextItem = {
+  id: string;
+  coverUrl?: string | null;
+  videoUrl?: string;
+  mediaType?: string;
+  isVideo?: boolean;
+  postLink?: string;
+  caption?: string;
+  creatorName?: string;
+};
+
 function formatCompact(n?: number) {
   if (typeof n !== 'number' || !isFinite(n)) return '';
   try {
@@ -44,11 +55,13 @@ function formatCompact(n?: number) {
 
 export default function DiscoverCard({
   item,
+  nextItem,
   trackContext,
   variant = 'rail',
   onUnavailable,
 }: {
   item: PostCard;
+  nextItem?: NextItem | null;
   trackContext?: Record<string, any>;
   variant?: 'rail' | 'grid';
   onUnavailable?: (postId: string) => void;
@@ -217,6 +230,18 @@ export default function DiscoverCard({
         postLink={item.postLink || undefined}
         videoUrl={item.videoUrl}
         posterUrl={item.coverUrl || undefined}
+        nextItem={
+          nextItem
+            ? {
+                id: nextItem.id,
+                videoUrl: nextItem.videoUrl,
+                postLink: nextItem.postLink,
+                posterUrl: nextItem.coverUrl || undefined,
+                caption: nextItem.caption,
+                creatorName: nextItem.creatorName,
+              }
+            : undefined
+        }
       />
 
     </article>
