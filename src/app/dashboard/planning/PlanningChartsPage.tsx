@@ -96,6 +96,13 @@ const formatWeekLabel = (weekKey?: string | null) => {
   return `${month} W${String(week)}`;
 };
 
+const toVideoProxyUrl = (raw?: string | null) => {
+  if (!raw) return raw;
+  if (raw.startsWith("/api/proxy/video/")) return raw;
+  if (/^https?:\/\//i.test(raw)) return `/api/proxy/video/${encodeURIComponent(raw)}`;
+  return raw;
+};
+
 const normalizePost = (post: any) => {
   const formatRaw = toArray(post?.format).length ? toArray(post?.format) : toArray(post?.mediaType);
   const format = formatRaw.map((f) => f.trim());
@@ -554,6 +561,14 @@ export default function PlanningChartsPage() {
         const tone = normalizeCategories(p?.tone);
         const reference = normalizeCategories(p?.references);
         const format = normalizeCategories(p?.format);
+        const mediaType = String(p?.type || "").toUpperCase();
+        const isVideo =
+          mediaType === "VIDEO" ||
+          mediaType === "REEL" ||
+          format.some((f) => /reel|video/i.test(f));
+        const rawMediaUrl = p?.mediaUrl || p?.media_url || null;
+        const videoUrl = isVideo ? toVideoProxyUrl(rawMediaUrl) : undefined;
+        const postLink = p?.permalink || p?.postLink || null;
         return {
           id: p._id,
           caption: p.caption || "Post",
@@ -564,6 +579,8 @@ export default function PlanningChartsPage() {
           tone,
           reference,
           format,
+          postLink,
+          videoUrl,
           nf,
           pv,
           reach,
@@ -586,6 +603,8 @@ export default function PlanningChartsPage() {
         tone: string[];
         reference: string[];
         format: string[];
+        postLink?: string | null;
+        videoUrl?: string | null;
         nf: number | null;
         pv: number | null;
         reach: number | null;

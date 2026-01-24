@@ -300,6 +300,7 @@ export interface IUserPostResult { // ALTERADO
   postDate?: Date;
   thumbnailUrl?: string | null;
   coverUrl?: string | null;
+  mediaUrl?: string | null;
   permalink?: string | null;
   format?: string;
   type?: string;
@@ -442,6 +443,7 @@ export async function findUserPosts({ // ALTERADO
           references: 1,
           type: 1, // Adicionado para referência, se necessário no futuro
           coverUrl: 1,
+          mediaUrl: { $ifNull: ['$mediaUrl', '$media_url'] },
           thumbnailUrl: '$thumbFromDoc',
           stats: {
             views: '$viewsSortable',

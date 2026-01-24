@@ -176,7 +176,7 @@ export default function DiscoverVideoModal({
         ref={containerRef}
         className="relative h-[92svh] sm:h-[92vh] max-h-[900px] w-auto max-w-[94vw] sm:max-w-[520px] aspect-[9/16] bg-black rounded-xl overflow-hidden shadow-lg"
       >
-        <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 z-10 flex items-center gap-2">
+        <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 z-30 flex items-center gap-2 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
           {active?.postLink ? (
             <a
               href={active.postLink}
@@ -258,18 +258,18 @@ export default function DiscoverVideoModal({
           </div>
         )}
         {(!active?.videoUrl || videoFailed) && activeIndex + 1 < queue.length ? (
-          <div className="absolute bottom-3 right-3">
+          <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+12px)] right-3 z-30">
             <button
               type="button"
               onClick={handleNext}
-              className="px-2.5 py-1 rounded bg-white/20 text-white text-xs font-semibold hover:bg-white/30"
+              className="px-2.5 py-1 rounded bg-black/60 text-white text-xs font-semibold hover:bg-black/70 backdrop-blur-sm"
             >
               Próximo vídeo
             </button>
           </div>
         ) : null}
         {active?.videoUrl && !videoFailed ? (
-          <div className="absolute bottom-0 left-0 right-0 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] bg-gradient-to-t from-black/80 via-black/30 to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 z-20 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] bg-gradient-to-t from-black/80 via-black/30 to-transparent">
             <div className="flex items-center gap-2 text-white text-sm">
               <button
                 type="button"

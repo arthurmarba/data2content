@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
 
 interface TopDiscoveryPost {
     id?: string;
@@ -22,6 +23,8 @@ interface TopDiscoveryPost {
     shares: number;
     saves: number;
     thumbnail?: string | null;
+    postLink?: string | null;
+    videoUrl?: string | null;
 }
 
 interface TopDiscoveryTableProps {
@@ -37,6 +40,7 @@ const numberFormatter = new Intl.NumberFormat("pt-BR");
 export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) {
     const [sortField, setSortField] = useState<SortField>("nf");
     const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+    const [activePost, setActivePost] = useState<TopDiscoveryPost | null>(null);
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -119,16 +123,33 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                 {post.date ? new Date(post.date).toLocaleDateString("pt-BR") : "—"}
                             </div>
 
-                            {/* Post Column (Photo only) */}
-                            <div className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
-                                {post.thumbnail ? (
-                                    <Image src={post.thumbnail} alt={post.caption} fill className="object-cover" sizes="64px" />
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
-                                        Sem img
-                                    </div>
-                                )}
-                            </div>
+                            {/* Post Column */}
+                            {post.videoUrl || post.postLink ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setActivePost(post)}
+                                    className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+                                    aria-label="Assistir vídeo"
+                                >
+                                    {post.thumbnail ? (
+                                        <Image src={post.thumbnail} alt={post.caption} fill className="object-cover" sizes="64px" />
+                                    ) : (
+                                        <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
+                                            Sem img
+                                        </div>
+                                    )}
+                                </button>
+                            ) : (
+                                <div className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                                    {post.thumbnail ? (
+                                        <Image src={post.thumbnail} alt={post.caption} fill className="object-cover" sizes="64px" />
+                                    ) : (
+                                        <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
+                                            Sem img
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Formato */}
                             <div className="text-xs font-medium text-slate-700 truncate" title={post.format.join(", ")}>
@@ -225,6 +246,13 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                     ))}
                 </div>
             </div>
+            <DiscoverVideoModal
+                open={Boolean(activePost)}
+                onClose={() => setActivePost(null)}
+                postLink={activePost?.postLink || undefined}
+                videoUrl={activePost?.videoUrl || undefined}
+                posterUrl={activePost?.thumbnail || undefined}
+            />
         </div>
     );
 }
