@@ -139,14 +139,6 @@ export default function DiscoverCard({
           {/* Overlay: Gradiente mais suave e informações internas */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
 
-          {canPlayInline && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="rounded-full bg-black/60 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
-                ▶ Assistir aqui
-              </div>
-            </div>
-          )}
-
           <div className="absolute top-2 right-2">
             {metrics && (
               <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
@@ -196,14 +188,6 @@ export default function DiscoverCard({
           ) : null}
           {/* Overlay: Gradiente mais suave e informações internas */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
-
-          {canPlayInline && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="rounded-full bg-black/60 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
-                ▶ Assistir aqui
-              </div>
-            </div>
-          )}
 
           <div className="absolute top-2 right-2">
             {metrics && (

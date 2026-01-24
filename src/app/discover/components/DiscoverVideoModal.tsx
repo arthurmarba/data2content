@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 function buildInstagramEmbed(postLink: string): string | null {
   try {
@@ -42,6 +43,7 @@ export default function DiscoverVideoModal({
     creatorName?: string;
   };
 }) {
+  const [mounted, setMounted] = useState(false);
   const queue = useMemo(() => {
     if (!open) return [];
     const current = {
@@ -76,6 +78,10 @@ export default function DiscoverVideoModal({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (open) {
       setVideoFailed(false);
       setActiveIndex(0);
@@ -105,7 +111,7 @@ export default function DiscoverVideoModal({
     return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const buffered = duration > 0 ? Math.min(100, bufferedPct) : 0;
@@ -164,10 +170,13 @@ export default function DiscoverVideoModal({
     }
   };
 
-  return (
+  const modal = (
     <div className="fixed inset-0 z-[80] bg-black/70 grid place-items-center" role="dialog" aria-modal>
-      <div ref={containerRef} className="relative w-[92vw] max-w-2xl aspect-[9/16] bg-black rounded-xl overflow-hidden shadow-lg">
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+      <div
+        ref={containerRef}
+        className="relative h-[92svh] sm:h-[92vh] max-h-[900px] w-auto max-w-[94vw] sm:max-w-[520px] aspect-[9/16] bg-black rounded-xl overflow-hidden shadow-lg"
+      >
+        <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 z-10 flex items-center gap-2">
           {active?.postLink ? (
             <a
               href={active.postLink}
@@ -190,7 +199,7 @@ export default function DiscoverVideoModal({
           <video
             ref={videoRef}
             src={active.videoUrl}
-            className="w-full h-full"
+            className="w-full h-full object-contain bg-black"
             autoPlay
             playsInline
             preload="metadata"
@@ -260,7 +269,7 @@ export default function DiscoverVideoModal({
           </div>
         ) : null}
         {active?.videoUrl && !videoFailed ? (
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/30 to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] bg-gradient-to-t from-black/80 via-black/30 to-transparent">
             <div className="flex items-center gap-2 text-white text-sm">
               <button
                 type="button"
@@ -317,4 +326,5 @@ export default function DiscoverVideoModal({
       </div>
     </div>
   );
+  return createPortal(modal, document.body);
 }
