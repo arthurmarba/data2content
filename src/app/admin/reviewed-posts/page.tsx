@@ -3,8 +3,20 @@
 import Image from 'next/image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ArrowTopRightOnSquareIcon, DocumentMagnifyingGlassIcon, PencilSquareIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowTopRightOnSquareIcon,
+  BookmarkIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
+  DocumentMagnifyingGlassIcon,
+  HeartIcon,
+  PencilSquareIcon,
+  PlayCircleIcon,
+  ShareIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
+import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
+import { UserAvatar } from '@/app/components/UserAvatar';
 import { Category, contextCategories, idsToLabels } from '@/app/lib/classification';
 
 type ReviewStatus = 'do' | 'dont' | 'almost';
@@ -43,8 +55,13 @@ interface ReviewPost {
   creatorAvatarUrl?: string;
   postDate?: string | Date;
   coverUrl?: string;
+  thumbnailUrl?: string;
+  thumbnail_url?: string;
+  mediaUrl?: string;
+  media_url?: string;
   postLink?: string;
   instagramMediaId?: string;
+  type?: string;
   format?: string[] | string;
   proposal?: string[] | string;
   context?: string[] | string;
@@ -94,6 +111,12 @@ const formatNumber = (value?: number) => {
   return value.toLocaleString('pt-BR');
 };
 
+const normalizeCategoryValues = (values?: string[] | string) => {
+  if (!values) return [];
+  if (Array.isArray(values)) return values.map((value) => value.trim()).filter(Boolean);
+  return values.split(',').map((value) => value.trim()).filter(Boolean);
+};
+
 const buildContextOptions = (categories: Category[]) => {
   const options: { id: string; label: string }[] = [];
   const traverse = (cats: Category[], prefix = '') => {
@@ -107,6 +130,21 @@ const buildContextOptions = (categories: Category[]) => {
   };
   traverse(categories);
   return options;
+};
+
+const buildContextLabelToIdMap = (categories: Category[]) => {
+  const map = new Map<string, string>();
+  const traverse = (cats: Category[], prefix = '') => {
+    cats.forEach((cat) => {
+      const label = prefix ? `${prefix} > ${cat.label}` : cat.label;
+      map.set(label, cat.id);
+      if (cat.subcategories?.length) {
+        traverse(cat.subcategories, label);
+      }
+    });
+  };
+  traverse(categories);
+  return map;
 };
 
 const buildContextLabelMap = (categories: Category[]) => {
@@ -124,6 +162,20 @@ const buildContextLabelMap = (categories: Category[]) => {
   return map;
 };
 
+const toThumbnailProxyUrl = (raw?: string | null) => {
+  if (!raw) return '';
+  if (raw.startsWith('/api/proxy/thumbnail/')) return raw;
+  if (/^https?:\/\//i.test(raw)) return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
+  return raw;
+};
+
+const toVideoProxyUrl = (raw?: string | null) => {
+  if (!raw) return undefined;
+  if (raw.startsWith('/api/proxy/video/')) return raw;
+  if (/^https?:\/\//i.test(raw)) return `/api/proxy/video/${encodeURIComponent(raw)}`;
+  return raw;
+};
+
 const statusOrder: ReviewStatus[] = ['dont', 'do', 'almost'];
 const cardBase = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
 
@@ -131,6 +183,7 @@ export default function ReviewedPostsPage() {
   const searchParams = useSearchParams();
   const contextOptions = useMemo(() => buildContextOptions(contextCategories), []);
   const contextLabelMap = useMemo(() => buildContextLabelMap(contextCategories), []);
+  const contextIdByLabel = useMemo(() => buildContextLabelToIdMap(contextCategories), []);
 
   const [statusFilter, setStatusFilter] = useState<ReviewStatus | ''>('');
   const [creatorContextFilter, setCreatorContextFilter] = useState('');
@@ -155,6 +208,12 @@ export default function ReviewedPostsPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [copiedContextId, setCopiedContextId] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<{
+    videoUrl?: string;
+    postLink?: string;
+    posterUrl?: string;
+  } | null>(null);
 
   useEffect(() => {
     const status = searchParams.get('status') as ReviewStatus | null;
@@ -267,14 +326,51 @@ export default function ReviewedPostsPage() {
   const grouped = useMemo<ContextGroup[]>(() => {
     const filteredItems = statusFilter ? items.filter((item) => item.status === statusFilter) : items;
     const contextMap = new Map<string, { id: string; label: string; creators: Map<string, CreatorGroup> }>();
+    const creatorContextScores = new Map<string, Map<string, number>>();
+
+    const resolveContextId = (value: string) => {
+      if (contextLabelMap.has(value)) return value;
+      return contextIdByLabel.get(value) || value;
+    };
 
     filteredItems.forEach((item) => {
       const post = item.post;
-      const contextId = post?.creatorContextId || 'sem-contexto';
+      const creatorId = post?.creatorId || post?.creatorName || 'sem-criador';
+      if (post?.creatorContextId) return;
+      const values = normalizeCategoryValues(post?.context);
+      if (!values.length) return;
+      const weight = typeof post?.stats?.total_interactions === 'number' ? post.stats.total_interactions : 1;
+      const scoreMap = creatorContextScores.get(creatorId) || new Map<string, number>();
+      values.forEach((value) => {
+        const contextId = resolveContextId(value);
+        if (!contextId) return;
+        scoreMap.set(contextId, (scoreMap.get(contextId) || 0) + weight);
+      });
+      creatorContextScores.set(creatorId, scoreMap);
+    });
+
+    const derivedCreatorContext = new Map<string, string>();
+    creatorContextScores.forEach((scoreMap, creatorId) => {
+      let topId = '';
+      let topScore = -1;
+      scoreMap.forEach((score, contextId) => {
+        if (score > topScore) {
+          topScore = score;
+          topId = contextId;
+        }
+      });
+      if (topId) derivedCreatorContext.set(creatorId, topId);
+    });
+
+    filteredItems.forEach((item) => {
+      const post = item.post;
+      const creatorId = post?.creatorId || post?.creatorName || 'sem-criador';
+      const fallbackContextId = derivedCreatorContext.get(creatorId);
+      const contextId = post?.creatorContextId || fallbackContextId || 'sem-contexto';
       const label = contextLabelMap.get(contextId)
         || idsToLabels([contextId], 'context')[0]
+        || contextId
         || 'Sem categoria dominante';
-      const creatorId = post?.creatorId || post?.creatorName || 'sem-criador';
       const creatorName = post?.creatorName || 'Criador';
 
       if (!contextMap.has(contextId)) {
@@ -320,7 +416,7 @@ export default function ReviewedPostsPage() {
       })
       .filter((context) => context.creators.length > 0)
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [items, statusFilter, contextLabelMap, creatorSearch]);
+  }, [items, statusFilter, contextLabelMap, contextIdByLabel, creatorSearch]);
 
   const getContextAnchorId = useCallback((contextId: string) => {
     const safe = contextId.replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -362,6 +458,17 @@ export default function ReviewedPostsPage() {
     }
   }, [buildSummaryText]);
 
+  const openVideo = useCallback((payload: { videoUrl?: string; postLink?: string; posterUrl?: string }) => {
+    if (!payload.videoUrl && !payload.postLink) return;
+    setActiveVideo(payload);
+    setIsVideoOpen(true);
+  }, []);
+
+  const closeVideo = useCallback(() => {
+    setIsVideoOpen(false);
+    setActiveVideo(null);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="max-w-full mx-auto space-y-8">
@@ -382,7 +489,7 @@ export default function ReviewedPostsPage() {
               onClick={() => setNotesOnly((value) => !value)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${notesOnly ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
             >
-              {notesOnly ? 'Somente notas' : 'Somente notas'}
+              {notesOnly ? 'Somente notas' : 'Mostrar detalhes'}
             </button>
             <button
               onClick={() => setHideMetrics((value) => !value)}
@@ -516,11 +623,12 @@ export default function ReviewedPostsPage() {
                         <div key={creator.id} className="w-[320px] shrink-0">
                           <div className="flex items-center justify-between gap-2 mb-3">
                             <div className="flex items-center gap-2">
-                              {creator.avatarUrl ? (
-                                <Image src={creator.avatarUrl} alt={creator.name} width={36} height={36} className="w-9 h-9 rounded-full object-cover border" />
-                              ) : (
-                                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-500">N/A</div>
-                              )}
+                              <UserAvatar
+                                name={creator.name}
+                                src={creator.avatarUrl ? toThumbnailProxyUrl(creator.avatarUrl) : undefined}
+                                size={48}
+                                className="border border-slate-200"
+                              />
                               <div>
                                 <p className="text-sm font-semibold text-slate-900">{creator.name}</p>
                                 <p className="text-xs text-slate-500">{totalItems} conteudos</p>
@@ -541,27 +649,71 @@ export default function ReviewedPostsPage() {
                                   {creator.itemsByStatus[status].map((item) => {
                                     const post = item.post;
                                     const link = post?.postLink || (post?.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
-                                    const rawText = post?.text_content || post?.description || 'Sem legenda...';
-                                    const cleanedText = rawText.replace(/\s+/g, ' ').trim();
-                                    const snippet = cleanedText.length > 90 ? `${cleanedText.slice(0, 90)}…` : cleanedText;
+                                    const coverSrc = toThumbnailProxyUrl(
+                                      post?.coverUrl || post?.thumbnailUrl || post?.thumbnail_url || null
+                                    );
+                                    const videoUrl = toVideoProxyUrl(post?.mediaUrl || post?.media_url || null);
+                                    const canPlay = Boolean(videoUrl || link);
+                                    const totalInteractions = post?.stats?.total_interactions;
+                                    const likes = post?.stats?.likes;
+                                    const comments = post?.stats?.comments;
+                                    const shares = post?.stats?.shares;
+                                    const saved = post?.stats?.saved;
                                     return (
                                       <div key={item._id} className="bg-white border border-slate-200 rounded-lg">
                                         {notesOnly ? (
                                           <div className="px-3 pt-3">
-                                            <p className="text-[11px] text-slate-500">{snippet}</p>
+                                            <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
                                           </div>
                                         ) : (
-                                          <div className="p-3 flex items-start gap-3">
-                                            {post?.coverUrl ? (
-                                              <Image src={post.coverUrl} alt="capa" width={56} height={56} className="w-14 h-14 rounded object-cover border" />
+                                          <div className="p-3 flex items-start gap-4">
+                                            {coverSrc ? (
+                                              <Image
+                                                src={coverSrc}
+                                                alt="capa"
+                                                width={96}
+                                                height={96}
+                                                className="w-24 h-24 rounded-xl object-cover border"
+                                                unoptimized
+                                                referrerPolicy="no-referrer"
+                                              />
                                             ) : (
-                                              <div className="w-14 h-14 bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400">Sem img</div>
+                                              <div className="w-24 h-24 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] text-slate-400">Sem img</div>
                                             )}
                                             <div className="min-w-0">
                                               <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
-                                              <p className="text-sm text-slate-900 line-clamp-2">{rawText}</p>
                                               {!hideMetrics && (
-                                                <p className="text-[11px] text-slate-500">Interacoes: {formatNumber(post?.stats?.total_interactions)}</p>
+                                                <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-500">
+                                                  {typeof totalInteractions === 'number' && (
+                                                    <span className="font-medium text-slate-600">
+                                                      Interacoes {formatNumber(totalInteractions)}
+                                                    </span>
+                                                  )}
+                                                  {typeof likes === 'number' && (
+                                                    <span className="inline-flex items-center gap-1">
+                                                      <HeartIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                      {formatNumber(likes)}
+                                                    </span>
+                                                  )}
+                                                  {typeof comments === 'number' && (
+                                                    <span className="inline-flex items-center gap-1">
+                                                      <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                      {formatNumber(comments)}
+                                                    </span>
+                                                  )}
+                                                  {typeof shares === 'number' && (
+                                                    <span className="inline-flex items-center gap-1">
+                                                      <ShareIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                      {formatNumber(shares)}
+                                                    </span>
+                                                  )}
+                                                  {typeof saved === 'number' && (
+                                                    <span className="inline-flex items-center gap-1">
+                                                      <BookmarkIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                      {formatNumber(saved)}
+                                                    </span>
+                                                  )}
+                                                </div>
                                               )}
                                             </div>
                                           </div>
@@ -572,6 +724,14 @@ export default function ReviewedPostsPage() {
                                           </div>
                                           {!notesOnly && (
                                             <div className="flex items-center gap-2">
+                                              <button
+                                                onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
+                                                className={`text-slate-400 transition-colors ${canPlay ? 'hover:text-rose-600' : 'opacity-40 cursor-not-allowed'}`}
+                                                title={canPlay ? 'Assistir conteudo' : 'Video indisponivel'}
+                                                disabled={!canPlay}
+                                              >
+                                                <PlayCircleIcon className="w-5 h-5" />
+                                              </button>
                                               <button
                                                 onClick={() => openDetail(post?._id)}
                                                 className="text-slate-400 hover:text-indigo-600 transition-colors"
@@ -636,6 +796,13 @@ export default function ReviewedPostsPage() {
           </div>
         )}
 
+        <DiscoverVideoModal
+          open={isVideoOpen}
+          onClose={closeVideo}
+          videoUrl={activeVideo?.videoUrl}
+          postLink={activeVideo?.postLink}
+          posterUrl={activeVideo?.posterUrl}
+        />
         <PostDetailModal
           isOpen={isDetailOpen}
           onClose={closeDetail}
