@@ -1704,6 +1704,12 @@ export default function MediaKitView({
       ogAvatarFallback
     );
   }, [ogAvatarFallback, user]);
+  const avatarFallbackSrc = useMemo(() => {
+    if (heroAvatarUrl && ogAvatarFallback && heroAvatarUrl !== ogAvatarFallback) {
+      return ogAvatarFallback;
+    }
+    return '/images/default-profile.png';
+  }, [heroAvatarUrl, ogAvatarFallback]);
 
   const demographicBreakdowns = useMemo<DemographicBreakdowns | null>(() => {
     if (!demographics?.follower_demographics) return null;
@@ -2389,7 +2395,12 @@ export default function MediaKitView({
               <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
                 <div className="relative">
                   <div className="rounded-full bg-white p-1.5 shadow-xl ring-1 ring-slate-900/5">
-                    <UserAvatar name={user.name || 'Criador'} src={heroAvatarUrl} size={160} />
+                    <UserAvatar
+                      name={user.name || 'Criador'}
+                      src={heroAvatarUrl}
+                      fallbackSrc={avatarFallbackSrc}
+                      size={160}
+                    />
                   </div>
                 </div>
 

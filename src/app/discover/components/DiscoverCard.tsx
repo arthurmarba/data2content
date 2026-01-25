@@ -111,7 +111,7 @@ export default function DiscoverCard({
       className={`${isGrid ? 'w-full' : 'flex-shrink-0 h-[250px] w-auto snap-start'} relative select-none transition-all duration-300 ease-out hover:z-20 hover:scale-110 hover:ring-4 hover:ring-white rounded-lg`}
       aria-label={short || 'Post'}
     >
-      {item.postLink ? (
+      {item.postLink && !canPlayInline ? (
         <a
           href={item.postLink}
           target="_blank"
@@ -172,6 +172,7 @@ export default function DiscoverCard({
           }
           role={canPlayInline ? "button" : undefined}
           tabIndex={canPlayInline ? 0 : undefined}
+          aria-label={canPlayInline ? "Assistir vídeo" : "Post"}
         >
           {item.coverUrl ? (
             <Image

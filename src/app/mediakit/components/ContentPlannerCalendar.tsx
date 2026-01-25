@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { CalendarDays, Clock, Layers, Lock, Sparkles, Target, Wand2, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X } from 'lucide-react';
+import { Clock, Layers, Lock, Sparkles, Target, Wand2, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X } from 'lucide-react';
 import { PlannerUISlot } from '@/hooks/usePlannerData';
 import { idsToLabels } from '@/app/lib/classification';
 import { prefillInspirationCache, fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
@@ -192,8 +192,6 @@ export interface ContentPlannerCalendarProps {
   onDeleteSlot?: (slot: PlannerUISlot) => void;
 }
 
-import PlannerDayPicker from './PlannerDayPicker';
-import PlannerDailySchedule from './PlannerDailySchedule';
 
 export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   userId,
@@ -211,8 +209,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   onCreateSlot,
   onDeleteSlot,
 }) => {
-  const [viewMode, setViewMode] = React.useState<'list' | 'calendar'>('calendar');
-  const [selectedDay, setSelectedDay] = React.useState<number>(() => {
+  const [selectedDay] = React.useState<number>(() => {
     const today = new Date().getDay() + 1; // 1=Sun, 7=Sat
     return today;
   });
@@ -222,23 +219,6 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   const [communityLoading, setCommunityLoading] = useState(false);
   const [inspirationError, setInspirationError] = useState<string | null>(null);
   const [communityError, setCommunityError] = useState<string | null>(null);
-
-  // Responsive view mode switching
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setViewMode('list');
-      } else {
-        setViewMode('calendar');
-      }
-    };
-
-    // Set initial state
-    handleResize();
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const sortedSlots = useMemo(() => {
     if (!slots) return [] as PlannerUISlot[];
@@ -256,16 +236,6 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
       const key = keyFor(slot.dayOfWeek, slot.blockStartHour);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(slot);
-    });
-    return map;
-  }, [sortedSlots]);
-
-  const slotsByDay = useMemo(() => {
-    const map = new Map<number, PlannerUISlot[]>();
-    sortedSlots.forEach((slot) => {
-      const list = map.get(slot.dayOfWeek) || [];
-      list.push(slot);
-      map.set(slot.dayOfWeek, list);
     });
     return map;
   }, [sortedSlots]);
@@ -492,7 +462,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
     [inspirationSeed, inspirationTheme]
   );
   const shouldLoadInspirations =
-    viewMode === 'list' && Boolean(userId) && Boolean(inspirationSeed) && !publicMode && !locked;
+    Boolean(userId) && Boolean(inspirationSeed) && !publicMode && !locked;
 
   const loadInspirationPosts = useCallback(async () => {
     if (!inspirationSeed || !userId || publicMode || locked) return;
@@ -641,23 +611,8 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-end">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg bg-slate-100 p-1">
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-            >
-              Calendário
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-            >
-              Lista
-            </button>
-          </div>
+        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+          Lista
         </div>
       </div>
 
@@ -666,44 +621,19 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
       {loading && <PlannerLoadingSkeleton />}
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      {viewMode === 'calendar' ? (
-        <div className="flex flex-col gap-6">
-          <PlannerDayPicker
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            slotsByDay={slotsByDay}
-          />
-          <PlannerDailySchedule
-            dayIndex={selectedDay}
-            slots={slotsByDay.get(selectedDay) || []}
-            onOpenSlot={onOpenSlot}
-            onCreateSlot={onCreateSlot}
-            userId={userId}
-            publicMode={publicMode}
-            locked={locked}
-            onDeleteSlot={onDeleteSlot}
-          />
-        </div>
+      {slotCards.length ? (
+        <PlannerSlotCardGrid
+          cards={slotCards}
+          canEdit={canEdit}
+          onOpenSlot={onOpenSlot}
+          onRequestSubscribe={onRequestSubscribe}
+          userId={userId}
+          publicMode={publicMode}
+          locked={locked}
+          onDeleteSlot={onDeleteSlot}
+        />
       ) : (
-        <>
-          {slotCards.length ? (
-            <>
-              <PlannerSlotCardGrid
-                cards={slotCards}
-                canEdit={canEdit}
-                onOpenSlot={onOpenSlot}
-                onRequestSubscribe={onRequestSubscribe}
-                userId={userId}
-                publicMode={publicMode}
-                locked={locked}
-                onDeleteSlot={onDeleteSlot}
-              />
-
-            </>
-          ) : (
-            <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
-          )}
-        </>
+        <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
       )}
 
       {!publicMode && !canEdit && (

@@ -7,6 +7,7 @@ import React from 'react';
 interface UserAvatarProps {
   name?: string;
   src?: string | null;
+  fallbackSrc?: string | null;
   size?: number;
   className?: string;
 }
@@ -37,16 +38,25 @@ function getInitials(name?: string) {
 export function UserAvatar({
   name = 'Criador',
   src,
+  fallbackSrc,
   size = 40,
   className = '',
 }: UserAvatarProps) {
   const [errored, setErrored] = React.useState(false);
-  const showImage = !!src && !errored;
+  const [hasTriedFallback, setHasTriedFallback] = React.useState(false);
+  const [activeSrc, setActiveSrc] = React.useState<string | null>(src ?? null);
+  const showImage = !!activeSrc && !errored;
 
   const initials = getInitials(name);
   const isCircular = !className.includes('rounded-');
   const borderRadiusClass = isCircular ? 'rounded-full' : '';
   const baseClasses = `${borderRadiusClass} object-cover ${className}`;
+
+  React.useEffect(() => {
+    setActiveSrc(src ?? null);
+    setHasTriedFallback(false);
+    setErrored(false);
+  }, [src, fallbackSrc]);
 
   if (!showImage) {
     return (
@@ -61,9 +71,19 @@ export function UserAvatar({
     );
   }
 
+  const handleFailure = () => {
+    if (fallbackSrc && !hasTriedFallback && activeSrc !== fallbackSrc) {
+      setHasTriedFallback(true);
+      setErrored(false);
+      setActiveSrc(fallbackSrc);
+      return;
+    }
+    setErrored(true);
+  };
+
   // Para hosts do Instagram/Facebook, preferimos usar nosso proxy para evitar 403
-  let imgSrc = src as string;
-  if (isBlockedHost(src || undefined)) {
+  let imgSrc = activeSrc as string;
+  if (isBlockedHost(activeSrc || undefined)) {
     if (!imgSrc.startsWith('/api/proxy/thumbnail/')) {
       imgSrc = `/api/proxy/thumbnail/${encodeURIComponent(imgSrc)}`;
     }
@@ -87,12 +107,12 @@ export function UserAvatar({
       draggable={false}
       referrerPolicy="no-referrer"
       crossOrigin="anonymous"
-      onError={() => setErrored(true)}
+      onError={handleFailure}
       onLoad={(e) => {
         const el = e.currentTarget as HTMLImageElement;
         // Se o proxy devolveu um fallback 1x1 (em modo não estrito), trata como erro
         if (el.naturalWidth <= 2 && el.naturalHeight <= 2) {
-          setErrored(true);
+          handleFailure();
         }
       }}
     />

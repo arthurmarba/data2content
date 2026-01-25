@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
-import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, ChevronUpIcon, Play } from "lucide-react";
 import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
 
 interface TopDiscoveryPost {
@@ -98,7 +98,10 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                 {/* Header */}
                 <div className="grid grid-cols-[90px,80px,110px,140px,140px,110px,110px,75px,75px,75px,75px,75px] items-center gap-3 bg-slate-50/90 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 sticky top-0 z-10 border-b border-slate-200">
                     <div>Data</div>
-                    <div>Post</div>
+                    <div className="flex items-center gap-1">
+                        <Play className="h-3 w-3 text-slate-400" aria-hidden />
+                        <span>Post</span>
+                    </div>
                     <div>Formato</div>
                     <div>Proposta</div>
                     <div>Contexto</div>
@@ -138,6 +141,12 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                             Sem img
                                         </div>
                                     )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                                    <div className="absolute bottom-1 left-1 right-1 flex items-center justify-center">
+                                        <span className="inline-flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                            ▶ Ver vídeo
+                                        </span>
+                                    </div>
                                 </button>
                             ) : (
                                 <div className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">

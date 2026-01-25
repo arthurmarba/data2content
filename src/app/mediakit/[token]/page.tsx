@@ -8,6 +8,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import MediaKitPackage from '@/app/models/MediaKitPackage';
+import AccountInsightModel from '@/app/models/AccountInsight';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
 
@@ -47,6 +48,13 @@ function absoluteUrl(path: string) {
       ? 'https'
       : (process.env.NODE_ENV === 'production' ? 'https' : 'http');
   return `${proto}://${host}${path.startsWith('/') ? path : '/' + path}`;
+}
+
+function normalizeProfileCandidate(raw?: string | null) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
+  return trimmed;
 }
 
 // Gera metadados dinâmicos para que o link do mídia kit apresente informações
@@ -197,6 +205,15 @@ export default async function MediaKitPage(
     notFound();
   }
 
+  const latestInsight = await AccountInsightModel.findOne({
+    user: (user as any)._id,
+    'accountDetails.profile_picture_url': { $exists: true, $nin: [null, ''] },
+  })
+    .sort({ recordedAt: -1 })
+    .select('accountDetails.profile_picture_url')
+    .lean();
+  const insightAvatar = normalizeProfileCandidate(latestInsight?.accountDetails?.profile_picture_url ?? null);
+
   const reqHeaders = headers();
   const ip = getClientIpFromHeaders(reqHeaders, req);
   const referer = reqHeaders.get('referer') || undefined;
@@ -251,6 +268,14 @@ export default async function MediaKitPage(
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));
+  const hasAvatarCandidate =
+    normalizeProfileCandidate((plainUser as any)?.profile_picture_url) ||
+    normalizeProfileCandidate((plainUser as any)?.image) ||
+    normalizeProfileCandidate((plainUser as any)?.instagram?.profile_picture_url) ||
+    normalizeProfileCandidate((plainUser as any)?.instagram?.profilePictureUrl);
+  if (!hasAvatarCandidate && insightAvatar) {
+    (plainUser as any).profile_picture_url = insightAvatar;
+  }
   const displayName =
     (plainUser as any)?.mediaKitDisplayName ||
     (plainUser as any)?.name ||
