@@ -16,21 +16,21 @@ const STATUS_LABELS: Record<ReviewStatus, string> = {
 };
 
 const STATUS_STYLES: Record<ReviewStatus, string> = {
-  do: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-  dont: 'bg-rose-100 text-rose-800 ring-rose-200',
-  almost: 'bg-amber-100 text-amber-900 ring-amber-200',
+  do: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  dont: 'bg-rose-50 text-rose-700 border-rose-200',
+  almost: 'bg-amber-50 text-amber-800 border-amber-200',
 };
 
 const STATUS_PANEL_STYLES: Record<ReviewStatus, string> = {
-  do: 'border-emerald-200 bg-emerald-50/60',
-  dont: 'border-rose-200 bg-rose-50/60',
-  almost: 'border-amber-200 bg-amber-50/60',
+  do: 'border-slate-200 bg-white border-l-4 border-l-emerald-300',
+  dont: 'border-slate-200 bg-white border-l-4 border-l-rose-300',
+  almost: 'border-slate-200 bg-white border-l-4 border-l-amber-300',
 };
 
 const STATUS_NOTE_STYLES: Record<ReviewStatus, string> = {
-  do: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-  dont: 'border-rose-200 bg-rose-50 text-rose-900',
-  almost: 'border-amber-200 bg-amber-50 text-amber-900',
+  do: 'border-slate-200 bg-slate-50 text-slate-700 border-l-4 border-l-emerald-300',
+  dont: 'border-slate-200 bg-slate-50 text-slate-700 border-l-4 border-l-rose-300',
+  almost: 'border-slate-200 bg-slate-50 text-slate-700 border-l-4 border-l-amber-300',
 };
 
 interface ReviewPost {
@@ -124,17 +124,8 @@ const buildContextLabelMap = (categories: Category[]) => {
   return map;
 };
 
-const normalizeLabels = (values?: string[] | string, type?: 'proposal' | 'context') => {
-  if (!values || !type) return [];
-  const raw = Array.isArray(values) ? values : values.split(',').map((v) => v.trim()).filter(Boolean);
-  return idsToLabels(raw, type);
-};
-
 const statusOrder: ReviewStatus[] = ['dont', 'do', 'almost'];
-const boardBgStyle = {
-  backgroundImage: 'linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)',
-  backgroundSize: '28px 28px',
-};
+const cardBase = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
 
 export default function ReviewedPostsPage() {
   const searchParams = useSearchParams();
@@ -372,39 +363,42 @@ export default function ReviewedPostsPage() {
   }, [buildSummaryText]);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8" style={boardBgStyle}>
+    <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="max-w-full mx-auto space-y-8">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className={`font-black text-slate-900 ${presentationMode ? 'text-4xl' : 'text-3xl'}`}>Conteudos revisados</h1>
-              <p className="text-sm text-slate-600">Organize por categoria dominante do criador e veja os conteudos marcados.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setPresentationMode((value) => !value)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${presentationMode ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300'}`}
-              >
-                {presentationMode ? 'Modo reuniao ativo' : 'Modo reuniao'}
-              </button>
-              <button
-                onClick={() => setNotesOnly((value) => !value)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${notesOnly ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300'}`}
-              >
-                {notesOnly ? 'So notas' : 'Mostrar notas'}
-              </button>
-              <button
-                onClick={() => setHideMetrics((value) => !value)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${hideMetrics ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300'}`}
-              >
-                {hideMetrics ? 'Ocultar metricas' : 'Mostrar metricas'}
-              </button>
-            </div>
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reuniao e alinhamento</p>
+            <h1 className={`font-bold text-slate-900 ${presentationMode ? 'text-3xl' : 'text-2xl'}`}>Conteudos revisados</h1>
+            <p className="text-sm text-slate-600">Organize por categoria dominante do criador e apresente as notas com clareza.</p>
           </div>
-        </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setPresentationMode((value) => !value)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${presentationMode ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+            >
+              {presentationMode ? 'Modo reuniao ativo' : 'Modo reuniao'}
+            </button>
+            <button
+              onClick={() => setNotesOnly((value) => !value)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${notesOnly ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+            >
+              {notesOnly ? 'Somente notas' : 'Somente notas'}
+            </button>
+            <button
+              onClick={() => setHideMetrics((value) => !value)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${hideMetrics ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+            >
+              {hideMetrics ? 'Ocultar metricas' : 'Mostrar metricas'}
+            </button>
+          </div>
+        </header>
 
         {!presentationMode && (
-          <div className="bg-white/90 backdrop-blur border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className={`${cardBase} p-4 space-y-3`}>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filtros</p>
+              <h2 className="text-sm font-semibold text-slate-900">Refine o recorte da reuniao</h2>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="statusFilter" className="block text-xs font-semibold text-slate-600 mb-1">Status</label>
@@ -415,7 +409,7 @@ export default function ReviewedPostsPage() {
                     setStatusFilter(e.target.value as ReviewStatus | '');
                     setPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-white"
                 >
                   <option value="">Todos</option>
                   {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -432,7 +426,7 @@ export default function ReviewedPostsPage() {
                     setCreatorContextFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-white"
                 >
                   <option value="">Todas</option>
                   {contextOptions.map((c) => (
@@ -451,7 +445,7 @@ export default function ReviewedPostsPage() {
                     setPage(1);
                   }}
                   placeholder="Digite o nome..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-white"
                 />
               </div>
             </div>
@@ -459,24 +453,23 @@ export default function ReviewedPostsPage() {
         )}
 
         {grouped.length > 0 && (
-          <div className="bg-white/90 backdrop-blur border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-slate-700">Agenda por categoria</h2>
+          <div className={`${cardBase} p-4`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Agenda</p>
+                <h2 className="text-sm font-semibold text-slate-900">Pular por categoria</h2>
+              </div>
               <span className="text-xs text-slate-500">Clique para pular</span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-3">
               {grouped.map((contextGroup) => {
-                const totalContextItems = contextGroup.creators.reduce(
-                  (acc, creator) => acc + statusOrder.reduce((sum, status) => sum + creator.itemsByStatus[status].length, 0),
-                  0
-                );
                 return (
                   <a
                     key={contextGroup.id}
                     href={`#${getContextAnchorId(contextGroup.id)}`}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                   >
-                    {contextGroup.label} · {totalContextItems}
+                    {contextGroup.label}
                   </a>
                 );
               })}
@@ -496,30 +489,19 @@ export default function ReviewedPostsPage() {
               (acc, creator) => acc + statusOrder.reduce((sum, status) => sum + creator.itemsByStatus[status].length, 0),
               0
             );
-            const contextStatusTotals = statusOrder.reduce<Record<ReviewStatus, number>>((acc, status) => {
-              acc[status] = contextGroup.creators.reduce((sum, creator) => sum + creator.itemsByStatus[status].length, 0);
-              return acc;
-            }, { do: 0, dont: 0, almost: 0 });
             return (
               <section id={getContextAnchorId(contextGroup.id)} key={contextGroup.id} className="space-y-4 scroll-mt-24">
-                <div className="sticky top-4 z-10 -mx-2 px-2 py-2 rounded-xl bg-slate-50/95 backdrop-blur">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-xl font-black text-slate-900 bg-yellow-300 px-3 py-1 rounded-md shadow-sm">
-                      {contextGroup.label}
-                    </span>
-                    <span className="text-xs text-slate-600 bg-white border border-slate-200 px-2 py-1 rounded-full">
-                      {contextGroup.creators.length} criadores · {totalContextItems} conteudos
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {statusOrder.map((status) => (
-                        <span key={status} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}>
-                          {STATUS_LABELS[status]} {contextStatusTotals[status]}
-                        </span>
-                      ))}
+                <div className={`${cardBase} p-4`}>
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="min-w-[200px]">
+                      <h3 className="text-lg font-semibold text-slate-900">{contextGroup.label}</h3>
+                      <p className="text-xs text-slate-500">
+                        {contextGroup.creators.length} criadores · {totalContextItems} conteudos
+                      </p>
                     </div>
                     <button
                       onClick={() => handleCopySummary(contextGroup)}
-                      className="ml-auto px-3 py-1.5 text-xs font-semibold rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      className="ml-auto px-3 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     >
                       {copiedContextId === contextGroup.id ? 'Copiado!' : 'Copiar resumo'}
                     </button>
@@ -530,10 +512,6 @@ export default function ReviewedPostsPage() {
                   <div className="flex gap-6 min-w-max">
                     {contextGroup.creators.map((creator) => {
                       const totalItems = statusOrder.reduce((acc, status) => acc + creator.itemsByStatus[status].length, 0);
-                      const creatorStatusTotals = statusOrder.reduce<Record<ReviewStatus, number>>((acc, status) => {
-                        acc[status] = creator.itemsByStatus[status].length;
-                        return acc;
-                      }, { do: 0, dont: 0, almost: 0 });
                       return (
                         <div key={creator.id} className="w-[320px] shrink-0">
                           <div className="flex items-center justify-between gap-2 mb-3">
@@ -543,42 +521,37 @@ export default function ReviewedPostsPage() {
                               ) : (
                                 <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-500">N/A</div>
                               )}
-                              <span className="bg-yellow-200 text-slate-900 font-semibold text-sm px-2 py-1 rounded-md shadow-sm">
-                                {creator.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-[11px] text-slate-600">
-                              <span>{totalItems} itens</span>
-                              <span className="text-slate-300">•</span>
-                              {statusOrder.map((status) => (
-                                <span key={status} title={STATUS_LABELS[status]} className={`px-1.5 py-0.5 rounded-full ring-1 ring-inset ${STATUS_STYLES[status]}`}>
-                                  {creatorStatusTotals[status]}
-                                </span>
-                              ))}
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">{creator.name}</p>
+                                <p className="text-xs text-slate-500">{totalItems} conteudos</p>
+                              </div>
                             </div>
                           </div>
 
                           <div className="space-y-3">
-                            {statusOrder.map((status) => (
-                              <div key={status} className={`rounded-xl border ${STATUS_PANEL_STYLES[status]} shadow-sm`}>
-                                <div className="flex items-center justify-between px-3 py-2 border-b border-white/60">
+                            {statusOrder.filter((status) => creator.itemsByStatus[status].length > 0).map((status) => (
+                              <div key={status} className={`rounded-xl border ${STATUS_PANEL_STYLES[status]}`}>
+                                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${STATUS_STYLES[status]}`}>
                                     {STATUS_LABELS[status]}
                                   </span>
-                                  <span className="text-xs text-slate-600">{creator.itemsByStatus[status].length}</span>
+                                  <span className="text-xs text-slate-500">{creator.itemsByStatus[status].length}</span>
                                 </div>
                                 <div className="p-3 space-y-3">
-                                  {creator.itemsByStatus[status].length === 0 ? (
-                                    <p className="text-xs text-slate-500">Sem conteudos.</p>
-                                  ) : (
-                                    creator.itemsByStatus[status].map((item) => {
-                                      const post = item.post;
-                                      const link = post?.postLink || (post?.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
-                                      const contextLabels = normalizeLabels(post?.context, 'context');
-                                      const proposalLabels = normalizeLabels(post?.proposal, 'proposal');
-                                      return (
-                                        <div key={item._id} className="bg-white border border-slate-200 rounded-lg shadow-sm">
-                                        <div className={`p-3 flex items-start gap-2 ${notesOnly ? 'hidden' : ''}`}>
+                                  {creator.itemsByStatus[status].map((item) => {
+                                    const post = item.post;
+                                    const link = post?.postLink || (post?.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
+                                    const rawText = post?.text_content || post?.description || 'Sem legenda...';
+                                    const cleanedText = rawText.replace(/\s+/g, ' ').trim();
+                                    const snippet = cleanedText.length > 90 ? `${cleanedText.slice(0, 90)}…` : cleanedText;
+                                    return (
+                                      <div key={item._id} className="bg-white border border-slate-200 rounded-lg">
+                                        {notesOnly ? (
+                                          <div className="px-3 pt-3">
+                                            <p className="text-[11px] text-slate-500">{snippet}</p>
+                                          </div>
+                                        ) : (
+                                          <div className="p-3 flex items-start gap-3">
                                             {post?.coverUrl ? (
                                               <Image src={post.coverUrl} alt="capa" width={56} height={56} className="w-14 h-14 rounded object-cover border" />
                                             ) : (
@@ -586,29 +559,19 @@ export default function ReviewedPostsPage() {
                                             )}
                                             <div className="min-w-0">
                                               <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
-                                              <p className="text-sm text-slate-900 line-clamp-2">{post?.text_content || post?.description || 'Sem legenda...'}</p>
+                                              <p className="text-sm text-slate-900 line-clamp-2">{rawText}</p>
                                               {!hideMetrics && (
                                                 <p className="text-[11px] text-slate-500">Interacoes: {formatNumber(post?.stats?.total_interactions)}</p>
                                               )}
-                                              <div className="flex flex-wrap gap-1 mt-1">
-                                                {contextLabels.slice(0, 1).map((label) => (
-                                                  <span key={`ctx-${label}`} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200">
-                                                    {label}
-                                                  </span>
-                                                ))}
-                                                {proposalLabels.slice(0, 1).map((label) => (
-                                                  <span key={`prop-${label}`} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                                                    {label}
-                                                  </span>
-                                                ))}
-                                              </div>
                                             </div>
                                           </div>
-                                          <div className="px-3 pb-3 space-y-2">
-                                            <div className={`text-[11px] border rounded-md px-2 py-1 ${STATUS_NOTE_STYLES[status]}`}>
-                                              <span className="font-semibold">Nota:</span> {item.note || '—'}
-                                            </div>
-                                            <div className={`flex items-center gap-2 ${notesOnly ? 'hidden' : ''}`}>
+                                        )}
+                                        <div className="px-3 pb-3 space-y-2">
+                                          <div className={`text-[11px] border rounded-md px-2 py-1 ${STATUS_NOTE_STYLES[status]}`}>
+                                            {item.note || 'Sem anotacao.'}
+                                          </div>
+                                          {!notesOnly && (
+                                            <div className="flex items-center gap-2">
                                               <button
                                                 onClick={() => openDetail(post?._id)}
                                                 className="text-slate-400 hover:text-indigo-600 transition-colors"
@@ -632,11 +595,11 @@ export default function ReviewedPostsPage() {
                                                 <ArrowTopRightOnSquareIcon className="w-5 h-5" />
                                               </button>
                                             </div>
-                                          </div>
+                                          )}
                                         </div>
-                                      );
-                                    })
-                                  )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             ))}
