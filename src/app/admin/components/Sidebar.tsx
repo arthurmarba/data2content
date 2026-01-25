@@ -10,6 +10,7 @@ import {
   BanknotesIcon, // Para Resgates
   CpuChipIcon,  // Para Inteligência (ou LightBulbIcon)
   HomeIcon,     // Para o Dashboard Admin (Creator Dashboard)
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline'; // Usando outline para consistência
 
 interface NavItem {
@@ -20,6 +21,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/admin/creator-dashboard', label: 'Dashboard', icon: HomeIcon },
+  { href: '/admin/reviewed-posts', label: 'Revisados', icon: ClipboardDocumentCheckIcon },
   { href: '/admin/creators-management', label: 'Criadores', icon: UsersIcon }, // Exemplo de rota
   // Link para gerenciamento de agências
   { href: '/admin/agencies', label: 'Agências', icon: UserGroupIcon },

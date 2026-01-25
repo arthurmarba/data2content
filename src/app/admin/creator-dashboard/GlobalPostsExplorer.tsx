@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
 import { useInView } from 'react-intersection-observer';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
@@ -11,6 +12,7 @@ import {
   XMarkIcon,
   ArrowRightIcon,
   ChartBarIcon, // Added
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import {
   Category,
@@ -34,6 +36,12 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', varia
 
 const POSTS_CACHE_TTL = 60 * 1000;
 const MAX_POSTS_CACHE = 20;
+type ReviewStatus = 'do' | 'dont' | 'almost';
+const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  do: 'Fazer',
+  dont: 'Não fazer',
+  almost: 'Quase lá',
+};
 
 const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => (
   <div className="text-center py-8">
@@ -182,6 +190,7 @@ interface PostsTableRowProps {
   onOpenTrendChart: (postId: string) => void;
   onOpenExternalLink: (post: IGlobalPostResult) => void;
   onCopyLink: (post: IGlobalPostResult) => void;
+  onOpenReviewModal: (post: IGlobalPostResult) => void;
 }
 
 const PostsTableRow = memo(function PostsTableRow({
@@ -191,6 +200,7 @@ const PostsTableRow = memo(function PostsTableRow({
   onOpenTrendChart,
   onOpenExternalLink,
   onCopyLink,
+  onOpenReviewModal,
 }: PostsTableRowProps) {
   return (
     <tr className="hover:bg-gray-50 transition-colors" style={rowStyle}>
@@ -266,6 +276,13 @@ const PostsTableRow = memo(function PostsTableRow({
                   disabled={!externalLink}
                 >
                   <ClipboardIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onOpenReviewModal(post)}
+                  className="text-gray-400 hover:text-indigo-600 transition-colors"
+                  title="Marcar review"
+                >
+                  <PencilSquareIcon className="w-5 h-5" />
                 </button>
               </div>
             </td>
@@ -369,6 +386,164 @@ const PostDetailModal = ({ isOpen, onClose, postId, apiPrefix }: {
   );
 };
 
+const PostReviewModal = ({ isOpen, onClose, post, apiPrefix }: {
+  isOpen: boolean;
+  onClose: () => void;
+  post: IGlobalPostResult | null;
+  apiPrefix: string;
+}) => {
+  const [status, setStatus] = useState<ReviewStatus>('do');
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !post?._id) return;
+    let isMounted = true;
+    const fetchReview = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${apiPrefix}/dashboard/post-reviews?postId=${post._id}`);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Falha ao carregar review.');
+        }
+        const data = await res.json();
+        if (!isMounted) return;
+        if (data.review) {
+          setStatus(data.review.status || 'do');
+          setNote(data.review.note || '');
+        } else {
+          setStatus('do');
+          setNote('');
+        }
+      } catch (err: any) {
+        if (isMounted) setError(err.message || 'Falha ao carregar review.');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchReview();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, post, apiPrefix]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStatus('do');
+      setNote('');
+      setError(null);
+      setLoading(false);
+      setSaving(false);
+    }
+  }, [isOpen]);
+
+  const handleSave = async () => {
+    if (!post?._id) return;
+    const trimmedNote = note.trim();
+    if (!trimmedNote) {
+      setError('A anotação é obrigatória.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`${apiPrefix}/dashboard/post-reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: post._id,
+          status,
+          note: trimmedNote,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao salvar review.');
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Falha ao salvar review.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen || !post) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-xl rounded-lg shadow-xl relative p-6 space-y-4">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-500" aria-label="Fechar">
+          <XMarkIcon className="w-5 h-5" />
+        </button>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Marcar conteudo</h3>
+          <p className="text-sm text-gray-500">Defina a categoria e a anotação para esta análise.</p>
+        </div>
+        <div className="flex gap-3 items-start">
+          {post.coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={String(post.coverUrl)} alt="capa" className="w-24 h-24 object-cover rounded border" />
+          ) : (
+            <div className="w-24 h-24 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400">Sem img</div>
+          )}
+          <div className="flex-1 text-sm text-gray-600">
+            <p className="font-semibold text-gray-800 truncate">{post.creatorName || 'Criador'}</p>
+            <p className="line-clamp-3">{post.text_content || post.description || 'Sem legenda...'}</p>
+          </div>
+        </div>
+        {loading ? (
+          <div className="text-sm text-gray-500">Carregando review...</div>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="review-status" className="block text-xs font-semibold text-gray-600 mb-1">Categoria</label>
+              <select
+                id="review-status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ReviewStatus)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+              >
+                {Object.entries(REVIEW_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="review-note" className="block text-xs font-semibold text-gray-600 mb-1">Anotação</label>
+              <textarea
+                id="review-note"
+                rows={4}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Escreva observações para a reunião..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+              />
+            </div>
+          </div>
+        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || loading || !note.trim()}
+            className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+          >
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 interface GlobalPostsExplorerProps {
   apiPrefix?: string;
@@ -405,6 +580,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
   forceContext,
   creatorContextFilter,
 }: GlobalPostsExplorerProps) {
+  const router = useRouter();
   const [selectedContext, setSelectedContext] = useState<string[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<string[]>([]);
   const [selectedFormat, setSelectedFormat] = useState<string[]>([]);
@@ -442,6 +618,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
   const [selectedPostIdForModal, setSelectedPostIdForModal] = useState<string | null>(null);
   const [isTrendChartOpen, setIsTrendChartOpen] = useState(false);
   const [selectedPostIdForTrend, setSelectedPostIdForTrend] = useState<string | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedPostForReview, setSelectedPostForReview] = useState<IGlobalPostResult | null>(null);
   const { ref: postsTableRef, inView: postsTableInView } = useInView({ triggerOnce: true, rootMargin: '200px' });
   const shouldFetchPosts = viewMode === 'explorer' || postsTableInView;
 
@@ -506,6 +684,14 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
   const handleClosePostDetailModal = useCallback(() => { setIsPostDetailModalOpen(false); setSelectedPostIdForModal(null); }, []);
   const handleOpenTrendChart = useCallback((postId: string) => { setSelectedPostIdForTrend(postId); setIsTrendChartOpen(true); }, []);
   const handleCloseTrendChart = useCallback(() => { setIsTrendChartOpen(false); setSelectedPostIdForTrend(null); }, []);
+  const handleOpenReviewModal = useCallback((post: IGlobalPostResult) => {
+    setSelectedPostForReview(post);
+    setIsReviewModalOpen(true);
+  }, []);
+  const handleCloseReviewModal = useCallback(() => {
+    setIsReviewModalOpen(false);
+    setSelectedPostForReview(null);
+  }, []);
   const handleOpenExternalLink = useCallback((post: IGlobalPostResult) => {
     const link = post.postLink || (post.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
     if (link) window.open(link, '_blank', 'noopener,noreferrer');
@@ -520,6 +706,13 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
       /* no-op */
     }
   }, []);
+
+  const handleViewReviews = useCallback(() => {
+    const params = new URLSearchParams();
+    if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
+    const query = params.toString();
+    router.push(`/admin/reviewed-posts${query ? `?${query}` : ''}`);
+  }, [creatorContextFilter, router]);
 
   const buildQueryParams = useCallback((filters: ActiveFilters, sort: SortConfig, pageLimit: { page: number, limit: number }) => {
     const mergedContext = forceContext && forceContext.length ? forceContext : filters.context;
@@ -805,6 +998,12 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
             </button>
           </div>
           <button
+            onClick={handleViewReviews}
+            className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-md shadow-sm hover:bg-gray-50"
+          >
+            Ver revisados
+          </button>
+          <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-md shadow-sm hover:bg-gray-50 ml-2"
           >
@@ -940,6 +1139,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
                           onOpenTrendChart={handleOpenTrendChart}
                           onOpenExternalLink={handleOpenExternalLink}
                           onCopyLink={handleCopyLink}
+                          onOpenReviewModal={handleOpenReviewModal}
                         />
                       ))}
                     </tbody>
@@ -957,6 +1157,12 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
             isOpen={isPostDetailModalOpen}
             onClose={handleClosePostDetailModal}
             postId={selectedPostIdForModal}
+            apiPrefix={apiPrefix}
+          />
+          <PostReviewModal
+            isOpen={isReviewModalOpen}
+            onClose={handleCloseReviewModal}
+            post={selectedPostForReview}
             apiPrefix={apiPrefix}
           />
 
