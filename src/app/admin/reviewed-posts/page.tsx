@@ -34,9 +34,9 @@ const STATUS_STYLES: Record<ReviewStatus, string> = {
 };
 
 const STATUS_PANEL_STYLES: Record<ReviewStatus, string> = {
-  do: 'border-slate-200 bg-white border-l-4 border-l-emerald-300',
-  dont: 'border-slate-200 bg-white border-l-4 border-l-rose-300',
-  almost: 'border-slate-200 bg-white border-l-4 border-l-amber-300',
+  do: 'border-slate-200 bg-white border-t-4 border-t-emerald-300',
+  dont: 'border-slate-200 bg-white border-t-4 border-t-rose-300',
+  almost: 'border-slate-200 bg-white border-t-4 border-t-amber-300',
 };
 
 const STATUS_NOTE_STYLES: Record<ReviewStatus, string> = {
@@ -597,7 +597,11 @@ export default function ReviewedPostsPage() {
               0
             );
             return (
-              <section id={getContextAnchorId(contextGroup.id)} key={contextGroup.id} className="space-y-4 scroll-mt-24">
+              <section
+                id={getContextAnchorId(contextGroup.id)}
+                key={contextGroup.id}
+                className="space-y-4 scroll-mt-24 pb-8 border-b border-slate-200/60 last:border-b-0 last:pb-0"
+              >
                 <div className={`${cardBase} p-4`}>
                   <div className="flex flex-wrap items-start gap-4">
                     <div className="min-w-[200px]">
@@ -620,7 +624,7 @@ export default function ReviewedPostsPage() {
                     {contextGroup.creators.map((creator) => {
                       const totalItems = statusOrder.reduce((acc, status) => acc + creator.itemsByStatus[status].length, 0);
                       return (
-                        <div key={creator.id} className="w-[320px] shrink-0">
+                        <div key={creator.id} className="w-[720px] shrink-0">
                           <div className="flex items-center justify-between gap-2 mb-3">
                             <div className="flex items-center gap-2">
                               <UserAvatar
@@ -636,9 +640,9 @@ export default function ReviewedPostsPage() {
                             </div>
                           </div>
 
-                          <div className="space-y-3">
-                            {statusOrder.filter((status) => creator.itemsByStatus[status].length > 0).map((status) => (
-                              <div key={status} className={`rounded-xl border ${STATUS_PANEL_STYLES[status]}`}>
+                          <div className="grid grid-cols-3 gap-3">
+                            {statusOrder.map((status) => (
+                              <div key={status} className={`rounded-xl border ${STATUS_PANEL_STYLES[status]} bg-white`}>
                                 <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${STATUS_STYLES[status]}`}>
                                     {STATUS_LABELS[status]}
@@ -646,120 +650,124 @@ export default function ReviewedPostsPage() {
                                   <span className="text-xs text-slate-500">{creator.itemsByStatus[status].length}</span>
                                 </div>
                                 <div className="p-3 space-y-3">
-                                  {creator.itemsByStatus[status].map((item) => {
-                                    const post = item.post;
-                                    const link = post?.postLink || (post?.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
-                                    const coverSrc = toThumbnailProxyUrl(
-                                      post?.coverUrl || post?.thumbnailUrl || post?.thumbnail_url || null
-                                    );
-                                    const videoUrl = toVideoProxyUrl(post?.mediaUrl || post?.media_url || null);
-                                    const canPlay = Boolean(videoUrl || link);
-                                    const totalInteractions = post?.stats?.total_interactions;
-                                    const likes = post?.stats?.likes;
-                                    const comments = post?.stats?.comments;
-                                    const shares = post?.stats?.shares;
-                                    const saved = post?.stats?.saved;
-                                    return (
-                                      <div key={item._id} className="bg-white border border-slate-200 rounded-lg">
-                                        {notesOnly ? (
-                                          <div className="px-3 pt-3">
-                                            <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
-                                          </div>
-                                        ) : (
-                                          <div className="p-3 flex items-start gap-4">
-                                            {coverSrc ? (
-                                              <Image
-                                                src={coverSrc}
-                                                alt="capa"
-                                                width={96}
-                                                height={96}
-                                                className="w-24 h-24 rounded-xl object-cover border"
-                                                unoptimized
-                                                referrerPolicy="no-referrer"
-                                              />
-                                            ) : (
-                                              <div className="w-24 h-24 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] text-slate-400">Sem img</div>
-                                            )}
-                                            <div className="min-w-0">
+                                  {creator.itemsByStatus[status].length === 0 ? (
+                                    <p className="text-[11px] text-slate-400">Sem itens.</p>
+                                  ) : (
+                                    creator.itemsByStatus[status].map((item) => {
+                                      const post = item.post;
+                                      const link = post?.postLink || (post?.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
+                                      const coverSrc = toThumbnailProxyUrl(
+                                        post?.coverUrl || post?.thumbnailUrl || post?.thumbnail_url || null
+                                      );
+                                      const videoUrl = toVideoProxyUrl(post?.mediaUrl || post?.media_url || null);
+                                      const canPlay = Boolean(videoUrl || link);
+                                      const totalInteractions = post?.stats?.total_interactions;
+                                      const likes = post?.stats?.likes;
+                                      const comments = post?.stats?.comments;
+                                      const shares = post?.stats?.shares;
+                                      const saved = post?.stats?.saved;
+                                      return (
+                                        <div key={item._id} className="bg-white border border-slate-200 rounded-lg">
+                                          {notesOnly ? (
+                                            <div className="px-3 pt-3">
                                               <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
-                                              {!hideMetrics && (
-                                                <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-500">
-                                                  {typeof totalInteractions === 'number' && (
-                                                    <span className="font-medium text-slate-600">
-                                                      Interacoes {formatNumber(totalInteractions)}
-                                                    </span>
-                                                  )}
-                                                  {typeof likes === 'number' && (
-                                                    <span className="inline-flex items-center gap-1">
-                                                      <HeartIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                      {formatNumber(likes)}
-                                                    </span>
-                                                  )}
-                                                  {typeof comments === 'number' && (
-                                                    <span className="inline-flex items-center gap-1">
-                                                      <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                      {formatNumber(comments)}
-                                                    </span>
-                                                  )}
-                                                  {typeof shares === 'number' && (
-                                                    <span className="inline-flex items-center gap-1">
-                                                      <ShareIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                      {formatNumber(shares)}
-                                                    </span>
-                                                  )}
-                                                  {typeof saved === 'number' && (
-                                                    <span className="inline-flex items-center gap-1">
-                                                      <BookmarkIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                      {formatNumber(saved)}
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              )}
                                             </div>
-                                          </div>
-                                        )}
-                                        <div className="px-3 pb-3 space-y-2">
-                                          <div className={`text-[11px] border rounded-md px-2 py-1 ${STATUS_NOTE_STYLES[status]}`}>
-                                            {item.note || 'Sem anotacao.'}
-                                          </div>
-                                          {!notesOnly && (
-                                            <div className="flex items-center gap-2">
-                                              <button
-                                                onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
-                                                className={`text-slate-400 transition-colors ${canPlay ? 'hover:text-rose-600' : 'opacity-40 cursor-not-allowed'}`}
-                                                title={canPlay ? 'Assistir conteudo' : 'Video indisponivel'}
-                                                disabled={!canPlay}
-                                              >
-                                                <PlayCircleIcon className="w-5 h-5" />
-                                              </button>
-                                              <button
-                                                onClick={() => openDetail(post?._id)}
-                                                className="text-slate-400 hover:text-indigo-600 transition-colors"
-                                                title="Ver analise"
-                                              >
-                                                <DocumentMagnifyingGlassIcon className="w-5 h-5" />
-                                              </button>
-                                              <button
-                                                onClick={() => openEdit(item)}
-                                                className="text-slate-400 hover:text-amber-600 transition-colors"
-                                                title="Editar revisão"
-                                              >
-                                                <PencilSquareIcon className="w-5 h-5" />
-                                              </button>
-                                              <button
-                                                onClick={() => link && window.open(link, '_blank', 'noopener,noreferrer')}
-                                                className={`text-slate-400 transition-colors ${link ? 'hover:text-blue-600' : 'opacity-40 cursor-not-allowed'}`}
-                                                title={link ? 'Abrir post original' : 'Link indisponivel'}
-                                                disabled={!link}
-                                              >
-                                                <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-                                              </button>
+                                          ) : (
+                                            <div className="p-3 space-y-3">
+                                              {coverSrc ? (
+                                                <Image
+                                                  src={coverSrc}
+                                                  alt="capa"
+                                                  width={160}
+                                                  height={160}
+                                                  className="w-full h-40 rounded-xl object-cover border"
+                                                  unoptimized
+                                                  referrerPolicy="no-referrer"
+                                                />
+                                              ) : (
+                                                <div className="w-full h-40 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] text-slate-400">Sem img</div>
+                                              )}
+                                              <div className="min-w-0">
+                                                <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
+                                                {!hideMetrics && (
+                                                  <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-500">
+                                                    {typeof totalInteractions === 'number' && (
+                                                      <span className="font-medium text-slate-600">
+                                                        Interacoes {formatNumber(totalInteractions)}
+                                                      </span>
+                                                    )}
+                                                    {typeof likes === 'number' && (
+                                                      <span className="inline-flex items-center gap-1">
+                                                        <HeartIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                        {formatNumber(likes)}
+                                                      </span>
+                                                    )}
+                                                    {typeof comments === 'number' && (
+                                                      <span className="inline-flex items-center gap-1">
+                                                        <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                        {formatNumber(comments)}
+                                                      </span>
+                                                    )}
+                                                    {typeof shares === 'number' && (
+                                                      <span className="inline-flex items-center gap-1">
+                                                        <ShareIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                        {formatNumber(shares)}
+                                                      </span>
+                                                    )}
+                                                    {typeof saved === 'number' && (
+                                                      <span className="inline-flex items-center gap-1">
+                                                        <BookmarkIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                        {formatNumber(saved)}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
                                             </div>
                                           )}
+                                          <div className="px-3 pb-3 space-y-2">
+                                            <div className={`text-[12px] border rounded-md px-2 py-2 ${STATUS_NOTE_STYLES[status]}`}>
+                                              {item.note || 'Sem anotacao.'}
+                                            </div>
+                                            {!notesOnly && (
+                                              <div className="flex items-center gap-2">
+                                                <button
+                                                  onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
+                                                  className={`text-slate-400 transition-colors ${canPlay ? 'hover:text-rose-600' : 'opacity-40 cursor-not-allowed'}`}
+                                                  title={canPlay ? 'Assistir conteudo' : 'Video indisponivel'}
+                                                  disabled={!canPlay}
+                                                >
+                                                  <PlayCircleIcon className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                  onClick={() => openDetail(post?._id)}
+                                                  className="text-slate-400 hover:text-indigo-600 transition-colors"
+                                                  title="Ver analise"
+                                                >
+                                                  <DocumentMagnifyingGlassIcon className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                  onClick={() => openEdit(item)}
+                                                  className="text-slate-400 hover:text-amber-600 transition-colors"
+                                                  title="Editar revisão"
+                                                >
+                                                  <PencilSquareIcon className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                  onClick={() => link && window.open(link, '_blank', 'noopener,noreferrer')}
+                                                  className={`text-slate-400 transition-colors ${link ? 'hover:text-blue-600' : 'opacity-40 cursor-not-allowed'}`}
+                                                  title={link ? 'Abrir post original' : 'Link indisponivel'}
+                                                  disabled={!link}
+                                                >
+                                                  <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })
+                                  )}
                                 </div>
                               </div>
                             ))}
