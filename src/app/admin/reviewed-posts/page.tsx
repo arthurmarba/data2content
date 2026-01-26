@@ -630,11 +630,11 @@ export default function ReviewedPostsPage() {
                               <UserAvatar
                                 name={creator.name}
                                 src={creator.avatarUrl ? toThumbnailProxyUrl(creator.avatarUrl) : undefined}
-                                size={48}
+                                size={56}
                                 className="border border-slate-200"
                               />
                               <div>
-                                <p className="text-sm font-semibold text-slate-900">{creator.name}</p>
+                                <p className="text-base font-semibold text-slate-900">{creator.name}</p>
                                 <p className="text-xs text-slate-500">{totalItems} conteudos</p>
                               </div>
                             </div>
@@ -668,77 +668,74 @@ export default function ReviewedPostsPage() {
                                       const saved = post?.stats?.saved;
                                       return (
                                         <div key={item._id} className="bg-white border border-slate-200 rounded-lg">
-                                          {notesOnly ? (
-                                            <div className="px-3 pt-3">
-                                              <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
-                                            </div>
-                                          ) : (
-                                            <div className="p-3 space-y-3">
+                                          {!notesOnly && (
+                                            <div className="relative">
                                               {coverSrc ? (
                                                 <Image
                                                   src={coverSrc}
                                                   alt="capa"
                                                   width={160}
                                                   height={160}
-                                                  className="w-full h-40 rounded-xl object-cover border"
+                                                  className="w-full h-44 rounded-t-lg object-cover border-b"
                                                   unoptimized
                                                   referrerPolicy="no-referrer"
                                                 />
                                               ) : (
-                                                <div className="w-full h-40 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] text-slate-400">Sem img</div>
+                                                <div className="w-full h-44 bg-slate-100 rounded-t-lg flex items-center justify-center text-[10px] text-slate-400 border-b">Sem img</div>
                                               )}
-                                              <div className="min-w-0">
-                                                <p className="text-[11px] text-slate-500">{formatDate(post?.postDate)}</p>
-                                                {!hideMetrics && (
-                                                  <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-500">
-                                                    {typeof totalInteractions === 'number' && (
-                                                      <span className="font-medium text-slate-600">
-                                                        Interacoes {formatNumber(totalInteractions)}
-                                                      </span>
-                                                    )}
-                                                    {typeof likes === 'number' && (
-                                                      <span className="inline-flex items-center gap-1">
-                                                        <HeartIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                        {formatNumber(likes)}
-                                                      </span>
-                                                    )}
-                                                    {typeof comments === 'number' && (
-                                                      <span className="inline-flex items-center gap-1">
-                                                        <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                        {formatNumber(comments)}
-                                                      </span>
-                                                    )}
-                                                    {typeof shares === 'number' && (
-                                                      <span className="inline-flex items-center gap-1">
-                                                        <ShareIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                        {formatNumber(shares)}
-                                                      </span>
-                                                    )}
-                                                    {typeof saved === 'number' && (
-                                                      <span className="inline-flex items-center gap-1">
-                                                        <BookmarkIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                        {formatNumber(saved)}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </div>
-                                          )}
-                                          <div className="px-3 pb-3 space-y-2">
-                                            <div className={`text-[12px] border rounded-md px-2 py-2 ${STATUS_NOTE_STYLES[status]}`}>
-                                              {item.note || 'Sem anotacao.'}
-                                            </div>
-                                            {!notesOnly && (
-                                              <div className="flex items-center gap-2">
+                                              {canPlay && (
                                                 <button
                                                   onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
-                                                  className={`text-slate-400 transition-colors ${canPlay ? 'hover:text-rose-600' : 'opacity-40 cursor-not-allowed'}`}
-                                                  title={canPlay ? 'Assistir conteudo' : 'Video indisponivel'}
-                                                  disabled={!canPlay}
+                                                  className="absolute top-2 right-2 rounded-full bg-white/90 text-slate-700 shadow-sm p-1.5 hover:bg-white"
+                                                  title="Assistir conteudo"
                                                 >
                                                   <PlayCircleIcon className="w-5 h-5" />
                                                 </button>
+                                              )}
+                                            </div>
+                                          )}
+                                          <div className="px-3 py-3 space-y-3">
+                                            <div className={`text-base font-semibold leading-relaxed border rounded-lg px-3 py-3 shadow-sm ${STATUS_NOTE_STYLES[status]}`}>
+                                              {item.note || 'Sem anotacao.'}
+                                            </div>
+                                            <div className="flex items-center justify-between text-[11px] text-slate-500">
+                                              {!notesOnly && <span>{formatDate(post?.postDate)}</span>}
+                                              {typeof totalInteractions === 'number' && (
+                                                <span className="font-semibold text-slate-600">
+                                                  Total {formatNumber(totalInteractions)}
+                                                </span>
+                                              )}
+                                            </div>
+                                            {!hideMetrics && !notesOnly && (
+                                              <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+                                                {typeof likes === 'number' && (
+                                                  <span className="inline-flex items-center gap-1">
+                                                    <HeartIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                    {formatNumber(likes)}
+                                                  </span>
+                                                )}
+                                                {typeof comments === 'number' && (
+                                                  <span className="inline-flex items-center gap-1">
+                                                    <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                    {formatNumber(comments)}
+                                                  </span>
+                                                )}
+                                                {typeof shares === 'number' && (
+                                                  <span className="inline-flex items-center gap-1">
+                                                    <ShareIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                    {formatNumber(shares)}
+                                                  </span>
+                                                )}
+                                                {typeof saved === 'number' && (
+                                                  <span className="inline-flex items-center gap-1">
+                                                    <BookmarkIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                    {formatNumber(saved)}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            )}
+                                            {!notesOnly && (
+                                              <div className="flex items-center justify-end gap-2 pt-1">
                                                 <button
                                                   onClick={() => openDetail(post?._id)}
                                                   className="text-slate-400 hover:text-indigo-600 transition-colors"
