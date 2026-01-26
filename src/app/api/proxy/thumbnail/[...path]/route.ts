@@ -168,19 +168,24 @@ export async function GET(
     }
 
     // Cache miss — busca upstream
+    const requestHeaders: Record<string, string> = {
+      "accept-language": "en-US,en;q=0.9,pt-BR;q=0.8",
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+      accept:
+        "image/avif,image/webp,image/apng,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
+      "cache-control": "no-cache",
+      pragma: "no-cache",
+    };
+    // Alguns CDNs do Instagram exigem referer/origin; para fbcdn evitamos forçar cabeçalhos
+    const host = urlObj.hostname.toLowerCase();
+    if (host.includes("instagram.com") || host.endsWith("cdninstagram.com")) {
+      requestHeaders.referer = "https://www.instagram.com/";
+      requestHeaders.origin = "https://www.instagram.com";
+    }
+
     const upstreamRes = await fetch(targetUrl, {
-      headers: {
-        // Alguns CDNs do Instagram exigem referer/origin plausíveis
-        referer: "https://www.instagram.com/",
-        origin: "https://www.instagram.com",
-        "accept-language": "en-US,en;q=0.9,pt-BR;q=0.8",
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
-        accept:
-          "image/avif,image/webp,image/apng,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
-        "cache-control": "no-cache",
-        pragma: "no-cache",
-      },
+      headers: requestHeaders,
       redirect: "follow",
       cache: "no-store",
     });
@@ -256,11 +261,11 @@ export async function GET(
       // nada a fazer; apenas servimos o fluxo ao cliente
     }
 
-    const headers = new Headers();
-    headers.set("Content-Type", contentType);
-    headers.set("Cache-Control", `public, max-age=${BROWSER_MAX_AGE_SEC}`);
+    const responseHeaders = new Headers();
+    responseHeaders.set("Content-Type", contentType);
+    responseHeaders.set("Cache-Control", `public, max-age=${BROWSER_MAX_AGE_SEC}`);
 
-    return new Response(responseStream, { headers });
+    return new Response(responseStream, { headers: responseHeaders });
   } catch (err) {
     logger.error(`[thumbnail-proxy] Unexpected error for ${targetUrl}`, err);
     if (strict) {

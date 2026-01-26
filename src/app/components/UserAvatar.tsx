@@ -94,6 +94,33 @@ export function UserAvatar({
     imgSrc = imgSrc.includes('?') ? `${imgSrc}&strict=1` : `${imgSrc}?strict=1`;
   }
 
+  const isExternal = /^https?:\/\//i.test(imgSrc);
+  const useImgTag = imgSrc.startsWith('/api/mediakit/') || isExternal;
+  const referrerPolicy = isExternal ? undefined : 'no-referrer';
+  const crossOrigin = isExternal ? undefined : 'anonymous';
+
+  if (useImgTag) {
+    return (
+      <img
+        src={imgSrc}
+        alt={`Avatar de ${name}`}
+        width={size}
+        height={size}
+        className={baseClasses}
+        style={{ width: size, height: size }}
+        loading="lazy"
+        draggable={false}
+        onError={handleFailure}
+        onLoad={(e) => {
+          const el = e.currentTarget as HTMLImageElement;
+          if (el.naturalWidth <= 2 && el.naturalHeight <= 2) {
+            handleFailure();
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <Image
       src={imgSrc}
@@ -105,8 +132,8 @@ export function UserAvatar({
       style={{ width: size, height: size }}
       loading="lazy"
       draggable={false}
-      referrerPolicy="no-referrer"
-      crossOrigin="anonymous"
+      referrerPolicy={referrerPolicy}
+      crossOrigin={crossOrigin}
       onError={handleFailure}
       onLoad={(e) => {
         const el = e.currentTarget as HTMLImageElement;

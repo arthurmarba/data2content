@@ -82,6 +82,8 @@ function normalizeAvatarCandidate(raw?: string | null) {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
+  const lowered = trimmed.toLowerCase();
+  if (lowered.includes('default-profile.png')) return null;
   return trimmed;
 }
 
@@ -1690,26 +1692,23 @@ export default function MediaKitView({
     }
     return cleaned.length > 120 ? `${cleaned.slice(0, 117).trim()}…` : cleaned;
   }, [heroBio, user]);
-  const ogAvatarFallback = useMemo(() => {
+  const preferredIgAvatar = useMemo(() => pickAvailableIgAvatar(user), [user]);
+  const avatarApiUrl = useMemo(() => {
     if (!mediaKitSlug) return null;
-    return `/api/mediakit/${mediaKitSlug}/og-image`;
+    return `/api/mediakit/${mediaKitSlug}/avatar`;
   }, [mediaKitSlug]);
   const heroAvatarUrl = useMemo(() => {
     return (
+      avatarApiUrl ||
+      preferredIgAvatar ||
       normalizeAvatarCandidate((user as any)?.profile_picture_url) ||
       normalizeAvatarCandidate((user as any)?.image) ||
       normalizeAvatarCandidate((user as any)?.instagram?.profile_picture_url) ||
       normalizeAvatarCandidate((user as any)?.instagram?.profilePictureUrl) ||
-      pickAvailableIgAvatar(user) ||
-      ogAvatarFallback
+      null
     );
-  }, [ogAvatarFallback, user]);
-  const avatarFallbackSrc = useMemo(() => {
-    if (heroAvatarUrl && ogAvatarFallback && heroAvatarUrl !== ogAvatarFallback) {
-      return ogAvatarFallback;
-    }
-    return '/images/default-profile.png';
-  }, [heroAvatarUrl, ogAvatarFallback]);
+  }, [avatarApiUrl, preferredIgAvatar, user]);
+  const avatarFallbackSrc = null;
 
   const demographicBreakdowns = useMemo<DemographicBreakdowns | null>(() => {
     if (!demographics?.follower_demographics) return null;
