@@ -179,9 +179,18 @@ export async function GET(
     };
     // Alguns CDNs do Instagram exigem referer/origin; para fbcdn evitamos forçar cabeçalhos
     const host = urlObj.hostname.toLowerCase();
-    if (host.includes("instagram.com") || host.endsWith("cdninstagram.com")) {
+    const needsInstagramHeaders =
+      host.includes("instagram.com") ||
+      host.endsWith("cdninstagram.com") ||
+      host.includes("fbcdn.net") ||
+      host.includes("fbsbx.com");
+
+    if (needsInstagramHeaders) {
       requestHeaders.referer = "https://www.instagram.com/";
       requestHeaders.origin = "https://www.instagram.com";
+      requestHeaders["sec-fetch-dest"] = "image";
+      requestHeaders["sec-fetch-mode"] = "no-cors";
+      requestHeaders["sec-fetch-site"] = "cross-site";
     }
 
     const upstreamRes = await fetch(targetUrl, {
@@ -190,26 +199,26 @@ export async function GET(
       cache: "no-store",
     });
 
-  if (!upstreamRes.ok || !upstreamRes.body) {
-    logger.error(
-      `[thumbnail-proxy] Upstream fetch failed for ${targetUrl}: ${upstreamRes.status}`
-    );
-    if (strict) {
-      return new Response("Upstream image fetch failed", { status: 502 });
+    if (!upstreamRes.ok || !upstreamRes.body) {
+      logger.error(
+        `[thumbnail-proxy] Upstream fetch failed for ${targetUrl}: ${upstreamRes.status}`
+      );
+      if (strict) {
+        return new Response("Upstream image fetch failed", { status: 502 });
+      }
+      // Fallback: PNG 1x1 cinza (visível) para evitar "buracos"
+      const grayPng = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAADUlEQVR42mP8z8AARQMD8Z1kGAAAAABJRU5ErkJggg==",
+        "base64"
+      );
+      return new Response(grayPng, {
+        status: 200,
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": `public, max-age=${60 * 5}`, // 5 minutos apenas
+        },
+      });
     }
-    // Fallback: PNG 1x1 cinza (visível) para evitar "buracos"
-    const grayPng = Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAADUlEQVR42mP8z8AARQMD8Z1kGAAAAABJRU5ErkJggg==",
-      "base64"
-    );
-    return new Response(grayPng, {
-      status: 200,
-      headers: {
-        "Content-Type": "image/png",
-        "Cache-Control": `public, max-age=${60 * 5}`, // 5 minutos apenas
-      },
-    });
-  }
 
     const contentType =
       upstreamRes.headers.get("content-type") || "application/octet-stream";
@@ -242,7 +251,7 @@ export async function GET(
           try {
             await fs.promises.rm(partDataPath, { force: true });
             await fs.promises.rm(partMetaPath, { force: true });
-          } catch {}
+          } catch { }
           if (isReadOnlyFs(err)) {
             logger.warn(
               `[thumbnail-proxy] Disk cache disabled (read-only FS). Proceeding without cache.`,
