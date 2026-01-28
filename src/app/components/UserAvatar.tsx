@@ -3,6 +3,7 @@
 
 import Image from 'next/image';
 import React from 'react';
+import { getProxiedImageUrl, isBlockedHost } from '@/utils/imageUtils';
 
 interface UserAvatarProps {
   name?: string;
@@ -10,23 +11,6 @@ interface UserAvatarProps {
   fallbackSrc?: string | null;
   size?: number;
   className?: string;
-}
-
-function isBlockedHost(url?: string | null): boolean {
-  if (!url) return false;
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    return (
-      host.endsWith('fbcdn.net') ||
-      host.endsWith('xx.fbcdn.net') ||
-      host.endsWith('cdninstagram.com') ||
-      host.endsWith('instagram.com') ||
-      host.endsWith('fbsbx.com') ||
-      host.endsWith('facebook.com')
-    );
-  } catch {
-    return false;
-  }
 }
 
 function getInitials(name?: string) {
@@ -81,18 +65,9 @@ export function UserAvatar({
     setErrored(true);
   };
 
-  // Para hosts do Instagram/Facebook, preferimos usar nosso proxy para evitar 403
-  let imgSrc = activeSrc as string;
-  if (isBlockedHost(activeSrc || undefined)) {
-    if (!imgSrc.startsWith('/api/proxy/thumbnail/')) {
-      imgSrc = `/api/proxy/thumbnail/${encodeURIComponent(imgSrc)}`;
-    }
-  }
-
-  // Solicita modo estrito ao proxy (se já estiver usando) para evitar PNG 1x1 silencioso
-  if (imgSrc.startsWith('/api/proxy/thumbnail/')) {
-    imgSrc = imgSrc.includes('?') ? `${imgSrc}&strict=1` : `${imgSrc}?strict=1`;
-  }
+  // Usa o utilitário compartilhado para obter a URL proxied se necessário
+  // O utilitário já lida com isBlockedHost e a adição dos parametros correta
+  const imgSrc = getProxiedImageUrl(activeSrc as string) || (activeSrc as string);
 
   const isExternal = /^https?:\/\//i.test(imgSrc);
   const useImgTag = imgSrc.startsWith('/api/mediakit/') || isExternal;
@@ -125,7 +100,7 @@ export function UserAvatar({
     <Image
       src={imgSrc}
       alt={`Avatar de ${name}`}
-      unoptimized
+      unoptimized={imgSrc.includes('/api/proxy')}
       width={size}
       height={size}
       className={baseClasses}
@@ -145,3 +120,4 @@ export function UserAvatar({
     />
   );
 }
+

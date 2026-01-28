@@ -45,6 +45,12 @@ const STATUS_NOTE_STYLES: Record<ReviewStatus, string> = {
   almost: 'border-slate-200 bg-slate-50 text-slate-700 border-l-4 border-l-amber-300',
 };
 
+const STATUS_NOTE_PRESENTATION_STYLES: Record<ReviewStatus, string> = {
+  do: 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/50 shadow-sm',
+  dont: 'bg-rose-50 text-rose-900 ring-1 ring-rose-200/50 shadow-sm',
+  almost: 'bg-amber-50 text-amber-900 ring-1 ring-amber-200/50 shadow-sm',
+};
+
 interface ReviewPost {
   _id: string;
   creatorId?: string;
@@ -666,75 +672,119 @@ export default function ReviewedPostsPage() {
                                       const comments = post?.stats?.comments;
                                       const shares = post?.stats?.shares;
                                       const saved = post?.stats?.saved;
+
+                                      const noteStyle = presentationMode
+                                        ? `${STATUS_NOTE_PRESENTATION_STYLES[status]} text-lg font-medium p-4`
+                                        : `${STATUS_NOTE_STYLES[status]} text-sm px-3 py-3`;
+
+                                      const cardStyle = presentationMode
+                                        ? 'bg-white rounded-xl shadow-sm border-0 ring-1 ring-slate-100 overflow-hidden'
+                                        : 'bg-white border border-slate-200 rounded-lg';
+
                                       return (
-                                        <div key={item._id} className="bg-white border border-slate-200 rounded-lg">
+                                        <div key={item._id} className={cardStyle}>
                                           {!notesOnly && (
-                                            <div className="relative">
+                                            <div className="relative group">
                                               {coverSrc ? (
                                                 <Image
                                                   src={coverSrc}
                                                   alt="capa"
                                                   width={160}
                                                   height={160}
-                                                  className="w-full h-44 rounded-t-lg object-cover border-b"
-                                                  unoptimized
+                                                  className={`w-full object-cover ${presentationMode ? 'h-56' : 'h-44 border-b rounded-t-lg'}`}
+                                                  unoptimized={coverSrc.includes('/api/proxy')}
                                                   referrerPolicy="no-referrer"
                                                 />
                                               ) : (
-                                                <div className="w-full h-44 bg-slate-100 rounded-t-lg flex items-center justify-center text-[10px] text-slate-400 border-b">Sem img</div>
+                                                <div className={`w-full bg-slate-50 flex items-center justify-center text-slate-400 ${presentationMode ? 'h-56' : 'h-44 border-b rounded-t-lg text-[10px]'}`}>
+                                                  {presentationMode ? <DocumentMagnifyingGlassIcon className="w-12 h-12 opacity-20" /> : 'Sem img'}
+                                                </div>
                                               )}
+
+                                              {/* Overlay actions - Always visible on hover, or strictly button based */}
                                               {canPlay && (
                                                 <button
                                                   onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
-                                                  className="absolute top-2 right-2 rounded-full bg-white/90 text-slate-700 shadow-sm p-1.5 hover:bg-white"
+                                                  className={`absolute top-2 right-2 rounded-full bg-white/90 text-slate-700 shadow-sm p-2 hover:scale-105 transition-transform ${presentationMode ? 'opacity-0 group-hover:opacity-100' : ''}`}
                                                   title="Assistir conteudo"
                                                 >
-                                                  <PlayCircleIcon className="w-5 h-5" />
+                                                  <PlayCircleIcon className="w-6 h-6 text-indigo-600" />
                                                 </button>
+                                              )}
+
+                                              {/* Context Badge in Presentation Mode */}
+                                              {presentationMode && (
+                                                <div className={`absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent`}>
+                                                  <div className="flex justify-between items-end">
+                                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wide bg-white shadow-sm ${status === 'do' ? 'text-emerald-700' :
+                                                      status === 'dont' ? 'text-rose-700' :
+                                                        'text-amber-700'
+                                                      }`}>
+                                                      {STATUS_LABELS[status]}
+                                                    </span>
+                                                  </div>
+                                                </div>
                                               )}
                                             </div>
                                           )}
-                                          <div className="px-3 py-3 space-y-3">
-                                            <div className={`text-base font-semibold leading-relaxed border rounded-lg px-3 py-3 shadow-sm ${STATUS_NOTE_STYLES[status]}`}>
-                                              {item.note || 'Sem anotacao.'}
+
+                                          <div className={presentationMode ? "p-4 space-y-4" : "px-3 py-3 space-y-3"}>
+                                            <div className={`rounded-lg leading-relaxed ${noteStyle}`}>
+                                              {item.note || (presentationMode ? <span className="text-slate-400 italic font-normal">Sem observações.</span> : 'Sem anotacao.')}
                                             </div>
-                                            <div className="flex items-center justify-between text-[11px] text-slate-500">
-                                              {!notesOnly && <span>{formatDate(post?.postDate)}</span>}
-                                              {typeof totalInteractions === 'number' && (
-                                                <span className="font-semibold text-slate-600">
-                                                  Total {formatNumber(totalInteractions)}
-                                                </span>
+
+                                            {/* Info Row - Simplified in Presentation Mode */}
+                                            <div className={`flex items-center justify-between text-[11px] text-slate-500 ${presentationMode ? 'border-t border-slate-100 pt-3 mt-2' : ''}`}>
+                                              {!notesOnly && !presentationMode && <span>{formatDate(post?.postDate)}</span>}
+
+                                              {(presentationMode || !notesOnly) && (
+                                                <div className="flex gap-4 items-center w-full justify-between">
+                                                  {!presentationMode && typeof totalInteractions === 'number' && (
+                                                    <span className="font-semibold text-slate-600">
+                                                      Total {formatNumber(totalInteractions)}
+                                                    </span>
+                                                  )}
+
+                                                  {/* In presentation mode, minimal date display on left */}
+                                                  {presentationMode && (
+                                                    <span className="text-slate-400 text-xs">{formatDate(post?.postDate)}</span>
+                                                  )}
+                                                </div>
                                               )}
                                             </div>
-                                            {!hideMetrics && !notesOnly && (
+
+                                            {/* Metrics - Hidden by default in presentation mode unless toggled */}
+                                            {!hideMetrics && !notesOnly && (!presentationMode || hideMetrics === false) && (
                                               <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
                                                 {typeof likes === 'number' && (
-                                                  <span className="inline-flex items-center gap-1">
+                                                  <span className="inline-flex items-center gap-1" title="Likes">
                                                     <HeartIcon className="w-3.5 h-3.5 text-slate-400" />
                                                     {formatNumber(likes)}
                                                   </span>
                                                 )}
                                                 {typeof comments === 'number' && (
-                                                  <span className="inline-flex items-center gap-1">
+                                                  <span className="inline-flex items-center gap-1" title="Comments">
                                                     <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-slate-400" />
                                                     {formatNumber(comments)}
                                                   </span>
                                                 )}
                                                 {typeof shares === 'number' && (
-                                                  <span className="inline-flex items-center gap-1">
+                                                  <span className="inline-flex items-center gap-1" title="Shares">
                                                     <ShareIcon className="w-3.5 h-3.5 text-slate-400" />
                                                     {formatNumber(shares)}
                                                   </span>
                                                 )}
                                                 {typeof saved === 'number' && (
-                                                  <span className="inline-flex items-center gap-1">
+                                                  <span className="inline-flex items-center gap-1" title="Saved">
                                                     <BookmarkIcon className="w-3.5 h-3.5 text-slate-400" />
                                                     {formatNumber(saved)}
                                                   </span>
                                                 )}
                                               </div>
                                             )}
-                                            {!notesOnly && (
+
+                                            {/* Action Buttons - Hidden in presentation mode unless hovered (simple approach: hide for now) */}
+                                            {!notesOnly && !presentationMode && (
                                               <div className="flex items-center justify-end gap-2 pt-1">
                                                 <button
                                                   onClick={() => openDetail(post?._id)}

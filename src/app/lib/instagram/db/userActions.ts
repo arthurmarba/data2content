@@ -114,10 +114,32 @@ export async function updateUserBasicInstagramProfile(
     await connectToDatabase();
     logger.debug(`${TAG} Atualizando dados básicos do perfil IG para User ${userId}, Conta IG ${accountId} com payload:`, updatePayload);
 
-    const result = await DbUser.findByIdAndUpdate(userId, { $set: updatePayload }, { new: true });
+    // Payload base para atualização dos campos principais do usuário
+    const updateQuery: any = { $set: updatePayload };
+
+    // Se tivermos username e/ou profile_picture_url, tentamos atualizar também dentro do array availableIgAccounts
+    // para a conta específica que está sendo sincronizada.
+    // Isso garante que o MediaKit (que prioriza availableIgAccounts) tenha os dados mais recentes.
+    if (basicProfileData.username || basicProfileData.profile_picture_url) {
+      if (basicProfileData.username) {
+        updateQuery.$set["availableIgAccounts.$[elem].username"] = basicProfileData.username;
+      }
+      if (basicProfileData.profile_picture_url) {
+        updateQuery.$set["availableIgAccounts.$[elem].profile_picture_url"] = basicProfileData.profile_picture_url;
+      }
+    }
+
+    const result = await DbUser.findOneAndUpdate(
+      { _id: userId },
+      updateQuery,
+      {
+        new: true,
+        arrayFilters: [{ "elem.igAccountId": accountId }] // Filtra o elemento do array que corresponde ao accountId
+      }
+    );
 
     if (result) {
-      logger.info(`${TAG} Dados básicos do perfil Instagram para User ${userId} atualizados no DB.`);
+      logger.info(`${TAG} Dados básicos do perfil Instagram para User ${userId} atualizados no DB (incluindo sync de availableIgAccounts se aplicável).`);
       // Log específico para nome, se ele fosse atualizado (agora não é)
       // if (basicProfileData.name && result.name !== basicProfileData.name) {
       //   logger.warn(`${TAG} O nome principal do usuário (${result.name}) NÃO foi sobrescrito com o nome do IG (${basicProfileData.name}).`);

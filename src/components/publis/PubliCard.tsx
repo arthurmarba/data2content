@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { EyeIcon, ChatBubbleLeftIcon, BookmarkIcon, ArrowTopRightOnSquareIcon, ChartBarIcon, ShareIcon } from '@heroicons/react/24/outline';
+import { getProxiedImageUrl } from '@/utils/imageUtils';
 
 interface PubliCardProps {
     publi: {
@@ -25,24 +26,56 @@ const PubliCard: React.FC<PubliCardProps> = ({ publi, onShare, onAnalyze }) => {
 
     const formattedDate = postDate ? format(new Date(postDate), "d 'de' MMMM, yyyy", { locale: ptBR }) : 'Data desconhecida';
 
+    const [imgSrc, setImgSrc] = useState<string | null>(null);
+    const [imgError, setImgError] = useState(false);
+
+    useEffect(() => {
+        if (coverUrl) {
+            // Tenta usar a URL proxied desde o início se for um host bloqueado
+            // ou apenas a URL original se não for.
+            const urlToUse = getProxiedImageUrl(coverUrl);
+            setImgSrc(urlToUse);
+            setImgError(false);
+        } else {
+            setImgSrc(null);
+        }
+    }, [coverUrl]);
+
     // Format numbers
     const formatNumber = (num: number) => {
         return new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(num || 0);
+    };
+
+    const handleImageError = () => {
+        // Se falhar e ainda não estivermos usando o proxy (ex: host não bloqueado mas que falhou),
+        // ou se estavamos usando proxy strict=1 e falhou (imagem 1x1),
+        // podemos tentar uma estratégia de fallback se necessário.
+        // Por enquanto, marcamos como erro para mostrar o placeholder.
+        setImgError(true);
     };
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
             {/* Header / Cover */}
             <div className="relative w-full aspect-[4/5] bg-gray-100">
-                {coverUrl ? (
+                {imgSrc && !imgError ? (
                     <Image
-                        src={coverUrl}
+                        src={imgSrc}
                         alt="Post cover"
                         fill
                         className="object-cover"
+                        onError={handleImageError}
+                        onLoad={(e) => {
+                            const el = e.currentTarget as HTMLImageElement;
+                            // Check for 1x1 pixel error images even if loaded successfully
+                            if (el.naturalWidth <= 2 && el.naturalHeight <= 2) {
+                                handleImageError();
+                            }
+                        }}
+                        unoptimized={imgSrc.includes('/api/proxy')} // Disable optimization for proxied images to avoid double processing
                     />
                 ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400">
+                    <div className="flex items-center justify-center h-full text-gray-400 bg-gray-50">
                         <span className="text-sm">Sem imagem</span>
                     </div>
                 )}
@@ -105,3 +138,4 @@ const PubliCard: React.FC<PubliCardProps> = ({ publi, onShare, onAnalyze }) => {
 };
 
 export default PubliCard;
+
