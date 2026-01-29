@@ -12,6 +12,7 @@ import {
   UserGroupIcon as UserGroupIconOutline,
   LinkIcon as LinkIconOutline,
   CreditCardIcon as CreditCardIconOutline,
+  ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconOutline,
 } from "@heroicons/react/24/outline";
 import {
   HomeIcon as HomeIconSolid,
@@ -27,6 +28,7 @@ import {
   UserGroupIcon as UserGroupIconSolid,
   LinkIcon as LinkIconSolid,
   CreditCardIcon as CreditCardIconSolid,
+  ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconSolid,
 } from "@heroicons/react/24/solid";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
@@ -70,6 +72,7 @@ const ICONS = {
   affiliates: iconSet(UserGroupIconOutline, UserGroupIconSolid),
   instagramConnection: iconSet(LinkIconOutline, LinkIconSolid),
   settings: iconSet(CreditCardIconOutline, CreditCardIconSolid),
+  reviews: iconSet(ClipboardDocumentCheckIconOutline, ClipboardDocumentCheckIconSolid),
 };
 
 type SidebarSectionDefinition = {
@@ -108,6 +111,14 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         tooltip: navigationLabels.mediaKit.tooltip,
         href: "/media-kit",
         icon: ICONS.mediaKit,
+      },
+      {
+        type: "item",
+        key: "reviews",
+        label: "Review de Post",
+        tooltip: "Veja correções e dicas para seus posts",
+        href: "/dashboard/post-analysis",
+        icon: ICONS.reviews,
       },
     ],
   },

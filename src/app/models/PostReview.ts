@@ -22,6 +22,7 @@ const postReviewSchema = new Schema<IPostReview>(
 );
 
 postReviewSchema.index({ status: 1, updatedAt: -1 });
+postReviewSchema.index({ updatedAt: -1 });
 
 const PostReviewModel = mongoose.models.PostReview
   ? (mongoose.models.PostReview as Model<IPostReview>)

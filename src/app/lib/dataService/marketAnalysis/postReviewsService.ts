@@ -25,6 +25,7 @@ export interface IFetchPostReviewsArgs {
   context?: string | string[];
   proposal?: string | string[];
   creatorContext?: string;
+  userId?: string;
   page?: number;
   limit?: number;
   sortBy?: 'updatedAt' | 'createdAt' | 'postDate' | 'total_interactions';
@@ -96,6 +97,7 @@ export async function fetchPostReviews(args: IFetchPostReviewsArgs): Promise<{
     context,
     proposal,
     creatorContext,
+    userId,
     page = 1,
     limit = 20,
     sortBy = 'updatedAt',
@@ -109,6 +111,16 @@ export async function fetchPostReviews(args: IFetchPostReviewsArgs): Promise<{
     if (status) reviewMatch.status = status;
 
     const postMatchClauses: PipelineStage.Match['$match'][] = [];
+
+    // Filtro direto por userId (Post.user)
+    if (userId) {
+      if (Types.ObjectId.isValid(userId)) {
+        postMatchClauses.push({ 'post.user': new Types.ObjectId(userId) } as any);
+      } else {
+        return { items: [], total: 0, page, limit };
+      }
+    }
+
     const ctxVals = normalizeValues(context);
     if (ctxVals.length) postMatchClauses.push({ $or: ctxVals.map(v => buildClassFilter(v, 'context')) } as any);
     const propVals = normalizeValues(proposal);
