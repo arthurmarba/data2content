@@ -28,9 +28,9 @@ const STATUS_LABELS: Record<ReviewStatus, string> = {
 };
 
 const STATUS_STYLES: Record<ReviewStatus, string> = {
-  do: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  dont: 'bg-rose-50 text-rose-700 border-rose-200',
-  almost: 'bg-amber-50 text-amber-800 border-amber-200',
+  do: 'bg-emerald-50 text-emerald-700 border-emerald-200 uppercase tracking-wider font-bold',
+  dont: 'bg-rose-50 text-rose-700 border-rose-200 uppercase tracking-wider font-bold',
+  almost: 'bg-amber-50 text-amber-800 border-amber-200 uppercase tracking-wider font-bold',
 };
 
 const STATUS_PANEL_STYLES: Record<ReviewStatus, string> = {
@@ -538,7 +538,7 @@ export default function ReviewedPostsPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="statusFilter" className="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                <label htmlFor="statusFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Status</label>
                 <select
                   id="statusFilter"
                   value={statusFilter}
@@ -546,7 +546,7 @@ export default function ReviewedPostsPage() {
                     setStatusFilter(e.target.value as ReviewStatus | '');
                     setPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
                 >
                   <option value="">Todos</option>
                   {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -555,7 +555,7 @@ export default function ReviewedPostsPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="creatorContextFilter" className="block text-xs font-semibold text-slate-600 mb-1">Categoria dominante (criador)</label>
+                <label htmlFor="creatorContextFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Categoria dominante (criador)</label>
                 <select
                   id="creatorContextFilter"
                   value={creatorContextFilter}
@@ -563,7 +563,7 @@ export default function ReviewedPostsPage() {
                     setCreatorContextFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
                 >
                   <option value="">Todas</option>
                   {contextOptions.map((c) => (
@@ -572,7 +572,7 @@ export default function ReviewedPostsPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="creatorSearch" className="block text-xs font-semibold text-slate-600 mb-1">Buscar criador</label>
+                <label htmlFor="creatorSearch" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Buscar criador</label>
                 <input
                   id="creatorSearch"
                   type="text"
@@ -581,8 +581,8 @@ export default function ReviewedPostsPage() {
                     setCreatorSearch(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="Digite o nome..."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm bg-white"
+                  placeholder="Nome do criador..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
                 />
               </div>
             </div>
@@ -632,56 +632,71 @@ export default function ReviewedPostsPage() {
                 key={contextGroup.id}
                 className="space-y-4 scroll-mt-24 pb-8 border-b border-slate-200/60 last:border-b-0 last:pb-0"
               >
-                <div className={`${cardBase} p-4`}>
-                  <div className="flex flex-wrap items-start gap-4">
-                    <div className="min-w-[200px]">
-                      <h3 className="text-lg font-semibold text-slate-900">{contextGroup.label}</h3>
-                      <p className="text-xs text-slate-500">
-                        {contextGroup.creators.length} criadores · {totalContextItems} conteudos
-                      </p>
+                <div className={`${cardBase} p-0 overflow-hidden border-0 shadow-md ring-1 ring-slate-200/60`}>
+                  <div className="bg-gradient-to-r from-slate-50 via-white to-white px-6 py-5 border-l-4 border-l-slate-800">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="min-w-[200px]">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Categoria Dominante</p>
+                        <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">{contextGroup.label}</h3>
+                        <p className="text-xs font-medium text-slate-500 mt-1">
+                          {contextGroup.creators.length} criadores · {totalContextItems} conteúdos analisados
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleCopySummary(contextGroup)}
+                        className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                      >
+                        {copiedContextId === contextGroup.id ? 'Copiado!' : 'Copiar resumo'}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleCopySummary(contextGroup)}
-                      className="ml-auto px-3 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    >
-                      {copiedContextId === contextGroup.id ? 'Copiado!' : 'Copiar resumo'}
-                    </button>
                   </div>
                 </div>
 
                 <div className="overflow-x-auto pb-8 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  <div className="flex gap-8 min-w-max px-2">
+                  <div className="flex flex-col gap-16 min-w-max px-2">
                     {contextGroup.creators.map((creator) => {
                       const totalItems = statusOrder.reduce((acc, status) => acc + creator.itemsByStatus[status].length, 0);
                       return (
-                        <div key={creator.id} className="w-auto shrink-0 flex gap-6">
-                          <div className="flex items-center justify-between gap-2 mb-3">
-                            <div className="flex items-center gap-2">
+                        <div key={creator.id} className="flex items-start bg-white rounded-xl border border-slate-100/50 shadow-sm overflow-hidden">
+                          <div className="sticky left-0 z-20 bg-white w-72 shrink-0 p-6 border-r border-slate-100 shadow-[4px_0_12px_-2px_rgba(0,0,0,0.03)] flex flex-col justify-between self-stretch">
+                            <div className="flex items-center gap-3">
                               <UserAvatar
                                 name={creator.name}
                                 src={creator.avatarUrl ? toThumbnailProxyUrl(creator.avatarUrl) : undefined}
                                 size={56}
-                                className="border border-slate-200"
+                                className="border-2 border-slate-100"
                               />
-                              <div>
-                                <p className="text-base font-semibold text-slate-900">{creator.name}</p>
-                                <p className="text-xs text-slate-500">{totalItems} conteudos</p>
+                              <div className="min-w-0">
+                                <p className="text-base font-bold text-slate-900 leading-tight truncate" title={creator.name}>{creator.name}</p>
+                                <p className="text-xs font-medium text-slate-500 mt-0.5">{totalItems} conteudos</p>
+                              </div>
+                            </div>
+
+                            <div className="mt-8 pt-4 border-t border-slate-50">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status Geral</p>
+                              <div className="mt-2 space-y-1.5">
+                                {statusOrder.map(status => (
+                                  <div key={status} className="flex items-center justify-between text-[11px]">
+                                    <span className="text-slate-500">{STATUS_LABELS[status]}</span>
+                                    <span className="font-bold text-slate-700">{creator.itemsByStatus[status].length}</span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-row gap-6">
+                          <div className="flex-1 flex flex-row gap-6 p-6 bg-slate-50/30">
                             {statusOrder.map((status) => (
-                              <div key={status} className={`w-[550px] shrink-0 rounded-xl border ${STATUS_PANEL_STYLES[status]} bg-white shadow-sm overflow-hidden flex flex-col h-fit`}>
+                              <div key={status} className={`w-[550px] shrink-0 rounded-xl border ${STATUS_PANEL_STYLES[status]} bg-white shadow-sm overflow-hidden flex flex-col h-full min-h-[400px]`}>
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50 shrink-0">
                                   <div className="flex items-center gap-2">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ring-1 ring-inset ${STATUS_STYLES[status]}`}>
                                       {STATUS_LABELS[status]}
                                     </span>
                                   </div>
-                                  <span className="text-xs font-medium text-slate-500">{creator.itemsByStatus[status].length}</span>
+                                  <span className="text-xs font-medium text-slate-500">{creator.itemsByStatus[status].length} itens</span>
                                 </div>
-                                <div className="p-4 flex flex-col gap-4 overflow-y-auto max-h-[800px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                                <div className="p-4 flex flex-col gap-4 overflow-y-auto max-h-[800px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent flex-1">
                                   {creator.itemsByStatus[status].length === 0 ? (
                                     <p className="text-[11px] text-slate-400">Sem itens.</p>
                                   ) : (
@@ -708,9 +723,9 @@ export default function ReviewedPostsPage() {
                                         : 'bg-white border border-slate-200 rounded-lg';
 
                                       return (
-                                        <div key={item._id} className={`${cardStyle} flex overflow-hidden group/card`}>
+                                        <div key={item._id} className={`${cardStyle} flex overflow-hidden group/card shadow-sm hover:shadow-md transition-shadow`}>
                                           {!notesOnly && (
-                                            <div className={`relative shrink-0 ${presentationMode ? 'w-48' : 'w-36'} bg-slate-50 border-r border-slate-100`}>
+                                            <div className={`relative shrink-0 ${presentationMode ? 'w-48' : 'w-36'} bg-slate-50 border-r border-slate-100 flex items-center justify-center`}>
                                               {coverSrc ? (
                                                 <Image
                                                   src={coverSrc}
@@ -722,19 +737,24 @@ export default function ReviewedPostsPage() {
                                                   referrerPolicy="no-referrer"
                                                 />
                                               ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px]">
-                                                  {presentationMode ? <DocumentMagnifyingGlassIcon className="w-10 h-10 opacity-20" /> : 'Sem img'}
+                                                <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] bg-slate-50">
+                                                  {presentationMode ? <DocumentMagnifyingGlassIcon className="w-10 h-10 opacity-10" /> : 'Sem img'}
                                                 </div>
                                               )}
+
+                                              {/* Status indicator on image edge */}
+                                              <div className={`absolute top-0 right-0 w-1 h-full ${status === 'do' ? 'bg-emerald-400' : status === 'dont' ? 'bg-rose-400' : 'bg-amber-400'}`} />
 
                                               {/* Overlay actions */}
                                               {canPlay && (
                                                 <button
                                                   onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
-                                                  className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover/card:opacity-100 transition-opacity"
-                                                  title="Assistir conteudo"
+                                                  className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                                                  title="Assistir conteúdo"
                                                 >
-                                                  <PlayCircleIcon className="w-10 h-10 text-white drop-shadow-md" />
+                                                  <div className="p-3 bg-white/20 backdrop-blur-md rounded-full border border-white/40">
+                                                    <PlayCircleIcon className="w-10 h-10 text-white drop-shadow-lg" />
+                                                  </div>
                                                 </button>
                                               )}
 
@@ -804,27 +824,27 @@ export default function ReviewedPostsPage() {
                                               </div>
                                             )}
 
-                                            {/* Action Buttons - Hidden in presentation mode unless hovered (simple approach: hide for now) */}
+                                            {/* Action Buttons */}
                                             {!notesOnly && !presentationMode && (
-                                              <div className="flex items-center justify-end gap-2 pt-1">
+                                              <div className="flex items-center justify-end gap-3 pt-2">
                                                 <button
                                                   onClick={() => openDetail(post?._id)}
-                                                  className="text-slate-400 hover:text-indigo-600 transition-colors"
-                                                  title="Ver analise"
+                                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all sm:opacity-0 group-hover/card:opacity-100"
+                                                  title="Ver análise completa"
                                                 >
                                                   <DocumentMagnifyingGlassIcon className="w-5 h-5" />
                                                 </button>
                                                 <button
                                                   onClick={() => openEdit(item)}
-                                                  className="text-slate-400 hover:text-amber-600 transition-colors"
-                                                  title="Editar revisão"
+                                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all sm:opacity-0 group-hover/card:opacity-100"
+                                                  title="Editar anotação"
                                                 >
                                                   <PencilSquareIcon className="w-5 h-5" />
                                                 </button>
                                                 <button
                                                   onClick={() => link && window.open(link, '_blank', 'noopener,noreferrer')}
-                                                  className={`text-slate-400 transition-colors ${link ? 'hover:text-blue-600' : 'opacity-40 cursor-not-allowed'}`}
-                                                  title={link ? 'Abrir post original' : 'Link indisponivel'}
+                                                  className={`p-1.5 transition-all sm:opacity-0 group-hover/card:opacity-100 ${link ? 'text-slate-400 hover:text-blue-600 hover:bg-blue-50' : 'text-slate-200 cursor-not-allowed'}`}
+                                                  title={link ? 'Ver post no Instagram' : 'Link indisponível'}
                                                   disabled={!link}
                                                 >
                                                   <ArrowTopRightOnSquareIcon className="w-5 h-5" />
