@@ -12,13 +12,17 @@ import {
   ShareIcon,
   ChartBarIcon,
   BookmarkIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/solid';
+
 import { VideoListItem } from '@/types/mediakit';
 
 interface VideosTableProps {
   videos: VideoListItem[];
   onRowClick?: (postId: string) => void;
+  onReviewClick?: (video: VideoListItem) => void;
   readOnly?: boolean;
+
   followersCount?: number; // usado para calcular engajamento por post
   showStrategyTags?: boolean;
   strategyMode?: 'lock' | 'hide';
@@ -120,10 +124,12 @@ const VideoCard: React.FC<{
   index: number;
   readOnly?: boolean;
   onRowClick?: (postId: string) => void;
+  onReviewClick?: (video: VideoListItem) => void;
   followersCount?: number;
   showStrategyTags?: boolean;
   strategyMode?: 'lock' | 'hide';
-}> = ({ video, index, readOnly, onRowClick, followersCount, showStrategyTags = true, strategyMode = 'lock' }) => {
+}> = ({ video, index, readOnly, onRowClick, onReviewClick, followersCount, showStrategyTags = true, strategyMode = 'lock' }) => {
+
   const formatDate = (d?: string | Date) => {
     if (!d) return 'N/A';
     return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -152,9 +158,8 @@ const VideoCard: React.FC<{
 
   return (
     <div
-      className={`p-4 bg-white rounded-lg shadow-sm border border-gray-100 transition-colors ${
-        readOnly && index === 0 ? 'bg-pink-50 border-pink-200' : ''
-      }`}
+      className={`p-4 bg-white rounded-lg shadow-sm border border-gray-100 transition-colors ${readOnly && index === 0 ? 'bg-pink-50 border-pink-200' : ''
+        }`}
     >
       <div className="grid grid-cols-12 gap-x-4 gap-y-2 items-start">
         {/* Conteúdo (thumb + caption) */}
@@ -286,7 +291,18 @@ const VideoCard: React.FC<{
               <span>Analisar</span>
             </button>
           )}
+          {onReviewClick && (
+            <button
+              onClick={() => onReviewClick(video)}
+              title="Fazer Review"
+              className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm hover:bg-indigo-100 transition-colors"
+            >
+              <PencilSquareIcon className="w-3.5 h-3.5" />
+              <span>Review</span>
+            </button>
+          )}
           <a
+
             href={video.permalink ?? '#'}
             target="_blank"
             rel="noopener noreferrer"
@@ -302,7 +318,7 @@ const VideoCard: React.FC<{
       <div className="mt-3 pt-2 border-t border-gray-100">
         <div className="text-[11px] text-gray-500">{engagementExplainer}</div>
       </div>
-    </div>
+    </div >
   );
 };
 
@@ -337,9 +353,11 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, showStrategyTags = tr
           followersCount={props.followersCount}
           showStrategyTags={showStrategyTags}
           strategyMode={strategyMode}
+          onReviewClick={props.onReviewClick}
           {...props}
         />
       ))}
+
     </div>
   );
 };

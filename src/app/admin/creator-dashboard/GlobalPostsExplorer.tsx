@@ -24,6 +24,8 @@ import {
   idsToLabels,
 } from '../../lib/classification';
 import { ArrowTopRightOnSquareIcon, ClipboardIcon } from '@heroicons/react/24/outline';
+import PostReviewModal from './components/PostReviewModal';
+
 
 
 // --- Componentes de Apoio (Definidos localmente para autonomia) ---
@@ -36,12 +38,8 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', varia
 
 const POSTS_CACHE_TTL = 60 * 1000;
 const MAX_POSTS_CACHE = 20;
-type ReviewStatus = 'do' | 'dont' | 'almost';
-const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
-  do: 'Fazer',
-  dont: 'Não fazer',
-  almost: 'Quase lá',
-};
+
+
 
 const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => (
   <div className="text-center py-8">
@@ -386,163 +384,7 @@ const PostDetailModal = ({ isOpen, onClose, postId, apiPrefix }: {
   );
 };
 
-const PostReviewModal = ({ isOpen, onClose, post, apiPrefix }: {
-  isOpen: boolean;
-  onClose: () => void;
-  post: IGlobalPostResult | null;
-  apiPrefix: string;
-}) => {
-  const [status, setStatus] = useState<ReviewStatus>('do');
-  const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isOpen || !post?._id) return;
-    let isMounted = true;
-    const fetchReview = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`${apiPrefix}/dashboard/post-reviews?postId=${post._id}`);
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Falha ao carregar review.');
-        }
-        const data = await res.json();
-        if (!isMounted) return;
-        if (data.review) {
-          setStatus(data.review.status || 'do');
-          setNote(data.review.note || '');
-        } else {
-          setStatus('do');
-          setNote('');
-        }
-      } catch (err: any) {
-        if (isMounted) setError(err.message || 'Falha ao carregar review.');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    fetchReview();
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, post, apiPrefix]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setStatus('do');
-      setNote('');
-      setError(null);
-      setLoading(false);
-      setSaving(false);
-    }
-  }, [isOpen]);
-
-  const handleSave = async () => {
-    if (!post?._id) return;
-    const trimmedNote = note.trim();
-    if (!trimmedNote) {
-      setError('A anotação é obrigatória.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch(`${apiPrefix}/dashboard/post-reviews`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          postId: post._id,
-          status,
-          note: trimmedNote,
-        }),
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Falha ao salvar review.');
-      }
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Falha ao salvar review.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!isOpen || !post) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-xl rounded-lg shadow-xl relative p-6 space-y-4">
-        <button onClick={onClose} className="absolute top-2 right-2 text-gray-500" aria-label="Fechar">
-          <XMarkIcon className="w-5 h-5" />
-        </button>
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Marcar conteudo</h3>
-          <p className="text-sm text-gray-500">Defina a categoria e a anotação para esta análise.</p>
-        </div>
-        <div className="flex gap-3 items-start">
-          {post.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={String(post.coverUrl)} alt="capa" className="w-24 h-24 object-cover rounded border" />
-          ) : (
-            <div className="w-24 h-24 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400">Sem img</div>
-          )}
-          <div className="flex-1 text-sm text-gray-600">
-            <p className="font-semibold text-gray-800 truncate">{post.creatorName || 'Criador'}</p>
-            <p className="line-clamp-3">{post.text_content || post.description || 'Sem legenda...'}</p>
-          </div>
-        </div>
-        {loading ? (
-          <div className="text-sm text-gray-500">Carregando review...</div>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <label htmlFor="review-status" className="block text-xs font-semibold text-gray-600 mb-1">Categoria</label>
-              <select
-                id="review-status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as ReviewStatus)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-              >
-                {Object.entries(REVIEW_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="review-note" className="block text-xs font-semibold text-gray-600 mb-1">Anotação</label>
-              <textarea
-                id="review-note"
-                rows={4}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Escreva observações para a reunião..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-              />
-            </div>
-          </div>
-        )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || loading || !note.trim()}
-            className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
-          >
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 
 interface GlobalPostsExplorerProps {
@@ -1026,8 +868,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({
             </div>
 
             {filtersOpen && (
-      <div className="p-5 border border-gray-200 rounded-lg bg-gray-50/50">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="p-5 border border-gray-200 rounded-lg bg-gray-50/50">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {forceContext ? null : (
                     <MultiSelectBox id="gpe-context" label="Nicho / Contexto" options={contextOptions} selected={selectedContext} onChange={setSelectedContext} />
                   )}

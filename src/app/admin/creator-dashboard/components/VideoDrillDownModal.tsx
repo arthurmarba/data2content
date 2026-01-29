@@ -11,8 +11,12 @@ import {
   ChatBubbleOvalLeftEllipsisIcon,
   ShareIcon,
   ChartBarIcon,
-  BookmarkIcon
+  BookmarkIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/solid';
+import PostReviewModal from './PostReviewModal';
+
+
 
 // --- Definições de Categoria (Consistência com o resto da aplicação) ---
 export interface Category {
@@ -93,8 +97,10 @@ interface VideoListItem {
 interface VideosTableProps {
   videos: VideoListItem[];
   onRowClick?: (postId: string) => void;
+  onReviewClick?: (video: VideoListItem) => void;
   readOnly?: boolean;
 }
+
 
 const PostDetailModal: React.FC<{ isOpen: boolean; onClose: () => void; postId: string | null; publicMode?: boolean; }> = ({ isOpen, onClose, postId }) => {
   if (!isOpen) return null;
@@ -118,7 +124,14 @@ const PostDetailModal: React.FC<{ isOpen: boolean; onClose: () => void; postId: 
 };
 
 
-const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: boolean; onRowClick?: (postId: string) => void; }> = ({ video, index, readOnly, onRowClick }) => {
+const VideoCard: React.FC<{
+  video: VideoListItem;
+  index: number;
+  readOnly?: boolean;
+  onRowClick?: (postId: string) => void;
+  onReviewClick?: (video: VideoListItem) => void;
+}> = ({ video, index, readOnly, onRowClick, onReviewClick }) => {
+
 
   const formatDate = (d?: string | Date) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A';
   const formatNumber = (n?: number) => n?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '-';
@@ -175,6 +188,17 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
               <span>Analisar</span>
             </button>
           )}
+          {onReviewClick && (
+            <button
+              onClick={() => onReviewClick(video)}
+              title="Fazer Review"
+              className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm hover:bg-indigo-100 transition-colors"
+            >
+              <PencilSquareIcon className="w-3.5 h-3.5" />
+              <span>Review</span>
+            </button>
+          )}
+
           <a href={video.permalink ?? '#'} target="_blank" rel="noopener noreferrer" title="Ver na Rede Social" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm font-semibold text-white bg-gray-800 rounded-md shadow-sm hover:bg-gray-700 transition-colors">
             <InstagramIcon className="w-3.5 h-3.5" />
             <span>Ver Post</span>
@@ -198,8 +222,9 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
       </div>
 
       {videos.map((video, index) => (
-        <VideoCard key={video._id} video={video} index={index} {...props} />
+        <VideoCard key={video._id} video={video} index={index} onReviewClick={props.onReviewClick} {...props} />
       ))}
+
     </div>
   );
 };
@@ -256,8 +281,11 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     sortOrder: 'desc',
   });
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedVideoForReview, setSelectedVideoForReview] = useState<VideoListItem | null>(null);
 
   const [filters, setFilters] = useState<FilterState>({
+
     proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '',
     ...initialFilters
   });
@@ -373,6 +401,12 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     setSelectedPostId(postId);
   };
 
+  const handleOpenReviewModal = (video: VideoListItem) => {
+    setSelectedVideoForReview(video);
+    setIsReviewModalOpen(true);
+  };
+
+
   const totalPages = Math.ceil(totalVideos / limit);
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -423,6 +457,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
             <VideosTable
               videos={videos}
               onRowClick={handleRowClick}
+              onReviewClick={handleOpenReviewModal}
             />
           )}
         </div>
@@ -446,6 +481,17 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
           postId={selectedPostId}
         />
       )}
+      <PostReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        apiPrefix="/api/admin"
+        post={selectedVideoForReview ? {
+          _id: selectedVideoForReview._id,
+          coverUrl: selectedVideoForReview.thumbnailUrl,
+          description: selectedVideoForReview.description,
+          creatorName: "Criador", // Info not readily available here, but describing as Criador
+        } : null}
+      />
     </div>
   );
 };

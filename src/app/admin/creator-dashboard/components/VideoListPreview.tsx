@@ -8,7 +8,9 @@ import {
   ChatBubbleOvalLeftEllipsisIcon,
   ShareIcon,
   BookmarkIcon,
+  PencilSquareIcon,
 } from "@heroicons/react/24/outline"; // Usando a versão 'outline' para um look mais leve
+
 import { VideoListItem } from "@/types/mediakit";
 import { idsToLabels } from "@/app/lib/classification";
 
@@ -20,7 +22,9 @@ interface VideoListPreviewProps {
   limit?: number;
   onExpand?: () => void;
   onRowClick?: (postId: string) => void;
+  onReviewClick?: (video: VideoListItem) => void;
 }
+
 
 const formatDate = (d?: string | Date) =>
   d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A";
@@ -50,7 +54,7 @@ const labelConfig: {
     { type: "reference", property: "references", className: "bg-emerald-100 text-emerald-800" },
   ];
 
-const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand, onRowClick }) => {
+const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand, onRowClick, onReviewClick }) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,8 +152,23 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                     <span className="font-medium">{formatNumber((video.stats as any)?.saves)}</span>
                   </span>
                 </div>
+                {onReviewClick && (
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReviewClick(video);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md hover:bg-indigo-100 transition-colors shadow-sm"
+                    >
+                      <PencilSquareIcon className="w-4 h-4" />
+                      Fazer Review
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
+
           ))}
           {onExpand && (
             <button
