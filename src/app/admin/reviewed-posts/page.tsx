@@ -649,12 +649,12 @@ export default function ReviewedPostsPage() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto pb-4">
-                  <div className="flex gap-6 min-w-max">
+                <div className="overflow-x-auto pb-8 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                  <div className="flex gap-8 min-w-max px-2">
                     {contextGroup.creators.map((creator) => {
                       const totalItems = statusOrder.reduce((acc, status) => acc + creator.itemsByStatus[status].length, 0);
                       return (
-                        <div key={creator.id} className="w-[720px] shrink-0">
+                        <div key={creator.id} className="w-auto shrink-0 flex gap-6">
                           <div className="flex items-center justify-between gap-2 mb-3">
                             <div className="flex items-center gap-2">
                               <UserAvatar
@@ -670,16 +670,18 @@ export default function ReviewedPostsPage() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="flex flex-row gap-6">
                             {statusOrder.map((status) => (
-                              <div key={status} className={`rounded-xl border ${STATUS_PANEL_STYLES[status]} bg-white`}>
-                                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${STATUS_STYLES[status]}`}>
-                                    {STATUS_LABELS[status]}
-                                  </span>
-                                  <span className="text-xs text-slate-500">{creator.itemsByStatus[status].length}</span>
+                              <div key={status} className={`w-[550px] shrink-0 rounded-xl border ${STATUS_PANEL_STYLES[status]} bg-white shadow-sm overflow-hidden flex flex-col h-fit`}>
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ring-1 ring-inset ${STATUS_STYLES[status]}`}>
+                                      {STATUS_LABELS[status]}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs font-medium text-slate-500">{creator.itemsByStatus[status].length}</span>
                                 </div>
-                                <div className="p-3 space-y-3">
+                                <div className="p-4 flex flex-col gap-4 overflow-y-auto max-h-[800px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                                   {creator.itemsByStatus[status].length === 0 ? (
                                     <p className="text-[11px] text-slate-400">Sem itens.</p>
                                   ) : (
@@ -706,53 +708,48 @@ export default function ReviewedPostsPage() {
                                         : 'bg-white border border-slate-200 rounded-lg';
 
                                       return (
-                                        <div key={item._id} className={cardStyle}>
+                                        <div key={item._id} className={`${cardStyle} flex overflow-hidden group/card`}>
                                           {!notesOnly && (
-                                            <div className="relative group">
+                                            <div className={`relative shrink-0 ${presentationMode ? 'w-48' : 'w-36'} bg-slate-50 border-r border-slate-100`}>
                                               {coverSrc ? (
                                                 <Image
                                                   src={coverSrc}
                                                   alt="capa"
-                                                  width={160}
-                                                  height={160}
-                                                  className={`w-full object-cover ${presentationMode ? 'h-56' : 'h-44 border-b rounded-t-lg'}`}
+                                                  width={200}
+                                                  height={200}
+                                                  className="w-full h-full object-cover"
                                                   unoptimized={coverSrc.includes('/api/proxy')}
                                                   referrerPolicy="no-referrer"
                                                 />
                                               ) : (
-                                                <div className={`w-full bg-slate-50 flex items-center justify-center text-slate-400 ${presentationMode ? 'h-56' : 'h-44 border-b rounded-t-lg text-[10px]'}`}>
-                                                  {presentationMode ? <DocumentMagnifyingGlassIcon className="w-12 h-12 opacity-20" /> : 'Sem img'}
+                                                <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px]">
+                                                  {presentationMode ? <DocumentMagnifyingGlassIcon className="w-10 h-10 opacity-20" /> : 'Sem img'}
                                                 </div>
                                               )}
 
-                                              {/* Overlay actions - Always visible on hover, or strictly button based */}
+                                              {/* Overlay actions */}
                                               {canPlay && (
                                                 <button
                                                   onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
-                                                  className={`absolute top-2 right-2 rounded-full bg-white/90 text-slate-700 shadow-sm p-2 hover:scale-105 transition-transform ${presentationMode ? 'opacity-0 group-hover:opacity-100' : ''}`}
+                                                  className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover/card:opacity-100 transition-opacity"
                                                   title="Assistir conteudo"
                                                 >
-                                                  <PlayCircleIcon className="w-6 h-6 text-indigo-600" />
+                                                  <PlayCircleIcon className="w-10 h-10 text-white drop-shadow-md" />
                                                 </button>
                                               )}
 
                                               {/* Context Badge in Presentation Mode */}
                                               {presentationMode && (
-                                                <div className={`absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent`}>
-                                                  <div className="flex justify-between items-end">
-                                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wide bg-white shadow-sm ${status === 'do' ? 'text-emerald-700' :
-                                                      status === 'dont' ? 'text-rose-700' :
-                                                        'text-amber-700'
-                                                      }`}>
-                                                      {STATUS_LABELS[status]}
-                                                    </span>
-                                                  </div>
+                                                <div className="absolute bottom-0 left-0 right-0 p-1 bg-gradient-to-t from-black/60 to-transparent">
+                                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight bg-white ${status === 'do' ? 'text-emerald-700' : status === 'dont' ? 'text-rose-700' : 'text-amber-700'}`}>
+                                                    {STATUS_LABELS[status]}
+                                                  </span>
                                                 </div>
                                               )}
                                             </div>
                                           )}
 
-                                          <div className={presentationMode ? "p-4 space-y-4" : "px-3 py-3 space-y-3"}>
+                                          <div className={`flex-1 flex flex-col min-w-0 ${presentationMode ? "p-4" : "p-3"}`}>
                                             <div className={`rounded-lg leading-relaxed ${noteStyle}`}>
                                               {item.note || (presentationMode ? <span className="text-slate-400 italic font-normal">Sem observações.</span> : 'Sem anotacao.')}
                                             </div>
