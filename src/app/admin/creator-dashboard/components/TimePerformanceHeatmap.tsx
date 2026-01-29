@@ -175,15 +175,18 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
   const handleOpenReview = useCallback((post: any) => {
     setSelectedPostForReview(post);
     setIsReviewModalOpen(true);
+    setSliceModal(prev => ({ ...prev, open: false }));
   }, []);
 
   const handlePlayVideo = useCallback((post: any) => {
     setSelectedVideoForPlayer(post);
     setIsVideoPlayerOpen(true);
+    setSliceModal(prev => ({ ...prev, open: false }));
   }, []);
 
   const handleOpenDetail = useCallback((postId: string) => {
     setSelectedPostIdForDetail(postId);
+    setSliceModal(prev => ({ ...prev, open: false }));
   }, []);
 
 

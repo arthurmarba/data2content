@@ -284,6 +284,9 @@ interface VideoDrillDownModalProps {
   endDate?: string;
   initialFilters?: Partial<FilterState>;
   initialTypes?: string;
+  onReviewClick?: (video: VideoListItem) => void;
+  onPlayClick?: (video: VideoListItem) => void;
+  onDetailClick?: (postId: string) => void;
 }
 
 
@@ -297,6 +300,9 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   endDate,
   initialFilters,
   initialTypes,
+  onReviewClick,
+  onPlayClick,
+  onDetailClick,
 }) => {
 
   const [videos, setVideos] = useState<VideoListItem[]>([]);
@@ -309,11 +315,6 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     sortBy: drillDownMetric || 'postDate',
     sortOrder: 'desc',
   });
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [selectedVideoForReview, setSelectedVideoForReview] = useState<VideoListItem | null>(null);
-  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
-  const [selectedVideoForPlayer, setSelectedVideoForPlayer] = useState<VideoListItem | null>(null);
 
 
   const [filters, setFilters] = useState<FilterState>({
@@ -436,22 +437,16 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     setCurrentPage(1);
   };
 
-  const handleRowClick = (postId: string) => {
-    setSelectedPostId(postId);
-  };
-
   const handleOpenReviewModal = (video: VideoListItem) => {
-    setSelectedVideoForReview(video);
-    setIsReviewModalOpen(true);
+    if (onReviewClick) onReviewClick(video);
   };
 
   const handlePlayVideo = (video: VideoListItem) => {
-    setSelectedVideoForPlayer(video);
-    setIsVideoPlayerOpen(true);
+    if (onPlayClick) onPlayClick(video);
   };
 
   const handleOpenDetail = (postId: string) => {
-    setSelectedPostId(postId);
+    if (onDetailClick) onDetailClick(postId);
   };
 
 
@@ -538,33 +533,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
         )}
 
       </div>
-      {selectedPostId && (
-        <PostDetailModal
-          isOpen={selectedPostId !== null}
-          onClose={() => setSelectedPostId(null)}
-          postId={selectedPostId}
-        />
-      )}
-      <PostReviewModal
-        isOpen={isReviewModalOpen}
-        onClose={() => setIsReviewModalOpen(false)}
-        apiPrefix="/api/admin"
-        post={selectedVideoForReview ? {
-          _id: selectedVideoForReview._id,
-          coverUrl: selectedVideoForReview.thumbnailUrl,
-          description: selectedVideoForReview.description,
-          creatorName: "Criador", // Info not readily available here, but describing as Criador
-        } : null}
-      />
-      <DiscoverVideoModal
-        open={isVideoPlayerOpen}
-        onClose={() => setIsVideoPlayerOpen(false)}
-        videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
-        posterUrl={selectedVideoForPlayer?.thumbnailUrl || undefined}
-        postLink={selectedVideoForPlayer?.permalink || undefined}
-      />
     </div>
-
   );
 };
 

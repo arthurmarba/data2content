@@ -262,15 +262,18 @@ const UserVideoPerformanceMetrics: React.FC<
     const handleOpenReviewModal = (video: VideoListItem) => {
       setSelectedVideoForReview(video);
       setIsReviewModalOpen(true);
+      setIsModalOpen(false); // Close drilldown
     };
 
     const handlePlayVideo = (video: VideoListItem) => {
       setSelectedVideoForPlayer(video);
       setIsVideoPlayerOpen(true);
+      setIsModalOpen(false); // Close drilldown
     };
 
     const handleOpenDetail = (postId: string) => {
       setSelectedPostId(postId);
+      setIsModalOpen(false); // Close drilldown
     };
 
 
@@ -497,6 +500,9 @@ const UserVideoPerformanceMetrics: React.FC<
           timePeriod={timePeriod}
           drillDownMetric={drillDownMetric}
           initialTypes="REEL,VIDEO"
+          onReviewClick={handleOpenReviewModal}
+          onPlayClick={handlePlayVideo}
+          onDetailClick={handleOpenDetail}
         />
 
         <PostDetailModal
