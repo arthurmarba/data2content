@@ -611,17 +611,17 @@ export default function ReviewedPostsPage() {
                       ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
                       return (
-                        <div key={creator.id} className="space-y-6">
-                          <div className="flex items-center gap-3">
+                        <div key={creator.id} className="space-y-8">
+                          <div className="flex items-center gap-4">
                             <UserAvatar
                               name={creator.name}
                               src={creator.avatarUrl ? toThumbnailProxyUrl(creator.avatarUrl) : undefined}
-                              size={44}
-                              className="border-2 border-slate-100 shadow-sm"
+                              size={64}
+                              className="border-2 border-slate-100 shadow-md"
                             />
                             <div>
-                              <h3 className="text-lg font-bold text-slate-800 leading-none">{creator.name}</h3>
-                              <p className="mt-1 text-xs font-medium text-slate-500">
+                              <h3 className="text-2xl font-black text-slate-900 leading-none tracking-tight">{creator.name}</h3>
+                              <p className="mt-2 text-sm font-medium text-slate-500">
                                 {allItems.length} {allItems.length === 1 ? 'conteúdo individual' : 'conteúdos individuais'}
                               </p>
                             </div>
