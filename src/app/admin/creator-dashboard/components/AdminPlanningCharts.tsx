@@ -1327,6 +1327,10 @@ export default function AdminPlanningCharts({
         videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
         posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
         postLink={selectedVideoForPlayer?.permalink || undefined}
+        onReviewClick={() => {
+          setIsVideoPlayerOpen(false);
+          handleOpenReview(selectedVideoForPlayer);
+        }}
       />
     </div>
 

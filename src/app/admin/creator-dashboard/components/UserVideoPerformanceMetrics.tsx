@@ -527,6 +527,10 @@ const UserVideoPerformanceMetrics: React.FC<
           videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
           posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
           postLink={selectedVideoForPlayer?.permalink || undefined}
+          onReviewClick={() => {
+            setIsVideoPlayerOpen(false);
+            handleOpenReviewModal(selectedVideoForPlayer!);
+          }}
         />
       </div>
 

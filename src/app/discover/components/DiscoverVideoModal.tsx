@@ -28,12 +28,14 @@ export default function DiscoverVideoModal({
   videoUrl,
   posterUrl,
   nextItem,
+  onReviewClick,
 }: {
   open: boolean;
   onClose: () => void;
   postLink?: string;
   videoUrl?: string;
   posterUrl?: string;
+  onReviewClick?: () => void;
   nextItem?: {
     id: string;
     videoUrl?: string;
@@ -54,13 +56,13 @@ export default function DiscoverVideoModal({
     };
     const next = nextItem
       ? {
-          id: nextItem.id,
-          videoUrl: nextItem.videoUrl,
-          postLink: nextItem.postLink,
-          posterUrl: nextItem.posterUrl,
-          caption: nextItem.caption,
-          creatorName: nextItem.creatorName,
-        }
+        id: nextItem.id,
+        videoUrl: nextItem.videoUrl,
+        postLink: nextItem.postLink,
+        posterUrl: nextItem.posterUrl,
+        caption: nextItem.caption,
+        creatorName: nextItem.creatorName,
+      }
       : null;
     return next ? [current, next] : [current];
   }, [open, videoUrl, postLink, posterUrl, nextItem]);
@@ -131,7 +133,7 @@ export default function DiscoverVideoModal({
     const el = videoRef.current;
     if (!el) return;
     if (el.paused) {
-      el.play().catch(() => {});
+      el.play().catch(() => { });
     } else {
       el.pause();
     }
@@ -148,11 +150,11 @@ export default function DiscoverVideoModal({
     const el = containerRef.current;
     if (!el) return;
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
       return;
     }
     if (el.requestFullscreen) {
-      el.requestFullscreen().catch(() => {});
+      el.requestFullscreen().catch(() => { });
     }
   };
 
@@ -176,19 +178,29 @@ export default function DiscoverVideoModal({
         ref={containerRef}
         className="relative h-[92svh] sm:h-[92vh] max-h-[900px] w-auto max-w-[94vw] sm:max-w-[520px] aspect-[9/16] bg-black rounded-xl overflow-hidden shadow-lg"
       >
-        <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-2 z-30 flex items-center gap-2 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
-          {active?.postLink ? (
-            <a
-              href={active.postLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2 py-1 rounded-md text-sm bg-white/90 text-gray-800"
-            >
-              Ver no Instagram
-            </a>
-          ) : null}
+        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+          <div className="flex items-center gap-2">
+            {onReviewClick && (
+              <button
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 transition-colors uppercase tracking-wider"
+                onClick={onReviewClick}
+              >
+                Revisar
+              </button>
+            )}
+            {active?.postLink && (
+              <a
+                href={active.postLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors backdrop-blur-md uppercase tracking-wider"
+              >
+                Ver no Instagram
+              </a>
+            )}
+          </div>
           <button
-            className="px-2 py-1 rounded-md text-sm bg-white/90 text-gray-800"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors backdrop-blur-md uppercase tracking-wider"
             onClick={onClose}
             aria-label="Fechar"
           >
