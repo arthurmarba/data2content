@@ -353,11 +353,12 @@ const SidebarLinkItem = ({
           className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${tokens.collapsedIconShift}`}
         >
           {renderIcon(item.icon, active, `${tokens.iconSize} ${iconColor}`)}
-          {showBadge && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] rounded-full bg-red-500 px-1.5 py-[1px] text-[10px] font-bold leading-4 text-white shadow">
+          {showBadge && !tokens.showLabels && (
+            <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 py-[1px] text-[10px] font-bold leading-none text-white shadow">
               {badgeCount > 99 ? "99+" : badgeCount}
             </span>
           )}
+
           {locked && !hideLockBadge && !tokens.showLabels && (
             <Lock className="absolute -right-1 -top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}
@@ -371,10 +372,11 @@ const SidebarLinkItem = ({
         {tokens.showLabels && (
           <span className="ml-auto flex items-center gap-2">
             {showBadge && (
-              <span className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-red-500 px-2 py-[2px] text-[11px] font-bold leading-4 text-white shadow">
+              <span className="inline-flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 py-[1px] text-[11px] font-bold leading-none text-white shadow">
                 {badgeCount > 99 ? "99+" : badgeCount}
               </span>
             )}
+
             {locked && !hideLockBadge && (
               <>
                 <ProBadge />
@@ -435,15 +437,11 @@ const SidebarChildLink = ({
           className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center"
         >
           {renderIcon(item.icon, active, `h-5 w-5 ${iconColor}`)}
-          {showBadge && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] rounded-full bg-red-500 px-1 py-[1px] text-[9px] font-bold leading-4 text-white shadow">
-              {badgeCount > 99 ? "99+" : badgeCount}
-            </span>
-          )}
           {locked && !hideLockBadge && (
             <Lock className="absolute -right-1 -top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}
         </span>
+
 
         <span className={`leading-tight whitespace-nowrap ${active ? "font-semibold text-gray-900" : "font-medium text-gray-800 group-hover:text-gray-900"}`}>
           {item.label}

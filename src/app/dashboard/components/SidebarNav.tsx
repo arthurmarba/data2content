@@ -77,8 +77,9 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       alignClass: "justify-start",
       itemPadding: "px-3 py-2.5",
       itemGap: showLabels ? "gap-3" : "gap-0",
-      itemTextSize: showLabels ? "text-base" : "text-xs",
+      itemTextSize: showLabels ? "text-sm" : "text-xs",
       iconSize: "h-6 w-6",
+
       collapsedIconShift: "",
       focusOffsetClass: "focus-visible:ring-offset-white",
     }),
@@ -177,8 +178,9 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     : "";
 
   const desktopClasses = !isMobile
-    ? `hidden lg:flex lg:flex-col lg:transform-none ${effectiveCollapsed ? "lg:w-[72px]" : "lg:w-60"}`
+    ? `hidden lg:flex lg:flex-col lg:transform-none ${effectiveCollapsed ? "lg:w-[72px]" : "lg:w-64"}`
     : "";
+
 
   const navPaddingX = "px-3";
   const labelTransition = showLabels ? "max-w-full opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1";

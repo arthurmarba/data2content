@@ -28,11 +28,14 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
             // Save to local storage
             if (typeof window !== "undefined") {
                 window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                // Dispatch event for cross-component sync in same window
+                window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key, value: valueToStore } }));
             }
         } catch (error) {
             console.log(error);
         }
     };
+
 
     return [storedValue, setValue] as const;
 }

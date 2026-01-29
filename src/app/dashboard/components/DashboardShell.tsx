@@ -105,7 +105,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
 
-  const mainOffset = isGuidedFlow ? "" : "lg:ml-16";
+  const mainOffset = isGuidedFlow ? "" : "lg:ml-[72px]";
+
 
   const mainScrollClass = isChatPage ? "overflow-hidden flex flex-col" : "overflow-y-auto";
 
