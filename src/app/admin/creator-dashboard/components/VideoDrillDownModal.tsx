@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { idsToLabels } from '../../../lib/classification';
+import { idsToLabels, formatCategories, proposalCategories, contextCategories, toneCategories, referenceCategories, Category } from '@/app/lib/classification';
 import {
   XMarkIcon,
   FireIcon,
@@ -20,19 +20,7 @@ import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
 
 
 
-// --- Definições de Categoria (Consistência com o resto da aplicação) ---
-export interface Category {
-  id: string;
-  label: string;
-  description: string;
-  subcategories?: Category[];
-}
-
-export const formatCategories: Category[] = [{ id: 'reel', label: 'Reel', description: 'Vídeo curto e vertical.' }, { id: 'photo', label: 'Foto', description: 'Uma única imagem estática.' }, { id: 'carousel', label: 'Carrossel', description: 'Post com múltiplas imagens ou vídeos.' }, { id: 'story', label: 'Story', description: 'Conteúdo efêmero, vertical.' }, { id: 'live', label: 'Live', description: 'Transmissão de vídeo ao vivo.' }, { id: 'long_video', label: 'Vídeo Longo', description: 'Vídeo mais longo que não se encaixa no formato Reel.' },];
-export const proposalCategories: Category[] = [{ id: 'educational', label: 'Educativo', description: 'Conteúdo que visa ensinar algo.' }, { id: 'humor_scene', label: 'Humor', description: 'Conteúdo cômico, esquete ou cena engraçada.' }, { id: 'news', label: 'Notícia', description: 'Informa sobre um acontecimento relevante.' }, { id: 'review', label: 'Review', description: 'Análise ou avaliação de um produto.' }, { id: 'tips', label: 'Tutorial', description: 'Fornece conselhos práticos ou tutoriais.' },];
-export const contextCategories: Category[] = [{ id: 'lifestyle_and_wellbeing', label: 'Estilo de Vida e Bem-Estar', description: 'Tópicos sobre vida pessoal, saúde e aparência.', subcategories: [{ id: 'fashion_style', label: 'Moda/Estilo', description: 'Looks, tendências de moda.' }, { id: 'fitness_sports', label: 'Fitness/Esporte', description: 'Exercícios, treinos, esportes.' },] }, { id: 'personal_and_professional', label: 'Pessoal e Profissional', description: 'Tópicos sobre relacionamentos, carreira e desenvolvimento.', subcategories: [{ id: 'relationships_family', label: 'Relacionamentos/Família', description: 'Família, amizades, relacionamentos.' }, { id: 'career_work', label: 'Carreira/Trabalho', description: 'Desenvolvimento profissional.' },] },];
-export const toneCategories: Category[] = [{ id: 'humorous', label: 'Humorístico', description: 'Intenção de ser engraçado.' }, { id: 'inspirational', label: 'Inspirador', description: 'Busca inspirar ou motivar.' }, { id: 'educational', label: 'Educacional', description: 'Objetivo de ensinar ou informar.' }, { id: 'critical', label: 'Crítico', description: 'Faz uma análise crítica ou opina.' }, { id: 'promotional', label: 'Promocional', description: 'Objetivo de vender ou promover.' }, { id: 'neutral', label: 'Neutro', description: 'Descreve fatos sem carga emocional.' },];
-export const referenceCategories: Category[] = [{ id: 'pop_culture', label: 'Cultura Pop', description: 'Referências a obras de ficção, celebridades ou memes.', subcategories: [{ id: 'pop_culture_movies_series', label: 'Filmes e Séries', description: 'Referências a filmes e séries.' }, { id: 'pop_culture_books', label: 'Livros', description: 'Referências a livros e universos literários.' },] }, { id: 'people_and_groups', label: 'Pessoas e Grupos', description: 'Referências a grupos sociais, profissões ou estereótipos.', subcategories: [{ id: 'regional_stereotypes', label: 'Estereótipos Regionais', description: 'Imitações ou referências a sotaques e costumes.' },] },];
+// Categorias importadas do classification.ts
 
 
 // --- Componentes de Apoio e Tipos ---
@@ -162,7 +150,7 @@ const VideoCard: React.FC<{
 
       <div className="grid grid-cols-12 gap-x-4 gap-y-3 items-start">
         <div className="col-span-12 md:col-span-4 flex items-start gap-4">
-          <Image src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={96} height={54} className="rounded-md object-cover flex-shrink-0 mt-1 group-hover:scale-105 transition-transform" />
+          <Image src={video.thumbnailUrl || 'https://placehold.co/72x128/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={72} height={128} className="rounded-md object-cover flex-shrink-0 mt-1 group-hover:scale-105 transition-transform aspect-[9/16]" />
           <div className="flex-grow">
 
             <p className="font-semibold text-base text-gray-800 line-clamp-3" title={video.description}>
@@ -274,7 +262,9 @@ interface FilterState {
   references: string;
   linkSearch: string;
   minViews: string;
+  types: string;
 }
+
 
 const SORT_OPTIONS = [
   { value: 'postDate-desc', label: 'Mais Recentes' },
@@ -293,7 +283,9 @@ interface VideoDrillDownModalProps {
   startDate?: string;
   endDate?: string;
   initialFilters?: Partial<FilterState>;
+  initialTypes?: string;
 }
+
 
 const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   isOpen,
@@ -304,7 +296,9 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   startDate,
   endDate,
   initialFilters,
+  initialTypes,
 }) => {
+
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [totalVideos, setTotalVideos] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -325,8 +319,10 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   const [filters, setFilters] = useState<FilterState>({
 
     proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '',
+    types: initialTypes || '',
     ...initialFilters
   });
+
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
 
   const createOptionsFromCategories = (categories: Category[]) => {
@@ -369,7 +365,9 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
       sortBy: sortConfig.sortBy,
       sortOrder: sortConfig.sortOrder,
       timePeriod,
+      types: debouncedFilters.types,
     });
+
 
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
@@ -385,9 +383,10 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
         throw new Error(data.error || response.statusText);
       }
       const data = await response.json();
-      setVideos(data.videos || []); // Fallback to empty array if undefined
+      setVideos(data.posts || data.videos || []); // Handle both field names
       setTotalVideos(data.pagination?.totalPosts || data.pagination?.totalVideos || 0); // Handle both field names
     } catch (e: any) {
+
       setError(e.message);
     } finally {
       setIsLoading(false);
@@ -406,8 +405,10 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
       // Reset filters when opening, applying initialFilters
       setFilters({
         proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '',
+        types: initialTypes || '',
         ...initialFilters
       });
+
     } else if (!isOpen) {
       setVideos([]);
       setError(null);
@@ -513,14 +514,27 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
         </div>
 
         {totalVideos > 0 && (
-          <div className="p-4 border-t border-gray-200 flex justify-between items-center text-sm">
-            <span>Total: {totalVideos} vídeos</span>
-            <div className="flex items-center space-x-2">
-              <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded-md disabled:opacity-50">Anterior</button>
-              <span>Página {currentPage} de {totalPages}</span>
-              <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded-md disabled:opacity-50">Próxima</button>
+          <div className="p-4 border-t border-gray-200 flex justify-between items-center text-sm bg-gray-50 rounded-b-xl">
+            <span className="font-medium text-gray-600">Total: {totalVideos} resultados</span>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-4 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold shadow-sm"
+              >
+                Anterior
+              </button>
+              <span className="font-semibold text-gray-700">Página {currentPage} de {totalPages}</span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold shadow-sm"
+              >
+                Próxima
+              </button>
             </div>
           </div>
+
         )}
 
       </div>

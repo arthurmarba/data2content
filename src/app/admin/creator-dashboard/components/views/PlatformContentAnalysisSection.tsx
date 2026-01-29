@@ -118,6 +118,8 @@ const PlatformContentAnalysisSection: React.FC<Props> = ({
             format: '',
             proposal: '',
             context: contextFilter || '',
+            tone: '',
+            reference: '',
             onlyActiveSubscribers,
             creatorContext: creatorContextFilter || '',
             userId: null,

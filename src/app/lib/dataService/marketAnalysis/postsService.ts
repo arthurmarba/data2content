@@ -287,6 +287,8 @@ export interface IFindUserPostsArgs { // ALTERADO
     proposal?: string;
     context?: string;
     format?: string;
+    tone?: string;
+    references?: string;
     linkSearch?: string;
     minViews?: number;
     types?: string[];
@@ -389,9 +391,38 @@ export async function findUserPosts({ // ALTERADO
     };
 
     if (timePeriod !== 'all_time') matchStage.postDate = { $gte: startDate, $lte: endDate };
-    if (filters.proposal) matchStage.proposal = { $regex: filters.proposal, $options: 'i' };
-    if (filters.context) matchStage.context = { $regex: filters.context, $options: 'i' };
-    if (filters.format) matchStage.format = { $regex: filters.format, $options: 'i' };
+
+    // Filtros de classificação assertivos (ID exato + subcategorias; aceita labels)
+    const buildClassFilter = (value: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
+      const ids = getCategoryWithSubcategoryIds(value, type);
+      const labels = ids
+        .map((id) => getCategoryById(id, type)?.label)
+        .filter((l): l is string => Boolean(l));
+      const field = type === 'reference' ? 'references' : type;
+      return { $or: [{ [field]: { $in: ids } }, { [field]: { $in: labels } }] };
+    };
+
+    if (filters.proposal) {
+      if (!matchStage.$and) matchStage.$and = [];
+      matchStage.$and.push(buildClassFilter(filters.proposal, 'proposal'));
+    }
+    if (filters.context) {
+      if (!matchStage.$and) matchStage.$and = [];
+      matchStage.$and.push(buildClassFilter(filters.context, 'context'));
+    }
+    if (filters.format) {
+      if (!matchStage.$and) matchStage.$and = [];
+      matchStage.$and.push(buildClassFilter(filters.format, 'format'));
+    }
+    if (filters.tone) {
+      if (!matchStage.$and) matchStage.$and = [];
+      matchStage.$and.push(buildClassFilter(filters.tone, 'tone'));
+    }
+    if (filters.references) {
+      if (!matchStage.$and) matchStage.$and = [];
+      matchStage.$and.push(buildClassFilter(filters.references, 'reference'));
+    }
+
     if (filters.linkSearch) matchStage.postLink = { $regex: filters.linkSearch, $options: 'i' };
     if (filters.minViews !== undefined && filters.minViews >= 0) {
       matchStage.$or = [

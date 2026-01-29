@@ -40,6 +40,8 @@ export async function GET(
   const formatParam = searchParams.get('format');
   const proposalParam = searchParams.get('proposal');
   const contextParam = searchParams.get('context');
+  const toneParam = searchParams.get('tone');
+  const referenceParam = searchParams.get('reference');
   const metricParam = searchParams.get('metric');
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
@@ -57,6 +59,8 @@ export async function GET(
     format: formatParam || undefined,
     proposal: proposalParam || undefined,
     context: contextParam || undefined,
+    tone: toneParam || undefined,
+    reference: referenceParam || undefined,
   });
 
   const best = result.bestSlots[0];
@@ -76,6 +80,8 @@ export async function GET(
   if (formatParam) filterLabels.push(getCategoryById(formatParam, 'format')?.label || formatParam);
   if (proposalParam) filterLabels.push(getCategoryById(proposalParam, 'proposal')?.label || proposalParam);
   if (contextParam) filterLabels.push(getCategoryById(contextParam, 'context')?.label || contextParam);
+  if (toneParam) filterLabels.push(getCategoryById(toneParam, 'tone')?.label || toneParam);
+  if (referenceParam) filterLabels.push(getCategoryById(referenceParam, 'reference')?.label || referenceParam);
   if (filterLabels.length > 0 && summary) {
     summary = `Para posts sobre ${filterLabels.join(' e ')}, ${summary.charAt(0).toLowerCase() + summary.slice(1)}`;
   }

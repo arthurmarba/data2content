@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import VideoDrillDownModal from "./VideoDrillDownModal";
 import VideoListPreview from "./VideoListPreview";
 import PostDetailModal from "../PostDetailModal";
 import PostReviewModal from "./PostReviewModal";
 import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
+import { PlayIcon, CheckCircleIcon, ExclamationCircleIcon, ArrowRightIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { formatCategories, proposalCategories, contextCategories, toneCategories, referenceCategories } from '@/app/lib/classification';
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 import { VideoListItem } from "@/types/mediakit";
@@ -105,6 +107,19 @@ const MetricDisplay: React.FC<{
   </div>
 );
 
+const createOptionsFromCategories = (categories: any[]) => {
+  return categories.map((cat) => ({
+    value: cat.id,
+    label: cat.label,
+  }));
+};
+
+const formatOptions = createOptionsFromCategories(formatCategories);
+const proposalOptions = createOptionsFromCategories(proposalCategories);
+const contextOptions = createOptionsFromCategories(contextCategories);
+const toneOptions = createOptionsFromCategories(toneCategories);
+const referenceOptions = createOptionsFromCategories(referenceCategories);
+
 const UserVideoPerformanceMetrics: React.FC<
   UserVideoPerformanceMetricsProps
 > = ({
@@ -131,8 +146,15 @@ const UserVideoPerformanceMetrics: React.FC<
     const [selectedVideoForPlayer, setSelectedVideoForPlayer] = useState<VideoListItem | null>(null);
 
 
-
     const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
+
+    const [format, setFormat] = useState('');
+    const [proposal, setProposal] = useState('');
+    const [context, setContext] = useState('');
+    const [tone, setTone] = useState('');
+    const [reference, setReference] = useState('');
+
+    const [isDrillDownOpen, setIsDrillDownOpen] = useState(false);
     const [timePeriod, setTimePeriod] = useState<string>(
       globalTimePeriod ||
       TIME_PERIOD_OPTIONS[1]?.value ||
@@ -175,9 +197,20 @@ const UserVideoPerformanceMetrics: React.FC<
 
       setLoading(true);
       setError(null);
+      // Fetch metrics data
+      const metricsUrl = `/api/v1/users/${userId}/performance/video-metrics?${(function () {
+        const params = new URLSearchParams({
+          timePeriod: globalTimePeriod,
+        });
+        if (format) params.set('format', format);
+        if (proposal) params.set('proposal', proposal);
+        if (context) params.set('context', context);
+        if (tone) params.set('tone', tone);
+        if (reference) params.set('reference', reference);
+        return params.toString();
+      })()}`;
       try {
-        const apiUrl = `/api/v1/users/${userId}/performance/video-metrics?timePeriod=${timePeriod}`;
-        const response = await fetch(apiUrl);
+        const response = await fetch(metricsUrl);
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(
@@ -204,7 +237,7 @@ const UserVideoPerformanceMetrics: React.FC<
       } finally {
         setLoading(false);
       }
-    }, [userId, timePeriod]);
+    }, [userId, globalTimePeriod, format, proposal, context, tone, reference]);
 
     useEffect(() => {
       if (!userId) {
@@ -245,11 +278,13 @@ const UserVideoPerformanceMetrics: React.FC<
     if (!userId) {
       return (
         <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-          <h3 className="text-md font-semibold text-gray-700 mb-3">
-            {chartTitle}
-          </h3>
-          <div className="text-center py-5 text-gray-500">
-            Selecione um criador.
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-gray-900 group-flex items-center gap-2">
+              Performance de Vídeos do Criador
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Análise detalhada de retenção e engajamento dos últimos conteúdos em vídeo.
+            </p>
           </div>
         </div>
       );
@@ -280,6 +315,50 @@ const UserVideoPerformanceMetrics: React.FC<
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Filters Row */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <select
+            value={format}
+            onChange={(e) => setFormat(e.target.value)}
+            className="w-full p-2 border border-gray-200 rounded-lg text-xs shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none bg-white"
+          >
+            <option value="">Formato</option>
+            {formatOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+          </select>
+          <select
+            value={proposal}
+            onChange={(e) => setProposal(e.target.value)}
+            className="w-full p-2 border border-gray-200 rounded-lg text-xs shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none bg-white"
+          >
+            <option value="">Proposta</option>
+            {proposalOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+          </select>
+          <select
+            value={context}
+            onChange={(e) => setContext(e.target.value)}
+            className="w-full p-2 border border-gray-200 rounded-lg text-xs shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none bg-white"
+          >
+            <option value="">Contexto</option>
+            {contextOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+          </select>
+          <select
+            value={tone}
+            onChange={(e) => setTone(e.target.value)}
+            className="w-full p-2 border border-gray-200 rounded-lg text-xs shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none bg-white"
+          >
+            <option value="">Tom</option>
+            {toneOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+          </select>
+          <select
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            className="w-full p-2 border border-gray-200 rounded-lg text-xs shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none bg-white"
+          >
+            <option value="">Referência</option>
+            {referenceOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+          </select>
         </div>
 
         {resolvedLoading && (
@@ -373,7 +452,14 @@ const UserVideoPerformanceMetrics: React.FC<
             </div>
             <VideoListPreview
               userId={userId!}
-              timePeriod={timePeriod}
+              timePeriod={globalTimePeriod}
+              filters={{
+                format: format || undefined,
+                proposal: proposal || undefined,
+                context: context || undefined,
+                tone: tone || undefined,
+                reference: reference || undefined,
+              }}
               onPlayClick={handlePlayVideo}
               onDetailClick={handleOpenDetail}
               onReviewClick={handleOpenReviewModal}
@@ -398,12 +484,21 @@ const UserVideoPerformanceMetrics: React.FC<
           </div>
         )}
         <VideoDrillDownModal
+          userId={userId!}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          userId={userId!}
+          initialFilters={{
+            format: format || undefined,
+            proposal: proposal || undefined,
+            context: context || undefined,
+            tone: tone || undefined,
+            references: reference || undefined,
+          }}
           timePeriod={timePeriod}
           drillDownMetric={drillDownMetric}
+          initialTypes="REEL,VIDEO"
         />
+
         <PostDetailModal
           isOpen={selectedPostId !== null}
           onClose={() => setSelectedPostId(null)}

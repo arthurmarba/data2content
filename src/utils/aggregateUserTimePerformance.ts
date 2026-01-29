@@ -37,6 +37,8 @@ export interface PerformanceFilters {
   format?: string;
   proposal?: string;
   context?: string;
+  tone?: string;
+  reference?: string;
 }
 
 export async function aggregateUserTimePerformance(
@@ -68,14 +70,14 @@ export async function aggregateUserTimePerformance(
 
     const resolvedUserId =
       typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
-    
+
     const matchStage: PipelineStage.Match = {
       $match: {
         user: resolvedUserId,
         postDate: { $gte: startDate, $lte: endDate },
       },
     };
-    
+
     // --- INÍCIO DA ALTERAÇÃO ---
     // A lógica de filtragem foi completamente corrigida para usar Labels.
 
@@ -96,6 +98,16 @@ export async function aggregateUserTimePerformance(
       // CORREÇÃO: Converte a lista de IDs para a lista de Labels correspondentes.
       const contextLabels = contextIds.map(id => getCategoryById(id, 'context')?.label || id);
       (matchStage.$match as any).context = { $in: contextLabels };
+    }
+    if (filters.tone) {
+      const toneIds = getCategoryWithSubcategoryIds(filters.tone, 'tone');
+      const toneLabels = toneIds.map(id => getCategoryById(id, 'tone')?.label || id);
+      (matchStage.$match as any).tone = { $in: toneLabels };
+    }
+    if (filters.reference) {
+      const referenceIds = getCategoryWithSubcategoryIds(filters.reference, 'reference');
+      const referenceLabels = referenceIds.map(id => getCategoryById(id, 'reference')?.label || id);
+      (matchStage.$match as any).references = { $in: referenceLabels };
     }
     // --- FIM DA ALTERAÇÃO ---
 

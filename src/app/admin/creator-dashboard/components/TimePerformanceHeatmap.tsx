@@ -11,7 +11,7 @@ parâmetros de filtro corretamente para a API.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
-import { formatCategories, proposalCategories, contextCategories, idsToLabels } from "@/app/lib/classification";
+import { formatCategories, proposalCategories, contextCategories, toneCategories, referenceCategories, idsToLabels } from "@/app/lib/classification";
 import PostsBySliceModal from '@/app/dashboard/planning/components/PostsBySliceModal';
 import PostReviewModal from './PostReviewModal';
 import PostDetailModal from '../PostDetailModal';
@@ -109,6 +109,8 @@ const metricOptions = [
 const formatOptions = createOptionsFromCategories(formatCategories);
 const proposalOptions = createOptionsFromCategories(proposalCategories);
 const contextOptions = createOptionsFromCategories(contextCategories);
+const toneOptions = createOptionsFromCategories(toneCategories);
+const referenceOptions = createOptionsFromCategories(referenceCategories);
 
 // --- Componente Principal ---
 interface TimePerformanceHeatmapProps {
@@ -125,6 +127,8 @@ interface TimePerformanceHeatmapProps {
     format: string;
     proposal: string;
     context: string;
+    tone: string;
+    reference: string;
     onlyActiveSubscribers?: boolean;
     creatorContext?: string;
     userId?: string | null;
@@ -149,6 +153,8 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
   const [format, setFormat] = useState('');
   const [proposal, setProposal] = useState('');
   const [context, setContext] = useState(forcedContext || '');
+  const [tone, setTone] = useState('');
+  const [reference, setReference] = useState('');
   const [metric, setMetric] = useState(metricOptions[0]!.value);
 
   // Modal State
@@ -189,6 +195,8 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
     if (format) params.set('format', format);
     if (proposal) params.set('proposal', proposal);
     if (context) params.set('context', context);
+    if (tone) params.set('tone', tone);
+    if (reference) params.set('reference', reference);
     if (onlyActiveSubscribers) params.set('onlyActiveSubscribers', 'true');
     if (forcedCreatorContext) params.set('creatorContext', forcedCreatorContext);
 
@@ -215,6 +223,8 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
     && (dataOverrideFilters.format || '') === format
     && (dataOverrideFilters.proposal || '') === proposal
     && (dataOverrideFilters.context || '') === context
+    && (dataOverrideFilters.tone || '') === tone
+    && (dataOverrideFilters.reference || '') === reference
     && Boolean(dataOverrideFilters.onlyActiveSubscribers) === Boolean(onlyActiveSubscribers)
     && (dataOverrideFilters.creatorContext || '') === (forcedCreatorContext || '')
     && (dataOverrideFilters.userId || null) === (userId || null)
@@ -254,6 +264,8 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
       if (format) params.append('format', format);
       if (proposal) params.append('proposal', proposal);
       if (context) params.append('context', context);
+      if (tone) params.append('tone', tone);
+      if (reference) params.append('reference', reference);
       if (onlyActiveSubscribers) params.append('onlyActiveSubscribers', 'true');
 
       const base = userId
@@ -347,20 +359,28 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
           <h3 className="text-lg font-semibold text-gray-800">Análise de Performance por Horário</h3>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border">
-          <select value={format} onChange={(e) => setFormat(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4 p-4 bg-gray-50 rounded-lg border">
+          <select value={format} onChange={(e) => setFormat(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-[11px] shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
             <option value="">Todos Formatos</option>
             {formatOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
           </select>
-          <select value={proposal} onChange={(e) => setProposal(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+          <select value={proposal} onChange={(e) => setProposal(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-[11px] shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
             <option value="">Todas Propostas</option>
             {proposalOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
           </select>
-          <select value={context} onChange={(e) => setContext(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+          <select value={context} onChange={(e) => setContext(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-[11px] shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
             <option value="">Todos Contextos</option>
             {contextOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
           </select>
-          <select value={metric} onChange={(e) => setMetric(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+          <select value={tone} onChange={(e) => setTone(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-[11px] shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="">Todos Tons</option>
+            {toneOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+          </select>
+          <select value={reference} onChange={(e) => setReference(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-[11px] shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="">Referências</option>
+            {referenceOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+          </select>
+          <select value={metric} onChange={(e) => setMetric(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-[11px] shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-semibold text-indigo-700">
             {metricOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
           </select>
         </div>

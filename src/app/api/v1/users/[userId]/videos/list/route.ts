@@ -83,6 +83,8 @@ export async function GET(
       proposal: searchParams.get('proposal') || undefined,
       context: searchParams.get('context') || undefined,
       format: searchParams.get('format') || undefined,
+      tone: searchParams.get('tone') || undefined,
+      references: searchParams.get('reference') || undefined,
       linkSearch: searchParams.get('linkSearch') || undefined,
       minViews: searchParams.has('minViews') ? toInt(searchParams.get('minViews'), 0) : undefined,
       // se não houver filtro explícito, busca todos os tipos (não só vídeo/reel)

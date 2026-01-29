@@ -21,7 +21,7 @@ interface UserVideoMetricsResponse extends Omit<Awaited<ReturnType<typeof calcul
 
 // --- Função de verificação de tipo (Type Guard) ---
 function isAllowedTimePeriod(period: any): period is TimePeriod {
-    return ALLOWED_TIME_PERIODS.includes(period);
+  return ALLOWED_TIME_PERIODS.includes(period);
 }
 
 // Helper para converter timePeriod string para periodInDays number
@@ -44,6 +44,12 @@ export async function GET(
     ? timePeriodParam
     : "last_90_days";
 
+  const formatParam = searchParams.get('format');
+  const proposalParam = searchParams.get('proposal');
+  const contextParam = searchParams.get('context');
+  const toneParam = searchParams.get('tone');
+  const referenceParam = searchParams.get('reference');
+
   if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
@@ -53,7 +59,15 @@ export async function GET(
 
     const videoMetrics: AverageVideoMetricsData = await calculateAverageVideoMetrics(
       userId,
-      periodInDaysValue
+      periodInDaysValue,
+      ['REEL', 'VIDEO'],
+      {
+        format: formatParam || undefined,
+        proposal: proposalParam || undefined,
+        context: contextParam || undefined,
+        tone: toneParam || undefined,
+        reference: referenceParam || undefined,
+      }
     );
 
     const responsePayload: UserVideoMetricsResponse = {
@@ -65,10 +79,10 @@ export async function GET(
       numberOfVideoPosts: videoMetrics.numberOfVideoPosts,
       averageShares: videoMetrics.averageShares,
       averageSaves: videoMetrics.averageSaves,
-      insightSummary: `Nos ${timePeriod.replace("last_","").replace("_"," ")}, a retenção média dos seus vídeos é de ${videoMetrics.averageRetentionRate.toFixed(1)}% e o tempo médio de visualização é de ${videoMetrics.averageWatchTimeSeconds.toFixed(0)}s, baseado em ${videoMetrics.numberOfVideoPosts} vídeos.`
+      insightSummary: `Nos ${timePeriod.replace("last_", "").replace("_", " ")}, a retenção média dos seus vídeos é de ${videoMetrics.averageRetentionRate.toFixed(1)}% e o tempo médio de visualização é de ${videoMetrics.averageWatchTimeSeconds.toFixed(0)}s, baseado em ${videoMetrics.numberOfVideoPosts} vídeos.`
     };
     if (videoMetrics.numberOfVideoPosts === 0) {
-        responsePayload.insightSummary = `Nenhum post de vídeo encontrado para o período selecionado (${timePeriod.replace("last_","").replace("_"," ")}).`;
+      responsePayload.insightSummary = `Nenhum post de vídeo encontrado para o período selecionado (${timePeriod.replace("last_", "").replace("_", " ")}).`;
     }
 
 

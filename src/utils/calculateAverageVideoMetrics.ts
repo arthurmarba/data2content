@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric'; // IMetric não é mais necessário aqui
 import { getStartDateFromTimePeriod } from './dateHelpers';
+import { getCategoryWithSubcategoryIds, getCategoryById } from "@/app/lib/classification";
 
 interface AverageVideoMetricsData {
   numberOfVideoPosts: number;
@@ -24,7 +25,14 @@ interface AverageVideoMetricsData {
 async function calculateAverageVideoMetrics(
   userId: string | Types.ObjectId,
   periodInDays: number,
-  videoTypes: string[] = ['REEL', 'VIDEO']
+  videoTypes: string[] = ['REEL', 'VIDEO'],
+  filters: {
+    format?: string;
+    proposal?: string;
+    context?: string;
+    tone?: string;
+    reference?: string;
+  } = {}
 ): Promise<AverageVideoMetricsData> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
@@ -59,11 +67,39 @@ async function calculateAverageVideoMetrics(
     const [aggregationResult] = await MetricModel.aggregate([
       // Passo 1: Filtrar documentos relevantes
       {
-        $match: {
+        $match: (Object as any).assign({
           user: resolvedUserId,
           postDate: { $gte: startDate, $lte: endDate },
           type: { $in: videoTypes },
-        }
+        }, (function () {
+          const match: any = {};
+          if (filters.format) {
+            const ids = getCategoryWithSubcategoryIds(filters.format, 'format');
+            const labels = ids.map(id => getCategoryById(id, 'format')?.label || id);
+            match.format = { $in: labels };
+          }
+          if (filters.proposal) {
+            const ids = getCategoryWithSubcategoryIds(filters.proposal, 'proposal');
+            const labels = ids.map(id => getCategoryById(id, 'proposal')?.label || id);
+            match.proposal = { $in: labels };
+          }
+          if (filters.context) {
+            const ids = getCategoryWithSubcategoryIds(filters.context, 'context');
+            const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+            match.context = { $in: labels };
+          }
+          if (filters.tone) {
+            const ids = getCategoryWithSubcategoryIds(filters.tone, 'tone');
+            const labels = ids.map(id => getCategoryById(id, 'tone')?.label || id);
+            match.tone = { $in: labels };
+          }
+          if (filters.reference) {
+            const ids = getCategoryWithSubcategoryIds(filters.reference, 'reference');
+            const labels = ids.map(id => getCategoryById(id, 'reference')?.label || id);
+            match.references = { $in: labels };
+          }
+          return match;
+        })())
       },
       // Passo 2: Criar os campos corretos para cada documento em tempo de execução
       {

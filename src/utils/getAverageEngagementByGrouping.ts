@@ -4,6 +4,7 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { getNestedValue } from './dataAccessHelpers';
 import { getStartDateFromTimePeriod } from './dateHelpers';
+import { getCategoryById, getCategoryByValue } from '@/app/lib/classification';
 
 export type GroupingType = 'format' | 'context' | 'proposal' | 'tone' | 'references';
 
@@ -71,17 +72,47 @@ async function getAverageEngagementByGrouping(
 
     const pushKey = (rawKey: string, value: number) => {
       if (!rawKey) return;
-      const normalized = normalize(rawKey);
-      if (!normalized) return;
-      const canonical =
-        groupBy === 'format' && formatAliases[normalized]
-          ? formatAliases[normalized]
-          : normalized;
-      const current = aggregation[canonical] || { sum: 0, count: 0, originalKey: rawKey };
-      if (!current.originalKey) current.originalKey = rawKey;
+
+      // 1. Tentar encontrar a categoria oficial pelo ID ou pelo Rótulo
+      // Se for algo como 'geography.city', tentamos extrair a parte relevante ou buscar diretamente
+      let targetType: 'format' | 'proposal' | 'context' | 'tone' | 'reference' = 'format';
+      if (groupBy === 'references') targetType = 'reference';
+      else if (groupBy === 'proposal' || groupBy === 'context' || groupBy === 'tone' || groupBy === 'format') targetType = groupBy;
+
+      const category = getCategoryById(rawKey, targetType) || getCategoryByValue(rawKey, targetType);
+
+      // 2. Normalização para o nome de exibição (Canonical Label)
+      let canonicalLabel = category ? category.label : rawKey;
+
+      // 3. Fallback/Correção para casos específicos como 'geography.city' -> 'Geografia'
+      const normalizedRaw = normalize(rawKey);
+      if (!category) {
+        if (normalizedRaw.includes('geography') || normalizedRaw.includes('geografia')) {
+          canonicalLabel = 'Geografia';
+        } else if (formatAliases[normalizedRaw]) {
+          canonicalLabel = formatAliases[normalizedRaw];
+          // Capitalizar formatAliases se necessário (opcional, mas bom por consistência)
+          canonicalLabel = canonicalLabel.charAt(0).toUpperCase() + canonicalLabel.slice(1);
+        }
+      }
+
+      // Se for 'city' ou 'country' puramente (ID técnico sem prefixo), e estivermos em 'references'
+      if (groupBy === 'references' && (normalizedRaw === 'city' || normalizedRaw === 'country')) {
+        canonicalLabel = 'Geografia';
+      }
+
+      // Garantir que a primeira letra seja maiúscula por padrão se não for categoria conhecida
+      if (!category && canonicalLabel === rawKey) {
+        canonicalLabel = canonicalLabel.charAt(0).toUpperCase() + canonicalLabel.slice(1);
+      }
+
+      const groupingKey = normalize(canonicalLabel);
+      if (!groupingKey) return;
+
+      const current = aggregation[groupingKey] || { sum: 0, count: 0, originalKey: canonicalLabel };
       current.sum += value;
       current.count += 1;
-      aggregation[canonical] = current;
+      aggregation[groupingKey] = current;
     };
 
     for (const post of posts) {
@@ -110,11 +141,7 @@ async function getAverageEngagementByGrouping(
       const displayKey = data.originalKey || key;
       const name =
         groupBy === 'format'
-          ? formatMapping?.[displayKey] ||
-            displayKey
-              .replace(/_/g, ' ')
-              .toLocaleLowerCase()
-              .replace(/\b\w/g, (l) => l.toUpperCase())
+          ? formatMapping?.[displayKey] || displayKey
           : displayKey;
       results.push({
         name,

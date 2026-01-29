@@ -27,6 +27,13 @@ interface VideoListPreviewProps {
   onReviewClick?: (video: VideoListItem) => void;
   onPlayClick?: (video: VideoListItem) => void;
   onDetailClick?: (postId: string) => void;
+  filters?: {
+    format?: string;
+    proposal?: string;
+    context?: string;
+    tone?: string;
+    reference?: string;
+  };
 }
 
 
@@ -68,6 +75,7 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({
   onReviewClick,
   onPlayClick,
   onDetailClick,
+  filters = {},
 }) => {
 
   const [videos, setVideos] = useState<VideoListItem[]>([]);
@@ -83,6 +91,11 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({
         const params = new URLSearchParams({
           page: "1", limit: String(limit), sortBy: "views", sortOrder: "desc", timePeriod,
         });
+        if (filters.format) params.set("format", filters.format);
+        if (filters.proposal) params.set("proposal", filters.proposal);
+        if (filters.context) params.set("context", filters.context);
+        if (filters.tone) params.set("tone", filters.tone);
+        if (filters.reference) params.set("reference", filters.reference);
         const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`);
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
@@ -97,7 +110,7 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({
       }
     };
     fetchVideos();
-  }, [userId, timePeriod, limit]);
+  }, [userId, timePeriod, limit, JSON.stringify(filters)]);
 
   return (
     <div className="mt-4" data-testid="video-list-preview">
@@ -118,11 +131,11 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({
               className="bg-white border border-gray-200/80 rounded-lg shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1 md:flex md:items-start md:gap-4 p-4 lg:hover:ring-2 lg:hover:ring-indigo-500/30 group"
             >
               <Image
-                src={video.thumbnailUrl || "https://placehold.co/320x180/e2e8f0/a0aec0?text=Img"}
+                src={video.thumbnailUrl || "https://placehold.co/180x320/e2e8f0/a0aec0?text=Img"}
                 alt={video.caption || "thumbnail"}
-                className="w-full aspect-video object-cover rounded-md md:w-36 md:h-24 md:flex-shrink-0 group-hover:scale-105 transition-transform"
-                width={320}
-                height={180}
+                className="w-full aspect-[9/16] object-cover rounded-md md:w-24 md:flex-shrink-0 group-hover:scale-105 transition-transform"
+                width={180}
+                height={320}
               />
 
               <div className="flex flex-col flex-1 mt-3 md:mt-0 h-full">

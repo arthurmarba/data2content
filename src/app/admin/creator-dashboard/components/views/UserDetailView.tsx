@@ -280,6 +280,28 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
 
 
 
+      {/* Time Performance Heatmap Section */}
+      <section>
+        <DeferredSection minHeight="360px" placeholder={<SectionPlaceholder />}>
+          <TimePerformanceHeatmap
+            userId={userId}
+            dataOverride={timeDistribution}
+            dataOverrideFilters={{
+              timePeriod,
+              metric: DEFAULT_HEATMAP_METRIC,
+              format: "",
+              proposal: "",
+              context: "",
+              tone: "",
+              reference: "",
+              userId,
+            }}
+            loadingOverride={isLoading}
+            errorOverride={errorMessage}
+          />
+        </DeferredSection>
+      </section>
+
       {/* Demographics & Region Section - Stacked vertically as per user request */}
       <section className="space-y-6">
         <DeferredSection minHeight="320px" placeholder={<SectionPlaceholder />}>
@@ -297,27 +319,6 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             userId={userId}
             dataOverride={regionSummary}
             dataOverrideFilters={{ region: "", gender: "", ageRange: "", userId, apiPrefix: "/api/admin" }}
-            loadingOverride={isLoading}
-            errorOverride={errorMessage}
-          />
-        </DeferredSection>
-      </section>
-
-
-      {/* Time Performance Heatmap Section */}
-      <section>
-        <DeferredSection minHeight="360px" placeholder={<SectionPlaceholder />}>
-          <TimePerformanceHeatmap
-            userId={userId}
-            dataOverride={timeDistribution}
-            dataOverrideFilters={{
-              timePeriod,
-              metric: DEFAULT_HEATMAP_METRIC,
-              format: "",
-              proposal: "",
-              context: "",
-              userId,
-            }}
             loadingOverride={isLoading}
             errorOverride={errorMessage}
           />
