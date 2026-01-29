@@ -212,6 +212,7 @@ export default function ReviewedPostsPage() {
   const [editNote, setEditNote] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [deletingReview, setDeletingReview] = useState(false);
   const [copiedContextId, setCopiedContextId] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
@@ -326,6 +327,29 @@ export default function ReviewedPostsPage() {
       setEditError(err.message || 'Falha ao salvar revisão.');
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    if (!editItem?.postId) return;
+    if (!window.confirm('Tem certeza que deseja excluir esta revisão? O post deixará de aparecer nesta lista.')) return;
+
+    setDeletingReview(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/admin/dashboard/post-reviews?postId=${editItem.postId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao excluir revisão.');
+      }
+      closeEdit();
+      void fetchReviews();
+    } catch (err: any) {
+      setEditError(err.message || 'Falha ao excluir revisão.');
+    } finally {
+      setDeletingReview(false);
     }
   };
 
@@ -900,17 +924,26 @@ export default function ReviewedPostsPage() {
                   />
                 </div>
                 {editError && <p className="text-sm text-rose-600">{editError}</p>}
-                <div className="flex justify-end gap-2">
-                  <button onClick={closeEdit} className="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50">
-                    Cancelar
-                  </button>
+                <div className="flex justify-between items-center pt-2">
                   <button
-                    onClick={handleEditSave}
-                    disabled={savingEdit || !editNote.trim()}
-                    className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+                    onClick={handleDeleteReview}
+                    disabled={deletingReview || savingEdit}
+                    className="px-4 py-2 text-sm font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-50"
                   >
-                    {savingEdit ? 'Salvando...' : 'Salvar'}
+                    {deletingReview ? 'Excluindo...' : 'Excluir revisão'}
                   </button>
+                  <div className="flex gap-2">
+                    <button onClick={closeEdit} className="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleEditSave}
+                      disabled={savingEdit || deletingReview}
+                      className="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+                    >
+                      {savingEdit ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

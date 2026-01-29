@@ -59,6 +59,21 @@ export async function upsertPostReview(args: {
   }
 }
 
+export async function deletePostReview(postId: string): Promise<{ success: boolean }> {
+  const TAG = `${SERVICE_TAG}[deletePostReview]`;
+  if (!Types.ObjectId.isValid(postId)) {
+    throw new DatabaseError('PostId inválido.');
+  }
+
+  try {
+    await connectToDatabase();
+    await PostReviewModel.deleteOne({ postId: new Types.ObjectId(postId) });
+    return { success: true };
+  } catch (error: any) {
+    throw new DatabaseError(`${TAG} Falha ao excluir review: ${error.message}`);
+  }
+}
+
 export async function fetchPostReviewByPostId(postId: string): Promise<IPostReviewWithPost | null> {
   const TAG = `${SERVICE_TAG}[fetchPostReviewByPostId]`;
   if (!Types.ObjectId.isValid(postId)) return null;

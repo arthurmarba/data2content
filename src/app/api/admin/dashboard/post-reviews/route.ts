@@ -9,6 +9,7 @@ import {
   fetchPostReviewByPostId,
   fetchPostReviews,
   upsertPostReview,
+  deletePostReview,
 } from '@/app/lib/dataService/marketAnalysis/postReviewsService';
 
 const SERVICE_TAG = '[api/admin/dashboard/post-reviews]';
@@ -31,7 +32,7 @@ const bodySchema = z.object({
     message: 'Invalid postId format.',
   }),
   status: z.enum(['do', 'dont', 'almost']),
-  note: z.string().trim().min(1).max(5000),
+  note: z.string().trim().max(5000).optional().default(''),
 });
 
 async function requireAdminSession() {
@@ -102,6 +103,33 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ review }, { status: 200 });
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    if (error instanceof DatabaseError) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const TAG = `${SERVICE_TAG}[DELETE]`;
+  try {
+    const session = await requireAdminSession();
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const postId = searchParams.get('postId');
+
+    if (!postId || !Types.ObjectId.isValid(postId)) {
+      return NextResponse.json({ error: 'PostId inválido ou ausente.' }, { status: 400 });
+    }
+
+    await deletePostReview(postId);
+
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
     logger.error(`${TAG} Error:`, error);
     if (error instanceof DatabaseError) {
