@@ -14,6 +14,7 @@ import {
   ChatBubbleBottomCenterTextIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 
 // --- Itens do Menu ---
@@ -37,6 +38,11 @@ const menuItems: MenuItem[] = [
       { label: 'Visão Geral', href: '/admin/creator-dashboard#platform-overview' },
       { label: 'Posts', href: '/admin/creator-dashboard#global-posts-explorer' },
     ],
+  },
+  {
+    label: 'Revisão de Conteúdo',
+    href: '/admin/reviewed-posts',
+    icon: PencilSquareIcon,
   },
   {
     label: 'Insights Criadores',
