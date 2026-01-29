@@ -14,6 +14,19 @@ import {
   ShareIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { motion } from 'framer-motion';
+import {
+  Heart,
+  MessageSquare,
+  Share2,
+  Bookmark,
+  BarChart2,
+  Play,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
 import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
 import { UserAvatar } from '@/app/components/UserAvatar';
@@ -27,28 +40,10 @@ const STATUS_LABELS: Record<ReviewStatus, string> = {
   almost: 'Quase lá',
 };
 
-const STATUS_STYLES: Record<ReviewStatus, string> = {
-  do: 'bg-emerald-50 text-emerald-700 border-emerald-200 uppercase tracking-wider font-bold',
-  dont: 'bg-rose-50 text-rose-700 border-rose-200 uppercase tracking-wider font-bold',
-  almost: 'bg-amber-50 text-amber-800 border-amber-200 uppercase tracking-wider font-bold',
-};
-
-const STATUS_PANEL_STYLES: Record<ReviewStatus, string> = {
-  do: 'border-slate-200 bg-white border-t-4 border-t-emerald-300',
-  dont: 'border-slate-200 bg-white border-t-4 border-t-rose-300',
-  almost: 'border-slate-200 bg-white border-t-4 border-t-amber-300',
-};
-
-const STATUS_NOTE_STYLES: Record<ReviewStatus, string> = {
-  do: 'border-slate-200 bg-slate-50 text-slate-700 border-l-4 border-l-emerald-300',
-  dont: 'border-slate-200 bg-slate-50 text-slate-700 border-l-4 border-l-rose-300',
-  almost: 'border-slate-200 bg-slate-50 text-slate-700 border-l-4 border-l-amber-300',
-};
-
-const STATUS_NOTE_PRESENTATION_STYLES: Record<ReviewStatus, string> = {
-  do: 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/50 shadow-sm',
-  dont: 'bg-rose-50 text-rose-900 ring-1 ring-rose-200/50 shadow-sm',
-  almost: 'bg-amber-50 text-amber-900 ring-1 ring-amber-200/50 shadow-sm',
+const STATUS_CONFIG: Record<ReviewStatus, { label: string; bg: string; text: string; border: string; icon: any }> = {
+  do: { label: 'Keep Doing', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle2 },
+  dont: { label: 'Stop Doing', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: AlertCircle },
+  almost: { label: 'Pivot / Adjust', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: MessageSquare },
 };
 
 interface ReviewPost {
@@ -107,15 +102,7 @@ interface ContextGroup {
   creators: CreatorGroup[];
 }
 
-const formatDate = (date?: string | Date) => {
-  if (!date) return 'N/A';
-  return new Date(date).toLocaleDateString('pt-BR');
-};
 
-const formatNumber = (value?: number) => {
-  if (typeof value !== 'number') return 'N/A';
-  return value.toLocaleString('pt-BR');
-};
 
 const normalizeCategoryValues = (values?: string[] | string) => {
   if (!values) return [];
@@ -194,9 +181,6 @@ export default function ReviewedPostsPage() {
   const [statusFilter, setStatusFilter] = useState<ReviewStatus | ''>('');
   const [creatorContextFilter, setCreatorContextFilter] = useState('');
   const [creatorSearch, setCreatorSearch] = useState('');
-  const [presentationMode, setPresentationMode] = useState(false);
-  const [notesOnly, setNotesOnly] = useState(false);
-  const [hideMetrics, setHideMetrics] = useState(false);
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -504,370 +488,171 @@ export default function ReviewedPostsPage() {
       <div className="max-w-full mx-auto space-y-8">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reuniao e alinhamento</p>
-            <h1 className={`font-bold text-slate-900 ${presentationMode ? 'text-3xl' : 'text-2xl'}`}>Conteudos revisados</h1>
-            <p className="text-sm text-slate-600">Organize por categoria dominante do criador e apresente as notas com clareza.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setPresentationMode((value) => !value)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${presentationMode ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-            >
-              {presentationMode ? 'Modo reuniao ativo' : 'Modo reuniao'}
-            </button>
-            <button
-              onClick={() => setNotesOnly((value) => !value)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${notesOnly ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-            >
-              {notesOnly ? 'Somente notas' : 'Mostrar detalhes'}
-            </button>
-            <button
-              onClick={() => setHideMetrics((value) => !value)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full border ${hideMetrics ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-            >
-              {hideMetrics ? 'Ocultar metricas' : 'Mostrar metricas'}
-            </button>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Administração</p>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Review de Post</h1>
+            <p className="text-lg text-slate-600">Feedbacks consolidados de todos os criadores.</p>
           </div>
         </header>
 
-        {!presentationMode && (
-          <div className={`${cardBase} p-4 space-y-3`}>
+        <div className={`${cardBase} p-4 space-y-3`}>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filtros</p>
+            <h2 className="text-sm font-semibold text-slate-900">Refine o recorte da reunião</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filtros</p>
-              <h2 className="text-sm font-semibold text-slate-900">Refine o recorte da reuniao</h2>
+              <label htmlFor="statusFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Status</label>
+              <select
+                id="statusFilter"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as ReviewStatus | '');
+                  setPage(1);
+                }}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
+              >
+                <option value="">Todos</option>
+                {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="statusFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Status</label>
-                <select
-                  id="statusFilter"
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value as ReviewStatus | '');
-                    setPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
-                >
-                  <option value="">Todos</option>
-                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="creatorContextFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Categoria dominante (criador)</label>
-                <select
-                  id="creatorContextFilter"
-                  value={creatorContextFilter}
-                  onChange={(e) => {
-                    setCreatorContextFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
-                >
-                  <option value="">Todas</option>
-                  {contextOptions.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="creatorSearch" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Buscar criador</label>
-                <input
-                  id="creatorSearch"
-                  type="text"
-                  value={creatorSearch}
-                  onChange={(e) => {
-                    setCreatorSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Nome do criador..."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
-                />
-              </div>
+            <div>
+              <label htmlFor="creatorContextFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Categoria dominante (criador)</label>
+              <select
+                id="creatorContextFilter"
+                value={creatorContextFilter}
+                onChange={(e) => {
+                  setCreatorContextFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
+              >
+                <option value="">Todas</option>
+                {contextOptions.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="creatorSearch" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Buscar criador</label>
+              <input
+                id="creatorSearch"
+                type="text"
+                value={creatorSearch}
+                onChange={(e) => {
+                  setCreatorSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Nome do criador..."
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
+              />
             </div>
           </div>
-        )}
-
-        {grouped.length > 0 && (
-          <div className={`${cardBase} p-4`}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Agenda</p>
-                <h2 className="text-sm font-semibold text-slate-900">Pular por categoria</h2>
-              </div>
-              <span className="text-xs text-slate-500">Clique para pular</span>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {grouped.map((contextGroup) => {
-                return (
-                  <a
-                    key={contextGroup.id}
-                    href={`#${getContextAnchorId(contextGroup.id)}`}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  >
-                    {contextGroup.label}
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        </div>
 
         {loading ? (
-          <div className="text-center text-sm text-slate-500 py-10">Carregando revisados...</div>
+          <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-slate-400">
+            <Loader2 className="h-8 w-8 animate-spin text-[#6E1F93]" />
+            <p className="mt-4 text-sm font-medium">Carregando conteúdos...</p>
+          </div>
         ) : error ? (
-          <div className="text-center text-sm text-rose-600 py-10">{error}</div>
+          <div className="flex min-h-[40vh] flex-col items-center justify-center p-8 text-slate-500 text-center">
+            <AlertCircle className="mb-2 h-10 w-10 text-rose-500/50" />
+            <p>{error}</p>
+            <button
+              onClick={() => fetchReviews()}
+              className="mt-4 text-sm font-semibold text-[#6E1F93] hover:underline"
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : grouped.length === 0 ? (
-          <div className="text-center text-sm text-slate-500 py-10">Nenhum conteudo revisado encontrado.</div>
+          <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center">
+            <div className="group relative mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-slate-50 shadow-inner">
+              <MessageSquare className="h-10 w-10 text-slate-300 transition group-hover:scale-110 group-hover:text-[#6E1F93]" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">Nenhum conteúdo encontrado</h2>
+            <p className="mt-2 max-w-sm text-sm text-slate-500">
+              Não há conteúdos revisados com os filtros atuais.
+            </p>
+          </div>
         ) : (
-          grouped.map((contextGroup) => {
-            const totalContextItems = contextGroup.creators.reduce(
-              (acc, creator) => acc + statusOrder.reduce((sum, status) => sum + creator.itemsByStatus[status].length, 0),
-              0
-            );
-            return (
-              <section
-                id={getContextAnchorId(contextGroup.id)}
-                key={contextGroup.id}
-                className="space-y-4 scroll-mt-24 pb-8 border-b border-slate-200/60 last:border-b-0 last:pb-0"
-              >
-                <div className={`${cardBase} p-0 overflow-hidden border-0 shadow-md ring-1 ring-slate-200/60`}>
-                  <div className="bg-gradient-to-r from-slate-50 via-white to-white px-6 py-5 border-l-4 border-l-slate-800">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div className="min-w-[200px]">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Categoria Dominante</p>
-                        <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">{contextGroup.label}</h3>
-                        <p className="text-xs font-medium text-slate-500 mt-1">
-                          {contextGroup.creators.length} criadores · {totalContextItems} conteúdos analisados
-                        </p>
-                      </div>
+          <div className="space-y-16">
+            {grouped.map((contextGroup) => {
+              const totalContextItems = contextGroup.creators.reduce(
+                (acc, creator) => acc + creator.itemsByStatus.do.length + creator.itemsByStatus.dont.length + creator.itemsByStatus.almost.length, 0
+              );
+
+              return (
+                <section key={contextGroup.id} className="space-y-10">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold text-slate-900">{contextGroup.label}</h2>
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        {totalContextItems} {totalContextItems === 1 ? 'review' : 'reviews'}
+                      </span>
                       <button
                         onClick={() => handleCopySummary(contextGroup)}
-                        className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                        className="text-xs font-bold uppercase tracking-wider text-[#6E1F93] hover:underline"
                       >
                         {copiedContextId === contextGroup.id ? 'Copiado!' : 'Copiar resumo'}
                       </button>
                     </div>
                   </div>
-                </div>
 
-                <div className="overflow-x-auto pb-8 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  <div className="flex flex-col gap-16 min-w-max px-2">
+                  <div className="space-y-12">
                     {contextGroup.creators.map((creator) => {
-                      const totalItems = statusOrder.reduce((acc, status) => acc + creator.itemsByStatus[status].length, 0);
-                      return (
-                        <div key={creator.id} className="flex items-start bg-white rounded-xl border border-slate-100/50 shadow-sm overflow-hidden">
-                          <div className="sticky left-0 z-20 bg-white w-72 shrink-0 p-6 border-r border-slate-100 shadow-[4px_0_12px_-2px_rgba(0,0,0,0.03)] flex flex-col justify-between self-stretch">
-                            <div className="flex items-center gap-3">
-                              <UserAvatar
-                                name={creator.name}
-                                src={creator.avatarUrl ? toThumbnailProxyUrl(creator.avatarUrl) : undefined}
-                                size={56}
-                                className="border-2 border-slate-100"
-                              />
-                              <div className="min-w-0">
-                                <p className="text-base font-bold text-slate-900 leading-tight truncate" title={creator.name}>{creator.name}</p>
-                                <p className="text-xs font-medium text-slate-500 mt-0.5">{totalItems} conteudos</p>
-                              </div>
-                            </div>
+                      const allItems = [
+                        ...creator.itemsByStatus.do,
+                        ...creator.itemsByStatus.dont,
+                        ...creator.itemsByStatus.almost
+                      ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-                            <div className="mt-8 pt-4 border-t border-slate-50">
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status Geral</p>
-                              <div className="mt-2 space-y-1.5">
-                                {statusOrder.map(status => (
-                                  <div key={status} className="flex items-center justify-between text-[11px]">
-                                    <span className="text-slate-500">{STATUS_LABELS[status]}</span>
-                                    <span className="font-bold text-slate-700">{creator.itemsByStatus[status].length}</span>
-                                  </div>
-                                ))}
-                              </div>
+                      return (
+                        <div key={creator.id} className="space-y-6">
+                          <div className="flex items-center gap-3">
+                            <UserAvatar
+                              name={creator.name}
+                              src={creator.avatarUrl ? toThumbnailProxyUrl(creator.avatarUrl) : undefined}
+                              size={44}
+                              className="border-2 border-slate-100 shadow-sm"
+                            />
+                            <div>
+                              <h3 className="text-lg font-bold text-slate-800 leading-none">{creator.name}</h3>
+                              <p className="mt-1 text-xs font-medium text-slate-500">
+                                {allItems.length} {allItems.length === 1 ? 'conteúdo individual' : 'conteúdos individuais'}
+                              </p>
                             </div>
                           </div>
 
-                          <div className="flex-1 flex flex-row gap-6 p-6 bg-slate-50/30">
-                            {statusOrder.map((status) => (
-                              <div key={status} className={`w-[550px] shrink-0 rounded-xl border ${STATUS_PANEL_STYLES[status]} bg-white shadow-sm overflow-hidden flex flex-col h-full min-h-[400px]`}>
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50 shrink-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ring-1 ring-inset ${STATUS_STYLES[status]}`}>
-                                      {STATUS_LABELS[status]}
-                                    </span>
-                                  </div>
-                                  <span className="text-xs font-medium text-slate-500">{creator.itemsByStatus[status].length} itens</span>
-                                </div>
-                                <div className="p-4 flex flex-col gap-4 overflow-y-auto max-h-[800px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent flex-1">
-                                  {creator.itemsByStatus[status].length === 0 ? (
-                                    <p className="text-[11px] text-slate-400">Sem itens.</p>
-                                  ) : (
-                                    creator.itemsByStatus[status].map((item) => {
-                                      const post = item.post;
-                                      const link = post?.postLink || (post?.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
-                                      const coverSrc = toThumbnailProxyUrl(
-                                        post?.coverUrl || post?.thumbnailUrl || post?.thumbnail_url || null
-                                      );
-                                      const videoUrl = toVideoProxyUrl(post?.mediaUrl || post?.media_url || null);
-                                      const canPlay = Boolean(videoUrl || link);
-                                      const totalInteractions = post?.stats?.total_interactions;
-                                      const likes = post?.stats?.likes;
-                                      const comments = post?.stats?.comments;
-                                      const shares = post?.stats?.shares;
-                                      const saved = post?.stats?.saved;
-
-                                      const noteStyle = presentationMode
-                                        ? `${STATUS_NOTE_PRESENTATION_STYLES[status]} text-lg font-medium p-4`
-                                        : `${STATUS_NOTE_STYLES[status]} text-sm px-3 py-3`;
-
-                                      const cardStyle = presentationMode
-                                        ? 'bg-white rounded-xl shadow-sm border-0 ring-1 ring-slate-100 overflow-hidden'
-                                        : 'bg-white border border-slate-200 rounded-lg';
-
-                                      return (
-                                        <div key={item._id} className={`${cardStyle} flex overflow-hidden group/card shadow-sm hover:shadow-md transition-shadow`}>
-                                          {!notesOnly && (
-                                            <div className={`relative shrink-0 ${presentationMode ? 'w-48' : 'w-36'} bg-slate-50 border-r border-slate-100 flex items-center justify-center`}>
-                                              {coverSrc ? (
-                                                <Image
-                                                  src={coverSrc}
-                                                  alt="capa"
-                                                  width={200}
-                                                  height={200}
-                                                  className="w-full h-full object-cover"
-                                                  unoptimized={coverSrc.includes('/api/proxy')}
-                                                  referrerPolicy="no-referrer"
-                                                />
-                                              ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] bg-slate-50">
-                                                  {presentationMode ? <DocumentMagnifyingGlassIcon className="w-10 h-10 opacity-10" /> : 'Sem img'}
-                                                </div>
-                                              )}
-
-                                              {/* Status indicator on image edge */}
-                                              <div className={`absolute top-0 right-0 w-1 h-full ${status === 'do' ? 'bg-emerald-400' : status === 'dont' ? 'bg-rose-400' : 'bg-amber-400'}`} />
-
-                                              {/* Overlay actions */}
-                                              {canPlay && (
-                                                <button
-                                                  onClick={() => openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined })}
-                                                  className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover/card:opacity-100 transition-opacity"
-                                                  title="Assistir conteúdo"
-                                                >
-                                                  <div className="p-3 bg-white/20 backdrop-blur-md rounded-full border border-white/40">
-                                                    <PlayCircleIcon className="w-10 h-10 text-white drop-shadow-lg" />
-                                                  </div>
-                                                </button>
-                                              )}
-
-                                              {/* Context Badge in Presentation Mode */}
-                                              {presentationMode && (
-                                                <div className="absolute bottom-0 left-0 right-0 p-1 bg-gradient-to-t from-black/60 to-transparent">
-                                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight bg-white ${status === 'do' ? 'text-emerald-700' : status === 'dont' ? 'text-rose-700' : 'text-amber-700'}`}>
-                                                    {STATUS_LABELS[status]}
-                                                  </span>
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
-
-                                          <div className={`flex-1 flex flex-col min-w-0 ${presentationMode ? "p-4" : "p-3"}`}>
-                                            <div className={`rounded-lg leading-relaxed ${noteStyle}`}>
-                                              {item.note || (presentationMode ? <span className="text-slate-400 italic font-normal">Sem observações.</span> : 'Sem anotacao.')}
-                                            </div>
-
-                                            {/* Info Row - Simplified in Presentation Mode */}
-                                            <div className={`flex items-center justify-between text-[11px] text-slate-500 ${presentationMode ? 'border-t border-slate-100 pt-3 mt-2' : ''}`}>
-                                              {!notesOnly && !presentationMode && <span>{formatDate(post?.postDate)}</span>}
-
-                                              {(presentationMode || !notesOnly) && (
-                                                <div className="flex gap-4 items-center w-full justify-between">
-                                                  {!presentationMode && typeof totalInteractions === 'number' && (
-                                                    <span className="font-semibold text-slate-600">
-                                                      Total {formatNumber(totalInteractions)}
-                                                    </span>
-                                                  )}
-
-                                                  {/* In presentation mode, minimal date display on left */}
-                                                  {presentationMode && (
-                                                    <span className="text-slate-400 text-xs">{formatDate(post?.postDate)}</span>
-                                                  )}
-                                                </div>
-                                              )}
-                                            </div>
-
-                                            {/* Metrics - Hidden by default in presentation mode unless toggled */}
-                                            {!hideMetrics && !notesOnly && (!presentationMode || hideMetrics === false) && (
-                                              <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
-                                                {typeof likes === 'number' && (
-                                                  <span className="inline-flex items-center gap-1" title="Likes">
-                                                    <HeartIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                    {formatNumber(likes)}
-                                                  </span>
-                                                )}
-                                                {typeof comments === 'number' && (
-                                                  <span className="inline-flex items-center gap-1" title="Comments">
-                                                    <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                    {formatNumber(comments)}
-                                                  </span>
-                                                )}
-                                                {typeof shares === 'number' && (
-                                                  <span className="inline-flex items-center gap-1" title="Shares">
-                                                    <ShareIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                    {formatNumber(shares)}
-                                                  </span>
-                                                )}
-                                                {typeof saved === 'number' && (
-                                                  <span className="inline-flex items-center gap-1" title="Saved">
-                                                    <BookmarkIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                    {formatNumber(saved)}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            )}
-
-                                            {/* Action Buttons */}
-                                            {!notesOnly && !presentationMode && (
-                                              <div className="flex items-center justify-end gap-3 pt-2">
-                                                <button
-                                                  onClick={() => openDetail(post?._id)}
-                                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all sm:opacity-0 group-hover/card:opacity-100"
-                                                  title="Ver análise completa"
-                                                >
-                                                  <DocumentMagnifyingGlassIcon className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                  onClick={() => openEdit(item)}
-                                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all sm:opacity-0 group-hover/card:opacity-100"
-                                                  title="Editar anotação"
-                                                >
-                                                  <PencilSquareIcon className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                  onClick={() => link && window.open(link, '_blank', 'noopener,noreferrer')}
-                                                  className={`p-1.5 transition-all sm:opacity-0 group-hover/card:opacity-100 ${link ? 'text-slate-400 hover:text-blue-600 hover:bg-blue-50' : 'text-slate-200 cursor-not-allowed'}`}
-                                                  title={link ? 'Ver post no Instagram' : 'Link indisponível'}
-                                                  disabled={!link}
-                                                >
-                                                  <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                              </div>
+                          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                            {allItems.map((item, i) => (
+                              <AdminReviewCard
+                                key={item._id}
+                                item={item}
+                                index={i}
+                                onPlay={() => {
+                                  const p = item.post;
+                                  const videoUrl = toVideoProxyUrl(p?.mediaUrl || p?.media_url || null);
+                                  const coverSrc = toThumbnailProxyUrl(p?.coverUrl || p?.thumbnailUrl || p?.thumbnail_url || null);
+                                  const link = p?.postLink || (p?.instagramMediaId ? `https://www.instagram.com/p/${p.instagramMediaId}` : '');
+                                  openVideo({ videoUrl, postLink: link, posterUrl: coverSrc || undefined });
+                                }}
+                                onEdit={openEdit}
+                                onDetail={openDetail}
+                              />
                             ))}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              </section>
-            );
-          })
+                </section>
+              );
+            })}
+          </div>
         )}
 
         {grouped.length > 0 && (
@@ -968,5 +753,147 @@ export default function ReviewedPostsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function AdminReviewCard({
+  item,
+  index,
+  onPlay,
+  onEdit,
+  onDetail,
+}: {
+  item: ReviewItem;
+  index: number;
+  onPlay: () => void;
+  onEdit: (item: ReviewItem) => void;
+  onDetail: (postId?: string) => void;
+}) {
+  const post = item.post;
+  const config = STATUS_CONFIG[item.status];
+  const Icon = config.icon;
+  const coverUrl = toThumbnailProxyUrl(post?.thumbnail_url || post?.thumbnailUrl || post?.coverUrl || post?.media_url || post?.mediaUrl || null);
+  const stats = post?.stats || {};
+
+  const formatNum = (num?: number) => {
+    if (!num) return '0';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toString();
+  };
+
+  const link = post?.postLink || (post?.instagramMediaId ? `https://www.instagram.com/p/${post.instagramMediaId}` : '');
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4 }}
+      className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+    >
+      {/* Status Header */}
+      <div className={`flex items-center justify-between border-b px-5 py-3 ${config.bg} ${config.border}`}>
+        <div className="flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${config.text}`} />
+          <span className={`text-xs font-bold uppercase tracking-wider ${config.text}`}>
+            {config.label}
+          </span>
+        </div>
+
+        {/* Admin Actions */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-black/5 ${config.text}`}
+            title="Editar Anotação"
+          >
+            <PencilSquareIcon className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDetail(post?._id); }}
+            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-black/5 ${config.text}`}
+            title="Ver Detalhes do Post"
+          >
+            <DocumentMagnifyingGlassIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content Body */}
+      <div className="flex flex-1 flex-col p-6">
+        {/* Note */}
+        <div className="mb-6 flex-1">
+          <p className="whitespace-pre-wrap text-lg font-medium leading-relaxed text-slate-800">
+            {item.note || <span className="italic text-slate-400">Sem anotações.</span>}
+          </p>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-5 gap-2 rounded-2xl bg-slate-50 p-3">
+          <div className="flex flex-col items-center justify-center gap-1">
+            <Heart className="h-3.5 w-3.5 text-rose-500" />
+            <span className="text-[10px] font-bold text-slate-600">{formatNum(stats.likes)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center gap-1 border-l border-slate-200">
+            <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+            <span className="text-[10px] font-bold text-slate-600">{formatNum(stats.comments)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center gap-1 border-l border-slate-200">
+            <Share2 className="h-3.5 w-3.5 text-emerald-500" />
+            <span className="text-[10px] font-bold text-slate-600">{formatNum(stats.shares)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center gap-1 border-l border-slate-200">
+            <Bookmark className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-[10px] font-bold text-slate-600">{formatNum(stats.saved)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center gap-1 border-l border-slate-200">
+            <BarChart2 className="h-3.5 w-3.5 text-slate-400" />
+            <span className="text-[10px] font-bold text-slate-600">{formatNum(stats.reach)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer: Post Preview context */}
+      <div className="mt-auto border-t border-slate-100 bg-slate-50/50 p-3">
+        <div
+          onClick={onPlay}
+          className="flex cursor-pointer items-center gap-3 overflow-hidden rounded-xl bg-white p-2 shadow-sm ring-1 ring-slate-900/5 transition hover:ring-[#6E1F93]/30 hover:shadow-md active:scale-[0.98]"
+        >
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+            {coverUrl && (
+              <Image
+                src={coverUrl}
+                alt="Post thumbnail"
+                fill
+                className="object-cover"
+                unoptimized={coverUrl.includes('/api/proxy')}
+              />
+            )}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors group-hover:bg-black/20">
+              <Play className="h-4 w-4 fill-white text-white drop-shadow-md" />
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className="truncate text-[10px] font-medium text-slate-400 uppercase tracking-tight">
+              Clique para reproduzir
+            </span>
+            {link ? (
+              <span className="inline-flex max-w-fit items-center gap-1.5 truncate text-xs font-semibold text-[#6E1F93]">
+                Ver conteúdo original
+                <ExternalLink className="h-3 w-3" />
+              </span>
+            ) : (
+              <span className="text-xs text-slate-400">Preview indisponível</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-2 text-right">
+          <span className="text-[9px] font-medium text-slate-300">
+            Feedback de {new Date(item.updatedAt).toLocaleDateString('pt-BR')}
+          </span>
+        </div>
+      </div>
+    </motion.div>
   );
 }
