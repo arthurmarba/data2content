@@ -9,7 +9,9 @@ import {
   ShareIcon,
   BookmarkIcon,
   PencilSquareIcon,
-} from "@heroicons/react/24/outline"; // Usando a versão 'outline' para um look mais leve
+  ChartBarIcon,
+} from "@heroicons/react/24/outline";
+// Usando a versão 'outline' para um look mais leve
 
 import { VideoListItem } from "@/types/mediakit";
 import { idsToLabels } from "@/app/lib/classification";
@@ -21,9 +23,12 @@ interface VideoListPreviewProps {
   timePeriod: string;
   limit?: number;
   onExpand?: () => void;
-  onRowClick?: (postId: string) => void;
+  onRowClick?: (postId: string) => void; // Keep for backward compatibility or direct detail opens
   onReviewClick?: (video: VideoListItem) => void;
+  onPlayClick?: (video: VideoListItem) => void;
+  onDetailClick?: (postId: string) => void;
 }
+
 
 
 const formatDate = (d?: string | Date) =>
@@ -54,7 +59,17 @@ const labelConfig: {
     { type: "reference", property: "references", className: "bg-emerald-100 text-emerald-800" },
   ];
 
-const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand, onRowClick, onReviewClick }) => {
+const VideoListPreview: React.FC<VideoListPreviewProps> = ({
+  userId,
+  timePeriod,
+  limit = 5,
+  onExpand,
+  onRowClick,
+  onReviewClick,
+  onPlayClick,
+  onDetailClick,
+}) => {
+
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,16 +114,17 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
           {videos.map((video) => (
             <div
               key={video._id}
-              onClick={() => onRowClick && onRowClick(video._id)}
-              className="bg-white border border-gray-200/80 rounded-lg shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1 md:flex md:items-start md:gap-4 p-4"
+              onClick={() => onPlayClick ? onPlayClick(video) : (onRowClick && onRowClick(video._id))}
+              className="bg-white border border-gray-200/80 rounded-lg shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1 md:flex md:items-start md:gap-4 p-4 lg:hover:ring-2 lg:hover:ring-indigo-500/30 group"
             >
               <Image
                 src={video.thumbnailUrl || "https://placehold.co/320x180/e2e8f0/a0aec0?text=Img"}
                 alt={video.caption || "thumbnail"}
-                className="w-full aspect-video object-cover rounded-md md:w-36 md:h-auto md:flex-shrink-0"
+                className="w-full aspect-video object-cover rounded-md md:w-36 md:h-24 md:flex-shrink-0 group-hover:scale-105 transition-transform"
                 width={320}
                 height={180}
               />
+
               <div className="flex flex-col flex-1 mt-3 md:mt-0 h-full">
                 <div className="flex-grow">
                   <p className="text-base font-semibold text-gray-800 line-clamp-2" title={video.caption}>
@@ -152,8 +168,19 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                     <span className="font-medium">{formatNumber((video.stats as any)?.saves)}</span>
                   </span>
                 </div>
-                {onReviewClick && (
-                  <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDetailClick ? onDetailClick(video._id) : (onRowClick && onRowClick(video._id));
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors shadow-sm"
+                  >
+                    <ChartBarIcon className="w-4 h-4 text-slate-400" />
+                    Analisar
+                  </button>
+
+                  {onReviewClick && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -164,8 +191,9 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                       <PencilSquareIcon className="w-4 h-4" />
                       Fazer Review
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
+
               </div>
             </div>
 

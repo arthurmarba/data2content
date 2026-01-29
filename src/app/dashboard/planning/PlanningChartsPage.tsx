@@ -20,6 +20,8 @@ import {
 import { Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
 import { TopDiscoveryTable } from "./components/TopDiscoveryTable";
 import PostsBySliceModal from "./components/PostsBySliceModal";
+import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
+
 
 const cardBase = "rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
@@ -300,6 +302,15 @@ export default function PlanningChartsPage() {
   const closeSliceModal = React.useCallback(() => {
     setSliceModal((prev) => ({ ...prev, open: false }));
   }, []);
+
+  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
+  const [selectedVideoForPlayer, setSelectedVideoForPlayer] = useState<any>(null);
+
+  const handlePlayVideo = React.useCallback((post: any) => {
+    setSelectedVideoForPlayer(post);
+    setIsVideoPlayerOpen(true);
+  }, []);
+
 
   const handleWeekClick = React.useCallback(
     (weekKey: string | null, subtitle: string) => {
@@ -802,680 +813,680 @@ export default function PlanningChartsPage() {
             </div>
           </header>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Alcance x Interações</p>
-                <h2 className="text-base font-semibold text-slate-900">Evolução semanal</h2>
-              </div>
-              <Sparkles className="h-5 w-5 text-indigo-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingTrend ? (
-                <p className="text-sm text-slate-500">Carregando série...</p>
-              ) : trendSeries.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem dados no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={trendSeries}
-                    margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
-                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Alcance x Interações")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatWeekLabel}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(label) => formatWeekLabel(String(label))}
-                      formatter={(value: number) => numberFormatter.format(Math.round(value))}
-                    />
-                    <Line type="monotone" dataKey="reach" name="Alcance médio" stroke="#2563eb" strokeWidth={3} dot={false} />
-                    <Line type="monotone" dataKey="interactions" name="Interações médias" stroke="#7c3aed" strokeWidth={3} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Horário</p>
-                <h2 className="text-base font-semibold text-slate-900">Entrega média por hora</h2>
-                {bestHour !== null && (
-                  <p className="text-xs text-emerald-700">Melhor janela recente: {bestHour}h</p>
+          <section className="grid gap-4 md:grid-cols-2">
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Alcance x Interações</p>
+                  <h2 className="text-base font-semibold text-slate-900">Evolução semanal</h2>
+                </div>
+                <Sparkles className="h-5 w-5 text-indigo-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingTrend ? (
+                  <p className="text-sm text-slate-500">Carregando série...</p>
+                ) : trendSeries.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={trendSeries}
+                      margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Alcance x Interações")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatWeekLabel}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label) => formatWeekLabel(String(label))}
+                        formatter={(value: number) => numberFormatter.format(Math.round(value))}
+                      />
+                      <Line type="monotone" dataKey="reach" name="Alcance médio" stroke="#2563eb" strokeWidth={3} dot={false} />
+                      <Line type="monotone" dataKey="interactions" name="Interações médias" stroke="#7c3aed" strokeWidth={3} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 )}
               </div>
-              <Clock3 className="h-5 w-5 text-emerald-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingTime ? (
-                <p className="text-sm text-slate-500">Carregando horários...</p>
-              ) : hourBars.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={hourBars}
-                    margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis
-                      dataKey="hour"
-                      tickFormatter={(h) => `${h}h`}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 12 }}
-                    />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number) => [`${Math.round(value)}`, "Interações"]}
-                      labelFormatter={(label) => `${label}h`}
-                    />
-                    <Bar
-                      dataKey="average"
-                      name="Interações"
-                      fill="#0ea5e9"
-                      radius={[6, 6, 0, 0]}
-                      onClick={({ payload }) => {
-                        const hour = typeof payload?.hour === "number" ? payload.hour : null;
-                        if (hour !== null) {
-                          handleHourClick(hour, "Entrega média por hora");
-                        }
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-        </section>
+            </article>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Contexto</p>
-                <h2 className="text-base font-semibold text-slate-900">Interação média por contexto</h2>
-              </div>
-              <Target className="h-5 w-5 text-slate-600" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingPosts ? (
-                <p className="text-sm text-slate-500">Carregando contextos...</p>
-              ) : contextBars.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={contextBars}
-                    layout="vertical"
-                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                    <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#475569", fontSize: 12 }}
-                      width={140}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
-                    />
-                    <Bar
-                      dataKey="value"
-                      name="Interações"
-                      fill="#0ea5e9"
-                      radius={[0, 6, 6, 0]}
-                      onClick={({ payload }) => {
-                        const value = payload?.name ? String(payload.name) : null;
-                        if (value) handleCategoryClick("context", value, "Interação média por contexto");
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Proposta</p>
-                <h2 className="text-base font-semibold text-slate-900">Interação média por proposta</h2>
-              </div>
-              <Sparkles className="h-5 w-5 text-indigo-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingProposal ? (
-                <p className="text-sm text-slate-500">Carregando propostas...</p>
-              ) : proposalBars.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={proposalBars}
-                    layout="vertical"
-                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                    <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#475569", fontSize: 12 }}
-                      width={140}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
-                    />
-                    <Bar
-                      dataKey="value"
-                      name="Interações"
-                      fill="#6366f1"
-                      radius={[0, 6, 6, 0]}
-                      onClick={({ payload }) => {
-                        const value = payload?.name ? String(payload.name) : null;
-                        if (value) handleCategoryClick("proposal", value, "Interação média por proposta");
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tom</p>
-                <h2 className="text-base font-semibold text-slate-900">Interação média por tom</h2>
-              </div>
-              <Sparkles className="h-5 w-5 text-emerald-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingTone ? (
-                <p className="text-sm text-slate-500">Carregando tons...</p>
-              ) : toneBars.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={toneBars}
-                    layout="vertical"
-                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                    <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#475569", fontSize: 12 }}
-                      width={140}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
-                    />
-                    <Bar
-                      dataKey="value"
-                      name="Interações"
-                      fill="#10b981"
-                      radius={[0, 6, 6, 0]}
-                      onClick={({ payload }) => {
-                        const value = payload?.name ? String(payload.name) : null;
-                        if (value) handleCategoryClick("tone", value, "Interação média por tom");
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Referência</p>
-                <h2 className="text-base font-semibold text-slate-900">Interação média por referência</h2>
-              </div>
-              <Sparkles className="h-5 w-5 text-amber-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingReference ? (
-                <p className="text-sm text-slate-500">Carregando referências...</p>
-              ) : referenceBars.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem referências registradas no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={referenceBars}
-                    layout="vertical"
-                    margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                    <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#475569", fontSize: 12 }}
-                      width={140}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
-                    />
-                    <Bar
-                      dataKey="value"
-                      name="Interações"
-                      fill="#f59e0b"
-                      radius={[0, 6, 6, 0]}
-                      onClick={({ payload }) => {
-                        const value = payload?.name ? String(payload.name) : null;
-                        if (value) handleCategoryClick("references", value, "Interação média por referência");
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Heatmap</p>
-                <h2 className="text-base font-semibold text-slate-900">Melhores janelas por dia e hora</h2>
-                <p className="text-xs text-slate-500">Quanto mais escuro, mais interações médias.</p>
-              </div>
-              <Clock3 className="h-5 w-5 text-indigo-500" />
-            </header>
-            <div className="mt-4">
-              {loadingTime ? (
-                <p className="text-sm text-slate-500">Carregando heatmap...</p>
-              ) : heatmap.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem dados para montar o heatmap.</p>
-              ) : (
-                <div className="grid grid-cols-8 gap-1 text-[11px] text-slate-500">
-                  <div />
-                  {Array.from({ length: 7 }).map((_, idx) => (
-                    <div key={idx} className="text-center">{`${idx * 4}h`}</div>
-                  ))}
-                  {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
-                    <React.Fragment key={dow}>
-                      <div className="pr-2 text-right">{["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]}</div>
-                      {Array.from({ length: 7 }).map((_, hIdx) => {
-                        const h = hIdx * 4;
-                        const startHour = Math.min(h, 23);
-                        const endHour = Math.min(h + 3, 23);
-                        const match = heatmap.reduce((best, curr) => {
-                          if (Math.abs(curr.hour - h) <= 1 && curr.day === dow) {
-                            return curr.score > (best?.score ?? 0) ? curr : best;
-                          }
-                          return best;
-                        }, null as any);
-                        const score = match?.score ?? 0;
-                        const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
-                        return (
-                          <button
-                            key={hIdx}
-                            type="button"
-                            className="aspect-square rounded border border-slate-100 transition hover:border-slate-300"
-                            style={{ background: bg }}
-                            onClick={() => handleDayHourClick(dow, startHour, endHour, "Heatmap de janelas")}
-                            aria-label={`Posts em ${["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][dow - 1]} entre ${startHour}h e ${endHour}h`}
-                          />
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Horário</p>
+                  <h2 className="text-base font-semibold text-slate-900">Entrega média por hora</h2>
+                  {bestHour !== null && (
+                    <p className="text-xs text-emerald-700">Melhor janela recente: {bestHour}h</p>
+                  )}
                 </div>
-              )}
-            </div>
-          </article>
-
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Formato</p>
-                <h2 className="text-base font-semibold text-slate-900">Distribuição de interações</h2>
+                <Clock3 className="h-5 w-5 text-emerald-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingTime ? (
+                  <p className="text-sm text-slate-500">Carregando horários...</p>
+                ) : hourBars.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={hourBars}
+                      margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="hour"
+                        tickFormatter={(h) => `${h}h`}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                      />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number) => [`${Math.round(value)}`, "Interações"]}
+                        labelFormatter={(label) => `${label}h`}
+                      />
+                      <Bar
+                        dataKey="average"
+                        name="Interações"
+                        fill="#0ea5e9"
+                        radius={[6, 6, 0, 0]}
+                        onClick={({ payload }) => {
+                          const hour = typeof payload?.hour === "number" ? payload.hour : null;
+                          if (hour !== null) {
+                            handleHourClick(hour, "Entrega média por hora");
+                          }
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
-              <LineChartIcon className="h-5 w-5 text-amber-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingFormat ? (
-                <p className="text-sm text-slate-500">Carregando formatos...</p>
-              ) : formatBars.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={formatBars}
-                    margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
-                    onClick={(state: any) => {
-                      const name =
-                        state?.activeLabel ||
-                        state?.activePayload?.[0]?.payload?.name ||
-                        state?.activePayload?.[0]?.payload?.format;
-                      if (name) handleCategoryClick("format", String(name), "Distribuição de interações");
-                    }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <defs>
-                      <linearGradient id="formatGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="#f97316" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number, name) =>
-                        name === "percentage"
-                          ? [`${value.toFixed(1)}%`, "Participação"]
-                          : [numberFormatter.format(Math.round(value)), "Interações"]
-                      }
-                    />
-                    <Area type="monotone" dataKey="value" name="Interações" stroke="#f97316" fill="url(#formatGradient)" strokeWidth={3} dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-        </section>
+            </article>
+          </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Consistência</p>
-                <h2 className="text-base font-semibold text-slate-900">Posts por semana vs. média de interações</h2>
+          <section className="grid gap-4 md:grid-cols-2">
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Contexto</p>
+                  <h2 className="text-base font-semibold text-slate-900">Interação média por contexto</h2>
+                </div>
+                <Target className="h-5 w-5 text-slate-600" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingPosts ? (
+                  <p className="text-sm text-slate-500">Carregando contextos...</p>
+                ) : contextBars.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={contextBars}
+                      layout="vertical"
+                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
+                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#475569", fontSize: 12 }}
+                        width={140}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                      />
+                      <Bar
+                        dataKey="value"
+                        name="Interações"
+                        fill="#0ea5e9"
+                        radius={[0, 6, 6, 0]}
+                        onClick={({ payload }) => {
+                          const value = payload?.name ? String(payload.name) : null;
+                          if (value) handleCategoryClick("context", value, "Interação média por contexto");
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
-              <LineChartIcon className="h-5 w-5 text-emerald-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingPosts ? (
-                <p className="text-sm text-slate-500">Carregando consistência...</p>
-              ) : weeklyConsistency.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem posts suficientes no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={weeklyConsistency}
-                    margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Posts por semana vs. média de interações")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatWeekLabel}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 12 }}
-                      label={{ value: "Posts", angle: -90, position: "insideLeft", fill: "#475569", fontSize: 11 }}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 12 }}
-                      label={{ value: "Interações", angle: 90, position: "insideRight", fill: "#475569", fontSize: 11 }}
-                    />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Line yAxisId="left" type="monotone" dataKey="posts" name="Posts/semana" stroke="#0ea5e9" strokeWidth={3} dot />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="avgInteractions"
-                      name="Média de interações"
-                      stroke="#a855f7"
-                      strokeWidth={3}
-                      dot
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
+            </article>
 
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Profundidade</p>
-                <h2 className="text-base font-semibold text-slate-900">Salvos e compartilhamentos a cada 1.000 de alcance</h2>
-                <p className="text-xs text-slate-500">Quanto cada formato gera de profundidade ajustada por alcance.</p>
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Proposta</p>
+                  <h2 className="text-base font-semibold text-slate-900">Interação média por proposta</h2>
+                </div>
+                <Sparkles className="h-5 w-5 text-indigo-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingProposal ? (
+                  <p className="text-sm text-slate-500">Carregando propostas...</p>
+                ) : proposalBars.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={proposalBars}
+                      layout="vertical"
+                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
+                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#475569", fontSize: 12 }}
+                        width={140}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                      />
+                      <Bar
+                        dataKey="value"
+                        name="Interações"
+                        fill="#6366f1"
+                        radius={[0, 6, 6, 0]}
+                        onClick={({ payload }) => {
+                          const value = payload?.name ? String(payload.name) : null;
+                          if (value) handleCategoryClick("proposal", value, "Interação média por proposta");
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
-              <Sparkles className="h-5 w-5 text-amber-500" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingPosts ? (
-                <p className="text-sm text-slate-500">Carregando engajamento profundo...</p>
-              ) : deepEngagement.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem dados de salvos/compartilhamentos no período.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={deepEngagement}
-                    layout="vertical"
-                    margin={{ top: 6, right: 12, left: 40, bottom: 0 }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                    <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <YAxis
-                      type="category"
-                      dataKey="format"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#475569", fontSize: 12 }}
-                      width={140}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(value: number, name: string, { payload }: any) => {
-                        const perK = (value || 0).toFixed(2);
-                        const count = payload?.postsCount ?? 0;
-                        if (name === "savesPerThousand") {
-                          return [`${perK} por 1.000 de alcance · ${count} posts`, "Salvos"];
+            </article>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tom</p>
+                  <h2 className="text-base font-semibold text-slate-900">Interação média por tom</h2>
+                </div>
+                <Sparkles className="h-5 w-5 text-emerald-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingTone ? (
+                  <p className="text-sm text-slate-500">Carregando tons...</p>
+                ) : toneBars.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={toneBars}
+                      layout="vertical"
+                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
+                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#475569", fontSize: 12 }}
+                        width={140}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                      />
+                      <Bar
+                        dataKey="value"
+                        name="Interações"
+                        fill="#10b981"
+                        radius={[0, 6, 6, 0]}
+                        onClick={({ payload }) => {
+                          const value = payload?.name ? String(payload.name) : null;
+                          if (value) handleCategoryClick("tone", value, "Interação média por tom");
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Referência</p>
+                  <h2 className="text-base font-semibold text-slate-900">Interação média por referência</h2>
+                </div>
+                <Sparkles className="h-5 w-5 text-amber-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingReference ? (
+                  <p className="text-sm text-slate-500">Carregando referências...</p>
+                ) : referenceBars.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem referências registradas no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={referenceBars}
+                      layout="vertical"
+                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
+                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#475569", fontSize: 12 }}
+                        width={140}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                      />
+                      <Bar
+                        dataKey="value"
+                        name="Interações"
+                        fill="#f59e0b"
+                        radius={[0, 6, 6, 0]}
+                        onClick={({ payload }) => {
+                          const value = payload?.name ? String(payload.name) : null;
+                          if (value) handleCategoryClick("references", value, "Interação média por referência");
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Heatmap</p>
+                  <h2 className="text-base font-semibold text-slate-900">Melhores janelas por dia e hora</h2>
+                  <p className="text-xs text-slate-500">Quanto mais escuro, mais interações médias.</p>
+                </div>
+                <Clock3 className="h-5 w-5 text-indigo-500" />
+              </header>
+              <div className="mt-4">
+                {loadingTime ? (
+                  <p className="text-sm text-slate-500">Carregando heatmap...</p>
+                ) : heatmap.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados para montar o heatmap.</p>
+                ) : (
+                  <div className="grid grid-cols-8 gap-1 text-[11px] text-slate-500">
+                    <div />
+                    {Array.from({ length: 7 }).map((_, idx) => (
+                      <div key={idx} className="text-center">{`${idx * 4}h`}</div>
+                    ))}
+                    {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
+                      <React.Fragment key={dow}>
+                        <div className="pr-2 text-right">{["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]}</div>
+                        {Array.from({ length: 7 }).map((_, hIdx) => {
+                          const h = hIdx * 4;
+                          const startHour = Math.min(h, 23);
+                          const endHour = Math.min(h + 3, 23);
+                          const match = heatmap.reduce((best, curr) => {
+                            if (Math.abs(curr.hour - h) <= 1 && curr.day === dow) {
+                              return curr.score > (best?.score ?? 0) ? curr : best;
+                            }
+                            return best;
+                          }, null as any);
+                          const score = match?.score ?? 0;
+                          const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
+                          return (
+                            <button
+                              key={hIdx}
+                              type="button"
+                              className="aspect-square rounded border border-slate-100 transition hover:border-slate-300"
+                              style={{ background: bg }}
+                              onClick={() => handleDayHourClick(dow, startHour, endHour, "Heatmap de janelas")}
+                              aria-label={`Posts em ${["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][dow - 1]} entre ${startHour}h e ${endHour}h`}
+                            />
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </article>
+
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Formato</p>
+                  <h2 className="text-base font-semibold text-slate-900">Distribuição de interações</h2>
+                </div>
+                <LineChartIcon className="h-5 w-5 text-amber-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingFormat ? (
+                  <p className="text-sm text-slate-500">Carregando formatos...</p>
+                ) : formatBars.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={formatBars}
+                      margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                      onClick={(state: any) => {
+                        const name =
+                          state?.activeLabel ||
+                          state?.activePayload?.[0]?.payload?.name ||
+                          state?.activePayload?.[0]?.payload?.format;
+                        if (name) handleCategoryClick("format", String(name), "Distribuição de interações");
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <defs>
+                        <linearGradient id="formatGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="#f97316" stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number, name) =>
+                          name === "percentage"
+                            ? [`${value.toFixed(1)}%`, "Participação"]
+                            : [numberFormatter.format(Math.round(value)), "Interações"]
                         }
-                        if (name === "sharesPerThousand") {
-                          return [`${perK} por 1.000 de alcance · ${count} posts`, "Compartilhamentos"];
-                        }
-                        return [`${perK}`, name];
-                      }}
-                    />
-                    <Bar
-                      dataKey="savesPerThousand"
-                      name="Salvos"
-                      stackId="depth"
-                      fill="#22c55e"
-                      radius={[0, 6, 6, 0]}
-                      onClick={({ payload }) => {
-                        const value = payload?.format ? String(payload.format) : null;
-                        if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
-                      }}
-                    />
-                    <Bar
-                      dataKey="sharesPerThousand"
-                      name="Compartilhamentos"
-                      stackId="depth"
-                      fill="#0ea5e9"
-                      radius={[0, 6, 6, 0]}
-                      onClick={({ payload }) => {
-                        const value = payload?.format ? String(payload.format) : null;
-                        if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-        </section>
+                      />
+                      <Area type="monotone" dataKey="value" name="Interações" stroke="#f97316" fill="url(#formatGradient)" strokeWidth={3} dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+          </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className={cardBase}>
+          <section className="grid gap-4 md:grid-cols-2">
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Consistência</p>
+                  <h2 className="text-base font-semibold text-slate-900">Posts por semana vs. média de interações</h2>
+                </div>
+                <LineChartIcon className="h-5 w-5 text-emerald-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingPosts ? (
+                  <p className="text-sm text-slate-500">Carregando consistência...</p>
+                ) : weeklyConsistency.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem posts suficientes no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={weeklyConsistency}
+                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Posts por semana vs. média de interações")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatWeekLabel}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis
+                        yAxisId="left"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        label={{ value: "Posts", angle: -90, position: "insideLeft", fill: "#475569", fontSize: 11 }}
+                      />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        label={{ value: "Interações", angle: 90, position: "insideRight", fill: "#475569", fontSize: 11 }}
+                      />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Line yAxisId="left" type="monotone" dataKey="posts" name="Posts/semana" stroke="#0ea5e9" strokeWidth={3} dot />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="avgInteractions"
+                        name="Média de interações"
+                        stroke="#a855f7"
+                        strokeWidth={3}
+                        dot
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Profundidade</p>
+                  <h2 className="text-base font-semibold text-slate-900">Salvos e compartilhamentos a cada 1.000 de alcance</h2>
+                  <p className="text-xs text-slate-500">Quanto cada formato gera de profundidade ajustada por alcance.</p>
+                </div>
+                <Sparkles className="h-5 w-5 text-amber-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingPosts ? (
+                  <p className="text-sm text-slate-500">Carregando engajamento profundo...</p>
+                ) : deepEngagement.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados de salvos/compartilhamentos no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={deepEngagement}
+                      layout="vertical"
+                      margin={{ top: 6, right: 12, left: 40, bottom: 0 }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
+                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="format"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#475569", fontSize: 12 }}
+                        width={140}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        formatter={(value: number, name: string, { payload }: any) => {
+                          const perK = (value || 0).toFixed(2);
+                          const count = payload?.postsCount ?? 0;
+                          if (name === "savesPerThousand") {
+                            return [`${perK} por 1.000 de alcance · ${count} posts`, "Salvos"];
+                          }
+                          if (name === "sharesPerThousand") {
+                            return [`${perK} por 1.000 de alcance · ${count} posts`, "Compartilhamentos"];
+                          }
+                          return [`${perK}`, name];
+                        }}
+                      />
+                      <Bar
+                        dataKey="savesPerThousand"
+                        name="Salvos"
+                        stackId="depth"
+                        fill="#22c55e"
+                        radius={[0, 6, 6, 0]}
+                        onClick={({ payload }) => {
+                          const value = payload?.format ? String(payload.format) : null;
+                          if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
+                        }}
+                      />
+                      <Bar
+                        dataKey="sharesPerThousand"
+                        name="Compartilhamentos"
+                        stackId="depth"
+                        fill="#0ea5e9"
+                        radius={[0, 6, 6, 0]}
+                        onClick={({ payload }) => {
+                          const value = payload?.format ? String(payload.format) : null;
+                          if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Engajamento</p>
+                  <h2 className="text-base font-semibold text-slate-900">Taxa média de engajamento por semana</h2>
+                  <p className="text-xs text-slate-500">Interações / alcance por semana.</p>
+                </div>
+                <Sparkles className="h-5 w-5 text-indigo-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingPosts ? (
+                  <p className="text-sm text-slate-500">Carregando série...</p>
+                ) : weeklyEngagementRate.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={weeklyEngagementRate}
+                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Taxa média de engajamento por semana")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatWeekLabel}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis
+                        tickFormatter={(v) => `${(v * 100).toFixed(1)}%`}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label) => formatWeekLabel(String(label))}
+                        formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, "Taxa de engajamento (interações/alcance)"]}
+                      />
+                      <Line type="monotone" dataKey="avgRate" name="Engajamento semanal" stroke="#7c3aed" strokeWidth={3} dot />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Propagação</p>
+                  <h2 className="text-base font-semibold text-slate-900">Compartilhamentos x Visitas</h2>
+                  <p className="text-xs text-slate-500">Veja se os shares estão puxando visitas ao perfil.</p>
+                </div>
+                <LineChartIcon className="h-5 w-5 text-slate-600" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingPosts ? (
+                  <p className="text-sm text-slate-500">Carregando série...</p>
+                ) : shareVelocitySeries.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={shareVelocitySeries}
+                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Compartilhamentos x Visitas")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatWeekLabel}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label) => formatWeekLabel(String(label))}
+                        formatter={(value: number, name) =>
+                          name === "shares"
+                            ? [numberFormatter.format(Math.round(value)), "Compartilhamentos"]
+                            : [numberFormatter.format(Math.round(value)), "Visitas ao perfil"]
+                        }
+                      />
+                      <Line yAxisId="left" type="monotone" dataKey="shares" name="Compartilhamentos" stroke="#f97316" strokeWidth={3} dot />
+                      <Line yAxisId="right" type="monotone" dataKey="visits" name="Visitas ao perfil" stroke="#0ea5e9" strokeWidth={3} dot />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+          </section>
+
+
+
+          <section className={cardBase}>
             <header className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Engajamento</p>
-                <h2 className="text-base font-semibold text-slate-900">Taxa média de engajamento por semana</h2>
-                <p className="text-xs text-slate-500">Interações / alcance por semana.</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Top descoberta</p>
+                <h3 className="text-base font-semibold text-slate-900">Posts que mais puxam não seguidores</h3>
+                <p className="text-xs text-slate-500">Ordenados pelo maior share de não seguidores (ou visitas/reach).</p>
               </div>
               <Sparkles className="h-5 w-5 text-indigo-500" />
             </header>
-            <div className="mt-4 h-64">
-              {loadingPosts ? (
-                <p className="text-sm text-slate-500">Carregando série...</p>
-              ) : weeklyEngagementRate.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={weeklyEngagementRate}
-                    margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Taxa média de engajamento por semana")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatWeekLabel}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    />
-                    <YAxis
-                      tickFormatter={(v) => `${(v * 100).toFixed(1)}%`}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 12 }}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(label) => formatWeekLabel(String(label))}
-                      formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, "Taxa de engajamento (interações/alcance)"]}
-                    />
-                    <Line type="monotone" dataKey="avgRate" name="Engajamento semanal" stroke="#7c3aed" strokeWidth={3} dot />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-
-          <article className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Propagação</p>
-                <h2 className="text-base font-semibold text-slate-900">Compartilhamentos x Visitas</h2>
-                <p className="text-xs text-slate-500">Veja se os shares estão puxando visitas ao perfil.</p>
-              </div>
-              <LineChartIcon className="h-5 w-5 text-slate-600" />
-            </header>
-            <div className="mt-4 h-64">
-              {loadingPosts ? (
-                <p className="text-sm text-slate-500">Carregando série...</p>
-              ) : shareVelocitySeries.length === 0 ? (
-                <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={shareVelocitySeries}
-                    margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                    onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Compartilhamentos x Visitas")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatWeekLabel}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
-                    />
-                    <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: "#94a3b8", fontSize: 12 }}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(label) => formatWeekLabel(String(label))}
-                      formatter={(value: number, name) =>
-                        name === "shares"
-                          ? [numberFormatter.format(Math.round(value)), "Compartilhamentos"]
-                          : [numberFormatter.format(Math.round(value)), "Visitas ao perfil"]
-                      }
-                    />
-                    <Line yAxisId="left" type="monotone" dataKey="shares" name="Compartilhamentos" stroke="#f97316" strokeWidth={3} dot />
-                    <Line yAxisId="right" type="monotone" dataKey="visits" name="Visitas ao perfil" stroke="#0ea5e9" strokeWidth={3} dot />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </article>
-        </section>
-
-
-
-        <section className={cardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Top descoberta</p>
-              <h3 className="text-base font-semibold text-slate-900">Posts que mais puxam não seguidores</h3>
-              <p className="text-xs text-slate-500">Ordenados pelo maior share de não seguidores (ou visitas/reach).</p>
-            </div>
-            <Sparkles className="h-5 w-5 text-indigo-500" />
-          </header>
-          {loadingPosts ? (
-            <p className="text-sm text-slate-500 mt-3">Carregando lista...</p>
-          ) : (
-            <TopDiscoveryTable posts={topDiscovery} isLoading={loadingPosts} />
-          )}
-        </section>
-      </div>
+            {loadingPosts ? (
+              <p className="text-sm text-slate-500 mt-3">Carregando lista...</p>
+            ) : (
+              <TopDiscoveryTable posts={topDiscovery} isLoading={loadingPosts} />
+            )}
+          </section>
+        </div>
       </main>
       <PostsBySliceModal
         isOpen={sliceModal.open}
@@ -1483,7 +1494,17 @@ export default function PlanningChartsPage() {
         subtitle={sliceModal.subtitle}
         posts={sliceModal.posts}
         onClose={closeSliceModal}
+        onPlayClick={handlePlayVideo}
+      />
+
+      <DiscoverVideoModal
+        open={isVideoPlayerOpen}
+        onClose={() => setIsVideoPlayerOpen(false)}
+        videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
+        posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
+        postLink={selectedVideoForPlayer?.permalink || undefined}
       />
     </>
+
   );
 }

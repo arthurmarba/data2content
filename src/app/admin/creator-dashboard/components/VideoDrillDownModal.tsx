@@ -15,6 +15,8 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/solid';
 import PostReviewModal from './PostReviewModal';
+import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
+
 
 
 
@@ -92,14 +94,20 @@ interface VideoListItem {
     saves?: number;
   };
   postDate: string;
+  mediaUrl?: string;
+  media_url?: string;
 }
+
 
 interface VideosTableProps {
   videos: VideoListItem[];
   onRowClick?: (postId: string) => void;
   onReviewClick?: (video: VideoListItem) => void;
+  onPlayClick?: (video: VideoListItem) => void;
+  onDetailClick?: (postId: string) => void;
   readOnly?: boolean;
 }
+
 
 
 const PostDetailModal: React.FC<{ isOpen: boolean; onClose: () => void; postId: string | null; publicMode?: boolean; }> = ({ isOpen, onClose, postId }) => {
@@ -130,7 +138,10 @@ const VideoCard: React.FC<{
   readOnly?: boolean;
   onRowClick?: (postId: string) => void;
   onReviewClick?: (video: VideoListItem) => void;
-}> = ({ video, index, readOnly, onRowClick, onReviewClick }) => {
+  onPlayClick?: (video: VideoListItem) => void;
+  onDetailClick?: (postId: string) => void;
+}> = ({ video, index, readOnly, onRowClick, onReviewClick, onPlayClick, onDetailClick }) => {
+
 
 
   const formatDate = (d?: string | Date) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A';
@@ -144,11 +155,16 @@ const VideoCard: React.FC<{
   };
 
   return (
-    <div className={`p-4 bg-white rounded-lg shadow-sm border border-gray-100 transition-colors ${readOnly && index === 0 ? 'bg-pink-50 border-pink-200' : ''}`}>
+    <div
+      onClick={() => onPlayClick ? onPlayClick(video) : (onRowClick && onRowClick(video._id))}
+      className={`p-4 bg-white rounded-lg shadow-sm border border-gray-100 transition-all cursor-pointer hover:shadow-md hover:ring-2 hover:ring-indigo-500/20 group ${readOnly && index === 0 ? 'bg-pink-50 border-pink-200' : ''}`}
+    >
+
       <div className="grid grid-cols-12 gap-x-4 gap-y-3 items-start">
         <div className="col-span-12 md:col-span-4 flex items-start gap-4">
-          <Image src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={96} height={54} className="rounded-md object-cover flex-shrink-0 mt-1" />
+          <Image src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={96} height={54} className="rounded-md object-cover flex-shrink-0 mt-1 group-hover:scale-105 transition-transform" />
           <div className="flex-grow">
+
             <p className="font-semibold text-base text-gray-800 line-clamp-3" title={video.description}>
               {readOnly && index === 0 && <FireIcon className="w-4 h-4 text-orange-400 inline-block mr-1.5 align-text-bottom" title="Top Performance" />}
               {video.description || 'Sem legenda'}
@@ -182,18 +198,28 @@ const VideoCard: React.FC<{
         </div>
 
         <div className="col-span-12 md:col-span-2 flex flex-row sm:flex-col items-center justify-start sm:justify-center gap-2 pt-2 md:pt-0">
-          {onRowClick && (
-            <button onClick={() => onRowClick(video._id)} title="Analisar Detalhes" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">
-              <ChartBarIcon className="w-3.5 h-3.5" />
-              <span>Analisar</span>
-            </button>
-          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDetailClick ? onDetailClick(video._id) : (onRowClick && onRowClick(video._id));
+            }}
+            title="Analisar Detalhes"
+            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <ChartBarIcon className="w-3.5 h-3.5" />
+            <span>Analisar</span>
+          </button>
+
           {onReviewClick && (
             <button
-              onClick={() => onReviewClick(video)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReviewClick(video);
+              }}
               title="Fazer Review"
               className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm hover:bg-indigo-100 transition-colors"
             >
+
               <PencilSquareIcon className="w-3.5 h-3.5" />
               <span>Review</span>
             </button>
@@ -222,8 +248,17 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
       </div>
 
       {videos.map((video, index) => (
-        <VideoCard key={video._id} video={video} index={index} onReviewClick={props.onReviewClick} {...props} />
+        <VideoCard
+          key={video._id}
+          video={video}
+          index={index}
+          onReviewClick={props.onReviewClick}
+          onPlayClick={props.onPlayClick}
+          onDetailClick={props.onDetailClick}
+          {...props}
+        />
       ))}
+
 
     </div>
   );
@@ -283,6 +318,9 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [selectedVideoForReview, setSelectedVideoForReview] = useState<VideoListItem | null>(null);
+  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
+  const [selectedVideoForPlayer, setSelectedVideoForPlayer] = useState<VideoListItem | null>(null);
+
 
   const [filters, setFilters] = useState<FilterState>({
 
@@ -406,6 +444,16 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     setIsReviewModalOpen(true);
   };
 
+  const handlePlayVideo = (video: VideoListItem) => {
+    setSelectedVideoForPlayer(video);
+    setIsVideoPlayerOpen(true);
+  };
+
+  const handleOpenDetail = (postId: string) => {
+    setSelectedPostId(postId);
+  };
+
+
 
   const totalPages = Math.ceil(totalVideos / limit);
   const handlePageChange = (newPage: number) => {
@@ -456,10 +504,12 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
           {!isLoading && !error && videos.length > 0 && (
             <VideosTable
               videos={videos}
-              onRowClick={handleRowClick}
+              onPlayClick={handlePlayVideo}
+              onDetailClick={handleOpenDetail}
               onReviewClick={handleOpenReviewModal}
             />
           )}
+
         </div>
 
         {totalVideos > 0 && (
@@ -492,7 +542,15 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
           creatorName: "Criador", // Info not readily available here, but describing as Criador
         } : null}
       />
+      <DiscoverVideoModal
+        open={isVideoPlayerOpen}
+        onClose={() => setIsVideoPlayerOpen(false)}
+        videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
+        posterUrl={selectedVideoForPlayer?.thumbnailUrl || undefined}
+        postLink={selectedVideoForPlayer?.permalink || undefined}
+      />
     </div>
+
   );
 };
 

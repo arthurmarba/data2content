@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+
 import useSWR from "swr";
 import {
   Area,
@@ -18,6 +19,12 @@ import {
 import { Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
 import { TopDiscoveryTable } from "@/app/dashboard/planning/components/TopDiscoveryTable";
 import PostsBySliceModal from "@/app/dashboard/planning/components/PostsBySliceModal";
+import PostReviewModal from "./PostReviewModal";
+import PostDetailModal from "../PostDetailModal";
+import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
+
+
+
 
 const cardBase = "rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
@@ -164,7 +171,9 @@ const sortPostsByDateDesc = (posts: any[]) =>
 interface AdminPlanningChartsProps {
   userId: string;
   hideHeatmap?: boolean;
+  hideTopDiscovery?: boolean;
 }
+
 
 interface PlanningBatchResponse {
   trendData: { chartData?: Array<{ date: string; reach: number; totalInteractions: number }> };
@@ -175,7 +184,12 @@ interface PlanningBatchResponse {
   referenceData: { chartData?: Array<{ name: string; value: number; postsCount: number }> };
 }
 
-export default function AdminPlanningCharts({ userId, hideHeatmap = false }: AdminPlanningChartsProps) {
+export default function AdminPlanningCharts({
+  userId,
+  hideHeatmap = false,
+  hideTopDiscovery = false
+}: AdminPlanningChartsProps) {
+
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const PAGE_LIMIT = 200;
@@ -187,6 +201,30 @@ export default function AdminPlanningCharts({ userId, hideHeatmap = false }: Adm
     subtitle: "",
     posts: [],
   });
+
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedPostForReview, setSelectedPostForReview] = useState<any>(null);
+  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
+  const [selectedVideoForPlayer, setSelectedVideoForPlayer] = useState<any>(null);
+  const [selectedPostIdForDetail, setSelectedPostIdForDetail] = useState<string | null>(null);
+
+
+  const handleOpenReview = useCallback((post: any) => {
+    setSelectedPostForReview(post);
+    setIsReviewModalOpen(true);
+  }, []);
+
+  const handlePlayVideo = useCallback((post: any) => {
+    setSelectedVideoForPlayer(post);
+    setIsVideoPlayerOpen(true);
+  }, []);
+
+  const handleOpenDetail = useCallback((postId: string) => {
+    setSelectedPostIdForDetail(postId);
+  }, []);
+
+
 
   const planningBatchUrl = useMemo(() => {
     if (!userId) return null;
@@ -1236,16 +1274,19 @@ export default function AdminPlanningCharts({ userId, hideHeatmap = false }: Adm
         </article>
       </section>
 
-      <section className={cardBase}>
-        <header className="flex items-center justify-between gap-3 mb-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Top Descoberta</p>
-            <h2 className="text-base font-semibold text-slate-900">Posts com maior potencial de alcance</h2>
-          </div>
-          <Sparkles className="h-5 w-5 text-indigo-500" />
-        </header>
-        <TopDiscoveryTable posts={topDiscovery} isLoading={loadingPosts} />
-      </section>
+      {!hideTopDiscovery && (
+        <section className={cardBase}>
+          <header className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Top Descoberta</p>
+              <h2 className="text-base font-semibold text-slate-900">Posts com maior potencial de alcance</h2>
+            </div>
+            <Sparkles className="h-5 w-5 text-indigo-500" />
+          </header>
+          <TopDiscoveryTable posts={topDiscovery} isLoading={loadingPosts} />
+        </section>
+      )}
+
 
       {/* Modals */}
       <PostsBySliceModal
@@ -1253,8 +1294,40 @@ export default function AdminPlanningCharts({ userId, hideHeatmap = false }: Adm
         title={sliceModal.title}
         subtitle={sliceModal.subtitle}
         posts={sliceModal.posts}
-        onClose={closeSliceModal}
+        onReviewClick={handleOpenReview}
+        onPlayClick={handlePlayVideo}
+        onDetailClick={handleOpenDetail}
+        onClose={() => setSliceModal({ ...sliceModal, open: false })}
+      />
+
+      <PostReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        apiPrefix="/api/admin"
+        post={selectedPostForReview ? {
+          _id: selectedPostForReview._id,
+          coverUrl: selectedPostForReview.thumbnailUrl || selectedPostForReview.coverUrl || selectedPostForReview.thumbnail,
+          description: selectedPostForReview.caption,
+          creatorName: "Criador",
+        } : null}
+      />
+
+      <PostDetailModal
+        isOpen={selectedPostIdForDetail !== null}
+        onClose={() => setSelectedPostIdForDetail(null)}
+        postId={selectedPostIdForDetail}
+      />
+
+      <DiscoverVideoModal
+        open={isVideoPlayerOpen}
+        onClose={() => setIsVideoPlayerOpen(false)}
+        videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
+        posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
+        postLink={selectedVideoForPlayer?.permalink || undefined}
       />
     </div>
+
+
+
   );
 }

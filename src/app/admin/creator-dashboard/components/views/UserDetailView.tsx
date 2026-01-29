@@ -257,15 +257,31 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         />
       </section>
 
-      {/* Main Charts Section (Replaces old Trends) */}
+      {/* Video Performance Metrics - Moved up as per user request */}
       <section>
-        <DeferredSection minHeight="360px" placeholder={<SectionPlaceholder />}>
-          <AdminPlanningCharts userId={userId} hideHeatmap={true} />
+        <DeferredSection minHeight="320px" placeholder={<SectionPlaceholder />}>
+          <UserVideoPerformanceMetrics
+            userId={userId}
+            dataOverride={videoMetrics}
+            dataOverrideFilters={{ timePeriod, userId }}
+            loadingOverride={isLoading}
+            errorOverride={errorMessage}
+          />
         </DeferredSection>
       </section>
 
-      {/* Demographics & Region Section */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      {/* Main Charts Section (Trend, Format, etc.) */}
+      <section>
+        <DeferredSection minHeight="360px" placeholder={<SectionPlaceholder />}>
+          <AdminPlanningCharts userId={userId} hideHeatmap={true} hideTopDiscovery={true} />
+        </DeferredSection>
+      </section>
+
+
+
+      {/* Demographics & Region Section - Stacked vertically as per user request */}
+      <section className="space-y-6">
         <DeferredSection minHeight="320px" placeholder={<SectionPlaceholder />}>
           <UserDemographicsWidget
             userId={userId}
@@ -287,6 +303,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         </DeferredSection>
       </section>
 
+
       {/* Time Performance Heatmap Section */}
       <section>
         <DeferredSection minHeight="360px" placeholder={<SectionPlaceholder />}>
@@ -307,35 +324,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         </DeferredSection>
       </section>
 
-      {/* Secondary Metrics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Video Performance */}
-        <div className="space-y-6">
-          <DeferredSection minHeight="320px" placeholder={<SectionPlaceholder />}>
-            <UserVideoPerformanceMetrics
-              userId={userId}
-              dataOverride={videoMetrics}
-              dataOverrideFilters={{ timePeriod, userId }}
-              loadingOverride={isLoading}
-              errorOverride={errorMessage}
-            />
-          </DeferredSection>
-        </div>
 
-        {/* Widgets Column */}
-        <div className="space-y-6">
-          <DeferredSection minHeight="240px" placeholder={<SectionPlaceholder />}>
-            <UserAlertsWidget
-              userId={userId}
-              initialLimit={DEFAULT_ALERTS_LIMIT}
-              dataOverride={alerts}
-              dataOverrideFilters={{ timePeriod, limit: DEFAULT_ALERTS_LIMIT, userId }}
-              loadingOverride={isLoading}
-              errorOverride={errorMessage}
-            />
-          </DeferredSection>
-        </div>
-      </div>
     </div>
   );
 };

@@ -6,7 +6,9 @@ import VideoDrillDownModal from "./VideoDrillDownModal";
 import VideoListPreview from "./VideoListPreview";
 import PostDetailModal from "../PostDetailModal";
 import PostReviewModal from "./PostReviewModal";
+import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
+
 import { VideoListItem } from "@/types/mediakit";
 
 
@@ -125,6 +127,9 @@ const UserVideoPerformanceMetrics: React.FC<
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [selectedVideoForReview, setSelectedVideoForReview] = useState<VideoListItem | null>(null);
+    const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
+    const [selectedVideoForPlayer, setSelectedVideoForPlayer] = useState<VideoListItem | null>(null);
+
 
 
     const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
@@ -225,6 +230,16 @@ const UserVideoPerformanceMetrics: React.FC<
       setSelectedVideoForReview(video);
       setIsReviewModalOpen(true);
     };
+
+    const handlePlayVideo = (video: VideoListItem) => {
+      setSelectedVideoForPlayer(video);
+      setIsVideoPlayerOpen(true);
+    };
+
+    const handleOpenDetail = (postId: string) => {
+      setSelectedPostId(postId);
+    };
+
 
 
     if (!userId) {
@@ -359,13 +374,15 @@ const UserVideoPerformanceMetrics: React.FC<
             <VideoListPreview
               userId={userId!}
               timePeriod={timePeriod}
-              onRowClick={(id) => setSelectedPostId(id)}
+              onPlayClick={handlePlayVideo}
+              onDetailClick={handleOpenDetail}
               onReviewClick={handleOpenReviewModal}
               onExpand={() => {
                 setDrillDownMetric('views');
                 setIsModalOpen(true);
               }}
             />
+
 
             {resolvedInsightSummary && (
               <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-gray-100 flex items-start">
@@ -403,7 +420,15 @@ const UserVideoPerformanceMetrics: React.FC<
             creatorName: "Criador",
           } : null}
         />
+        <DiscoverVideoModal
+          open={isVideoPlayerOpen}
+          onClose={() => setIsVideoPlayerOpen(false)}
+          videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
+          posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
+          postLink={selectedVideoForPlayer?.permalink || undefined}
+        />
       </div>
+
     );
   };
 

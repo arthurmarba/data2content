@@ -3,7 +3,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { XMarkIcon } from "@heroicons/react/24/solid";
+import { XMarkIcon, PencilSquareIcon, ChartBarIcon, HeartIcon, ChatBubbleLeftIcon, ShareIcon, BookmarkIcon } from "@heroicons/react/24/solid";
+import { EyeIcon } from "@heroicons/react/24/outline";
+
+
 
 type PostsBySliceModalProps = {
   isOpen: boolean;
@@ -11,7 +14,12 @@ type PostsBySliceModalProps = {
   subtitle?: string;
   posts: any[];
   onClose: () => void;
+  onReviewClick?: (post: any) => void;
+  onPlayClick?: (post: any) => void;
+  onDetailClick?: (postId: string) => void;
 };
+
+
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
 
@@ -29,7 +37,9 @@ function resolveImageSrc(value?: string) {
   return value;
 }
 
-export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onClose }: PostsBySliceModalProps) {
+export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onClose, onReviewClick, onPlayClick, onDetailClick }: PostsBySliceModalProps) {
+
+
   const dialogRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -94,14 +104,19 @@ export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onCl
           ) : (
             <ul className="divide-y divide-slate-200">
               {posts.map((post, idx) => (
-                <li key={post._id || idx} className="flex gap-4 px-5 py-4">
+                <li
+                  key={post._id || idx}
+                  className="flex gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors group"
+                  onClick={() => onPlayClick ? onPlayClick(post) : (onDetailClick && onDetailClick(post._id))}
+                >
+
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                     {post.thumbnailUrl || post.coverUrl || post.thumbnail ? (
                       <Image
                         src={resolveImageSrc(post.thumbnailUrl || post.coverUrl || post.thumbnail)}
                         alt={post.caption || "Post"}
                         fill
-                        className="object-cover"
+                        className="object-cover group-hover:scale-105 transition-transform"
                         sizes="96px"
                       />
                     ) : (
@@ -109,68 +124,90 @@ export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onCl
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex items-start justify-between gap-3">
+
+                  <div className="min-w-0 flex-1 flex flex-col">
+                    <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-semibold text-slate-900">{post.caption || "Post"}</p>
-                        <p className="text-[11px] text-slate-500">{post.metaLabel || ""}</p>
+                        <p className="line-clamp-2 text-base font-bold text-slate-900 leading-tight mb-1">{post.caption || "Sem legenda"}</p>
+                        <p className="text-xs font-medium text-slate-500">{formatDate(post.postDate)}</p>
                       </div>
-                      <span className="whitespace-nowrap text-xs font-medium text-slate-600">{formatDate(post.postDate)}</span>
+                      <div className="shrink-0 flex items-center gap-2">
+                        {(onDetailClick || !onPlayClick) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDetailClick ? onDetailClick(post._id) : null;
+                            }}
+                            className="flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-4 py-1.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-all active:scale-95"
+                          >
+                            <ChartBarIcon className="h-3.5 w-3.5 text-slate-400" />
+                            Analisar
+                          </button>
+                        )}
+                        {onReviewClick && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onReviewClick(post);
+                            }}
+                            className="flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-all active:scale-95"
+                          >
+                            <PencilSquareIcon className="h-3.5 w-3.5" />
+                            Review
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1 text-[10px] font-medium text-slate-600">
+
+                    <div className="flex flex-wrap gap-1.5 mb-3">
                       {post.format?.map((f: string) => (
-                        <span key={f} className="rounded-md bg-orange-50 px-2 py-1 text-orange-700 ring-1 ring-inset ring-orange-600/10">
+                        <span key={f} className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
                           {f}
                         </span>
                       ))}
                       {post.proposal?.map((p: string) => (
-                        <span key={p} className="rounded-md bg-indigo-50 px-2 py-1 text-indigo-700 ring-1 ring-inset ring-indigo-600/10">
+                        <span key={p} className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
                           {p}
                         </span>
                       ))}
                       {post.context?.map((c: string) => (
-                        <span key={c} className="rounded-md bg-slate-100 px-2 py-1 text-slate-700 ring-1 ring-inset ring-slate-500/10">
+                        <span key={c} className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
                           {c}
-                        </span>
-                      ))}
-                      {post.tone?.map((t: string) => (
-                        <span key={t} className="rounded-md bg-emerald-50 px-2 py-1 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
-                          {t}
-                        </span>
-                      ))}
-                      {post.references?.map((r: string) => (
-                        <span key={r} className="rounded-md bg-amber-50 px-2 py-1 text-amber-700 ring-1 ring-inset ring-amber-600/10">
-                          {r}
                         </span>
                       ))}
                     </div>
 
-                    <div className="flex flex-wrap gap-3 text-[11px] text-slate-600">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-800">
-                        Alcance: {post.stats?.reach !== undefined && post.stats?.reach !== null ? numberFormatter.format(post.stats.reach) : "—"}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-800">
-                        Interações:{" "}
-                        {post.stats?.total_interactions !== undefined && post.stats?.total_interactions !== null
-                          ? numberFormatter.format(post.stats.total_interactions)
-                          : "—"}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1">
-                        Likes: {numberFormatter.format(post.stats?.likes ?? 0)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1">
-                        Com.: {numberFormatter.format(post.stats?.comments ?? 0)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1">
-                        Shares: {numberFormatter.format(post.stats?.shares ?? 0)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1">
-                        Salvos: {numberFormatter.format(post.stats?.saved ?? post.stats?.saves ?? 0)}
-                      </span>
+                    <div className="mt-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                      <div className="flex flex-col p-2 rounded-lg bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Alcance</span>
+                        <span className="text-sm font-black text-slate-900">{post.stats?.reach ? numberFormatter.format(post.stats.reach) : "—"}</span>
+                      </div>
+                      <div className="flex flex-col p-2 rounded-lg bg-indigo-50/50 border border-indigo-100">
+                        <span className="text-[10px] text-indigo-600 uppercase font-bold tracking-tight mb-0.5">Interações</span>
+                        <span className="text-sm font-black text-indigo-900">{post.stats?.total_interactions ? numberFormatter.format(post.stats.total_interactions) : "—"}</span>
+                      </div>
+                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Likes</span>
+                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.likes ?? 0)}</span>
+                      </div>
+                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Comentários</span>
+                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.comments ?? 0)}</span>
+                      </div>
+                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Shares</span>
+                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.shares ?? 0)}</span>
+                      </div>
+                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Salvos</span>
+                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.saved ?? post.stats?.saves ?? 0)}</span>
+                      </div>
                     </div>
                   </div>
                 </li>
+
+
               ))}
             </ul>
           )}

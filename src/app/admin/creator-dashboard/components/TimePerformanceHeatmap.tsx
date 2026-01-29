@@ -13,7 +13,12 @@ import useSWR from "swr";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { formatCategories, proposalCategories, contextCategories, idsToLabels } from "@/app/lib/classification";
 import PostsBySliceModal from '@/app/dashboard/planning/components/PostsBySliceModal';
+import PostReviewModal from './PostReviewModal';
+import PostDetailModal from '../PostDetailModal';
+import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
 import { LightBulbIcon, CalendarDaysIcon, ChartBarIcon } from '@heroicons/react/24/solid';
+
+
 
 // --- Funções Auxiliares ---
 
@@ -149,10 +154,33 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
   // Modal State
   const [sliceModal, setSliceModal] = useState<{ open: boolean; title: string; subtitle?: string; posts: any[] }>({
     open: false,
-    title: "",
-    subtitle: "",
+    title: '',
+    subtitle: '',
     posts: [],
   });
+
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedPostForReview, setSelectedPostForReview] = useState<any>(null);
+  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
+  const [selectedVideoForPlayer, setSelectedVideoForPlayer] = useState<any>(null);
+  const [selectedPostIdForDetail, setSelectedPostIdForDetail] = useState<string | null>(null);
+
+  const handleOpenReview = useCallback((post: any) => {
+    setSelectedPostForReview(post);
+    setIsReviewModalOpen(true);
+  }, []);
+
+  const handlePlayVideo = useCallback((post: any) => {
+    setSelectedVideoForPlayer(post);
+    setIsVideoPlayerOpen(true);
+  }, []);
+
+  const handleOpenDetail = useCallback((postId: string) => {
+    setSelectedPostIdForDetail(postId);
+  }, []);
+
+
 
   const [postsLoading, setPostsLoading] = useState(false);
 
@@ -439,9 +467,41 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
         subtitle={sliceModal.subtitle}
         posts={sliceModal.posts}
         onClose={() => setSliceModal(prev => ({ ...prev, open: false }))}
+        onReviewClick={handleOpenReview}
+        onPlayClick={handlePlayVideo}
+        onDetailClick={handleOpenDetail}
+      />
+
+
+      <PostReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        apiPrefix="/api/admin"
+        post={selectedPostForReview ? {
+          _id: selectedPostForReview._id,
+          coverUrl: selectedPostForReview.thumbnailUrl || selectedPostForReview.coverUrl || selectedPostForReview.thumbnail,
+          description: selectedPostForReview.caption || selectedPostForReview.description,
+          creatorName: "Criador",
+        } : null}
+      />
+
+      <PostDetailModal
+        isOpen={selectedPostIdForDetail !== null}
+        onClose={() => setSelectedPostIdForDetail(null)}
+        postId={selectedPostIdForDetail}
+      />
+
+      <DiscoverVideoModal
+        open={isVideoPlayerOpen}
+        onClose={() => setIsVideoPlayerOpen(false)}
+        videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
+        posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
+        postLink={selectedVideoForPlayer?.permalink || undefined}
       />
     </>
+
   );
 };
+
 
 export default TimePerformanceHeatmap;

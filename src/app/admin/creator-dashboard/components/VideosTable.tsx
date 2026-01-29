@@ -13,14 +13,17 @@ import {
   ChartBarIcon,
   BookmarkIcon,
   PencilSquareIcon,
+  XMarkIcon, // Added XMarkIcon
 } from '@heroicons/react/24/solid';
 
 import { VideoListItem } from '@/types/mediakit';
 
-interface VideosTableProps {
-  videos: VideoListItem[];
+export interface VideosTableProps {
+  videos: any[]; // Changed type to any[]
   onRowClick?: (postId: string) => void;
-  onReviewClick?: (video: VideoListItem) => void;
+  onReviewClick?: (post: any) => void; // Changed type to any
+  onPlayClick?: (video: any) => void; // Added onPlayClick
+  onDetailClick?: (postId: string) => void; // Added onDetailClick
   readOnly?: boolean;
 
   followersCount?: number; // usado para calcular engajamento por post
@@ -125,10 +128,12 @@ const VideoCard: React.FC<{
   readOnly?: boolean;
   onRowClick?: (postId: string) => void;
   onReviewClick?: (video: VideoListItem) => void;
+  onPlayClick?: (video: VideoListItem) => void; // Added
+  onDetailClick?: (postId: string) => void; // Added
   followersCount?: number;
   showStrategyTags?: boolean;
   strategyMode?: 'lock' | 'hide';
-}> = ({ video, index, readOnly, onRowClick, onReviewClick, followersCount, showStrategyTags = true, strategyMode = 'lock' }) => {
+}> = ({ video, index, readOnly, onRowClick, onReviewClick, onPlayClick, onDetailClick, followersCount, showStrategyTags = true, strategyMode = 'lock' }) => {
 
   const formatDate = (d?: string | Date) => {
     if (!d) return 'N/A';
@@ -158,8 +163,8 @@ const VideoCard: React.FC<{
 
   return (
     <div
-      className={`p-4 bg-white rounded-lg shadow-sm border border-gray-100 transition-colors ${readOnly && index === 0 ? 'bg-pink-50 border-pink-200' : ''
-        }`}
+      onClick={() => onPlayClick ? onPlayClick(video) : (onRowClick && onRowClick(video._id))}
+      className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:ring-2 hover:ring-indigo-500/20 transition-all cursor-pointer group"
     >
       <div className="grid grid-cols-12 gap-x-4 gap-y-2 items-start">
         {/* Conteúdo (thumb + caption) */}
@@ -281,28 +286,32 @@ const VideoCard: React.FC<{
 
         {/* Ações */}
         <div className="col-span-12 md:col-span-2 flex flex-col items-center justify-start gap-2">
-          {onRowClick && (
+          <div className="mt-3 flex flex-wrap gap-2 justify-end">
             <button
-              onClick={() => onRowClick(video._id)}
-              title="Analisar Detalhes"
-              className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDetailClick ? onDetailClick(video._id) : (onRowClick && onRowClick(video._id));
+              }}
+              className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors shadow-sm"
             >
-              <ChartBarIcon className="w-3.5 h-3.5" />
-              <span>Analisar</span>
+              <ChartBarIcon className="h-3.5 w-3.5 text-gray-400" />
+              Analisar
             </button>
-          )}
-          {onReviewClick && (
-            <button
-              onClick={() => onReviewClick(video)}
-              title="Fazer Review"
-              className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm hover:bg-indigo-100 transition-colors"
-            >
-              <PencilSquareIcon className="w-3.5 h-3.5" />
-              <span>Review</span>
-            </button>
-          )}
-          <a
 
+            {onReviewClick && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReviewClick(video);
+                }}
+                className="flex items-center gap-1.5 rounded-md bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-700/10 hover:bg-indigo-100 transition-colors shadow-sm"
+              >
+                <PencilSquareIcon className="h-3.5 w-3.5" />
+                Review
+              </button>
+            )}
+          </div>
+          <a
             href={video.permalink ?? '#'}
             target="_blank"
             rel="noopener noreferrer"
@@ -318,7 +327,7 @@ const VideoCard: React.FC<{
       <div className="mt-3 pt-2 border-t border-gray-100">
         <div className="text-[11px] text-gray-500">{engagementExplainer}</div>
       </div>
-    </div >
+    </div>
   );
 };
 
@@ -354,6 +363,8 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, showStrategyTags = tr
           showStrategyTags={showStrategyTags}
           strategyMode={strategyMode}
           onReviewClick={props.onReviewClick}
+          onPlayClick={props.onPlayClick} // Passed down
+          onDetailClick={props.onDetailClick} // Passed down
           {...props}
         />
       ))}
