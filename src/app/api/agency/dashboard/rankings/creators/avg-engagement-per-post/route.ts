@@ -46,10 +46,10 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSession(req);
     // CORRIGIDO: Verificação explícita e robusta para session, user e agencyId.
-    // Um usuário de agência autenticado DEVE ter um agencyId para acessar este endpoint.
+    // Um usuário de parceiro autenticado DEVE ter um agencyId para acessar este endpoint.
     if (!session || !session.user || !session.user.agencyId) {
       logger.warn(`${TAG} Unauthorized access attempt. Session or agencyId missing.`);
-      return apiError('Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.', 401);
+      return apiError('Acesso não autorizado. A sessão do usuário é inválida ou não está associada a um parceiro.', 401);
     }
 
     const { searchParams } = new URL(req.url);

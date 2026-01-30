@@ -15,24 +15,24 @@ export function vipInviteEmail({
 
 Você já está na nossa comunidade aberta — agora é hora de dar o próximo passo.
 
-O Grupo VIP (Plano Agência) oferece:
+O Grupo VIP (Plano Pro) oferece:
 - Mentorias estratégicas semanais com análise ao vivo do que está funcionando.
 - Acompanhamento do Mobi com calendários personalizados e checkpoints.
 - Alertas premium no WhatsApp para manter sua constância sem esforço (dúvidas ficam no Chat AI dentro do app).
 
 Comece testando agora (sem cartão):
-- Acessar o painel Agência: ${billingUrl}
+- Acessar o painel Pro: ${billingUrl}
 - Conectar os alertas no WhatsApp: ${whatsappUrl}
 - Falar com a IA no Chat AI: ${chatAiUrl}
 
-Experimente todos os recursos do Plano Agência sem cobrança inicial e veja como as mentorias avançadas impactam sua estratégia.
+Experimente todos os recursos do Plano Pro sem cobrança inicial e veja como as mentorias avançadas impactam sua estratégia.
 
 Bons conteúdos!
 Equipe Data2Content`;
 
   const html = `
     <p>${greeting}</p>
-    <p>Você já conhece a comunidade aberta — agora dê o próximo passo com o <strong>Grupo VIP</strong>, exclusivo para assinantes do Plano Agência.</p>
+    <p>Você já conhece a comunidade aberta — agora dê o próximo passo com o <strong>Grupo VIP</strong>, exclusivo para assinantes do Plano Pro.</p>
     <p>No VIP você conta com:</p>
     <ul>
       <li><strong>Mentorias estratégicas semanais</strong> com análise ao vivo e hotseats.</li>
@@ -41,7 +41,7 @@ Equipe Data2Content`;
     </ul>
     <p style="margin: 16px 0;">
       <a href="${billingUrl}" style="display:inline-block;padding:12px 18px;background:#6d28d9;color:#fff;border-radius:8px;font-weight:600;text-decoration:none;margin-right:8px;">
-        Explorar o Plano Agência
+        Explorar o Plano Pro
       </a>
       <a href="${whatsappUrl}" style="display:inline-block;padding:12px 18px;border:1px solid #6d28d9;color:#6d28d9;border-radius:8px;font-weight:600;text-decoration:none;">
         Ativar alertas no WhatsApp
@@ -50,7 +50,7 @@ Equipe Data2Content`;
         Abrir Chat AI
       </a>
     </p>
-    <p style="font-size:13px;color:#555;">Experimente todos os recursos do Plano Agência sem cobrança inicial antes de decidir.</p>
+    <p style="font-size:13px;color:#555;">Experimente todos os recursos do Plano Pro sem cobrança inicial antes de decidir.</p>
     <p style="margin-top:16px;">Bons conteúdos!<br/>Equipe Data2Content</p>
   `;
 

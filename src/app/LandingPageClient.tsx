@@ -16,13 +16,9 @@ import { CASTING_ROUTE, MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 
 import LandingHeader from "./landing/components/LandingHeader";
 import HeroModern from "./landing/components/HeroModern";
-import CreatorGallerySection from "./landing/components/CreatorGallerySection";
+import CastingMarketplaceSection from "./landing/components/CastingMarketplaceSection";
 import PlansComparisonSection from "./landing/components/PlansComparisonSection";
-import BrandsSection from "./landing/components/BrandsSection";
-import TestimonialSpotlight from "./landing/components/TestimonialSpotlight";
 import MobileStickyCta from "./landing/components/MobileStickyCta";
-import CoverageHighlights from "./landing/components/CoverageHighlights";
-import AiFeatureSection from "./landing/components/AiFeatureSection";
 
 const FALLBACK_METRICS = {
   activeCreators: 130,
@@ -50,6 +46,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 420_000,
     postCount: 12,
     avgInteractionsPerPost: 35_000,
+    avgReachPerPost: 35_000,
     rank: 1,
     consistencyScore: 92,
   },
@@ -62,6 +59,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 315_000,
     postCount: 9,
     avgInteractionsPerPost: 35_000,
+    avgReachPerPost: 35_000,
     rank: 2,
     consistencyScore: 88,
   },
@@ -74,6 +72,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 510_000,
     postCount: 14,
     avgInteractionsPerPost: 36_000,
+    avgReachPerPost: 36_000,
     rank: 3,
     consistencyScore: 95,
   },
@@ -86,6 +85,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 260_000,
     postCount: 10,
     avgInteractionsPerPost: 24_000,
+    avgReachPerPost: 24_000,
     rank: 4,
     consistencyScore: 84,
   },
@@ -98,6 +98,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 210_000,
     postCount: 8,
     avgInteractionsPerPost: 26_000,
+    avgReachPerPost: 26_000,
     rank: 5,
     consistencyScore: 82,
   },
@@ -110,6 +111,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 235_000,
     postCount: 9,
     avgInteractionsPerPost: 21_000,
+    avgReachPerPost: 21_000,
     rank: 6,
     consistencyScore: 79,
   },
@@ -122,6 +124,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 360_000,
     postCount: 13,
     avgInteractionsPerPost: 27_000,
+    avgReachPerPost: 27_000,
     rank: 7,
     consistencyScore: 86,
   },
@@ -134,6 +137,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 195_000,
     postCount: 7,
     avgInteractionsPerPost: 22_000,
+    avgReachPerPost: 22_000,
     rank: 8,
     consistencyScore: 81,
   },
@@ -146,6 +150,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 205_000,
     postCount: 8,
     avgInteractionsPerPost: 23_000,
+    avgReachPerPost: 23_000,
     rank: 9,
     consistencyScore: 77,
   },
@@ -158,6 +163,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 188_000,
     postCount: 6,
     avgInteractionsPerPost: 25_000,
+    avgReachPerPost: 25_000,
     rank: 10,
     consistencyScore: 80,
   },
@@ -170,6 +176,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 176_000,
     postCount: 7,
     avgInteractionsPerPost: 21_000,
+    avgReachPerPost: 21_000,
     rank: 11,
     consistencyScore: 78,
   },
@@ -182,6 +189,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 240_000,
     postCount: 11,
     avgInteractionsPerPost: 22_000,
+    avgReachPerPost: 22_000,
     rank: 12,
     consistencyScore: 83,
   },
@@ -194,6 +202,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 215_000,
     postCount: 9,
     avgInteractionsPerPost: 24_000,
+    avgReachPerPost: 24_000,
     rank: 13,
     consistencyScore: 82,
   },
@@ -206,6 +215,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 265_000,
     postCount: 12,
     avgInteractionsPerPost: 22_000,
+    avgReachPerPost: 22_000,
     rank: 14,
     consistencyScore: 79,
   },
@@ -218,6 +228,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 232_000,
     postCount: 10,
     avgInteractionsPerPost: 23_000,
+    avgReachPerPost: 23_000,
     rank: 15,
     consistencyScore: 81,
   },
@@ -230,6 +241,7 @@ const FALLBACK_RANKING = [
     totalInteractions: 220_000,
     postCount: 9,
     avgInteractionsPerPost: 24_000,
+    avgReachPerPost: 24_000,
     rank: 16,
     consistencyScore: 80,
   },
@@ -406,11 +418,6 @@ export default function LandingPageClient() {
   const headerWrapRef = React.useRef<HTMLDivElement>(null);
   const [stats, setStats] = React.useState<LandingCommunityStatsResponse | null>(null);
   const [loadingStats, setLoadingStats] = React.useState(true);
-  const [coverageSegments, setCoverageSegments] =
-    React.useState<LandingCoverageSegment[] | null>(null);
-  const [coverageRegions, setCoverageRegions] =
-    React.useState<LandingCoverageRegion[] | null>(null);
-  const [loadingCoverage, setLoadingCoverage] = React.useState(true);
   const fallbackStats = React.useMemo(buildFallbackStats, []);
   const { appendUtm, utm } = useUtmAttribution();
 
@@ -432,56 +439,7 @@ export default function LandingPageClient() {
       .catch(fallbackToLogin);
   }, []);
 
-  React.useEffect(() => {
-    let cancelled = false;
 
-    (async () => {
-      try {
-        const [segmentsRes, regionsRes] = await Promise.all([
-          fetch("/api/landing/coverage/segments?limit=6", { cache: "no-store" }),
-          fetch("/api/landing/coverage/geography?limit=6", { cache: "no-store" }),
-        ]);
-
-        if (segmentsRes.ok) {
-          const segmentsPayload = (await segmentsRes.json()) as { items?: LandingCoverageSegment[] };
-          if (!cancelled && Array.isArray(segmentsPayload.items)) {
-            setCoverageSegments(segmentsPayload.items);
-          }
-        }
-
-        if (regionsRes.ok) {
-          const regionsPayload = (await regionsRes.json()) as { items?: LandingCoverageRegion[] };
-          if (!cancelled && Array.isArray(regionsPayload.items)) {
-            setCoverageRegions(regionsPayload.items);
-          }
-        }
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[landing] Failed to fetch coverage data", error);
-        }
-      } finally {
-        if (!cancelled) setLoadingCoverage(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const handleBrandsCta = React.useCallback(() => {
-    try {
-      track("landing_brand_cta_click");
-    } catch {
-      // non-blocking analytics
-    }
-    const overrides: Partial<UtmContext> = { utm_content: "landing_hero_casting_button" };
-    if (!utm.utm_source) overrides.utm_source = "landing";
-    if (!utm.utm_medium) overrides.utm_medium = "hero_cta";
-    if (!utm.utm_campaign) overrides.utm_campaign = "casting_page";
-    const destination = appendUtm(CASTING_ROUTE, overrides) ?? CASTING_ROUTE;
-    window.location.assign(destination);
-  }, [appendUtm, utm]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -552,12 +510,6 @@ export default function LandingPageClient() {
   }, []);
 
   const metrics = stats?.metrics ?? (loadingStats ? null : fallbackStats.metrics);
-  const segmentsForCoverage = coverageSegments?.length
-    ? coverageSegments
-    : FALLBACK_COVERAGE_SEGMENTS;
-  const regionsForCoverage = coverageRegions?.length
-    ? coverageRegions
-    : FALLBACK_COVERAGE_REGIONS;
   const rankingForGallery = React.useMemo(() => {
     const baseRanking = stats?.ranking ?? fallbackStats.ranking ?? [];
     const uniqueBaseRanking = baseRanking.filter(
@@ -584,30 +536,22 @@ export default function LandingPageClient() {
       >
         <HeroModern
           onCreatorCta={handleCreatorCta}
-          onBrandCta={handleBrandsCta}
+          onBrandCta={handleCreatorCta} // Redirect brand CTA to creator signup/auth as well or remove it
           metrics={metrics}
         />
-        <CoverageHighlights
-          segments={segmentsForCoverage}
-          regions={regionsForCoverage}
-          loading={loadingCoverage}
+
+        <CastingMarketplaceSection
+          initialCreators={rankingForGallery}
+          metrics={metrics}
         />
-        <CreatorGallerySection
-          creators={rankingForGallery}
-          loading={loadingStats}
-          onRequestMediaKit={handleCreatorCta}
-          maxVisible={CREATOR_GALLERY_LIMIT_MOBILE}
-          maxVisibleDesktop={CREATOR_GALLERY_LIMIT_DESKTOP}
-        />
-        <TestimonialSpotlight />
+
         <PlansComparisonSection onCreateAccount={handleCreatorCta} />
-        <BrandsSection onCreateCampaign={handleBrandsCta} />
       </main>
 
       <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-surface-muted)] text-[var(--landing-text-muted)]">
-        <div className="landing-section__inner landing-section__inner--wide flex flex-col gap-10 py-12">
-          <div className="grid gap-8 md:grid-cols-3">
-            <div className="flex flex-col gap-4">
+        <div className="landing-section__inner landing-section__inner--wide flex flex-col gap-8 py-10 md:gap-12">
+          <div className="grid gap-8 md:grid-cols-[1.2fr_0.9fr_0.9fr]">
+            <div className="flex flex-col gap-4 max-w-md">
               <div className="flex items-center gap-3">
                 <div className="relative h-11 w-11 overflow-hidden rounded-full border border-[var(--landing-border)] bg-white">
                   <Image
@@ -619,11 +563,11 @@ export default function LandingPageClient() {
                   />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em]">Data2Content</p>
-                  <p className="text-sm">A agência moderna que treina criadores e conecta marcas aos talentos certos com IA.</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em]">Data2Content</p>
+                  <p className="text-sm text-[var(--landing-text)]/80">Inteligência viva para a sua carreira. O parceiro estratégico que revisa conteúdo e conecta marcas.</p>
                 </div>
               </div>
-              <p className="text-sm">
+              <p className="text-sm text-[var(--landing-text-muted)]/90 leading-relaxed">
                 Insights confiáveis, mídia kit vivo, suporte estratégico e oportunidades reais — tudo em um único ecossistema.
               </p>
             </div>
@@ -654,7 +598,7 @@ export default function LandingPageClient() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 border-t border-[var(--landing-border)] pt-6 text-xs text-[var(--landing-text-muted)] md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 border-t border-[var(--landing-border)] pt-4 text-[11px] text-[var(--landing-text-muted)] md:flex-row md:items-center md:justify-between">
             <span>© {new Date().getFullYear()} Data2Content. Todos os direitos reservados.</span>
             <span>Construída do Brasil para o mercado criativo.</span>
           </div>
@@ -665,6 +609,7 @@ export default function LandingPageClient() {
         label="Criar conta gratuita"
         description="Conecte o Instagram e receba alertas."
         onClick={handleCreatorCta}
+        showAfterTargetId="galeria"
       />
     </div>
   );

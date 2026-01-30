@@ -15,7 +15,7 @@ export default function ChatBillingGate() {
                 </div>
 
                 <div className="space-y-3">
-                    <h2 className="text-xl font-bold text-brand-dark">Sua Agência de Conteúdo com IA</h2>
+                    <h2 className="text-xl font-bold text-brand-dark">Sua plataforma de Conteúdo com IA</h2>
                     <p className="text-brand-text-secondary/90">
                         Crie roteiros virais, legendas engajadoras e estratégias completas em segundos. A IA analisa seu perfil e cria conteúdo sob medida para você.
                     </p>

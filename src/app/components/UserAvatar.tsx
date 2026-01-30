@@ -76,6 +76,7 @@ export function UserAvatar({
 
   if (useImgTag) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imgSrc}
         alt={`Avatar de ${name}`}
@@ -120,4 +121,3 @@ export function UserAvatar({
     />
   );
 }
-

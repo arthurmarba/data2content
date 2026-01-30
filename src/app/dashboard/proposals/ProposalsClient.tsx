@@ -185,14 +185,14 @@ export default function ProposalsClient() {
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess);
   const isBillingLoading = Boolean(billingStatus.isLoading);
   const canInteract = hasProAccess && !isBillingLoading;
-  const upgradeMessage = 'Responder pela plataforma faz parte do Plano Agência.';
+  const upgradeMessage = 'Responder pela plataforma faz parte do Plano Pro.';
   const upgradeSubtitle =
-    'Ative o Plano Agência para enviar com IA em 1 clique e negociar com a faixa justa automática.';
-  const tooltipAnalyzePro = 'Disponível no Plano Agência: análise com IA e faixa justa automática.';
+    'Ative o Plano Pro para enviar com IA em 1 clique e negociar com a faixa justa automática.';
+  const tooltipAnalyzePro = 'Disponível no Plano Pro: análise com IA e faixa justa automática.';
   const showUpgradeToast = useCallback(() => {
     toast({
       variant: 'info',
-      title: 'Recurso exclusivo do Plano Agência',
+      title: 'Recurso exclusivo do Plano Pro',
       description: upgradeMessage,
     });
   }, [toast, upgradeMessage]);
@@ -1138,13 +1138,13 @@ export default function ProposalsClient() {
                 <div className="space-y-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-pink-700">
                     <span aria-hidden>✨</span>
-                    Plano Agência
+                    Plano Pro
                   </span>
                   <h2 className="text-lg font-bold text-slate-900">
                     Responda e negocie direto pela plataforma
                   </h2>
                   <p className="max-w-xl text-sm leading-relaxed text-slate-600">
-                    Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o Plano Agência.
+                    Diagnóstico do Mobi, resposta assistida e envio pela própria Data2Content ficam disponíveis assim que você ativa o Plano Pro.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
@@ -1422,7 +1422,7 @@ export default function ProposalsClient() {
                           <div className="relative z-10 flex flex-col items-center gap-3">
                             <Lock className="h-5 w-5 text-slate-400" />
                             <p className="text-sm text-slate-600">
-                              Assine o Plano Agência para desbloquear respostas assistidas por IA.
+                              Assine o Plano Pro para desbloquear respostas assistidas por IA.
                             </p>
                             <button
                               type="button"

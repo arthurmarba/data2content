@@ -2,338 +2,184 @@
 
 import React from "react";
 import ButtonPrimary from "./ButtonPrimary";
+import { motion } from "framer-motion";
 
 type PlansComparisonSectionProps = {
   onCreateAccount: () => void;
 };
 
-type PlanStatus = "yes" | "no" | "limited";
-
-type FeatureRow = {
-  feature: string;
-  free: {
-    status: PlanStatus;
-    label: string;
-    note?: string;
-  };
-  pro: {
-    status: PlanStatus;
-    label: string;
-    note?: string;
-  };
-};
-
-const features: FeatureRow[] = [
-  {
-    feature: "Criar e compartilhar o Mídia Kit",
-    free: { status: "yes", label: "Sim" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Comunidade gratuita de networking",
-    free: { status: "yes", label: "Sim" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Receber propostas de marcas",
-    free: { status: "no", label: "Não disponível" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Planejar e precificar com IA",
-    free: { status: "no", label: "Não disponível" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Responder propostas pela plataforma",
-    free: { status: "no", label: "Não disponível" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Participar das reuniões estratégicas semanais (VIP Plano Agência)",
-    free: { status: "no", label: "Não disponível" },
-    pro: { status: "yes", label: "Sim" },
-  },
-  {
-    feature: "Comissão sobre publis",
-    free: { status: "limited", label: "Até 30% em agências tradicionais", note: "Comissões comem parte do cachê e costumam exigir exclusividade." },
-    pro: { status: "yes", label: "0% + sem exclusividade", note: "Pague só a assinatura e mantenha 100% do valor negociado." },
-  },
-];
-
 const CheckIcon = () => (
-  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+  <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5">
     <path
       d="m4.5 10.5 3.5 3.5 7.5-8"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
   </svg>
 );
 
-const CrossIcon = () => (
-  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
-    <path
-      d="m5.5 5.5 9 9m0-9-9 9"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const MinusIcon = () => (
-  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
-    <path d="M5 10h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-);
-
-const STATUS_TOKENS: Record<PlanStatus, { icon: React.ReactNode; chip: string; iconWrapper: string }> = {
-  yes: {
-    icon: <CheckIcon />,
-    chip: "bg-emerald-500/12 text-emerald-600 ring-1 ring-inset ring-emerald-500/30",
-    iconWrapper: "bg-emerald-500/20",
-  },
-  no: {
-    icon: <CrossIcon />,
-    chip: "bg-rose-500/12 text-rose-600 ring-1 ring-inset ring-rose-500/25",
-    iconWrapper: "bg-rose-500/20",
-  },
-  limited: {
-    icon: <MinusIcon />,
-    chip: "bg-amber-500/15 text-amber-600 ring-1 ring-inset ring-amber-500/25",
-    iconWrapper: "bg-amber-500/20",
-  },
-};
-
-const StatusBadge: React.FC<{ status: PlanStatus; label: string }> = ({ status, label }) => {
-  const tokens = STATUS_TOKENS[status];
+const PlanCard = ({
+  title,
+  price,
+  description,
+  features,
+  isPro = false,
+  ctaText,
+  onCta,
+  note
+}: {
+  title: string;
+  price: string;
+  description: string;
+  features: string[];
+  isPro?: boolean;
+  ctaText: string;
+  onCta: () => void;
+  note?: string;
+}) => {
   return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${tokens.chip}`}
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -10 }}
+      className={`relative flex flex-col overflow-hidden rounded-[3rem] border p-10 transition-all duration-500 shadow-2xl ${isPro
+          ? "border-brand-primary/30 bg-white/60 shadow-brand-primary/10 ring-1 ring-brand-primary/20"
+          : "border-white/80 bg-white/40 shadow-slate-200/50"
+        } backdrop-blur-xl`}
     >
-      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-current ${tokens.iconWrapper}`}>
-        {tokens.icon}
-      </span>
-      <span className="text-sm font-semibold leading-none">{label}</span>
-    </span>
+      {isPro && (
+        <div className="absolute top-8 right-8">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-brand-primary/30">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+            Recomendado
+          </span>
+        </div>
+      )}
+
+      <div className="mb-10">
+        <h3 className={`text-2xl font-black tracking-tight ${isPro ? "text-brand-primary" : "text-brand-dark"}`}>
+          {title}
+        </h3>
+        <div className="mt-6 flex items-baseline gap-1">
+          <span className="text-5xl font-black text-brand-dark tracking-tighter">{price}</span>
+          {price !== "Investimento" && <span className="text-lg font-bold text-slate-400">/ mês</span>}
+        </div>
+        <p className="mt-4 text-base font-bold text-slate-500/80 leading-relaxed">
+          {description}
+        </p>
+      </div>
+
+      <div className="flex-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-6">
+          O que está incluído:
+        </p>
+        <ul className="grid gap-4 sm:grid-cols-1">
+          {features.map((feature, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isPro ? "bg-brand-primary/10 text-brand-primary" : "bg-slate-100 text-slate-400"}`}>
+                <CheckIcon />
+              </span>
+              <span className="text-base font-bold text-brand-dark/90 leading-tight">{feature}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-12 space-y-4">
+        <ButtonPrimary
+          onClick={onCta}
+          variant={isPro ? "brand" : "outline"}
+          size="lg"
+          className={`w-full py-6 text-lg font-black shadow-xl ring-2 ${isPro ? "ring-brand-primary/10" : "ring-slate-100"}`}
+        >
+          {ctaText}
+        </ButtonPrimary>
+        {note && (
+          <p className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+            {note}
+          </p>
+        )}
+      </div>
+
+      {isPro && (
+        <div className="absolute -bottom-24 -right-24 h-48 w-48 bg-brand-primary/10 rounded-full blur-[80px]" />
+      )}
+    </motion.div>
   );
 };
 
-const FREE_PLAN_BENEFITS = features.filter(
-  (row) => row.free.status === "yes" || row.free.status === "limited",
-);
-
-const PRO_PLAN_BENEFITS = features.filter(
-  (row) => row.pro.status === "yes" && row.free.status !== "yes",
-);
-
-const PLAN_PRICING = {
-  free: {
-    label: "Plano Gratuito",
-    price: "R$ 0",
-    cadence: "/ mês",
-    note: "Sem cartão • Sem compromisso",
-    description: "Para entrar na comunidade e ganhar visibilidade com dados reais.",
-  },
-  pro: {
-    label: "Plano Agência ⭐",
-    price: "R$ 49,90",
-    cadence: "/ mês",
-    secondary: "ou R$ 350 / ano",
-    note: "Primeiro insight pago em minutos.",
-    description: "Para fechar campanhas com estratégia, precificação inteligente e suporte humano + IA.",
-  },
-};
-
-const PlansComparisonSection: React.FC<PlansComparisonSectionProps> = ({ onCreateAccount }) => {
+export default function PlansComparisonSection({ onCreateAccount }: PlansComparisonSectionProps) {
   return (
-    <section
-      id="planos"
-      className="landing-section landing-section--plain text-brand-dark"
-    >
-      <div className="landing-section__inner landing-section__inner--wide">
-        <div className="text-center">
-          <span className="landing-chip mx-auto md:text-sm">Planos D2C</span>
-          <h2 className="mt-6 text-display-lg text-brand-dark">
-            O novo modelo de agência para criadores.
+    <section id="planos" className="landing-section relative overflow-hidden bg-[#FBFBFC] py-32">
+      {/* Background Ornaments */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+      <div className="absolute top-[20%] left-[5%] w-[40%] h-[40%] bg-brand-primary/5 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[10%] right-[10%] w-[30%] h-[30%] bg-brand-accent/5 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="landing-section__inner landing-section__inner--wide relative z-10">
+        <header className="mx-auto max-w-2xl text-center mb-20">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 shadow-sm">
+            Investimento Estratégico
+          </span>
+          <h2 className="mt-8 text-4xl md:text-6xl font-black text-brand-dark tracking-tight">
+            O seu novo parceiro <br className="hidden md:block" />
+            <span className="bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent">estratégico.</span>
           </h2>
-          <p className="mt-4 text-body-md font-normal text-brand-text-secondary">
-            A D2C une IA, estratégia de imagem e treinamento para transformar criadores em marcas profissionais — formando um casting preparado para campanhas reais.
+          <p className="mt-8 text-lg font-bold text-slate-500 leading-relaxed md:text-xl">
+            Unimos IA, estratégia de conteúdo e networking para transformar criadores em marcas profissionais prontas para campanhas globais.
           </p>
+        </header>
+
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:gap-12">
+          <PlanCard
+            title="Plano Gratuito"
+            price="R$ 0"
+            description="Torne-se um afiliado D2C e comece sua jornada com ferramentas básicas de visibilidade."
+            features={[
+              "Programa de Afiliados Ativo",
+              "Mídia Kit (Versão Limitada)",
+              "Acesso à Comunidade D2C",
+              "Sua vitrine no Marketplace",
+              "Dashboard de Métricas Básicas"
+            ]}
+            ctaText="Criar conta gratuita"
+            onCta={onCreateAccount}
+            note="Sem cartão • Sem compromisso"
+          />
+
+          <PlanCard
+            title="Plano Pro ⭐"
+            price="R$ 49,90"
+            isPro
+            description="A suíte completa de ferramentas e estratégia para monetizar sua audiência profissionalmente."
+            features={[
+              "Reuniões Estratégicas Semanais",
+              "Mídia Kit Completo (Auditado)",
+              "Exposição Hero no Marketplace",
+              "Chat IA Estrategista Full Time",
+              "Review de Conteúdo (Vereditos)",
+              "D2C Flix (Página de Descoberta)",
+              "Calculadora de Publis e CRM",
+              "Captação Direta de Propostas",
+              "50% de Comissão (1ª fatura afiliados)",
+              "Dashboard Avançado de Métricas"
+            ]}
+            ctaText="Assinar Plano Pro"
+            onCta={onCreateAccount}
+            note="Acelere sua carreira hoje"
+          />
         </div>
 
-        <div className="mt-14 grid gap-6 md:hidden">
-          <div className="rounded-3xl border border-brand-glass bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
-            <p className="text-eyebrow text-brand-text-secondary">
-              O que o plano gratuito inclui
-            </p>
-            <ul className="mt-5 space-y-4 text-sm leading-normal text-brand-dark md:text-base">
-              {FREE_PLAN_BENEFITS.map((item) => {
-                return (
-                  <li key={`free-${item.feature}`} className="flex items-start gap-3">
-                    <div className="flex flex-1 flex-col gap-2">
-                      <p className="text-base font-semibold leading-snug md:text-lg">{item.feature}</p>
-                      <StatusBadge status={item.free.status} label={item.free.label} />
-                      {item.free.note ? (
-                        <p className="text-sm font-medium leading-normal text-neutral-500">
-                          {item.free.note}
-                        </p>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="mt-6 border-t border-neutral-200 pt-4 text-center md:text-left">
-              <p className="text-eyebrow text-brand-text-secondary">
-                Investimento
-              </p>
-              <p className="text-2xl font-semibold text-brand-dark">
-                {PLAN_PRICING.free.price}
-                <span className="text-sm font-medium text-brand-text-secondary"> {PLAN_PRICING.free.cadence}</span>
-              </p>
-              <p className="text-xs font-medium uppercase tracking-[0.25em] text-brand-text-secondary">
-                {PLAN_PRICING.free.note}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-brand-glass bg-white p-5 shadow-[0_6px_18px_rgba(15,23,42,0.08)]">
-            <p className="text-eyebrow text-brand-magenta-bright">
-              Benefícios exclusivos do Plano Agência ⭐
-            </p>
-            <ul className="mt-5 space-y-4 text-sm leading-normal text-brand-dark md:text-base">
-              {PRO_PLAN_BENEFITS.map((item) => {
-                return (
-                  <li key={`pro-${item.feature}`} className="flex items-start gap-3">
-                    <div className="flex flex-1 flex-col gap-2">
-                      <p className="text-base font-semibold leading-snug md:text-lg">{item.feature}</p>
-                      <StatusBadge status={item.pro.status} label={item.pro.label} />
-                      {item.pro.note ? (
-                        <p className="text-sm font-medium leading-normal text-neutral-500">
-                          {item.pro.note}
-                        </p>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="mt-6 border-t border-neutral-200 pt-4 text-center md:text-left">
-              <p className="text-eyebrow text-brand-magenta-bright">
-                Investimento
-              </p>
-              <p className="text-2xl font-semibold text-brand-dark">
-                {PLAN_PRICING.pro.price}
-                <span className="text-sm font-medium text-brand-text-secondary"> {PLAN_PRICING.pro.cadence}</span>
-              </p>
-              <p className="text-sm font-medium text-brand-text-secondary">{PLAN_PRICING.pro.secondary}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-16 hidden overflow-hidden rounded-[32px] border border-brand-glass bg-white shadow-[0_12px_32px_rgba(15,23,42,0.08)] md:block">
-          <div className="overflow-x-auto">
-            <table className="min-w-full table-auto divide-y divide-neutral-200 text-left">
-              <thead className="bg-neutral-50 text-sm font-semibold uppercase tracking-[0.15em] text-brand-text-secondary/80">
-                <tr>
-                  <th scope="col" className="px-6 py-5 md:px-8">
-                    Recurso
-                  </th>
-                  <th scope="col" className="px-6 py-5 text-center md:px-8">
-                    Gratuito
-                  </th>
-                  <th scope="col" className="px-6 py-5 text-center text-brand-dark md:px-8">
-                    Plano Agência
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100 text-base text-brand-dark">
-                {features.map((item) => (
-                  <tr key={item.feature} className="bg-neutral-0/60">
-                    <th
-                      scope="row"
-                      className="max-w-[240px] px-6 py-5 text-base font-semibold leading-snug text-brand-dark md:px-8"
-                    >
-                      {item.feature}
-                    </th>
-                    {[item.free, item.pro].map((cell, idx) => {
-                      const isPro = idx === 1;
-                      return (
-                        <td
-                          key={`${item.feature}-${isPro ? "pro" : "free"}`}
-                          className={`px-6 py-5 text-center align-top text-base leading-normal text-brand-dark md:px-8 ${isPro ? "bg-white/50" : ""
-                            }`}
-                        >
-                          <div className="flex flex-col items-center gap-3">
-                            <StatusBadge status={cell.status} label={cell.label} />
-                            {cell.note && (
-                              <span className="text-sm font-medium leading-normal text-brand-text-secondary">
-                                {cell.note}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-white/90 text-brand-dark">
-                <tr>
-                  <th
-                    scope="row"
-                    className="px-6 py-5 text-base font-semibold leading-snug text-brand-dark md:px-8"
-                  >
-                    Investimento mensal
-                  </th>
-                  <td className="px-6 py-5 text-center align-top text-base md:px-8">
-                    <div className="mx-auto flex max-w-xs flex-col gap-3">
-                      <p className="text-2xl font-semibold">
-                        {PLAN_PRICING.free.price}
-                        <span className="text-sm font-medium text-brand-text-secondary">
-                          {" "}
-                          {PLAN_PRICING.free.cadence}
-                        </span>
-                      </p>
-                      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-brand-text-secondary">
-                        {PLAN_PRICING.free.note}
-                      </p>
-                      <ButtonPrimary
-                        onClick={onCreateAccount}
-                        variant="brand"
-                        size="md"
-                        className="w-full justify-center"
-                      >
-                        Criar conta gratuita
-                      </ButtonPrimary>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 text-center align-top text-base text-brand-magenta-bright md:px-8">
-                    <div className="space-y-1">
-                      <p className="text-2xl font-semibold text-brand-dark">
-                        {PLAN_PRICING.pro.price}
-                        <span className="text-sm font-medium text-brand-text-secondary">
-                          {" "}
-                          {PLAN_PRICING.pro.cadence}
-                        </span>
-                      </p>
-                      <p className="text-sm font-medium text-brand-text-secondary">{PLAN_PRICING.pro.secondary}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-
+        <p className="mt-20 text-center text-sm font-bold text-slate-400">
+          Precisa de uma solução para empresas ou marcas? <button className="text-brand-primary hover:underline underline-offset-4">Fale com um consultor →</button>
+        </p>
       </div>
     </section>
   );
-};
-
-export default PlansComparisonSection;
+}

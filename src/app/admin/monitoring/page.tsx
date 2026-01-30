@@ -37,7 +37,7 @@ export default function MonitoringPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white shadow p-4 rounded">
-          <p className="text-sm text-gray-500">Agências Ativas</p>
+          <p className="text-sm text-gray-500">Parceiros Ativos</p>
           <p className="text-2xl font-semibold">{data.activeAgencies}</p>
         </div>
         <div className="bg-white shadow p-4 rounded">
@@ -81,7 +81,7 @@ export default function MonitoringPage() {
               <td className="py-2">R$ {data.mrr.creators.toFixed(2)}</td>
             </tr>
             <tr>
-              <td className="py-2">Agências</td>
+              <td className="py-2">Parceiros</td>
               <td className="py-2">R$ {data.mrr.agencies.toFixed(2)}</td>
             </tr>
           </tbody>

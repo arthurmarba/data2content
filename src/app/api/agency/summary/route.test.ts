@@ -40,7 +40,7 @@ describe('GET /api/agency/summary', () => {
     const res = await GET(createRequest());
     const body = await res.json();
     expect(res.status).toBe(403);
-    expect(body.error).toBe('Plano da agência inativo. Assine para acessar o link de convite.');
+    expect(body.error).toBe('Plano do parceiro inativo. Assine para acessar o link de convite.');
   });
 
   it('returns name and inviteCode when authorized and active', async () => {

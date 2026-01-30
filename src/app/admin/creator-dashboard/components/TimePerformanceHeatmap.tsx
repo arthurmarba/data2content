@@ -207,7 +207,7 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
       ? `${apiPrefix}/dashboard/users/${userId}/performance/time-distribution`
       : `${apiPrefix}/dashboard/performance/time-distribution`;
     return `${baseUrl}?${params.toString()}`;
-  }, [timePeriod, metric, format, proposal, context, onlyActiveSubscribers, forcedCreatorContext, userId, apiPrefix]);
+  }, [timePeriod, metric, format, proposal, context, tone, reference, onlyActiveSubscribers, forcedCreatorContext, userId, apiPrefix]);
 
   const fetcher = useCallback(async (url: string): Promise<TimePerformanceResponse> => {
     const res = await fetch(url);

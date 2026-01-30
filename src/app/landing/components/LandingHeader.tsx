@@ -35,11 +35,8 @@ export default function LandingHeader({
   const { appendUtm, utm } = useUtmAttribution();
 
   const navLinks = [
-    { href: '#impacto', label: 'Impacto' },
-    { href: '#galeria', label: 'Criadores' },
-    { href: '#ecossistema', label: 'Ecossistema' },
+    { href: '#galeria', label: 'Marketplace' },
     { href: '#planos', label: 'Planos' },
-    { href: '#marcas', label: 'Marcas' },
   ];
 
   const handleJoinCommunity = () => {
@@ -61,17 +58,6 @@ export default function LandingHeader({
       .catch(fallbackToLogin);
   };
 
-  const handleBrands = () => {
-    track('landing_header_brand_cta_click');
-    const overrides: Partial<UtmContext> = {
-      utm_content: 'landing_header_brand_button',
-    };
-    if (!utm.utm_source) overrides.utm_source = 'landing';
-    if (!utm.utm_medium) overrides.utm_medium = 'header_cta';
-    if (!utm.utm_campaign) overrides.utm_campaign = 'casting_page';
-    const destination = appendUtm(CASTING_ROUTE, overrides) || CASTING_ROUTE;
-    window.location.assign(destination);
-  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 24);
@@ -152,8 +138,8 @@ export default function LandingHeader({
       style={
         isMounted
           ? ({
-              '--landing-header-extra': isScrolled ? '0px' : '8px',
-            } as CSSProperties)
+            '--landing-header-extra': isScrolled ? '0px' : '8px',
+          } as CSSProperties)
           : undefined
       }
     >
@@ -181,16 +167,6 @@ export default function LandingHeader({
                 {link.label}
               </a>
             ))}
-            {hideBrandCta ? null : (
-              <ButtonPrimary
-                onClick={handleBrands}
-                size="sm"
-                variant="outline"
-                className="shadow-none"
-              >
-                Sou marca
-              </ButtonPrimary>
-            )}
             {session ? (
               <ButtonPrimary href={MAIN_DASHBOARD_ROUTE} size="sm" variant="brand" className="shadow-none">
                 Ir para o painel
@@ -239,17 +215,6 @@ export default function LandingHeader({
                 {link.label}
               </a>
             ))}
-            {hideBrandCta ? null : (
-              <button
-                onClick={() => {
-                  handleBrands();
-                  setIsMenuOpen(false);
-                }}
-                className="mt-1 rounded-xl border border-brand-primary/40 px-4 py-3 text-left text-sm font-semibold text-brand-primary hover:bg-brand-primary/10"
-              >
-                Sou marca
-              </button>
-            )}
             <button
               onClick={() => {
                 setIsMenuOpen(false);

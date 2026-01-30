@@ -39,13 +39,13 @@ export async function GET(request: NextRequest) {
       const ctxIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers: true });
       const ctxObjectIds = ctxIds.map((id) => new Types.ObjectId(id));
       if (!ctxObjectIds.length) {
-        return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado na agência para agregar dados.' }, { status: 200 });
+        return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado no parceiro para agregar dados.' }, { status: 200 });
       }
       userQuery._id = { $in: ctxObjectIds };
     }
     const agencyUsers = await UserModel.find(userQuery).select('_id').lean();
     if (!agencyUsers || agencyUsers.length === 0) {
-      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado na agência para agregar dados.' }, { status: 200 });
+      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado no parceiro para agregar dados.' }, { status: 200 });
     }
     const userIds = agencyUsers.map(u => u._id);
     const BATCH_SIZE = 30;
@@ -66,11 +66,11 @@ export async function GET(request: NextRequest) {
           aggregated.set(p.date, entry);
         });
       } else if (r.status === 'rejected') {
-        logger.error('Erro ao buscar trend para usuário da agência:', r.reason);
+        logger.error('Erro ao buscar trend para usuário do parceiro:', r.reason);
       }
     });
     if (aggregated.size === 0) {
-      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum dado encontrado para os usuários da agência.' }, { status: 200 });
+      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum dado encontrado para os usuários do parceiro.' }, { status: 200 });
     }
     const chartData: ApiChartDataPoint[] = Array.from(aggregated.entries()).map(([date, data]) => {
       const avgReach = data.reachValues.length ? data.reachValues.reduce((a,b)=>a+b,0)/data.reachValues.length : null;
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       return { date, reach: avgReach, totalInteractions: avgInt };
     }).sort((a,b)=>a.date.localeCompare(b.date));
     const valid = chartData.filter(p => p.reach !== null || p.totalInteractions !== null);
-    let insight = 'Dados de tendência de alcance e interações da agência.';
+    let insight = 'Dados de tendência de alcance e interações do parceiro.';
     if (valid.length) {
       const avgReach = valid.reduce((s,p)=>s+(p.reach??0),0)/valid.length;
       const avgInt = valid.reduce((s,p)=>s+(p.totalInteractions??0),0)/valid.length;

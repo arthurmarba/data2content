@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   }
 
   // CORRIGIDO: Adicionado um 'type guard' para garantir que o agencyId existe.
-  // Se um usuário de agência está logado, ele DEVE ter um agencyId.
+  // Se um usuário de parceiro está logado, ele DEVE ter um agencyId.
   if (!session.user.agencyId) {
     logger.error(`${TAG} Authenticated user ${session.user.id || session.user.email} has no agencyId.`);
     return NextResponse.json({ error: 'User is not associated with an agency' }, { status: 400, headers: noStore });

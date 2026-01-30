@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import faqItems from "@/data/faq";
 
 export const landingMetadata: Metadata = {
-  title: "Agência que dá suporte aos criadores com estratégia de imagem e conteúdo.",
+  title: "Plataforma que dá suporte aos criadores com estratégia de imagem e conteúdo.",
   description:
     "E faz o match entre marcas e criadores com IA. Crie seu mídia kit conosco — é por lá que a marca envia a proposta de publi.",
   alternates: { canonical: "https://data2content.ai/" },
   openGraph: {
-    title: "Agência que dá suporte aos criadores com estratégia de imagem e conteúdo.",
+    title: "Plataforma que dá suporte aos criadores com estratégia de imagem e conteúdo.",
     description:
       "E faz o match entre marcas e criadores com IA. Crie seu mídia kit conosco — é por lá que a marca envia a proposta de publi.",
     url: "https://data2content.ai",
@@ -44,7 +44,7 @@ export const landingProductJsonLd = {
   "@type": "SoftwareApplication",
   name: "data2content",
   description:
-    "Agência que dá suporte aos criadores com estratégia de imagem e conteúdo. E faz o match entre marcas e criadores com IA. Crie seu mídia kit conosco — é por lá que a marca envia a proposta de publi.",
+    "Plataforma que dá suporte aos criadores com estratégia de imagem e conteúdo. E faz o match entre marcas e criadores com IA. Crie seu mídia kit conosco — é por lá que a marca envia a proposta de publi.",
   applicationCategory: "MarketingApplication",
   offers: {
     "@type": "Offer",

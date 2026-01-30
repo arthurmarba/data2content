@@ -122,7 +122,7 @@ export const summaryProMember: HomeSummaryResponse = {
   nextPost: {
     isInstagramConnected: true,
     slotLabel: "Ter • 14h",
-    primaryHook: "Roteiro alinhado com o planner Plano Agência",
+    primaryHook: "Roteiro alinhado com o planner Plano Pro",
   },
   whatsapp: {
     linked: true,

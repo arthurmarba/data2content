@@ -110,7 +110,16 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({
       }
     };
     fetchVideos();
-  }, [userId, timePeriod, limit, JSON.stringify(filters)]);
+  }, [
+    userId,
+    timePeriod,
+    limit,
+    filters.context,
+    filters.format,
+    filters.proposal,
+    filters.reference,
+    filters.tone,
+  ]);
 
   return (
     <div className="mt-4" data-testid="video-list-preview">

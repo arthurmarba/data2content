@@ -113,7 +113,7 @@ const AgencyDashboardContent: React.FC = () => {
   return (
     <>
       <Head>
-        <title>Dashboard da Agência - Data2Content</title>
+        <title>Dashboard do Parceiro - Data2Content</title>
       </Head>
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white sticky top-0 z-40 border-b border-gray-200">
@@ -243,7 +243,7 @@ const AgencyDashboardContent: React.FC = () => {
                 />
                 <PlatformOverviewSection
                   apiPrefix={apiPrefix}
-                  followerTrendTitle="Evolução de Seguidores da Agência"
+                  followerTrendTitle="Evolução de Seguidores do Parceiro"
                   creatorContextFilter={selectedCreatorContext || undefined}
                 />
                 <TopMoversSection

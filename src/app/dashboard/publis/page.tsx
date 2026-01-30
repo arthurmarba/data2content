@@ -202,7 +202,7 @@ export default function PublisPage() {
                         </button>
 
                         <p className="mt-4 text-xs text-gray-500">
-                            Disponível no Plano Agência
+                            Disponível no Plano Pro
                         </p>
                     </div>
                 </div>

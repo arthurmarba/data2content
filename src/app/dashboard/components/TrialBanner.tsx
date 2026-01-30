@@ -85,7 +85,7 @@ function TrialChecklist() {
   return (
     <div className="mt-4 rounded-xl border border-white/10 bg-white/10 p-4 sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70 mb-3">
-        Liberado no Modo Agência • Explore já
+        Liberado no Modo Pro • Explore já
       </p>
 
       <div className="flex flex-col gap-3">
@@ -142,7 +142,7 @@ function ActiveTrialBanner({
               <RocketLaunchIcon className="h-6 w-6 text-white" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-white/75">Modo Agência liberado</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-white/75">Modo Pro liberado</p>
               <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
                 Mobi está ativo pelas próximas {countdownLabel}.
               </h2>
@@ -200,7 +200,7 @@ function TrialExpiredBanner({ onSubscribe }: { onSubscribe: () => void }) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <div>
-            <h2 className="text-base font-semibold">Seu Modo Agência gratuito terminou 💡</h2>
+            <h2 className="text-base font-semibold">Seu Modo Pro gratuito terminou 💡</h2>
             <p className="mt-1 text-sm">
               Continue com o Mobi ativo para receber alertas, planner guiado e categorias completas do seu perfil.
             </p>

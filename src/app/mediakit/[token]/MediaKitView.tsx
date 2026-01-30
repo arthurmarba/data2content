@@ -630,7 +630,7 @@ const LockedPremiumSection = ({
   description,
   ctaLabel,
   subtitle,
-  badgeLabel = "Modo Agência",
+  badgeLabel = "Modo Pro",
   showBadge = true,
   onAction,
   peek,
@@ -1079,7 +1079,7 @@ const CategoryRankingsSummary = ({
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF1F4] text-[#D62E5E]">
           <Lock className="h-5 w-5" />
         </div>
-        <h3 className="mt-4 text-lg font-semibold text-slate-900">Modo Agência Bloqueado</h3>
+        <h3 className="mt-4 text-lg font-semibold text-slate-900">Modo Pro Bloqueado</h3>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">{lockedDescription}</p>
         <button
           type="button"
@@ -1641,7 +1641,7 @@ export default function MediaKitView({
   const canViewCategories = canViewPremiumSections;
   const shouldLockPremiumSections = !canViewPremiumSections && visibilityMode === 'lock';
   const shouldHidePremiumSections = !canViewPremiumSections && visibilityMode === 'hide';
-  const lockedCtaLabel = premiumAccess?.ctaLabel ?? "Ver categorias do meu perfil (Assinar Plano Agência)";
+  const lockedCtaLabel = premiumAccess?.ctaLabel ?? "Ver categorias do meu perfil (Assinar Plano Pro)";
   const lockedSubtitle = premiumAccess?.subtitle ?? PRO_PLAN_FLEXIBILITY_COPY;
   const categoryCtaLabel = premiumAccess?.categoryCtaLabel ?? lockedCtaLabel;
   const categorySubtitle = premiumAccess?.categorySubtitle ?? lockedSubtitle;
@@ -1649,7 +1649,7 @@ export default function MediaKitView({
   const lockedCategoriesDescription =
     premiumTrialState === "expired"
       ? "Seus dados ficaram congelados. Assine para continuar recebendo atualizações semanais."
-      : "Ative o modo Agência para ver os formatos, propostas e contextos que mais puxam crescimento.";
+      : "Ative o modo Pro para ver os formatos, propostas e contextos que mais puxam crescimento.";
   const lockedViewTrackedRef = useRef(false);
   const topPostsLockedViewTrackedRef = useRef(false);
   const topPostsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -2073,7 +2073,7 @@ export default function MediaKitView({
   const isTopPostsLocked = !canViewCategories && visibilityMode === 'lock';
   const topPostsIntro = useMemo<string | null>(() => {
     if (isTopPostsLocked) {
-      return 'Prévia dos posts mais recentes. Ative o modo Agência para destravar a análise completa.';
+      return 'Prévia dos posts mais recentes. Ative o modo Pro para destravar a análise completa.';
     }
     if (!canViewCategories && visibilityMode === 'hide') {
       return 'Os posts com melhor desempenho aparecem, mas as categorias detalhadas estão ocultas nesta visualização.';

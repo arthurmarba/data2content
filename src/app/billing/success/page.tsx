@@ -78,7 +78,7 @@ export default function BillingSuccessPage() {
     <div className="mx-auto max-w-xl p-6">
       <h1 className="mb-2 text-2xl font-semibold">Tudo certo!</h1>
       <p className="text-gray-700">
-        Sua assinatura do Plano Agência foi ativada com sucesso. Você já tem acesso total a todos os
+        Sua assinatura do Plano Pro foi ativada com sucesso. Você já tem acesso total a todos os
         recursos.
       </p>
       <p className="mt-2 text-gray-600">

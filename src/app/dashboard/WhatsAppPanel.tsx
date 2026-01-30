@@ -12,7 +12,7 @@ interface WhatsAppPanelProps {
   canAccessFeatures: boolean;
   onActionRedirect: () => void;
   showToast: (message: string, type?: "info" | "warning" | "success" | "error") => void;
-  upsellOnly?: boolean; // quando true, renderiza apenas o upsell Plano Agência
+  upsellOnly?: boolean; // quando true, renderiza apenas o upsell Plano Pro
 }
 
 export default function WhatsAppPanel({
@@ -121,7 +121,7 @@ export default function WhatsAppPanel({
     return () => clearInterval(intervalId);
   }, [expiresAt]);
 
-  // U P S E L L  –  quando não há acesso ou upsellOnly=true, mostra cartão de vendas Plano Agência
+  // U P S E L L  –  quando não há acesso ou upsellOnly=true, mostra cartão de vendas Plano Pro
   if (!canAccessFeatures || upsellOnly) {
     const origin = upsellOnly ? "upsell_only" : "panel";
     const previewMessages = [
@@ -144,7 +144,7 @@ export default function WhatsAppPanel({
         <div className="flex items-center gap-3">
           <FaWhatsapp className="h-10 w-10 text-emerald-500" aria-hidden />
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Alertas no WhatsApp · Plano Agência</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Alertas no WhatsApp · Plano Pro</h3>
             <p className="text-sm text-slate-600">
               Alertas e notificações chegam pelo WhatsApp; qualquer dúvida com IA acontece no Chat AI dentro da plataforma.
             </p>
@@ -179,10 +179,10 @@ export default function WhatsAppPanel({
             ))}
           </div>
           <p className="sr-only">
-            Prévia borrada das mensagens que você recebe via alertas no WhatsApp; disponível após assinar o Plano Agência.
+            Prévia borrada das mensagens que você recebe via alertas no WhatsApp; disponível após assinar o Plano Pro.
           </p>
           <p className="mt-3 text-xs text-slate-500">
-            Assine o Plano Agência para receber alertas e abrir o Chat AI no app quando quiser aprofundar.
+            Assine o Plano Pro para receber alertas e abrir o Chat AI no app quando quiser aprofundar.
           </p>
         </div>
 
@@ -252,7 +252,7 @@ export default function WhatsAppPanel({
         <div className="flex items-center gap-3">
           <FaWhatsapp className="w-10 h-10 text-green-500" />
           <div>
-            <h3 className="font-semibold text-lg text-gray-800">Alertas no WhatsApp · Plano Agência</h3>
+            <h3 className="font-semibold text-lg text-gray-800">Alertas no WhatsApp · Plano Pro</h3>
             <p className="text-sm text-gray-500 mt-1">
               Alertas chegam pelo WhatsApp; dúvidas e conversas com IA ficam centralizadas no Chat AI da plataforma.
             </p>

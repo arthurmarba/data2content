@@ -46,7 +46,7 @@ export async function GET(
   const creator = await UserModel.findOne({ _id: userId, agency: session.user.agencyId }).lean();
   if (!creator) {
     return NextResponse.json(
-      { error: 'Criador não encontrado ou não pertence a esta agência' },
+      { error: 'Criador não encontrado ou não pertence a esta parceiro' },
       { status: 403 }
     );
   }

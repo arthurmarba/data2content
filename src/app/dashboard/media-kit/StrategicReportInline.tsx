@@ -121,7 +121,7 @@ export default function StrategicReportInline() {
 
               <div className="rounded-2xl border border-white/60 bg-white/95 px-5 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.1)]">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-brand-purple">
-                  <span aria-hidden="true">👀</span> Peek do Modo Agência
+                  <span aria-hidden="true">👀</span> Peek do Modo Pro
                 </div>
                 <p className="mt-3 text-sm font-semibold text-slate-900">
                   Categorias que mais puxam crescimento nas últimas semanas
@@ -138,10 +138,10 @@ export default function StrategicReportInline() {
                 </div>
                 <p className="sr-only">
                   Prévia borrada das categorias de maior crescimento — disponível ao ativar o Modo
-                  Agência.
+                  Pro.
                 </p>
                 <p className="mt-3 text-xs text-slate-600">
-                  Reels ↑ +22% com essas categorias. Ative o Plano Agência para ver por que, os dias
+                  Reels ↑ +22% com essas categorias. Ative o Plano Pro para ver por que, os dias
                   ideais e os formatos que destravam alcance.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
@@ -165,7 +165,7 @@ export default function StrategicReportInline() {
                   }
                   className="inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
                 >
-                  Ativar Plano Agência
+                  Ativar Plano Pro
                 </button>
                 <button
                   type="button"

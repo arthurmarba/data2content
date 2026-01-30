@@ -50,7 +50,7 @@ const menuItems: MenuItem[] = [
     icon: ChartBarIcon,
   },
   { label: 'Afiliados', href: '/admin/affiliates', icon: UserGroupIcon },
-  { label: 'Agências', href: '/admin/agencies', icon: UserGroupIcon },
+  { label: 'Parceiros', href: '/admin/agencies', icon: UserGroupIcon },
   { label: 'Resgates', href: '/admin/redemptions', icon: CurrencyDollarIcon },
   { label: 'Billing Debug', href: '/admin/billing-debug', icon: CurrencyDollarIcon },
   {

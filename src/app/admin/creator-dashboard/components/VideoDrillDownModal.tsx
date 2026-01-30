@@ -416,7 +416,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
       setIsLoading(false);
       // We don't necessarily need to reset filters on close if we reset on open
     }
-  }, [isOpen, userId, initialFilters]);
+  }, [isOpen, userId, initialFilters, initialTypes]);
 
   useEffect(() => {
     if (isOpen && userId) {

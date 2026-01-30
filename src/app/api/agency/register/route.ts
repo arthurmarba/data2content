@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
     const existingAgency = await AgencyModel.findOne({ $or: agencyQuery });
     if (existingAgency) {
-      return NextResponse.json({ error: 'Já há agência registrada com esses dados.' }, { status: 409 });
+      return NextResponse.json({ error: 'Já há parceiro registrada com esses dados.' }, { status: 409 });
     }
 
     const agency = await AgencyModel.create({ name: val.data.name, contactEmail: val.data.contactEmail });

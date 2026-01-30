@@ -346,7 +346,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                     {...fieldEventHandlers}
                     onChange={handleChange}
                     className={inputClasses}
-                    placeholder="Ex: Contato da agência, detalhes específicos do acordo..."
+                    placeholder="Ex: Contato do parceiro, detalhes específicos do acordo..."
                     disabled={canAccessFeatures && isLoading}
                 />
             </div>

@@ -35,8 +35,8 @@ const valueCards: ValueCard[] = [
     icon: "💼",
     title: "Campanhas com Marcas",
     accent: "💼 Convites diretos",
-    description: "Creators do Plano Agência recebem convites com briefing, fee definido e 0% de comissão — fique com 100% do cachê.",
-    badge: "Exclusivo para criadores do Plano Agência",
+    description: "Creators do Plano Pro recebem convites com briefing, fee definido e 0% de comissão — fique com 100% do cachê.",
+    badge: "Exclusivo para criadores do Plano Pro",
   },
 ];
 

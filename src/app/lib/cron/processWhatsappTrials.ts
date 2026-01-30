@@ -38,7 +38,7 @@ function buildFallbackMessage(name?: string | null) {
   const greeting = name ? `Oi, ${name}!` : "Oi! 👋";
   return (
     `${greeting} Seu teste de ${TRIAL_DURATION_HOURS}h com a estrategista no WhatsApp acabou.\n\n` +
-    `Ative o Plano Agência agora e mantenha os roteiros prontos, os melhores horários sugeridos e os alertas personalizados.\n\n` +
+    `Ative o Plano Pro agora e mantenha os roteiros prontos, os melhores horários sugeridos e os alertas personalizados.\n\n` +
     `👉 ${UPGRADE_URL}`
   );
 }

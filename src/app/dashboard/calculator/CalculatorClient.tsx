@@ -205,7 +205,7 @@ export default function CalculatorClient() {
   const handleLockedAccess = (source: string = "cta") => {
     toast({
       variant: "info",
-      title: "Recurso exclusivo do Plano Agência",
+      title: "Recurso exclusivo do Plano Pro",
       description: upgradeMessage,
     });
     track("pro_feature_upgrade_clicked", {
@@ -489,7 +489,7 @@ export default function CalculatorClient() {
       <header className="space-y-4 text-center sm:text-left">
         <div className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-600">
           <FaChartLine className="h-3.5 w-3.5 text-[#F6007B]" />
-          Calculadora inteligente · Agência
+          Calculadora inteligente · Pro
         </div>
         <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
           Quanto cobrar pela sua publi?
@@ -518,7 +518,7 @@ export default function CalculatorClient() {
                 Desbloqueie o poder da precificação inteligente
               </h2>
               <p className="text-slate-600">
-                Assinantes do Plano Agência têm acesso ilimitado à calculadora, com sugestões baseadas em dados reais de mercado.
+                Assinantes do Plano Pro têm acesso ilimitado à calculadora, com sugestões baseadas em dados reais de mercado.
               </p>
             </div>
             <button

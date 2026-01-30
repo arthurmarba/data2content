@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { guardPremiumRequest } from "@/app/lib/planGuard";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const guardResponse = await guardPremiumRequest(req);

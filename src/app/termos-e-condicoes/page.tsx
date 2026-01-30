@@ -43,7 +43,7 @@ export default function TermsAndConditionsPage() {
               <li>Receber consultoria estratégica e personalizada via WhatsApp através do nosso Consultor IA.</li>
               <li>Participar e beneficiar-se da <strong>Comunidade de Inspiração Data2Content</strong>, onde exemplos de posts públicos são compartilhados para inspiração e aprendizado mútuo.</li>
               <li>Utilizar ferramentas para geração de <strong>Media Kits Públicos</strong> apresentando métricas a marcas e parceiros comerciais.</li>
-              <li>Acessar <strong>Dashboards exclusivos para Agências</strong> autorizadas, permitindo visualizar métricas de criadores sob sua gestão.</li>
+              <li>Acessar <strong>Dashboards exclusivos para gestores</strong> autorizados, permitindo visualizar métricas de criadores sob sua gestão.</li>
               <li>Gerenciar parcerias publicitárias por meio de ferramentas de registro e análise.</li>
             </ul>
             <p className="mb-6">
@@ -66,7 +66,7 @@ export default function TermsAndConditionsPage() {
             <ul className="list-disc list-inside mb-4 space-y-2 pl-2">
               <li>Fornecer, operar, manter e melhorar o Serviço.</li>
               <li>Alimentar análises do Consultor IA.</li>
-              <li>Habilitar a funcionalidade da Comunidade de Inspiração, geração de Media Kits e Dashboards de Agências.</li>
+              <li>Habilitar a funcionalidade da Comunidade de Inspiração, geração de Media Kits e Dashboards de gestores.</li>
             </ul>
             <p className="mb-6">
               Você pode revogar nosso acesso a qualquer momento nas configurações do Facebook/Instagram, mas isso interromperá funcionalidades dependentes desse acesso.

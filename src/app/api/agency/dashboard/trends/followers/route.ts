@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     // CORRIGIDO: Verificação explícita e robusta para session, user e agencyId.
     if (!session || !session.user || !session.user.agencyId) {
       logger.warn('[API AGENCY/TRENDS/FOLLOWERS] Unauthorized access attempt. Session or agencyId missing.');
-      return NextResponse.json({ error: 'Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.' }, { status: 401 });
+      return NextResponse.json({ error: 'Acesso não autorizado. A sessão do usuário é inválida ou não está associada a um parceiro.' }, { status: 401 });
     }
 
     // A partir daqui, TypeScript sabe que session.user.agencyId é uma string.
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           chartData: [],
-          insightSummary: 'Nenhum usuário encontrado na agência para agregar dados.',
+          insightSummary: 'Nenhum usuário encontrado no parceiro para agregar dados.',
         },
         { status: 200 }
       );
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
           }
         });
       } else if (result.status === 'rejected') {
-        logger.error('Erro ao buscar dados de tendência para um usuário da agência:', result.reason);
+        logger.error('Erro ao buscar dados de tendência para um usuário do parceiro:', result.reason);
       }
     });
 
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           chartData: [],
-          insightSummary: 'Nenhum dado de seguidores encontrado para os usuários da agência no período.',
+          insightSummary: 'Nenhum dado de seguidores encontrado para os usuários do parceiro no período.',
         },
         { status: 200 }
       );
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       .map(([date, total]) => ({ date, value: total }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    let insight = 'Dados de tendência de seguidores da agência.';
+    let insight = 'Dados de tendência de seguidores do parceiro.';
     if (chartData.length > 0) {
       const first = chartData[0];
       const last = chartData[chartData.length - 1];
@@ -149,14 +149,14 @@ export async function GET(request: NextRequest) {
           .replace('_months', ' meses');
         const displayPeriod = timePeriod === 'all_time' ? 'todo o período' : `nos ${periodText}`;
         if (diff > 0) {
-          insight = `A agência ganhou ${diff.toLocaleString()} seguidores ${displayPeriod}.`;
+          insight = `O parceiro ganhou ${diff.toLocaleString()} seguidores ${displayPeriod}.`;
         } else if (diff < 0) {
-          insight = `A agência perdeu ${Math.abs(diff).toLocaleString()} seguidores ${displayPeriod}.`;
+          insight = `O parceiro perdeu ${Math.abs(diff).toLocaleString()} seguidores ${displayPeriod}.`;
         } else {
-          insight = `Sem mudança no total de seguidores da agência ${displayPeriod}.`;
+          insight = `Sem mudança no total de seguidores do parceiro ${displayPeriod}.`;
         }
       } else if (last && last.value !== null) {
-        insight = `Total de ${last.value.toLocaleString()} seguidores na agência no final do período.`;
+        insight = `Total de ${last.value.toLocaleString()} seguidores no parceiro no final do período.`;
       }
     }
 

@@ -60,7 +60,7 @@ describe('POST /api/agency/register', () => {
     const body = await res.json();
 
     expect(res.status).toBe(409);
-    expect(body.error).toContain('agência');
+    expect(body.error).toContain('parceiro');
     expect(mockAgencyCreate).not.toHaveBeenCalled();
     expect(mockUserCreate).not.toHaveBeenCalled();
   });

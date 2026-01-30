@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         `${TAG} agency ${session.user.agencyId} attempted access with plan status ${agency.planStatus}`,
       );
       return NextResponse.json(
-        { error: 'Plano da agência inativo. Assine para acessar o link de convite.' },
+        { error: 'Plano do parceiro inativo. Assine para acessar o link de convite.' },
         { status: 403 },
       );
     }

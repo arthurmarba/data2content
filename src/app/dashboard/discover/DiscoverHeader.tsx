@@ -91,7 +91,7 @@ export default function DiscoverHeader({ allowedPersonalized, featuredCount }: D
           className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600"
         >
           <Sparkles className="h-4 w-4 text-slate-500" aria-hidden />
-          Plano Agência ativo
+          Plano Pro ativo
         </span>
       );
     }

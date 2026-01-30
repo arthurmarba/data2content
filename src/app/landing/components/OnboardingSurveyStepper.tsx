@@ -62,7 +62,7 @@ const helperOptions = [
   { value: "solo", label: "Faço tudo sozinho" },
   { value: "edicao-design", label: "Alguém me ajuda com edição/design" },
   { value: "social-media", label: "Tenho social media" },
-  { value: "agencia", label: "Tenho agência/assessoria" },
+  { value: "agencia", label: "Tenho assessoria/gestão" },
 ] as const;
 
 const nicheOptions = [
@@ -171,7 +171,7 @@ const pricingMethods = [
   { value: "chute", label: "Decido na hora sem base" },
   { value: "seguidores", label: "Baseado em seguidores" },
   { value: "esforco", label: "Baseado no esforço/tempo" },
-  { value: "agencia", label: "Agência/gestor define" },
+  { value: "agencia", label: "Gestor define" },
   { value: "calculadora", label: "Uso calculadora/tabela" },
 ] as const;
 

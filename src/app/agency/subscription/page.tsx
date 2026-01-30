@@ -56,7 +56,7 @@ export default function AgencySubscriptionPage() {
 
   return (
     <div className="p-6 max-w-xl mx-auto space-y-4">
-      <h1 className="text-2xl font-bold">Assinatura da Agência</h1>
+      <h1 className="text-2xl font-bold">Assinatura do Parceiro</h1>
       <div className="border rounded-lg p-4 space-y-2 bg-white shadow">
         <p className="text-lg font-semibold">Escolha o plano</p>
         <div className="space-y-1">

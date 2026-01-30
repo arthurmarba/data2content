@@ -291,7 +291,7 @@ export default function BillingPanel() {
       statusDescription = <>Assinatura cancelada • último acesso em {fmt(s.cancelAt ?? s.planExpiresAt)}</>;
       break;
     case 'expired':
-      statusDescription = <>Teste expirado • contrate o Plano Agência para continuar.</>;
+      statusDescription = <>Teste expirado • contrate o Plano Pro para continuar.</>;
       break;
     case 'inactive':
     default:

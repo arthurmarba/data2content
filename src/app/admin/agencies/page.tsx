@@ -47,14 +47,14 @@ export default function AdminAgenciesPage() {
       const res = await fetch(`/api/admin/agencies?id=${agencyToDelete._id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Erro ao excluir agência');
+        throw new Error(data.error || 'Erro ao excluir parceiro');
       }
       setAgencies(prev => prev.filter(a => a._id !== agencyToDelete._id));
-      toast.success('Agência excluída com sucesso');
+      toast.success('Parceiro excluído com sucesso');
       setIsDeleteModalOpen(false);
       setAgencyToDelete(null);
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao excluir agência');
+      toast.error(err.message || 'Erro ao excluir parceiro');
     } finally {
       setIsSubmitting(false);
     }
@@ -72,19 +72,19 @@ export default function AdminAgenciesPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao salvar agência');
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar parceiro');
       if (editingId) {
         setAgencies(prev => prev.map(a => a._id === editingId ? { ...a, ...form } : a));
-        toast.success('Agência atualizada com sucesso');
+        toast.success('Parceiro atualizado com sucesso');
       } else {
         setAgencies(prev => [...prev, data.agency]);
-        toast.success('Agência criada com sucesso');
+        toast.success('Parceiro criado com sucesso');
       }
       setIsModalOpen(false);
       setEditingId(null);
       setForm({ name: '', contactEmail: '', managerEmail: '', managerPassword: '' });
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao salvar agência');
+      toast.error(err.message || 'Erro ao salvar parceiro');
     } finally {
       setIsSubmitting(false);
     }
@@ -105,17 +105,17 @@ export default function AdminAgenciesPage() {
           onClose={() => { if (!isSubmitting) { setIsDeleteModalOpen(false); setAgencyToDelete(null); } }}
           onConfirm={handleDelete}
           title="Confirmar Exclusão"
-          message={`Você tem certeza que deseja excluir a agência ${agencyToDelete?.name}? Todos os criadores vinculados perderão o vínculo e o acesso do gestor será removido. Esta ação não pode ser desfeita.`}
+          message={`Você tem certeza que deseja excluir o parceiro ${agencyToDelete?.name}? Todos os criadores vinculados perderão o vínculo e o acesso do gestor será removido. Esta ação não pode ser desfeita.`}
           confirmButtonText={isSubmitting ? 'Excluindo...' : 'Confirmar Exclusão'}
           isConfirming={isSubmitting}
         />
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Gerenciar Agências</h1>
+          <h1 className="text-2xl font-bold">Gerenciar Parceiros</h1>
           <button
             onClick={() => setIsModalOpen(true)}
             className="px-4 py-2 text-sm font-medium text-white bg-brand-red rounded hover:bg-red-700"
           >
-            Adicionar Nova Agência
+            Adicionar Novo Parceiro
           </button>
         </div>
         <table className="min-w-full bg-white">
@@ -162,10 +162,10 @@ export default function AdminAgenciesPage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="bg-white w-full max-w-md rounded-lg p-6 space-y-4">
-              <h2 className="text-lg font-semibold">{editingId ? 'Editar Agência' : 'Nova Agência'}</h2>
+              <h2 className="text-lg font-semibold">{editingId ? 'Editar Parceiro' : 'Novo Parceiro'}</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="name">Nome da Agência</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="name">Nome do Parceiro</label>
                   <input
                     id="name"
                     name="name"
@@ -227,7 +227,7 @@ export default function AdminAgenciesPage() {
                     disabled={isSubmitting}
                     className="px-4 py-2 text-sm font-medium text-white bg-brand-red rounded hover:bg-red-700 disabled:opacity-60"
                   >
-                    {isSubmitting ? 'Enviando...' : editingId ? 'Salvar Alterações' : 'Criar Agência'}
+                    {isSubmitting ? 'Enviando...' : editingId ? 'Salvar Alterações' : 'Criar Parceiro'}
                   </button>
                 </div>
               </form>

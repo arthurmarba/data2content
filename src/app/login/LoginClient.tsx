@@ -34,12 +34,12 @@ function LoginComponent() {
             const res = await fetch(`/api/agency/info/${data.code}`);
             if (res.ok) {
               const info = await res.json();
-              setAgencyMessage(`Convite da agência ${info.name} ativo! Desconto será aplicado após assinatura.`);
+              setAgencyMessage(`Convite do parceiro ${info.name} ativo! Desconto será aplicado após assinatura.`);
             } else {
-              setAgencyMessage(`Convite de agência ${data.code} ativo!`);
+              setAgencyMessage(`Convite do parceiro ${data.code} ativo!`);
             }
           } catch {
-            setAgencyMessage(`Convite de agência ${data.code} ativo!`);
+            setAgencyMessage(`Convite do parceiro ${data.code} ativo!`);
           }
         }
       } catch {

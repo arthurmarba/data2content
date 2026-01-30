@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     // CORRIGIDO: A verificação explícita de 'session.user' e 'session.user.agencyId'
     // é necessária aqui para que o TypeScript entenda que o objeto não é nulo no escopo desta função.
     if (!session || !session.user || !session.user.agencyId) {
-      return apiError('Acesso não autorizado. Sessão da agência inválida.', 401);
+      return apiError('Acesso não autorizado. Sessão do parceiro inválida.', 401);
     }
     logger.info(`${TAG} Agency session validated for user: ${session.user.id} on agency: ${session.user.agencyId}`);
 

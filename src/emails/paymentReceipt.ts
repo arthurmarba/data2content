@@ -36,12 +36,12 @@ export function paymentReceiptEmail({
       ? `${periodStart.toLocaleDateString("pt-BR")} até ${periodEnd.toLocaleDateString("pt-BR")}`
       : null;
 
-  const subject = `Recibo da assinatura do Plano Agência ${invoiceNumber ? `(${invoiceNumber})` : ""}`.trim();
+  const subject = `Recibo da assinatura do Plano Pro ${invoiceNumber ? `(${invoiceNumber})` : ""}`.trim();
 
   const textParts = [
     `${greeting}`,
     "",
-    `Registramos o pagamento de ${formattedAmount} referente à assinatura do Plano Agência (${invoiceLabel}).`,
+    `Registramos o pagamento de ${formattedAmount} referente à assinatura do Plano Pro (${invoiceLabel}).`,
   ];
   if (periodLabel) {
     textParts.push(`Período de cobertura: ${periodLabel}.`);
@@ -53,14 +53,14 @@ export function paymentReceiptEmail({
     "",
     `Histórico e notas fiscais ficam sempre disponíveis em Billing: ${billingUrl}`,
     "",
-    "Obrigado por manter o Plano Agência ativo! Se precisar de suporte, é só responder este e-mail.",
+    "Obrigado por manter o Plano Pro ativo! Se precisar de suporte, é só responder este e-mail.",
     "Equipe Data2Content"
   );
   const text = textParts.join("\n");
 
   const html = `
     <p>${greeting}</p>
-    <p>Registramos o pagamento de <strong>${formattedAmount}</strong> referente à assinatura do Plano Agência (${invoiceLabel}).</p>
+    <p>Registramos o pagamento de <strong>${formattedAmount}</strong> referente à assinatura do Plano Pro (${invoiceLabel}).</p>
     ${
       periodLabel
         ? `<p><strong>Período de cobertura:</strong> ${periodLabel}.</p>`
@@ -76,7 +76,7 @@ export function paymentReceiptEmail({
         Abrir Billing
       </a>
     </p>
-    <p style="margin-top:20px;">Obrigado por manter o Plano Agência ativo! Se precisar de suporte, é só responder este e-mail.<br/>Equipe Data2Content</p>
+    <p style="margin-top:20px;">Obrigado por manter o Plano Pro ativo! Se precisar de suporte, é só responder este e-mail.<br/>Equipe Data2Content</p>
   `;
 
   return { subject, text, html };

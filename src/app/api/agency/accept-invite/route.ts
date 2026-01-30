@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Convite inválido' }, { status: 404 });
   }
   if (agency.planStatus !== 'active') {
-    return NextResponse.json({ error: 'Agência sem assinatura ativa' }, { status: 403 });
+    return NextResponse.json({ error: 'Parceiro sem assinatura ativa' }, { status: 403 });
   }
 
   const user = await UserModel.findById(session.user.id);
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   if (user.agency && user.agency.toString() !== agency._id.toString()) {
     return NextResponse.json(
-      { error: 'Usuário já vinculado a outra agência. Saia da atual antes de prosseguir.' },
+      { error: 'Usuário já vinculado a outra parceiro. Saia da atual antes de prosseguir.' },
       { status: 409 }
     );
   }

@@ -93,7 +93,7 @@ export default function TutorialProgress({
         <div className="flex w-full max-w-sm flex-col items-start gap-2 text-sm font-semibold text-slate-800 lg:items-end">
           {showProBadge ? (
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              <span aria-hidden>✅</span>Plano Agência ativo
+              <span aria-hidden>✅</span>Plano Pro ativo
             </span>
           ) : null}
           {onPrimaryAction ? (

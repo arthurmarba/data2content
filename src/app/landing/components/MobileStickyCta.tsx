@@ -8,6 +8,8 @@ type MobileStickyCtaProps = {
   description?: string;
   hideUntilScroll?: boolean;
   scrollOffset?: number;
+  showAfterTargetId?: string;
+  intersectionThreshold?: number;
 };
 
 const DEFAULT_SCROLL_OFFSET = 180;
@@ -18,11 +20,35 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
   description = "Conecte o Instagram e receba alertas em minutos.",
   hideUntilScroll = true,
   scrollOffset = DEFAULT_SCROLL_OFFSET,
+  showAfterTargetId,
+  intersectionThreshold = 0.2,
 }) => {
   const [isVisible, setIsVisible] = React.useState(!hideUntilScroll);
   const [keyboardOffset, setKeyboardOffset] = React.useState(0);
+  const [hasReachedTarget, setHasReachedTarget] = React.useState(false);
 
   React.useEffect(() => {
+    if (!showAfterTargetId) return;
+    if (typeof window === "undefined") return;
+    const target = document.getElementById(showAfterTargetId);
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          setHasReachedTarget(true);
+        }
+      },
+      { threshold: intersectionThreshold },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [showAfterTargetId, intersectionThreshold]);
+
+  React.useEffect(() => {
+    if (showAfterTargetId) return;
     if (!hideUntilScroll) return;
     const handleScroll = () => {
       if (typeof window === "undefined") return;
@@ -32,7 +58,12 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [hideUntilScroll, scrollOffset]);
+  }, [hideUntilScroll, scrollOffset, showAfterTargetId]);
+
+  React.useEffect(() => {
+    if (!showAfterTargetId) return;
+    setIsVisible(hasReachedTarget);
+  }, [hasReachedTarget, showAfterTargetId]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;

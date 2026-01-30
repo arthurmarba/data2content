@@ -45,7 +45,7 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
     title: 'Planejamento e descoberta desbloqueados',
     items: [
       {
-        title: 'Planejamento Agência',
+        title: 'Planejamento Pro',
         description:
           'Slots com IA, previsões de alcance e alertas no WhatsApp para executar com foco diariamente.',
         linkLabel: 'Ver planner',
@@ -54,7 +54,7 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
       {
         title: 'Descoberta da Comunidade',
         description:
-          'Biblioteca viva com benchmarks de creators, ideias e tendências exclusivas da base do Plano Agência.',
+          'Biblioteca viva com benchmarks de creators, ideias e tendências exclusivas da base do Plano Pro.',
         linkLabel: 'Explorar descoberta',
         href: '/dashboard/discover',
       },
@@ -246,10 +246,10 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
                 Receba Alertas e Oportunidades Diárias no seu WhatsApp
             </h2>
             <p className="text-gray-600 mt-2">
-                Ative o Plano Agência e transforme sua IA em um estrategista de conteúdo proativo.
+                Ative o Plano Pro e transforme sua IA em um estrategista de conteúdo proativo.
             </p>
             <p className="text-xs text-gray-500 mt-1">
-                Agências ficam com 10%–30% de comissão e pedem exclusividade; aqui você paga só a assinatura e mantém 100% das publis.
+                Intermediários ficam com 10%–30% de comissão e pedem exclusividade; aqui você paga só a assinatura e mantém 100% das publis.
             </p>
         </div>
         
@@ -337,7 +337,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
                     <div className="grid grid-cols-1 gap-3">
                         <button onClick={handleStart} disabled={disabled || !codeIsValid || shouldBlockSubscribe || billingStatusLoading} className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50" aria-busy={loadingAction === 'subscribe'}>
-                            {loadingAction === 'subscribe' ? 'Processando…' : 'Ativar meu Plano Agência'}
+                            {loadingAction === 'subscribe' ? 'Processando…' : 'Ativar meu Plano Pro'}
                         </button>
                     </div>
                     <p className="mt-3 flex items-center justify-center gap-1 text-xs text-gray-500">

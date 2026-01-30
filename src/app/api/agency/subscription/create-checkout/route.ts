@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
         : AGENCY_MONTHLY_PRICE;
 
     const preapprovalData = {
-      reason: 'Plano Agência Data2Content',
+      reason: 'Plano Pro Data2Content',
       back_url: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''}/agency/subscription`,
       external_reference: agency._id.toString(),
       payer_email: session.user.email || agency.contactEmail || undefined,

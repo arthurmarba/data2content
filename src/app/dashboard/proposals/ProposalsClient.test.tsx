@@ -144,7 +144,7 @@ function mockFetchProFlow() {
         brandName: 'Marca Y',
         contactEmail: 'brand@example.com',
         contactWhatsapp: null,
-        campaignTitle: 'Campanha Plano Agência',
+        campaignTitle: 'Campanha Plano Pro',
         campaignDescription: 'Detalhes da campanha',
         deliverables: ['Reel'],
         budget: 1500,

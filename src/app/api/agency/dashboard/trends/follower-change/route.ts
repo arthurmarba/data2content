@@ -35,13 +35,13 @@ export async function GET(request: NextRequest) {
       const ctxIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers: true });
       const ctxObjectIds = ctxIds.map((id) => new Types.ObjectId(id));
       if (!ctxObjectIds.length) {
-        return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado na agência para agregar dados.' }, { status: 200 });
+        return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado no parceiro para agregar dados.' }, { status: 200 });
       }
       userQuery._id = { $in: ctxObjectIds };
     }
     const agencyUsers = await UserModel.find(userQuery).select('_id').lean();
     if (!agencyUsers || agencyUsers.length === 0) {
-      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado na agência para agregar dados.' }, { status: 200 });
+      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum usuário encontrado no parceiro para agregar dados.' }, { status: 200 });
     }
     const userIds = agencyUsers.map(u => u._id);
     const BATCH_SIZE = 50;
@@ -66,21 +66,21 @@ export async function GET(request: NextRequest) {
       }
     });
     if (aggregatedByDate.size === 0) {
-      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum dado de seguidores encontrado para os usuários da agência no período.' }, { status: 200 });
+      return NextResponse.json({ chartData: [], insightSummary: 'Nenhum dado de seguidores encontrado para os usuários do parceiro no período.' }, { status: 200 });
     }
     const chartData: ApiChangePoint[] = Array.from(aggregatedByDate.entries())
       .map(([date, change]) => ({ date, change }))
       .sort((a, b) => a.date.localeCompare(b.date));
-    let insight = 'Dados de variação diária de seguidores da agência.';
+    let insight = 'Dados de variação diária de seguidores do parceiro.';
     if (chartData.length > 0) {
       const totalChange = chartData.reduce((acc, p) => acc + (p.change ?? 0), 0);
       const periodText = timePeriod === 'all_time' ? 'todo o período' : timePeriod.replace('last_', 'últimos ').replace('_days', ' dias').replace('_months', ' meses');
       if (totalChange > 0) {
-        insight = `A agência ganhou ${totalChange.toLocaleString()} seguidores nos ${periodText}.`;
+        insight = `O parceiro ganhou ${totalChange.toLocaleString()} seguidores nos ${periodText}.`;
       } else if (totalChange < 0) {
-        insight = `A agência perdeu ${Math.abs(totalChange).toLocaleString()} seguidores nos ${periodText}.`;
+        insight = `O parceiro perdeu ${Math.abs(totalChange).toLocaleString()} seguidores nos ${periodText}.`;
       } else {
-        insight = `Sem mudança no total de seguidores da agência nos ${periodText}.`;
+        insight = `Sem mudança no total de seguidores do parceiro nos ${periodText}.`;
       }
     }
     return NextResponse.json({ chartData, insightSummary: insight }, { status: 200 });

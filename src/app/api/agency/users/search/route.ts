@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    // 1. Valida a sessão e obtém o ID da agência
+    // 1. Valida a sessão e obtém o ID do parceiro
     const session = await getAgencySession(req);
     if (!session || !session.user || !session.user.agencyId) {
       return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     // 3. Executa a consulta filtrando por NOME e AGÊNCIA
     const creators = await UserModel.find({
       name: { $regex: nameQuery, $options: 'i' }, // Filtra pelo nome (case-insensitive)
-      agency: agencyId                           // E TAMBÉM pelo ID da agência
+      agency: agencyId                           // E TAMBÉM pelo ID do parceiro
     })
     .limit(10) // Limita a 10 resultados para a lista de sugestões
     .select('name email profile_picture_url') // Seleciona apenas os campos necessários

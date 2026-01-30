@@ -52,13 +52,13 @@ export async function GET(request: NextRequest) {
       const ctxIds = await resolveCreatorIdsByContext(creatorContextParam, { onlyActiveSubscribers: true });
       const ctxObjectIds = ctxIds.map((id) => new Types.ObjectId(id));
       if (!ctxObjectIds.length) {
-        return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para a agência.' }, { status: 200 });
+        return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para a parceiro.' }, { status: 200 });
       }
       userQuery._id = { $in: ctxObjectIds };
     }
     const agencyUsers = await UserModel.find(userQuery).select('_id').lean();
     if (!agencyUsers.length) {
-      return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para a agência.' }, { status: 200 });
+      return NextResponse.json({ series: [], insightSummary: 'Nenhum usuário encontrado para a parceiro.' }, { status: 200 });
     }
     const userIds = agencyUsers.map(u => u._id);
     const today = new Date();
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     }
     const displayStart = new Date(today); displayStart.setDate(displayStart.getDate()-dataWindowInDays+1); displayStart.setHours(0,0,0,0);
     const finalSeries = series.filter(p => new Date(p.date) >= displayStart);
-    const insight = `Média móvel de ${movingWindow} dias do engajamento diário da agência nos últimos ${dataWindowInDays} dias.`;
+    const insight = `Média móvel de ${movingWindow} dias do engajamento diário do parceiro nos últimos ${dataWindowInDays} dias.`;
     return NextResponse.json({ series: finalSeries, insightSummary: finalSeries.length ? insight : 'Dados insuficientes para calcular a média móvel.' }, { status: 200 });
   } catch (error) {
     logger.error('[API AGENCY/TRENDS/MOVING-AVERAGE-ENGAGEMENT] Error:', error);

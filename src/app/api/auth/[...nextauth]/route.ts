@@ -69,7 +69,7 @@ declare module "next-auth" {
     stripeSubscriptionId?: string | null;
     stripePriceId?: string | null;
 
-    // Trial (Plano Agência)
+    // Trial (Plano Pro)
     proTrialStatus?: ProTrialState | null;
     proTrialActivatedAt?: Date | null;
     proTrialExpiresAt?: Date | null;
@@ -95,7 +95,7 @@ declare module "next-auth" {
       provider?: string | null;
       role?: string | null;
 
-      // Agência
+      // Parceiro
       agencyId?: string | null;
       agencyPlanStatus?: string | null;
       agencyPlanType?: string | null;
@@ -110,7 +110,7 @@ declare module "next-auth" {
       stripeCustomerId?: string | null;
       stripeSubscriptionId?: string | null;
       stripePriceId?: string | null;
-      // Trial (Plano Agência)
+      // Trial (Plano Pro)
       proTrialStatus?: ProTrialState | null;
       proTrialActivatedAt?: string | null;
       proTrialExpiresAt?: string | null;
@@ -826,7 +826,7 @@ export const authOptions: NextAuthOptions = {
         token.stripeAccountStatus = anyUser.stripeAccountStatus ?? null;
         token.stripeAccountDefaultCurrency = anyUser.stripeAccountDefaultCurrency ?? null;
 
-        // Agência
+        // Parceiro
         token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
         if (token.agencyId) {
           try {
@@ -835,7 +835,7 @@ export const authOptions: NextAuthOptions = {
             token.agencyPlanStatus = agency?.planStatus ?? null;
             token.agencyPlanType = agency?.planType ?? null;
           } catch (e) {
-            logger.error(`${TAG_JWT} Erro ao buscar planStatus da agência ${token.agencyId}:`, e);
+            logger.error(`${TAG_JWT} Erro ao buscar planStatus do parceiro ${token.agencyId}:`, e);
             token.agencyPlanStatus = null;
             token.agencyPlanType = null;
           }
@@ -990,7 +990,7 @@ export const authOptions: NextAuthOptions = {
               token.stripeAccountStatus = dbUser.paymentInfo?.stripeAccountStatus ?? null;
               token.stripeAccountDefaultCurrency = dbUser.paymentInfo?.stripeAccountDefaultCurrency ?? null;
 
-              // Agência
+              // Parceiro
               token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
               if (token.agencyId) {
                 try {
@@ -998,7 +998,7 @@ export const authOptions: NextAuthOptions = {
                   token.agencyPlanStatus = agency?.planStatus ?? null;
                   token.agencyPlanType = agency?.planType ?? null;
                 } catch (e) {
-                  logger.error(`${TAG_JWT} Erro ao buscar planStatus da agência ${token.agencyId}:`, e);
+                  logger.error(`${TAG_JWT} Erro ao buscar planStatus do parceiro ${token.agencyId}:`, e);
                   token.agencyPlanStatus = null;
                   token.agencyPlanType = null;
                 }
@@ -1098,7 +1098,7 @@ export const authOptions: NextAuthOptions = {
           ? new Date(token.proTrialExpiresAt as any).toISOString()
           : null;
 
-        // Agência
+        // Parceiro
         (session.user as any).agencyId = token.agencyId ?? null;
         (session.user as any).agencyPlanStatus = token.agencyPlanStatus ?? null;
         (session.user as any).agencyPlanType = token.agencyPlanType ?? null;

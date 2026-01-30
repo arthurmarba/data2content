@@ -39,11 +39,11 @@ export default async function aggregateAudienceByRegion(
   try {
     const pipeline: any[] = [];
 
-    // Filtro por Usuário (Prioridade sobre Agência)
+    // Filtro por Usuário (Prioridade sobre Parceiro)
     if (filters.userId) {
       pipeline.push({ $match: { user: new Types.ObjectId(filters.userId) } });
     } else if (agencyId) {
-      // Filtro por Agência (apenas se não houver usuário específico)
+      // Filtro por Parceiro (apenas se não houver usuário específico)
       const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
       if (!agencyUserIds.length) {
         return [];

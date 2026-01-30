@@ -649,7 +649,7 @@ export default function MediaKitSelfServePage() {
   const canViewCategories = hasPremiumAccess;
   const categoriesCtaLabel = trialExpired
     ? "Assinar e continuar de onde parei"
-    : "Ver categorias do meu perfil (Assinar Plano Agência)";
+    : "Ver categorias do meu perfil (Assinar Plano Pro)";
   const categoriesSubtitle = trialExpired ? PRO_PLAN_FLEXIBILITY_COPY : INSTAGRAM_READ_ONLY_COPY;
   const handleUpgrade = useCallback(() => {
     openPaywallModal({ context: 'planning', source: 'media_kit_upgrade' });

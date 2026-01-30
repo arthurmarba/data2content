@@ -28,9 +28,9 @@ export default function ClientHooksWrapper() {
         const data = { code: invite.trim(), expiresAt };
         try {
           localStorage.setItem(AGENCY_INVITE_KEY, JSON.stringify(data));
-          console.log('[ClientHooksWrapper] Código de agência salvo:', data);
+          console.log('[ClientHooksWrapper] Código do parceiro salvo:', data);
         } catch (error) {
-          console.error('[ClientHooksWrapper] Erro ao salvar código de agência no localStorage:', error);
+          console.error('[ClientHooksWrapper] Erro ao salvar código do parceiro no localStorage:', error);
         }
       }
     }

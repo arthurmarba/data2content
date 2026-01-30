@@ -22,7 +22,7 @@ const VARIANT_COPY: Record<PlanningLockedVariant, VariantContent> = {
   planner: {
     eyebrow: "Calendário com IA",
     title: planningEmptyState.title,
-    description: "Planejamento faz parte do Plano Agência: gere horários com IA e mantenha constância para fechar melhor.",
+    description: "Planejamento faz parte do Plano Pro: gere horários com IA e mantenha constância para fechar melhor.",
     bullets: [
       "Slots inteligentes por dia e horário",
       "Alertas no WhatsApp (dúvidas no Chat AI)",
@@ -32,7 +32,7 @@ const VARIANT_COPY: Record<PlanningLockedVariant, VariantContent> = {
   },
   discover: {
     eyebrow: "Descoberta da Comunidade",
-    title: "Biblioteca de referências exclusiva do Plano Agência",
+    title: "Biblioteca de referências exclusiva do Plano Pro",
     description: "Ideias prontas, roteiros e benchmarks da comunidade ficam disponíveis somente para assinantes ativos.",
     bullets: [
       "Posts e formatos que estão performando agora",

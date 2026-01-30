@@ -474,8 +474,8 @@ export async function POST(request: NextRequest) {
         const planFromDb = normalizePlanStatus((targetUser as any)?.planStatus);
         const effectivePlan = planFromSession || planFromDb;
         if (!isActiveLike(effectivePlan)) {
-          const blockedMsg = `Olá ${firstName}! Seu plano está ${effectivePlan || 'inativo'}. Para continuar usando o Mobi, reative o Plano Agência.`;
-          ctaForPlan = { label: 'Reativar Plano Agência', action: 'go_to_billing' };
+          const blockedMsg = `Olá ${firstName}! Seu plano está ${effectivePlan || 'inativo'}. Para continuar usando o Mobi, reative o Plano Pro.`;
+          ctaForPlan = { label: 'Reativar Plano Pro', action: 'go_to_billing' };
           const updatedBlocked: ChatCompletionMessageParam[] = [
             ...historyMessages,
             { role: 'user', content: truncatedQuery } as ChatCompletionUserMessageParam,
@@ -1193,7 +1193,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         const effectivePlan = planFromSession || planFromDb;
         if (!isActiveLike(effectivePlan)) {
           cta = {
-            label: 'Entre no Plano Agência e receba alertas diários via WhatsApp',
+            label: 'Entre no Plano Pro e receba alertas diários via WhatsApp',
             action: 'go_to_billing',
           };
         }

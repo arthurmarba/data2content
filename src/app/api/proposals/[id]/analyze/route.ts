@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
   if (!access.normalizedStatus) {
     return NextResponse.json(
-      { error: 'Recurso disponível apenas para o Plano Agência. Faça upgrade para continuar.' },
+      { error: 'Recurso disponível apenas para o Plano Pro. Faça upgrade para continuar.' },
       { status: 402 }
     );
   }

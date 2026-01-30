@@ -58,6 +58,8 @@ type RawCreatorAggregation = {
   postCount: number;
   totalInteractions: number;
   avgInteractionsPerPost: number;
+  totalReach?: number;
+  avgReachPerPost?: number;
   user?: {
     name?: string | null;
     username?: string | null;
@@ -369,6 +371,7 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
         _id: '$user',
         postCount: { $sum: 1 },
         totalInteractions: { $sum: { $ifNull: ['$stats.total_interactions', 0] } },
+        totalReach: { $sum: { $ifNull: ['$stats.reach', 0] } },
       },
     },
     { $match: { postCount: { $gt: 0 } } },
@@ -400,10 +403,18 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
         userId: '$_id',
         postCount: 1,
         totalInteractions: 1,
+        totalReach: 1,
         avgInteractionsPerPost: {
           $cond: [
             { $gt: ['$postCount', 0] },
             { $divide: ['$totalInteractions', '$postCount'] },
+            0,
+          ],
+        },
+        avgReachPerPost: {
+          $cond: [
+            { $gt: ['$postCount', 0] },
+            { $divide: ['$totalReach', '$postCount'] },
             0,
           ],
         },
@@ -452,6 +463,7 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
     const avgInteractions = Number(item.avgInteractionsPerPost ?? 0);
     const postCount = Number(item.postCount ?? 0);
     const totalInteractions = Number(item.totalInteractions ?? 0);
+    const avgReachPerPost = Number((item as any).avgReachPerPost ?? 0);
     const consistencyScore = postCount > 0 ? Number((postCount / RANK_WINDOW_DAYS).toFixed(2)) : null;
     const userIdString = item.userId ? String(item.userId) : undefined;
     const rawAvatar = item.user?.profile_picture_url ?? (userIdString ? avatarByUserId[userIdString] : null);
@@ -465,6 +477,7 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
       totalInteractions,
       postCount,
       avgInteractionsPerPost: avgInteractions,
+      avgReachPerPost,
       rank: index + 1,
       consistencyScore,
       mediaKitSlug: item.user?.mediaKitSlug ?? null,

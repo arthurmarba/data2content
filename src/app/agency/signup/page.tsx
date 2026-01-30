@@ -29,7 +29,7 @@ export default function AgencySignupPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao cadastrar agência');
+      if (!res.ok) throw new Error(data.error || 'Erro ao cadastrar parceiro');
 
       const result = await signIn('credentials', {
         redirect: false,
@@ -51,9 +51,9 @@ export default function AgencySignupPage() {
 
   return (
     <div className="p-6 max-w-md mx-auto space-y-4">
-      <h1 className="text-xl font-bold">Cadastro de Agência</h1>
+      <h1 className="text-xl font-bold">Cadastro de Parceiro</h1>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input name="name" required placeholder="Nome da agência" value={form.name} onChange={handleChange} className="w-full border p-2" />
+        <input name="name" required placeholder="Nome do parceiro" value={form.name} onChange={handleChange} className="w-full border p-2" />
         <input name="contactEmail" type="email" placeholder="Email de contato" value={form.contactEmail} onChange={handleChange} className="w-full border p-2" />
         <input name="managerEmail" type="email" required placeholder="Email do gestor" value={form.managerEmail} onChange={handleChange} className="w-full border p-2" />
         <input name="password" type="password" required placeholder="Senha" value={form.password} onChange={handleChange} className="w-full border p-2" />

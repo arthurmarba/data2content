@@ -242,7 +242,7 @@ export async function fetchDashboardOverallContentStats(
 
     if (params.onlyActiveSubscribers) {
       const activeUserIds = await UserModel.find({ planStatus: 'active' }).distinct('_id');
-      // Se já existe filtro de agência, fazemos a interseção
+      // Se já existe filtro de parceiro, fazemos a interseção
       if (matchStage.user && matchStage.user['$in']) {
         const existingIds = matchStage.user['$in'] as Types.ObjectId[];
         const intersection = existingIds.filter(id => activeUserIds.some((aid: Types.ObjectId) => aid.equals(id)));
@@ -369,7 +369,7 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
     await connectToDatabase();
     const { dateRange, agencyId, context } = args;
 
-    // --- Parte 1: Filtro de usuários por agência ---
+    // --- Parte 1: Filtro de usuários por parceiro ---
     const userFilter: any = {};
     if (agencyId) {
       userFilter.agency = new Types.ObjectId(agencyId);

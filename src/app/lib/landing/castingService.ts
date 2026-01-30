@@ -261,6 +261,7 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
         _id: "$user",
         postCount: { $sum: 1 },
         totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } },
+        totalReach: { $sum: { $ifNull: ["$stats.reach", 0] } },
       },
     },
     {
@@ -269,8 +270,12 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
         userId: "$_id",
         postCount: 1,
         totalInteractions: 1,
+        totalReach: 1,
         avgInteractionsPerPost: {
           $cond: [{ $gt: ["$postCount", 0] }, { $divide: ["$totalInteractions", "$postCount"] }, 0],
+        },
+        avgReachPerPost: {
+          $cond: [{ $gt: ["$postCount", 0] }, { $divide: ["$totalReach", "$postCount"] }, 0],
         },
       },
     },
@@ -280,19 +285,23 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     userId: Types.ObjectId;
     postCount: number;
     totalInteractions: number;
+    totalReach: number;
     avgInteractionsPerPost: number;
+    avgReachPerPost: number;
   }>;
 
   const metricsByUser = new Map<
     string,
-    { postCount: number; totalInteractions: number; avgInteractionsPerPost: number }
+    { postCount: number; totalInteractions: number; totalReach: number; avgInteractionsPerPost: number; avgReachPerPost: number }
   >(
     metricsResults.map((entry) => [
       entry.userId.toString(),
       {
         postCount: Number(entry.postCount ?? 0),
         totalInteractions: Number(entry.totalInteractions ?? 0),
+        totalReach: Number(entry.totalReach ?? 0),
         avgInteractionsPerPost: Number(entry.avgInteractionsPerPost ?? 0),
+        avgReachPerPost: Number(entry.avgReachPerPost ?? 0),
       },
     ]),
   );
@@ -468,6 +477,7 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
       totalInteractions: metrics?.totalInteractions ?? 0,
       postCount: metrics?.postCount ?? 0,
       avgInteractionsPerPost: metrics?.avgInteractionsPerPost ?? 0,
+      avgReachPerPost: metrics?.avgReachPerPost ?? 0,
       rank: 0, // placeholder until sorted
       consistencyScore: null,
       mediaKitSlug: creator.mediaKitSlug ?? null,

@@ -37,6 +37,7 @@ export interface LandingCreatorHighlight {
   totalInteractions: number;
   postCount: number;
   avgInteractionsPerPost: number;
+  avgReachPerPost: number;
   rank: number;
   consistencyScore?: number | null;
   mediaKitSlug?: string | null;

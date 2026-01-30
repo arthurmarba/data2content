@@ -68,13 +68,13 @@ export async function GET(req: NextRequest) {
     if (!session || !session.user) {
       return apiError('Acesso não autorizado.', 401);
     }
-    logger.info(`${TAG} Sessão de agência validada para o utilizador: ${session.user.name}`);
+    logger.info(`${TAG} Sessão de parceiro validada para o utilizador: ${session.user.name}`);
     
     // ===== INÍCIO DA CORREÇÃO =====
     // Garante que o agencyId existe e não é nulo antes de prosseguir.
     const agencyId = session.user.agencyId;
     if (!agencyId) {
-      return apiError('ID da agência não encontrado na sessão. Acesso não autorizado.', 401);
+      return apiError('ID do parceiro não encontrado na sessão. Acesso não autorizado.', 401);
     }
     // ===== FIM DA CORREÇÃO =====
 

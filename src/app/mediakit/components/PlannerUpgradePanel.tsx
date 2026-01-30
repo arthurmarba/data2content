@@ -136,7 +136,7 @@ const PlannerUpgradePanel: React.FC<PlannerUpgradePanelProps> = ({
 
         <div className="rounded-2xl border border-pink-100 bg-white/90 px-5 py-4 shadow-sm">
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-pink-600">
-            <span aria-hidden>👀</span> Peek do Modo Agência
+            <span aria-hidden>👀</span> Peek do Modo Pro
           </div>
           <p className="mt-2 text-sm font-semibold text-gray-900">
             Slots sugeridos para a sua semana (prévia borrada — desbloqueie para editar)
@@ -153,7 +153,7 @@ const PlannerUpgradePanel: React.FC<PlannerUpgradePanelProps> = ({
             ))}
           </div>
           <p className="sr-only">
-            Prévia borrada dos horários e formatos sugeridos pelo Planner; disponível ao ativar o Modo Agência.
+            Prévia borrada dos horários e formatos sugeridos pelo Planner; disponível ao ativar o Modo Pro.
           </p>
           <p className="mt-3 text-xs text-gray-500">
             O planner cruza categorias, engajamento e frequência para sugerir slots com maior probabilidade de resultado.
@@ -183,7 +183,7 @@ const PlannerUpgradePanel: React.FC<PlannerUpgradePanelProps> = ({
             onClick={handlePrimaryClick}
             className="inline-flex items-center justify-center rounded-md bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-pink-700"
           >
-            Gerar meu plano com o Plano Agência
+            Gerar meu plano com o Plano Pro
           </button>
           <Link
             href={billingHref}

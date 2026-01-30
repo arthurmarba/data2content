@@ -5,6 +5,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

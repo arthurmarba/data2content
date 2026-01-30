@@ -75,7 +75,7 @@ export default function PublicSubscribePage() {
 
         {agencyName ? (
           <div className="bg-green-100 text-green-800 p-2 rounded text-sm mb-6">
-            <p>Bem-vindo como convidado da {agencyName}!</p>
+            <p>Bem-vindo como convidado de {agencyName}!</p>
             <p>
               Como convidado, o plano mensal sai por{' '}
               <strong>
@@ -156,7 +156,7 @@ export default function PublicSubscribePage() {
 
         {alert === 'convite_invalido' && (
           <div className="text-center mt-4 bg-yellow-100 text-yellow-800 p-2 rounded">
-            Convite inválido ou agência inativa. Confira nossos planos.
+            Convite inválido ou inativo. Confira nossos planos.
           </div>
         )}
       </div>

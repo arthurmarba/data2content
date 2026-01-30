@@ -29,9 +29,10 @@ const defaultCreators: Array<LandingCreatorHighlight & { summary?: string }> = [
     totalInteractions: 420_000,
     postCount: 12,
     avgInteractionsPerPost: 35_000,
+    avgReachPerPost: 35_000,
     rank: 1,
     consistencyScore: 92,
-    summary: "+420 mil interações no trimestre e presença constante nas mentorias do Plano Agência.",
+    summary: "+420 mil interações no trimestre e presença constante nas mentorias do Plano Pro.",
   },
   {
     id: "fallback-2",
@@ -42,9 +43,10 @@ const defaultCreators: Array<LandingCreatorHighlight & { summary?: string }> = [
     totalInteractions: 315_000,
     postCount: 9,
     avgInteractionsPerPost: 35_000,
+    avgReachPerPost: 35_000,
     rank: 2,
     consistencyScore: 88,
-    summary: "Fechou 4 campanhas nos últimos 60 dias após liberar diagnósticos do Plano Agência.",
+    summary: "Fechou 4 campanhas nos últimos 60 dias após liberar diagnósticos do Plano Pro.",
   },
   {
     id: "fallback-3",
@@ -55,6 +57,7 @@ const defaultCreators: Array<LandingCreatorHighlight & { summary?: string }> = [
     totalInteractions: 510_000,
     postCount: 14,
     avgInteractionsPerPost: 36_000,
+    avgReachPerPost: 36_000,
     rank: 3,
     consistencyScore: 95,
     summary: "Triplicou alcance com trilhas orientadas pela Mobi e hoje lidera mentorias.",
@@ -97,68 +100,68 @@ const SuccessStoriesSection: React.FC<SuccessStoriesSectionProps> = ({ onCta, cr
             const summary = (creator as { summary?: string }).summary;
 
             return (
-            <article
-              key={creator.id ?? `creator-${index}`}
-              className="mr-4 flex h-full min-w-[78%] snap-center flex-col justify-between rounded-3xl border border-[#EFEFEF] bg-white p-8 shadow-[0_18px_42px_rgba(28,28,30,0.08)] transition hover:-translate-y-1 last:mr-0 md:mr-0 md:min-w-0 md:snap-none"
-            >
-              <div className="space-y-5">
-                <div className="flex items-center gap-4">
-                  <div className="relative h-12 w-12 overflow-hidden rounded-full border border-[#F1F5F9] bg-[#F9FAFB]">
-                    {creator.avatarUrl ? (
-                      <Image src={creator.avatarUrl} alt={creator.name} fill className="object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[#111827]">
-                        {creator.name
-                          .split(" ")
-                          .map((part) => part?.[0] ?? "")
-                          .join("")
-                          .slice(0, 2)}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <span className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
-                      {creator.name}
-                    </span>
-                    {creator.username ? (
-                      <p className="mt-1 text-sm text-brand-text-secondary">{creator.username}</p>
-                    ) : null}
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-brand-magenta">
-                      #{rank} no Ranking da comunidade
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-3 rounded-2xl bg-brand-light px-4 py-3 text-sm font-semibold text-brand-dark">
-                  <div className="flex items-center justify-between text-brand-text-secondary">
-                    <span>Interações totais</span>
-                    <span>{interactions}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-brand-text-secondary">
-                    <span>Média por post</span>
-                    <span>{avgInteractions}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-brand-text-secondary">
-                    <span>Followers atuais</span>
-                    <span>{followers}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-brand-text-secondary">
-                    <span>Posts analisados</span>
-                    <span>{postCount}</span>
-                  </div>
-                </div>
-                {summary ? (
-                  <p className="text-sm leading-relaxed text-brand-text-secondary">{summary}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={onCta}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-magenta px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(231,75,111,0.25)] transition-colors duration-200 hover:bg-brand-magenta-hover"
+              <article
+                key={creator.id ?? `creator-${index}`}
+                className="mr-4 flex h-full min-w-[78%] snap-center flex-col justify-between rounded-3xl border border-[#EFEFEF] bg-white p-8 shadow-[0_18px_42px_rgba(28,28,30,0.08)] transition hover:-translate-y-1 last:mr-0 md:mr-0 md:min-w-0 md:snap-none"
               >
-                Quero o mesmo resultado →
-              </button>
-            </article>
-          );
+                <div className="space-y-5">
+                  <div className="flex items-center gap-4">
+                    <div className="relative h-12 w-12 overflow-hidden rounded-full border border-[#F1F5F9] bg-[#F9FAFB]">
+                      {creator.avatarUrl ? (
+                        <Image src={creator.avatarUrl} alt={creator.name} fill className="object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[#111827]">
+                          {creator.name
+                            .split(" ")
+                            .map((part) => part?.[0] ?? "")
+                            .join("")
+                            .slice(0, 2)}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <span className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
+                        {creator.name}
+                      </span>
+                      {creator.username ? (
+                        <p className="mt-1 text-sm text-brand-text-secondary">{creator.username}</p>
+                      ) : null}
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-brand-magenta">
+                        #{rank} no Ranking da comunidade
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3 rounded-2xl bg-brand-light px-4 py-3 text-sm font-semibold text-brand-dark">
+                    <div className="flex items-center justify-between text-brand-text-secondary">
+                      <span>Interações totais</span>
+                      <span>{interactions}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-brand-text-secondary">
+                      <span>Média por post</span>
+                      <span>{avgInteractions}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-brand-text-secondary">
+                      <span>Followers atuais</span>
+                      <span>{followers}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-brand-text-secondary">
+                      <span>Posts analisados</span>
+                      <span>{postCount}</span>
+                    </div>
+                  </div>
+                  {summary ? (
+                    <p className="text-sm leading-relaxed text-brand-text-secondary">{summary}</p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={onCta}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-magenta px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(231,75,111,0.25)] transition-colors duration-200 hover:bg-brand-magenta-hover"
+                >
+                  Quero o mesmo resultado →
+                </button>
+              </article>
+            );
           })}
         </div>
       </div>

@@ -218,7 +218,7 @@ const JOURNEY_STEP_COPY: Record<JourneyStepId, { title: string; description: str
     helper: "Grátis. Salva suas preferências para IA e equipe humana.",
   },
   activate_pro: {
-    title: "Ative o Plano Agência",
+    title: "Ative o Plano Pro",
     description: "Posicione seus conteúdos para atrair marcas: IA 24/7 e mentorias semanais para fechar campanhas sem exclusividade.",
   },
 };
@@ -284,7 +284,7 @@ function buildJourneyProgress({
   let highlightMessage: string | null;
   const pendingSteps = totalSteps - completedCount;
   if (pendingSteps === 0) {
-    highlightMessage = "✨ Plano Agência ativo — negocie campanhas com IA";
+    highlightMessage = "✨ Plano Pro ativo — negocie campanhas com IA";
   } else if (pendingSteps === 1) {
     highlightMessage = "🚀 Falta 1 passo para liberar propostas com IA";
   } else {
