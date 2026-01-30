@@ -1,14 +1,20 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { Loader2, AlertCircle, Play, CheckCircle2, MessageSquare, ExternalLink, Heart, Share2, Bookmark, BarChart2 } from 'lucide-react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import useSWR from 'swr';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { idsToLabels } from '@/app/lib/classification';
-import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
+
+// Dynamic import for the modal to reduce initial bundle size
+const DiscoverVideoModal = dynamic(() => import('@/app/discover/components/DiscoverVideoModal'), {
+    loading: () => null,
+    ssr: false,
+});
 
 /**
  * TYPES
@@ -57,10 +63,13 @@ export default function PostAnalysisPage() {
     const [videoOpen, setVideoOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState<{ url?: string; link?: string; poster?: string } | null>(null);
 
-    const openPlayer = (videoUrl?: string, postLink?: string, posterUrl?: string) => {
+    // Filtering State
+    const [statusFilter, setStatusFilter] = useState<'all' | ReviewStatus>('all');
+
+    const openPlayer = useCallback((videoUrl?: string, postLink?: string, posterUrl?: string) => {
         setActiveVideo({ url: videoUrl, link: postLink, poster: posterUrl });
         setVideoOpen(true);
-    };
+    }, []);
 
     // Fetch Reviews
     const { data, error, isLoading } = useSWR<{ items: PostReviewItem[] }>(
@@ -89,30 +98,56 @@ export default function PostAnalysisPage() {
     const groupedReviews = useMemo(() => {
         const groups: Record<string, PostReviewItem[]> = {};
 
-        reviews.forEach(review => {
+        const filteredReviews = statusFilter === 'all'
+            ? reviews
+            : reviews.filter(r => r.status === statusFilter);
+
+        filteredReviews.forEach(review => {
             // Get context - usually an array, we take the primary one or use fallback
             const contexts = review.post.postContext || review.post.context || [];
-            const contextList = Array.isArray(contexts) ? contexts : (typeof contexts === 'string' ? contexts.split(',') : [contexts]);
-            const primaryContext = contextList[0]?.trim() || 'Geral';
-
-            // Resolve label
-            const label = idsToLabels([primaryContext], 'context')[0] || primaryContext;
+            const primaryContextId = (Array.isArray(contexts) ? contexts[0] : (contexts as string)) || 'Geral';
+            const label = idsToLabels([primaryContextId], 'context')[0] || 'Sem Categoria';
 
             if (!groups[label]) groups[label] = [];
             groups[label].push(review);
         });
 
-        // Sort groups by name (optional)
-        return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-    }, [reviews]);
+        // Sort items in each group by updatedAt
+        Object.keys(groups).forEach(label => {
+            const group = groups[label];
+            if (group) {
+                group.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            }
+        });
+
+        return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+    }, [reviews, statusFilter]);
 
 
 
     if (isLoading) {
         return (
-            <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-slate-400">
-                <Loader2 className="h-8 w-8 animate-spin text-[#6E1F93]" />
-                <p className="mt-4 text-sm font-medium">Carregando seus reviews...</p>
+            <div className="dashboard-page-shell mx-auto w-full max-w-5xl py-8">
+                <header className="mb-10 text-center animate-pulse">
+                    <div className="mx-auto h-10 w-64 rounded-xl bg-slate-100 mb-2" />
+                    <div className="mx-auto h-6 w-96 rounded-lg bg-slate-100/60" />
+                </header>
+
+                <div className="space-y-12">
+                    {[1, 2].map((group) => (
+                        <section key={group} className="space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="h-7 w-32 rounded-lg bg-slate-100" />
+                                <div className="h-px flex-1 bg-slate-100" />
+                            </div>
+                            <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 -mx-4 px-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible sm:snap-none sm:gap-8 sm:pb-0 sm:mx-0 sm:px-0">
+                                {[1, 2, 3].map((i) => (
+                                    <ReviewCardSkeleton key={i} />
+                                ))}
+                            </div>
+                        </section>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -148,39 +183,85 @@ export default function PostAnalysisPage() {
 
     return (
         <div className="dashboard-page-shell mx-auto w-full max-w-5xl py-8">
-            <header className="mb-10 text-center">
+            <header className="mb-8 text-center">
                 <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Review de Post</h1>
                 <p className="mt-2 text-lg text-slate-600">
                     Feedbacks diretos do nosso time sobre seus conteúdos recentes.
                 </p>
             </header>
 
+            {/* Status Filter Tabs */}
+            <div className="mb-10 flex items-center justify-center">
+                <div className="flex flex-wrap items-center justify-center gap-2 rounded-[2rem] bg-slate-100 p-1.5 shadow-inner">
+                    <button
+                        onClick={() => setStatusFilter('all')}
+                        className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all ${statusFilter === 'all'
+                            ? 'bg-white text-slate-900 shadow-md'
+                            : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                    >
+                        Todos
+                    </button>
+                    {(Object.entries(STATUS_CONFIG) as [ReviewStatus, typeof STATUS_CONFIG['do']][]).map(([key, config]) => {
+                        const Icon = config.icon;
+                        const isActive = statusFilter === key;
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => setStatusFilter(key)}
+                                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all ${isActive
+                                    ? `${config.bg} ${config.text} shadow-md ring-1 ${config.border}`
+                                    : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                            >
+                                <Icon className="h-4 w-4" />
+                                {config.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
             <div className="space-y-12">
-                {groupedReviews.map(([label, items]) => (
-                    <section key={label} className="space-y-6">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-xl font-bold text-slate-900">{label}</h2>
-                            <div className="h-px flex-1 bg-slate-100" />
-                            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                {items.length} {items.length === 1 ? 'review' : 'reviews'}
-                            </span>
+                {groupedReviews.length === 0 ? (
+                    <div className="py-20 text-center">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-slate-100">
+                            <AlertCircle className="h-8 w-8 text-slate-300" />
                         </div>
-                        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                            {items.map((review, i) => (
-                                <ReviewCard
-                                    key={review._id}
-                                    review={review}
-                                    index={i}
-                                    onPlay={() => {
-                                        const videoUrl = review.post.media_url || review.post.mediaUrl;
-                                        const posterUrl = review.post.thumbnail_url || review.post.thumbnailUrl || review.post.coverUrl;
-                                        openPlayer(videoUrl, review.post.postLink, posterUrl);
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    </section>
-                ))}
+                        <h3 className="mt-4 text-lg font-bold text-slate-900">Nenhum feedback nesta categoria</h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Tente mudar o filtro acima para ver outros feedbacks.
+                        </p>
+                        <button
+                            onClick={() => setStatusFilter('all')}
+                            className="mt-6 text-sm font-bold text-[#6E1F93] hover:underline"
+                        >
+                            Ver todos os reviews
+                        </button>
+                    </div>
+                ) : (
+                    groupedReviews.map(([label, items]) => (
+                        <section key={label} className="space-y-6">
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-xl font-bold text-slate-900">{label}</h2>
+                                <div className="h-px flex-1 bg-slate-100" />
+                                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    {items.length} {items.length === 1 ? 'review' : 'reviews'}
+                                </span>
+                            </div>
+                            <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 -mx-4 px-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible sm:snap-none sm:gap-8 sm:pb-0 sm:mx-0 sm:px-0 scrollbar-hide">
+                                {items.map((review, i) => (
+                                    <ReviewCard
+                                        key={review._id}
+                                        review={review}
+                                        index={i}
+                                        onPlay={openPlayer}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    ))
+                )}
             </div>
 
             <DiscoverVideoModal
@@ -194,13 +275,41 @@ export default function PostAnalysisPage() {
     );
 }
 
-function ReviewCard({ review, index, onPlay }: { review: PostReviewItem; index: number; onPlay: () => void }) {
+/**
+ * COMPONENTS
+ */
+
+function ReviewCardSkeleton() {
+    return (
+        <div className="flex flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm h-[450px] animate-pulse snap-start w-[85vw] shrink-0 sm:w-auto">
+            <div className="h-10 bg-slate-50 border-b border-slate-100" />
+            <div className="flex flex-1 flex-col p-6 space-y-4">
+                <div className="h-6 w-full rounded-lg bg-slate-100" />
+                <div className="h-6 w-4/5 rounded-lg bg-slate-100/60" />
+                <div className="h-6 w-2/3 rounded-lg bg-slate-100/40" />
+                <div className="mt-auto h-16 w-full rounded-2xl bg-slate-50" />
+            </div>
+            <div className="border-t border-slate-50 bg-slate-50/30 p-3 h-20" />
+        </div>
+    );
+}
+
+const ReviewCard = memo(({ review, index, onPlay }: {
+    review: PostReviewItem;
+    index: number;
+    onPlay: (videoUrl?: string, postLink?: string, posterUrl?: string) => void
+}) => {
 
     const config = STATUS_CONFIG[review.status];
     const Icon = config.icon;
     const coverUrl = review.post.thumbnail_url || review.post.thumbnailUrl || review.post.coverUrl || review.post.media_url || review.post.mediaUrl;
-    const isVideo = review.post.type === 'VIDEO' || review.post.type === 'video';
     const stats = review.post.stats || {};
+
+    const handlePlay = useCallback(() => {
+        const videoUrl = review.post.media_url || review.post.mediaUrl;
+        const posterUrl = review.post.thumbnail_url || review.post.thumbnailUrl || review.post.coverUrl;
+        onPlay(videoUrl, review.post.postLink, posterUrl);
+    }, [review.post, onPlay]);
 
     const formatNum = (num?: number) => {
         if (!num) return '0';
@@ -214,7 +323,7 @@ function ReviewCard({ review, index, onPlay }: { review: PostReviewItem; index: 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.4 }}
-            className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+            className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl snap-start w-[85vw] shrink-0 sm:w-auto"
         >
             {/* Status Header */}
             <div className={`flex items-center gap-2 border-b px-5 py-3 ${config.bg} ${config.border} border-b`}>
@@ -261,7 +370,7 @@ function ReviewCard({ review, index, onPlay }: { review: PostReviewItem; index: 
             {/* Footer: Post Preview context */}
             <div className="mt-auto border-t border-slate-100 bg-slate-50/50 p-3">
                 <div
-                    onClick={onPlay}
+                    onClick={handlePlay}
                     className="flex cursor-pointer items-center gap-3 overflow-hidden rounded-xl bg-white p-2 shadow-sm ring-1 ring-slate-900/5 transition hover:ring-[#6E1F93]/30 hover:shadow-md active:scale-[0.98]"
                 >
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100">
@@ -272,6 +381,8 @@ function ReviewCard({ review, index, onPlay }: { review: PostReviewItem; index: 
                                 fill
                                 className="object-cover"
                                 unoptimized
+                                sizes="48px"
+                                priority={index < 3}
                             />
                         )}
                         <div className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors group-hover:bg-black/20">
@@ -301,4 +412,15 @@ function ReviewCard({ review, index, onPlay }: { review: PostReviewItem; index: 
             </div>
         </motion.div>
     );
+});
+ReviewCard.displayName = 'ReviewCard';
+
+// Adding minor CSS to hide scrollbars globally for these containers
+if (typeof document !== 'undefined') {
+    const style = document.createElement('style');
+    style.textContent = `
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    `;
+    document.head.appendChild(style);
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   ArrowTopRightOnSquareIcon,
@@ -25,12 +25,22 @@ import {
   ExternalLink,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  LayoutGrid
 } from 'lucide-react';
-import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
-import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
+import dynamic from 'next/dynamic';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import { Category, contextCategories, idsToLabels } from '@/app/lib/classification';
+
+// Dynamic imports for modals to reduce initial bundle size
+const PostDetailModal = dynamic(() => import('@/app/admin/creator-dashboard/PostDetailModal'), {
+  loading: () => null,
+  ssr: false,
+});
+const DiscoverVideoModal = dynamic(() => import('@/app/discover/components/DiscoverVideoModal'), {
+  loading: () => null,
+  ssr: false,
+});
 
 type ReviewStatus = 'do' | 'dont' | 'almost';
 
@@ -255,34 +265,34 @@ export default function ReviewedPostsPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  const openDetail = (postId?: string) => {
+  const openDetail = useCallback((postId?: string) => {
     if (!postId) return;
     setSelectedPostId(postId);
     setIsDetailOpen(true);
-  };
+  }, []);
 
-  const closeDetail = () => {
+  const closeDetail = useCallback(() => {
     setIsDetailOpen(false);
     setSelectedPostId(null);
-  };
+  }, []);
 
-  const openEdit = (item: ReviewItem) => {
+  const openEdit = useCallback((item: ReviewItem) => {
     setEditItem(item);
     setEditStatus(item.status);
     setEditNote(item.note || '');
     setEditError(null);
     setIsEditOpen(true);
-  };
+  }, []);
 
-  const closeEdit = () => {
+  const closeEdit = useCallback(() => {
     setIsEditOpen(false);
     setEditItem(null);
     setEditStatus('do');
     setEditNote('');
     setEditError(null);
-  };
+  }, []);
 
-  const handleEditSave = async () => {
+  const handleEditSave = useCallback(async () => {
     if (!editItem?.postId) return;
     const trimmed = editNote.trim();
     if (!trimmed) {
@@ -312,9 +322,9 @@ export default function ReviewedPostsPage() {
     } finally {
       setSavingEdit(false);
     }
-  };
+  }, [editItem?.postId, editNote, editStatus, fetchReviews, closeEdit]);
 
-  const handleDeleteReview = async () => {
+  const handleDeleteReview = useCallback(async () => {
     if (!editItem?.postId) return;
     if (!window.confirm('Tem certeza que deseja excluir esta revisão? O post deixará de aparecer nesta lista.')) return;
 
@@ -335,7 +345,7 @@ export default function ReviewedPostsPage() {
     } finally {
       setDeletingReview(false);
     }
-  };
+  }, [editItem?.postId, fetchReviews, closeEdit]);
 
   const grouped = useMemo<ContextGroup[]>(() => {
     const filteredItems = statusFilter ? items.filter((item) => item.status === statusFilter) : items;
@@ -552,9 +562,31 @@ export default function ReviewedPostsPage() {
         </div>
 
         {loading ? (
-          <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-slate-400">
-            <Loader2 className="h-8 w-8 animate-spin text-[#6E1F93]" />
-            <p className="mt-4 text-sm font-medium">Carregando conteúdos...</p>
+          <div className="space-y-16 animate-pulse">
+            {[1, 2].map((i) => (
+              <section key={i} className="space-y-10">
+                <div className="flex items-center gap-4">
+                  <div className="h-8 w-48 rounded-xl bg-slate-200" />
+                  <div className="h-px flex-1 bg-slate-100" />
+                </div>
+                <div className="space-y-12">
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-full bg-slate-200" />
+                      <div className="space-y-2">
+                        <div className="h-6 w-32 rounded-lg bg-slate-200" />
+                        <div className="h-4 w-24 rounded-lg bg-slate-100" />
+                      </div>
+                    </div>
+                    <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                      {[1, 2, 3].map((j) => (
+                        <AdminReviewCardSkeleton key={j} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            ))}
           </div>
         ) : error ? (
           <div className="flex min-h-[40vh] flex-col items-center justify-center p-8 text-slate-500 text-center">
@@ -642,6 +674,7 @@ export default function ReviewedPostsPage() {
                                 }}
                                 onEdit={openEdit}
                                 onDetail={openDetail}
+                                priority={i < 3}
                               />
                             ))}
                           </div>
@@ -756,19 +789,36 @@ export default function ReviewedPostsPage() {
   );
 }
 
-function AdminReviewCard({
+function AdminReviewCardSkeleton() {
+  return (
+    <div className="flex flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm h-[480px]">
+      <div className="h-10 bg-slate-50 border-b border-slate-100" />
+      <div className="flex flex-1 flex-col p-6 space-y-4">
+        <div className="h-6 w-full rounded-lg bg-slate-100" />
+        <div className="h-6 w-4/5 rounded-lg bg-slate-100/60" />
+        <div className="h-6 w-2/3 rounded-lg bg-slate-100/40" />
+        <div className="mt-auto h-20 w-full rounded-2xl bg-slate-50" />
+      </div>
+      <div className="border-t border-slate-50 bg-slate-50/30 p-4 h-24" />
+    </div>
+  );
+}
+
+const AdminReviewCard = memo(({
   item,
   index,
   onPlay,
   onEdit,
   onDetail,
+  priority = false, // Added priority prop
 }: {
   item: ReviewItem;
   index: number;
   onPlay: () => void;
   onEdit: (item: ReviewItem) => void;
   onDetail: (postId?: string) => void;
-}) {
+  priority?: boolean;
+}) => {
   const post = item.post;
   const config = STATUS_CONFIG[item.status];
   const Icon = config.icon;
@@ -866,7 +916,9 @@ function AdminReviewCard({
                 alt="Post thumbnail"
                 fill
                 className="object-cover"
-                unoptimized={coverUrl.includes('/api/proxy')}
+                unoptimized
+                sizes="48px"
+                priority={priority}
               />
             )}
             <div className="absolute inset-0 flex items-center justify-center bg-black/10 transition-colors group-hover:bg-black/20">
@@ -896,4 +948,6 @@ function AdminReviewCard({
       </div>
     </motion.div>
   );
-}
+});
+
+AdminReviewCard.displayName = 'AdminReviewCard';
