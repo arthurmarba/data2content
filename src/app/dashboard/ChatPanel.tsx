@@ -117,6 +117,7 @@ export default function ChatPanel({
   const isAdmin = role === 'admin';
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
   const previousTargetRef = useRef<string | null>(null);
   const initializedTargetRef = useRef(false);
@@ -124,6 +125,17 @@ export default function ChatPanel({
   const firstFeedbackTrackedRef = useRef(false);
   const scrollDepthRef = useRef<Set<number>>(new Set());
   const copyTimeoutRef = useRef<number | null>(null);
+  const fastTapCandidateRef = useRef<{
+    target: HTMLElement;
+    active: HTMLElement;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  const fastTapStateRef = useRef<{
+    until: number;
+    target: HTMLElement | null;
+    allowFirst: boolean;
+  } | null>(null);
 
   const [viewMode, setViewMode] = useState<'reading' | 'compact'>('reading');
   const [copiedSection, setCopiedSection] = useState<'summary' | 'actions' | null>(null);
@@ -144,6 +156,111 @@ export default function ChatPanel({
       setStoredThreadId(selectedThreadId ?? null);
     }
   }, [selectedThreadId, setStoredThreadId]);
+
+  // Mobile Safari: first tap while a textarea is focused often just dismisses the keyboard.
+  useEffect(() => {
+    const root = panelRef.current;
+    if (!root || typeof window === "undefined") return;
+
+    const isEditable = (el: Element | null) => {
+      if (!el) return false;
+      const tag = (el as HTMLElement).tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
+    };
+
+    const interactiveSelector = "button, [role=\"button\"]";
+    const moveThresholdSq = 8 * 8;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      const active = document.activeElement;
+      if (!isEditable(active)) return;
+      if (!(active instanceof HTMLElement)) return;
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (active.contains(target)) return;
+      const interactive = target.closest<HTMLElement>(interactiveSelector);
+      if (!interactive) return;
+      if (interactive instanceof HTMLButtonElement && interactive.disabled) return;
+
+      const touch = event.touches[0];
+      if (!touch) return;
+      fastTapCandidateRef.current = {
+        target: interactive,
+        active,
+        startX: touch.clientX,
+        startY: touch.clientY,
+      };
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const candidate = fastTapCandidateRef.current;
+      if (!candidate) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - candidate.startX;
+      const dy = touch.clientY - candidate.startY;
+      if (dx * dx + dy * dy > moveThresholdSq) {
+        fastTapCandidateRef.current = null;
+      }
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      const candidate = fastTapCandidateRef.current;
+      if (!candidate) return;
+      fastTapCandidateRef.current = null;
+      if (!candidate.target.isConnected) return;
+      if (candidate.target instanceof HTMLButtonElement && candidate.target.disabled) return;
+      if (isEditable(document.activeElement)) {
+        (document.activeElement as HTMLElement).blur();
+      } else if (isEditable(candidate.active)) {
+        candidate.active.blur();
+      }
+      fastTapStateRef.current = {
+        until: Date.now() + 700,
+        target: candidate.target,
+        allowFirst: true,
+      };
+      if (event.cancelable) event.preventDefault();
+      candidate.target.click();
+    };
+
+    const handleTouchCancel = () => {
+      fastTapCandidateRef.current = null;
+    };
+
+    const handleClickCapture = (event: MouseEvent) => {
+      const state = fastTapStateRef.current;
+      if (!state) return;
+      if (Date.now() > state.until) {
+        fastTapStateRef.current = null;
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !state.target || !state.target.contains(target)) return;
+      if (state.allowFirst) {
+        state.allowFirst = false;
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      fastTapStateRef.current = null;
+    };
+
+    root.addEventListener("touchstart", handleTouchStart, { capture: true, passive: true });
+    root.addEventListener("touchmove", handleTouchMove, { capture: true, passive: true });
+    root.addEventListener("touchend", handleTouchEnd, { capture: true, passive: false });
+    root.addEventListener("touchcancel", handleTouchCancel, true);
+    root.addEventListener("click", handleClickCapture, true);
+
+    return () => {
+      root.removeEventListener("touchstart", handleTouchStart, true);
+      root.removeEventListener("touchmove", handleTouchMove, true);
+      root.removeEventListener("touchend", handleTouchEnd, true);
+      root.removeEventListener("touchcancel", handleTouchCancel, true);
+      root.removeEventListener("click", handleClickCapture, true);
+    };
+  }, []);
 
   const selectThread = useCallback((id: string | null) => {
     setStoredThreadId(id);
@@ -963,6 +1080,7 @@ export default function ChatPanel({
 
   return (
     <div
+      ref={panelRef}
       className="relative flex flex-col w-full bg-white overflow-hidden min-h-0"
       style={{
         height: fullHeight ? '100%' : 'auto',
