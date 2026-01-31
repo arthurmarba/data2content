@@ -225,7 +225,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
               variant="brand"
               className="group relative w-[46%] sm:w-auto sm:min-w-[260px] overflow-hidden rounded-2xl px-6 py-4 text-base sm:px-8 sm:py-5 sm:text-lg shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98]"
             >
-              <span className="relative z-10 flex items-center justify-center gap-2 font-black text-lg">
+              <span className="relative z-10 flex items-center justify-center gap-2 font-black text-base sm:text-lg whitespace-nowrap">
                 Sou Criador <span className="transition-transform group-hover:translate-x-1">→</span>
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />

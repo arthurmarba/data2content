@@ -429,7 +429,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                                         </div>
                                         <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-brand-primary bg-brand-primary/10 px-2.5 py-1 rounded-full">Top {rail.creators.length}</span>
                                     </div>
-                                    <div className="flex gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory pl-2 pr-8">
+                                    <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory pl-2 pr-8">
                                         {rail.creators.map(c => (
                                             <CastingRankCard key={c.id} creator={c} onRequestMediaKit={handleBrandForm} />
                                         ))}
@@ -445,7 +445,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                                             <p className="text-xs font-semibold text-slate-500 sm:text-sm">Criadores com alto potencial de engajamento crescendo na rede.</p>
                                         </div>
                                     </div>
-                                    <div className="flex gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory pl-2 pr-8">
+                                    <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory pl-2 pr-8">
                                         {microRails.flatMap(r => r.creators).map(c => (
                                             <CastingRankCard key={c.id} creator={c} onRequestMediaKit={handleBrandForm} />
                                         ))}
@@ -475,7 +475,7 @@ function CastingRankCard({ creator, variant = "rail", onRequestMediaKit }: { cre
 
     return (
         <article
-            className={`relative flex-shrink-0 overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white shadow-[0_14px_30px_rgba(20,33,61,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(20,33,61,0.12)] ${variant === "rail" ? "w-[185px] snap-start" : "w-full"}`}
+            className={`relative flex-shrink-0 overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white shadow-[0_14px_30px_rgba(20,33,61,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(20,33,61,0.12)] ${variant === "rail" ? "w-[160px] sm:w-[185px] snap-start" : "w-full"}`}
         >
             <div className="relative p-3">
                 <div className="flex items-center justify-between">
