@@ -204,7 +204,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
           </motion.div>
 
           <div className="flex flex-col items-center gap-4 md:gap-10 px-6 md:px-4">
-            <h1 className="max-w-[15ch] text-[3.5rem] md:text-[5.5rem] lg:text-[6.5rem] font-black leading-[1.2] md:leading-[0.9] tracking-tighter text-brand-dark text-balance pb-6">
+            <h1 className="max-w-[15ch] text-[3.5rem] md:text-[5.5rem] lg:text-[6.5rem] font-black leading-[1.1] md:leading-[0.9] tracking-tighter text-brand-dark text-balance pb-6">
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
                 Revisão estratégica
               </span>
@@ -218,12 +218,12 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
             </p>
           </div>
 
-          <div className="mt-5 md:mt-2 flex w-full flex-col items-center gap-3 px-6 md:px-0 sm:flex-row sm:justify-center">
+          <div className="mt-5 md:mt-2 flex w-full flex-row items-center gap-3 px-6 md:px-0 sm:justify-center">
             <ButtonPrimary
               onClick={onCreatorCta}
               size="lg"
               variant="brand"
-              className="group relative w-full sm:w-auto sm:min-w-[260px] overflow-hidden rounded-2xl py-5 shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98]"
+              className="group relative w-[46%] sm:w-auto sm:min-w-[260px] overflow-hidden rounded-2xl px-6 py-4 text-base sm:px-8 sm:py-5 sm:text-lg shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98]"
             >
               <span className="relative z-10 flex items-center justify-center gap-2 font-black text-lg">
                 Sou Criador <span className="transition-transform group-hover:translate-x-1">→</span>
@@ -233,7 +233,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
 
             <button
               onClick={onBrandCta}
-              className="w-full sm:w-auto sm:min-w-[200px] rounded-2xl border-2 border-slate-200 bg-white/50 px-8 py-5 text-lg font-black text-brand-dark shadow-lg shadow-slate-200/50 backdrop-blur-sm transition-all hover:border-brand-dark hover:bg-white hover:shadow-xl hover:shadow-slate-300/50"
+              className="w-[46%] sm:w-auto sm:min-w-[200px] rounded-2xl border-2 border-slate-200 bg-white/50 px-6 py-4 text-base sm:px-8 sm:py-5 sm:text-lg font-black text-brand-dark shadow-lg shadow-slate-200/50 backdrop-blur-sm transition-all hover:border-brand-dark hover:bg-white hover:shadow-xl hover:shadow-slate-300/50"
             >
               Sou Marca
             </button>

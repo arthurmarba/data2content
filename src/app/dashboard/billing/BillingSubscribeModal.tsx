@@ -33,13 +33,12 @@ let pricesCache: PricesShape | null = null;
 
 // 🎯 Narrativa focada: alertas no WhatsApp + Chat AI na plataforma
 const FEATURES: string[] = [
-  "Alertas no WhatsApp conectados ao seu Instagram (dúvidas vão para o Chat AI)",
-  "Planejamento automático por dia/horário com base na sua performance",
-  "Alertas diários com táticas e prioridades do que postar",
-  "Receba oportunidades de campanha como profissional (sem exclusividade)",
-  "Relatório Avançado: categorias, formatos, dias/horas e narrativas de maior engajamento",
-  "Cresça engajamento, seguidores e receita com decisões guiadas por dados",
-  "Assinatura fixa: intermediários cobram 10%–30% de comissão, aqui você mantém 100% das publis e continua independente.",
+  "Mídia kit auditado + vitrine no marketplace",
+  "Review de posts com vereditos antes de publicar",
+  "Negociação assistida por IA + precificação inteligente",
+  "Mentorias semanais e alertas no WhatsApp",
+  "Chat IA estratégico dentro da plataforma",
+  "Assinatura fixa: 0% de comissão nas publis",
 ];
 
 type PaywallCopy = {
@@ -51,54 +50,59 @@ type PaywallCopy = {
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
-    title: "Receba alertas e oportunidades diárias no seu WhatsApp",
+    title: "Plano Pro: tudo para negociar direto com marcas",
     subtitle:
-      "Ative o Plano Pro para manter alertas no WhatsApp e tirar dúvidas com IA direto no Chat AI da plataforma.",
+      "Mídia kit auditado, mentorias e IA aplicada para precificar, responder e fechar publis.",
     bullets: FEATURES,
     ctaLabel: "Ativar Plano Pro",
   },
   reply_email: {
-    title: "Responder e receber campanhas faz parte do Plano Pro.",
+    title: "Responder propostas é Plano Pro",
     subtitle:
-      "Receba propostas direto pela plataforma e responda com IA em 1 clique usando a faixa justa automática.",
+      "Receba campanhas no seu nome e responda com IA usando a faixa justa automática.",
     bullets: [
-      "Campanhas enviadas pela D2C (sem exclusividade)",
-      "Diagnóstico do Mobi + faixa justa automática",
-      "Templates de resposta com IA e envio direto pela plataforma",
+      "Inbox direto com marcas (sem exclusividade)",
+      "Resposta assistida por IA em 1 clique",
+      "Faixa justa automática para negociar",
     ],
-    ctaLabel: "Desbloquear IA",
+    ctaLabel: "Ativar Plano Pro",
   },
   ai_analysis: {
-    title: "Análise com IA é Plano Pro.",
-    subtitle: "Descubra a faixa justa ideal e receba a recomendação do Mobi em segundos.",
-    bullets: ["Faixa justa baseada nas suas métricas", "Sugestão objetiva (aceitar/ajustar/extra)"],
+    title: "Análise com IA é Plano Pro",
+    subtitle: "Descubra a faixa justa ideal e a recomendação em segundos.",
+    bullets: [
+      "Faixa justa baseada nas suas métricas",
+      "Sugestão objetiva (aceitar/ajustar/extra)",
+    ],
     ctaLabel: "Ativar Plano Pro",
   },
   calculator: {
-    title: "Calculadora de Publi faz parte do Plano Pro.",
-    subtitle: "Receba faixas de preço estratégicas, justas e premium geradas a partir das suas métricas reais.",
-    bullets: ["Faixa estratégica, justa e premium automáticas", "Multiplicadores calibrados pelo seu desempenho"],
+    title: "Precificação inteligente é Plano Pro",
+    subtitle: "Faixas estratégicas geradas com base nas suas métricas reais.",
+    bullets: [
+      "Faixa estratégica, justa e premium automática",
+      "Multiplicadores calibrados pelo seu desempenho",
+    ],
     ctaLabel: "Ativar Plano Pro",
   },
   planning: {
-    title: "Planejamento com IA é exclusivo do Plano Pro.",
-    subtitle: "Descubra o que postar com o planner da IA, libere a área de descobertas da comunidade e receba alertas diários no WhatsApp (dúvidas no Chat AI).",
+    title: "Planejamento com IA é Plano Pro",
+    subtitle:
+      "Planeje com previsões, receba alertas no WhatsApp e aplique benchmarks da comunidade.",
     bullets: [
       "Planner com horários, formatos e previsões otimizadas",
-      "Descoberta da Comunidade com referências e benchmarks do Plano Pro",
-      "Mentorias semanais do Grupo VIP para ajustar sua estratégia",
-      "Receba oportunidades de campanha e trate como profissional sem exclusividade",
-      "Alertas no WhatsApp com redirect para o Chat AI",
+      "Benchmarks e referências da comunidade Pro",
+      "Alertas no WhatsApp para manter consistência",
     ],
-    ctaLabel: "Desbloquear Planejamento Plano Pro",
+    ctaLabel: "Ativar Plano Pro",
   },
   whatsapp: {
-    title: "Conecte os alertas no WhatsApp.",
-    subtitle: "WhatsApp = notificações. Para conversar com a IA, use o Chat AI dentro do app.",
+    title: "Alertas no WhatsApp fazem parte do Pro",
+    subtitle: "Receba lembretes e prioridades; a IA fica no Chat dentro do app.",
     bullets: [
       "Alertas com horários, campanhas e oportunidades",
       "Diagnóstico automático do Instagram",
-      "Link rápido para abrir o Chat AI e tirar dúvidas",
+      "Chat IA estratégico na plataforma",
     ],
     ctaLabel: "Ativar Plano Pro",
   },
@@ -510,7 +514,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       >
         <div
           ref={dialogRef}
-          className="w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          className="w-full max-w-lg rounded-3xl bg-white shadow-2xl ring-1 ring-gray-200/80 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
           tabIndex={-1}
         >
           {/* Header sticky */}
@@ -628,13 +632,16 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
         >
           {/* Header sticky: X sempre visível */}
           <div className="sticky top-0 z-10 bg-white/95 backdrop-blur">
-            <div className="relative border-b border-gray-200">
-              <div className="absolute inset-0 opacity-15 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-indigo-500" />
+            <div className="relative border-b border-gray-200/70">
+              <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-indigo-500" />
               <div className="relative flex items-start gap-3 p-5 sm:p-6">
-                <div className="shrink-0 rounded-lg bg-pink-100 p-2">
+                <div className="shrink-0 rounded-xl bg-pink-50 p-2.5 ring-1 ring-pink-100">
                   <Crown className="w-5 h-5 text-pink-600" />
                 </div>
                 <div className="flex-1">
+                  <span className="inline-flex items-center rounded-full border border-pink-200/60 bg-pink-50/70 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-pink-600">
+                    Plano Pro
+                  </span>
                   <h2 id="subscribe-modal-title" className="text-lg sm:text-xl font-bold text-gray-900">
                     {paywallCopy.title}
                   </h2>
@@ -655,36 +662,36 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
           {/* Conteúdo rolável */}
           <div className="flex-1 overflow-y-auto">
             {/* Seletores */}
-            <div className="px-5 sm:px-6 pt-4 sm:pt-5 border-t border-gray-100">
+            <div className="px-5 sm:px-6 pt-4 sm:pt-5 border-t border-gray-100/70">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
-                <div className="inline-flex rounded-md p-1 bg-gray-100">
+                <div className="inline-flex rounded-full p-1 bg-slate-100">
                   <button
                     onClick={() => setPeriod("monthly")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded ${period === "monthly" ? "bg-white shadow text-gray-900" : "text-gray-600"}`}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${period === "monthly" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
                     disabled={loadingRedirect}
                   >
                     Mensal
                   </button>
                   <button
                     onClick={() => setPeriod("annual")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded ${period === "annual" ? "bg-white shadow text-gray-900" : "text-gray-600"}`}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${period === "annual" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
                     disabled={loadingRedirect}
                   >
                     Anual {savingsPct > 0 && <span className="ml-1 text-emerald-600 font-semibold">- {savingsPct}%</span>}
                   </button>
                 </div>
 
-                <div className="inline-flex rounded-md p-1 bg-gray-100">
+                <div className="inline-flex rounded-full p-1 bg-slate-100">
                   <button
                     onClick={() => setCurrency("brl")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded ${currency === "brl" ? "bg-white shadow text-gray-900" : "text-gray-600"}`}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${currency === "brl" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
                     disabled={loadingRedirect}
                   >
                     BRL
                   </button>
                   <button
                     onClick={() => setCurrency("usd")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded ${currency === "usd" ? "bg-white shadow text-gray-900" : "text-gray-600"}`}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${currency === "usd" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
                     disabled={loadingRedirect}
                   >
                     USD
@@ -695,7 +702,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
 
             {/* Preço */}
             <div className="px-5 sm:px-6 pt-3">
-              <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+              <div className="rounded-2xl border border-slate-200/70 p-4 bg-white shadow-sm">
                 <div className="flex items-end gap-2">
                   <div className="text-3xl font-extrabold text-gray-900 leading-none">
                     {formatMoney(activePrice)}
@@ -718,7 +725,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                 )}
 
                 <div className="mt-1 text-xs text-gray-600">
-                  Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
+                  Pagamento seguro via Stripe. Cancele quando quiser.
                 </div>
               </div>
             </div>
@@ -740,7 +747,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                 className={`grid grid-cols-1 ${bulletItems.length > 2 ? "sm:grid-cols-2" : ""} gap-2.5`}
               >
                 {bulletItems.map((feat) => (
-                  <li key={feat} className="flex items-start gap-2 text-sm">
+                  <li key={feat} className="flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm">
                     <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-200">
                       <Check className="h-3.5 w-3.5 text-emerald-600" />
                     </span>

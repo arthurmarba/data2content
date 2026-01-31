@@ -123,7 +123,7 @@ export default function PlansComparisonSection({ onCreateAccount }: PlansCompari
       <div className="absolute bottom-[10%] right-[10%] w-[30%] h-[30%] bg-brand-accent/5 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="landing-section__inner landing-section__inner--wide relative z-10">
-        <header className="mx-auto max-w-2xl text-center mb-20">
+        <header className="mx-auto max-w-2xl text-center mb-12">
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 shadow-sm">
             Investimento Estratégico
           </span>
@@ -131,9 +131,6 @@ export default function PlansComparisonSection({ onCreateAccount }: PlansCompari
             O seu novo parceiro <br className="hidden md:block" />
             <span className="bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent">estratégico.</span>
           </h2>
-          <p className="mt-8 text-lg font-bold text-slate-500 leading-relaxed md:text-xl">
-            Unimos IA, estratégia de conteúdo e networking para transformar criadores em marcas profissionais prontas para campanhas globais.
-          </p>
         </header>
 
         <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:gap-12">

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 import { UserAvatar } from "../../components/UserAvatar";
 import ButtonPrimary from "./ButtonPrimary";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
@@ -252,55 +253,69 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
     const microCreatorCount = microRails.reduce((acc, r) => acc + r.creators.length, 0);
 
     return (
-        <section id="galeria" className="landing-section bg-[#FBFBFC]">
+        <section id="galeria" className="landing-section relative overflow-hidden bg-white">
+            <div className="pointer-events-none absolute inset-0 opacity-20">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,#0000000A,transparent_70%)]" />
+            </div>
             <div className="landing-section__inner landing-section__inner--wide">
-                <header className="mb-4 sm:mb-12 pt-1">
-                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Ranking</span>
-                    <h2 className="mt-2 text-4xl font-black text-brand-dark sm:text-5xl lg:text-6xl tracking-tight">Marketplace de Criadores</h2>
-                </header>
+                <div className="relative mb-6 sm:mb-12">
+                    <div className="relative overflow-hidden rounded-[2.5rem] border border-white/70 bg-white/70 p-5 shadow-[0_24px_60px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:p-8">
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#FF2C7E22,transparent_45%),radial-gradient(circle_at_80%_10%,#246BFD18,transparent_50%)]" />
+                        <div className="relative space-y-5 sm:space-y-6">
+                            <header className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-left">
+                                <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                    Ranking
+                                </span>
+                                <h2 className="text-4xl font-black text-brand-dark sm:text-5xl lg:text-6xl tracking-tight text-balance">
+                                    Marketplace de Criadores
+                                </h2>
+                            </header>
 
-                {marketplaceMetrics.length > 0 && (
-                    <div className="md:hidden mb-3">
-                        <div className="rounded-2xl border border-slate-200 bg-white/95 px-3 py-3">
-                            <div className="grid grid-cols-3">
-                                {marketplaceMetrics.map((metric) => {
-                                    const isLast = metric.key === "followers";
-                                    return (
-                                        <div
-                                            key={metric.key}
-                                            className={`flex flex-col items-center gap-1.5 px-2 text-center ${isLast ? "" : "border-r border-slate-200/70"}`}
-                                        >
-                                            <span className="text-[15px] font-black text-brand-dark">{formatMetricValue(metric.value)}</span>
-                                            <span className="text-[9px] font-semibold text-slate-600">{metric.label}</span>
+                            {marketplaceMetrics.length > 0 && (
+                                <div className="mx-auto w-full max-w-3xl">
+                                    <div className="rounded-[1.75rem] border border-white/80 bg-white/80 px-4 py-4 shadow-[0_16px_36px_rgba(20,33,61,0.08)] backdrop-blur-xl">
+                                        <div className="grid grid-cols-3">
+                                            {marketplaceMetrics.map((metric) => {
+                                                const isLast = metric.key === "followers";
+                                                return (
+                                                    <div
+                                                        key={metric.key}
+                                                        className={`flex flex-col items-center gap-2 px-3 text-center ${isLast ? "" : "border-r border-slate-200/60"}`}
+                                                    >
+                                                        <span className="text-[16px] font-black text-brand-dark">{formatMetricValue(metric.value)}</span>
+                                                        <span className="text-[10px] font-semibold text-slate-500">{metric.label}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
-                )}
+                </div>
 
                 {/* FILTERS */}
-                <div className="sticky top-[calc(var(--landing-header-h,4.5rem)+8px)] z-30 mb-2 rounded-2xl border border-slate-200 bg-white/90 p-1 shadow-sm backdrop-blur-xl sm:mb-4 sm:p-2">
+                <div className="sticky top-[calc(var(--landing-header-h,4.5rem)+8px)] z-30 mb-4 rounded-[1.75rem] border border-slate-100 bg-white p-2 shadow-[0_18px_40px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:mb-6 sm:p-3">
                     <div className="hidden md:grid gap-2 md:grid-cols-3">
                         <input
                             type="search"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Buscar por nicho ou @"
-                            className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-2.5 py-2 text-[11px] font-bold outline-none transition focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15"
+                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3.5 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15 placeholder:text-slate-400"
                         />
                         <select
                             value={minFollowers}
                             onChange={(e) => setMinFollowers(e.target.value)}
-                            className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-2.5 py-2 text-[11px] font-bold outline-none transition focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15"
+                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3.5 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15"
                         >
                             {followerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                         <select
                             value={minAvgInteractions}
                             onChange={(e) => setMinAvgInteractions(e.target.value)}
-                            className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-2.5 py-2 text-[11px] font-bold outline-none transition focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15"
+                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3.5 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15"
                         >
                             {interactionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
@@ -314,16 +329,16 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Buscar"
-                            className="w-full rounded-2xl border border-slate-100 bg-white pl-8 pr-12 py-2 text-[11px] font-semibold text-slate-600 outline-none transition focus:ring-2 focus:ring-[#FF4080]/15"
+                            className="w-full rounded-[1.25rem] border border-slate-200/70 bg-slate-50/80 pl-9 pr-14 py-3 text-[12px] font-semibold text-slate-700 shadow-inner outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15 placeholder:text-slate-400"
                         />
-                        <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 h-4 w-px bg-slate-200" />
+                        <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 h-4 w-px bg-slate-200/70" />
                         <button
                             type="button"
                             aria-label="Filtros"
                             onClick={() => setIsFilterOpen(true)}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg border border-slate-200 bg-slate-100/70 p-1.5 text-xs text-slate-600"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl border border-slate-200/70 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50"
                         >
-                            ⚙️
+                            <AdjustmentsHorizontalIcon className="h-4 w-4" />
                         </button>
                     </div>
                 </div>
@@ -336,7 +351,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                             className="absolute inset-0 bg-black/40"
                             onClick={() => setIsFilterOpen(false)}
                         />
-                        <div className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-4 shadow-2xl">
+                        <div className="absolute inset-x-0 bottom-0 rounded-t-[2rem] border border-white/70 bg-white/95 p-4 shadow-[0_-18px_40px_rgba(20,33,61,0.2)] backdrop-blur-xl">
                             <div className="flex items-center justify-between">
                                 <span className="text-sm font-black text-brand-dark">Filtros</span>
                                 <button
@@ -392,8 +407,6 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                     </div>
                 )}
 
-                <div className="md:hidden my-4 h-px bg-slate-200/60" />
-
                 {/* CONTENT */}
                 <div className="space-y-10 sm:space-y-12">
                     {loading && creators.length === 0 ? (
@@ -407,14 +420,17 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                         </div>
                     ) : (
                         <>
-                            {fullRails.map(rail => (
-                                <div key={rail.key} className="space-y-4 sm:space-y-6">
+                            {fullRails.map((rail) => (
+                                <div
+                                    key={rail.key}
+                                    className="space-y-4 sm:space-y-6 pt-12 border-t border-slate-100 sm:pt-16"
+                                >
                                     <div className="flex items-end justify-between px-2">
                                         <div>
                                             <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">{rail.title}</h3>
-                                            <p className="text-xs font-semibold text-slate-400 sm:text-sm">{rail.description}</p>
+                                            <p className="text-xs font-semibold text-slate-500 sm:text-sm">{rail.description}</p>
                                         </div>
-                                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#FF4080] bg-[#FF4080]/10 px-2.5 py-1 rounded-full">Top {rail.creators.length}</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-brand-primary bg-brand-primary/10 px-2.5 py-1 rounded-full">Top {rail.creators.length}</span>
                                     </div>
                                     <div className="flex gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory pl-2 pr-8">
                                         {rail.creators.map(c => (
@@ -429,7 +445,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                                     <div className="flex items-end justify-between px-2">
                                         <div>
                                             <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">Varias Narrativas</h3>
-                                            <p className="text-xs font-semibold text-slate-400 sm:text-sm">Criadores com alto potencial de engajamento crescendo na rede.</p>
+                                            <p className="text-xs font-semibold text-slate-500 sm:text-sm">Criadores com alto potencial de engajamento crescendo na rede.</p>
                                         </div>
                                     </div>
                                     <div className="flex gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory pl-2 pr-8">
@@ -461,47 +477,51 @@ function CastingRankCard({ creator, variant = "rail", onRequestMediaKit }: { cre
     const mediaKitHref = creator.mediaKitSlug ? `/mediakit/${creator.mediaKitSlug}` : null;
 
     return (
-        <article className={`relative flex-shrink-0 rounded-2xl border border-[#F0F2F7] bg-white shadow-[0_12px_28px_rgba(20,33,61,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(20,33,61,0.12)] ${variant === "rail" ? "w-[185px] snap-start" : "w-full"} p-3`}>
-            <div className="flex items-center justify-between">
-                <p className="truncate text-[11px] font-semibold text-[#727C8F]">@{creator.username || creator.name || "Criador"}</p>
-            </div>
+        <article
+            className={`relative flex-shrink-0 overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white shadow-[0_14px_30px_rgba(20,33,61,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(20,33,61,0.12)] ${variant === "rail" ? "w-[185px] snap-start" : "w-full"}`}
+        >
+            <div className="relative p-3">
+                <div className="flex items-center justify-between">
+                    <p className="truncate text-[11px] font-semibold text-[#727C8F]">@{creator.username || creator.name || "Criador"}</p>
+                </div>
 
-            <div>
-                <div className="mt-3 overflow-hidden rounded-2xl bg-[#F7F8FB] ring-1 ring-slate-100">
-                    <div className="relative w-full pb-[100%]">
-                        <UserAvatar
-                            name={creator.name || creator.username || "Criador"}
-                            src={creator.avatarUrl}
-                            size={240}
-                            className="absolute inset-0 h-full w-full rounded-none object-cover grayscale-[0.15] hover:grayscale-0 transition-all duration-500"
-                        />
+                <div>
+                    <div className="mt-3 overflow-hidden rounded-[1.15rem] bg-[#F7F8FB] ring-1 ring-slate-100/80">
+                        <div className="relative w-full pb-[100%]">
+                            <UserAvatar
+                                name={creator.name || creator.username || "Criador"}
+                                src={creator.avatarUrl}
+                                size={240}
+                                className="absolute inset-0 h-full w-full rounded-none object-cover grayscale-[0.1] hover:grayscale-0 transition-all duration-500"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-3.5">
+                        <p className="text-sm font-black text-[#141C2F] leading-tight truncate">{creator.name}</p>
+                    </div>
+
+                    <div className="mt-3.5 grid grid-cols-2 gap-y-2 border-t border-slate-100/70 pt-3 pb-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#A3A9B6]">
+                        <span>Seguidores</span>
+                        <span className="text-right text-[#141C2F]">{followersText}</span>
+                        <span className="text-[#FF4080]">Engajamento</span>
+                        <span className="text-right text-[#FF4080]">{engagementRate ? `${engagementRate.toFixed(1)}%` : "–"}</span>
+                        <span>Alcance M</span>
+                        <span className="text-right text-[#141C2F]">{avgReachText}</span>
                     </div>
                 </div>
 
-                <div className="mt-3.5">
-                    <p className="text-sm font-black text-[#141C2F] leading-tight truncate">{creator.name}</p>
+                <div className="pt-3">
+                    {mediaKitHref ? (
+                        <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#141C2F] py-2.5 text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                            Ver Mídia Kit →
+                        </a>
+                    ) : (
+                        <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#141C2F] py-1.5 text-[11px] font-black text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white">
+                            Solicitar Acesso
+                        </button>
+                    )}
                 </div>
-
-                <div className="mt-3.5 grid grid-cols-2 gap-y-2 border-t border-slate-50 pt-3 pb-1 text-[9px] font-black uppercase tracking-[0.2em] text-[#A3A9B6]">
-                    <span>Seguidores</span>
-                    <span className="text-right text-[#141C2F]">{followersText}</span>
-                    <span className="text-[#FF4080]">Engajamento</span>
-                    <span className="text-right text-[#FF4080]">{engagementRate ? `${engagementRate.toFixed(1)}%` : "–"}</span>
-                    <span>Alcance M</span>
-                    <span className="text-right text-[#141C2F]">{avgReachText}</span>
-                </div>
-            </div>
-
-            <div className="pt-3">
-                {mediaKitHref ? (
-                    <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#141C2F] py-2.5 text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
-                        Ver Mídia Kit →
-                    </a>
-                ) : (
-                    <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#141C2F] py-1.5 text-[11px] font-black text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white">
-                        Solicitar Acesso
-                    </button>
-                )}
             </div>
         </article>
     );

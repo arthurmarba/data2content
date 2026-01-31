@@ -1172,8 +1172,8 @@ export default function HomeClientPage() {
     if (!isInstagramConnected) {
       return {
         subtitle:
-          "Conecte seu Instagram e receba um relatório gratuito com horários e tendências personalizadas.",
-        helper: "Leitura somente leitura • Sorteio de análise ativado automaticamente.",
+          "Conecte seu Instagram para começar.",
+        helper: "Leva menos de 30s.",
         ctaLabel: "🔗 Conectar Instagram",
         onClick: handleHeaderConnectInstagram,
       };
@@ -1181,8 +1181,8 @@ export default function HomeClientPage() {
 
     if (!whatsappLinked && !whatsappTrialActive && !whatsappTrialStarted && whatsappTrialEligible) {
       return {
-        subtitle: "Sua IA está quase pronta — ative no WhatsApp com o Plano Pro.",
-        helper: "Conexão segura, leva menos de 30s.",
+        subtitle: "Ative sua IA no WhatsApp.",
+        helper: "Conexão segura em segundos.",
         ctaLabel: TRIAL_CTA_LABEL,
         onClick: handleHeaderStartTrial,
       };
@@ -1190,7 +1190,7 @@ export default function HomeClientPage() {
 
     if (!planIsPro) {
       return {
-        subtitle: "Ative o Modo Pro para manter a IA ligada sem limites e receber oportunidades de publicidade sem exclusividade.",
+        subtitle: "Ative o Plano Pro para manter a IA ligada sem limites.",
         helper: null,
         ctaLabel: "🚀 Assinar Plano Pro",
         onClick: handleHeaderSubscribe,
@@ -1199,9 +1199,8 @@ export default function HomeClientPage() {
 
     if (!communityFreeMember && !communityVipMember) {
       return {
-        subtitle:
-          "Entre na comunidade para participar das mentorias semanais e trocar com outros criadores.",
-        helper: "Acesso imediato • Mentorias e desafios guiados.",
+        subtitle: "Entre na comunidade para avançar mais rápido.",
+        helper: "Acesso imediato.",
         ctaLabel: "🌎 Entrar na comunidade",
         onClick: () => handleJoinFreeCommunity("hero"),
       };
@@ -1209,7 +1208,7 @@ export default function HomeClientPage() {
 
     if (planIsPro && !whatsappLinked) {
       return {
-        subtitle: "Conecte o WhatsApp para seguir recebendo alertas inteligentes e convites de publicidade.",
+        subtitle: "Conecte o WhatsApp para receber alertas.",
         helper: "Conexão segura em segundos.",
         ctaLabel: "🔔 Conectar alertas no WhatsApp",
         onClick: handleHeaderStartTrial,
@@ -1218,7 +1217,7 @@ export default function HomeClientPage() {
 
     if (planIsPro) {
       return {
-        subtitle: "Continue acompanhando seus alertas, relatórios e oportunidades no painel do Plano Pro.",
+        subtitle: "Abra o painel do Plano Pro para continuar.",
         helper: null,
         ctaLabel: "📊 Abrir painel Plano Pro",
         onClick: () => handleNavigate("/dashboard"),
@@ -1226,8 +1225,8 @@ export default function HomeClientPage() {
     }
     return {
       subtitle: whatsappLinked
-        ? "Receba alertas no WhatsApp; para ideias e dúvidas, abra o Chat AI."
-        : "Entre na comunidade para acompanhar os próximos desafios.",
+        ? "Abra o WhatsApp para acompanhar alertas."
+        : "Entre na comunidade para acompanhar desafios.",
       helper: null,
       ctaLabel: whatsappLinked ? "📱 Abrir WhatsApp (alertas)" : "🌎 Ver comunidade",
       onClick: whatsappLinked ? handleOpenWhatsApp : () => handleJoinFreeCommunity("hero"),
@@ -1281,7 +1280,7 @@ export default function HomeClientPage() {
     ? "Bem-vindo! Veja o que você pode fazer primeiro 👇"
     : "Seu progresso na Data2Content";
   const progressDescription = isNewUser
-    ? "Conecte o Instagram, ative alertas no WhatsApp, participe da comunidade e escolha seu plano ideal."
+    ? "Comece pelo próximo passo para liberar suas análises."
     : journeyStageInfo.label;
   const toolCards = React.useMemo(() => {
     const plannerMetric = !isInstagramConnected
@@ -1842,12 +1841,9 @@ export default function HomeClientPage() {
               ) : null}
             </div>
             <div className="text-left text-sm font-semibold text-slate-500 sm:text-right">
-              <p>{journeyStageInfo.label}</p>
-              {isNewUser ? (
-                <p className="text-xs text-slate-400">
-                  {progressCompletedCount}/{progressTotalCount} passos concluídos
-                </p>
-              ) : null}
+              <p className="text-xs text-slate-400">
+                {progressCompletedCount}/{progressTotalCount} etapas concluídas
+              </p>
             </div>
           </div>
           <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
@@ -1855,12 +1851,6 @@ export default function HomeClientPage() {
               className="h-full rounded-full bg-[#F6007B] transition-[width]"
               style={{ width: `${stageProgressPercent}%` }}
             />
-          </div>
-          <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
-            <span>
-              {progressCompletedCount}/{progressTotalCount} etapas concluídas
-            </span>
-            <span>{stageProgressPercent}% da jornada</span>
           </div>
           <div className="mt-5 flex flex-col gap-3">
             {progressItems.map((item) => {
@@ -1994,8 +1984,7 @@ export default function HomeClientPage() {
                   Bem-vindo à Data2Content
                 </p>
                 <p className="text-sm font-semibold">
-                  Veja o que destrava seus diagnósticos: conecte o Instagram, ative os alertas no WhatsApp,
-                  entre na comunidade e escolha seu plano ideal.
+                  Vamos destravar seu diagnóstico com poucos passos.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -2021,9 +2010,6 @@ export default function HomeClientPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl space-y-4 text-center lg:text-left">
               <div className="space-y-2">
-                <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500 lg:justify-start">
-                  {`Etapa ${journeyStageInfo.step} de ${journeyStageInfo.total} · ${journeyStageInfo.label}`}
-                </span>
                 <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
                   <span aria-hidden="true">👋</span>{" "}
                   {isNewUser ? (
@@ -2095,12 +2081,9 @@ export default function HomeClientPage() {
               ) : null}
             </div>
             <div className="text-left text-sm font-semibold text-slate-500 sm:text-right">
-              <p>{journeyStageInfo.label}</p>
-              {isNewUser ? (
-                <p className="text-xs text-slate-400">
-                  {progressCompletedCount}/{progressTotalCount} passos concluídos
-                </p>
-              ) : null}
+              <p className="text-xs text-slate-400">
+                {progressCompletedCount}/{progressTotalCount} etapas concluídas
+              </p>
             </div>
           </div>
           <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
@@ -2108,12 +2091,6 @@ export default function HomeClientPage() {
               className="h-full rounded-full bg-[#F6007B] transition-[width]"
               style={{ width: `${stageProgressPercent}%` }}
             />
-          </div>
-          <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
-            <span>
-              {progressCompletedCount}/{progressTotalCount} etapas concluídas
-            </span>
-            <span>{stageProgressPercent}% da jornada</span>
           </div>
           <div className="mt-5 flex flex-col gap-3">
             {progressItems.map((item) => {

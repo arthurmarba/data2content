@@ -489,19 +489,8 @@ export default function Header() {
 
 
   const effectiveCta = useMemo<HeaderCta | null>(() => {
-    const isHomePage = pathname === "/dashboard";
-    if (isHomePage) return null;
-    if (config.cta) return config.cta;
-    if (planActive) return null;
-    if (config.variant === "default") {
-      return {
-        label: "Ativar Plano Pro",
-        icon: <FaWhatsapp className="w-5 h-5" />,
-        onClick: handleOpenSubscribeModal,
-      };
-    }
     return null;
-  }, [config, handleOpenSubscribeModal, pathname, planActive]);
+  }, []);
 
   const effectiveTitleValue = config.title ?? null;
   const effectiveSubtitleValue = config.subtitle ?? null;

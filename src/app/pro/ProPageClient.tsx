@@ -5,10 +5,8 @@ import Link from "next/link";
 import {
   Check,
   Sparkles,
-  Shield,
   Mail,
-  Calculator,
-  Calendar,
+  ShieldCheck,
   ArrowRight,
   ArrowUpRight,
   Compass,
@@ -39,55 +37,33 @@ type ProPageClientProps = {
 };
 
 const HERO_COPY = {
-  title: "Posicione seu conteúdo para atrair marcas com IA.",
+  title: "Plano Pro: IA + mentorias para negociar direto com marcas.",
   subtitle:
-    "Plano Pro: estratégia guiada, alertas no WhatsApp e mentorias semanais para você negociar direto com as marcas. Dúvidas com IA ficam no Chat AI dentro do app.",
-  helper:
-    "Você segue dono do relacionamento; as marcas chegam a você. Só assinatura fixa, 0% de comissão nas publis.",
+    "Mídia kit auditado, mentorias semanais e negociação assistida para negociar direto com marcas.",
+  helper: "Assinatura fixa, sem comissão, com autonomia total.",
 };
 
 const BENEFITS = [
   {
-    title: "Negociação com IA",
-    description: "Faixa justa automática + recomendações para aceitar, ajustar ou pedir extra em cada proposta.",
-    icon: <Sparkles className="h-6 w-6" />,
+    title: "Mídia kit auditado + vitrine",
+    description: "Perfil profissional pronto para marcas e destaque no marketplace.",
+    icon: <ShieldCheck className="h-6 w-6" />,
   },
   {
-    title: "Campanhas inbound",
-    description: "Inbox direto no seu nome: as marcas chegam, você responde com IA e conduz a negociação.",
+    title: "Inbox de oportunidades",
+    description: "Propostas diretas no seu nome com resposta assistida por IA.",
     icon: <Mail className="h-6 w-6" />,
   },
   {
-    title: "Calculadora + Diagnóstico",
-    description: "Valores estratégicos, justos e premium com base nas suas métricas e histórico em segundos.",
-    icon: <Calculator className="h-6 w-6" />,
-  },
-  {
-    title: "Planejamento Pro",
-    description: "Slots guiados por IA, alertas no WhatsApp e referências da comunidade para subir sua autoridade.",
-    icon: <Calendar className="h-6 w-6" />,
+    title: "Negociação + precificação com IA",
+    description: "Faixa justa automática e respostas claras para fechar rápido.",
+    icon: <Sparkles className="h-6 w-6" />,
   },
   {
     title: "Mentorias + alertas no WhatsApp",
-    description: "Mentoria estratégica semanal e alertas pelo WhatsApp; para conversar com a IA, abra o Chat AI na plataforma.",
+    description: "Acompanhamento semanal e alertas para manter consistência.",
     icon: <MessageCircle className="h-6 w-6" />,
   },
-  {
-    title: "Comissão zero",
-    description: "Intermediários cobram 10%–30% e exigem exclusividade; no Plano Pro você paga só a assinatura e fica com todo o valor das publis.",
-    icon: <Shield className="h-6 w-6" />,
-  },
-];
-
-const COMPARISON = [
-  { feature: "Receber propostas e visualizar detalhes", free: true, pro: true },
-  { feature: "Responder com IA e enviar pela plataforma", free: false, pro: true },
-  { feature: "Calculadora dinâmica baseada nas suas métricas", free: false, pro: true },
-  { feature: "Planejamento Pro (Descoberta/Planner/alertas no WhatsApp)", free: false, pro: true },
-  { feature: "Mentorias semanais e nudges personalizados", free: false, pro: true },
-  { feature: "Oportunidades de campanha sem exclusividade", free: false, pro: true },
-  { feature: "Posicionamento para atrair marcas (IA + mentoria)", free: false, pro: true },
-  { feature: "0% de comissão sobre publis (só assinatura)", free: false, pro: true },
 ];
 
 const FAQS = [
@@ -97,14 +73,24 @@ const FAQS = [
       "Sim. Você controla a assinatura dentro do app, sem multas. Se cancelar, mantém o acesso até o fim do ciclo contratado.",
   },
   {
-    question: "O que a IA considera na faixa justa?",
+    question: "O que é o mídia kit auditado?",
     answer:
-      "Além das suas métricas, usamos setor, formato, engajamento recente e histórico de campanhas para sugerir valores coerentes.",
+      "É a versão profissional do seu mídia kit com revisão estratégica e foco em conversão para marcas.",
   },
   {
-    question: "Como funciona o reply-to do e-mail?",
+    question: "Como funciona o review de posts?",
     answer:
-      "A marca recebe o e-mail com seu endereço como reply-to. Assim, qualquer resposta cai direto na sua caixa de entrada.",
+      "Você envia seu conteúdo e recebe vereditos claros com ajustes antes de publicar.",
+  },
+  {
+    question: "O que muda no marketplace para quem é Pro?",
+    answer:
+      "Seu perfil ganha destaque e mais visibilidade para marcas que buscam creators auditados.",
+  },
+  {
+    question: "O Chat IA substitui as mentorias?",
+    answer:
+      "Não. O Chat IA resolve dúvidas rápidas no dia a dia; as mentorias fazem o direcionamento estratégico.",
   },
   {
     question: "Como são feitas as cobranças?",
@@ -122,48 +108,37 @@ const FAQS = [
       "Ajustes de posicionamento, pitch, pricing e revisão de deals. É um espaço para dúvidas táticas e acompanhamento contínuo.",
   },
   {
-    question: "Os alertas do WhatsApp dependem de integrar o Instagram?",
+    question: "Quando o acesso Pro é liberado?",
     answer:
-      "Recomendamos conectar o Instagram para diagnósticos mais precisos. Os alertas usam seus dados e qualquer conversa com IA acontece no Chat AI do app.",
-  },
-  {
-    question: "Posso trocar o período (mensal/anual) depois?",
-    answer:
-      "Sim. Você pode mudar o período na gestão de assinatura. A alteração passa a valer no próximo ciclo de cobrança.",
+      "Assim que o pagamento é confirmado, o acesso é liberado automaticamente.",
   },
 ];
 
 const UNLOCKED_SURFACES = [
   {
     title: "Planejamento Pro",
-    description: "Slots com IA, previsões de alcance e alertas no WhatsApp para cada entrega (dúvidas no Chat AI).",
+    description: "Planner com IA, previsões e alertas para cada entrega.",
     href: "/dashboard/planning",
   },
   {
-    title: "Descoberta da Comunidade",
-    description:
-      "Biblioteca viva de benchmarks, ideias e referências exclusivas dos creators do Plano Pro.",
+    title: "Discovery da comunidade",
+    description: "Benchmarks e referências exclusivas para acelerar resultados.",
     href: "/dashboard/discover",
   },
   {
     title: "Inbox de oportunidades",
-    description: "Marcas chegam direto para você; responda com IA e mantenha autonomia total.",
+    description: "Propostas diretas com resposta assistida por IA.",
     href: "/campaigns",
   },
-];
-
-const FLOW_STEPS = [
   {
-    title: "Descubra",
-    description: "A IA analisa sua conta, cruza com a base comunitária e aponta temas/formats quentes.",
+    title: "Review de posts",
+    description: "Vereditos claros para ajustar antes de publicar.",
+    href: "/dashboard/post-analysis",
   },
   {
-    title: "Planeje",
-    description: "Slots prontos no planner Pro, com previsões e alertas para manter a consistência.",
-  },
-  {
-    title: "Negocie",
-    description: "Receba campanhas sem exclusividade, use reply com IA e faixa justa para fechar rápido.",
+    title: "Chat IA estratégico",
+    description: "Decisões rápidas e dúvidas resolvidas dentro do app.",
+    href: "/dashboard/chat",
   },
 ];
 
@@ -321,7 +296,7 @@ export default function ProPageClient({
 
   return (
     <>
-      <main className="dashboard-page-shell py-10 space-y-16">
+      <main className="dashboard-page-shell py-10 space-y-12">
         <section className="space-y-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#F6007B]/20 bg-[#F6007B]/5 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#F6007B]">
             <Sparkles className="h-4 w-4" /> Plano Pro
@@ -368,8 +343,7 @@ export default function ProPageClient({
             <div className="mx-auto max-w-xl rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900 shadow-sm">
               <p className="font-semibold">Plano Pro ativo ✅</p>
               <p className="mt-1 text-emerald-800">
-                Explore as propostas com IA e mantenha seu planejamento atualizado para aproveitar
-                cada campanha com segurança.
+                Acesse mentorias, alertas no WhatsApp e negociação assistida sempre que precisar.
               </p>
             </div>
           )}
@@ -412,72 +386,12 @@ export default function ProPageClient({
           ))}
         </section>
 
-        <section className="rounded-3xl border border-slate-100 bg-slate-50/50 p-8 shadow-sm">
-          <header className="mb-8 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#F6007B]">Fluxo Plano Pro</p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900">Como a IA guia sua semana</h2>
-            <p className="mt-2 text-sm text-slate-600">Descubra, planeje e responda como profissional — mantendo sua autonomia.</p>
-          </header>
-          <div className="grid gap-4 md:grid-cols-3">
-            {FLOW_STEPS.map((step, index) => (
-              <div key={step.title} className="relative rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#F6007B]/10 text-lg font-bold text-[#F6007B]">
-                  {index + 1}
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">{step.title}</h3>
-                <p className="mt-2 text-sm text-slate-600 leading-relaxed">{step.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-8">
-          <header className="text-center sm:text-left">
-            <h2 className="text-2xl font-bold text-slate-900">Compare Free vs Plano Pro</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Sem pegadinhas: veja o que é liberado em cada plano.
-            </p>
-          </header>
-          <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-slate-100 text-left text-sm text-slate-700">
-              <thead className="bg-slate-50/50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-6 py-4 font-semibold">Recurso</th>
-                  <th className="px-6 py-4 font-semibold text-center">Free</th>
-                  <th className="px-6 py-4 font-semibold text-center text-[#F6007B]">Plano Pro</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {COMPARISON.map((row) => (
-                  <tr key={row.feature} className="transition-colors hover:bg-slate-50/50">
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{row.feature}</td>
-                    <td className="px-6 py-4 text-center">
-                      {row.free ? (
-                        <Check className="mx-auto h-5 w-5 text-emerald-500" />
-                      ) : (
-                        <span className="text-xs font-medium text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {row.pro ? (
-                        <Check className="mx-auto h-5 w-5 text-[#F6007B]" />
-                      ) : (
-                        <span className="text-xs font-medium text-slate-300">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
         {!hasProAccess && (
           <section className="grid gap-8 md:grid-cols-5 md:items-start" id="pricing">
             <div className="md:col-span-2 space-y-4">
               <h2 className="text-2xl font-bold text-slate-900">Escolha como quer assinar</h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Defina período e moeda. Annual traz economia; mensal mantém flexibilidade.
+                Escolha mensal ou anual. O anual traz economia.
               </p>
               {pricesError && (
                 <p className="text-sm font-semibold text-red-600">{pricesError}</p>
@@ -561,31 +475,19 @@ export default function ProPageClient({
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-3.5 w-3.5" />
                           </div>
-                          <span>Acesso imediato ao Planner, alertas no WhatsApp e discovery da comunidade (dúvidas no Chat AI).</span>
+                          <span>Mídia kit auditado + vitrine no marketplace.</span>
                         </li>
                         <li className="flex items-start gap-3 text-sm text-slate-600">
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-3.5 w-3.5" />
                           </div>
-                          <span>Mentorias semanais do Grupo VIP para ajustar conteúdo, pricing e pitch.</span>
+                          <span>Mentorias semanais e alertas no WhatsApp.</span>
                         </li>
                         <li className="flex items-start gap-3 text-sm text-slate-600">
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-3.5 w-3.5" />
                           </div>
-                          <span>Inbox de oportunidades e respostas com IA para negociar direto com as marcas.</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-sm text-slate-600">
-                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                            <Check className="h-3.5 w-3.5" />
-                          </div>
-                          <span>Cancelamento simples direto no app.</span>
-                        </li>
-                        <li className="flex items-start gap-3 text-sm text-slate-600">
-                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                            <Check className="h-3.5 w-3.5" />
-                          </div>
-                          <span>Nota fiscal e recibos automáticos por e-mail.</span>
+                          <span>Negociação e precificação com IA + review de posts.</span>
                         </li>
                       </ul>
 
@@ -622,35 +524,6 @@ export default function ProPageClient({
           </section>
         )}
 
-        <section className="rounded-3xl border border-slate-100 bg-slate-50/50 p-8 shadow-sm">
-          <div className="grid gap-8 md:grid-cols-2 md:items-center">
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold text-slate-900">Que telas eu libero com o Plano Pro?</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Planejamento com IA, descoberta da comunidade e inbox de oportunidades — tudo pronto para você negociar direto.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "Ver planner", href: "/dashboard/planning" },
-                { label: "Ver discovery", href: "/dashboard/discover" },
-                { label: "Campanhas", href: "/campaigns" },
-                { label: "Calculadora de Publi", href: "/dashboard/calculator" },
-                { label: "Chat IA", href: "/dashboard/chat" },
-              ].map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900 hover:shadow-md"
-                >
-                  {link.label}
-                  <ArrowUpRight className="h-3.5 w-3.5 text-slate-400" />
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section id="faq" className="space-y-8">
           <header className="text-center">
             <h2 className="text-2xl font-bold text-slate-900">Perguntas frequentes</h2>
@@ -680,7 +553,7 @@ export default function ProPageClient({
               Pronto para responder com IA e fechar sua próxima campanha?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">
-              Ative o Plano Pro para liberar análise, e-mail, calculadora e planejamento em um só clique.
+              Ative o Plano Pro para liberar mídia kit auditado, mentorias e negociação assistida.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               {!needsPaymentAction ? (
