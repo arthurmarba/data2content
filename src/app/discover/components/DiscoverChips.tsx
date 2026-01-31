@@ -106,11 +106,6 @@ const buildSelectedFromParams = (params: SearchParamsLike): SelectedFilters => {
   return state;
 };
 
-const isVideoOnlyParam = (params: SearchParamsLike): boolean => {
-  const raw = params.get("videoOnly");
-  return raw === "1" || raw === "true" || raw === "yes";
-};
-
 export default function DiscoverChips({ defaultView = "master", onViewChange }: DiscoverChipsProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
@@ -122,17 +117,12 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   const [appliedFilters, setAppliedFilters] = useState<SelectedFilters>(
     () => buildSelectedFromParams(params)
   );
-  const [videoOnly, setVideoOnly] = useState<boolean>(() => isVideoOnlyParam(params));
-  const [appliedVideoOnly, setAppliedVideoOnly] = useState<boolean>(() => isVideoOnlyParam(params));
   const [currentView, setCurrentView] = useState<ViewState>(defaultView);
 
   useEffect(() => {
     const next = buildSelectedFromParams(params);
     setSelectedFilters(next);
     setAppliedFilters(next);
-    const nextVideoOnly = isVideoOnlyParam(params);
-    setVideoOnly(nextVideoOnly);
-    setAppliedVideoOnly(nextVideoOnly);
   }, [params]);
 
   useEffect(() => {
@@ -145,7 +135,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
 
   const hasSelections = MASTER_ORDER.some(
     (key) => selectedFilters[key].length > 0
-  ) || videoOnly;
+  );
 
   const filtersMatch = useCallback((a: SelectedFilters, b: SelectedFilters) => {
     return MASTER_ORDER.every((key) => {
@@ -157,7 +147,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   }, []);
 
   const updateUrl = useCallback(
-    (nextState: SelectedFilters, nextVideoOnly: boolean) => {
+    (nextState: SelectedFilters) => {
       const search = new URLSearchParams(params.toString());
       MASTER_ORDER.forEach((key) => {
         const values = nextState[key];
@@ -167,11 +157,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
           search.delete(key);
         }
       });
-      if (nextVideoOnly) {
-        search.set("videoOnly", "1");
-      } else {
-        search.delete("videoOnly");
-      }
+      search.delete("videoOnly");
       const query = search.toString();
       const href = query ? `${pathname}?${query}` : pathname;
       router.replace(href, { scroll: false });
@@ -180,15 +166,14 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   );
 
   const hasPendingChanges = useMemo(
-    () => !filtersMatch(selectedFilters, appliedFilters) || videoOnly !== appliedVideoOnly,
-    [filtersMatch, selectedFilters, appliedFilters, videoOnly, appliedVideoOnly]
+    () => !filtersMatch(selectedFilters, appliedFilters),
+    [filtersMatch, selectedFilters, appliedFilters]
   );
 
   const applyFilters = useCallback(
-    (nextState: SelectedFilters, nextVideoOnly: boolean) => {
+    (nextState: SelectedFilters) => {
       setAppliedFilters(nextState);
-      setAppliedVideoOnly(nextVideoOnly);
-      updateUrl(nextState, nextVideoOnly);
+      updateUrl(nextState);
     },
     [updateUrl]
   );
@@ -219,14 +204,13 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   const handleClearAll = useCallback(() => {
     const emptyState = createEmptySelection();
     setSelectedFilters(emptyState);
-    setVideoOnly(false);
-    applyFilters(emptyState, false);
+    applyFilters(emptyState);
     setCurrentView("master");
   }, [applyFilters]);
 
   const handleApplyFilters = useCallback(() => {
-    applyFilters(selectedFilters, videoOnly);
-  }, [applyFilters, selectedFilters, videoOnly]);
+    applyFilters(selectedFilters);
+  }, [applyFilters, selectedFilters]);
 
   const currentCategory =
     currentView === "master"
@@ -240,7 +224,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
   }, [currentCategory, currentView]);
 
   return (
-    <div className="filter-container flex flex-nowrap overflow-x-auto hide-scrollbar items-center gap-1.5 p-1 sm:flex-wrap sm:overflow-visible sm:p-2">
+    <div className="filter-container flex flex-wrap overflow-visible items-center gap-1.5 p-1 sm:flex-wrap sm:overflow-visible sm:p-2">
       <style jsx global>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -258,17 +242,6 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
 
       {currentView === "master" && (
         <>
-          <button
-            type="button"
-            onClick={() => setVideoOnly((prev) => !prev)}
-            className={`filter-button-master inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${videoOnly
-                ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
-              }`}
-            aria-pressed={videoOnly}
-          >
-            Somente vídeos
-          </button>
           {FILTER_DATA.map((category) => {
             const hasSelection = selectedFilters[category.id].length > 0;
             return (
@@ -276,7 +249,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={category.id}
                 type="button"
                 onClick={() => handleMasterClick(category.id)}
-                className={`filter-button-master inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${hasSelection
+                className={`filter-button-master inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${hasSelection
                     ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                   }`}
@@ -301,37 +274,39 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
       )}
 
       {currentView !== "master" && currentCategory && (
-        <>
+        <div className="w-full space-y-2">
           <span className="inline-flex items-center rounded-full bg-brand-magenta/10 px-3 py-1.5 text-sm font-semibold text-brand-magenta">
             {currentCategory.label}
           </span>
-          {currentCategory.options.map((option) => {
-            const isSelected = selectedFilters[currentCategory.id].includes(option.id);
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => toggleFilter(currentCategory.id, option.id)}
-                className={`filter-button-child inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-medium text-left whitespace-nowrap transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${isSelected
-                    ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
-                  }`}
-                aria-pressed={isSelected}
-              >
-                <CheckIcon
-                  className={`h-4 w-4 transition ${isSelected ? "opacity-100 text-brand-magenta" : "opacity-0 text-transparent"
+          <div className="flex flex-wrap items-start gap-2">
+            {currentCategory.options.map((option) => {
+              const isSelected = selectedFilters[currentCategory.id].includes(option.id);
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => toggleFilter(currentCategory.id, option.id)}
+                  className={`filter-button-child inline-flex min-w-[8.5rem] items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-medium text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta sm:min-w-max ${isSelected
+                      ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                     }`}
-                  aria-hidden="true"
-                />
-                <span>{option.label}</span>
-              </button>
-            );
-          })}
-        </>
+                  aria-pressed={isSelected}
+                >
+                  <CheckIcon
+                    className={`h-4 w-4 transition ${isSelected ? "opacity-100 text-brand-magenta" : "opacity-0 text-transparent"
+                      }`}
+                    aria-hidden="true"
+                  />
+                  <span className="whitespace-nowrap">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {(hasPendingChanges || hasSelections) && (
-        <div className="ml-auto flex w-full flex-wrap items-center gap-1.5 justify-end sm:w-auto sm:flex-nowrap">
+        <div className="flex w-full flex-wrap items-center gap-1.5 justify-end sm:ml-auto sm:w-auto sm:flex-nowrap">
           {hasPendingChanges && (
             <button
               type="button"
