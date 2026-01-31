@@ -262,17 +262,14 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                     <div className="relative overflow-hidden rounded-[2.5rem] border border-white/70 bg-white/70 p-5 shadow-[0_24px_60px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:p-8">
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#FF2C7E22,transparent_45%),radial-gradient(circle_at_80%_10%,#246BFD18,transparent_50%)]" />
                         <div className="relative space-y-5 sm:space-y-6">
-                            <header className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-left">
-                                <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
-                                    Ranking
-                                </span>
+                            <header className="flex flex-col items-center gap-3 text-center">
                                 <h2 className="text-4xl font-black text-brand-dark sm:text-5xl lg:text-6xl tracking-tight text-balance">
                                     Marketplace de Criadores
                                 </h2>
                             </header>
 
                             {marketplaceMetrics.length > 0 && (
-                                <div className="mx-auto w-full max-w-3xl">
+                                <div className="mx-auto w-full max-w-3xl sm:mx-0 sm:hidden">
                                     <div className="rounded-[1.75rem] border border-white/80 bg-white/80 px-4 py-4 shadow-[0_16px_36px_rgba(20,33,61,0.08)] backdrop-blur-xl">
                                         <div className="grid grid-cols-3">
                                             {marketplaceMetrics.map((metric) => {
