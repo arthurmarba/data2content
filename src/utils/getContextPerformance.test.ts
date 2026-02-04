@@ -2,9 +2,17 @@ import { Types } from 'mongoose';
 import getTopPerformingContext from './getTopPerformingContext'; // Ajuste
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric'; // Ajuste
 import { getNestedValue } from "./dataAccessHelpers"; // Importar a função compartilhada
+import { logger } from '@/app/lib/logger';
+import { connectToDatabase } from '@/app/lib/mongoose';
 
 jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
+}));
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
+}));
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
 }));
 
 
@@ -15,6 +23,7 @@ describe('getTopPerformingContext', () => {
 
   beforeEach(() => {
     (MetricModel.find as jest.Mock).mockReset();
+    (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
   });
 
   const setupFindMock = (result: any, isError = false) => {
@@ -28,6 +37,7 @@ describe('getTopPerformingContext', () => {
   };
 
   const mockPostWithContext = (id: string, context: string | null | undefined, interactions: number | null): Partial<IMetric> => {
+    const resolvedId = Types.ObjectId.isValid(id) ? id : new Types.ObjectId().toString();
     const stats: Partial<IMetricStats> = {};
     if (interactions !== null) {
       // Usar o helper getNestedValue para definir o valor pode ser um exagero aqui,
@@ -38,10 +48,10 @@ describe('getTopPerformingContext', () => {
        // Adicionar outros campos conforme necessário para diferentes performanceMetricField
     }
     return {
-      _id: new Types.ObjectId(id),
+      _id: new Types.ObjectId(resolvedId),
       user: new Types.ObjectId(userId),
       postDate: new Date(),
-      context: context,
+      context: typeof context === 'string' ? [context] : context,
       stats: Object.keys(stats).length > 0 ? stats : undefined,
     };
   };
@@ -102,11 +112,9 @@ describe('getTopPerformingContext', () => {
 
    test('Erro no DB retorna null', async () => {
     setupFindMock(new Error("DB Error"), true);
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result).toBeNull();
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
+    expect((logger as any).error).toHaveBeenCalled();
   });
 
   test('Ignora posts com contexto nulo/undefined ao calcular médias', async () => {

@@ -8,7 +8,7 @@ import ChatMessageLogModel from "@/app/models/ChatMessageLog";
 import { FEEDBACK_REASON_CODES } from "@/app/lib/feedbackReasons";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const userId = (session?.user as any)?.id || null;
 
   try {

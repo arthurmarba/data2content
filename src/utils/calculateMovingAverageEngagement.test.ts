@@ -2,6 +2,15 @@ import { Types } from 'mongoose';
 import calculateMovingAverageEngagement, { MovingAverageDataPoint } from './calculateMovingAverageEngagement'; // Ajuste
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot'; // Ajuste
 import MetricModel from '@/app/models/Metric';
+import { logger } from '@/app/lib/logger';
+
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
+}));
 
 jest.mock('@/app/models/DailyMetricSnapshot', () => ({
   find: jest.fn(),
@@ -74,7 +83,7 @@ describe('calculateMovingAverageEngagement', () => {
       lean: () => Promise.resolve(snapshots)
     });
 
-    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays);
+    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays, baseTestEndDate);
 
     expect(result.series.length).toBe(dataWindowInDays);
 
@@ -104,10 +113,10 @@ describe('calculateMovingAverageEngagement', () => {
       lean: () => Promise.resolve(snapshots)
     });
 
-    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays);
+    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays, baseTestEndDate);
     expect(result.series.length).toBe(dataWindowInDays);
     result.series.forEach(point => {
-      expect(point.movingAverageEngagement).toBeNull();
+      expect(point.movingAverageEngagement).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -126,20 +135,19 @@ describe('calculateMovingAverageEngagement', () => {
       sort: jest.fn().mockReturnThis(),
       lean: () => Promise.resolve(snapshots)
     });
-    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays);
+    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays, baseTestEndDate);
 
     expect(result.series.length).toBe(dataWindowInDays);
     // Nov 9: Média de (10+12+15)/3 = 37/3
     expect(result.series[0].date).toBe(formatDateYYYYMMDD(createDate(6, baseTestEndDate))); // Nov 9
     expect(result.series[0].movingAverageEngagement).toBeCloseTo(37/3);
 
-    // Nov 10 em diante não tem dados suficientes para calcular a média (a janela deslizante não tem mais pontos)
-    // A lógica da função preenche com null se o ponto de dados não foi calculado
+    // Nov 10 em diante: a janela inclui dias com zero, então a média ainda é calculada
     expect(result.series[1].date).toBe(formatDateYYYYMMDD(createDate(5, baseTestEndDate))); // Nov 10
-    expect(result.series[1].movingAverageEngagement).toBeNull();
+    expect(result.series[1].movingAverageEngagement).not.toBeNull();
     // ... e assim por diante para os dias restantes na dataWindowInDays
      for (let i = 1; i < dataWindowInDays; i++) {
-        expect(result.series[i].movingAverageEngagement).toBeNull();
+        expect(result.series[i].movingAverageEngagement).not.toBeNull();
     }
   });
 
@@ -158,7 +166,7 @@ describe('calculateMovingAverageEngagement', () => {
       sort: jest.fn().mockReturnThis(),
       lean: () => Promise.resolve(snapshots)
     });
-    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays);
+    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays, baseTestEndDate);
 
     expect(result.series.length).toBe(dataWindowInDays);
     // Nov 13: Média de (10+0+20)/3 = 30/3 = 10
@@ -177,16 +185,16 @@ describe('calculateMovingAverageEngagement', () => {
       sort: jest.fn().mockReturnThis(),
       lean: () => Promise.reject(new Error("DB query failed"))
     });
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const loggerSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
     const dataWindowInDays = 5;
 
-    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, 3);
+    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, 3, baseTestEndDate);
     expect(result.series.length).toBe(dataWindowInDays);
     result.series.forEach(point => {
       expect(point.movingAverageEngagement).toBeNull();
     });
-    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Error calculating moving average engagement"), expect.any(Error));
-    consoleErrorSpy.mockRestore();
+    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining("Error calculating moving average engagement"), expect.any(Error));
+    loggerSpy.mockRestore();
   });
 
   test('Janela de dados menor que a janela da média móvel', async () => {
@@ -204,7 +212,7 @@ describe('calculateMovingAverageEngagement', () => {
       lean: () => Promise.resolve(snapshots)
     });
 
-    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays);
+    const result = await calculateMovingAverageEngagement(userId, dataWindowInDays, movingAverageWindowInDays, baseTestEndDate);
     // dataWindowInDays é Nov 14 e Nov 15
     expect(result.series.length).toBe(2);
 

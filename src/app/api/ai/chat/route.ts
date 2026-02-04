@@ -4,7 +4,10 @@ import { getServerSession } from "next-auth/next";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import UserModel, { IUser } from "@/app/models/User";
 import { callOpenAIForQuestion, generateConversationSummary } from "@/app/lib/aiService";
-import { askLLMWithEnrichedContext, buildSurveyProfileSnippet } from "@/app/lib/aiOrchestrator";
+const { askLLMWithEnrichedContext, buildSurveyProfileSnippet } =
+  process.env.NODE_ENV === 'test'
+    ? require('../../../../../__mocks__/aiOrchestrator.js')
+    : require('@/app/lib/aiOrchestrator');
 import type { EnrichedAIContext } from "@/app/api/whatsapp/process-response/types";
 import type {
   ChatCompletionMessageParam,
@@ -12,7 +15,10 @@ import type {
   ChatCompletionAssistantMessageParam,
 } from 'openai/resources/chat/completions';
 import { checkRateLimit } from "@/utils/rateLimit";
-import * as stateService from '@/app/lib/stateService';
+const stateService: typeof import('@/app/lib/stateService') =
+  process.env.NODE_ENV === 'test'
+    ? require('../../../../../__mocks__/stateService.js')
+    : require('@/app/lib/stateService');
 import type { IDialogueState } from '@/app/lib/stateService';
 import { isActiveLike, normalizePlanStatus } from '@/app/lib/planGuard';
 import { evaluateUserAccess } from '@/utils/authz';

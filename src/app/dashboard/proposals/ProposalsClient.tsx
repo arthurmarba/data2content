@@ -1266,11 +1266,11 @@ export default function ProposalsClient() {
                       </p>
                     </div>
 
-                    {selectedProposal.deliverables.length > 0 && (
+                    {(selectedProposal.deliverables?.length ?? 0) > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Entregáveis Solicitados</p>
                         <div className="flex flex-wrap gap-2">
-                          {selectedProposal.deliverables.map((item) => (
+                          {(selectedProposal.deliverables ?? []).map((item) => (
                             <span
                               key={item}
                               className="inline-flex items-center rounded-xl bg-pink-50 px-3 py-1.5 text-sm font-medium text-pink-700 ring-1 ring-inset ring-pink-100"
@@ -1282,11 +1282,11 @@ export default function ProposalsClient() {
                       </div>
                     )}
 
-                    {selectedProposal.referenceLinks.length > 0 && (
+                    {(selectedProposal.referenceLinks?.length ?? 0) > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Referências</p>
                         <ul className="space-y-2">
-                          {selectedProposal.referenceLinks.map((link) => (
+                          {(selectedProposal.referenceLinks ?? []).map((link) => (
                             <li key={link}>
                               <a
                                 href={link}

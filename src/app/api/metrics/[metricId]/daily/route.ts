@@ -7,10 +7,11 @@ import MetricModel from '@/app/models/Metric'; // Importar MetricModel para veri
 import mongoose, { Types } from 'mongoose'; // <<< CORRIGIDO: Importa mongoose e Types
 import { logger } from '@/app/lib/logger';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 
 async function getUserIdFromRequest(request: Request): Promise<Types.ObjectId | null> {
-  const session = await getServerSession({ req: request, ...authOptions });
+  const authOptions = await resolveAuthOptions();
+  const session = (await getServerSession({ req: request, ...authOptions })) as any;
   const sessionId = session?.user?.id;
   if (!sessionId) {
     return null;

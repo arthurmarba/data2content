@@ -14,7 +14,7 @@ import type { DeterminedIntent } from "@/app/lib/intentService";
 // Nota: runner simplificado (não usa streaming nem heurísticas avançadas). Produção deveria ter worker/queue.
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if ((session?.user as any)?.role?.toLowerCase() !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

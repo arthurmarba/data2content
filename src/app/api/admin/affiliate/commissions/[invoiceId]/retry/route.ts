@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest, { params }: { params: { invoiceId: string } }) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
     if (session?.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
     }

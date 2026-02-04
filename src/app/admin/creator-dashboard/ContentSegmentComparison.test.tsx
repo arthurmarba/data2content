@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ContentSegmentComparison, { ISegmentDefinition, ISegmentPerformanceResult } from './ContentSegmentComparison';
+import type { ISegmentDefinition, ISegmentPerformanceResult } from './ContentSegmentComparison';
 
 // Definindo o tipo SegmentComparisonResultItem localmente para o teste
 interface SegmentComparisonResultItem {
@@ -17,11 +17,11 @@ global.fetch = jest.fn();
 // Mock completo para todos os ícones usados no componente
 jest.mock('@heroicons/react/24/outline', () => ({
   __esModule: true,
-  ArrowsRightLeftIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'arrows-icon' }),
-  TableCellsIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'table-cells-icon' }),
-  PlusIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'plus-icon' }),
-  TrashIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'trash-icon' }),
-  ExclamationTriangleIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'exclamation-icon' }),
+  ArrowsRightLeftIcon: () => null,
+  TableCellsIcon: () => null,
+  PlusIcon: () => null,
+  TrashIcon: () => null,
+  ExclamationTriangleIcon: () => null,
 }));
 
 // Mock next/image
@@ -29,6 +29,8 @@ jest.mock('next/image', () => ({
     __esModule: true,
     default: jest.fn(() => null),
 }));
+
+const ContentSegmentComparison = require('./ContentSegmentComparison').default;
 
 const mockDateRange = { startDate: '2023-01-01T00:00:00.000Z', endDate: '2023-01-31T23:59:59.999Z' };
 
@@ -97,8 +99,8 @@ describe('ContentSegmentComparison Component', () => {
     const segment1FormatSelect = screen.getAllByLabelText('Formato')[0] as HTMLSelectElement;
 
     fireEvent.change(segment1NameInput, { target: { value: 'My Custom Segment' } });
-    fireEvent.change(segment1FormatSelect, { target: { value: 'Reel' } });
-    expect(segment1FormatSelect.value).toBe('Reel');
+    fireEvent.change(segment1FormatSelect, { target: { value: 'reel' } });
+    expect(segment1FormatSelect.value).toBe('reel');
   });
 
   test('"Comparar Segmentos" button disabled states', () => {
@@ -119,7 +121,7 @@ describe('ContentSegmentComparison Component', () => {
     render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
 
     const formatSelect = screen.getAllByLabelText('Formato')[0];
-    fireEvent.change(formatSelect, { target: { value: 'Reel' } });
+    fireEvent.change(formatSelect, { target: { value: 'reel' } });
     const nameInput = screen.getByLabelText('Nome do Segmento (Opcional)');
     fireEvent.change(nameInput, {target: { value: 'Reels Test'}});
 
@@ -137,7 +139,7 @@ describe('ContentSegmentComparison Component', () => {
       body: JSON.stringify({
         dateRange: mockDateRange,
         segments: [
-          { name: 'Reels Test', criteria: { format: 'Reel' } }
+          { name: 'Reels Test', criteria: { format: 'reel' } }
         ],
       }),
     });
@@ -147,7 +149,7 @@ describe('ContentSegmentComparison Component', () => {
     test('shows loading state during fetch', async () => {
         (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {}));
         render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
-        fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'Video' } });
+        fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
         fireEvent.click(screen.getByText('Comparar Segmentos'));
         expect(await screen.findByText('Carregando resultados da comparação...')).toBeInTheDocument();
     });
@@ -155,7 +157,7 @@ describe('ContentSegmentComparison Component', () => {
     test('shows error message on fetch failure', async () => {
         (fetch as jest.Mock).mockRejectedValueOnce(new Error('API comparison failed'));
         render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
-        fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'Video' } });
+        fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
         fireEvent.click(screen.getByText('Comparar Segmentos'));
         expect(await screen.findByText('Erro ao comparar segmentos')).toBeInTheDocument();
         expect(await screen.findByText('API comparison failed')).toBeInTheDocument();
@@ -164,12 +166,12 @@ describe('ContentSegmentComparison Component', () => {
     test('renders comparison table with data and highlights best values', async () => {
       render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
       
-      fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'Reel' } });
-      fireEvent.change(screen.getAllByLabelText('Contexto')[0], { target: { value: 'Tech' } });
+      fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
+      fireEvent.change(screen.getAllByLabelText('Contexto')[0], { target: { value: 'fashion_style' } });
 
       fireEvent.click(screen.getByText('Adicionar Segmento'));
-      fireEvent.change(screen.getAllByLabelText('Formato')[1], { target: { value: 'Post Estático' } });
-      fireEvent.change(screen.getAllByLabelText('Contexto')[1], { target: { value: 'Finanças' } });
+      fireEvent.change(screen.getAllByLabelText('Formato')[1], { target: { value: 'photo' } });
+      fireEvent.change(screen.getAllByLabelText('Contexto')[1], { target: { value: 'career_work' } });
 
       fireEvent.click(screen.getByText('Comparar Segmentos'));
 
@@ -181,13 +183,13 @@ describe('ContentSegmentComparison Component', () => {
       expect(screen.getByText('70')).toBeInTheDocument();
 
       expect(screen.getByText('Taxa de Engaj. Média')).toBeInTheDocument();
-      expect(screen.getByText('5,0%')).toBeInTheDocument();
-      expect(screen.getByText('7,0%')).toBeInTheDocument();
+      expect(screen.getByText('5.0%')).toBeInTheDocument();
+      expect(screen.getByText('7.0%')).toBeInTheDocument();
 
-      const segment2EngagementCell = screen.getByText('7,0%').closest('td');
+      const segment2EngagementCell = screen.getByText('7.0%').closest('td');
       expect(segment2EngagementCell).toHaveClass('font-bold text-green-600 dark:text-green-400');
 
-      const segment1EngagementCell = screen.getByText('5,0%').closest('td');
+      const segment1EngagementCell = screen.getByText('5.0%').closest('td');
       expect(segment1EngagementCell).not.toHaveClass('font-bold text-green-600 dark:text-green-400');
       
       expect(screen.getByText('(Reel / Tech)')).toBeInTheDocument();
@@ -197,13 +199,13 @@ describe('ContentSegmentComparison Component', () => {
   test('clears results if dateRangeFilter becomes incomplete', async () => {
     const { rerender } = render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
     
-    fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'Video' } });
+    fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
     fireEvent.click(screen.getByText('Comparar Segmentos'));
-    await waitFor(() => expect(screen.getByText('(Video)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Segment 1: Reels de Tech')).toBeInTheDocument());
 
     rerender(<ContentSegmentComparison dateRangeFilter={{ startDate: mockDateRange.startDate, endDate: undefined }} />);
     
-    expect(screen.queryByText('(Video)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Segment 1: Reels de Tech')).not.toBeInTheDocument();
     expect(screen.getByText(/Por favor, selecione um período de datas nos filtros globais/)).toBeInTheDocument();
   });
 

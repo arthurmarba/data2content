@@ -38,23 +38,24 @@ describe('CreatorTimeSeriesChart Component', () => {
   };
 
   test('renders loading state', () => {
-    render(<CreatorTimeSeriesChart {...defaultProps} isLoading={true} />);
-    expect(screen.getByText('Carregando dados do gráfico...')).toBeInTheDocument();
+    const { container } = render(<CreatorTimeSeriesChart {...defaultProps} isLoading={true} />);
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   test('renders error state', () => {
     render(<CreatorTimeSeriesChart {...defaultProps} error="Failed to load data" />);
-    expect(screen.getByText('Erro ao carregar dados: Failed to load data')).toBeInTheDocument();
+    expect(screen.getByText('Erro ao Carregar Gráfico')).toBeInTheDocument();
+    expect(screen.getByText('Failed to load data')).toBeInTheDocument();
   });
 
   test('renders "no data" message when data is empty', () => {
     render(<CreatorTimeSeriesChart {...defaultProps} data={[]} />);
-    expect(screen.getByText('Nenhum dado disponível para exibir no gráfico.')).toBeInTheDocument();
+    expect(screen.getByText('Sem Dados para o Gráfico')).toBeInTheDocument();
   });
 
   test('renders "no data" message when data is null', () => {
     render(<CreatorTimeSeriesChart {...defaultProps} data={null as any} />); // Cast to any to test null case
-    expect(screen.getByText('Nenhum dado disponível para exibir no gráfico.')).toBeInTheDocument();
+    expect(screen.getByText('Sem Dados para o Gráfico')).toBeInTheDocument();
   });
 
   test('renders line chart with data', () => {

@@ -19,7 +19,7 @@ function parseDateRange(searchParams: URLSearchParams) {
 }
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if ((session?.user as any)?.role?.toLowerCase() !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

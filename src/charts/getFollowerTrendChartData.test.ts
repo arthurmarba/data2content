@@ -1,10 +1,25 @@
 import { Types } from 'mongoose';
 import getFollowerTrendChartData from './getFollowerTrendChartData'; // Ajuste
 import AccountInsightModel, { IAccountInsight } from '@/app/models/AccountInsight'; // Ajuste
+import { addDays, addMonths } from '@/utils/dateHelpers';
+import { logger } from '@/app/lib/logger';
+
+jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
+jest.mock('@/app/lib/logger', () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
 
 jest.mock('@/app/models/AccountInsight', () => ({
-  find: jest.fn(),
-  findOne: jest.fn(),
+  __esModule: true,
+  default: {
+    find: jest.fn(),
+    findOne: jest.fn(),
+  },
 }));
 
 // Helper para formatar data como YYYY-MM-DD
@@ -23,6 +38,13 @@ function createDate(daysAgo: number, baseDate?: Date): Date {
   return date;
 }
 
+const mockQuery = <T,>(value: T, options?: { reject?: boolean }) => ({
+  sort: jest.fn().mockReturnThis(),
+  lean: jest.fn().mockImplementation(() => (
+    options?.reject ? Promise.reject(value) : Promise.resolve(value)
+  )),
+});
+
 
 describe('getFollowerTrendChartData', () => {
   const userId = new Types.ObjectId().toString();
@@ -36,7 +58,6 @@ describe('getFollowerTrendChartData', () => {
     baseTestDate.setHours(12,0,0,0);
 
 
-    // Mock console.error para evitar poluir a saída do teste
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -58,8 +79,8 @@ describe('getFollowerTrendChartData', () => {
       const period = "last_30_days";
       const numDays = 30;
       // Mock para snapshot *antes* do período de início para carry-forward
-      (AccountInsightModel.findOne as jest.Mock).mockResolvedValueOnce(
-        mockInsight(100, createDate(numDays, baseTestDate)) // Ex: 100 seguidores 30 dias antes do início do gráfico
+      (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(
+        mockQuery(mockInsight(100, createDate(numDays, baseTestDate))) // Ex: 100 seguidores 30 dias antes do início do gráfico
       );
 
       const snapshotsInPeriod = [
@@ -68,18 +89,18 @@ describe('getFollowerTrendChartData', () => {
         mockInsight(110, createDate(numDays - 15, baseTestDate)), // Outro no mesmo dia, o último deve ser usado
         mockInsight(120, createDate(numDays - 25, baseTestDate)), // 5 dias atrás
       ];
-      (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshotsInPeriod);
+      (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery(snapshotsInPeriod));
 
       const result = await getFollowerTrendChartData(userId, period, "daily");
 
-      expect(result.chartData.length).toBe(numDays + 1); // 30 dias + hoje = 31 pontos
+      expect(result.chartData.length).toBe(numDays); // 30 dias incluindo hoje = 30 pontos
       expect((AccountInsightModel.findOne as jest.Mock)).toHaveBeenCalledTimes(1); // Para o carry-forward inicial
       expect((AccountInsightModel.find as jest.Mock)).toHaveBeenCalledTimes(1);
 
       // Verificar carry-forward inicial
       expect(result.chartData[0].value).toBe(100);
       // O primeiro dia do gráfico deve ser 30 dias antes de baseTestDate
-      const expectedChartStartDate = createDate(numDays, baseTestDate);
+      const expectedChartStartDate = createDate(numDays - 1, baseTestDate);
       expect(result.chartData[0].date).toBe(formatDateYYYYMMDD(expectedChartStartDate));
 
 
@@ -112,11 +133,11 @@ describe('getFollowerTrendChartData', () => {
     });
 
     test('Sem snapshots no período, mas com snapshot anterior para carry-forward', async () => {
-      (AccountInsightModel.findOne as jest.Mock).mockResolvedValueOnce(mockInsight(90, createDate(30, baseTestDate)));
-      (AccountInsightModel.find as jest.Mock).mockResolvedValue([]); // Nenhum snapshot no período
+      (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(mockInsight(90, createDate(30, baseTestDate))));
+      (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery([])); // Nenhum snapshot no período
 
       const result = await getFollowerTrendChartData(userId, "last_30_days", "daily");
-      expect(result.chartData.length).toBe(31);
+      expect(result.chartData.length).toBe(30);
       result.chartData.forEach(point => {
         expect(point.value).toBe(90);
       });
@@ -124,15 +145,15 @@ describe('getFollowerTrendChartData', () => {
     });
 
     test('Sem nenhum snapshot (nem anterior, nem no período)', async () => {
-      (AccountInsightModel.findOne as jest.Mock).mockResolvedValueOnce(null); // Nenhum snapshot anterior
-      (AccountInsightModel.find as jest.Mock).mockResolvedValue([]);    // Nenhum snapshot no período
+      (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(null)); // Nenhum snapshot anterior
+      (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery([]));    // Nenhum snapshot no período
 
       const result = await getFollowerTrendChartData(userId, "last_30_days", "daily");
-      expect(result.chartData.length).toBe(31);
+      expect(result.chartData.length).toBe(30);
       result.chartData.forEach(point => {
         expect(point.value).toBeNull();
       });
-      expect(result.insightSummary).toBe("Nenhum dado encontrado para o período.");
+      expect(result.insightSummary).toBe("Não há dados de seguidores suficientes para gerar um resumo.");
     });
   });
 
@@ -140,20 +161,20 @@ describe('getFollowerTrendChartData', () => {
     test('last_12_months com dados e carry-forward', async () => {
       const period = "last_12_months";
       // Mock para snapshot *antes* do período de início
-      (AccountInsightModel.findOne as jest.Mock).mockResolvedValueOnce(
-        mockInsight(1000, addMonths(createDate(0, baseTestDate), -12))
+      (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(
+        mockQuery(mockInsight(1000, addMonths(createDate(0, baseTestDate), -12)))
       );
 
       const snapshotsInPeriod = [
         // Mês -11 (relativo ao fim do período)
         mockInsight(1050, addMonths(createDate(0, baseTestDate), -11)),
         // Mês -9, dois snapshots, o último deve ser usado
-        mockInsight(1100, addMonths(createDate(10, baseTestDate), -9)),
+        mockInsight(1100, addDays(addMonths(createDate(0, baseTestDate), -9), 1)),
         mockInsight(1150, addMonths(createDate(0, baseTestDate), -9)),
         // Mês -5
         mockInsight(1200, addMonths(createDate(0, baseTestDate), -5)),
       ];
-      (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshotsInPeriod);
+      (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery(snapshotsInPeriod));
 
       const result = await getFollowerTrendChartData(userId, period, "monthly");
 
@@ -190,8 +211,8 @@ describe('getFollowerTrendChartData', () => {
     });
 
     test('Sem snapshots no período mensal, mas com anterior', async () => {
-        (AccountInsightModel.findOne as jest.Mock).mockResolvedValueOnce(mockInsight(500, addMonths(createDate(0,baseTestDate), -3)));
-        (AccountInsightModel.find as jest.Mock).mockResolvedValue([]);
+        (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(mockInsight(500, addMonths(createDate(0,baseTestDate), -3))));
+        (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery([]));
         const result = await getFollowerTrendChartData(userId, "last_3_months", "monthly");
         expect(result.chartData.length).toBe(4); // 3 meses + atual
         result.chartData.forEach(p => expect(p.value).toBe(500));
@@ -200,25 +221,24 @@ describe('getFollowerTrendChartData', () => {
   });
 
   test('Erro no DB', async () => {
-    (AccountInsightModel.find as jest.Mock).mockRejectedValue(new Error("DB Find Error"));
+    (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery(new Error("DB Find Error"), { reject: true }));
     // findOne também pode ser chamado para o carry-forward inicial
-    (AccountInsightModel.findOne as jest.Mock).mockRejectedValue(new Error("DB FindOne Error"));
+    (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(new Error("DB FindOne Error"), { reject: true }));
 
 
     const result = await getFollowerTrendChartData(userId, "last_30_days", "daily");
     expect(result.chartData).toEqual([]);
     expect(result.insightSummary).toBe("Erro ao buscar dados de tendência de seguidores.");
-    expect(console.error).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalled();
   });
 
    test('Time period customizado "last_7_days"', async () => {
-      (AccountInsightModel.findOne as jest.Mock).mockResolvedValueOnce(mockInsight(100, createDate(7, baseTestDate)));
+      (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(mockInsight(100, createDate(7, baseTestDate))));
       const snapshotsInPeriod = [mockInsight(105, createDate(3, baseTestDate))];
-      (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshotsInPeriod);
+      (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery(snapshotsInPeriod));
 
       const result = await getFollowerTrendChartData(userId, "last_7_days", "daily");
-      expect(result.chartData.length).toBe(8); // 7 dias + hoje
+      expect(result.chartData.length).toBe(7); // 7 dias incluindo hoje
       expect(result.insightSummary).toContain("Ganho de 5 seguidores");
   });
 });
-

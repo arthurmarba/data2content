@@ -36,7 +36,7 @@ const querySchema = criteriaSchema.extend({
 // --- Helper Functions ---
 
 async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
     return null;

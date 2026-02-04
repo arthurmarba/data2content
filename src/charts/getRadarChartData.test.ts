@@ -7,6 +7,7 @@ import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagemen
 import calculateWeeklyPostingFrequency from '@/utils/calculateWeeklyPostingFrequency';
 import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics';
 import { fetchSegmentRadarStats } from "@/lib/services/segmentRadarService";
+import { logger } from '@/app/lib/logger';
 
 // Mock helper para min/max da plataforma
 import { getPlatformMinMaxValues, PlatformMinMaxData } from '@/utils/platformMetricsHelpers';
@@ -18,7 +19,16 @@ jest.mock('@/utils/calculateFollowerGrowthRate');
 jest.mock('@/utils/calculateAverageEngagementPerPost');
 jest.mock('@/utils/calculateWeeklyPostingFrequency');
 jest.mock('@/utils/calculateAverageVideoMetrics');
+jest.mock('@/lib/services/segmentRadarService', () => ({
+  fetchSegmentRadarStats: jest.fn(),
+}));
 jest.mock('@/utils/platformMetricsHelpers');
+jest.mock('@/app/lib/logger', () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+  },
+}));
 
 // Usaremos a função de normalização real nos testes agora, ou um mock dela se quisermos isolar ainda mais.
 // Para testar a integração com a normalização real, não precisamos mockar `actualNormalizeValue` em si,
@@ -58,19 +68,22 @@ describe('getRadarChartData', () => {
     (calculateWeeklyPostingFrequency as jest.Mock).mockReset();
     (calculateAverageVideoMetrics as jest.Mock).mockReset();
     (getPlatformMinMaxValues as jest.Mock).mockReset(); // Resetar mock do min/max
+    (logger.error as jest.Mock).mockReset();
+    (logger.warn as jest.Mock).mockReset();
+
+    (calculateFollowerGrowthRate as jest.Mock).mockResolvedValue({ currentFollowers: 10000, percentageGrowth: 0.1 });
+    (calculateAverageEngagementPerPost as jest.Mock).mockResolvedValue({
+      averageEngagementPerPost: 1000,
+      averageEngagementRateOnReach: 0.02,
+    });
+    (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValue({ currentWeeklyFrequency: 2 });
+    (calculateAverageVideoMetrics as jest.Mock).mockResolvedValue({
+      averageRetentionRate: 40,
+      averageWatchTimeSeconds: 30,
+    });
 
     // Configurar mock padrão para getPlatformMinMaxValues
     (getPlatformMinMaxValues as jest.Mock).mockResolvedValue(mockPlatformMinMax);
-
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
-    (console.warn as jest.Mock).mockRestore();
-    (console.log as jest.Mock).mockRestore();
   });
 
   test('Compara dois usuários com dados válidos e normalização real', async () => {
@@ -145,7 +158,7 @@ describe('getRadarChartData', () => {
 
     mockFetchSegmentRadarStats.mockResolvedValue({
       totalFollowers: seg_followers,
-      followerGrowthRate_percentage: seg_growth,
+      followerGrowthRatePercent30d: seg_growth,
       avgEngagementPerPost30d: seg_avgEng,
       avgWeeklyPostingFrequency30d: seg_freq,
       avgVideoRetentionRate90d: seg_retention,
@@ -227,8 +240,7 @@ describe('getRadarChartData', () => {
     result.datasets.forEach(dataset => {
       dataset.data.forEach(value => expect(value).toBeNull());
     });
-    expect(console.error).toHaveBeenCalledWith("Error in getRadarChartData:", expect.any(Error));
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Error in getRadarChartData for P1:"), expect.any(Error));
   });
 
 });
-

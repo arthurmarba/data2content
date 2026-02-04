@@ -47,7 +47,7 @@ const querySchema = z.object({
 
 // Real Admin Session Validation
 async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Validação da sessão de admin falhou.`);
     return null;

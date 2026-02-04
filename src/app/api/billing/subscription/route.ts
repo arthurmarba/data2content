@@ -76,7 +76,7 @@ function datesEqual(a: unknown, b: Date | null): boolean {
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Não autenticado" },

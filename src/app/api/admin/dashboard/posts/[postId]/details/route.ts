@@ -25,7 +25,7 @@ export async function GET(
   logger.info(`${TAG} Request received for postId: ${params.postId}`);
 
   // 1. Admin Session Validation
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   
   if (!session || !session.user || session.user.role !== 'admin') {
     logger.warn(`${TAG} Unauthorized access attempt for postId: ${params.postId}`);

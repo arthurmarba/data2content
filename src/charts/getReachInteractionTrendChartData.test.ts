@@ -1,13 +1,26 @@
 import { Types } from 'mongoose';
-import getReachInteractionTrendChartData from './getReachInteractionTrendChartData';
+import { getUserReachInteractionTrendChartData } from './getReachInteractionTrendChartData';
 import MetricModel from '@/app/models/Metric';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import { logger } from '@/app/lib/logger';
 
 jest.mock('@/app/models/Metric', () => ({
-  find: jest.fn(),
+  aggregate: jest.fn(),
+}));
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
+}));
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
 }));
 
 function formatDateYYYYMMDD(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const yyyy = date.getFullYear();
+  const mm = date.getMonth() + 1;
+  const dd = date.getDate();
+  const mmStr = mm < 10 ? `0${mm}` : `${mm}`;
+  const ddStr = dd < 10 ? `0${dd}` : `${dd}`;
+  return `${yyyy}-${mmStr}-${ddStr}`;
 }
 function getYearWeek(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -27,52 +40,50 @@ describe('getReachInteractionTrendChartData', () => {
   let baseDate: Date;
 
   beforeEach(() => {
-    (MetricModel.find as jest.Mock).mockReset();
+    (MetricModel.aggregate as jest.Mock).mockReset();
+    (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
     baseDate = new Date(2023, 10, 15, 12, 0, 0, 0); // 15 Nov 2023
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.useFakeTimers();
+    jest.setSystemTime(baseDate);
   });
   afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
+    jest.useRealTimers();
   });
 
-  function mockMetric(postDate: Date, reach?: number | null, interactions?: number | null) {
+  function mockAggregateEntry(postDate: Date, reach?: number | null, interactions?: number | null) {
     return {
-      _id: new Types.ObjectId(),
-      user: new Types.ObjectId(userId),
-      postDate,
-      stats: {
-        ...(reach !== null ? { reach } : {}),
-        ...(interactions !== null ? { total_interactions: interactions } : {}),
-      },
-    } as any;
+      _id: formatDateYYYYMMDD(postDate),
+      totalReach: reach ?? 0,
+      totalInteractions: interactions ?? 0,
+    };
   }
 
   test('Agrega posts diários e preenche gaps', async () => {
-    const posts = [
-      mockMetric(addDays(baseDate, -6), 100, 10), // Nov 9
-      mockMetric(addDays(baseDate, -4), 120, 12), // Nov 11
-      mockMetric(addDays(baseDate, 0), 150, 15),  // Nov 15
+    const aggregated = [
+      mockAggregateEntry(addDays(baseDate, -6), 100, 10), // Nov 9
+      mockAggregateEntry(addDays(baseDate, -4), 120, 12), // Nov 11
+      mockAggregateEntry(addDays(baseDate, 0), 150, 15),  // Nov 15
     ];
-    (MetricModel.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnThis(), lean: () => Promise.resolve(posts) });
+    (MetricModel.aggregate as jest.Mock).mockResolvedValue(aggregated);
 
-    const result = await getReachInteractionTrendChartData(userId, 'last_7_days', 'daily');
+    const result = await getUserReachInteractionTrendChartData(userId, 'last_7_days', 'daily');
 
     expect(result.chartData.length).toBe(7);
     expect(result.chartData[0]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -6)), reach: 100, totalInteractions: 10 });
-    expect(result.chartData[1]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -5)), reach: null, totalInteractions: null });
+    expect(result.chartData[1]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -5)), reach: 0, totalInteractions: 0 });
     expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -4)), reach: 120, totalInteractions: 12 });
     expect(result.chartData[6]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, 0)), reach: 150, totalInteractions: 15 });
   });
 
   test('Agrega posts semanais e preenche gaps', async () => {
-    const posts = [
-      mockMetric(addDays(baseDate, -28), 200, 20),
-      mockMetric(addDays(baseDate, -14), 300, 30),
-      mockMetric(addDays(baseDate, 0), 400, 40),
+    const aggregated = [
+      mockAggregateEntry(addDays(baseDate, -28), 200, 20),
+      mockAggregateEntry(addDays(baseDate, -14), 300, 30),
+      mockAggregateEntry(addDays(baseDate, 0), 400, 40),
     ];
-    (MetricModel.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnThis(), lean: () => Promise.resolve(posts) });
+    (MetricModel.aggregate as jest.Mock).mockResolvedValue(aggregated);
 
-    const result = await getReachInteractionTrendChartData(userId, 'last_30_days', 'weekly');
+    const result = await getUserReachInteractionTrendChartData(userId, 'last_30_days', 'weekly');
 
     const week1 = getYearWeek(addDays(baseDate, -28));
     const week2 = getYearWeek(addDays(baseDate, -21)); // gap
@@ -81,27 +92,27 @@ describe('getReachInteractionTrendChartData', () => {
     const week5 = getYearWeek(addDays(baseDate, 0));
 
     expect(result.chartData.find(p => p.date === week1)?.reach).toBe(200);
-    expect(result.chartData.find(p => p.date === week2)?.reach).toBeNull();
+    expect(result.chartData.find(p => p.date === week2)?.reach).toBe(0);
     expect(result.chartData.find(p => p.date === week3)?.totalInteractions).toBe(30);
-    expect(result.chartData.find(p => p.date === week4)?.reach).toBeNull();
+    expect(result.chartData.find(p => p.date === week4)?.reach).toBe(0);
     expect(result.chartData.find(p => p.date === week5)?.totalInteractions).toBe(40);
   });
 
   test('Nenhum post retorna todos nulos', async () => {
-    (MetricModel.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnThis(), lean: () => Promise.resolve([]) });
-    const result = await getReachInteractionTrendChartData(userId, 'last_3_days', 'daily');
-    expect(result.chartData.length).toBe(3);
+    (MetricModel.aggregate as jest.Mock).mockResolvedValue([]);
+    const result = await getUserReachInteractionTrendChartData(userId, 'last_7_days', 'daily');
+    expect(result.chartData.length).toBe(7);
     result.chartData.forEach(p => {
-      expect(p.reach).toBeNull();
-      expect(p.totalInteractions).toBeNull();
+      expect(p.reach).toBe(0);
+      expect(p.totalInteractions).toBe(0);
     });
   });
 
   test('Erro no DB', async () => {
-    (MetricModel.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnThis(), lean: () => Promise.reject(new Error('DB Error')) });
-    const result = await getReachInteractionTrendChartData(userId, 'last_7_days', 'daily');
-    expect(result.chartData.length).toBe(7);
-    expect(result.insightSummary).toBe('Erro ao buscar dados de alcance e interações.');
-    expect(console.error).toHaveBeenCalled();
+    (MetricModel.aggregate as jest.Mock).mockRejectedValue(new Error('DB Error'));
+    const result = await getUserReachInteractionTrendChartData(userId, 'last_7_days', 'daily');
+    expect(result.chartData.length).toBe(0);
+    expect(result.insightSummary).toBe('Erro ao buscar dados de alcance e interações do usuário.');
+    expect((logger as any).error).toHaveBeenCalled();
   });
 });

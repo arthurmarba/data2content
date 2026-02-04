@@ -3,9 +3,13 @@ import UserModel from '@/app/models/User';
 import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData';
 import { NextRequest } from 'next/server';
 import { logger } from '@/app/lib/logger';
+import { connectToDatabase } from '@/app/lib/mongoose';
 
 jest.mock('@/app/models/User', () => ({
   find: jest.fn(),
+}));
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
 }));
 
 jest.mock('@/charts/getFollowerTrendChartData', () => ({
@@ -32,6 +36,7 @@ const createRequest = (searchParams: string = ''): NextRequest => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
 });
 
 describe('GET /api/v1/platform/trends/followers', () => {

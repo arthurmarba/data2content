@@ -14,7 +14,7 @@ const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
 export async function POST() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Não autenticado" },

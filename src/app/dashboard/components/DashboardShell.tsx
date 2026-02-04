@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import SidebarNav from "./SidebarNav";
 import Header from "../../components/Header";
 import InstagramReconnectBanner from "./InstagramReconnectBanner";
@@ -48,6 +48,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const overlayIgnoreUntilRef = React.useRef(0);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const printParam = searchParams?.get("print");
+  const isPrintMode = printParam === "1" || printParam === "true";
   const { config: headerConfig } = useHeaderConfig();
 
   const matchPath = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
@@ -105,10 +108,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
 
-  const mainOffset = isGuidedFlow ? "" : "lg:ml-[72px]";
+  const mainOffset = isGuidedFlow || isPrintMode ? "" : "lg:ml-[72px]";
 
-
-  const mainScrollClass = isChatPage ? "overflow-hidden flex flex-col" : "overflow-y-auto";
+  const mainScrollClass = isPrintMode
+    ? "overflow-visible"
+    : isChatPage
+      ? "overflow-hidden flex flex-col"
+      : "overflow-y-auto";
 
   const wantsStickyHeader = headerConfig?.sticky !== false;
   const isMobileDocked = Boolean(headerConfig?.mobileDocked && wantsStickyHeader);
@@ -123,7 +129,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         : undefined;
 
   const baseTopPadding = "var(--header-h, 56px)";
-  const resolvedPaddingTop = isMobileDocked
+  const resolvedPaddingTop = isPrintMode
+    ? "0px"
+    : isMobileDocked
     ? "0px"
     : isStickyHeader || isMediaKitPage
       ? baseTopPadding
@@ -136,9 +144,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {!isGuidedFlow && <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />}
+      {!isGuidedFlow && !isPrintMode && (
+        <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
+      )}
 
-      {!isGuidedFlow && (
+      {!isGuidedFlow && !isPrintMode && (
         <div
           onClick={() => {
             if (!isOpen) return;
@@ -152,7 +162,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       <div className={shellClassName} id="dashboard-shell" style={shellStyle}>
-        <Header />
+        {!isPrintMode && <Header />}
 
         <main
           id="dashboard-main"
@@ -160,7 +170,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           style={{ paddingTop: resolvedPaddingTop }}
         >
           <div className={`flex-1 min-h-0 w-full ${mainScrollClass}`}>
-            {!isChatPage && (
+            {!isChatPage && !isPrintMode && (
               <div className="dashboard-page-shell space-y-4 pt-4">
                 <InstagramReconnectBanner />
                 <TrialBanner />

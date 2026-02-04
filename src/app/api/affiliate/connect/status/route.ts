@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import { stripe } from '@/app/lib/stripe';
@@ -9,7 +9,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const authOptions = await resolveAuthOptions();
+  const session = (await getServerSession(authOptions as any)) as any;
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }

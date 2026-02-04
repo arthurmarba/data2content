@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   try {
     // 1. Obter a sessão do usuário
     //    Usamos getServerSession com as authOptions para obter a sessão no lado do servidor
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
 
     // Verifica se o usuário está logado e se temos o ID dele (que deve ser um ObjectId)
     if (!session?.user?.id || typeof session.user.id !== 'string') {

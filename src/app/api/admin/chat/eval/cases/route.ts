@@ -5,7 +5,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import ChatEvalCaseModel from "@/app/models/ChatEvalCase";
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if ((session?.user as any)?.role?.toLowerCase() !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if ((session?.user as any)?.role?.toLowerCase() !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

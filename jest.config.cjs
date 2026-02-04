@@ -38,8 +38,8 @@ const customJestConfig = {
       // Permite que imports usando o alias "@" apontem para a pasta src
       '^@/(.*)$': '<rootDir>/src/$1',
 
-      '^@heroicons/react/24/(solid|outline)/esm/.*$': '<rootDir>/__mocks__/heroicons/24/$1.js',
-      '^@heroicons/react/(.*)$': '<rootDir>/__mocks__/heroicons/$1.js',
+      '^@heroicons/react/24/(solid|outline)(/esm/.*)?$': '<rootDir>/__mocks__/heroicons-proxy.js',
+      '^@heroicons/react/(.*)$': '<rootDir>/__mocks__/heroicons-proxy.js',
       '^jose$': '<rootDir>/__mocks__/jose.js',
     },
   };

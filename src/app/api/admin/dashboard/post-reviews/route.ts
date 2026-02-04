@@ -36,7 +36,7 @@ const bodySchema = z.object({
 });
 
 async function requireAdminSession() {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session || !session.user || session.user.role !== 'admin') {
     return null;
   }

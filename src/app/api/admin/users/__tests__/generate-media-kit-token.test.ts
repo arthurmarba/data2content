@@ -21,7 +21,7 @@ jest.mock('@/app/models/User', () => {
     default: {
       findById: jest.fn().mockImplementation((id: string) => chain({ _id: id, name: 'Usuário Teste' })),
       findOne: jest.fn().mockResolvedValue(null),
-      findByIdAndUpdate: jest.fn().mockResolvedValue({ _id: VALID_ID, mediaKitSlug: 'usuario-teste' }),
+      findByIdAndUpdate: jest.fn().mockResolvedValue({ _id: '507f1f77bcf86cd799439011', mediaKitSlug: 'usuario-teste' }),
     },
   };
 });

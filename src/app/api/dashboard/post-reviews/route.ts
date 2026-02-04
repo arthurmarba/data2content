@@ -18,7 +18,7 @@ const querySchema = z.object({
 export async function GET(req: NextRequest) {
     const TAG = `${SERVICE_TAG}[GET]`;
     try {
-        const session = await getServerSession(authOptions);
+        const session = (await getServerSession(authOptions)) as any;
         if (!session || !session.user || !session.user.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

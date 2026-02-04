@@ -8,6 +8,13 @@ import { PlusIcon, TrashIcon, ExclamationTriangleIcon, TableCellsIcon, ArrowsRig
 // O import foi removido e as definições foram movidas para cá para resolver o erro de compilação.
 // Isso torna o componente autocontido.
 
+const FallbackIcon = (props: React.SVGProps<SVGSVGElement>) => <svg {...props} />;
+const SafePlusIcon = PlusIcon || FallbackIcon;
+const SafeTrashIcon = TrashIcon || FallbackIcon;
+const SafeExclamationTriangleIcon = ExclamationTriangleIcon || FallbackIcon;
+const SafeTableCellsIcon = TableCellsIcon || FallbackIcon;
+const SafeArrowsRightLeftIcon = ArrowsRightLeftIcon || FallbackIcon;
+
 export interface Category {
   id: string;
   label: string;
@@ -294,7 +301,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
                 className="p-1.5 rounded-md text-red-500 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed" 
                 title="Remover Segmento"
               >
-                  <TrashIcon className="w-4 h-4" />
+                  <SafeTrashIcon className="w-4 h-4" />
               </button>
             </div>
             <div>
@@ -347,7 +354,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
             </div>
             {isSegmentCriteriaEmpty(segment.criteria) && (
                 <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center mt-1">
-                <ExclamationTriangleIcon className="w-3 h-3 mr-1 inline-block" />
+                <SafeExclamationTriangleIcon className="w-3 h-3 mr-1 inline-block" />
                 Defina ao menos um critério para este segmento.
                 </p>
             )}
@@ -357,15 +364,15 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
       
       <div className="flex items-center space-x-3">
         <button onClick={addSegment} disabled={segmentsToCompare.length >= MAX_SEGMENTS} className="flex items-center bg-white dark:bg-gray-700 text-indigo-600 border border-indigo-300 font-medium py-1.5 px-3 rounded-md text-sm hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed">
-          <PlusIcon className="w-5 h-5 mr-1.5" /> Adicionar Segmento
+          <SafePlusIcon className="w-5 h-5 mr-1.5" /> Adicionar Segmento
         </button>
         <button onClick={handleFetchComparisonData} disabled={!canCompare || isLoading} className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 disabled:opacity-50">
-          <ArrowsRightLeftIcon className="w-5 h-5 mr-2" /> {isLoading ? 'A comparar...' : 'Comparar Segmentos'}
+          <SafeArrowsRightLeftIcon className="w-5 h-5 mr-2" /> {isLoading ? 'A comparar...' : 'Comparar Segmentos'}
         </button>
       </div>
        {!canCompare && !isLoading && (
           <div className="p-3 bg-yellow-50 border border-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-700/50 rounded-md text-yellow-700 dark:text-yellow-300 text-sm flex items-center">
-            <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
+            <SafeExclamationTriangleIcon className="w-5 h-5 mr-2" />
             {!dateRangeFilter?.startDate || !dateRangeFilter?.endDate
               ? 'Por favor, selecione um período de datas nos filtros globais para poder comparar.'
               : 'Por favor, defina ao menos um critério para cada segmento que deseja comparar.'}
@@ -374,8 +381,8 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
       
       {/* Zona de Resultados */}
       <div className="mt-6">
-        {isLoading && <EmptyState icon={<ArrowsRightLeftIcon className="animate-spin" />} title="Carregando resultados da comparação..." message="Isto pode levar alguns segundos."/>}
-        {error && <EmptyState icon={<ExclamationTriangleIcon/>} title="Erro ao comparar segmentos" message={error} />}
+        {isLoading && <EmptyState icon={<SafeArrowsRightLeftIcon className="animate-spin" />} title="Carregando resultados da comparação..." message="Isto pode levar alguns segundos."/>}
+        {error && <EmptyState icon={<SafeExclamationTriangleIcon/>} title="Erro ao comparar segmentos" message={error} />}
         {comparisonResults && (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -415,7 +422,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
           </div>
         )}
         {!isLoading && !error && !comparisonResults && (
-             <EmptyState icon={<TableCellsIcon/>} title="Nenhuma comparação realizada" message="Defina seus segmentos e clique em 'Comparar Segmentos' para ver os resultados aqui."/>
+             <EmptyState icon={<SafeTableCellsIcon/>} title="Nenhuma comparação realizada" message="Defina seus segmentos e clique em 'Comparar Segmentos' para ver os resultados aqui."/>
         )}
       </div>
     </div>

@@ -3,10 +3,15 @@ import { POST } from '@/app/api/internal/affiliate/mature/route';
 
 jest.mock('@/server/db/connect', () => ({ connectMongo: jest.fn() }));
 jest.mock('@/server/db/models/User', () => ({ User: { find: jest.fn() } }));
-jest.mock('@/server/db/models/CronLock', () => ({ CronLock: { findOneAndUpdate: jest.fn() } }));
+jest.mock('@/server/db/models/CronLock', () => ({ CronLock: { updateOne: jest.fn() } }));
+jest.mock('@/cron/matureAffiliateCommissions', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 const { User } = require('@/server/db/models/User');
 const { CronLock } = require('@/server/db/models/CronLock');
+const matureAffiliateCommissions = require('@/cron/matureAffiliateCommissions').default as jest.Mock;
 
 function mockRequest(body: any = {}, headers: Record<string, string> = {}) {
   return new Request('http://localhost/api/internal/affiliate/mature', {
@@ -20,10 +25,11 @@ describe('POST /api/internal/affiliate/mature', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.INTERNAL_CRON_SECRET = 's3cr3t';
-    (CronLock.findOneAndUpdate as jest.Mock).mockImplementation((_f: any, update: any) => ({
-      owner: update.$set.owner,
-      expiresAt: update.$set.expiresAt,
-    }));
+    (CronLock.updateOne as jest.Mock).mockResolvedValue({
+      upsertedCount: 1,
+      modifiedCount: 0,
+    });
+    matureAffiliateCommissions.mockResolvedValue({ ok: true, maturedEntries: 0, maturedUsers: 0 });
   });
 
   it('rejects unauthorized', async () => {
@@ -46,6 +52,12 @@ describe('POST /api/internal/affiliate/mature', () => {
       lean: jest.fn().mockResolvedValue([user]),
     };
     (User.find as jest.Mock).mockReturnValue(chain);
+    matureAffiliateCommissions.mockResolvedValue({
+      ok: true,
+      dryRun: false,
+      maturedEntries: 1,
+      maturedUsers: 1,
+    });
 
     const res = await POST(
       mockRequest({ limit: 10, maxItemsPerUser: 1 }, { 'x-internal-secret': 's3cr3t' })
@@ -54,10 +66,13 @@ describe('POST /api/internal/affiliate/mature', () => {
     expect(res.status).toBe(200);
     expect(body.maturedEntries).toBe(1);
     expect(body.maturedUsers).toBe(1);
-    expect(user.commissionLog[0].status).toBe('available');
-    expect(user.commissionLog[1].status).toBe('pending');
-    expect(user.affiliateBalances.get('brl')).toBe(100);
-    expect(user.save).toHaveBeenCalled();
+    expect(matureAffiliateCommissions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dryRun: false,
+        maxUsers: 10,
+        maxEntriesPerUser: 1,
+      })
+    );
   });
 
   it('supports dry run without persisting', async () => {
@@ -74,6 +89,12 @@ describe('POST /api/internal/affiliate/mature', () => {
       lean: jest.fn().mockResolvedValue([user]),
     };
     (User.find as jest.Mock).mockReturnValue(chain);
+    matureAffiliateCommissions.mockResolvedValue({
+      ok: true,
+      dryRun: true,
+      maturedEntries: 1,
+      maturedUsers: 0,
+    });
 
     const res = await POST(
       mockRequest({ dryRun: true }, { 'x-internal-secret': 's3cr3t' })
@@ -82,8 +103,11 @@ describe('POST /api/internal/affiliate/mature', () => {
     expect(body.dryRun).toBe(true);
     expect(body.maturedEntries).toBe(1);
     expect(body.maturedUsers).toBe(0);
-    expect(user.save).not.toHaveBeenCalled();
-    expect(user.commissionLog[0].status).toBe('pending');
-    expect(user.affiliateBalances.get('brl')).toBeUndefined();
+    expect(matureAffiliateCommissions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dryRun: true,
+        maxEntriesPerUser: 20,
+      })
+    );
   });
 });

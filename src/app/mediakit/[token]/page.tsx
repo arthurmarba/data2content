@@ -195,7 +195,10 @@ async function fetchEngagementTrend(baseUrl: string, userId: string) {
 // --- COMPONENTE DE PÁGINA (SERVER COMPONENT) ---
 
 export default async function MediaKitPage(
-  { params }: { params: { token: string } },
+  {
+    params,
+    searchParams,
+  }: { params: { token: string }; searchParams?: { [key: string]: string | string[] | undefined } },
   req?: Request,
 ) {
   await connectToDatabase();
@@ -215,9 +218,15 @@ export default async function MediaKitPage(
   const insightAvatar = normalizeProfileCandidate(latestInsight?.accountDetails?.profile_picture_url ?? null);
 
   const reqHeaders = headers();
-  const ip = getClientIpFromHeaders(reqHeaders, req);
-  const referer = reqHeaders.get('referer') || undefined;
-  await logMediaKitAccess((user as any)._id.toString(), ip, referer);
+  const printParam = searchParams?.print;
+  const isPrintMode = Array.isArray(printParam)
+    ? printParam.includes('1') || printParam.includes('true')
+    : printParam === '1' || printParam === 'true';
+  if (!isPrintMode) {
+    const ip = getClientIpFromHeaders(reqHeaders, req);
+    const referer = reqHeaders.get('referer') || undefined;
+    await logMediaKitAccess((user as any)._id.toString(), ip, referer);
+  }
 
   // Determina se o visitante é o dono para controlar o banner institucional
   const authOptions = await loadAuthOptions();

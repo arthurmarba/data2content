@@ -11,6 +11,14 @@ jest.mock('next-auth/react', () => ({
   useSession: () => ({ update: jest.fn() }),
 }));
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+}));
+
 jest.mock('@/components/billing/CancelSubscriptionModal', () => () => <div />);
 jest.mock('@/components/billing/ReactivateBanner', () => () => <div />);
 

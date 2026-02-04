@@ -17,7 +17,7 @@ const CACHE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' } as const;
 export async function GET(request: NextRequest) {
   const TAG = '[GET /api/deals/recent]';
   try {
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = (await getServerSession({ req: request, ...authOptions })) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401, headers: CACHE_HEADERS });
     }

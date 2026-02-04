@@ -16,6 +16,14 @@ import { DatabaseError } from '@/app/lib/errors';
 import UserModel from '@/app/models/User';
 
 const SERVICE_TAG = '[api/admin/dashboard/creators/compare]';
+
+type AdminSession = {
+  user?: {
+    role?: string;
+    name?: string | null;
+  };
+} | null;
+
 const MAX_CREATORS_TO_COMPARE_API = 5;
 
 // Schema para a validação do corpo do pedido

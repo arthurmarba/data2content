@@ -48,7 +48,7 @@ async function isAdmin(userId: string | undefined): Promise<boolean> {
 export async function GET(request: NextRequest) {
     logger.info(`${TAG} Recebida requisição GET para testar permissões.`);
 
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
 
     if (!session?.user?.id) {
         logger.warn(`${TAG} Acesso não autenticado.`);

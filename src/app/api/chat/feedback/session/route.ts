@@ -7,7 +7,7 @@ import ChatSessionModel from "@/app/models/ChatSession";
 import ChatMessageFeedbackModel from "@/app/models/ChatMessageFeedback";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const userId = (session?.user as any)?.id || null;
 
   try {
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const userId = (session?.user as any)?.id || null;
   const url = new URL(req.url);
   const sessionId = url.searchParams.get("sessionId");

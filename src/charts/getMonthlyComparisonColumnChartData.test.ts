@@ -2,6 +2,8 @@ import { Types } from 'mongoose';
 import getMonthlyComparisonColumnChartData from './getMonthlyComparisonColumnChartData'; // Ajuste
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric'; // Ajuste
 import { getNestedValue } from '@/utils/dataAccessHelpers'; // Ajuste
+import { logger } from '@/app/lib/logger';
+import { connectToDatabase } from '@/app/lib/mongoose';
 
 jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
@@ -9,6 +11,12 @@ jest.mock('@/app/models/Metric', () => ({
 
 jest.mock('@/utils/dataAccessHelpers', () => ({
   getNestedValue: jest.fn(),
+}));
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
+}));
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
 }));
 
 // Helper para formatar data como YYYY-MM (copiado da implementação)
@@ -32,31 +40,26 @@ describe('getMonthlyComparisonColumnChartData', () => {
   beforeEach(() => {
     (MetricModel.find as jest.Mock).mockReset();
     (getNestedValue as jest.Mock).mockReset();
+    (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
     baseTestDate = new Date(2023, 10, 15, 12, 0, 0, 0); // 15 de Novembro de 2023
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
+    (getNestedValue as jest.Mock).mockImplementation((obj: any, path: string) =>
+      path.split('.').reduce((acc: any, key: string) => acc?.[key], obj)
+    );
   });
 
   const mockMetricPost = (id: string, postDate: Date, interactions?: number): Partial<IMetric> => {
+    const resolvedId = Types.ObjectId.isValid(id) ? id : new Types.ObjectId().toString();
     const stats: Partial<IMetricStats> = {};
     if (interactions !== undefined) {
       stats.total_interactions = interactions;
     }
     return {
-      _id: new Types.ObjectId(id),
+      _id: new Types.ObjectId(resolvedId),
       user: new Types.ObjectId(userId),
       postDate: postDate,
       stats: Object.keys(stats).length > 0 ? stats : undefined,
     };
   };
-
-  // Helper para mockar a resposta do MetricModel.find para um mês específico
-  const mockDbFindForMonth = (posts: Partial<IMetric>[]) => {
-    (MetricModel.find as jest.Mock).mockResolvedValueOnce(posts);
-  };
-
 
   test('Calcula "totalPosts" corretamente', async () => {
     // M1 (Nov 2023): 3 posts
@@ -66,21 +69,15 @@ describe('getMonthlyComparisonColumnChartData', () => {
     const M0_date = addMonths(new Date(baseTestDate), -1);
     const M_minus_1_date = addMonths(new Date(baseTestDate), -2);
 
-    // Mock para M1
-    mockDbFindForMonth([
+    const posts = [
       mockMetricPost('p1m1', new Date(M1_date.getFullYear(), M1_date.getMonth(), 5)),
       mockMetricPost('p2m1', new Date(M1_date.getFullYear(), M1_date.getMonth(), 10)),
       mockMetricPost('p3m1', new Date(M1_date.getFullYear(), M1_date.getMonth(), 15)),
-    ]);
-    // Mock para M0
-    mockDbFindForMonth([
       mockMetricPost('p1m0', new Date(M0_date.getFullYear(), M0_date.getMonth(), 5)),
       mockMetricPost('p2m0', new Date(M0_date.getFullYear(), M0_date.getMonth(), 10)),
-    ]);
-    // Mock para M-1
-    mockDbFindForMonth([
       mockMetricPost('p1m-1', new Date(M_minus_1_date.getFullYear(), M_minus_1_date.getMonth(), 5)),
-    ]);
+    ];
+    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
 
 
     const result = await getMonthlyComparisonColumnChartData(userId, "totalPosts", baseTestDate);
@@ -110,20 +107,14 @@ describe('getMonthlyComparisonColumnChartData', () => {
     const M0_date = addMonths(new Date(baseTestDate), -1);
     const M_minus_1_date = addMonths(new Date(baseTestDate), -2);
 
-    // M1 (Nov 2023): 50 + 60 = 110
-    mockDbFindForMonth([
+    const posts = [
       mockMetricPost('p1m1', new Date(M1_date.getFullYear(), M1_date.getMonth(), 5), 50),
       mockMetricPost('p2m1', new Date(M1_date.getFullYear(), M1_date.getMonth(), 10), 60),
-    ]);
-    // M0 (Out 2023): 30 + 40 = 70
-    mockDbFindForMonth([
       mockMetricPost('p1m0', new Date(M0_date.getFullYear(), M0_date.getMonth(), 5), 30),
       mockMetricPost('p2m0', new Date(M0_date.getFullYear(), M0_date.getMonth(), 10), 40),
-    ]);
-    // M-1 (Set 2023): 20
-    mockDbFindForMonth([
       mockMetricPost('p1m-1', new Date(M_minus_1_date.getFullYear(), M_minus_1_date.getMonth(), 5), 20),
-    ]);
+    ];
+    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
 
     // Mock getNestedValue para retornar total_interactions
     (getNestedValue as jest.Mock).mockImplementation((obj, path) => {
@@ -153,9 +144,11 @@ describe('getMonthlyComparisonColumnChartData', () => {
     const M0_date = addMonths(new Date(baseTestDate), -1);
     const M_minus_1_date = addMonths(new Date(baseTestDate), -2);
 
-    mockDbFindForMonth([mockMetricPost('p1m1', new Date(M1_date.getFullYear(), M1_date.getMonth(), 5))]); // M1: 1 post
-    mockDbFindForMonth([]); // M0: 0 posts
-    mockDbFindForMonth([mockMetricPost('p1m-1', new Date(M_minus_1_date.getFullYear(), M_minus_1_date.getMonth(), 5))]); // M-1: 1 post
+    const posts = [
+      mockMetricPost('p1m1', new Date(M1_date.getFullYear(), M1_date.getMonth(), 5)), // M1: 1 post
+      mockMetricPost('p1m-1', new Date(M_minus_1_date.getFullYear(), M_minus_1_date.getMonth(), 5)), // M-1: 1 post
+    ];
+    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
 
     const result = await getMonthlyComparisonColumnChartData(userId, "totalPosts", baseTestDate);
     expect(result.chartData[0].value).toBe(1); // M-1
@@ -170,9 +163,10 @@ describe('getMonthlyComparisonColumnChartData', () => {
   });
 
   test('Insight com M0 e M-1 sendo zero para totalPosts', async () => {
-    mockDbFindForMonth([mockMetricPost('p1m1', new Date(baseTestDate.getFullYear(), baseTestDate.getMonth(), 5))]); // M1: 1 post
-    mockDbFindForMonth([]); // M0: 0 posts
-    mockDbFindForMonth([]); // M-1: 0 posts
+    const posts = [
+      mockMetricPost('p1m1', new Date(baseTestDate.getFullYear(), baseTestDate.getMonth(), 5)), // M1: 1 post
+    ];
+    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
 
     const result = await getMonthlyComparisonColumnChartData(userId, "totalPosts", baseTestDate);
     expect(result.chartData[0].value).toBe(0); // M-1
@@ -187,15 +181,11 @@ describe('getMonthlyComparisonColumnChartData', () => {
 
   test('Erro no DB durante uma das buscas', async () => {
     // Simula erro na busca do M0, por exemplo
-    (MetricModel.find as jest.Mock)
-        .mockResolvedValueOnce([]) // M1
-        .mockRejectedValueOnce(new Error("DB Error for M0")) // M0
-        .mockResolvedValueOnce([]); // M-1
+    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.reject(new Error("DB Error for M0")) });
 
     const result = await getMonthlyComparisonColumnChartData(userId, "totalPosts", baseTestDate);
     expect(result.chartData).toEqual([]); // Espera array vazio no erro
     expect(result.insightSummary).toBe("Erro ao buscar dados de comparação mensal.");
-    expect(console.error).toHaveBeenCalled();
+    expect((logger as any).error).toHaveBeenCalled();
   });
 });
-

@@ -111,7 +111,7 @@ function sumDiscounts(inv: any): number {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401, headers: noStoreHeaders });
     }

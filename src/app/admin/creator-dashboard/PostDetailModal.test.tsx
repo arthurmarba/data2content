@@ -1,27 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PostDetailModal, { IPostDetailsData } from './PostDetailModal'; // Import IPostDetailsData if needed for mock typing
 
 // Mock global fetch
 global.fetch = jest.fn();
-
-// Mock Heroicons
-jest.mock('@heroicons/react/24/outline', () => ({
-  ...jest.requireActual('@heroicons/react/24/outline'),
-  XMarkIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'x-mark-icon' }),
-  TagIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'tag-icon' }),
-  InformationCircleIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'info-circle-icon' }),
-  ArrowTrendingUpIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'arrow-trending-up-icon' }),
-  ChartBarIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chart-bar-icon' }),
-  EyeIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'eye-icon' }),
-  HeartIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'heart-icon' }),
-  ChatBubbleOvalLeftEllipsisIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chat-bubble-icon' }),
-  ShareIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'share-icon' }),
-  UsersIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'users-icon' }),
-  PresentationChartLineIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'presentation-chart-icon' }),
-  ExclamationCircleIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'exclamation-circle-icon-modal' }),
-}));
 
 // Mock SkeletonBlock
 jest.mock('../components/SkeletonBlock', () => {
@@ -66,9 +49,9 @@ describe('PostDetailModal Component', () => {
     description: `Esta é uma descrição detalhada para o post ${testPostId}.`,
     postDate: new Date('2023-10-26T10:00:00Z'),
     type: 'REEL',
-    format: 'Tutorial',
-    proposal: 'Educativo',
-    context: 'Tecnologia',
+    format: ['Tutorial'],
+    proposal: ['Educativo'],
+    context: ['Tecnologia'],
     stats: {
       views: 12000,
       likes: 1500,
@@ -108,23 +91,24 @@ describe('PostDetailModal Component', () => {
   });
 
   test('renders loading state with skeletons initially when open with postId', () => {
-    render(<PostDetailModal isOpen={true} onClose={mockOnClose} postId={testPostId} />);
+    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {}));
+    const { container } = render(<PostDetailModal isOpen={true} onClose={mockOnClose} postId={testPostId} />);
     expect(screen.getByText(`Detalhes do Post`)).toBeInTheDocument();
-    expect(screen.queryAllByTestId('skeleton-block').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
   describe('When data is loaded successfully', () => {
     beforeEach(async () => {
       render(<PostDetailModal isOpen={true} onClose={mockOnClose} postId={testPostId} />);
       // Wait for loading to finish (fetch mock resolves)
-      await waitFor(() => expect(screen.queryByTestId('skeleton-block')).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText(mockPostDetailsData.description)).toBeInTheDocument());
     });
 
     test('renders modal title with postId and sections', async () => {
       // Ensure data is displayed (e.g., description)
       expect(await screen.findByText(mockPostDetailsData.description)).toBeInTheDocument();
 
-      expect(screen.getByText((content, element) => content.includes('Detalhes do Post') && content.includes(`(ID: ${testPostId})`))).toBeInTheDocument();
+      expect(screen.getByText('Detalhes do Post')).toBeInTheDocument();
       expect(screen.getByText('Informações Gerais')).toBeInTheDocument();
       expect(screen.getByText('Métricas Principais')).toBeInTheDocument();
       expect(screen.getByText('Desempenho Diário')).toBeInTheDocument();
@@ -160,6 +144,7 @@ describe('PostDetailModal Component', () => {
     });
 
     test('displays "Dados diários insuficientes..." if dailySnapshots has less than 2 items', async () => {
+      cleanup();
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ ...mockPostDetailsData, dailySnapshots: [mockPostDetailsData.dailySnapshots[0]] }), // Only 1 item
@@ -167,7 +152,7 @@ describe('PostDetailModal Component', () => {
       // Re-render or trigger a re-fetch if the component was already mounted.
       // For simplicity, we'll render it fresh for this specific test condition.
       render(<PostDetailModal isOpen={true} onClose={mockOnClose} postId="testPostWithFewSnapshots" />);
-      await waitFor(() => expect(screen.queryByTestId('skeleton-block')).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Dados diários insuficientes para exibir o gráfico.')).toBeInTheDocument());
 
       expect(screen.getByText('Dados diários insuficientes para exibir o gráfico.')).toBeInTheDocument();
       expect(screen.queryByTestId('line-chart')).not.toBeInTheDocument();
@@ -175,7 +160,7 @@ describe('PostDetailModal Component', () => {
 
 
     test('calls onClose when the close button in the header is clicked', () => {
-      fireEvent.click(screen.getByTestId('x-mark-icon').closest('button')!);
+      fireEvent.click(screen.getByLabelText('Fechar'));
       expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
 

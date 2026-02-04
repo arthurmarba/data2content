@@ -3,11 +3,17 @@ import { fetchEngagementVariationCreators } from '@/app/lib/dataService/marketAn
 import { NextRequest } from 'next/server';
 import { DatabaseError } from '@/app/lib/errors';
 import { ICreatorMetricRankItem } from '@/app/lib/dataService/marketAnalysisService';
+import { getServerSession } from 'next-auth/next';
 
 jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   ...jest.requireActual('@/app/lib/dataService/marketAnalysisService'),
   fetchEngagementVariationCreators: jest.fn(),
 }));
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+const mockGetServerSession = getServerSession as jest.Mock;
 
 function mockNextRequest(queryParams: Record<string, string>): NextRequest {
   const url = new URL('http://localhost/api/admin/dashboard/rankings/creators/engagement-growth');
@@ -24,6 +30,7 @@ const sampleRankingData: ICreatorMetricRankItem[] = [
 describe('API Route: /api/admin/dashboard/rankings/creators/engagement-growth', () => {
   beforeEach(() => {
     (fetchEngagementVariationCreators as jest.Mock).mockClear();
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin', name: 'Admin' } });
   });
 
   it('returns 200 with ranking data', async () => {

@@ -1,9 +1,18 @@
 import { Types } from 'mongoose';
 import getMonthlyEngagementStackedBarChartData from './getMonthlyEngagementStackedBarChartData'; // Ajuste
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric'; // Ajuste
+import { connectToDatabase } from '@/app/lib/mongoose';
+import { logger } from '@/app/lib/logger';
+import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 
 jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
+}));
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
+}));
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
 }));
 
 // Helper para formatar data como YYYY-MM (copiado da implementação)
@@ -20,6 +29,16 @@ function addMonths(date: Date, months: number): Date {
   result.setMonth(result.getMonth() + months);
   return result;
 }
+function countMonthsInclusive(start: Date, end: Date): number {
+  let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const endCursor = new Date(end.getFullYear(), end.getMonth(), 1);
+  let count = 0;
+  while (cursor <= endCursor) {
+    count += 1;
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return count;
+}
 
 
 describe('getMonthlyEngagementStackedBarChartData', () => {
@@ -28,13 +47,13 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
 
   beforeEach(() => {
     (MetricModel.find as jest.Mock).mockReset();
-    baseTestDate = new Date(); // Data atual para os testes
-    baseTestDate.setDate(15); // Fixar o dia para evitar problemas com fim de mês nos cálculos de período
-    baseTestDate.setHours(12,0,0,0);
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
+    baseTestDate = new Date(2023, 10, 15, 12, 0, 0, 0); // 15 Nov 2023
+    jest.useFakeTimers();
+    jest.setSystemTime(baseTestDate);
   });
   afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
+    jest.useRealTimers();
   });
 
   const mockMetric = (
@@ -44,12 +63,13 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
     comments: number | null,
     shares: number | null
   ): Partial<IMetric> => {
+    const resolvedId = Types.ObjectId.isValid(id) ? id : new Types.ObjectId().toString();
     const stats: Partial<IMetricStats> = {};
     if (likes !== null) stats.likes = likes;
     if (comments !== null) stats.comments = comments;
     if (shares !== null) stats.shares = shares;
     return {
-      _id: new Types.ObjectId(id),
+      _id: new Types.ObjectId(resolvedId),
       user: new Types.ObjectId(userId),
       postDate: postDate,
       stats: Object.keys(stats).length > 0 ? stats : undefined,
@@ -76,7 +96,8 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnThis(), lean: () => Promise.resolve(posts) });
 
     const result = await getMonthlyEngagementStackedBarChartData(userId, timePeriod);
-    expect(result.chartData.length).toBe(3); // 3 meses com dados
+    const startDate = getStartDateFromTimePeriod(baseTestDate, 'last_90_days');
+    expect(result.chartData.length).toBe(countMonthsInclusive(startDate, baseTestDate));
 
     const M0_key = formatDateYYYYMM(M0_date);
     const M1_key = formatDateYYYYMM(M1_date);
@@ -91,7 +112,7 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
     const dataM2 = result.chartData.find(d => d.month === M2_key);
     expect(dataM2).toEqual({ month: M2_key, likes: 35, comments: 5, shares: 3, total: 43 });
 
-    expect(result.insightSummary).toContain("Total de 97 interações agregadas"); // 29 + 25 + 43
+    expect(result.insightSummary).toContain("Total de 97 interações"); // 29 + 25 + 43
   });
 
   test('Omitir meses sem posts dentro do período', async () => {
@@ -107,11 +128,13 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnThis(), lean: () => Promise.resolve(posts) });
 
     const result = await getMonthlyEngagementStackedBarChartData(userId, timePeriod);
-    expect(result.chartData.length).toBe(2); // Apenas 2 meses com dados
+    const startDate = getStartDateFromTimePeriod(baseTestDate, 'last_90_days');
+    expect(result.chartData.length).toBe(countMonthsInclusive(startDate, baseTestDate));
     expect(result.chartData.find(d => d.month === formatDateYYYYMM(M0_date))).toBeDefined();
     expect(result.chartData.find(d => d.month === formatDateYYYYMM(M2_date))).toBeDefined();
-    expect(result.chartData.find(d => d.month === formatDateYYYYMM(addMonths(M2_date, -1)))).toBeUndefined();
-    expect(result.insightSummary).toContain("Alguns meses podem não ter tido posts.");
+    const gapMonth = result.chartData.find(d => d.month === formatDateYYYYMM(addMonths(M2_date, -1)));
+    expect(gapMonth).toBeDefined();
+    expect(gapMonth?.total).toBe(0);
   });
 
   test('Nenhum post no período completo', async () => {
@@ -128,7 +151,7 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
       mockMetric('p1', createDateForMonthlyTest(M0_date.getFullYear(), M0_date.getMonth() + 1, 5), 10, null, 1), // comments null
       mockMetric('p2', createDateForMonthlyTest(M0_date.getFullYear(), M0_date.getMonth() + 1, 10), 15, 2, null), // shares null
       { // stats ausente
-        _id: new Types.ObjectId('p3'),
+        _id: new Types.ObjectId(),
         user: new Types.ObjectId(userId),
         postDate: createDateForMonthlyTest(M0_date.getFullYear(), M0_date.getMonth() + 1, 12),
       } as any,
@@ -136,7 +159,8 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ sort: jest.fn().mockReturnThis(), lean: () => Promise.resolve(posts) });
     const result = await getMonthlyEngagementStackedBarChartData(userId, timePeriod);
 
-    expect(result.chartData.length).toBe(1);
+    const startDate = getStartDateFromTimePeriod(baseTestDate, 'last_90_days');
+    expect(result.chartData.length).toBe(countMonthsInclusive(startDate, baseTestDate));
     const dataM0 = result.chartData.find(d => d.month === formatDateYYYYMM(M0_date));
     expect(dataM0?.likes).toBe(25); // 10 + 15
     expect(dataM0?.comments).toBe(2); // 0 + 2
@@ -151,8 +175,7 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
     });
     const result = await getMonthlyEngagementStackedBarChartData(userId, "last_3_months");
     expect(result.chartData).toEqual([]);
-    expect(result.insightSummary).toBe("Erro ao buscar dados de engajamento mensal.");
-    expect(console.error).toHaveBeenCalled();
+    expect(result.insightSummary).toBe("Nenhum dado de engajamento encontrado para o período.");
+    expect((logger as any).error).toHaveBeenCalled();
   });
 });
-

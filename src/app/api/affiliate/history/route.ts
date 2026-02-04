@@ -14,7 +14,7 @@ function clamp(num: number, min: number, max: number) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) {
     return NextResponse.json(
       { error: 'unauthorized' },

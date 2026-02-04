@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
     const userId = (session?.user as any)?.id as string | undefined;
     if (!userId) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });

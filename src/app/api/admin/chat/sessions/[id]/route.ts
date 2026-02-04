@@ -11,7 +11,7 @@ import ChatSessionReviewModel from "@/app/models/ChatSessionReview";
 type Params = { params: { id: string } };
 
 export async function GET(req: Request, { params }: Params) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if ((session?.user as any)?.role?.toLowerCase() !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

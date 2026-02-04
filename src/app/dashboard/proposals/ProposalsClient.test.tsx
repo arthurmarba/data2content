@@ -272,7 +272,7 @@ test('pro user can analyze proposal without seeing upgrade gates', async () => {
   );
 
   const analyzeButton = await screen.findByRole('button', {
-    name: /Analisar com Mobi/i,
+    name: /Analisar Proposta/i,
   });
 
   expect(screen.queryByText('Responda e negocie direto pela plataforma')).toBeNull();
@@ -287,6 +287,6 @@ test('pro user can analyze proposal without seeing upgrade gates', async () => {
     )
   );
 
-  expect(await screen.findByText('Diagnóstico do Mobi')).toBeInTheDocument();
+  expect(await screen.findByText(/Diagnóstico do Mobi/)).toBeInTheDocument();
   expect(await screen.findByDisplayValue('Olá, marca!')).toBeInTheDocument();
 });

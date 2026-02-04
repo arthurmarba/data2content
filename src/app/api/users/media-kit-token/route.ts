@@ -19,7 +19,7 @@ function apiError(message: string, status: number) {
 
 export async function POST(req: NextRequest) {
   const TAG = '[api/users/media-kit-token:POST]';
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const sessionUser = session?.user as { id?: string; name?: string | null } | undefined;
   if (!sessionUser?.id) {
     return apiError('Não autenticado.', 401);
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const TAG = '[api/users/media-kit-token:GET]';
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const sessionUser = session?.user as { id?: string } | undefined;
   if (!sessionUser?.id) {
     return apiError('Não autenticado.', 401);

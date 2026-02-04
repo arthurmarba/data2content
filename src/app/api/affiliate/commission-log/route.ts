@@ -8,7 +8,7 @@ import { normCur } from "@/utils/normCur";
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
   await connectToDatabase();

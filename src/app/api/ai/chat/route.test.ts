@@ -13,27 +13,13 @@ const mockAskLLM = jest.fn();
 const mockCreateThread = jest.fn();
 const mockPersistMessage = jest.fn();
 const mockGenerateThreadTitle = jest.fn();
-jest.mock('@/app/lib/stateService', () => ({
-  __esModule: true,
-  getConversationHistory: () => mockGetHistory(),
-  setConversationHistory: (...args: any[]) => mockSetHistory(...args),
-  getDialogueState: () => mockGetDialogue(),
-  updateDialogueState: (...args: any[]) => mockUpdateDialogue(...args),
-  createThread: (...args: any[]) => mockCreateThread(...args),
-  persistMessage: (...args: any[]) => mockPersistMessage(...args),
-  generateThreadTitle: (...args: any[]) => mockGenerateThreadTitle(...args),
-}));
-import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
+const mockRunPubliCalculator = jest.fn();
 import { determineIntent } from '@/app/lib/intentService';
 import { callOpenAIForQuestion, generateConversationSummary } from '@/app/lib/aiService';
 
 jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
-jest.mock('@/app/lib/aiOrchestrator', () => ({
-  __esModule: true,
-  askLLMWithEnrichedContext: (...args: any[]) => mockAskLLM(...args),
-}));
 jest.mock('@/app/lib/intentService', () => ({
   determineIntent: jest.fn(),
   normalizeText: (text: string) => text,
@@ -42,6 +28,18 @@ jest.mock('@/app/lib/aiService', () => ({
   __esModule: true,
   callOpenAIForQuestion: (...args: any[]) => mockCallQuestion(...args),
   generateConversationSummary: (...args: any[]) => mockGenSummary(...args),
+}));
+jest.mock('@/app/lib/pricing/publiCalculator', () => ({
+  __esModule: true,
+  PRICING_MULTIPLIERS: {
+    formato: { post: 1, reels: 1, stories: 1, pacote: 1 },
+    exclusividade: { nenhuma: 1, '7d': 1, '15d': 1, '30d': 1 },
+    usoImagem: { organico: 1, midiapaga: 1, global: 1 },
+    complexidade: { simples: 1, roteiro: 1, profissional: 1 },
+    autoridade: { padrao: 1, ascensao: 1, autoridade: 1, celebridade: 1 },
+    sazonalidade: { normal: 1, alta: 1, baixa: 1 },
+  },
+  runPubliCalculator: (...args: any[]) => mockRunPubliCalculator(...args),
 }));
 jest.mock('@/utils/rateLimit', () => ({
   checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
@@ -53,12 +51,12 @@ jest.mock('@/app/lib/chatTelemetry', () => ({
 
 let chat: typeof import('./route').POST;
 let sanitizeTables: typeof import('./route').sanitizeTables;
-let stateServiceMocked: any;
 
 const mockSession = getServerSession as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
 const mockFindById = (UserModel as any).findById as jest.Mock;
 const mockIntent = determineIntent as jest.Mock;
+const testUserId = '507f1f77bcf86cd799439011';
 
 const streamFromText = (text: string) => ({
   getReader: () => {
@@ -83,24 +81,28 @@ function makeRequest(body: any) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  process.env.ANSWER_ENGINE_ENABLED = 'false';
   jest.isolateModules(() => {
-    stateServiceMocked = require('@/app/lib/stateService');
-    stateServiceMocked.getConversationHistory = mockGetHistory;
-    stateServiceMocked.setConversationHistory = mockSetHistory;
-    stateServiceMocked.getDialogueState = mockGetDialogue;
-    stateServiceMocked.updateDialogueState = mockUpdateDialogue;
-    stateServiceMocked.createThread = mockCreateThread;
-    stateServiceMocked.persistMessage = mockPersistMessage;
-    stateServiceMocked.generateThreadTitle = mockGenerateThreadTitle;
+    const stateServiceMock = require('../../../../../__mocks__/stateService.js');
+    stateServiceMock.getConversationHistory = mockGetHistory;
+    stateServiceMock.setConversationHistory = mockSetHistory;
+    stateServiceMock.getDialogueState = mockGetDialogue;
+    stateServiceMock.updateDialogueState = mockUpdateDialogue;
+    stateServiceMock.createThread = mockCreateThread;
+    stateServiceMock.persistMessage = mockPersistMessage;
+    stateServiceMock.generateThreadTitle = mockGenerateThreadTitle;
+    const aiOrchestratorMock = require('../../../../../__mocks__/aiOrchestrator.js');
+    aiOrchestratorMock.askLLMWithEnrichedContext = (...args: any[]) => mockAskLLM(...args);
+    aiOrchestratorMock.buildSurveyProfileSnippet = jest.fn(() => 'profile-snippet');
     const routeModule = require('./route');
     chat = routeModule.POST;
     sanitizeTables = routeModule.sanitizeTables;
   });
-  mockSession.mockResolvedValue({ user: { id: 'u1', planStatus: 'active' } });
+  mockSession.mockResolvedValue({ user: { id: testUserId, planStatus: 'active' } });
   mockConnect.mockResolvedValue(null);
   mockFindById.mockReturnValue({
     lean: jest.fn().mockResolvedValue({
-      _id: 'u1',
+      _id: testUserId,
       name: 'Teste User',
       isInstagramConnected: true,
       planStatus: 'active',
@@ -117,12 +119,29 @@ beforeEach(() => {
   mockGenSummary.mockResolvedValue('Resumo');
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'general' });
   mockAskLLM.mockResolvedValue({ stream: streamFromText('Resposta padrão') });
+  mockRunPubliCalculator.mockResolvedValue({
+    metrics: { reach: 1000, engagement: 0.05, profileSegment: 'default' },
+    params: {
+      format: 'reels',
+      exclusivity: 'nenhuma',
+      usageRights: 'organico',
+      complexity: 'simples',
+      authority: 'padrao',
+      seasonality: 'normal',
+    },
+    result: { estrategico: 100, justo: 200, premium: 300 },
+    cpmApplied: 10,
+    cpmSource: 'seed',
+    avgTicket: null,
+    totalDeals: 0,
+    explanation: 'mock',
+  });
 });
 
 it('retorna CTA de conectar IG quando não conectado', async () => {
   mockFindById.mockReturnValue({
     lean: jest.fn().mockResolvedValue({
-      _id: 'u1',
+      _id: testUserId,
       name: 'Teste User',
       isInstagramConnected: false,
       planStatus: 'active',
@@ -137,10 +156,10 @@ it('retorna CTA de conectar IG quando não conectado', async () => {
 });
 
 it('bloqueia plano inativo com CTA de upgrade', async () => {
-  mockSession.mockResolvedValue({ user: { id: 'u1', planStatus: 'inactive' } });
+  mockSession.mockResolvedValue({ user: { id: testUserId, planStatus: 'inactive' } });
   mockFindById.mockReturnValue({
     lean: jest.fn().mockResolvedValue({
-      _id: 'u1',
+      _id: testUserId,
       name: 'Teste User',
       isInstagramConnected: true,
       planStatus: 'inactive',

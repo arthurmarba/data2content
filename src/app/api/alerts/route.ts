@@ -102,7 +102,7 @@ function serializeAlert(doc: IAlert) {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const userId = (session?.user as { id?: string } | undefined)?.id;
 
   if (!userId) {

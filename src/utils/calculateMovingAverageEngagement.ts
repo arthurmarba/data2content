@@ -35,11 +35,12 @@ function formatDateYYYYMMDD(date: Date): string {
 async function calculateMovingAverageEngagement(
   userId: string | Types.ObjectId,
   dataWindowInDays: number,
-  movingAverageWindowInDays: number
+  movingAverageWindowInDays: number,
+  nowOverride?: Date
 ): Promise<MovingAverageEngagementResult> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
 
-  const dataEndDate = new Date();
+  const dataEndDate = nowOverride ? new Date(nowOverride) : new Date();
   dataEndDate.setHours(23, 59, 59, 999);
 
   const dataStartDate = new Date(dataEndDate);
@@ -49,6 +50,7 @@ async function calculateMovingAverageEngagement(
   const dataFullStartDate = new Date(dataStartDate);
   dataFullStartDate.setDate(dataStartDate.getDate() - movingAverageWindowInDays + 1);
   dataFullStartDate.setHours(0, 0, 0, 0);
+  const dataStartKey = formatDateYYYYMMDD(dataStartDate);
 
   const resultSeries: MovingAverageDataPoint[] = [];
   const initialResult: MovingAverageEngagementResult = {
@@ -109,7 +111,7 @@ async function calculateMovingAverageEngagement(
     }
 
     const firstIndex = movingAverageWindowInDays - 1;
-    if (new Date(completeDailyEngagementsSeries[firstIndex]!.date) >= dataStartDate) {
+    if (completeDailyEngagementsSeries[firstIndex]!.date >= dataStartKey) {
       resultSeries.push({
         date: completeDailyEngagementsSeries[firstIndex]!.date,
         movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
@@ -119,7 +121,7 @@ async function calculateMovingAverageEngagement(
     for (let i = movingAverageWindowInDays; i < completeDailyEngagementsSeries.length; i++) {
       currentWindowSum -= completeDailyEngagementsSeries[i - movingAverageWindowInDays]!.totalDailyEngagement;
       currentWindowSum += completeDailyEngagementsSeries[i]!.totalDailyEngagement;
-      if (new Date(completeDailyEngagementsSeries[i]!.date) >= dataStartDate) {
+      if (completeDailyEngagementsSeries[i]!.date >= dataStartKey) {
         resultSeries.push({
           date: completeDailyEngagementsSeries[i]!.date,
           movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,

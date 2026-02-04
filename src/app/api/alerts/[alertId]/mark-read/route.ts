@@ -14,7 +14,7 @@ export async function PATCH(
   _request: NextRequest,
   { params }: { params: { alertId: string } }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const userId = (session?.user as { id?: string } | undefined)?.id;
 
   if (!userId) {

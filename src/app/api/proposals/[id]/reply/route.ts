@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import mongoose from 'mongoose';
 import * as Sentry from '@sentry/nextjs';
 
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import BrandProposal, { BrandProposalStatus } from '@/app/models/BrandProposal';
 import { logger } from '@/app/lib/logger';
@@ -35,7 +35,8 @@ const serializeProposal = (proposal: any) => ({
 });
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession({ req: request, ...authOptions });
+  const authOptions = await resolveAuthOptions();
+  const session = (await getServerSession({ req: request, ...authOptions })) as any;
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
   }

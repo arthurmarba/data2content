@@ -8,7 +8,7 @@ import { logger } from '@/app/lib/logger';
 
 // GET: Fetch all packages for the authenticated user
 export async function GET() {
-    const session = await getServerSession(authOptions as any);
+    const session = (await getServerSession(authOptions as any)) as any;
     const userId = (session as any)?.user?.id;
 
     if (!userId) {
@@ -27,7 +27,7 @@ export async function GET() {
 
 // POST: Replace all packages or create new ones
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions as any);
+    const session = (await getServerSession(authOptions as any)) as any;
     const userId = (session as any)?.user?.id;
 
     if (!userId) {
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Remove all packages
 export async function DELETE() {
-    const session = await getServerSession(authOptions as any);
+    const session = (await getServerSession(authOptions as any)) as any;
     const userId = (session as any)?.user?.id;
 
     if (!userId) {

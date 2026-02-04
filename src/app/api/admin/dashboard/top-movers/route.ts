@@ -17,9 +17,17 @@ import {
 } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 
 const SERVICE_TAG = '[api/admin/dashboard/top-movers v2.0.0]';
+
+type AdminSession = {
+  user?: {
+    role?: string;
+    name?: string | null;
+  };
+} | null;
+
 
 // --- Zod Schemas for Validation ---
 
@@ -82,7 +90,8 @@ const requestBodySchema = z.object({
 // --- Helper Functions ---
 
 async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const authOptions = await resolveAuthOptions();
+  const session = (await getServerSession(authOptions as any)) as AdminSession;
   if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
     return null;

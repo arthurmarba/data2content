@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id || !['admin', 'internal', 'staff'].includes((session.user as any)?.role ?? '')) {
     return NextResponse.json({ ok: false, error: 'not_authorized' }, { status: 403 });
   }

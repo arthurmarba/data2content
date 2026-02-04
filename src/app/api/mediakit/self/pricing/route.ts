@@ -27,7 +27,7 @@ const serializePricing = (calculation: any) => {
 };
 
 export async function GET() {
-  const session = await getServerSession(authOptions as any);
+  const session = (await getServerSession(authOptions as any)) as any;
   const userId = (session as any)?.user?.id;
 
   if (!userId) {
@@ -52,7 +52,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions as any);
+  const session = (await getServerSession(authOptions as any)) as any;
   const userId = (session as any)?.user?.id;
 
   if (!userId) {
@@ -88,7 +88,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE() {
-  const session = await getServerSession(authOptions as any);
+  const session = (await getServerSession(authOptions as any)) as any;
   const userId = (session as any)?.user?.id;
 
   if (!userId) {

@@ -1,11 +1,20 @@
 import calculateAverageVideoMetrics from './calculateAverageVideoMetrics';
 import MetricModel from '@/app/models/Metric';
 
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
+}));
+
 jest.mock('@/app/models/Metric', () => ({
   aggregate: jest.fn(),
 }));
 
 const mockAggregate = MetricModel.aggregate as jest.Mock;
+const testUserId = '507f1f77bcf86cd799439011';
 
 describe('calculateAverageVideoMetrics', () => {
   beforeEach(() => {
@@ -33,7 +42,7 @@ describe('calculateAverageVideoMetrics', () => {
       },
     ]);
 
-    const result = await calculateAverageVideoMetrics('u1', 30);
+    const result = await calculateAverageVideoMetrics(testUserId, 30);
     expect(result.numberOfVideoPosts).toBe(2);
     expect(result.averageViews).toBeCloseTo(500);
     expect(result.averageLikes).toBeCloseTo(25);
@@ -44,7 +53,7 @@ describe('calculateAverageVideoMetrics', () => {
 
   it('returns defaults when aggregation returns nothing', async () => {
     mockAggregate.mockResolvedValueOnce([]);
-    const result = await calculateAverageVideoMetrics('u1', 30);
+    const result = await calculateAverageVideoMetrics(testUserId, 30);
     expect(result.numberOfVideoPosts).toBe(0);
     expect(result.averageViews).toBe(0);
     expect(result.averageLikes).toBe(0);

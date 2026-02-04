@@ -4,9 +4,15 @@ import { logger } from '@/app/lib/logger';
 import { fetchContentPerformanceByType } from '@/app/lib/dataService/marketAnalysis/segmentService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 export const dynamic = 'force-dynamic';
 
+type AdminSession = {
+  user?: {
+    role?: string;
+    id?: string;
+  };
+} | null;
 
 const TAG = '/api/admin/dashboard/content/performance-by-type';
 
@@ -23,7 +29,8 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Request received`);
 
   // 1. Admin Session Validation
-  const session = await getServerSession(authOptions);
+  const authOptions = await resolveAuthOptions();
+  const session = (await getServerSession(authOptions as any)) as AdminSession;
   
   // Verificação mais robusta da sessão e do papel do usuário
   if (!session || !session.user || session.user.role !== 'admin') {

@@ -13,7 +13,7 @@ interface RouteParams {
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession({ req: request, ...authOptions });
+  const session = (await getServerSession({ req: request, ...authOptions })) as any;
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }

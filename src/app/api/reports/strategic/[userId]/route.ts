@@ -43,7 +43,7 @@ interface AuthorizedContext {
 }
 
 async function getAuthorizedContext(request: NextRequest, userIdParam: string): Promise<AuthorizedContext> {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const sessionUser = (session as any)?.user as Record<string, any> | undefined;
   const access = evaluateUserAccess(sessionUser, userIdParam);
 

@@ -5,7 +5,7 @@ import { markCsatPrompted } from "@/app/lib/chatTelemetry";
 import ChatSessionModel from "@/app/models/ChatSession";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   const userId = (session?.user as any)?.id || null;
 
   const body = await req.json().catch(() => ({}));

@@ -77,7 +77,7 @@ const CreatorDetailModal = ({ isOpen, onClose, creator, dateRangeFilter }: { isO
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">Detalhes de {creator.name}</h2>
-          <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
+          <button onClick={onClose} aria-label="Fechar detalhes do criador" className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
@@ -95,7 +95,7 @@ const CreatorComparisonModal = ({ isOpen, onClose, creatorIdsToCompare }: any) =
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">Comparando Criadores</h2>
-          <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
+          <button onClick={onClose} aria-label="Fechar comparação de criadores" className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>

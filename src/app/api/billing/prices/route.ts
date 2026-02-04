@@ -17,7 +17,7 @@ function entries<T extends string>(o: Record<T, string | undefined>) {
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions)) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

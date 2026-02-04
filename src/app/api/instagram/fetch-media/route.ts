@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     try {
         // 1. Autenticação e Obtenção do ID do Utilizador
         logger.debug(`${TAG} Verificando sessão...`);
-        const session = await getServerSession(authOptions);
+        const session = (await getServerSession(authOptions)) as any;
 
         if (!session?.user?.id || !mongoose.isValidObjectId(session.user.id)) {
             logger.warn(`${TAG} Tentativa de acesso não autenticada ou ID de usuário inválido. User ID: ${session?.user?.id}`);

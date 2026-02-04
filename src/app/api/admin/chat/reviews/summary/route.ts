@@ -7,7 +7,7 @@ import ChatSessionFeedbackModel from "@/app/models/ChatSessionFeedback";
 import ChatMessageFeedbackModel from "@/app/models/ChatMessageFeedback";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if ((session?.user as any)?.role?.toLowerCase() !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

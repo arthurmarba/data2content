@@ -11,7 +11,7 @@ export async function GET(
     { params }: { params: { threadId: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = (await getServerSession(authOptions)) as any;
         const userId = (session?.user as any)?.id;
         const threadId = params.threadId;
 
@@ -65,7 +65,7 @@ export async function PATCH(
     { params }: { params: { threadId: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = (await getServerSession(authOptions)) as any;
         const userId = (session?.user as any)?.id;
         const threadId = params.threadId;
 
@@ -99,7 +99,7 @@ export async function DELETE(
     { params }: { params: { threadId: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = (await getServerSession(authOptions)) as any;
         const userId = (session?.user as any)?.id;
         const threadId = params.threadId;
 

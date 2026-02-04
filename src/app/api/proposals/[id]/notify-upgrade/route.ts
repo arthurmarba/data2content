@@ -13,7 +13,7 @@ import { logger } from '@/app/lib/logger';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession({ req: request, ...authOptions });
+  const session = (await getServerSession({ req: request, ...authOptions })) as any;
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
   }

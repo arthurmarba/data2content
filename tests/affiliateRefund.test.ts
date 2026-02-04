@@ -5,8 +5,10 @@ import AffiliateRefundProgress from '@/app/models/AffiliateRefundProgress';
 import User from '@/app/models/User';
 
 jest.mock('@/app/models/AffiliateRefundProgress', () => ({
-  findOneAndUpdate: jest.fn(),
   updateOne: jest.fn(),
+  collection: {
+    findOne: jest.fn(),
+  },
 }));
 jest.mock('@/app/models/User', () => ({
   findOne: jest.fn(),
@@ -18,7 +20,7 @@ describe('affiliate refund', () => {
   });
 
   it('delta idempotent', async () => {
-    (AffiliateRefundProgress.findOneAndUpdate as jest.Mock)
+    ((AffiliateRefundProgress as any).collection.findOne as jest.Mock)
       .mockResolvedValueOnce({ refundedPaidCentsTotal: 0 })
       .mockResolvedValueOnce({ refundedPaidCentsTotal: 1000 });
     const { delta } = await computeDelta('inv1', new Types.ObjectId(), 1000);
@@ -38,8 +40,8 @@ describe('affiliate refund', () => {
       save: jest.fn(),
       markModified: jest.fn(),
     } as any;
-    (AffiliateRefundProgress.findOneAndUpdate as jest.Mock).mockResolvedValue({ refundedPaidCentsTotal: 0 });
     (AffiliateRefundProgress.updateOne as jest.Mock).mockResolvedValue({});
+    ((AffiliateRefundProgress as any).collection.findOne as jest.Mock).mockResolvedValue({ refundedPaidCentsTotal: 0 });
     (User.findOne as jest.Mock).mockResolvedValue(user);
     await processAffiliateRefund('inv1', 1000);
     expect(user.affiliateDebtByCurrency.get('brl')).toBe(100);

@@ -45,7 +45,7 @@ describe('aggregatePlatformDayPerformance', () => {
     mockAgg.mockResolvedValueOnce([]);
     await aggregatePlatformDayPerformance(7, 'stats.total_interactions', { format: 'reel', context: 'tech' });
     const pipeline = mockAgg.mock.calls[0][0];
-    expect(pipeline[0].$match.format).toBe('reel');
-    expect(pipeline[0].$match.context).toBe('tech');
+    expect(pipeline[0].$match.format).toEqual({ $in: ['Reel'] });
+    expect(pipeline[0].$match.context).toEqual({ $in: ['tech'] });
   });
 });

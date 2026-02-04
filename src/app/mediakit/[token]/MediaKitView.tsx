@@ -35,8 +35,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { motion } from 'framer-motion';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
@@ -48,6 +46,7 @@ import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
 import ButtonPrimary from '@/app/landing/components/ButtonPrimary';
 import DemographicBarList from '@/app/components/DemographicBarList';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
 import { track } from '@/lib/track';
@@ -1009,7 +1008,7 @@ type CategoryRankingsSummaryProps = {
   loading: boolean;
   locked: boolean;
   lockedDescription: string;
-  lockedCtaLabel: string;
+  lockedCtaLabel?: string;
   lockedSubtitle?: string;
   onLockedAction?: () => void;
   isPublicView?: boolean;
@@ -1081,14 +1080,16 @@ const CategoryRankingsSummary = ({
         </div>
         <h3 className="mt-4 text-lg font-semibold text-slate-900">Modo Pro Bloqueado</h3>
         <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">{lockedDescription}</p>
-        <button
-          type="button"
-          onClick={() => onLockedAction?.()}
-          className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c12652] hover:shadow-md"
-        >
-          {lockedCtaLabel}
-          <ArrowUpRight className="h-4 w-4" />
-        </button>
+        {lockedCtaLabel ? (
+          <button
+            type="button"
+            onClick={() => onLockedAction?.()}
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#D62E5E] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c12652] hover:shadow-md"
+          >
+            {lockedCtaLabel}
+            <ArrowUpRight className="h-4 w-4" />
+          </button>
+        ) : null}
         {lockedSubtitle ? <p className="mt-3 text-xs text-slate-500">{lockedSubtitle}</p> : null}
       </div>
     );
@@ -1254,11 +1255,6 @@ export default function MediaKitView({
   onTogglePricingPublish,
   onEditName,
 }: MediaKitViewProps) {
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5, ease: 'easeOut' } }),
-  } as const;
-
   const isPublicView = !showOwnerCtas;
   const comparisonToTimePeriod = COMPARISON_TO_TIME_PERIOD;
   const normalizedInitialComparisonPeriod = normalizeComparisonPeriod(initialKpis?.comparisonPeriod);
@@ -1279,6 +1275,20 @@ export default function MediaKitView({
   const [isLoading, setIsLoading] = useState(!initialKpis);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const printParam = searchParams?.get('print');
+  const isPrintMode = printParam === '1' || printParam === 'true';
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5, ease: 'easeOut' } }),
+  } as const;
+  const resolvedCardVariants = isPrintMode
+    ? {
+        hidden: { opacity: 1, y: 0 },
+        visible: { opacity: 1, y: 0 },
+      }
+    : cardVariants;
+  const motionInitial = isPrintMode ? 'visible' : 'hidden';
   const billingStatus = useBillingStatus({ auto: showOwnerCtas });
   const stickyStartRef = useRef<HTMLDivElement | null>(null);
   const stickyEndRef = useRef<HTMLDivElement | null>(null);
@@ -1288,6 +1298,7 @@ export default function MediaKitView({
   const hasTrackedViewRef = useRef(false);
 
   useEffect(() => {
+    if (isPrintMode) return;
     async function fetchData() {
       if (!user?._id) return;
       setIsLoading(true);
@@ -1310,7 +1321,7 @@ export default function MediaKitView({
       }
     }
     fetchData();
-  }, [comparisonPeriod, user?._id]);
+  }, [comparisonPeriod, isPrintMode, user?._id]);
 
   const selectedPeriodLabel = useMemo(() => {
     const option = PERIOD_OPTIONS.find((item) => item.value === comparisonPeriod);
@@ -1937,6 +1948,10 @@ export default function MediaKitView({
 
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const heroDescriptor = useMemo(() => {
     const candidates = [
       (user as any)?.headline,
@@ -1955,6 +1970,18 @@ export default function MediaKitView({
   }, [user]);
 
   useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    const ua = navigator.userAgent || '';
+    const isiOSDevice =
+      /iPad|iPhone|iPod/i.test(ua) ||
+      (ua.includes('Macintosh') && typeof document !== 'undefined' && 'ontouchend' in document);
+    const isAndroidDevice = /Android/i.test(ua);
+    setIsIOS(isiOSDevice);
+    setIsMobile(isiOSDevice || isAndroidDevice);
+  }, []);
+
+  useEffect(() => {
+    if (isPrintMode) return;
     if (hasTrackedViewRef.current) return;
     const creatorId = (user as any)?._id ? String((user as any)._id) : null;
     const mediaKitId =
@@ -1975,7 +2002,7 @@ export default function MediaKitView({
       utm_content: utm.utm_content ?? null,
       utm_term: utm.utm_term ?? null,
     });
-  }, [mediaKitSlug, user, utm]);
+  }, [isPrintMode, mediaKitSlug, user, utm]);
   const heroLocationLabel = useMemo(() => {
     const locationParts = [
       (user as any)?.city,
@@ -2064,6 +2091,50 @@ export default function MediaKitView({
       // Se share falhar também, apenas silencie; UX mostra botão novamente
     }
   }, [mediaKitSlug, publicUrlForCopy, tryCopyShareUrl, user]);
+
+  const handlePdfExport = useCallback(async () => {
+    if (isPdfGenerating) return;
+    if (!mediaKitSlug) {
+      setPdfError('Não foi possível gerar o PDF agora. Tente novamente em instantes.');
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    setPdfError(null);
+    setIsPdfGenerating(true);
+    try {
+      const downloadUrl = `/api/mediakit/${mediaKitSlug}/pdf`;
+      if (isMobile) {
+        window.location.assign(downloadUrl);
+        return;
+      }
+      const response = await fetch(downloadUrl, { method: 'GET' });
+      if (!response.ok) {
+        let errorMessage = 'Não foi possível gerar o PDF agora. Tente novamente em instantes.';
+        try {
+          const data = await response.json();
+          if (data?.error) errorMessage = data.error;
+        } catch {
+          // Mantém mensagem padrão
+        }
+        throw new Error(errorMessage);
+      }
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const fileName = `media-kit-${mediaKitSlug}.pdf`;
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível gerar o PDF agora.';
+      setPdfError(message);
+    } finally {
+      setIsPdfGenerating(false);
+    }
+  }, [isMobile, isPdfGenerating, mediaKitSlug]);
   useEffect(
     () => () => {
       if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
@@ -2163,6 +2234,7 @@ export default function MediaKitView({
   }, []);
 
   useEffect(() => {
+    if (isPrintMode) return;
     if (showOwnerCtas && shouldLockPremiumSections && !lockedViewTrackedRef.current) {
       track('media_kit_categories_locked_viewed', { surface: 'media_kit' });
       lockedViewTrackedRef.current = true;
@@ -2170,9 +2242,10 @@ export default function MediaKitView({
     if (showOwnerCtas && canViewPremiumSections) {
       lockedViewTrackedRef.current = false;
     }
-  }, [showOwnerCtas, canViewPremiumSections, shouldLockPremiumSections]);
+  }, [isPrintMode, showOwnerCtas, canViewPremiumSections, shouldLockPremiumSections]);
 
   useEffect(() => {
+    if (isPrintMode) return;
     if (showOwnerCtas && !canViewCategories && visibilityMode === 'lock' && !topPostsLockedViewTrackedRef.current) {
       track('media_kit_top_posts_locked_viewed', { surface: 'media_kit' });
       topPostsLockedViewTrackedRef.current = true;
@@ -2180,7 +2253,7 @@ export default function MediaKitView({
     if (showOwnerCtas && canViewCategories) {
       topPostsLockedViewTrackedRef.current = false;
     }
-  }, [showOwnerCtas, canViewCategories, visibilityMode]);
+  }, [isPrintMode, showOwnerCtas, canViewCategories, visibilityMode]);
   // Dono do Mídia Kit: considera o planStatus da sessão para esconder o CTA de assinatura
   const affiliateCode = useMemo(() => {
     const raw = (user as any)?.affiliateCode;
@@ -2228,6 +2301,7 @@ export default function MediaKitView({
     });
   }, [affiliateHandle, mediaKitSlug, topPostsSort]);
   useEffect(() => {
+    if (isPrintMode) return;
     const container = topPostsScrollRef.current;
     if (!container) return;
     const updateScrollState = () => {
@@ -2249,7 +2323,7 @@ export default function MediaKitView({
       container.removeEventListener('scroll', updateScrollState);
       window.removeEventListener('resize', updateScrollState);
     };
-  }, [affiliateHandle, mediaKitSlug, visibleTopPosts]);
+  }, [isPrintMode, affiliateHandle, mediaKitSlug, visibleTopPosts]);
   const instagramProfileUrl = useMemo(() => {
     if (!affiliateHandle) return null;
     const normalizedHandle = affiliateHandle.replace(/^@+/, '').trim();
@@ -2301,6 +2375,7 @@ export default function MediaKitView({
     // Mantém o drawer aberto para exibir a mensagem de sucesso na própria UI.
   }, []);
   useEffect(() => {
+    if (isPrintMode) return;
     if (!isProposalDrawerOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -2309,10 +2384,11 @@ export default function MediaKitView({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeProposalDrawer, isProposalDrawerOpen]);
+  }, [isPrintMode, closeProposalDrawer, isProposalDrawerOpen]);
   const [isScrollingUp, setIsScrollingUp] = useState(false);
   const lastScrollYRef = useRef<number>(0);
   useEffect(() => {
+    if (isPrintMode) return;
     if (typeof window === 'undefined') return;
     const handleScrollDirection = () => {
       const currentY = window.scrollY || 0;
@@ -2327,8 +2403,9 @@ export default function MediaKitView({
     };
     window.addEventListener('scroll', handleScrollDirection, { passive: true });
     return () => window.removeEventListener('scroll', handleScrollDirection);
-  }, [isScrollingUp]);
-  const stickyEligible = Boolean(isPublicView && mediaKitSlug) && !isCitiesModalOpen && selectedPostId === null;
+  }, [isPrintMode, isScrollingUp]);
+  const stickyEligible =
+    !isPrintMode && Boolean(isPublicView && mediaKitSlug) && !isCitiesModalOpen && selectedPostId === null;
   const stickyVisible =
     stickyEligible &&
     hasPassedStickyStart &&
@@ -2358,6 +2435,7 @@ export default function MediaKitView({
     [onTogglePricingPublish],
   );
   useEffect(() => {
+    if (isPrintMode) return;
     if (shouldHidePremiumSections || shouldLockPremiumSections) return;
     if (!hasCategorySummaryData) return;
     if (categorySummaryViewedRef.current) return;
@@ -2368,6 +2446,7 @@ export default function MediaKitView({
     });
     categorySummaryViewedRef.current = true;
   }, [
+    isPrintMode,
     affiliateCode,
     affiliateHandle,
     hasCategorySummaryData,
@@ -2385,8 +2464,8 @@ export default function MediaKitView({
         <div id="media-kit-content" className={mainContainerClass}>
           <div className={sectionsWrapperClass}>
             <motion.section
-              variants={cardVariants}
-              initial="hidden"
+              variants={resolvedCardVariants}
+              initial={motionInitial}
               animate="visible"
               custom={0}
               className="flex flex-col items-center text-center sm:items-start sm:text-left"
@@ -2448,64 +2527,55 @@ export default function MediaKitView({
                       </span>
                     )}
                   </div>
-                  <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-                    <ButtonPrimary
-                      onClick={handleShareClick}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
-                    >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Compartilhar
-                    </ButtonPrimary>
-                    <ButtonPrimary
-                      onClick={async () => {
-                        const element = document.getElementById('media-kit-content');
-                        if (!element) return;
-
-                        const canvas = await html2canvas(element, {
-                          scale: 1.5,
-                          useCORS: true,
-                          logging: false,
-                          backgroundColor: '#FFFFFF',
-                        });
-
-                        const imgData = canvas.toDataURL('image/jpeg', 0.8);
-                        const orientation = canvas.width > canvas.height ? 'l' : 'p';
-
-                        const pdf = new jsPDF({
-                          orientation,
-                          unit: 'px',
-                          format: [canvas.width, canvas.height],
-                        });
-
-                        pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
-                        pdf.save(`media-kit-${mediaKitSlug || 'export'}.pdf`);
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Salvar PDF
-                    </ButtonPrimary>
-                    {onEditName && showOwnerCtas && (
+                  {!isPrintMode && (
+                    <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                       <ButtonPrimary
-                        onClick={onEditName}
+                        onClick={handleShareClick}
                         variant="outline"
                         size="sm"
                         className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
                       >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Editar nome
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Compartilhar
                       </ButtonPrimary>
-                    )}
-                    {hasCopiedLink && (
-                      <span className="animate-fade-in ml-3 flex items-center text-xs font-medium text-emerald-600">
-                        Link copiado!
-                      </span>
-                    )}
-                  </div>
+                      <ButtonPrimary
+                        onClick={handlePdfExport}
+                        variant="outline"
+                        size="sm"
+                        className={`w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto ${isPdfGenerating ? 'pointer-events-none opacity-60' : ''}`}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        {isPdfGenerating ? 'Gerando PDF...' : 'Salvar PDF'}
+                      </ButtonPrimary>
+                      {onEditName && showOwnerCtas && (
+                        <ButtonPrimary
+                          onClick={onEditName}
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Editar nome
+                        </ButtonPrimary>
+                      )}
+                      {hasCopiedLink && (
+                        <span className="animate-fade-in ml-3 flex items-center text-xs font-medium text-emerald-600">
+                          Link copiado!
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {!isPrintMode && (pdfError || isMobile || isPdfGenerating) && (
+                    <div className="mt-2 text-xs text-slate-500">
+                      {pdfError ? (
+                        <span className="text-red-600">{pdfError}</span>
+                      ) : isPdfGenerating ? (
+                        <span>Gerando o PDF, isso pode levar alguns segundos.</span>
+                      ) : isMobile ? (
+                        <span>No mobile, o PDF pode abrir em uma nova aba para download.</span>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.section>
@@ -2513,8 +2583,8 @@ export default function MediaKitView({
             {/* Hero Metrics Grid */}
             {heroMetricCardsData.length > 0 && (
               <motion.section
-                variants={cardVariants}
-                initial="hidden"
+                variants={resolvedCardVariants}
+                initial={motionInitial}
                 animate="visible"
                 custom={0.1}
                 className="mt-12 grid grid-cols-2 gap-4"
@@ -2550,8 +2620,8 @@ export default function MediaKitView({
             {/* Pricing Section - Shows EITHER Packages OR Calculated Cards */}
             {(packages && packages.length > 0) ? (
               <motion.section
-                variants={cardVariants}
-                initial="hidden"
+                variants={resolvedCardVariants}
+                initial={motionInitial}
                 animate="visible"
                 custom={0.15}
                 className="mt-10 space-y-4"
@@ -2560,7 +2630,7 @@ export default function MediaKitView({
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                       <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
-                      {showOwnerCtas && onClearPricing && (
+                      {showOwnerCtas && !isPrintMode && onClearPricing && (
                         <button
                           type="button"
                           onClick={onClearPricing}
@@ -2619,8 +2689,8 @@ export default function MediaKitView({
               </motion.section>
             ) : pricingCards.length > 0 && (
               <motion.section
-                variants={cardVariants}
-                initial="hidden"
+                variants={resolvedCardVariants}
+                initial={motionInitial}
                 animate="visible"
                 custom={0.15}
                 className="mt-10 space-y-4"
@@ -2629,7 +2699,7 @@ export default function MediaKitView({
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                       <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
-                      {showOwnerCtas && onClearPricing && (
+                      {showOwnerCtas && !isPrintMode && onClearPricing && (
                         <button
                           type="button"
                           onClick={onClearPricing}
@@ -2647,7 +2717,7 @@ export default function MediaKitView({
                     {pricingReachLabel ? (
                       <p className="text-xs text-slate-500">{pricingReachLabel}</p>
                     ) : null}
-                    {showOwnerCtas ? (
+                    {showOwnerCtas && !isPrintMode ? (
                       <div className="mt-2 flex flex-col gap-2">
                         <span
                           className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${pricingPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
@@ -2701,8 +2771,8 @@ export default function MediaKitView({
             {(user?._id && !shouldHidePremiumSections) ? (
               <div className="pt-12">
                 <motion.section
-                  variants={cardVariants}
-                  initial="hidden"
+                  variants={resolvedCardVariants}
+                  initial={motionInitial}
                   animate="visible"
                   custom={0.2}
                   className="space-y-6"
@@ -2719,9 +2789,9 @@ export default function MediaKitView({
                     loading={categoryRankingsLoadingState}
                     locked={shouldLockPremiumSections}
                     lockedDescription={lockedCategoriesDescription}
-                    lockedCtaLabel={categoryCtaLabel}
+                    lockedCtaLabel={isPrintMode ? undefined : categoryCtaLabel}
                     lockedSubtitle={lockedSubtitle}
-                    onLockedAction={() => handleLockedCtaClick('media_kit_categories_summary')}
+                    onLockedAction={isPrintMode ? undefined : () => handleLockedCtaClick('media_kit_categories_summary')}
                     isPublicView={isPublicView}
                   />
                 </motion.section>
@@ -2732,8 +2802,8 @@ export default function MediaKitView({
               <div ref={stickyStartRef} className="absolute h-px w-px opacity-0 pointer-events-none" aria-hidden="true" />
             ) : null}
 
-            {isOwner && (
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.1}>
+            {isOwner && !isPrintMode && (
+              <motion.div variants={resolvedCardVariants} initial={motionInitial} animate="visible" custom={0.1}>
                 <SubscribeCtaBanner
                   isSubscribed={isSubscribed}
                   className={`${glassCardBaseClass} p-6`}
@@ -2744,8 +2814,8 @@ export default function MediaKitView({
             {demographics && demographicBreakdowns && (
               <div className="pt-12">
                 <motion.section
-                  variants={cardVariants}
-                  initial="hidden"
+                  variants={resolvedCardVariants}
+                  initial={motionInitial}
                   animate="visible"
                   custom={0.2}
                   className="space-y-8"
@@ -2765,7 +2835,7 @@ export default function MediaKitView({
                           </div>
                         </div>
                         <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
-                        {hasMoreGender && (
+                        {hasMoreGender && !isPrintMode && (
                           <button
                             type="button"
                             className="mt-6 text-sm font-medium text-[#D62E5E] hover:underline"
@@ -2786,7 +2856,7 @@ export default function MediaKitView({
                           </div>
                         </div>
                         <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
-                        {hasMoreAgeGroups && (
+                        {hasMoreAgeGroups && !isPrintMode && (
                           <button
                             type="button"
                             className="mt-6 text-sm font-medium text-[#6E1F93] hover:underline"
@@ -2807,7 +2877,7 @@ export default function MediaKitView({
                           </div>
                         </div>
                         <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
-                        {hasMoreCities && (
+                        {hasMoreCities && !isPrintMode && (
                           <button
                             type="button"
                             className="mt-6 text-sm font-medium text-[#D62E5E] hover:underline"
@@ -2830,8 +2900,8 @@ export default function MediaKitView({
 
             <div className="pt-12">
               <motion.section
-                variants={cardVariants}
-                initial="hidden"
+                variants={resolvedCardVariants}
+                initial={motionInitial}
                 animate="visible"
                 custom={0.3}
                 className="space-y-8"
@@ -2843,18 +2913,24 @@ export default function MediaKitView({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <select
-                      id="comparisonPeriod"
-                      value={comparisonPeriod}
-                      onChange={(event) => setComparisonPeriod(normalizeComparisonPeriod(event.target.value))}
-                      className="cursor-pointer rounded-full border-0 bg-slate-100 py-2 pl-4 pr-10 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#6E1F93]"
-                    >
-                      {PERIOD_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    {isPrintMode ? (
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Período: {selectedPeriodLabel}
+                      </span>
+                    ) : (
+                      <select
+                        id="comparisonPeriod"
+                        value={comparisonPeriod}
+                        onChange={(event) => setComparisonPeriod(normalizeComparisonPeriod(event.target.value))}
+                        className="cursor-pointer rounded-full border-0 bg-slate-100 py-2 pl-4 pr-10 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#6E1F93]"
+                      >
+                        {PERIOD_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
 
@@ -2966,8 +3042,8 @@ export default function MediaKitView({
 
             <div className="pt-12 pb-20">
               <motion.section
-                variants={cardVariants}
-                initial="hidden"
+                variants={resolvedCardVariants}
+                initial={motionInitial}
                 animate="visible"
                 custom={0.4}
                 className="space-y-8"
@@ -2980,24 +3056,26 @@ export default function MediaKitView({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 rounded-full bg-slate-100 p-1">
-                    {topPostSortOptions.map((option) => {
-                      const isActive = topPostsSort === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => handleTopPostSortChange(option.value)}
-                          className={`rounded-full px-4 py-2 text-sm font-medium transition ${isActive
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {!isPrintMode && (
+                    <div className="flex items-center gap-2 rounded-full bg-slate-100 p-1">
+                      {topPostSortOptions.map((option) => {
+                        const isActive = topPostsSort === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => handleTopPostSortChange(option.value)}
+                            className={`rounded-full px-4 py-2 text-sm font-medium transition ${isActive
+                              ? 'bg-white text-slate-900 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700'
+                              }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {videosWithCorrectStats.length === 0 ? (
@@ -3011,15 +3089,20 @@ export default function MediaKitView({
                   <div className="relative">
                     <div className="overflow-hidden p-0">
                       <div
-                        ref={topPostsScrollRef}
-                        onWheel={handleTopPostsWheel}
-                        className={`flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pr-6 sm:pr-8 lg:pr-12 transition ${isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''
-                          }`}
+                        ref={isPrintMode ? undefined : topPostsScrollRef}
+                        onWheel={isPrintMode ? undefined : handleTopPostsWheel}
+                        className={isPrintMode
+                          ? `flex flex-wrap gap-4 overflow-visible ${isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''}`
+                          : `flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pr-6 sm:pr-8 lg:pr-12 transition ${isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''}`
+                        }
                       >
                         {groupedTopPosts.map((group, groupIndex) => (
                           <div
                             key={`top-post-group-${groupIndex}`}
-                            className={`flex min-w-[65%] flex-none snap-start gap-2 sm:min-w-[45%] ${isPublicView ? '' : 'lg:min-w-[35%]'}`}
+                            className={isPrintMode
+                              ? 'flex w-full flex-wrap gap-4'
+                              : `flex min-w-[65%] flex-none snap-start gap-2 sm:min-w-[45%] ${isPublicView ? '' : 'lg:min-w-[35%]'}`
+                            }
                           >
                             {group.map((video, groupOffset) => {
                               const index = groupIndex * 2 + groupOffset;
@@ -3220,7 +3303,7 @@ export default function MediaKitView({
 
                               const hasThumbnail = Boolean(video.thumbnailUrl);
                               const isTopHighlight = index === 0;
-                              const isClickable = (canViewCategories || isPublicView) && !isTopPostsLocked;
+                              const isClickable = !isPrintMode && (canViewCategories || isPublicView) && !isTopPostsLocked;
 
                               return (
                                 <article
@@ -3397,7 +3480,7 @@ export default function MediaKitView({
                       </div>
                     </div>
 
-                    {isTopPostsLocked && (
+                    {isTopPostsLocked && !isPrintMode && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white/80 p-6 text-center backdrop-blur-sm">
                         <div className="rounded-full bg-slate-100 p-3 text-slate-400">
                           <Lock className="h-6 w-6" />
@@ -3417,7 +3500,7 @@ export default function MediaKitView({
                       </div>
                     )}
 
-                    {!isTopPostsLocked && visibleTopPosts.length > 1 && (
+                    {!isTopPostsLocked && !isPrintMode && visibleTopPosts.length > 1 && (
                       <div className="mt-6 flex justify-center gap-2">
                         {visibleTopPosts.map((video, index) => (
                           <span

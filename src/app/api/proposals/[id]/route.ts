@@ -31,7 +31,7 @@ const serializeProposal = (proposal: any) => ({
 });
 
 async function getAuthorizedProposal(request: NextRequest, id: string) {
-  const session = await getServerSession({ req: request, ...authOptions });
+  const session = (await getServerSession({ req: request, ...authOptions })) as any;
   if (!session?.user?.id) {
     return { response: NextResponse.json({ error: 'Não autenticado.' }, { status: 401 }) };
   }

@@ -1,9 +1,18 @@
 import { Types } from 'mongoose';
 import calculateAverageFollowerConversionRatePerPost from './calculateAverageFollowerConversionRatePerPost'; // Ajuste o caminho
 import MetricModel, { IMetricStats } from '@/app/models/Metric'; // Ajuste o caminho
+import { logger } from '@/app/lib/logger';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import { getStartDateFromTimePeriod } from './dateHelpers';
 
 jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
+}));
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
+}));
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
 }));
 
 describe('calculateAverageFollowerConversionRatePerPost', () => {
@@ -14,19 +23,20 @@ describe('calculateAverageFollowerConversionRatePerPost', () => {
 
   beforeEach(() => {
     (MetricModel.find as jest.Mock).mockReset();
+    (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
     const today = new Date();
     expectedEndDate = new Date(today);
-    expectedStartDate = new Date(today);
-    expectedStartDate.setDate(today.getDate() - periodInDays);
+    expectedStartDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
   });
 
   const mockPostWithConversionRate = (id: string, follower_conversion_rate: number | null): any => {
+    const resolvedId = Types.ObjectId.isValid(id) ? id : new Types.ObjectId().toString();
     const stats: Partial<IMetricStats> = {};
     if (follower_conversion_rate !== null) {
       stats.follower_conversion_rate = follower_conversion_rate;
     }
     return {
-      _id: new Types.ObjectId(id),
+      _id: new Types.ObjectId(resolvedId),
       user: new Types.ObjectId(userId),
       postDate: new Date(),
       stats: Object.keys(stats).length > 0 ? stats : undefined,
@@ -65,7 +75,7 @@ describe('calculateAverageFollowerConversionRatePerPost', () => {
       mockPostWithConversionRate('post2', null),       // taxa nula
       mockPostWithConversionRate('post3', 0.02),       // 2%
       { // Post sem campo stats
-        _id: new Types.ObjectId('post4'),
+        _id: new Types.ObjectId(),
         user: new Types.ObjectId(userId),
         postDate: new Date(),
       } as any,
@@ -83,7 +93,7 @@ describe('calculateAverageFollowerConversionRatePerPost', () => {
     const posts = [
       mockPostWithConversionRate('post1', null),
       mockPostWithConversionRate('post2', null),
-      { _id: new Types.ObjectId('post3'), user: new Types.ObjectId(userId), postDate: new Date() } as any,
+      { _id: new Types.ObjectId(), user: new Types.ObjectId(userId), postDate: new Date() } as any,
     ];
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
     const result = await calculateAverageFollowerConversionRatePerPost(userId, periodInDays);
@@ -94,14 +104,14 @@ describe('calculateAverageFollowerConversionRatePerPost', () => {
 
   test('Erro no Banco de Dados', async () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.reject(new Error("DB query failed")) });
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     const result = await calculateAverageFollowerConversionRatePerPost(userId, periodInDays);
     expect(result.numberOfPostsConsideredForRate).toBe(0);
     expect(result.sumFollowerConversionRate).toBe(0);
     expect(result.averageFollowerConversionRatePerPost).toBe(0.0);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Error calculating average follower conversion rate per post"), expect.any(Error));
-
-    consoleErrorSpy.mockRestore();
+    expect((logger as any).error).toHaveBeenCalledWith(
+      expect.stringContaining("Error calculating average follower conversion rate per post"),
+      expect.any(Error)
+    );
   });
 });

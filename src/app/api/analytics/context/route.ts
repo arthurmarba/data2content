@@ -65,7 +65,7 @@ const resolveIsInternal = (user: Pick<IUser, "role" | "email">) => {
 };
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
 
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "not_authenticated" }, { status: 401 });

@@ -70,7 +70,7 @@ const mapToCategoryIds = (
 export async function POST(request: NextRequest) {
   const TAG = '[API Metrics POST v2.0.0]'; 
   try {
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = (await getServerSession({ req: request, ...authOptions })) as any;
     if (!session?.user?.id) {
       logger.error(`${TAG} Erro: Usuário não autenticado.`);
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });

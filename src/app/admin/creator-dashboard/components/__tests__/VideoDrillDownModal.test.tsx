@@ -87,7 +87,7 @@ describe('VideoDrillDownModal', () => {
     await screen.findByText('Video 2');
     expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('page=2'));
     expect(screen.getByText('Página 2 de 2')).toBeInTheDocument();
-    expect(screen.getByText('Total: 20 vídeos')).toBeInTheDocument();
+    expect(screen.getByText('Total: 20 resultados')).toBeInTheDocument();
 
     (fetch as jest.Mock).mockResolvedValueOnce(buildFetchResponse(videosPage1));
     fireEvent.click(screen.getByText('Anterior'));
@@ -97,13 +97,12 @@ describe('VideoDrillDownModal', () => {
   });
 
   test('opens PostDetailModal when a row is clicked', async () => {
-    render(<VideoDrillDownModal {...defaultProps} />);
+    const onDetailClick = jest.fn();
+    render(<VideoDrillDownModal {...defaultProps} onDetailClick={onDetailClick} />);
     await screen.findByText(/Video 1/);
     fireEvent.click(screen.getByRole('button', { name: /Analisar/ }));
 
-    expect(await screen.findByText('Detalhes do Post')).toBeInTheDocument();
-    expect(screen.getByText('Análise do Post ID:')).toBeInTheDocument();
-    expect(screen.getByText('v1')).toBeInTheDocument();
+    expect(onDetailClick).toHaveBeenCalledWith('v1');
   });
 
   test('displays error state when fetch fails', async () => {

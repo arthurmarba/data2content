@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Autenticação e Obtenção do ID do Utilizador
     logger.debug(`${TAG} Verificando sessão...`);
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = (await getServerSession({ req: request, ...authOptions })) as any;
     if (!session?.user?.id) {
       logger.warn(`${TAG} Tentativa de acesso não autenticada.`);
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
      try {
         // 1. Autenticação
         logger.debug(`${TAG} Verificando sessão...`);
-        const session = await getServerSession({ req: request, ...authOptions });
+        const session = (await getServerSession({ req: request, ...authOptions })) as any;
         if (!session?.user?.id) {
             logger.warn(`${TAG} Tentativa de acesso não autenticada.`);
             return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });

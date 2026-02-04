@@ -10,10 +10,17 @@ import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { fetchCreatorTimeSeriesData, IFetchCreatorTimeSeriesArgs } from '@/app/lib/dataService/marketAnalysisService';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 import { DatabaseError } from '@/app/lib/errors';
 
 const SERVICE_TAG = '[api/admin/dashboard/creators/[creatorId]/time-series]';
+
+type AdminSession = {
+  user?: {
+    role?: string;
+    name?: string | null;
+  };
+} | null;
 
 // Schema for request validation (params and query)
 const metricEnum = z.enum(['post_count', 'avg_engagement_rate', 'avg_likes', 'avg_shares', 'total_interactions']);
@@ -35,7 +42,8 @@ const requestSchema = z.object({
 
 // Real Admin Session Validation
 async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const authOptions = await resolveAuthOptions();
+  const session = (await getServerSession(authOptions as any)) as AdminSession;
   if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
     return null;
