@@ -26,3 +26,22 @@ export function formatDateLabel(dateStr: string): string {
   }
   return dateStr;
 }
+
+export function formatWeekStartLabel(weekKey: string): string {
+  if (!weekKey) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
+    return formatDateLabel(weekKey);
+  }
+  const match = weekKey.match(/^(\d{4})-W?(\d{1,2})$/);
+  if (!match) return weekKey;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week < 1 || week > 53) return weekKey;
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Start = new Date(jan4);
+  week1Start.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+  const weekStart = new Date(week1Start);
+  weekStart.setUTCDate(week1Start.getUTCDate() + (week - 1) * 7);
+  return Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(weekStart);
+}

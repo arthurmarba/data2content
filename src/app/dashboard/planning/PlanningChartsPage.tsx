@@ -50,12 +50,27 @@ const toNumber = (value: any): number | null => {
   const parsed = typeof value === "string" ? Number(value) : NaN;
   return Number.isFinite(parsed) ? parsed : null;
 };
-const getWeekKey = (d: string | Date) => {
+const getWeekStart = (d: string | Date) => {
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return null;
-  const oneJan = new Date(date.getFullYear(), 0, 1);
-  const week = Math.ceil((((date.getTime() - oneJan.getTime()) / 86400000) + oneJan.getDay() + 1) / 7);
-  return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
+  const day = date.getDay(); // 0 = domingo
+  const diffToMonday = (day + 6) % 7;
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - diffToMonday);
+  return start;
+};
+
+const formatDateKey = (d: Date) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const getWeekKey = (d: string | Date) => {
+  const start = getWeekStart(d);
+  return start ? formatDateKey(start) : null;
 };
 
 const stripAccents = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -69,34 +84,24 @@ const toArray = (value: any): string[] => {
 
 const normalizeWeekKey = (value: string | Date | null) => {
   if (!value) return null;
-  const direct = getWeekKey(value);
-  if (direct) return direct;
+  if (value instanceof Date) return getWeekKey(value);
   if (typeof value === "string") {
-    const match = value.match(/(\d{4}).*?W?(\d{1,2})/i);
-    if (match && match[1] && match[2]) return `${match[1]}-W${match[2].padStart(2, "0")}`;
+    const direct = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (direct) return value;
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return getWeekKey(parsed);
   }
   return null;
 };
 
 const formatWeekLabel = (weekKey?: string | null) => {
   if (!weekKey) return "";
-  // Aceita tanto "YYYY-W##" quanto "YYYY-##"
-  const m = weekKey.match(/(\d{4})-W?(\d{1,2})/i);
-  if (!m) return weekKey;
-  const year = Number(m[1]);
-  const week = Number(m[2]);
-  if (!Number.isFinite(year) || !Number.isFinite(week)) return weekKey;
-  // Calcula o primeiro dia da semana (considera semana começando em segunda-feira)
-  const simple = new Date(year, 0, 1 + (week - 1) * 7);
-  const dayOfWeek = simple.getDay(); // 0 = domingo
-  const ISOweekStart = new Date(simple);
-  if (dayOfWeek <= 4) {
-    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-  } else {
-    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-  }
-  const month = ISOweekStart.toLocaleString("pt-BR", { month: "short" });
-  return `${month} W${String(week)}`;
+  const key = normalizeWeekKey(weekKey);
+  if (!key) return weekKey;
+  const [year, month, day] = key.split("-");
+  if (!year || !month || !day) return key;
+  const labelDate = new Date(Number(year), Number(month) - 1, Number(day));
+  return labelDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 };
 
 const toVideoProxyUrl = (raw?: string | null) => {

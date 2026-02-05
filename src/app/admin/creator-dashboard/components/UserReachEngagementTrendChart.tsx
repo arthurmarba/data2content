@@ -16,6 +16,7 @@ import {
   TooltipProps,
 } from "recharts";
 import { CHART_COLORS } from "@/constants/chartConfig";
+import { formatDateLabel, formatWeekStartLabel } from "@/utils/chartFormatters";
 import { formatCategories, proposalCategories, contextCategories, Category } from "@/app/lib/classification";
 
 const ChartSkeletonLoader: React.FC = () => (
@@ -34,8 +35,8 @@ const ChartSkeletonLoader: React.FC = () => (
 
 const CustomTooltip = ({ active, payload, label, granularity }: TooltipProps<number, string> & { granularity: string }) => {
   if (active && payload && payload.length) {
-    const formattedLabel = granularity === 'weekly' 
-      ? `Semana ${label.split('-')[1]} de ${label.split('-')[0]}`
+    const formattedLabel = granularity === 'weekly'
+      ? `Semana ${formatWeekStartLabel(String(label))}`
       : new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(label));
     return (
       <div className="bg-white p-3 shadow-lg rounded-md border border-gray-200">
@@ -190,8 +191,8 @@ const UserReachEngagementTrendChart: React.FC<
   };
 
   const xAxisTickFormatter = (tick: string) => {
-    if (granularity === "weekly" && tick.includes("-")) return `S${tick.split("-")[1]}`;
-    if (granularity === 'daily' && tick.includes('-')) return `${tick.split('-')[2]}/${tick.split('-')[1]}`;
+    if (granularity === "weekly") return formatWeekStartLabel(tick);
+    if (granularity === 'daily') return formatDateLabel(tick);
     return tick;
   };
 

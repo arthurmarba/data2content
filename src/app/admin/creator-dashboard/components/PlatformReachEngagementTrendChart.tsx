@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, memo } from 'react';
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { formatAxisNumberCompact, formatNullableNumberTooltip, formatDateLabel } from '@/utils/chartFormatters';
+import { formatAxisNumberCompact, formatNullableNumberTooltip, formatDateLabel, formatWeekStartLabel } from '@/utils/chartFormatters';
 
 interface ApiChartDataPoint {
   date: string;
@@ -109,10 +109,10 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
   const tooltipFormatter = (value: number, name: string) => formatNullableNumberTooltip(value, name);
 
   const xAxisTickFormatter = (tick: string) => {
-    if (granularityValue === 'weekly' && tick.includes('-')) {
-        return `S${tick.split('-')[1]}`;
+    if (granularityValue === 'weekly') {
+      return formatWeekStartLabel(tick);
     }
-    return tick;
+    return formatDateLabel(tick);
   };
 
   const finalData = hasOverride ? (dataOverride ?? []) : data;
@@ -164,7 +164,7 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
                 dataKey="date"
                 stroke="#666"
                 tick={{ fontSize: 12 }}
-                tickFormatter={(t) => formatDateLabel(xAxisTickFormatter(t))}
+                tickFormatter={(t) => xAxisTickFormatter(t)}
               />
               <YAxis
                 stroke="#666"
@@ -172,7 +172,15 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
                 tickFormatter={yAxisFormatter}
                 yAxisId="left"
               />
-              <Tooltip formatter={tooltipFormatter} labelFormatter={formatDateLabel} labelStyle={{ color: '#333' }} />
+              <Tooltip
+                formatter={tooltipFormatter}
+                labelFormatter={(label) => (
+                  granularityValue === 'weekly'
+                    ? formatWeekStartLabel(String(label))
+                    : formatDateLabel(String(label))
+                )}
+                labelStyle={{ color: '#333' }}
+              />
               <Legend wrapperStyle={{ fontSize: 14 }} />
               <Line
                 yAxisId="left"

@@ -125,21 +125,43 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
     setTimePeriod(e.target.value);
   };
 
-  const getWeekKey = (d: string | Date) => {
+  const getWeekStart = (d: string | Date) => {
     const date = new Date(d);
     if (Number.isNaN(date.getTime())) return null;
-    const oneJan = new Date(date.getFullYear(), 0, 1);
-    const week = Math.ceil((((date.getTime() - oneJan.getTime()) / 86400000) + oneJan.getDay() + 1) / 7);
-    return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
+    const day = date.getDay(); // 0 = domingo
+    const diffToMonday = (day + 6) % 7;
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - diffToMonday);
+    return start;
+  };
+
+  const formatDateKey = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getWeekKey = (d: string | Date) => {
+    const start = getWeekStart(d);
+    return start ? formatDateKey(start) : null;
   };
 
   const formatWeekLabel = (value?: string | null) => {
     if (!value) return "";
-    const match = value.match(/(\d{4})-W?(\d{1,2})/i);
-    if (!match || !match[1] || !match[2]) return value;
-    const year = match[1];
-    const week = match[2];
-    return `Sem ${String(week).padStart(2, "0")}/${year.slice(-2)}`;
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+      const parsed = new Date(String(value));
+      if (!Number.isNaN(parsed.getTime())) {
+        const key = getWeekKey(parsed);
+        if (key) return formatWeekLabel(key);
+      }
+      return String(value);
+    }
+    const [year, month, day] = [match[1], match[2], match[3]];
+    const labelDate = new Date(Number(year), Number(month) - 1, Number(day));
+    return labelDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   };
 
   const series = useMemo(() => {
