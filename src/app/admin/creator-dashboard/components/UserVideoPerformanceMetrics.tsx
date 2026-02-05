@@ -29,6 +29,7 @@ interface VideoMetricsResponse extends VideoMetricsData {
 }
 
 const TIME_PERIOD_OPTIONS = [
+  { value: "last_7_days", label: "Últimos 7 dias" },
   { value: "last_30_days", label: "Últimos 30 dias" },
   { value: "last_90_days", label: "Últimos 90 dias" },
   { value: "last_6_months", label: "Últimos 6 meses" },
@@ -200,7 +201,7 @@ const UserVideoPerformanceMetrics: React.FC<
       // Fetch metrics data
       const metricsUrl = `/api/v1/users/${userId}/performance/video-metrics?${(function () {
         const params = new URLSearchParams({
-          timePeriod: globalTimePeriod,
+          timePeriod,
         });
         if (format) params.set('format', format);
         if (proposal) params.set('proposal', proposal);
@@ -237,7 +238,7 @@ const UserVideoPerformanceMetrics: React.FC<
       } finally {
         setLoading(false);
       }
-    }, [userId, globalTimePeriod, format, proposal, context, tone, reference]);
+    }, [userId, timePeriod, format, proposal, context, tone, reference]);
 
     useEffect(() => {
       if (!userId) {
@@ -455,7 +456,7 @@ const UserVideoPerformanceMetrics: React.FC<
             </div>
             <VideoListPreview
               userId={userId!}
-              timePeriod={globalTimePeriod}
+              timePeriod={timePeriod}
               filters={{
                 format: format || undefined,
                 proposal: proposal || undefined,

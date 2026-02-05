@@ -10,6 +10,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -761,6 +762,73 @@ export default function PlanningChartsPage() {
       .sort((a, b) => (a.date > b.date ? 1 : -1));
   }, [postsSource]);
 
+  const saveVelocitySeries = useMemo(() => {
+    const posts = Array.isArray(postsSource) ? postsSource : [];
+    const rows = posts
+      .map((p: any) => {
+        const saves =
+          toNumber(p?.stats?.saved) ??
+          toNumber(p?.stats?.saves) ??
+          toNumber((p as any)?.stats?.save_count) ??
+          0;
+        const dateObj = p?.postDate ? new Date(p.postDate) : null;
+        return { saves, date: dateObj };
+      })
+      .filter((p) => p.date && !Number.isNaN(p.date.getTime()));
+
+    if (!rows.length) return [];
+
+    const agg = new Map<string, { saves: number; count: number }>();
+    rows.forEach((row) => {
+      const key = row.date ? getWeekKey(row.date) : null;
+      if (!key) return;
+      const bucket = agg.get(key) || { saves: 0, count: 0 };
+      bucket.saves += row.saves;
+      bucket.count += 1;
+      agg.set(key, bucket);
+    });
+
+    return Array.from(agg.entries())
+      .map(([week, data]) => ({
+        date: week,
+        avgSaves: data.count ? data.saves / data.count : 0,
+      }))
+      .sort((a, b) => (a.date > b.date ? 1 : -1));
+  }, [postsSource]);
+
+  const commentVelocitySeries = useMemo(() => {
+    const posts = Array.isArray(postsSource) ? postsSource : [];
+    const rows = posts
+      .map((p: any) => {
+        const comments =
+          toNumber(p?.stats?.comments) ??
+          toNumber((p as any)?.stats?.comment_count) ??
+          0;
+        const dateObj = p?.postDate ? new Date(p.postDate) : null;
+        return { comments, date: dateObj };
+      })
+      .filter((p) => p.date && !Number.isNaN(p.date.getTime()));
+
+    if (!rows.length) return [];
+
+    const agg = new Map<string, { comments: number; count: number }>();
+    rows.forEach((row) => {
+      const key = row.date ? getWeekKey(row.date) : null;
+      if (!key) return;
+      const bucket = agg.get(key) || { comments: 0, count: 0 };
+      bucket.comments += row.comments;
+      bucket.count += 1;
+      agg.set(key, bucket);
+    });
+
+    return Array.from(agg.entries())
+      .map(([week, data]) => ({
+        date: week,
+        avgComments: data.count ? data.comments / data.count : 0,
+      }))
+      .sort((a, b) => (a.date > b.date ? 1 : -1));
+  }, [postsSource]);
+
   const discoveryStats = useMemo(() => {
     if (!followerMix.length) return null;
     const avgShare =
@@ -907,6 +975,102 @@ export default function PlanningChartsPage() {
                         }}
                       />
                     </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Salvamentos</p>
+                  <h2 className="text-base font-semibold text-slate-900">Média de salvamentos por semana</h2>
+                  <p className="text-xs text-slate-500">Quantidade média de salvamentos por post, agregada por semana.</p>
+                </div>
+                <LineChartIcon className="h-5 w-5 text-rose-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingPosts ? (
+                  <p className="text-sm text-slate-500">Carregando série...</p>
+                ) : saveVelocitySeries.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={saveVelocitySeries}
+                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de salvamentos por semana")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatWeekLabel}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tickFormatter={(value: number) => numberFormatter.format(value)}
+                        label={{ value: "Salvamentos médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label) => formatWeekLabel(String(label))}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Salvamentos médios"]}
+                      />
+                      <Line type="monotone" dataKey="avgSaves" name="Salvamentos médios" stroke="#ec4899" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Comentários</p>
+                  <h2 className="text-base font-semibold text-slate-900">Média de comentários por semana</h2>
+                  <p className="text-xs text-slate-500">Quantidade média de comentários por post, agregada por semana.</p>
+                </div>
+                <LineChartIcon className="h-5 w-5 text-indigo-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingPosts ? (
+                  <p className="text-sm text-slate-500">Carregando série...</p>
+                ) : commentVelocitySeries.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={commentVelocitySeries}
+                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de comentários por semana")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatWeekLabel}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tickFormatter={(value: number) => numberFormatter.format(value)}
+                        label={{ value: "Comentários médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label) => formatWeekLabel(String(label))}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Comentários médios"]}
+                      />
+                      <Line type="monotone" dataKey="avgComments" name="Comentários médios" stroke="#6366f1" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+                    </LineChart>
                   </ResponsiveContainer>
                 )}
               </div>
@@ -1262,7 +1426,8 @@ export default function PlanningChartsPage() {
                         tickLine={false}
                         axisLine={false}
                         tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        label={{ value: "Posts", angle: -90, position: "insideLeft", fill: "#475569", fontSize: 11 }}
+                        tickFormatter={(value: number) => numberFormatter.format(value)}
+                        label={{ value: "Posts", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
                       />
                       <YAxis
                         yAxisId="right"
@@ -1270,18 +1435,33 @@ export default function PlanningChartsPage() {
                         tickLine={false}
                         axisLine={false}
                         tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        label={{ value: "Interações", angle: 90, position: "insideRight", fill: "#475569", fontSize: 11 }}
+                        tickFormatter={(value: number) => numberFormatter.format(value)}
+                        label={{ value: "Interações médias", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }}
                       />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Line yAxisId="left" type="monotone" dataKey="posts" name="Posts/semana" stroke="#0ea5e9" strokeWidth={3} dot />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label) => `Semana ${formatWeekLabel(String(label)).replace(/\sW/, " W")}`}
+                        formatter={(value: number, name) => [
+                          numberFormatter.format(Math.round(value)),
+                          name === "posts" ? "Posts/semana" : "Média de interações",
+                        ]}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={28}
+                        iconType="circle"
+                        formatter={(value) => (value === "posts" ? "Posts/semana" : "Média de interações")}
+                      />
+                      <Line yAxisId="left" type="monotone" dataKey="posts" name="posts" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
                       <Line
                         yAxisId="right"
                         type="monotone"
                         dataKey="avgInteractions"
-                        name="Média de interações"
+                        name="avgInteractions"
                         stroke="#a855f7"
                         strokeWidth={3}
-                        dot
+                        dot={{ r: 2.5 }}
+                        activeDot={{ r: 4 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>

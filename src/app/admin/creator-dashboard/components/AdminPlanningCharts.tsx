@@ -9,6 +9,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -60,6 +61,14 @@ const normalizeWeekKey = (value: string | Date | null) => {
     if (match && match[1] && match[2]) return `${match[1]}-W${match[2].padStart(2, "0")}`;
   }
   return null;
+};
+
+const formatWeekLabel = (value: string | Date) => {
+  const key = normalizeWeekKey(value);
+  if (!key) return String(value);
+  const [year, week] = key.split("-W");
+  if (!year || !week) return key;
+  return `Sem ${week}/${year.slice(-2)}`;
 };
 
 const toArray = (value: any): string[] => {
@@ -662,22 +671,19 @@ export default function AdminPlanningCharts({
     const rows = posts
       .map((p: any) => {
         const shares = toNumber(p?.stats?.shares) ?? 0;
-        const visits = toNumber(p?.stats?.profile_visits) ?? 0;
-        const reach = toNumber(p?.stats?.reach);
         const dateObj = p?.postDate ? new Date(p.postDate) : null;
-        return { shares, visits, reach, date: dateObj };
+        return { shares, date: dateObj };
       })
       .filter((p) => p.date && !Number.isNaN(p.date.getTime()));
 
     if (!rows.length) return [];
 
-    const agg = new Map<string, { shares: number; visits: number; count: number }>();
+    const agg = new Map<string, { shares: number; count: number }>();
     rows.forEach((row) => {
       const key = row.date ? getWeekKey(row.date) : null;
       if (!key) return;
-      const bucket = agg.get(key) || { shares: 0, visits: 0, count: 0 };
+      const bucket = agg.get(key) || { shares: 0, count: 0 };
       bucket.shares += row.shares;
-      bucket.visits += row.visits;
       bucket.count += 1;
       agg.set(key, bucket);
     });
@@ -685,8 +691,67 @@ export default function AdminPlanningCharts({
     return Array.from(agg.entries())
       .map(([week, data]) => ({
         date: week,
-        shares: data.count ? data.shares / data.count : 0,
-        visits: data.count ? data.visits / data.count : 0,
+        avgShares: data.count ? data.shares / data.count : 0,
+      }))
+      .sort((a, b) => (a.date > b.date ? 1 : -1));
+  }, [postsSource]);
+
+  const saveVelocitySeries = useMemo(() => {
+    const posts = Array.isArray(postsSource) ? postsSource : [];
+    const rows = posts
+      .map((p: any) => {
+        const saves = toNumber(p?.stats?.saved) ?? toNumber(p?.stats?.saves) ?? 0;
+        const dateObj = p?.postDate ? new Date(p.postDate) : null;
+        return { saves, date: dateObj };
+      })
+      .filter((p) => p.date && !Number.isNaN(p.date.getTime()));
+
+    if (!rows.length) return [];
+
+    const agg = new Map<string, { saves: number; count: number }>();
+    rows.forEach((row) => {
+      const key = row.date ? getWeekKey(row.date) : null;
+      if (!key) return;
+      const bucket = agg.get(key) || { saves: 0, count: 0 };
+      bucket.saves += row.saves;
+      bucket.count += 1;
+      agg.set(key, bucket);
+    });
+
+    return Array.from(agg.entries())
+      .map(([week, data]) => ({
+        date: week,
+        avgSaves: data.count ? data.saves / data.count : 0,
+      }))
+      .sort((a, b) => (a.date > b.date ? 1 : -1));
+  }, [postsSource]);
+
+  const commentVelocitySeries = useMemo(() => {
+    const posts = Array.isArray(postsSource) ? postsSource : [];
+    const rows = posts
+      .map((p: any) => {
+        const comments = toNumber(p?.stats?.comments) ?? 0;
+        const dateObj = p?.postDate ? new Date(p.postDate) : null;
+        return { comments, date: dateObj };
+      })
+      .filter((p) => p.date && !Number.isNaN(p.date.getTime()));
+
+    if (!rows.length) return [];
+
+    const agg = new Map<string, { comments: number; count: number }>();
+    rows.forEach((row) => {
+      const key = row.date ? getWeekKey(row.date) : null;
+      if (!key) return;
+      const bucket = agg.get(key) || { comments: 0, count: 0 };
+      bucket.comments += row.comments;
+      bucket.count += 1;
+      agg.set(key, bucket);
+    });
+
+    return Array.from(agg.entries())
+      .map(([week, data]) => ({
+        date: week,
+        avgComments: data.count ? data.comments / data.count : 0,
       }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
   }, [postsSource]);
@@ -791,6 +856,56 @@ export default function AdminPlanningCharts({
                   />
                   <Bar dataKey="average" name="Interações" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
                 </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </article>
+        <article className={cardBase}>
+          <header className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Comentários</p>
+              <h2 className="text-base font-semibold text-slate-900">Média de comentários por semana</h2>
+            </div>
+            <Sparkles className="h-5 w-5 text-indigo-500" />
+          </header>
+          <div className="mt-4 h-64">
+            {commentVelocitySeries.length === 0 ? (
+              <p className="text-sm text-slate-500">Sem dados de comentários.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={commentVelocitySeries}
+                  margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const weekKey = data.activePayload[0].payload.date;
+                      handleWeekClick(weekKey, "Velocidade de Comentários");
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={formatWeekLabel}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={(value: number) => numberFormatter.format(value)}
+                    label={{ value: "Comentários médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    labelFormatter={(label) => `Semana ${formatWeekLabel(String(label)).replace("Sem ", "")}`}
+                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Comentários médios"]}
+                  />
+                  <Line type="monotone" dataKey="avgComments" name="Comentários médios" stroke="#6366f1" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+                </LineChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -1048,55 +1163,7 @@ export default function AdminPlanningCharts({
           </article>
         )}
 
-        <article className={cardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Formato</p>
-              <h2 className="text-base font-semibold text-slate-900">Distribuição de interações</h2>
-            </div>
-            <LineChartIcon className="h-5 w-5 text-amber-500" />
-          </header>
-          <div className="mt-4 h-64">
-            {loadingFormat ? (
-              <p className="text-sm text-slate-500">Carregando formatos...</p>
-            ) : formatBars.length === 0 ? (
-              <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={formatBars}
-                  margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
-                  onClick={(data) => {
-                    if (data && data.activePayload && data.activePayload[0]) {
-                      const format = data.activePayload[0].payload.name;
-                      handleCategoryClick("format", format, "Interação por Formato");
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <defs>
-                    <linearGradient id="formatGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#f97316" stopOpacity={0.05} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value: number, name) =>
-                      name === "percentage"
-                        ? [`${value.toFixed(1)}%`, "Participação"]
-                        : [numberFormatter.format(Math.round(value)), "Interações"]
-                    }
-                  />
-                  <Area type="monotone" dataKey="value" name="Interações" stroke="#f97316" fill="url(#formatGradient)" strokeWidth={3} dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </article>
+        {/* Distribuição de interações removida no admin */}
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
@@ -1125,18 +1192,46 @@ export default function AdminPlanningCharts({
                   style={{ cursor: 'pointer' }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={formatWeekLabel}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={(value: number) => numberFormatter.format(value)}
+                    label={{ value: "Posts", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={(value: number) => numberFormatter.format(value)}
+                    label={{ value: "Interações médias", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }}
+                  />
                   <Tooltip
                     contentStyle={tooltipStyle}
+                    labelFormatter={(label) => `Semana ${formatWeekLabel(String(label)).replace("Sem ", "")}`}
                     formatter={(value: number, name) => [
                       numberFormatter.format(Math.round(value)),
-                      name === "posts" ? "Posts" : "Interações Médias",
+                      name === "posts" ? "Posts/semana" : "Média de interações",
                     ]}
                   />
-                  <Bar yAxisId="left" dataKey="posts" name="Posts" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={20} />
-                  <Line yAxisId="right" type="monotone" dataKey="avgInteractions" name="Média Interações" stroke="#10b981" strokeWidth={3} dot={false} />
+                  <Legend
+                    verticalAlign="top"
+                    height={28}
+                    iconType="circle"
+                    formatter={(value) => (value === "posts" ? "Posts/semana" : "Média de interações")}
+                  />
+                  <Bar yAxisId="left" dataKey="posts" name="posts" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={18} />
+                  <Line yAxisId="right" type="monotone" dataKey="avgInteractions" name="avgInteractions" stroke="#10b981" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -1240,7 +1335,7 @@ export default function AdminPlanningCharts({
           <header className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Compartilhamento</p>
-              <h2 className="text-base font-semibold text-slate-900">Shares e Visitas ao Perfil</h2>
+              <h2 className="text-base font-semibold text-slate-900">Média de compartilhamentos por semana</h2>
             </div>
             <Sparkles className="h-5 w-5 text-amber-500" />
           </header>
@@ -1261,15 +1356,76 @@ export default function AdminPlanningCharts({
                   style={{ cursor: 'pointer' }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={formatWeekLabel}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={(value: number) => numberFormatter.format(value)}
+                    label={{ value: "Compartilhamentos médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                  />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    formatter={(value: number, name) => [numberFormatter.format(Math.round(value)), name === "shares" ? "Shares" : "Visitas"]}
+                    labelFormatter={(label) => `Semana ${formatWeekLabel(String(label)).replace("Sem ", "")}`}
+                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Compartilhamentos médios"]}
                   />
-                  <Line yAxisId="left" type="monotone" dataKey="shares" name="Shares" stroke="#f59e0b" strokeWidth={3} dot={false} />
-                  <Line yAxisId="right" type="monotone" dataKey="visits" name="Visitas" stroke="#64748b" strokeWidth={3} dot={false} strokeDasharray="5 5" />
+                  <Line type="monotone" dataKey="avgShares" name="Compartilhamentos médios" stroke="#f59e0b" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </article>
+        <article className={cardBase}>
+          <header className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Salvamentos</p>
+              <h2 className="text-base font-semibold text-slate-900">Média de salvamentos por semana</h2>
+            </div>
+            <Sparkles className="h-5 w-5 text-amber-500" />
+          </header>
+          <div className="mt-4 h-64">
+            {saveVelocitySeries.length === 0 ? (
+              <p className="text-sm text-slate-500">Sem dados de salvamentos.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={saveVelocitySeries}
+                  margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                  onClick={(data) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const weekKey = data.activePayload[0].payload.date;
+                      handleWeekClick(weekKey, "Velocidade de Salvamentos");
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={formatWeekLabel}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    tickFormatter={(value: number) => numberFormatter.format(value)}
+                    label={{ value: "Salvamentos médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    labelFormatter={(label) => `Semana ${formatWeekLabel(String(label)).replace("Sem ", "")}`}
+                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Salvamentos médios"]}
+                  />
+                  <Line type="monotone" dataKey="avgSaves" name="Salvamentos médios" stroke="#ec4899" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
