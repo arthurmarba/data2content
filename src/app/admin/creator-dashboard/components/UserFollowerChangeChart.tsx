@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 import type { TooltipProps } from "recharts";
-import { formatNullableNumberTooltip } from "@/utils/chartFormatters";
 
 interface ApiChangePoint {
   date: string;
@@ -41,7 +41,7 @@ interface UserFollowerChangeChartProps {
 
 const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
   userId,
-  chartTitle = "Variação Diária de Seguidores",
+  chartTitle = "Evolução do ganho de seguidores",
 }) => {
   const [data, setData] = useState<UserFollowerChangeResponse["chartData"]>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(
@@ -105,10 +105,60 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
     setTimePeriod(e.target.value);
   };
 
+  const getWeekKey = (d: string | Date) => {
+    const date = new Date(d);
+    if (Number.isNaN(date.getTime())) return null;
+    const oneJan = new Date(date.getFullYear(), 0, 1);
+    const week = Math.ceil((((date.getTime() - oneJan.getTime()) / 86400000) + oneJan.getDay() + 1) / 7);
+    return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
+  };
+
+  const formatWeekLabel = (value?: string | null) => {
+    if (!value) return "";
+    const match = value.match(/(\d{4})-W?(\d{1,2})/i);
+    if (!match || !match[1] || !match[2]) return value;
+    const year = match[1];
+    const week = match[2];
+    return `Sem ${String(week).padStart(2, "0")}/${year.slice(-2)}`;
+  };
+
+  const series = useMemo(() => {
+    const agg = new Map<string, { total: number; gains: number; losses: number }>();
+    data.forEach((point) => {
+      if (typeof point.change !== "number") return;
+      const key = getWeekKey(point.date);
+      if (!key) return;
+      const bucket = agg.get(key) || { total: 0, gains: 0, losses: 0 };
+      const delta = point.change;
+      bucket.total += delta;
+      bucket.gains += Math.max(delta, 0);
+      bucket.losses += Math.abs(Math.min(delta, 0));
+      agg.set(key, bucket);
+    });
+    return Array.from(agg.entries())
+      .map(([date, values]) => ({
+        date,
+        total: values.total,
+        gains: values.gains,
+        losses: values.losses,
+      }))
+      .sort((a, b) => (a.date > b.date ? 1 : -1));
+  }, [data]);
+
+  const labelMap: Record<string, string> = {
+    total: "Saldo líquido",
+    gains: "Ganho de seguidores",
+    losses: "Perda de seguidores",
+  };
+
   const tooltipFormatter: TooltipProps<number, string>["formatter"] = (
     value,
     name,
-  ) => formatNullableNumberTooltip(value as number | null, name);
+  ) => {
+    const numeric = typeof value === "number" ? value : null;
+    const label = labelMap[name] ?? name;
+    return [numeric !== null ? Math.round(numeric).toLocaleString() : "N/A", label];
+  };
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
@@ -152,22 +202,55 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
             <p className="text-red-500">Erro: {error}</p>
           </div>
         )}
-        {!loading && !error && data.length > 0 && (
+        {!loading && !error && series.length > 0 && (
           <ResponsiveContainer>
-            <BarChart
-              data={data}
+            <LineChart
+              data={series}
               margin={{ top: 5, right: 20, left: -20, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 12 }} />
+              <XAxis
+                dataKey="date"
+                stroke="#666"
+                tick={{ fontSize: 12 }}
+                tickFormatter={formatWeekLabel}
+              />
               <YAxis stroke="#666" tick={{ fontSize: 12 }} />
               <Tooltip<number, string>
                 formatter={tooltipFormatter}
+                labelFormatter={(label) => formatWeekLabel(String(label))}
                 labelStyle={{ color: "#333" }}
-                itemStyle={{ color: "#8884d8" }}
+                itemStyle={{ color: "#64748b" }}
               />
-              <Bar dataKey="change" name="Variação" fill="#8884d8" />
-            </BarChart>
+              <Legend wrapperStyle={{ fontSize: 13 }} />
+              <Line
+                type="monotone"
+                dataKey="total"
+                name="Saldo líquido"
+                stroke="#475569"
+                strokeWidth={2.5}
+                dot={{ r: 2.5 }}
+                activeDot={{ r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="gains"
+                name="Ganho de seguidores"
+                stroke="#22c55e"
+                strokeWidth={2}
+                dot={{ r: 2.5 }}
+                activeDot={{ r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="losses"
+                name="Perda de seguidores"
+                stroke="#ef4444"
+                strokeWidth={2}
+                dot={{ r: 2.5 }}
+                activeDot={{ r: 4 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         )}
         {!loading && !error && data.length === 0 && (

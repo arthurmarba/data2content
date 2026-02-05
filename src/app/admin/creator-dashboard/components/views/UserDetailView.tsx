@@ -22,6 +22,7 @@ const UserDemographicsWidget = dynamic(() => import("../UserDemographicsWidget")
 const CreatorBrazilMap = dynamic(() => import("../CreatorBrazilMap"));
 const TimePerformanceHeatmap = dynamic(() => import("../TimePerformanceHeatmap"));
 const UserVideoPerformanceMetrics = dynamic(() => import("../UserVideoPerformanceMetrics"));
+const UserFollowerChangeChart = dynamic(() => import("../UserFollowerChangeChart"));
 const UserAlertsWidget = dynamic(() => import("../widgets/UserAlertsWidget"));
 
 const DEFAULT_ALERTS_LIMIT = 3;
@@ -270,6 +271,12 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         </DeferredSection>
       </section>
 
+      {/* Follower Growth Evolution */}
+      <section>
+        <DeferredSection minHeight="320px" placeholder={<SectionPlaceholder />}>
+          <UserFollowerChangeChart userId={userId} />
+        </DeferredSection>
+      </section>
 
       {/* Main Charts Section (Trend, Format, etc.) */}
       <section>
