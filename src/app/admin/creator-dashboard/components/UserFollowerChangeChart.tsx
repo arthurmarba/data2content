@@ -20,6 +20,11 @@ interface ApiChangePoint {
   change: number | null;
 }
 
+interface ApiTotalPoint {
+  date: string;
+  value: number | null;
+}
+
 interface UserFollowerChangeResponse {
   chartData: ApiChangePoint[];
   insightSummary?: string;
@@ -41,9 +46,10 @@ interface UserFollowerChangeChartProps {
 
 const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
   userId,
-  chartTitle = "Evolução do ganho de seguidores",
+  chartTitle = "Evolução de seguidores (total, ganhos e perdas)",
 }) => {
   const [data, setData] = useState<UserFollowerChangeResponse["chartData"]>([]);
+  const [totalData, setTotalData] = useState<ApiTotalPoint[]>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(
     undefined,
   );
@@ -62,23 +68,36 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
   const fetchData = useCallback(async () => {
     if (!userId) {
       setData([]);
+      setTotalData([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/users/${userId}/trends/follower-change?timePeriod=${timePeriod}`;
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      const changeUrl = `/api/v1/users/${userId}/trends/follower-change?timePeriod=${timePeriod}`;
+      const totalUrl = `/api/v1/users/${userId}/trends/followers?timePeriod=${timePeriod}&granularity=daily`;
+      const [changeResponse, totalResponse] = await Promise.all([
+        fetch(changeUrl),
+        fetch(totalUrl),
+      ]);
+      if (!changeResponse.ok) {
+        const errorData = await changeResponse.json().catch(() => ({}));
         throw new Error(
-          `Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`,
+          `Erro HTTP: ${changeResponse.status} - ${errorData.error || changeResponse.statusText}`,
         );
       }
-      const result: UserFollowerChangeResponse = await response.json();
-      setData(result.chartData);
-      setInsightSummary(result.insightSummary);
+      if (!totalResponse.ok) {
+        const errorData = await totalResponse.json().catch(() => ({}));
+        throw new Error(
+          `Erro HTTP: ${totalResponse.status} - ${errorData.error || totalResponse.statusText}`,
+        );
+      }
+      const changeResult: UserFollowerChangeResponse = await changeResponse.json();
+      const totalResult: { chartData: ApiTotalPoint[]; insightSummary?: string } = await totalResponse.json();
+      setData(changeResult.chartData);
+      setTotalData(totalResult.chartData || []);
+      setInsightSummary(changeResult.insightSummary || totalResult.insightSummary);
     } catch (err) {
       setError(
         err instanceof Error
@@ -86,6 +105,7 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
           : "Ocorreu um erro desconhecido ao buscar dados.",
       );
       setData([]);
+      setTotalData([]);
       setInsightSummary(undefined);
     } finally {
       setLoading(false);
@@ -123,6 +143,15 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
   };
 
   const series = useMemo(() => {
+    const totalByWeek = new Map<string, number>();
+    const sortedTotals = [...totalData].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    sortedTotals.forEach((point) => {
+      if (typeof point.value !== "number") return;
+      const key = getWeekKey(point.date);
+      if (!key) return;
+      totalByWeek.set(key, point.value);
+    });
+
     const agg = new Map<string, { total: number; gains: number; losses: number }>();
     data.forEach((point) => {
       if (typeof point.change !== "number") return;
@@ -135,18 +164,26 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
       bucket.losses += Math.abs(Math.min(delta, 0));
       agg.set(key, bucket);
     });
-    return Array.from(agg.entries())
-      .map(([date, values]) => ({
+    const keys = new Set<string>([...agg.keys(), ...totalByWeek.keys()]);
+    const sortedKeys = Array.from(keys).sort((a, b) => (a > b ? 1 : -1));
+    let lastTotal: number | null = null;
+    return sortedKeys.map((date) => {
+      const values = agg.get(date) || { total: 0, gains: 0, losses: 0 };
+      const total = totalByWeek.get(date);
+      if (typeof total === "number") {
+        lastTotal = total;
+      }
+      return {
         date,
-        total: values.total,
+        total: lastTotal,
         gains: values.gains,
         losses: values.losses,
-      }))
-      .sort((a, b) => (a.date > b.date ? 1 : -1));
-  }, [data]);
+      };
+    });
+  }, [data, totalData]);
 
   const labelMap: Record<string, string> = {
-    total: "Saldo líquido",
+    total: "Total de seguidores",
     gains: "Ganho de seguidores",
     losses: "Perda de seguidores",
   };
@@ -215,7 +252,21 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
                 tick={{ fontSize: 12 }}
                 tickFormatter={formatWeekLabel}
               />
-              <YAxis stroke="#666" tick={{ fontSize: 12 }} />
+              <YAxis
+                yAxisId="left"
+                stroke="#666"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value: number) => Math.round(value).toLocaleString()}
+                label={{ value: "Ganhos/Perdas", angle: -90, position: "insideLeft", fill: "#64748b", fontSize: 11 }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#666"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value: number) => Math.round(value).toLocaleString()}
+                label={{ value: "Total de seguidores", angle: 90, position: "insideRight", fill: "#64748b", fontSize: 11 }}
+              />
               <Tooltip<number, string>
                 formatter={tooltipFormatter}
                 labelFormatter={(label) => formatWeekLabel(String(label))}
@@ -226,11 +277,12 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
               <Line
                 type="monotone"
                 dataKey="total"
-                name="Saldo líquido"
+                name="Total de seguidores"
                 stroke="#475569"
                 strokeWidth={2.5}
                 dot={{ r: 2.5 }}
                 activeDot={{ r: 4 }}
+                yAxisId="right"
               />
               <Line
                 type="monotone"
@@ -240,6 +292,7 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
                 strokeWidth={2}
                 dot={{ r: 2.5 }}
                 activeDot={{ r: 4 }}
+                yAxisId="left"
               />
               <Line
                 type="monotone"
@@ -249,6 +302,7 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
                 strokeWidth={2}
                 dot={{ r: 2.5 }}
                 activeDot={{ r: 4 }}
+                yAxisId="left"
               />
             </LineChart>
           </ResponsiveContainer>
