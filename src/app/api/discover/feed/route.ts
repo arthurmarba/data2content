@@ -55,6 +55,21 @@ type PostCard = {
   };
 };
 
+type ScoreWeights = {
+  interactions?: number;
+  saved?: number;
+  savedRate?: number;
+  interactionRate?: number;
+  comments?: number;
+  shares?: number;
+  recency?: number;
+};
+
+type ScoreBoosts = {
+  contexts?: string[];
+  proposals?: string[];
+};
+
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
@@ -90,6 +105,282 @@ function resolveVideoMeta(rawType?: string | null, rawUrl?: string | null) {
   };
 }
 
+function normalizeFormatKey(raw?: string | null): string | null {
+  if (!raw) return null;
+  const value = String(raw).toLowerCase();
+  if (value.includes('reel')) return 'reel';
+  if (value.includes('foto') || value.includes('photo')) return 'photo';
+  if (value.includes('carrossel') || value.includes('carousel')) return 'carousel';
+  if (value.includes('vídeo longo') || value.includes('video longo') || value.includes('long_video')) return 'long_video';
+  return null;
+}
+
+function normalizeWeights(weights: ScoreWeights): ScoreWeights {
+  const entries = Object.entries(weights).filter(([, value]) => typeof value === 'number' && value > 0);
+  const total = entries.reduce((acc, [, value]) => acc + (value as number), 0);
+  if (total <= 0) return weights;
+  const normalized: ScoreWeights = {};
+  entries.forEach(([key, value]) => {
+    normalized[key as keyof ScoreWeights] = (value as number) / total;
+  });
+  return normalized;
+}
+
+function adjustWeightsForFormat(base: ScoreWeights, formatFilter?: string): ScoreWeights {
+  if (!formatFilter) return base;
+  const formats = formatFilter
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (!formats.length) return base;
+  const weights: ScoreWeights = { ...base };
+  const bump = (key: keyof ScoreWeights, factor: number) => {
+    if (weights[key] != null) weights[key]! *= factor;
+  };
+  if (formats.some((fmt) => fmt.includes('photo') || fmt.includes('foto') || fmt.includes('carousel') || fmt.includes('carrossel'))) {
+    bump('savedRate', 1.25);
+    bump('saved', 1.2);
+    bump('comments', 1.15);
+    bump('shares', 0.9);
+  }
+  if (formats.some((fmt) => fmt.includes('reel'))) {
+    bump('shares', 1.25);
+    bump('comments', 1.1);
+    bump('savedRate', 0.95);
+  }
+  if (formats.some((fmt) => fmt.includes('long_video'))) {
+    bump('comments', 1.2);
+    bump('savedRate', 1.1);
+    bump('recency', 0.95);
+  }
+  return normalizeWeights(weights);
+}
+
+function hasMinimumSignals(it: PostCard) {
+  const stats = it.stats || {};
+  const numeric = (value?: number) => typeof value === 'number' && isFinite(value) && value > 0;
+  return Boolean(it.coverUrl) && (
+    numeric(stats.total_interactions) ||
+    numeric(stats.comments) ||
+    numeric(stats.shares) ||
+    numeric(stats.views) ||
+    numeric((stats as any).saved)
+  );
+}
+
+function applyDiversityCaps(
+  items: PostCard[],
+  opts: { maxPerContext?: number; maxPerProposal?: number; maxPerCreator?: number; maxItems: number }
+): PostCard[] {
+  const picked: PostCard[] = [];
+  const contextCounts = new Map<string, number>();
+  const proposalCounts = new Map<string, number>();
+  const creatorCounts = new Map<string, number>();
+  const getKey = (value?: string | null) => (value || '').trim().toLowerCase();
+
+  for (const it of items) {
+    const creatorKey = getKey(it.creatorName);
+    const contextKey = getKey((it.categories?.context || [])[0]);
+    const proposalKey = getKey((it.categories?.proposal || [])[0]);
+    if (opts.maxPerCreator && creatorKey) {
+      const count = creatorCounts.get(creatorKey) || 0;
+      if (count >= opts.maxPerCreator) continue;
+    }
+    if (opts.maxPerContext && contextKey) {
+      const count = contextCounts.get(contextKey) || 0;
+      if (count >= opts.maxPerContext) continue;
+    }
+    if (opts.maxPerProposal && proposalKey) {
+      const count = proposalCounts.get(proposalKey) || 0;
+      if (count >= opts.maxPerProposal) continue;
+    }
+    picked.push(it);
+    if (creatorKey) creatorCounts.set(creatorKey, (creatorCounts.get(creatorKey) || 0) + 1);
+    if (contextKey) contextCounts.set(contextKey, (contextCounts.get(contextKey) || 0) + 1);
+    if (proposalKey) proposalCounts.set(proposalKey, (proposalCounts.get(proposalKey) || 0) + 1);
+    if (picked.length >= opts.maxItems) break;
+  }
+  return picked;
+}
+
+function applyCreatorCap(items: PostCard[], cap: number, maxItems: number): PostCard[] {
+  if (cap <= 0) return items.slice(0, maxItems);
+  const picked: PostCard[] = [];
+  const counts = new Map<string, number>();
+  for (const it of items) {
+    const key = (it.creatorName || '').trim().toLowerCase();
+    const current = key ? (counts.get(key) || 0) : 0;
+    if (key && current >= cap) continue;
+    picked.push(it);
+    if (key) counts.set(key, current + 1);
+    if (picked.length >= maxItems) break;
+  }
+  return picked;
+}
+
+function balanceFormats(items: PostCard[], maxItems: number, minPerFormat = 1): PostCard[] {
+  const desired = ['reel', 'photo', 'carousel', 'long_video'];
+  const buckets = new Map<string, PostCard[]>();
+  for (const key of desired) buckets.set(key, []);
+  const rest: PostCard[] = [];
+  for (const it of items) {
+    const fmtRaw = (it.categories?.format || [])[0];
+    const fmtKey = normalizeFormatKey(fmtRaw || null);
+    if (fmtKey && buckets.has(fmtKey)) {
+      buckets.get(fmtKey)!.push(it);
+    } else {
+      rest.push(it);
+    }
+  }
+  const result: PostCard[] = [];
+  const used = new Set<string>();
+  for (const key of desired) {
+    const bucket = buckets.get(key) || [];
+    let count = 0;
+    for (const it of bucket) {
+      if (used.has(it.id)) continue;
+      result.push(it);
+      used.add(it.id);
+      count += 1;
+      if (count >= minPerFormat || result.length >= maxItems) break;
+    }
+    if (result.length >= maxItems) break;
+  }
+  if (result.length < maxItems) {
+    for (const it of items) {
+      if (used.has(it.id)) continue;
+      result.push(it);
+      used.add(it.id);
+      if (result.length >= maxItems) break;
+    }
+  }
+  return result.slice(0, maxItems);
+}
+
+function rankByScore(items: PostCard[], weights: ScoreWeights, boosts?: ScoreBoosts): PostCard[] {
+  if (!items.length) return items;
+  const nowMs = Date.now();
+  const get = (n: number | undefined) => (typeof n === 'number' && isFinite(n) ? n : 0);
+  const metrics = items.map((it) => {
+    const stats = it.stats || {};
+    const interactions = get(stats.total_interactions);
+    const comments = get(stats.comments);
+    const shares = get(stats.shares);
+    const saved = get((stats as any).saved);
+    const views = get(stats.views);
+    const reach = get((stats as any).reach);
+    const impressions = get((stats as any).impressions);
+    const savedRate = views > 0 ? saved / views : 0;
+    const denom = reach || views || impressions || 0;
+    const interactionRate = denom > 0 ? interactions / denom : 0;
+    const ageDays = it.postDate ? Math.max(0, (nowMs - new Date(it.postDate).getTime()) / 86_400_000) : 999;
+    const recency = Math.exp(-ageDays / 14);
+    return { it, interactions, comments, shares, saved, savedRate, interactionRate, recency };
+  });
+  const max = (key: keyof (typeof metrics)[number]) => Math.max(1e-9, ...metrics.map((m) => (m as any)[key] || 0));
+  const mInteractions = max('interactions');
+  const mComments = max('comments');
+  const mShares = max('shares');
+  const mSaved = max('saved');
+  const mSavedRate = max('savedRate');
+  const mInteractionRate = max('interactionRate');
+  const mRecency = max('recency');
+
+  const normBoosts = {
+    contexts: (boosts?.contexts || []).map((c) => c.toLowerCase()),
+    proposals: (boosts?.proposals || []).map((p) => p.toLowerCase()),
+  };
+
+  return metrics
+    .map((m) => {
+        const w = weights;
+        let score =
+          (w.interactions || 0) * (m.interactions / mInteractions) +
+          (w.comments || 0) * (m.comments / mComments) +
+          (w.shares || 0) * (m.shares / mShares) +
+          (w.saved || 0) * (m.saved / mSaved) +
+          (w.savedRate || 0) * (m.savedRate / mSavedRate) +
+          (w.interactionRate || 0) * (m.interactionRate / mInteractionRate) +
+          (w.recency || 0) * (m.recency / mRecency);
+
+      if (normBoosts.contexts.length || normBoosts.proposals.length) {
+        const ctx = (m.it.categories?.context || []).map((x) => String(x).toLowerCase());
+        const prop = (m.it.categories?.proposal || []).map((x) => String(x).toLowerCase());
+        const ctxHit = normBoosts.contexts.some((c) => ctx.includes(c));
+        const propHit = normBoosts.proposals.some((p) => prop.includes(p));
+        const boostFactor = 1 + (ctxHit ? 0.15 : 0) + (propHit ? 0.1 : 0);
+        score *= boostFactor;
+      }
+
+      return { it: m.it, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.it);
+}
+
+function postProcessItems(
+  items: PostCard[],
+  options: {
+    weights: ScoreWeights;
+    boosts?: ScoreBoosts;
+    balanceFormats?: boolean;
+    maxPerCreator?: number;
+    maxPerContext?: number;
+    maxPerProposal?: number;
+    explorationRatio?: number;
+    maxItems: number;
+  }
+): PostCard[] {
+  const filtered = items.filter(hasMinimumSignals);
+  const weights = normalizeWeights(options.weights);
+  const ranked = rankByScore(filtered, weights, options.boosts);
+  let combined = ranked;
+  if (options.explorationRatio && options.explorationRatio > 0) {
+    const exploreCount = Math.max(0, Math.floor(options.maxItems * options.explorationRatio));
+    const baseCount = Math.max(1, options.maxItems - exploreCount);
+    const base = ranked.slice(0, baseCount);
+    const baseIds = new Set(base.map((it) => it.id));
+    const remaining = ranked.filter((it) => !baseIds.has(it.id));
+    const exploreWeights = normalizeWeights({ recency: 0.7, comments: 0.15, shares: 0.1, savedRate: 0.05 });
+    const explore = rankByScore(remaining, exploreWeights).slice(0, exploreCount);
+    combined = [...base, ...explore];
+  }
+  let result = combined;
+  if (options.balanceFormats) {
+    result = balanceFormats(result, options.maxItems, 1);
+  }
+  result = applyDiversityCaps(result, {
+    maxPerContext: options.maxPerContext,
+    maxPerProposal: options.maxPerProposal,
+    maxPerCreator: options.maxPerCreator,
+    maxItems: options.maxItems,
+  });
+  if (result.length >= options.maxItems) return result;
+  const existing = new Set(result.map((it) => it.id));
+  const fill = ranked.filter((it) => !existing.has(it.id));
+  const filled = applyDiversityCaps([...result, ...fill], {
+    maxPerContext: options.maxPerContext,
+    maxPerProposal: options.maxPerProposal,
+    maxPerCreator: options.maxPerCreator,
+    maxItems: options.maxItems,
+  });
+  return filled;
+}
+
+const SCORE_PROFILES = {
+  rising72h: { recency: 0.45, interactionRate: 0.25, comments: 0.15, shares: 0.1, savedRate: 0.05, interactions: 0.03 },
+  trending: { comments: 0.2, shares: 0.2, savedRate: 0.25, saved: 0.15, recency: 0.2, interactions: 0.05, interactionRate: 0.15 },
+  topSaved: { saved: 0.55, savedRate: 0.25, comments: 0.1, shares: 0.05, recency: 0.15, interactions: 0.03, interactionRate: 0.12 },
+  topComments: { comments: 0.6, shares: 0.15, savedRate: 0.1, recency: 0.2, interactions: 0.03, interactionRate: 0.12 },
+  topShares: { shares: 0.6, comments: 0.15, savedRate: 0.1, recency: 0.2, interactions: 0.03, interactionRate: 0.12 },
+  reelsDuration: { comments: 0.2, shares: 0.2, savedRate: 0.2, saved: 0.1, recency: 0.3, interactions: 0.05, interactionRate: 0.15 },
+  weekend: { comments: 0.2, shares: 0.2, savedRate: 0.2, saved: 0.1, recency: 0.3, interactions: 0.05, interactionRate: 0.15 },
+  userSuggested: { comments: 0.2, shares: 0.2, savedRate: 0.25, saved: 0.1, recency: 0.25, interactions: 0.05, interactionRate: 0.15 },
+  topFormat: { comments: 0.2, shares: 0.2, savedRate: 0.2, saved: 0.1, recency: 0.2, interactions: 0.05, interactionRate: 0.15 },
+  collabs: { comments: 0.2, shares: 0.2, savedRate: 0.2, saved: 0.1, recency: 0.3, interactions: 0.05, interactionRate: 0.15 },
+  communityNew: { recency: 0.65, comments: 0.15, shares: 0.1, savedRate: 0.1, interactions: 0.03, interactionRate: 0.12 },
+};
+
 export async function GET(req: NextRequest): Promise<NextResponse<SectionsResponse>> {
   const session = (await getServerSession(authOptions as any)) as Session | null;
   const userId = session?.user?.id as string | undefined;
@@ -120,6 +411,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   if (limitByDays && days !== null) {
     startDate.setDate(startDate.getDate() - days);
   }
+  const risingWindowMs = 72 * 60 * 60 * 1000;
+  const risingEndDate = new Date();
+  const risingStartDate = new Date(risingEndDate.getTime() - risingWindowMs);
 
   await connectToDatabase();
 
@@ -171,6 +465,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   if (!(global as any).__discoverCaches) (global as any).__discoverCaches = {} as Record<string, CacheBucket>; // module-level caches (persistem no escopo do módulo enquanto o processo vive)
   const caches = (global as any).__discoverCaches as Record<string, CacheBucket>;
   const mediaTypeFilter = videoOnly ? ['VIDEO', 'REEL'] : undefined;
+  const maxItems = limitPerRow * 2;
 
   try {
     logger.info('[discover/debug] start', {
@@ -189,12 +484,34 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         view: viewParam || null,
       },
     });
+    let userTopContextIds: string[] = [];
+    let userTopProposalIds: string[] = [];
+    if (userId) {
+      try {
+        const [topCtx, topProp] = await Promise.all([
+          fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }),
+          fetchTopCategories({ userId, category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }),
+        ]);
+        userTopContextIds = (topCtx || []).map((x: any) => String(x.category)).filter(Boolean);
+        userTopProposalIds = (topProp || []).map((x: any) => String(x.category)).filter(Boolean);
+      } catch {
+        userTopContextIds = [];
+        userTopProposalIds = [];
+      }
+    }
+    const userBoosts: ScoreBoosts | undefined =
+      allowedPersonalized && (userTopContextIds.length || userTopProposalIds.length)
+        ? { contexts: userTopContextIds, proposals: userTopProposalIds }
+        : undefined;
     // Prepara filtros de experiência (Netflix-like)
     let topContextIdsForExp: string[] | undefined;
     if (exp === 'niche_humor' && userId) {
       try {
-        const bestCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
-        topContextIdsForExp = (bestCtx || []).map((x: any) => String(x.category)).filter(Boolean);
+        topContextIdsForExp = userTopContextIds.length ? userTopContextIds : undefined;
+        if (!topContextIdsForExp) {
+          const bestCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+          topContextIdsForExp = (bestCtx || []).map((x: any) => String(x.category)).filter(Boolean);
+        }
       } catch {
         topContextIdsForExp = undefined;
       }
@@ -208,7 +525,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     };
 
     // Se houver receita (por exp/view), usamos prateleiras específicas e retornamos somente elas
-    let topContextIdsForRecipe: string[] | undefined = topContextIdsForExp;
+    let topContextIdsForRecipe: string[] | undefined = topContextIdsForExp || (userTopContextIds.length ? userTopContextIds : undefined);
     if (!topContextIdsForRecipe && userId) {
       try {
         const bestCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
@@ -443,12 +760,93 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 references: Array.isArray(p?.references) ? p.references : undefined,
               },
             }));
-            if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
+          if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
           }
-          pushSection({ key: 'trending', title: 'Em alta agora', items: items || [] });
+          const processed = postProcessItems(items || [], {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.trending, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.15,
+            maxItems,
+          });
+          pushSection({ key: 'trending', title: 'Em alta agora', items: processed });
           logger.info('[discover/trending] ok', { ms: Date.now() - t0, count: items?.length || 0 });
         } catch (e) {
           logger.warn('[discover/trending] failed', e);
+        }
+      })());
+    }
+
+    // Em ascensão (últimas 72h)
+    if (shouldBuildShelf('rising_72h')) {
+      tasks.push((async () => {
+        try {
+          const t0 = Date.now();
+          let items: PostCard[] | undefined;
+          const cacheKey = 'rising_72h_default';
+          const effectiveStart = (limitByDays && startDate > risingStartDate) ? startDate : risingStartDate;
+          if (noFilter && caches[cacheKey] && caches[cacheKey].expires > Date.now()) {
+            items = caches[cacheKey].items;
+          } else {
+            const rising = await findGlobalPostsByCriteria({
+              dateRange: { startDate: effectiveStart, endDate: risingEndDate },
+              sortBy: 'stats.total_interactions',
+              sortOrder: 'desc',
+              page: 1,
+              limit: limitPerRow * 3,
+              skipCount: true,
+              minInteractions: 5,
+              onlyOptIn: true,
+              format: formatFilter || expFilters.format,
+              proposal: proposalFilter || expFilters.proposal,
+              context: contextFilter || expFilters.context,
+              tone: toneFilter,
+              references: referencesFilter,
+              mediaType: mediaTypeFilter,
+            });
+            items = (rising.posts || []).map((p: any) => ({
+              id: String(p._id),
+              coverUrl: toProxyUrl(p.coverUrl || null),
+              ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
+              caption: p.description || p.text_content || '',
+              postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+              creatorName: p.creatorName,
+              creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+              postLink: (p as any).postLink,
+              stats: {
+                total_interactions: p?.stats?.total_interactions,
+                likes: p?.stats?.likes,
+                comments: p?.stats?.comments,
+                shares: p?.stats?.shares,
+                views: p?.stats?.views,
+                video_duration_seconds: p?.stats?.video_duration_seconds,
+                saved: p?.stats?.saved,
+              },
+              categories: {
+                format: Array.isArray(p?.format) ? p.format : undefined,
+                proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+                context: Array.isArray(p?.context) ? p.context : undefined,
+                tone: Array.isArray(p?.tone) ? p.tone : undefined,
+                references: Array.isArray(p?.references) ? p.references : undefined,
+              },
+            }));
+            if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
+          }
+          const processed = postProcessItems(items || [], {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.rising72h, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.2,
+            maxItems,
+          });
+          pushSection({ key: 'rising_72h', title: 'Em ascensão (últimas 72h)', items: processed });
+          logger.info('[discover/rising_72h] ok', { ms: Date.now() - t0, count: items?.length || 0 });
+        } catch (e) {
+          logger.warn('[discover/rising_72h] failed', e);
         }
       })());
     }
@@ -473,7 +871,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           references: referencesFilter,
           mediaType: mediaTypeFilter,
         });
-        const items: PostCard[] = (res.posts || []).map((p: any) => ({
+        let items: PostCard[] = (res.posts || []).map((p: any) => ({
           id: String(p._id),
           coverUrl: toProxyUrl(p.coverUrl || null),
           ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
@@ -499,6 +897,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               references: Array.isArray(p?.references) ? p.references : undefined,
             },
           }));
+          items = postProcessItems(items, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.topSaved, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.1,
+            maxItems,
+          });
           pushSection({ key: 'top_saved', title: 'Campeões em salvamentos', items });
           logger.info('[discover/top_saved] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {
@@ -527,7 +934,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             references: referencesFilter,
             mediaType: mediaTypeFilter,
           });
-          const items: PostCard[] = (res.posts || []).map((p: any) => ({
+          let items: PostCard[] = (res.posts || []).map((p: any) => ({
             id: String(p._id),
             coverUrl: toProxyUrl(p.coverUrl || null),
             ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
@@ -553,6 +960,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               references: Array.isArray(p?.references) ? p.references : undefined,
             },
           }));
+          items = postProcessItems(items, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.topComments, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.1,
+            maxItems,
+          });
           pushSection({ key: 'top_comments', title: 'Campeões em comentários', items });
           logger.info('[discover/top_comments] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {
@@ -581,7 +997,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             references: referencesFilter,
             mediaType: mediaTypeFilter,
           });
-          const items: PostCard[] = (res.posts || []).map((p: any) => ({
+          let items: PostCard[] = (res.posts || []).map((p: any) => ({
             id: String(p._id),
             coverUrl: toProxyUrl(p.coverUrl || null),
             ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
@@ -607,6 +1023,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               references: Array.isArray(p?.references) ? p.references : undefined,
             },
           }));
+          items = postProcessItems(items, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.topShares, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.1,
+            maxItems,
+          });
           pushSection({ key: 'top_shares', title: 'Campeões em compartilhamentos', items });
           logger.info('[discover/top_shares] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {
@@ -667,6 +1092,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             const s = secs(it);
             return s > 0 && pred(s);
           });
+          items = postProcessItems(items, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.reelsDuration, formatFilter),
+            balanceFormats: false,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.1,
+            maxItems,
+          });
           logger.info('[discover/reels_duration] ok', { key, title, count: items.length });
           pushSection({ key, title, items });
         } catch (e) {
@@ -713,7 +1147,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           references: referencesFilter,
           mediaType: mediaTypeFilter,
         });
-        const weekendItems: PostCard[] = (raw.posts || [])
+        let weekendItems: PostCard[] = (raw.posts || [])
           .filter((p: any) => {
             const d = p?.postDate ? new Date(p.postDate) : null;
             if (!d) return false;
@@ -743,9 +1177,18 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
                 context: Array.isArray(p?.context) ? p.context : undefined,
                 tone: Array.isArray(p?.tone) ? p.tone : undefined,
-                references: Array.isArray(p?.references) ? p.references : undefined,
-              },
-            }));
+              references: Array.isArray(p?.references) ? p.references : undefined,
+            },
+          }));
+          weekendItems = postProcessItems(weekendItems, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.weekend, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.15,
+            maxItems,
+          });
           pushSection({ key: 'weekend_ideas', title: 'Ideias para o fim de semana', items: weekendItems });
           logger.info('[discover/weekend] ok', { ms: Date.now() - t0, count: weekendItems.length });
         } catch (e) {
@@ -762,13 +1205,19 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
       tasks.push((async () => {
         try {
           const t0 = Date.now();
-          let topCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
-          let topProp = await fetchTopCategories({ userId, category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 });
+          let topCtx = userTopContextIds.map((category) => ({ category }));
+          let topProp = userTopProposalIds.map((category) => ({ category }));
+          if (topCtx.length === 0) {
+            topCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }) as any;
+          }
+          if (topProp.length === 0) {
+            topProp = await fetchTopCategories({ userId, category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
+          }
           logger.info('[discover/user_suggested] cats', { ctx: (topCtx || []).length, prop: (topProp || []).length });
           if ((!topCtx || topCtx.length === 0) && (!topProp || topProp.length === 0)) {
             // Fallback para ranking global
-            topCtx = await fetchTopCategories({ category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
-            topProp = await fetchTopCategories({ category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 });
+            topCtx = await fetchTopCategories({ category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }) as any;
+            topProp = await fetchTopCategories({ category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
             logger.info('[discover/user_suggested] cats_fallback', { ctx: (topCtx || []).length, prop: (topProp || []).length });
           }
           const cats = [
@@ -828,8 +1277,18 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               logger.debug('[discover/user_suggested] category load fail', { err: subErr });
             }
           }
-          pushSection({ key: 'user_suggested', title: 'Sugeridos ao usuário', items: pool });
-          logger.info('[discover/user_suggested] ok', { ms: Date.now() - t0, count: pool.length });
+          const processed = postProcessItems(pool, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.userSuggested, formatFilter),
+            boosts: userBoosts,
+            balanceFormats: false,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.2,
+            maxItems,
+          });
+          pushSection({ key: 'user_suggested', title: 'Sugeridos ao usuário', items: processed });
+          logger.info('[discover/user_suggested] ok', { ms: Date.now() - t0, count: processed.length });
         } catch (e) {
           logger.warn('[discover/user_suggested] failed', e);
         }
@@ -907,8 +1366,18 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               logger.debug('[discover/top_format] fmt load fail', { fmt, err: sub });
             }
           }
-          pushSection({ key: 'top_in_your_format', title: 'Top no seu formato', items: pool });
-          logger.info('[discover/top_format] ok', { ms: Date.now() - t0, count: pool.length });
+          const processed = postProcessItems(pool, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.topFormat, formatFilter),
+            boosts: userBoosts,
+            balanceFormats: false,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.15,
+            maxItems,
+          });
+          pushSection({ key: 'top_in_your_format', title: 'Top no seu formato', items: processed });
+          logger.info('[discover/top_format] ok', { ms: Date.now() - t0, count: processed.length });
         } catch (e) {
           logger.warn('[discover/top_format] failed', e);
         }
@@ -1003,7 +1472,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             }));
             if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
           }
-          pushSection({ key: 'collabs', title: 'Colaborações em destaque', items: items || [] });
+          const processed = postProcessItems(items || [], {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.collabs, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.1,
+            maxItems,
+          });
+          pushSection({ key: 'collabs', title: 'Colaborações em destaque', items: processed });
           logger.info('[discover/collabs] ok', { ms: Date.now() - t0, count: items?.length || 0 });
         } catch (e) {
           logger.warn('[discover/collabs] failed', e);
@@ -1065,7 +1543,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             },
           ]).exec();
 
-          const items: PostCard[] = rows.map((r: any) => ({
+          let items: PostCard[] = rows.map((r: any) => ({
             id: String(r._id),
             coverUrl: toProxyUrl(r.coverUrl || null),
             ...resolveVideoMeta(r?.type, r?.mediaUrl || r?.media_url || null),
@@ -1091,6 +1569,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               references: Array.isArray(r?.references) ? r.references : undefined,
             },
           }));
+          items = postProcessItems(items, {
+            weights: adjustWeightsForFormat(SCORE_PROFILES.communityNew, formatFilter),
+            balanceFormats: !formatFilter && !videoOnly,
+            maxPerCreator: 2,
+            maxPerContext: 2,
+            maxPerProposal: 2,
+            explorationRatio: 0.25,
+            maxItems,
+          });
           pushSection({ key: 'community_new', title: 'Novidades da comunidade', items });
           logger.info('[discover/community_new] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {

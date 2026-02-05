@@ -64,11 +64,15 @@ const flattenCategories = (input: Category[]): Option[] => {
   return result;
 };
 
+const DISCOVER_FORMATS = formatCategories.filter((cat) =>
+  ['reel', 'photo', 'carousel', 'long_video'].includes(cat.id)
+);
+
 const FILTER_DATA: FilterCategory[] = [
   {
     id: "format",
     label: MASTER_LABELS.format,
-    options: flattenCategories(formatCategories),
+    options: flattenCategories(DISCOVER_FORMATS),
   },
   {
     id: "proposal",
@@ -249,7 +253,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={category.id}
                 type="button"
                 onClick={() => handleMasterClick(category.id)}
-                className={`filter-button-master inline-flex min-w-max items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${hasSelection
+                className={`filter-button-master inline-flex min-w-0 max-w-full items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${hasSelection
                     ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                   }`}
@@ -286,7 +290,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                   key={option.id}
                   type="button"
                   onClick={() => toggleFilter(currentCategory.id, option.id)}
-                  className={`filter-button-child inline-flex min-w-[8.5rem] items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-medium text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta sm:min-w-max ${isSelected
+                  className={`filter-button-child inline-flex min-w-0 max-w-[14rem] items-center justify-start gap-2 rounded-full border px-3 py-1.5 text-sm font-medium text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta sm:max-w-[20rem] lg:max-w-[24rem] ${isSelected
                       ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
                     }`}
@@ -297,7 +301,12 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                       }`}
                     aria-hidden="true"
                   />
-                  <span className="whitespace-nowrap">{option.label}</span>
+                  <span
+                    className="whitespace-normal break-words leading-snug sm:whitespace-nowrap sm:truncate"
+                    title={option.label}
+                  >
+                    {option.label}
+                  </span>
                 </button>
               );
             })}

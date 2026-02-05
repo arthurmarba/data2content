@@ -35,6 +35,28 @@ interface ClassificationResult {
   references: string[];
 }
 
+const resolveFormatForMetric = (
+  metric: Pick<IMetric, 'source' | 'format' | 'type'>,
+  classification: ClassificationResult
+): string[] => {
+  if (metric.source === 'api') {
+    switch (metric.type) {
+      case 'REEL':
+      case 'VIDEO':
+        return ['Reel'];
+      case 'IMAGE':
+        return ['Foto'];
+      case 'CAROUSEL_ALBUM':
+        return ['Carrossel'];
+      default:
+        return [];
+    }
+  }
+  return idsToLabels(classification.format, 'format').filter(
+    (label) => label !== 'Story' && label !== 'Live'
+  );
+};
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const buildCategoryDescriptions = (categories: Category[]): string => {
@@ -173,7 +195,7 @@ async function reclassifyAllMetrics() {
     const pendingMetrics = await Metric.find({
       classificationStatus: 'pending',
       description: { $exists: true, $ne: "" }
-    }).select('_id description').lean();
+    }).select('_id description source type format').lean();
 
     if (pendingMetrics.length === 0) {
       logger.info(`${SCRIPT_TAG} Nenhum post pendente de classificação encontrado. Encerrando.`);
@@ -194,7 +216,7 @@ async function reclassifyAllMetrics() {
           const classificationResult = await classifyContent(metric.description);
 
           const updateData: Partial<IMetric> = {
-            format: idsToLabels(classificationResult.format, 'format'),
+            format: resolveFormatForMetric(metric as IMetric, classificationResult),
             proposal: idsToLabels(classificationResult.proposal, 'proposal'),
             context: idsToLabels(classificationResult.context, 'context'),
             tone: idsToLabels(classificationResult.tone, 'tone'),

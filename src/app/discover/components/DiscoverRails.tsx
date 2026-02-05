@@ -33,6 +33,7 @@ type Section = { key: string; title: string; items: PostCard[] };
 
 const CTA_LABEL_OVERRIDES: Record<string, string> = {
   trending: "Explorar virais agora",
+  rising_72h: "Ver o que está subindo",
   top_saved: "Ver ideias muito salvas",
   top_comments: "Ver ideias com muitos comentários",
   top_shares: "Ver ideias muito compartilhadas",
@@ -59,6 +60,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
   const TITLE_OVERRIDES: Record<string, string> = {
     user_suggested: 'Ideias do seu nicho',
     trending: 'Conteúdos Virais',
+    rising_72h: 'Em ascensão (últimas 72h)',
     top_saved: 'Muito salvos (vale guardar)',
     top_comments: 'Gera conversas (comentários)',
     top_shares: 'Muito compartilhados',
@@ -69,6 +71,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
   const DESCRIPTIONS: Record<string, string> = {
     user_suggested: 'Baseado em categorias de mais engajamento no seu perfil.',
     trending: 'O que está performando melhor neste período.',
+    rising_72h: 'Conteúdos recentes com alta taxa de engajamento nas últimas 72h.',
     top_saved: 'Conteúdos que as pessoas salvam para voltar depois.',
     top_comments: 'Ideias que incentivam resposta do público.',
     top_shares: 'Conteúdos que a audiência gosta de compartilhar.',

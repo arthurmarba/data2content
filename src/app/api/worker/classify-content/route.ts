@@ -42,6 +42,28 @@ interface ClassificationResult {
   references: string[];
 }
 
+const resolveFormatForMetric = (
+  metric: Pick<IMetric, 'source' | 'format' | 'type'>,
+  classification: ClassificationResult
+): string[] => {
+  if (metric.source === 'api') {
+    switch (metric.type) {
+      case 'REEL':
+      case 'VIDEO':
+        return ['Reel'];
+      case 'IMAGE':
+        return ['Foto'];
+      case 'CAROUSEL_ALBUM':
+        return ['Carrossel'];
+      default:
+        return [];
+    }
+  }
+  return idsToLabels(classification.format, 'format').filter(
+    (label) => label !== 'Story' && label !== 'Live'
+  );
+};
+
 // --- Função de Classificação Otimizada com OpenAI ---
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -216,7 +238,7 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
                 logger.info(`${TAG} Classificação completa recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
 
                 const updateData: Partial<IMetric> = {
-                    format: idsToLabels(classification.format, 'format'),
+                    format: resolveFormatForMetric(metricDoc, classification),
                     proposal: idsToLabels(classification.proposal, 'proposal'),
                     context: idsToLabels(classification.context, 'context'),
                     tone: idsToLabels(classification.tone, 'tone'),

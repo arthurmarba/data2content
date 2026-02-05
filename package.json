@@ -13,6 +13,8 @@
     "test:e2e": "playwright test",
     "reclassify": "tsx --env-file=.env.local ./scripts/reclassifyAll.ts",
     "reset-classification": "tsx --env-file=.env.local ./scripts/resetClassificationStatus.ts",
+    "reset-classification-failed": "tsx --env-file=.env.local ./scripts/resetFailedClassificationStatus.ts",
+    "normalize-format": "tsx --env-file=.env.local ./scripts/normalizeFormatFromMetricType.ts",
     "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
     "force-clean-indexes": "tsx --env-file=.env.local ./scripts/forceCleanIndexes.ts",
     "fix-formats": "tsx --env-file=.env.local ./scripts/fixFormatLabels.ts",

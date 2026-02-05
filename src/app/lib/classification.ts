@@ -22,8 +22,6 @@ export const formatCategories: Category[] = [
   { id: 'reel', label: 'Reel', description: 'Vídeo curto e vertical, geralmente com música ou áudio em alta.', keywords: ['reel', 'vídeo curto', 'dança', 'trend'], examples: ["Meu novo reel com a trend do momento!", "Vídeo rápido mostrando 3 dicas de..."] },
   { id: 'photo', label: 'Foto', description: 'Uma única imagem estática.', keywords: ['foto', 'imagem', 'post', 'fotografia'], examples: ["Foto do pôr do sol de hoje.", "Um clique do nosso novo produto."] },
   { id: 'carousel', label: 'Carrossel', description: 'Post com múltiplas imagens ou vídeos que o usuário pode deslizar.', keywords: ['carrossel', 'sequência', 'álbum', 'deslize para o lado'], examples: ["Deslize para o lado para ver o antes e depois!", "Nosso novo catálogo em formato carrossel."] },
-  { id: 'story', label: 'Story', description: 'Conteúdo efêmero, vertical, que desaparece após 24 horas.', keywords: ['story', 'stories', 'temporário'], examples: ["Acabei de postar nos stories!", "Bastidores do evento no meu story."] },
-  { id: 'live', label: 'Live', description: 'Transmissão de vídeo ao vivo.', keywords: ['live', 'ao vivo', 'transmissão'], examples: ["Entro ao vivo às 20h para conversar com vocês.", "Live especial sobre o lançamento."] },
   { id: 'long_video', label: 'Vídeo Longo', description: 'Vídeo mais longo que não se encaixa no formato Reel (ex: IGTV, YouTube).', keywords: ['vídeo longo', 'igtv', 'youtube', 'documentário'], examples: ["Saiu vídeo novo no canal!", "Assista ao documentário completo."] },
 ];
 

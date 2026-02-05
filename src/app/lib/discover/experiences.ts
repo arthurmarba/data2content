@@ -84,12 +84,13 @@ export function getExperienceFilters(
 }
 
 // Ordem sugerida de prateleiras (rails) por experiência.
-// Chaves possíveis de seção: trending, for_you, best_times_hot, weekend_ideas, niche_match,
+// Chaves possíveis de seção: trending, rising_72h, for_you, best_times_hot, weekend_ideas, niche_match,
 // trend_fashion_beauty, trend_tips, trend_humor, top_in_your_format, collabs, community_new
 export function getExperienceShelfOrder(exp?: string | null): string[] {
   const baseDefault = [
     'for_you',
     'user_suggested',
+    'rising_72h',
     'reels_lt_15',
     'reels_15_45',
     'reels_gt_45',
@@ -111,6 +112,7 @@ export function getExperienceShelfOrder(exp?: string | null): string[] {
         'community_new',
         // 'best_times_hot' removido
         'top_in_your_format',
+        'rising_72h',
         'trending',
         'collabs',
         'weekend_ideas',
@@ -121,6 +123,7 @@ export function getExperienceShelfOrder(exp?: string | null): string[] {
         // 'for_you' removido
         'trend_tips',
         'trend_humor',
+        'rising_72h',
         'trending',
         // 'best_times_hot' removido
         'community_new',
@@ -132,6 +135,7 @@ export function getExperienceShelfOrder(exp?: string | null): string[] {
       return [
         // 'for_you' removido
         'weekend_ideas',
+        'rising_72h',
         'trending',
         'community_new',
         'collabs',
@@ -144,6 +148,7 @@ export function getExperienceShelfOrder(exp?: string | null): string[] {
       return [
         // 'for_you' removido
         'collabs',
+        'rising_72h',
         'trending',
         'community_new',
         // 'best_times_hot' removido
@@ -155,6 +160,7 @@ export function getExperienceShelfOrder(exp?: string | null): string[] {
       return [
         // 'for_you' removido
         // tendências fixas removidas
+        'rising_72h',
         'trending',
         'community_new',
         'weekend_ideas',

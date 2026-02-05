@@ -25,7 +25,15 @@ export default function DiscoverFilters() {
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const formats = useMemo(() => flatten(formatCategories as any), []);
+  const formats = useMemo(
+    () =>
+      flatten(
+        (formatCategories as any).filter((cat: Cat) =>
+          ['reel', 'photo', 'carousel', 'long_video'].includes(cat.id)
+        )
+      ),
+    []
+  );
   const proposals = useMemo(() => flatten(proposalCategories as any), []);
   const contexts = useMemo(() => flatten(contextCategories as any), []);
 
@@ -70,4 +78,3 @@ export default function DiscoverFilters() {
     </div>
   );
 }
-
