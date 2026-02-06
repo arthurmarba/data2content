@@ -1452,13 +1452,17 @@ export async function askLLMWithEnrichedContext(
     intent: DeterminedIntent | 'generate_proactive_alert' // <<< ATUALIZAÇÃO DE TIPO AQUI >>>
 ): Promise<AskLLMResult> {
     const fnTag = '[askLLMWithEnrichedContext v1.0.8]'; // Versão atualizada
-    const { user, historyMessages, userName, dialogueState, currentAlertDetails, intentConfidence, intentLabel } = enrichedContext; // currentAlertDetails agora disponível
+    const { user, historyMessages, userName, dialogueState, currentAlertDetails, intentConfidence, intentLabel, scriptContext } = enrichedContext; // currentAlertDetails agora disponível
     const promptVariant = (enrichedContext as any)?.promptVariant || process.env.PROMPT_VARIANT || 'A';
     const chatContextJson = (enrichedContext as any)?.chatContextJson || null;
     const safeUserName = userName?.trim() || user.name || 'criador';
     const isWebChannel = enrichedContext.channel === 'web';
     const answerEnginePack = (enrichedContext as any)?.answerEnginePack || null;
     const isCardIntent = intent === 'ask_community_inspiration' || intent === 'content_ideas';
+    const isScriptIntent =
+        intent === 'script_request' ||
+        intent === 'humor_script_request' ||
+        intent === 'proactive_script_accept';
     const baseFocus = isWebChannel && intent !== 'generate_proactive_alert'
         ? extractQuestionFocus(incomingText, intent)
         : null;
@@ -1590,6 +1594,19 @@ export async function askLLMWithEnrichedContext(
             });
         }
 
+        // 3. Screenwriter Protocol (Script Generation)
+        if (isScriptIntent && !intent.includes('proactive')) {
+            logger.info(`${fnTag} Intent de ROTEIRO detectado. Injetando protocolo Screenwriter.`);
+            initialMsgs.push({
+                role: 'system',
+                content: `PROTOCOLO ROTEIRISTA ATIVADO:
+                1. SEARCH: Use 'fetchCommunityInspirations' para encontrar estrutura viral compatível.
+                2. ADAPT: Nunca copie. Adapte a estrutura viral para o nicho do usuário.
+                3. FORMAT: O output FINAL deve ser estritamente no bloco [ROTEIRO]...[/ROTEIRO].
+                4. REASONING: Cite qual inspiração você usou.`
+            });
+        }
+
 
         if (chatContextJson) {
             initialMsgs.push({
@@ -1624,6 +1641,25 @@ export async function askLLMWithEnrichedContext(
         }
 
         const hasAnswerEvidence = Array.isArray(answerEnginePack?.top_posts) && answerEnginePack.top_posts.length > 0;
+
+        if (isScriptIntent && scriptContext) {
+            const scriptPayload = {
+                objectiveHint: scriptContext.objectiveHint || undefined,
+                toneHint: scriptContext.toneHint || undefined,
+                topCategories: scriptContext.topCategories || undefined,
+                topPosts: scriptContext.topPosts || undefined,
+                communityOptIn: scriptContext.communityOptIn ?? false,
+            };
+            initialMsgs.push({
+                role: 'system',
+                content:
+                    'SCRIPT CONTEXT PACK (USO OBRIGATÓRIO): use estes sinais para orientar o roteiro, gancho e CTA. ' +
+                    'As categorias abaixo são do histórico do criador (taxonomia interna). ' +
+                    'Se for chamar `fetchCommunityInspirations`, traduza para a taxonomia da comunidade (Proposal/Context/Format/Tone do tool). ' +
+                    'Se communityOptIn=false, NÃO chame `fetchCommunityInspirations`.\n' +
+                    `\`\`\`json\n${JSON.stringify(scriptPayload, null, 2)}\n\`\`\``,
+            });
+        }
 
         // Se for canal WEB, adiciona instrução de formatação rica
         if (isWebChannel && !isCardIntent) {
@@ -1675,16 +1711,54 @@ export async function askLLMWithEnrichedContext(
             });
         }
 
-        // Instruções de estilo e próxima ação — mantém o assistente sempre acionável.
-        initialMsgs.push({
-            role: 'system',
-            content:
-                'ESTILO OBRIGATÓRIO (NÃO NEGOCIÁVEL): Responda diretamente, sem intros. ' +
-                'REQUISITO DE PERTINÊNCIA: Comece o Diagnóstico citando EXATAMENTE o ponto da pergunta do usuário (ex: "Para aumentar seu alcance...", "Sobre sua dúvida de horários..."). ' +
-                'Use EXCLUSIVAMENTE estes headers: ### Diagnóstico (curto), ### Plano Estratégico (passos práticos) e ### Próximo Passo (pergunta acionável). ' +
-                'ANTI-DESVIO: Priorize responder a dúvida central antes de sugerir ações de expansão. ' +
-                'Ao final da resposta, SEMPRE ofereça 2 botões de ação rápida no formato: `[BUTTON: ...]` com rótulos específicos do contexto (nunca use placeholders genéricos).'
-        });
+        if (isScriptIntent) {
+            initialMsgs.push({
+                role: 'system',
+                content:
+                    'MODO ROTEIRO (CRÍTICO): Você deve responder com um roteiro de vídeo claro e acionável. ' +
+                    'IGNORE a estrutura "Diagnóstico/Plano/Próximo Passo" para este caso. ' +
+                    'Saída obrigatória: um bloco [ROTEIRO]...[/ROTEIRO]. ' +
+                    'Se faltar tema/produto/assunto, faça UMA pergunta objetiva e pare (não gere roteiro incompleto). ' +
+                    'Dentro do [ROTEIRO], gere 3 variações completas e concisas (V1, V2, V3) por padrão. ' +
+                    'Se o usuário pedir explicitamente "um roteiro", "rápido", "curto" ou indicar urgência, gere apenas V1. ' +
+                    'Se o usuário pedir opções/variações, mantenha V1–V3. ' +
+                    'Antes de escrever, infira o objetivo principal do usuário (educar, engajar, viralizar, converter, autoridade). ' +
+                    'Se o objetivo estiver explícito, siga-o; se estiver implícito, escolha o mais provável e mantenha CTA coerente. ' +
+                    'Cada variação deve seguir o esqueleto abaixo (linhas curtas):\n' +
+                    '- Formato: (use formato pedido; se não houver, escolha entre USER_PREFERRED_FORMATS; fallback: Reel)\n' +
+                    '- Objetivo: (educar | engajar | viralizar | converter | autoridade)\n' +
+                    '- Duração: (escolha e marque 1: 15s | 30s | 45s; se não informado, use 30s)\n' +
+                    '- Gancho (0–3s): frase direta que prende atenção\n' +
+                    '- Desenvolvimento (3–20s): 2–4 linhas com passos ou cena\n' +
+                    '- CTA (20–25s): peça salvar/compartilhar/comentar conforme o objetivo\n' +
+                    '- Voz/Narração: 1–2 linhas com o tom de fala\n' +
+                    '- Texto na tela: 1–2 linhas\n' +
+                    '- Visual/B‑roll: 1–2 sugestões rápidas\n' +
+                    '- Takes (2 opções curtas): Take 1 e Take 2 com variação mínima (troca de verbo/gancho)\n' +
+                    'Se o formato for carrossel/foto, adapte para "Slides" (ex.: Slide 1 gancho, Slide 2–5 desenvolvimento, Slide final CTA). ' +
+                    'Se for humor, inclua setup → conflito → punchline → reação. ' +
+                    'Se houver top_posts no pack de evidências, use 1 hook/ideia deles como inspiração (sem copiar). ' +
+                    'Se communityOptIn=true e houver dados suficientes, chame `fetchCommunityInspirations` ANTES de escrever o roteiro para trazer 1–2 narrativas similares. ' +
+                    'Se faltar proposta/contexto para essa busca, faça UMA pergunta objetiva e pare. ' +
+                    'CTA deve refletir o objetivo implícito: ' +
+                    'educar/ensinar → salvar; comunidade/engajamento → comentar; alcance/viral → compartilhar; ' +
+                    'conversão → DM/clique; autoridade → salvar/seguir. ' +
+                    'Após o [/ROTEIRO], inclua um bloco [LEGENDA] com 3 variações (V1, V2, V3), ' +
+                    'cada uma com 1–3 frases + 3–6 hashtags no final. ' +
+                    'Feche com 2 botões de ação rápida no formato [BUTTON: ...].'
+            });
+        } else {
+            // Instruções de estilo e próxima ação — mantém o assistente sempre acionável.
+            initialMsgs.push({
+                role: 'system',
+                content:
+                    'ESTILO OBRIGATÓRIO (NÃO NEGOCIÁVEL): Responda diretamente, sem intros. ' +
+                    'REQUISITO DE PERTINÊNCIA: Comece o Diagnóstico citando EXATAMENTE o ponto da pergunta do usuário (ex: "Para aumentar seu alcance...", "Sobre sua dúvida de horários..."). ' +
+                    'Use EXCLUSIVAMENTE estes headers: ### Diagnóstico (curto), ### Plano Estratégico (passos práticos) e ### Próximo Passo (pergunta acionável). ' +
+                    'ANTI-DESVIO: Priorize responder a dúvida central antes de sugerir ações de expansão. ' +
+                    'Ao final da resposta, SEMPRE ofereça 2 botões de ação rápida no formato: `[BUTTON: ...]` com rótulos específicos do contexto (nunca use placeholders genéricos).'
+            });
+        }
         initialMsgs.push({
             role: 'system',
             content:

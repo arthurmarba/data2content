@@ -33,6 +33,7 @@ import { runAnswerEngine } from "@/app/lib/ai/answerEngine/engine";
 import { validateAnswerWithContext } from "@/app/lib/ai/answerEngine/validator";
 import { coerceToAnswerIntent } from "@/app/lib/ai/answerEngine/policies";
 import { stripUnprovenCommunityClaims } from "@/app/lib/text/sanitizeCommunityClaims";
+import { fetchTopCategories } from "@/app/lib/dataService";
 import {
   buildChatPricingClarification,
   buildChatPricingInsufficientData,
@@ -41,6 +42,7 @@ import {
   shouldHandleChatPricing,
 } from "@/app/lib/pricing/chatPricing";
 import { runPubliCalculator, type CalculatorParams } from "@/app/lib/pricing/publiCalculator";
+import { subDays } from "date-fns";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -123,6 +125,98 @@ const normalizeInstagramUrl = (url?: string | null) => {
     return null;
   }
 };
+
+const SCRIPT_INTENTS = new Set(['script_request', 'humor_script_request', 'proactive_script_accept']);
+
+function inferScriptObjective(query: string): string | null {
+  const text = (query || '').toLowerCase();
+  if (/(converter|vender|venda|compra|or[cç]amento|fechar|promover|lan[çc]amento|promo|cupom|dm|whatsapp|link)/.test(text)) {
+    return 'converter';
+  }
+  if (/(viral|viralizar|compart|alcance|reach|bombar|explodir)/.test(text)) {
+    return 'viralizar';
+  }
+  if (/(comentar|coment[áa]rio|engajar|engajamento|comunidade)/.test(text)) {
+    return 'engajar';
+  }
+  if (/(ensinar|tutorial|passo a passo|como fazer|dica|dicas|educa|explicar)/.test(text)) {
+    return 'educar';
+  }
+  if (/(autoridade|especialista|credibil|posicionamento|prova social)/.test(text)) {
+    return 'autoridade';
+  }
+  return null;
+}
+
+async function buildScriptContext(params: {
+  user: IUser;
+  query: string;
+  intent?: string | null;
+  answerEngineResult?: any;
+}): Promise<EnrichedAIContext['scriptContext']> {
+  const { user, query, intent, answerEngineResult } = params;
+  const userId = user?._id?.toString?.();
+  const objectiveHint = inferScriptObjective(query);
+  const isHumor = intent === 'humor_script_request' || /humor|com[eé]dia|engraç|piada|cena c[oô]mica/.test((query || '').toLowerCase());
+  const toneHint = isHumor ? 'humorous' : null;
+  const communityOptIn = Boolean((user as any)?.communityInspirationOptIn);
+
+  const topPosts = Array.isArray(answerEngineResult?.topPosts)
+    ? answerEngineResult.topPosts.slice(0, 3).map((p: any) => ({
+      id: String(p.id || ''),
+      captionSnippet: (p.raw?.description || p.description || '').toString().slice(0, 160) || undefined,
+      format: (p.raw?.format || p.format) ?? undefined,
+      proposal: Array.isArray(p.raw?.proposal) ? p.raw.proposal : undefined,
+      context: Array.isArray(p.raw?.context) ? p.raw.context : undefined,
+      tone: Array.isArray(p.raw?.tone) ? p.raw.tone : undefined,
+      stats: {
+        shares: typeof p.stats?.shares === 'number' ? p.stats.shares : null,
+        saved: typeof p.stats?.saves === 'number' ? p.stats.saves : null,
+        comments: typeof p.stats?.comments === 'number' ? p.stats.comments : null,
+        likes: typeof p.stats?.likes === 'number' ? p.stats.likes : null,
+        reach: typeof p.stats?.reach === 'number' ? p.stats.reach : null,
+        views: typeof p.raw?.stats?.views === 'number' ? p.raw.stats.views : null,
+        total_interactions: typeof p.stats?.total_interactions === 'number' ? p.stats.total_interactions : null,
+      },
+      postDate: p.postDate ? new Date(p.postDate).toISOString() : null,
+    }))
+    : [];
+
+  let topCategories: any = undefined;
+  if (userId) {
+    const now = new Date();
+    const dateRange = { startDate: subDays(now, 180), endDate: now };
+    const tasks = [
+      fetchTopCategories({ userId, dateRange, category: 'proposal', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange, category: 'context', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange, category: 'format', metric: 'shares', limit: 3 }),
+      fetchTopCategories({ userId, dateRange, category: 'tone', metric: 'shares', limit: 3 }),
+    ] as const;
+    const [proposalRes, contextRes, formatRes, toneRes] = await Promise.allSettled(tasks);
+    const extractCats = (res: PromiseSettledResult<any>) =>
+      res.status === 'fulfilled'
+        ? (res.value || []).map((r: any) => String(r?.category || '').trim()).filter(Boolean)
+        : [];
+    const proposals = extractCats(proposalRes);
+    const contexts = extractCats(contextRes);
+    const formats = extractCats(formatRes);
+    const tones = extractCats(toneRes);
+    topCategories = {
+      proposal: proposals.length ? Array.from(new Set(proposals)) : undefined,
+      context: contexts.length ? Array.from(new Set(contexts)) : undefined,
+      format: formats.length ? Array.from(new Set(formats)) : undefined,
+      tone: tones.length ? Array.from(new Set(tones)) : undefined,
+    };
+  }
+
+  return {
+    objectiveHint,
+    toneHint,
+    topCategories,
+    topPosts,
+    communityOptIn,
+  };
+}
 
 const sanitizeInstagramLinks = (markdown: string, allowed: Set<string>) => {
   if (!markdown) return markdown;
@@ -788,6 +882,15 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       }
     }
 
+    const scriptContext = SCRIPT_INTENTS.has(effectiveIntent)
+      ? await buildScriptContext({
+        user: targetUser,
+        query: truncatedQuery.trim(),
+        intent: effectiveIntent,
+        answerEngineResult,
+      })
+      : null;
+
     const enriched: EnrichedAIContext = {
       user: targetUser,
       historyMessages,
@@ -799,6 +902,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       promptVariant,
       chatContextJson: contextJson,
       answerEnginePack: answerEngineResult?.contextPack || null,
+      scriptContext,
     };
 
     let finalText = '';
@@ -829,7 +933,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       finalText = 'Hum... não consegui gerar uma resposta completa agora. Pode tentar reformular ou perguntar novamente?';
     }
 
-    const instigatingQuestion = skipLLM
+    const instigatingQuestion = skipLLM || SCRIPT_INTENTS.has(effectiveIntent)
       ? null
       : await generateInstigatingQuestion(finalText, dialogueState, access.targetUserId);
     const fullResponse = instigatingQuestion ? `${finalText.trim()}\n\n${instigatingQuestion}` : finalText.trim();

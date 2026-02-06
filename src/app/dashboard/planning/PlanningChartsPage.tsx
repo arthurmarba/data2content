@@ -68,6 +68,22 @@ const formatDateKey = (d: Date) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+const parseIsoWeekKey = (value: string) => {
+  const match = value.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week < 1 || week > 53) return null;
+  const jan4 = new Date(year, 0, 4);
+  const jan4Dow = (jan4.getDay() + 6) % 7; // Monday = 0
+  const week1Monday = new Date(jan4);
+  week1Monday.setDate(jan4.getDate() - jan4Dow);
+  const target = new Date(week1Monday);
+  target.setDate(week1Monday.getDate() + (week - 1) * 7);
+  target.setHours(0, 0, 0, 0);
+  return target;
+};
+
 const getWeekKey = (d: string | Date) => {
   const start = getWeekStart(d);
   return start ? formatDateKey(start) : null;
@@ -267,7 +283,8 @@ export default function PlanningChartsPage() {
     if (!rows.length) return [];
     const agg = new Map<string, { reach: number; interactions: number; count: number }>();
     rows.forEach((row: { date: string; reach: number; interactions: number }) => {
-      const key = getWeekKey(row.date) ?? (row.date ? String(row.date) : null);
+      const isoWeekDate = typeof row.date === "string" ? parseIsoWeekKey(row.date) : null;
+      const key = isoWeekDate ? formatDateKey(isoWeekDate) : getWeekKey(row.date) ?? (row.date ? String(row.date) : null);
       if (!key) return; // descarta pontos sem data válida
       const bucket = agg.get(key) || { reach: 0, interactions: 0, count: 0 };
       bucket.reach += row.reach;

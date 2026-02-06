@@ -78,4 +78,33 @@ export interface EnrichedAIContext {
   chatContextJson?: string | null;
   experimentId?: string | null;
   answerEnginePack?: ContextPack | null;
+  scriptContext?: {
+    objectiveHint?: string | null;
+    toneHint?: string | null;
+    topCategories?: {
+      proposal?: string[];
+      context?: string[];
+      format?: string[];
+      tone?: string[];
+    };
+    topPosts?: Array<{
+      id: string;
+      captionSnippet?: string;
+      format?: string[] | string;
+      proposal?: string[];
+      context?: string[];
+      tone?: string[];
+      stats?: {
+        shares?: number | null;
+        saved?: number | null;
+        comments?: number | null;
+        likes?: number | null;
+        reach?: number | null;
+        views?: number | null;
+        total_interactions?: number | null;
+      };
+      postDate?: string | null;
+    }>;
+    communityOptIn?: boolean;
+  } | null;
 }

@@ -44,6 +44,29 @@ interface UserFollowerChangeChartProps {
   chartTitle?: string;
 }
 
+const getWeekStart = (d: string | Date) => {
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = date.getDay(); // 0 = domingo
+  const diffToMonday = (day + 6) % 7;
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - diffToMonday);
+  return start;
+};
+
+const formatDateKey = (d: Date) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const getWeekKey = (d: string | Date) => {
+  const start = getWeekStart(d);
+  return start ? formatDateKey(start) : null;
+};
+
 const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
   userId,
   chartTitle = "Evolução de seguidores (total, ganhos e perdas)",
@@ -123,29 +146,6 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
 
   const handleTimePeriodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTimePeriod(e.target.value);
-  };
-
-  const getWeekStart = (d: string | Date) => {
-    const date = new Date(d);
-    if (Number.isNaN(date.getTime())) return null;
-    const day = date.getDay(); // 0 = domingo
-    const diffToMonday = (day + 6) % 7;
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - diffToMonday);
-    return start;
-  };
-
-  const formatDateKey = (d: Date) => {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const getWeekKey = (d: string | Date) => {
-    const start = getWeekStart(d);
-    return start ? formatDateKey(start) : null;
   };
 
   const formatWeekLabel = (value?: string | null) => {

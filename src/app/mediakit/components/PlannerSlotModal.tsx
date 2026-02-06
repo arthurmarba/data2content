@@ -452,6 +452,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         body: JSON.stringify({
           userId,
           categories: slot.categories || {},
+          format,
+          tone: slot.categories?.tone,
           script: description || slot.scriptShort || '',
           themeKeyword: effectiveTheme,
           limit: 12,
@@ -490,7 +492,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     } finally {
       setCommunityLoading(false);
     }
-  }, [slot, description, effectiveTheme, userId]);
+  }, [slot, description, effectiveTheme, userId, format]);
 
   useEffect(() => {
     if (!open || !slot || !communityOpen) return;

@@ -37,13 +37,34 @@ function extractQueryKeywords(text: string, theme?: string, max = 12): string[] 
   return uniq;
 }
 
-function labelsFor(id: string | undefined, type: 'context'|'proposal'|'reference'|'format'): string[] {
+function labelsFor(id: string | undefined, type: 'context'|'proposal'|'reference'|'format'|'tone'): string[] {
   if (!id) return [];
   const cat = getCategoryById(id, type as any);
   const out: string[] = [];
   if (cat?.label) out.push(cat.label);
   out.push(id);
   return out;
+}
+
+function uniq(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function listLabels(ids: string[] | undefined, type: 'context'|'proposal'|'reference'|'format'|'tone'): string[] {
+  if (!ids || !ids.length) return [];
+  return uniq(ids.flatMap((id) => labelsFor(id, type)));
+}
+
+function normalizeFormat(raw?: string | null): string | null {
+  if (!raw) return null;
+  const value = String(raw).toLowerCase();
+  if (value.includes('reel')) return 'reel';
+  if (value.includes('foto') || value.includes('photo') || value.includes('feed_image')) return 'photo';
+  if (value.includes('carrossel') || value.includes('carousel')) return 'carousel';
+  if (value.includes('long_video') || value.includes('video longo') || value.includes('vídeo longo')) return 'long_video';
+  if (value.includes('story')) return 'story';
+  if (value.includes('live')) return 'live';
+  return value;
 }
 
 export interface CommunityInspirationPost {
@@ -60,7 +81,9 @@ export interface CommunityInspirationPost {
 
 export async function findCommunityInspirationPosts(params: {
   excludeUserId: string | Types.ObjectId;
-  categories?: { context?: string[]; proposal?: string[]; reference?: string[] };
+  categories?: { context?: string[]; proposal?: string[]; reference?: string[]; tone?: string | string[] };
+  format?: string;
+  tone?: string;
   script?: string;
   themeKeyword?: string;
   periodInDays?: number;
@@ -76,12 +99,15 @@ export async function findCommunityInspirationPosts(params: {
   const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
   const startDate = getStartDateFromTimePeriod(today, `last_${period}_days`);
 
-  const ctxId = params.categories?.context?.[0];
-  const prpId = params.categories?.proposal?.[0];
-  const refId = params.categories?.reference?.[0];
-  const ctxValues = labelsFor(ctxId, 'context');
-  const prpValues = labelsFor(prpId, 'proposal');
-  const refValues = labelsFor(refId, 'reference');
+  const ctxValues = listLabels(params.categories?.context, 'context');
+  const prpValues = listLabels(params.categories?.proposal, 'proposal');
+  const refValues = listLabels(params.categories?.reference, 'reference');
+  const toneList = [
+    ...(params.tone ? [params.tone] : []),
+    ...(Array.isArray(params.categories?.tone) ? params.categories?.tone : (params.categories?.tone ? [params.categories?.tone] : [])),
+  ];
+  const toneValues = uniq(toneList.flatMap((t) => labelsFor(t, 'tone').concat(t ? [t] : [])));
+  const requestedFormat = normalizeFormat(params.format);
 
   const baseMatch: any = {
     user: { $ne: excludeUser },
@@ -108,6 +134,9 @@ export async function findCommunityInspirationPosts(params: {
         postLink: 1,
         'creatorInfo.username': 1,
         'creatorInfo.profile_picture_url': 1,
+        format: 1,
+        tone: 1,
+        type: 1,
         context: 1,
         proposal: 1,
         references: 1,
@@ -126,47 +155,82 @@ export async function findCommunityInspirationPosts(params: {
     let kwOverlap = 0;
     for (const tk of qTokens) if (tSet.has(tk)) kwOverlap++;
 
-    const cats = new Set<string>([...(row?.context || []), ...(row?.proposal || []), ...(row?.references || [])].map((s: any) => (s || '').toString().toLowerCase()));
-    let catOverlap = 0;
-    if (ctxValues.length && ctxValues.some(v => cats.has(v.toLowerCase()))) catOverlap++;
-    if (prpValues.length && prpValues.some(v => cats.has(v.toLowerCase()))) catOverlap++;
-    if (refValues.length && refValues.some(v => cats.has(v.toLowerCase()))) catOverlap++;
+    const toLower = (value: any) => (value || '').toString().toLowerCase();
+    const ctxSet = new Set<string>((row?.context || []).map(toLower));
+    const prpSet = new Set<string>((row?.proposal || []).map(toLower));
+    const refSet = new Set<string>((row?.references || []).map(toLower));
+    const toneSet = new Set<string>((row?.tone || []).map(toLower));
+    const rowFormats = uniq([...(row?.format || []), row?.type].map((v: any) => normalizeFormat(v) || '').filter(Boolean));
+    const fmtSet = new Set<string>(rowFormats.map(toLower));
+
+    const ctxMatch = ctxValues.length ? ctxValues.some(v => ctxSet.has(v.toLowerCase())) : false;
+    const prpMatch = prpValues.length ? prpValues.some(v => prpSet.has(v.toLowerCase())) : false;
+    const refMatch = refValues.length ? refValues.some(v => refSet.has(v.toLowerCase())) : false;
+    const toneMatch = toneValues.length ? toneValues.some(v => toneSet.has(v.toLowerCase())) : false;
+    const formatMatch = requestedFormat ? fmtSet.has(requestedFormat) : false;
+
+    const catWeightTotal =
+      (ctxValues.length ? 0.45 : 0) +
+      (prpValues.length ? 0.45 : 0) +
+      (refValues.length ? 0.1 : 0);
+    const catScore = catWeightTotal > 0
+      ? ((ctxMatch ? 0.45 : 0) + (prpMatch ? 0.45 : 0) + (refMatch ? 0.1 : 0)) / catWeightTotal
+      : 0;
 
     const views = Number(row?.stats?.views || 0);
     const perf = Math.log10(Math.max(1, views));
 
     // Bônus por estilo
     let styleBonus = 0;
-    const has = (id: string) => cats.has(id);
+    let styleMatch = false;
+    const catUnion = new Set<string>([...ctxSet, ...prpSet, ...refSet]);
+    const has = (id: string) => catUnion.has(id);
     if (styleHints.includes('how_to') || styleHints.includes('practical_imperative')) {
-      if (has('tutorial') || has('how_to') || has('tips') || has('guide') || has('educational')) styleBonus += 0.1;
+      if (has('tutorial') || has('how_to') || has('tips') || has('guide') || has('educational')) {
+        styleBonus += 0.1;
+        styleMatch = true;
+      }
     }
     if (styleHints.includes('humor') || styleHints.includes('humor_scene')) {
-      if (has('humor_scene')) styleBonus += 0.1;
+      if (has('humor_scene')) {
+        styleBonus += 0.1;
+        styleMatch = true;
+      }
     }
     if (styleHints.includes('comparison')) {
-      if (has('comparison')) styleBonus += 0.1;
+      if (has('comparison')) {
+        styleBonus += 0.1;
+        styleMatch = true;
+      }
     }
     if (styleHints.includes('regional_vs')) {
-      if (has('regional_stereotypes')) styleBonus += 0.1;
+      if (has('regional_stereotypes')) {
+        styleBonus += 0.1;
+        styleMatch = true;
+      }
     }
 
-    const score = 0.5 * (catOverlap / Math.max(1, (ctxValues.length>0?1:0)+(prpValues.length>0?1:0)+(refValues.length>0?1:0))) +
-                  0.3 * (kwOverlap / Math.max(1, qTokens.length)) +
-                  0.2 * (perf / 6) +
-                  styleBonus; // leve ajuste
-    return { score, kwOverlap, catOverlap, views };
+    const score = 0.4 * catScore +
+      0.25 * (kwOverlap / Math.max(1, qTokens.length)) +
+      0.15 * (formatMatch ? 1 : 0) +
+      0.1 * (toneMatch ? 1 : 0) +
+      0.1 * (perf / 6) +
+      styleBonus; // leve ajuste
+    return { score, kwOverlap, catScore, views, formatMatch, toneMatch, styleMatch };
   };
 
   const ranked = pre.map(r => ({ r, s: score(r) }))
-    .filter(x => x.s.catOverlap > 0 || x.s.kwOverlap > 0)
+    .filter(x => x.s.catScore > 0 || x.s.kwOverlap > 0 || x.s.formatMatch || x.s.toneMatch || x.s.styleMatch)
     .sort((a, b) => b.s.score - a.s.score || b.s.views - a.s.views)
     .slice(0, limit);
 
   const reasonFor = (row: any, sc: ReturnType<typeof score>): string[] => {
     const rs: string[] = [];
-    if (sc.catOverlap > 0) rs.push('match: categorias');
+    if (sc.catScore > 0) rs.push('match: categorias');
     if (sc.kwOverlap > 0) rs.push('match: narrativa');
+    if (sc.formatMatch) rs.push('match: formato');
+    if (sc.toneMatch) rs.push('match: tom');
+    if (sc.styleMatch) rs.push('match: estilo');
     if ((row?.stats?.views || 0) > 0) rs.push('desempenho alto');
     return rs;
   };
@@ -183,7 +247,13 @@ export async function findCommunityInspirationPosts(params: {
     reason: reasonFor(r, s),
   }));
 
-  logger.info('[findCommunityInspirationPosts] results', { excludeUser: String(excludeUser), qTokens, returned: out.length });
+  logger.info('[findCommunityInspirationPosts] results', {
+    excludeUser: String(excludeUser),
+    qTokens,
+    format: requestedFormat || undefined,
+    tone: toneValues,
+    returned: out.length,
+  });
   return out;
 }
 

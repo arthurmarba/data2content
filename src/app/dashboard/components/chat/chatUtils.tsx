@@ -226,6 +226,8 @@ function fixDanglingBoldLine(line: string) {
     return `${prefix}**${label}:**${tail ? ` ${tail}` : ''}`;
 }
 
+import { ScriptBlock } from './ScriptBlock';
+
 export function normalizePlanningMarkdownWithStats(input: string): NormalizationResult {
     const lines = input.split(/\r?\n/);
     const output: string[] = [];
@@ -942,6 +944,9 @@ const CaptionBlock: React.FC<CaptionBlockProps> = ({ content, label, theme }) =>
     );
 };
 
+
+
+// ScriptBlock moved to separate file
 type DisclosureProps = {
     title: string;
     theme: RenderTheme;
@@ -1568,14 +1573,25 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
             }
 
             if (block.type === 'caption') {
-                elements.push(
-                    <CaptionBlock
-                        key={`caption-${keyBase}`}
-                        content={block.content}
-                        label={block.label}
-                        theme={theme}
-                    />
-                );
+                if (block.label === 'Roteiro') {
+                    elements.push(
+                        <ScriptBlock
+                            key={`script-${keyBase}`}
+                            content={block.content}
+                            theme={theme}
+                            onSendPrompt={options.onSendPrompt}
+                        />
+                    );
+                } else {
+                    elements.push(
+                        <CaptionBlock
+                            key={`caption-${keyBase}`}
+                            content={block.content}
+                            label={block.label}
+                            theme={theme}
+                        />
+                    );
+                }
                 continue;
             }
 

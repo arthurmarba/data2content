@@ -100,7 +100,7 @@ function ensureStartsWithKeyword(themes: string[], keyword: string): string[] {
 }
 
 // Gera dicas de estilo a partir das categorias (usadas para orientar a IA a ser específica, sem engessar)
-function buildThemeStyleHints(cats: PlannerCategories): string[] {
+export function buildThemeStyleHints(cats: PlannerCategories): string[] {
   const hints: string[] = [];
   const proposals = (cats.proposal || []).map(p => p.toLowerCase());
   const contexts = (cats.context || []).map(c => c.toLowerCase());
