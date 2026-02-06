@@ -54,6 +54,10 @@ const parseScriptContent = (content: string): ParsedScript => {
     let isParsingJson = false;
     let jsonLines: string[] = [];
 
+    // Regex for list-based scene parsing (Fallback)
+    // Matches: - **TagName:** Content
+    const listSceneRegex = /^-\s*\*\*(.*?):\*\*\s*(.*)$/;
+
     for (const line of lines) {
         const trimmed = line.trim();
 
@@ -100,8 +104,7 @@ const parseScriptContent = (content: string): ParsedScript => {
             continue;
         }
 
-        // 3. Table/Scene Parsing
-        // Very basic markdow table parser for the specific 3-column format
+        // 3. Table Parsing (Preferred)
         if (trimmed.startsWith('| Time') || trimmed.startsWith('| Visual')) {
             isParsingTable = true;
             continue;
@@ -111,16 +114,34 @@ const parseScriptContent = (content: string): ParsedScript => {
         if (isParsingTable && trimmed.startsWith('|')) {
             const cols = trimmed.split('|').map(c => c.trim()).filter(c => c !== '');
             if (cols.length >= 3) {
-                // Ensure we don't accidentally pick up non-row lines
-                // Check if col[0] looks like time or just a number
                 scenes.push({
                     time: cols[0] || '?',
                     visual: cols[1] || '',
                     audio: cols[2] || ''
                 });
+                continue; // Skip list check if table row found
             } else if (trimmed === '') {
-                // Empty line might end table
                 isParsingTable = false;
+            }
+        }
+
+        // 4. List Parsing (Fallback for AI inconsistency)
+        if (!isParsingTable && !isParsingCaption && !isParsingJson && trimmed.startsWith('- **')) {
+            const match = trimmed.match(listSceneRegex);
+            if (match) {
+                const tag = match[1].toLowerCase();
+                const content = match[2];
+
+                // Map known tags to scene structure
+                if (tag.includes('gancho') || tag.includes('hook')) {
+                    scenes.push({ time: '0-3s', visual: content, audio: '(Intro)' });
+                } else if (tag.includes('corpo') || tag.includes('desenvolvimento') || tag.includes('v1')) {
+                    scenes.push({ time: '3-15s', visual: content, audio: '(Conteúdo)' });
+                } else if (tag.includes('cta') || tag.includes('chamada')) {
+                    scenes.push({ time: 'Final', visual: content, audio: '(Call to Action)' });
+                } else if (tag.includes('take') || tag.includes('visual')) {
+                    scenes.push({ time: 'Take', visual: content, audio: '...' });
+                }
             }
         }
     }
@@ -201,8 +222,8 @@ const MetadataHeader: React.FC<{ metadata: ScriptMetadata; theme: RenderTheme }>
                     {metadata.inspiration && !metadata.inspiration.includes('{') && (
                         // Fallback badge if no JSON card
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${isInverse
-                                ? 'bg-amber-500/10 text-amber-200 border-amber-500/20'
-                                : 'bg-amber-50 text-amber-700 border-amber-100'
+                            ? 'bg-amber-500/10 text-amber-200 border-amber-500/20'
+                            : 'bg-amber-50 text-amber-700 border-amber-100'
                             }`}>
                             🔥 Ref: {metadata.inspiration}
                         </span>
@@ -339,9 +360,8 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
     if (!data.scenes.length) {
         // Fallback if parsing fails (shouldn't happen with strict prompt, but safe)
         return (
-            <div className="p-4 rounded border border-red-200 bg-red-50 text-red-700">
-                Fallback Render (Parsing Error)
-                <pre>{content}</pre>
+            <div className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap ${isInverse ? 'bg-white/5 text-white/70' : 'bg-gray-50 text-gray-600 border border-gray-100'}`}>
+                {content}
             </div>
         );
     }

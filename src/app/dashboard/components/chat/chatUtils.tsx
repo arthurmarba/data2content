@@ -1105,6 +1105,8 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
         return blocks.some((block) => {
             if (block.type === 'suggestedActions') return true;
             if (block.type === 'disclosure') return hasSuggestedActions(block.blocks);
+            // Treat ScriptBlock (caption: 'Roteiro') as having actions to suppress defaults
+            if (block.type === 'caption' && block.label === 'Roteiro') return true;
             return false;
         });
     };
@@ -1760,25 +1762,35 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     ? 'border-white/40 bg-white/10'
                     : 'border-gray-300 bg-white';
                 elements.push(
-                    <ul key={`checklist-${keyBase}`} className={`space-y-2 ${listClass}`}>
-                        {block.items.map((item, jdx) => {
-                            const html = applyInlineMarkup(escapeHtml(item.text), theme);
-                            return (
-                                <li key={jdx} className="flex items-start gap-2">
-                                    <span
-                                        aria-hidden
-                                        className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded border ${boxClass} ${item.checked ? (isInverse ? 'bg-emerald-400 text-slate-900' : 'bg-emerald-500 text-white') : ''}`}
+                    <div key={`checklist-${keyBase}`} className="my-3 rounded-xl border border-gray-200 bg-gray-50/50 p-1">
+                        <ul className="space-y-1">
+                            {block.items.map((item, jdx) => {
+                                const html = applyInlineMarkup(escapeHtml(item.text), theme);
+                                const isChecked = item.checked;
+                                return (
+                                    <li
+                                        key={jdx}
+                                        className={`group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors ${isChecked ? 'bg-emerald-50/50' : 'bg-white hover:bg-gray-50'}`}
                                     >
-                                        {item.checked ? 'x' : ''}
-                                    </span>
-                                    <span className="sr-only">
-                                        {item.checked ? 'Concluído: ' : 'Pendente: '}
-                                    </span>
-                                    <span dangerouslySetInnerHTML={{ __html: html }} />
-                                </li>
-                            );
-                        })}
-                    </ul>
+                                        <span
+                                            aria-hidden
+                                            className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border text-[10px] transition-colors ${isChecked
+                                                ? 'border-emerald-300 bg-emerald-500 text-white shadow-sm'
+                                                : 'border-gray-300 bg-white text-transparent group-hover:border-gray-400'
+                                                }`}
+                                        >
+                                            <svg className={`h-3.5 w-3.5 ${isChecked ? 'block' : 'hidden'}`} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="2.5 7 5.5 10 11.5 3.5" />
+                                            </svg>
+                                        </span>
+                                        <span className={`text-[15px] leading-relaxed ${isChecked ? 'text-gray-500 line-through decoration-emerald-500/30' : 'text-gray-700'}`}>
+                                            <span dangerouslySetInnerHTML={{ __html: html }} />
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
                 );
                 continue;
             }

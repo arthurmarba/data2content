@@ -23,6 +23,7 @@ import { useThreadSelection } from "./components/chat/useThreadSelection";
 import useCreatorProfileExtended from "@/hooks/useCreatorProfileExtended";
 import { track } from "@/lib/track";
 import type { RenderDensity } from "./components/chat/chatUtils";
+import { ThinkingIndicator } from "./components/chat/ThinkingIndicator";
 
 interface SessionUserWithId {
   id?: string;
@@ -1273,13 +1274,8 @@ export default function ChatPanel({
                     exit={{ opacity: 0, y: 6 }}
                     className="w-full flex justify-start"
                   >
-                    <div className="max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch] rounded-2xl bg-gray-100/80 px-3.5 py-2.5 flex items-center gap-3 border border-gray-100">
-                      <div className="flex items-center gap-1" aria-hidden>
-                        <span className="inline-block h-2 w-2 rounded-full bg-slate-400 animate-bounce" />
-                        <span className="inline-block h-2 w-2 rounded-full bg-slate-300 animate-bounce delay-150" />
-                        <span className="inline-block h-2 w-2 rounded-full bg-slate-200 animate-bounce delay-300" />
-                      </div>
-                      <span className="text-sm text-gray-500 font-medium">Digitando...</span>
+                    <div className="max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch]">
+                      <ThinkingIndicator />
                     </div>
                   </motion.li>
                 )}

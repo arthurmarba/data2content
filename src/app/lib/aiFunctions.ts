@@ -49,6 +49,8 @@ import {
   getFpcTrend,
   getInspirationsWeighted
 } from './dataService';
+import { getThemesForSlot, buildThemeStyleHints } from '@/app/lib/planner/themes';
+import { getBlockSampleCaptions } from '@/utils/getBlockSampleCaptions';
 import { CategoryRankingMetricEnum } from './dataService/marketAnalysis/types';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
@@ -135,6 +137,34 @@ export const functionSchemas = [
         }
       },
       required: ['proposal', 'context']
+    }
+  },
+  {
+    name: 'getStrategicThemes',
+    description: "Gera sugestões de temas e pautas estratégicas baseadas na inteligência do 'Planejador de Conteúdo'. Use quando o usuário pedir ideias para um dia específico (ex: 'o que postar na quinta?') ou quando você quiser sugerir um conteúdo otimizado para os melhores horários do usuário. Requer dia da semana (0-6) e hora.",
+    parameters: {
+      type: 'object',
+      properties: {
+        dayOfWeek: {
+          type: 'number',
+          description: "Dia da semana (0=Domingo, 1=Segunda, ..., 6=Sábado)."
+        },
+        blockStartHour: {
+          type: 'number',
+          description: "Hora do dia (0-23). Se não especificado, use o melhor horário histórico do usuário."
+        },
+        categories: {
+          type: 'object',
+          properties: {
+            context: { type: 'array', items: { type: 'string' }, description: 'IDs de contexto (ex: educational, lifestyle)' },
+            proposal: { type: 'array', items: { type: 'string' }, description: 'IDs de proposta (ex: tutorial, vlog)' },
+            reference: { type: 'array', items: { type: 'string' } },
+            tone: { type: 'string' }
+          },
+          description: "Categorias opcionais para direcionar a geração."
+        }
+      },
+      required: ['dayOfWeek', 'blockStartHour']
     }
   },
   {
@@ -600,6 +630,56 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
     return { error: "Desculpe, tive um problema ao buscar as inspirações da comunidade. Poderia tentar novamente em alguns instantes?" };
   }
 };
+
+/* 2.X getStrategicThemes */
+const getStrategicThemes: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetStrategicThemesArgsSchema>, loggedUser) => {
+  const fnTag = '[fn:getStrategicThemes v1.0.0]';
+  const userId = loggedUser._id.toString();
+  logger.info(`${fnTag} Executando para User ${userId} com args: ${JSON.stringify(args)}`);
+
+  try {
+    const { dayOfWeek, blockStartHour, categories } = args;
+    // Como themes.ts pede 'periodDays', vamos usar 90 como um bom default.
+    const periodDays = 90;
+
+    const [themesResult, winningCaptions] = await Promise.all([
+      getThemesForSlot(
+        userId,
+        periodDays,
+        dayOfWeek,
+        blockStartHour,
+        categories || {}
+      ),
+      getBlockSampleCaptions(
+        userId,
+        periodDays,
+        dayOfWeek,
+        blockStartHour,
+        {
+          contextId: categories?.context?.[0],
+          proposalId: categories?.proposal?.[0],
+          referenceId: categories?.reference?.[0],
+        },
+        3 // Limit to top 3 captions
+      )
+    ]);
+
+    const styleHints = buildThemeStyleHints(categories || {});
+
+    return {
+      keyword: themesResult.keyword,
+      themes: themesResult.themes,
+      styleHints,
+      winningCaptions,
+      message: `Aqui estão algumas pautas estratégicas para ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][dayOfWeek]} às ${blockStartHour}h, focadas no tema '${themesResult.keyword}':`
+    };
+
+  } catch (err: any) {
+    logger.error(`${fnTag} Erro ao gerar temas estratégicos para User ${userId}:`, err);
+    return { error: "Não consegui gerar os temas estratégicos no momento. Tente novamente ou escolha outro horário." };
+  }
+};
+
 
 /* 2.3 getTopPosts */
 const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPostsArgsSchema>, loggedUser) => {

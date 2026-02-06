@@ -177,6 +177,19 @@ export const GetLatestAudienceDemographicsArgsSchema = z
   .describe('Busca apenas o snapshot demográfico mais recente do usuário.');
 
 
+// Schema para getStrategicThemes
+export const GetStrategicThemesArgsSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6).describe("Dia da semana (0=Domingo, 1=Segunda, ..., 6=Sábado)."),
+  blockStartHour: z.number().int().min(0).max(23).describe("Hora de início do bloco (0-23)."),
+  categories: z.object({
+    context: z.array(z.string()).optional().describe("Lista de IDs de contexto (opcional)."),
+    proposal: z.array(z.string()).optional().describe("Lista de IDs de proposta (opcional)."),
+    reference: z.array(z.string()).optional().describe("Lista de IDs de referência (opcional)."),
+    tone: z.string().optional().describe("ID do tom (opcional)."),
+  }).optional().default({}).describe("Categorias para filtrar/direcionar a geração de temas."),
+}).strict().describe("Gera sugestões de temas/pautas estratégicas baseadas no 'Planejador de Conteúdo' para um dia e hora específicos.");
+
+
 // Schema para FetchCommunityInspirationsArgsSchema
 export const FetchCommunityInspirationsArgsSchema = z.object({
   proposal: z.enum(VALID_PROPOSALS, {
@@ -234,4 +247,5 @@ export const functionValidators: ValidatorMap = {
   getLatestAccountInsights: GetLatestAccountInsightsArgsSchema,
   getLatestAudienceDemographics: GetLatestAudienceDemographicsArgsSchema,
   fetchCommunityInspirations: FetchCommunityInspirationsArgsSchema,
+  getStrategicThemes: GetStrategicThemesArgsSchema,
 };
