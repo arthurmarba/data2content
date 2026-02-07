@@ -137,6 +137,23 @@ describe('renderFormatted', () => {
         expect(screen.getByRole('button', { name: 'Criar legenda pronta' })).toBeInTheDocument();
     });
 
+    it('renders context-collection actions when script clarification is returned', () => {
+        const text = [
+            '### Preciso de contexto para montar um roteiro forte',
+            '> [!IMPORTANT]',
+            '> Me passe 3 dados rápidos e eu já te devolvo um roteiro pronto.',
+            '> `Tema específico` | `Público` | `Objetivo principal`',
+            '',
+            '[BUTTON: Quero preencher tema, público e objetivo]',
+            '[BUTTON: Usar meu nicho atual e gerar uma primeira versão]',
+        ].join('\n');
+
+        render(renderFormatted(text, 'default', { onSendPrompt: jest.fn(), allowSuggestedActions: true }));
+
+        expect(screen.getByRole('button', { name: 'Quero preencher tema, público e objetivo' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Usar meu nicho atual e gerar uma primeira versão' })).toBeInTheDocument();
+    });
+
     it('renders roteiro e legenda no mesmo ScriptBlock', () => {
         const text = [
             '[ROTEIRO]',
@@ -163,5 +180,7 @@ describe('renderFormatted', () => {
         expect(screen.getAllByText('Roteiro').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Legenda').length).toBeGreaterThan(0);
         expect(screen.getByText('Legenda principal de teste')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Ajustar para meu nicho' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Explorar variações' })).toBeInTheDocument();
     });
 });

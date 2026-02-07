@@ -76,6 +76,33 @@ const extractTaggedBlock = (text: string, tag: string) => {
     return match?.[1]?.trim() || null;
 };
 
+const cleanSceneCell = (value: string) => stripMarkdownMarkers(value || '').replace(/\s+/g, ' ').trim();
+
+const isTableSeparatorRow = (raw: string) => {
+    const cols = raw
+        .split('|')
+        .map((col) => col.trim())
+        .filter(Boolean);
+    if (!cols.length) return false;
+    return cols.every((col) => /^:?-{2,}:?$/.test(col.replace(/\s+/g, '')));
+};
+
+const isPlaceholderValue = (value?: string | null) => {
+    if (!value) return true;
+    const normalized = value.replace(/\s+/g, '');
+    if (!normalized) return true;
+    return /^[:\-_–—.=|]+$/.test(normalized);
+};
+
+const isMeaningfulScene = (scene: ScriptScene) => {
+    const time = cleanSceneCell(scene.time || '');
+    const visual = cleanSceneCell(scene.visual || '');
+    const audio = cleanSceneCell(scene.audio || '');
+    if (isPlaceholderValue(time) && isPlaceholderValue(visual) && isPlaceholderValue(audio)) return false;
+    if (isPlaceholderValue(visual) && isPlaceholderValue(audio)) return false;
+    return Boolean(visual || audio);
+};
+
 const isVariationHeading = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed) return false;
@@ -220,13 +247,18 @@ const parseVariationChunk = (label: string, lines: string[]): ScriptVariation =>
         }
 
         if (isParsingTable && trimmed.startsWith('|')) {
+            if (isTableSeparatorRow(trimmed)) {
+                continue;
+            }
             const cols = trimmed.split('|').map((col) => col.trim()).filter(Boolean);
             if (cols.length >= 2) {
-                scenes.push({
-                    time: cols.length >= 3 ? (cols[0] || 'Auto') : 'Auto',
-                    visual: cols.length >= 3 ? (cols[1] || '') : (cols[0] || ''),
-                    audio: cols.length >= 3 ? cols.slice(2).join(' | ') : (cols[1] || ''),
-                });
+                const scene: ScriptScene = {
+                    time: cleanSceneCell(cols.length >= 3 ? (cols[0] || 'Auto') : 'Auto'),
+                    visual: cleanSceneCell(cols.length >= 3 ? (cols[1] || '') : (cols[0] || '')),
+                    audio: cleanSceneCell(cols.length >= 3 ? cols.slice(2).join(' | ') : (cols[1] || '')),
+                };
+                if (!isMeaningfulScene(scene)) continue;
+                scenes.push(scene);
                 continue;
             }
         }
@@ -366,6 +398,19 @@ const formatSceneTime = (value: string) => {
         return trimmed.toLowerCase().endsWith('s') ? trimmed : `${trimmed}s`;
     }
     return trimmed;
+};
+
+const SCRIPT_CONTEXT_REQUIRED_PATTERNS = [
+    /preciso de contexto/i,
+    /tema espec[íi]fico/i,
+    /p[úu]blico/i,
+    /objetivo principal/i,
+];
+
+const isScriptContextRequiredMessage = (value: string) => {
+    const normalized = (value || '').trim();
+    if (!normalized) return false;
+    return SCRIPT_CONTEXT_REQUIRED_PATTERNS.every((pattern) => pattern.test(normalized));
 };
 
 const HeroInspirationCard: React.FC<{ data: InspirationData; theme: RenderTheme }> = ({ data, theme }) => {
@@ -604,15 +649,62 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
         : 'border-gray-200 bg-white text-gray-900';
 
     const quickActions = [
-        { label: 'Narrativa alinhada', prompt: 'Curti essa linha narrativa. Para os próximos roteiros, mantenha um estilo parecido de gancho, desenvolvimento e CTA.' },
-        { label: 'Quero outra linha', prompt: 'Essa narrativa não combinou comigo. Para os próximos roteiros, mude a linha narrativa e traga outra abordagem de gancho e CTA.' },
-        { label: 'Encurtar para 15s', prompt: 'Reescreva este roteiro para ter no máximo 15 segundos, focado em retenção rápida.' },
+        { label: 'Manter narrativa', prompt: 'Curti essa linha narrativa. Para os próximos roteiros, mantenha um estilo parecido de gancho, desenvolvimento e CTA.' },
+        { label: 'Trocar narrativa', prompt: 'Essa narrativa não combinou comigo. Para os próximos roteiros, mude a linha narrativa e traga outra abordagem de gancho e CTA.' },
+        { label: 'Comprimir para 15s', prompt: 'Reescreva este roteiro para ter no máximo 15 segundos, focado em retenção rápida.' },
         { label: 'Gancho mais forte', prompt: 'Torne o gancho deste roteiro mais direto e chamativo sem perder clareza.' },
-        { label: 'Versão didática', prompt: 'Adapte o roteiro para um formato mais didático e passo a passo.' },
-        { label: 'Gerar alternativa', prompt: 'Gere uma opção totalmente diferente para o mesmo tema.' },
+        { label: 'Tom mais didático', prompt: 'Adapte o roteiro para um formato mais didático e passo a passo.' },
+        { label: 'Gerar variação A/B', prompt: 'Gere uma opção totalmente diferente para o mesmo tema.' },
     ];
 
     if (!activeVariation || (!activeVariation.scenes.length && !activeVariation.caption)) {
+        if (isScriptContextRequiredMessage(content)) {
+            return (
+                <div className={`rounded-xl border p-4 sm:p-5 ${isInverse ? 'border-white/15 bg-white/5 text-white' : 'border-gray-200 bg-gray-50/60 text-gray-900'}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/65' : 'text-gray-500'}`}>
+                        Roteirista IA
+                    </div>
+                    <h3 className={`mt-1 text-[17px] font-semibold leading-tight ${isInverse ? 'text-white' : 'text-gray-900'}`}>
+                        Falta contexto para gerar um roteiro realmente bom
+                    </h3>
+                    <p className={`mt-2 text-[14px] leading-[1.6] ${isInverse ? 'text-white/80' : 'text-gray-700'}`}>
+                        Envie em 1 linha: tema específico, público e objetivo principal. Assim o roteiro sai com narrativa certa e CTA coerente.
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                        <span className={`rounded-md border px-2 py-1 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>Tema</span>
+                        <span className={`rounded-md border px-2 py-1 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>Público</span>
+                        <span className={`rounded-md border px-2 py-1 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>Objetivo</span>
+                    </div>
+
+                    {onSendPrompt ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => onSendPrompt('Tema: [preencha aqui] | Público: [preencha aqui] | Objetivo: [educar, engajar, viralizar ou converter]')}
+                                className={`rounded-md px-3 py-2 text-[13px] font-semibold transition-colors ${isInverse
+                                    ? 'bg-white/10 text-white hover:bg-white/15'
+                                    : 'bg-gray-900 text-white hover:bg-black'
+                                    }`}
+                            >
+                                Preencher contexto
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onSendPrompt('Use meu nicho atual e gere um roteiro inicial com foco em retenção e CTA claro.')}
+                                className={`rounded-md border px-3 py-2 text-[13px] font-medium transition-colors ${isInverse
+                                    ? 'border-white/20 text-white/80 hover:text-white'
+                                    : 'border-gray-200 text-gray-600 hover:text-gray-900'
+                                    }`}
+                            >
+                                Gerar versão inicial
+                            </button>
+                        </div>
+                    ) : null}
+                </div>
+            );
+        }
+
         return (
             <div className={`rounded-lg border p-4 text-sm whitespace-pre-wrap ${isInverse ? 'border-white/15 bg-white/5 text-white/80' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
                 <div className={`mb-2 text-xs font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
@@ -690,14 +782,14 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                             type="button"
                             onClick={() => {
                                 track('chat_script_action_clicked', { action: 'refinar_roteiro', variation: activeVariation?.label || 'V1' });
-                                onSendPrompt('Refine este roteiro mantendo a ideia principal, com linguagem mais clara e direta.');
+                                onSendPrompt('Ajuste este roteiro para o meu nicho, mantendo a ideia principal, com gancho mais específico e CTA mais claro.');
                             }}
                             className={`w-full rounded-md px-3 py-2.5 text-[13px] font-semibold transition-colors sm:w-auto ${isInverse
                                 ? 'bg-white/10 text-white hover:bg-white/15'
                                 : 'bg-gray-900 text-white hover:bg-black'
                                 }`}
                         >
-                            Refinar roteiro
+                            Ajustar para meu nicho
                         </button>
                         <button
                             type="button"
@@ -707,7 +799,7 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                                 : 'border-gray-200 text-gray-600 hover:text-gray-900'
                                 }`}
                         >
-                            {showActionOptions ? 'Ocultar opções' : 'Mais opções'}
+                            {showActionOptions ? 'Ocultar variações' : 'Explorar variações'}
                         </button>
                     </div>
                     {showActionOptions && (

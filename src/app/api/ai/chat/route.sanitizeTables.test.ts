@@ -120,4 +120,49 @@ describe('enforceScriptContract', () => {
     expect(result.normalized).toContain('- Gancho: Gancho 1');
     expect(result.normalized).toContain('**Por que essa inspiração:** Match de proposta e narrativa.');
   });
+
+  it('remove linhas separadoras inválidas da tabela de roteiro', () => {
+    const raw = [
+      '[ROTEIRO]',
+      '**Título Sugerido:** Teste',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| --- | :--- | :--- |',
+      '| 00-03s | Cena 1 | Fala 1 |',
+      '| 03-20s | Cena 2 | Fala 2 |',
+      '| 20-30s | Cena 3 | Salve e compartilhe |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Legenda base',
+      '[/LEGENDA]',
+    ].join('\n');
+
+    const result = enforceScriptContract(raw, 'crie um roteiro de conteúdo para que eu possa postar');
+    expect(result.normalized).not.toContain('| --- | :--- | :--- |');
+    expect(result.normalized).toContain('| 00-03s | Cena 1 | Fala 1 |');
+  });
+
+  it('evita título que apenas repete o pedido genérico do usuário', () => {
+    const raw = [
+      '[ROTEIRO]',
+      '**Título Sugerido:** Crie um roteiro de conteúdo para que eu possa postar',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Cena 1 | Fala 1 |',
+      '| 03-20s | Cena 2 | Fala 2 |',
+      '| 20-30s | Cena 3 | Salve e compartilhe |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Legenda base',
+      '[/LEGENDA]',
+    ].join('\n');
+
+    const result = enforceScriptContract(raw, 'Crie um roteiro de conteúdo para que eu possa postar');
+    expect(result.normalized).toContain('**Título Sugerido:** Roteiro curto de Reels (30 segundos)');
+    expect(result.normalized).not.toContain('Crie um roteiro de conteúdo para que eu possa postar em 30 segundos');
+  });
 });

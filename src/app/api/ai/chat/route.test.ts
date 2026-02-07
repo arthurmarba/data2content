@@ -297,3 +297,36 @@ it('salva preferência narrativa quando usuário dá feedback explícito', async
   const dialoguePatch = lastCall?.[1];
   expect(dialoguePatch?.scriptPreferences?.narrativePreference).toBe('prefer_similar');
 });
+
+it('pede clarificação no modo roteirista quando o pedido é genérico demais', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** Crie um roteiro de conteúdo para que eu possa postar',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Cena 1 | Fala 1 |',
+      '| 03-20s | Cena 2 | Fala 2 |',
+      '| 20-30s | Cena 3 | CTA |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Legenda',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([]),
+  });
+
+  const res = await chat(makeRequest({ query: 'Crie um roteiro de conteúdo para que eu possa postar' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.answer).not.toContain('[ROTEIRO]');
+  expect(json.answer).toMatch(/preciso de contexto/i);
+  expect(json.answer).toMatch(/tema específico|tema especifico/i);
+  expect(json.answer).toMatch(/público|publico/i);
+  expect(json.answer).toMatch(/objetivo principal/i);
+  expect(json.answer).toContain('[BUTTON: Quero preencher tema, público e objetivo]');
+});

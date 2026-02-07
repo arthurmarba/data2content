@@ -214,6 +214,95 @@ const parseInspirationJson = (value: string | null): ScriptInspirationHint | nul
   }
 };
 
+const stripDiacritics = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+const normalizeTopicText = (value: string) =>
+  stripDiacritics(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const GENERIC_TOPIC_TOKENS = new Set([
+  'a', 'ao', 'aos', 'as', 'com', 'como', 'da', 'das', 'de', 'do', 'dos', 'e', 'em', 'eu', 'me', 'minha', 'meu',
+  'na', 'nas', 'no', 'nos', 'o', 'os', 'ou', 'para', 'pra', 'por', 'que', 'se', 'sua', 'seu', 'um', 'uma',
+  'conteudo', 'post', 'postar', 'posts', 'publicar', 'reels', 'reel', 'roteiro', 'script', 'video', 'videos',
+  'instagram', 'tiktok', 'segundo', 'segundos', 's', 'ia', 'mobi', 'tema', 'nicho', 'crie', 'criar', 'gere', 'gerar', 'faca',
+  'fazer', 'possa', 'quero', 'preciso', 'hoje', 'agora',
+]);
+
+const isPlaceholderLike = (value?: string | null) => {
+  if (!value) return true;
+  const normalized = value.replace(/\s+/g, '');
+  if (!normalized) return true;
+  return /^[:\-_–—.=|]+$/.test(normalized);
+};
+
+const isMarkdownSeparatorRow = (rawRow: string) => {
+  const cols = rawRow
+    .split('|')
+    .map((col) => col.trim())
+    .filter(Boolean);
+  if (!cols.length) return false;
+  return cols.every((col) => /^:?-{2,}:?$/.test(col.replace(/\s+/g, '')));
+};
+
+const hasMeaningfulTopic = (value?: string | null) => {
+  if (!value) return false;
+  const tokens = normalizeTopicText(value)
+    .split(' ')
+    .filter(Boolean);
+  if (!tokens.length) return false;
+  const informative = tokens.filter((token) => token.length > 2 && !GENERIC_TOPIC_TOKENS.has(token));
+  return informative.length > 0;
+};
+
+const buildScriptTitleFromTopic = (topic: string) => {
+  if (!hasMeaningfulTopic(topic)) return 'Roteiro curto de Reels (30 segundos)';
+  const cleanedTopic = topic.replace(/\s+/g, ' ').trim();
+  if (!cleanedTopic) return 'Roteiro curto de Reels (30 segundos)';
+  return `${cleanedTopic.charAt(0).toUpperCase()}${cleanedTopic.slice(1)} em 30 segundos`;
+};
+
+const normalizeForSimilarity = (value: string) =>
+  normalizeTopicText(value)
+    .replace(/\b(crie|gere|faca|roteiro|script|conteudo|video|postar)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const looksLikePromptEcho = (candidate: string, userQuery: string) => {
+  const normalizedCandidate = normalizeForSimilarity(candidate);
+  const normalizedQuery = normalizeForSimilarity(userQuery);
+  if (!normalizedCandidate || !normalizedQuery) return false;
+  return (
+    normalizedCandidate === normalizedQuery ||
+    normalizedCandidate.includes(normalizedQuery) ||
+    normalizedQuery.includes(normalizedCandidate)
+  );
+};
+
+const resolveScriptTitle = (candidateTitle: string | null, topic: string, userQuery: string) => {
+  const fallbackTitle = buildScriptTitleFromTopic(topic);
+  if (!candidateTitle) return fallbackTitle;
+  const cleaned = stripMarkdownMarkers(candidateTitle);
+  if (!cleaned) return fallbackTitle;
+  if (looksLikePromptEcho(cleaned, userQuery)) return fallbackTitle;
+  if (!hasMeaningfulTopic(cleaned)) return fallbackTitle;
+  return cleaned;
+};
+
+const cleanScriptCell = (value: string) => stripMarkdownMarkers(value || '').replace(/\s+/g, ' ').trim();
+
+const isMeaningfulScene = (row: ScriptTableRow) => {
+  const time = cleanScriptCell(row.time || '');
+  const visual = cleanScriptCell(row.visual || '');
+  const audio = cleanScriptCell(row.audio || '');
+  if (isPlaceholderLike(time) && isPlaceholderLike(visual) && isPlaceholderLike(audio)) return false;
+  if (isPlaceholderLike(visual) && isPlaceholderLike(audio)) return false;
+  return Boolean(visual || audio);
+};
+
 const parseTableRowsFromScript = (content: string): ScriptTableRow[] => {
   const rows: ScriptTableRow[] = [];
   const lines = content.split('\n');
@@ -233,13 +322,16 @@ const parseTableRowsFromScript = (content: string): ScriptTableRow[] => {
   for (let j = start; j < lines.length; j += 1) {
     const raw = (lines[j] || '').trim();
     if (!raw || !raw.startsWith('|')) break;
+    if (isMarkdownSeparatorRow(raw)) continue;
     const cols = raw.split('|').map((c) => c.trim()).filter(Boolean);
     if (cols.length < 2) continue;
-    rows.push({
-      time: cols[0] || 'Auto',
-      visual: cols.length >= 3 ? (cols[1] || '') : (cols[0] || ''),
-      audio: cols.length >= 3 ? cols.slice(2).join(' | ') : (cols[1] || ''),
-    });
+    const row: ScriptTableRow = {
+      time: cleanScriptCell(cols[0] || 'Auto'),
+      visual: cleanScriptCell(cols.length >= 3 ? (cols[1] || '') : (cols[0] || '')),
+      audio: cleanScriptCell(cols.length >= 3 ? cols.slice(2).join(' | ') : (cols[1] || '')),
+    };
+    if (!isMeaningfulScene(row)) continue;
+    rows.push(row);
   }
 
   return rows;
@@ -270,30 +362,40 @@ const parseLooseRowsFromScript = (content: string): ScriptTableRow[] => {
   return rows;
 };
 
-const buildDefaultRows = (topic: string): ScriptTableRow[] => [
+const buildDefaultRows = (topic: string): ScriptTableRow[] => {
+  const safeTopic = hasMeaningfulTopic(topic) ? topic : 'uma dor real do seu nicho';
+  return [
   {
-    time: '00-03s',
-    visual: `Close no criador com texto na tela: "${topic}"`,
-    audio: `Se você quer melhorar em ${topic}, começa por esse ponto agora.`,
+    time: '00-02s',
+    visual: `Close direto no rosto + texto forte: "Você ainda erra isso em ${safeTopic}?"`,
+    audio: `Se você quer resultado em ${safeTopic}, precisa corrigir isso agora.`,
   },
   {
-    time: '03-20s',
-    visual: 'Demonstração em 2 passos, alternando close e detalhe da execução.',
-    audio: 'Mostre o erro comum, depois apresente o ajuste prático e objetivo.',
+    time: '02-07s',
+    visual: 'Mostre rapidamente o erro comum em um exemplo real (antes).',
+    audio: 'Esse é o erro que trava sua evolução e derruba retenção.',
+  },
+  {
+    time: '07-20s',
+    visual: 'Apresente o ajuste em 2 passos, com detalhe prático na execução (depois).',
+    audio: 'Agora faz assim: passo 1 para destravar, passo 2 para manter consistência.',
   },
   {
     time: '20-30s',
-    visual: 'Tela final com reforço do benefício e gesto apontando para a legenda.',
-    audio: 'Se isso te ajudou, salve este vídeo e compartilhe com quem precisa.',
+    visual: 'Fechamento com benefício final + prova rápida + gesto para legenda.',
+    audio: 'Se fez sentido, salve este vídeo e comente "roteiro" para eu te enviar outra variação.',
   },
 ];
+};
 
 const ensureRowsQuality = (rows: ScriptTableRow[], topic: string): { rows: ScriptTableRow[]; hasCta: boolean } => {
-  const safeRows = rows.map((row) => ({
-    time: row.time || 'Auto',
-    visual: stripMarkdownMarkers(row.visual || ''),
-    audio: stripMarkdownMarkers(row.audio || ''),
-  })).filter((row) => row.visual || row.audio);
+  const safeRows = rows
+    .map((row) => ({
+      time: cleanScriptCell(row.time || 'Auto') || 'Auto',
+      visual: cleanScriptCell(row.visual || ''),
+      audio: cleanScriptCell(row.audio || ''),
+    }))
+    .filter((row) => isMeaningfulScene(row));
 
   if (!safeRows.length) {
     return { rows: buildDefaultRows(topic), hasCta: true };
@@ -338,15 +440,16 @@ const ensureCaptionVariants = (captionContent: string, topic: string): string =>
     }
   }
 
-  const base = variantMap.get(1) || stripMarkdownMarkers(normalizedLines[0] || '') || `Ideia prática sobre ${topic}.`;
+  const safeTopic = hasMeaningfulTopic(topic) ? topic : 'um problema comum do seu nicho';
+  const base = variantMap.get(1) || stripMarkdownMarkers(normalizedLines[0] || '') || `Ideia prática para resolver ${safeTopic}.`;
   if (!variantMap.get(1)) {
     variantMap.set(1, `${base} Salve para aplicar ainda hoje.`);
   }
   if (!variantMap.get(2)) {
-    variantMap.set(2, `${base} Comente "quero" para receber a próxima variação.`);
+    variantMap.set(2, `${base} Comente "quero" para receber uma versão adaptada ao seu público.`);
   }
   if (!variantMap.get(3)) {
-    variantMap.set(3, `${base} Compartilhe com alguém que precisa desse roteiro.`);
+    variantMap.set(3, `${base} Compartilhe com alguém que também precisa dessa estrutura de roteiro.`);
   }
 
   return [
@@ -357,12 +460,12 @@ const ensureCaptionVariants = (captionContent: string, topic: string): string =>
 };
 
 const buildFallbackScriptResponse = (query: string) => {
-  const topic = summarizeRequestTopic(query) || 'seu tema';
+  const topic = summarizeRequestTopic(query) || 'um tema do seu nicho';
   const rows = buildDefaultRows(topic);
   const tableRows = rows.map((row) => `| ${row.time} | ${row.visual} | ${row.audio} |`).join('\n');
   return [
     '[ROTEIRO]',
-    `**Título Sugerido:** ${topic.charAt(0).toUpperCase()}${topic.slice(1)} em 30 segundos`,
+    `**Título Sugerido:** ${buildScriptTitleFromTopic(topic)}`,
     '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
     '',
     '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
@@ -378,7 +481,7 @@ const buildFallbackScriptResponse = (query: string) => {
 
 export function enforceScriptContract(response: string, userQuery: string, hints?: ScriptContractHints): ScriptContractResult {
   const issues: string[] = [];
-  const topic = summarizeRequestTopic(userQuery) || 'seu tema';
+  const topic = summarizeRequestTopic(userQuery) || 'um tema do seu nicho';
   let roteiroBody = extractTaggedBlock(response, 'ROTEIRO');
   let legendaBody = extractTaggedBlock(response, 'LEGENDA');
   let repaired = false;
@@ -405,10 +508,21 @@ export function enforceScriptContract(response: string, userQuery: string, hints
     };
   }
 
-  const title = findMetadataValue(roteiroBody, ['Título Sugerido', 'Titulo Sugerido']) || `${topic.charAt(0).toUpperCase()}${topic.slice(1)} em 30 segundos`;
-  const formatRaw = findMetadataValue(roteiroBody, ['Formato Ideal']) || 'Reels';
+  const title = resolveScriptTitle(
+    findMetadataValue(roteiroBody, ['Título Sugerido', 'Titulo Sugerido']),
+    topic,
+    userQuery
+  );
+  const formatLineRaw = findMetadataValue(roteiroBody, ['Formato Ideal']) || '';
+  const formatRaw = stripMarkdownMarkers((formatLineRaw.split('|')[0] || '').trim()) || 'Reels';
+  const durationFromFormat = (() => {
+    if (!formatLineRaw) return '';
+    const match = formatLineRaw.match(/dura(?:ç|c)[aã]o(?:\s+estimada)?\s*:\s*([^|]+)/i);
+    return match?.[1]?.trim() || '';
+  })();
   const durationRaw =
     findMetadataValue(roteiroBody, ['Duração Estimada', 'Duração Est', 'Duracao Estimada', 'Duracao Est']) ||
+    durationFromFormat ||
     '30s';
   const audioRaw = findMetadataValue(roteiroBody, ['Áudio Sugerido', 'Audio Sugerido']);
   const inspirationRaw = findMetadataValue(roteiroBody, ['Inspiração Viral', 'Inspiracao Viral']);
@@ -937,10 +1051,65 @@ function inferIntentFromSurvey(profile: any, cachedPrefs?: any) {
 
 function summarizeRequestTopic(value?: string | null) {
   if (!value) return '';
-  const condensed = value.replace(/\s+/g, ' ').trim();
+  const condensed = value
+    .replace(/\s+/g, ' ')
+    .replace(/[“”"]/g, '')
+    .trim();
   if (!condensed) return '';
-  return condensed.length > 90 ? `${condensed.slice(0, 90)}…` : condensed;
+
+  const candidates: string[] = [];
+  const topicMatchers = [
+    /(?:sobre|assunto|tema)\s+(.+)$/i,
+    /(?:para|pra)\s+(.+)$/i,
+    /(?:de)\s+(.+)$/i,
+  ];
+
+  for (const matcher of topicMatchers) {
+    const match = condensed.match(matcher);
+    if (match?.[1]) {
+      candidates.push(match[1].trim());
+    }
+  }
+  candidates.push(condensed);
+
+  for (const rawCandidate of candidates) {
+    const cleaned = rawCandidate
+      .replace(/\b(em|com)\s+\d+\s*(s|seg(?:undo)?s?|min(?:uto)?s?)\b/gi, '')
+      .replace(/^(?:um|uma|o|a)\s+/i, '')
+      .replace(/[?.!,:;]+$/g, '')
+      .trim();
+    if (!cleaned) continue;
+    if (!hasMeaningfulTopic(cleaned)) continue;
+    return cleaned.length > 90 ? `${cleaned.slice(0, 90)}…` : cleaned;
+  }
+
+  return '';
 }
+
+const SCRIPT_REFINEMENT_HINT = /\b(curti|gostei|mantenha|mantem|continue|continua|refine|refinar|encurta|encurtar|adapte|adaptar|mude|mudar|troque|trocar|outra linha|vers[aã]o)\b/i;
+const SCRIPT_CREATION_HINT = /\b(crie|criar|gere|gerar|monte|montar|fa[cç]a|fazer|escreva|elabore|roteiro|script|o que postar)\b/i;
+
+const shouldAskScriptClarification = (query: string, summarizedTopic: string) => {
+  if (!query || !query.trim()) return true;
+  if (SCRIPT_REFINEMENT_HINT.test(query)) return false;
+  if (!SCRIPT_CREATION_HINT.test(query)) return false;
+  return !hasMeaningfulTopic(summarizedTopic);
+};
+
+const buildScriptClarificationMessage = () =>
+  [
+    '### Preciso de contexto para montar um roteiro forte',
+    '> [!IMPORTANT]',
+    '> Me passe 3 dados rápidos e eu já te devolvo um roteiro pronto, com narrativa e CTA alinhados.',
+    '>',
+    '> `Tema específico` | `Público` | `Objetivo principal` (educar, engajar, viralizar ou converter).',
+    '',
+    'Exemplo: "Tema: rotina de skincare para pele oleosa | Público: mulheres 25-35 | Objetivo: gerar salvamentos".',
+    '',
+    '[BUTTON: Quero preencher tema, público e objetivo]',
+    '[BUTTON: Usar meu nicho atual e gerar uma primeira versão]',
+    '[BUTTON: Me mostre exemplos de prompts prontos]',
+  ].join('\n');
 
 function buildSurveyContextNote(profile: any, userRequest?: string) {
   if (!profile) return null;
@@ -1831,33 +2000,43 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     }
     sanitizedResponse = sanitizeInstagramLinks(sanitizedResponse, allowedLinks);
     if (isScriptMode) {
-      const scriptInspirationHint = buildScriptInspirationHint(
-        communityInspirations,
-        communityMeta,
-        summarizeRequestTopic(truncatedQuery) || 'seu tema'
-      );
-      const scriptContract = enforceScriptContract(sanitizedResponse, truncatedQuery, {
-        inspiration: scriptInspirationHint,
-      });
-      sanitizedResponse = scriptContract.normalized;
-      if (scriptContract.repaired) {
-        logger.info('[ai/chat] script_contract_repaired', {
-          issues: scriptContract.issues,
-          quality: scriptContract.quality,
+      const scriptTopic = summarizeRequestTopic(truncatedQuery);
+      if (shouldAskScriptClarification(truncatedQuery, scriptTopic)) {
+        sanitizedResponse = buildScriptClarificationMessage();
+        logger.info('[ai/chat] script_clarification_required', {
           actor: actorId,
           target: access.targetUserId,
+          query: summarizeRequestTopic(truncatedQuery),
+        });
+      } else {
+        const scriptInspirationHint = buildScriptInspirationHint(
+          communityInspirations,
+          communityMeta,
+          scriptTopic || 'seu tema'
+        );
+        const scriptContract = enforceScriptContract(sanitizedResponse, truncatedQuery, {
+          inspiration: scriptInspirationHint,
+        });
+        sanitizedResponse = scriptContract.normalized;
+        if (scriptContract.repaired) {
+          logger.info('[ai/chat] script_contract_repaired', {
+            issues: scriptContract.issues,
+            quality: scriptContract.quality,
+            actor: actorId,
+            target: access.targetUserId,
+          });
+        }
+        logger.info('[ai/chat] script_mode_metrics', {
+          event: 'script_response_ready',
+          actor: actorId,
+          target: access.targetUserId,
+          repaired: scriptContract.repaired,
+          sceneCount: scriptContract.quality.sceneCount,
+          hasCta: scriptContract.quality.hasCta,
+          communityInspirationsUsed: communityInspirations.length,
+          communityMatchType: communityMeta?.matchType || null,
         });
       }
-      logger.info('[ai/chat] script_mode_metrics', {
-        event: 'script_response_ready',
-        actor: actorId,
-        target: access.targetUserId,
-        repaired: scriptContract.repaired,
-        sceneCount: scriptContract.quality.sceneCount,
-        hasCta: scriptContract.quality.hasCta,
-        communityInspirationsUsed: communityInspirations.length,
-        communityMatchType: communityMeta?.matchType || null,
-      });
     }
 
     const surveyNudgeNeeded = !isScriptMode && !access.isAdmin && (surveyFreshness.isStale || surveyFreshness.missingCore.length > 0);
