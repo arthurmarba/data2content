@@ -81,6 +81,7 @@ export interface EnrichedAIContext {
   scriptContext?: {
     objectiveHint?: string | null;
     toneHint?: string | null;
+    narrativePreference?: 'prefer_similar' | 'prefer_different' | null;
     topCategories?: {
       proposal?: string[];
       context?: string[];

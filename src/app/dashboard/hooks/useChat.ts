@@ -132,6 +132,9 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                 setCurrentTask(data.currentTask ?? null);
                 autoScrollOnNext.current = true;
                 const messageType = (() => {
+                    const responseIntent = String(data.intent || data.answerEvidence?.intent || '').toLowerCase();
+                    const isScriptIntent = ['script_request', 'humor_script_request', 'proactive_script_accept'].includes(responseIntent);
+                    if (isScriptIntent || /\[ROTEIRO\]/i.test(String(data.answer || ''))) return 'script';
                     const taskName = data.currentTask?.name;
                     const isInspirationIntent =
                         data.answerEvidence?.intent_group === 'inspiration' &&
@@ -149,7 +152,7 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
                         messageId: data.assistantMessageId || null,
                         sessionId: data.sessionId || sessionId,
                         messageType,
-                        intent: data.answerEvidence?.intent || data.pendingAction?.intent || null,
+                        intent: data.intent || data.answerEvidence?.intent || data.pendingAction?.intent || null,
                         answerEvidence: data.answerEvidence || null,
                     },
                 ]);

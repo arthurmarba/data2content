@@ -76,6 +76,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
   if (evidence.filtersApplied?.tagsLocked) badges.push({ label: 'Tags/Nicho priorizados', tone: 'muted' });
   const relaxStep = evidence.relaxApplied?.[0];
   if (relaxStep) badges.push({ label: `Critério relaxado: ${relaxStep.step}`, tone: 'warn' });
+  const visibleBadges = badges.slice(0, 2);
 
   const handleToggle = () => {
     const next = !expanded;
@@ -89,13 +90,13 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
   const renderEmpty = () => {
     const thresholdLine = summaryParts.join(' • ') || 'Critério aplicado';
     return (
-      <div className="mt-3 rounded-xl border border-gray-200 bg-white/80 px-3 py-3 text-sm text-gray-700 shadow-sm" data-testid="chat-evidence-panel">
+      <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-3 text-sm text-gray-700" data-testid="chat-evidence-panel">
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="text-sm font-semibold text-gray-800">Evidências</div>
             <div className="text-xs text-gray-600">{thresholdLine}</div>
           </div>
-          {badges.map((b) => (
+          {visibleBadges.map((b) => (
             <span key={b.label} className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold ${b.tone === 'warn'
               ? 'bg-amber-50 text-amber-700'
               : b.tone === 'primary'
@@ -112,14 +113,14 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
           <button
             type="button"
             onClick={onRelax}
-            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-semibold text-brand-primary hover:border-brand-primary/50"
+            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-brand-primary hover:border-brand-primary/50"
           >
             Relaxar critério
           </button>
           <button
             type="button"
             onClick={onImproveBase}
-            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:border-gray-300"
+            className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700 hover:border-gray-300"
           >
             Como melhorar minha base?
           </button>
@@ -133,14 +134,14 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
   const metricsOrder = selectIntentMetrics(evidence.intent || 'top_performance_inspirations');
 
   return (
-    <div className="mt-3 rounded-xl border border-gray-200 bg-white/80 px-3 py-3 shadow-sm" data-testid="chat-evidence-panel">
+    <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-3" data-testid="chat-evidence-panel">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-gray-800">Evidências</span>
           <span className="text-xs text-gray-600">{summaryParts.join(' • ')}</span>
         </div>
         <div className="flex flex-wrap items-center gap-1">
-          {badges.map((b) => (
+          {visibleBadges.map((b) => (
             <span key={b.label} className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold ${b.tone === 'warn'
               ? 'bg-amber-50 text-amber-700'
               : b.tone === 'primary'
@@ -156,7 +157,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
           className="ml-auto inline-flex items-center text-xs font-semibold text-brand-primary hover:underline"
           onClick={handleToggle}
         >
-          {expanded ? 'Recolher' : 'Ver evidências'}
+          {expanded ? 'Recolher' : 'Ver detalhes'}
         </button>
       </div>
       {expanded ? (
@@ -205,7 +206,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
                         if (post.format) tags.push(Array.isArray(post.format) ? post.format[0] : post.format);
                         if (post.tags && post.tags.length) tags.push(post.tags[0]);
                         return (
-                          <div key={`low-${post.id}-${idx}`} className="rounded-lg border border-rose-100 bg-rose-50/70 p-2 text-xs">
+                          <div key={`low-${post.id}-${idx}`} className="rounded-lg border border-rose-200 bg-white p-2 text-xs">
                             <div className="flex items-start justify-between gap-2">
                               <span className="font-semibold text-rose-700">{post.title || `Post ${idx + 1}`}</span>
                               <span className="text-[10px] text-rose-600">Fraco</span>
@@ -217,7 +218,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
                             </div>
                             <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-700">
                               {blockMetricsOrder.map((metricKey, i) => (
-                                <span key={`${post.id}-${metricKey}`} className="inline-flex items-center rounded-full bg-white px-2 py-0.5">
+                                <span key={`${post.id}-${metricKey}`} className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5">
                                   {metricKey === 'engagement_rate_on_reach' ? 'ER' : metricKey.replace(/_/g, ' ')}: {metricValues[i]}
                                 </span>
                               ))}
@@ -237,7 +238,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
                         if (post.format) tags.push(Array.isArray(post.format) ? post.format[0] : post.format);
                         if (post.tags && post.tags.length) tags.push(post.tags[0]);
                         return (
-                          <div key={`high-${post.id}-${idx}`} className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-2 text-xs">
+                          <div key={`high-${post.id}-${idx}`} className="rounded-lg border border-emerald-200 bg-white p-2 text-xs">
                             <div className="flex items-start justify-between gap-2">
                               <span className="font-semibold text-emerald-700">{post.title || `Post ${idx + 1}`}</span>
                               <span className="text-[10px] text-emerald-600">Forte</span>
@@ -249,7 +250,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
                             </div>
                             <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-gray-700">
                               {blockMetricsOrder.map((metricKey, i) => (
-                                <span key={`${post.id}-${metricKey}`} className="inline-flex items-center rounded-full bg-white px-2 py-0.5">
+                                <span key={`${post.id}-${metricKey}`} className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5">
                                   {metricKey === 'engagement_rate_on_reach' ? 'ER' : metricKey.replace(/_/g, ' ')}: {metricValues[i]}
                                 </span>
                               ))}
@@ -280,7 +281,7 @@ export function AnswerEvidencePanel({ evidence, onRelax, onImproveBase }: Eviden
             const canShowLink = isUserSource && isVerified && isIgLink;
 
             return (
-              <div key={post.id} className="flex items-start gap-3 rounded-lg border border-gray-100 bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)]" data-testid="chat-evidence-post">
+              <div key={post.id} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3" data-testid="chat-evidence-post">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 text-gray-500">
                   {post.thumbUrl ? (
                     <Image src={post.thumbUrl} alt="" width={48} height={48} className="h-full w-full object-cover" />

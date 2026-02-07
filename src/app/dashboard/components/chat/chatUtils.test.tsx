@@ -90,7 +90,7 @@ describe('renderFormatted', () => {
         expect(container.querySelectorAll('ul').length).toBeGreaterThan(0);
         expect(container.querySelectorAll('ol')).toHaveLength(1);
         expect(container.querySelectorAll('table')).toHaveLength(1);
-        expect(screen.getByText(/Conclu/i)).toBeInTheDocument();
+        expect(screen.getByText(/feito|Conclu/i)).toBeInTheDocument();
         expect(screen.getAllByText(/Pendente/i).length).toBeGreaterThan(0);
         expect(container).toMatchSnapshot();
     });
@@ -135,5 +135,33 @@ describe('renderFormatted', () => {
 
         expect(screen.getByRole('button', { name: 'Gerar roteiro completo' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Criar legenda pronta' })).toBeInTheDocument();
+    });
+
+    it('renders roteiro e legenda no mesmo ScriptBlock', () => {
+        const text = [
+            '[ROTEIRO]',
+            '**Título Sugerido:** Roteiro de teste',
+            '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+            '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+            '| :--- | :--- | :--- |',
+            '| 00-03s | Gancho visual | Gancho falado |',
+            '| 03-20s | Desenvolvimento | Explicação prática |',
+            '| 20-30s | Encerramento | CTA final |',
+            '[/ROTEIRO]',
+            '',
+            '[LEGENDA]',
+            'V1: Legenda principal de teste',
+            '',
+            'V2: Segunda opção de legenda',
+            '',
+            'V3: Terceira opção de legenda',
+            '[/LEGENDA]',
+        ].join('\n');
+
+        render(renderFormatted(text, 'default', { onSendPrompt: jest.fn(), allowSuggestedActions: true }));
+
+        expect(screen.getAllByText('Roteiro').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Legenda').length).toBeGreaterThan(0);
+        expect(screen.getByText('Legenda principal de teste')).toBeInTheDocument();
     });
 });

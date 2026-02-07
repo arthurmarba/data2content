@@ -447,6 +447,7 @@ export function CommunityInspirationMessage({
     const [manualCopyCard, setManualCopyCard] = React.useState<Record<number, string>>({});
     const [manualCopyFooter, setManualCopyFooter] = React.useState<Record<number, string>>({});
     const [quickActionSent, setQuickActionSent] = React.useState<Record<number, boolean>>({});
+    const [showSecondaryActions, setShowSecondaryActions] = React.useState<Record<number, boolean>>({});
 
     React.useEffect(() => {
         setCtaCopied({});
@@ -456,6 +457,7 @@ export function CommunityInspirationMessage({
         setQuickActionSent({});
         setExpanded({});
         setExpandedHighlights({});
+        setShowSecondaryActions({});
     }, [text, messageId]);
 
     const normalizedAllowList = React.useMemo(() => {
@@ -522,10 +524,10 @@ export function CommunityInspirationMessage({
 
     if (!resolvedCards.length) return null;
 
-    const textClass = isInverse ? 'text-white/90' : 'text-gray-800';
+    const textClass = isInverse ? 'text-white/90' : 'text-gray-700';
     const headingClass = isInverse ? 'text-white' : 'text-gray-900';
-    const borderClass = isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-white';
-    const badgeClass = isInverse ? 'bg-indigo-100/10 text-indigo-50 ring-1 ring-indigo-200/40' : 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100';
+    const borderClass = isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200/80 bg-white/95 shadow-[0_1px_2px_rgba(15,23,42,0.03)]';
+    const badgeClass = isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700';
     const contextCardClass = isInverse ? 'border-white/20 bg-white/5 text-white' : 'border-gray-200 bg-gray-50 text-gray-800';
     const headerChipClass = isInverse ? 'bg-white/10 text-white/80' : 'bg-gray-100 text-gray-700';
     const introText = introOverride || (!hideRawIntro ? parsed.intro : null);
@@ -551,12 +553,12 @@ export function CommunityInspirationMessage({
     };
 
     return (
-        <div className="space-y-3" data-testid="community-inspiration-wrapper">
+        <div className="space-y-3 sm:space-y-3.5" data-testid="community-inspiration-wrapper">
             {header || subheader || (metaChips && metaChips.length) ? (
                 <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                         {header ? (
-                            <span className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
+                            <span className={`text-[11px] font-semibold tracking-[0.01em] ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
                                 {header}
                             </span>
                         ) : null}
@@ -568,10 +570,10 @@ export function CommunityInspirationMessage({
                     </div>
                     {metaChips && metaChips.length ? (
                         <div className="flex flex-wrap gap-2">
-                            {metaChips.map((chip, idx) => (
+                            {metaChips.slice(0, 2).map((chip, idx) => (
                                 <span
                                     key={`meta-${idx}`}
-                                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-100'}`}
+                                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'}`}
                                 >
                                     {chip}
                                 </span>
@@ -582,7 +584,7 @@ export function CommunityInspirationMessage({
             ) : null}
             {introText ? (
                 <p
-                    className={`text-[14px] leading-[1.6] ${textClass}`}
+                    className={`text-[14px] leading-[1.65] ${textClass}`}
                     dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(introText), theme) }}
                 />
             ) : null}
@@ -606,13 +608,13 @@ export function CommunityInspirationMessage({
                     const metaOverflow = metaTags.length - metaPreview.length;
 
                     return (
-                        <div key={`${card.title}-${idx}`} className={`rounded-2xl border ${borderClass} p-4 shadow-sm`} data-testid="community-inspiration-card">
+                        <div key={`${card.title}-${idx}`} className={`rounded-2xl border ${borderClass} p-4`} data-testid="community-inspiration-card">
                             <div className="mb-2 flex items-start gap-3">
-                                <div className={`text-[13px] font-semibold ${badgeClass} inline-flex items-center rounded-full px-2.5 py-1`}>
+                                <div className={`inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold ${badgeClass}`}>
                                     {badgeLabel}
                                 </div>
                             </div>
-                            <p className={`text-[15px] font-semibold leading-[1.5] ${headingClass}`}>
+                            <p className={`text-[15px] font-semibold leading-[1.4] sm:text-[16px] ${headingClass}`}>
                                 {card.title || `Inspiração ${idx + 1}`}
                             </p>
                             {metaPreview.length ? (
@@ -635,7 +637,7 @@ export function CommunityInspirationMessage({
                             {card.description ? (
                                 <div className="mt-2 space-y-1">
                                     <p
-                                        className={`text-[14px] leading-[1.6] ${textClass}`}
+                                        className={`text-[14px] leading-[1.62] ${textClass}`}
                                         dangerouslySetInnerHTML={{ __html: applyInlineMarkup(escapeHtml(shownDescription), theme) }}
                                     />
                                     {shouldClamp ? (
@@ -653,15 +655,15 @@ export function CommunityInspirationMessage({
                                 </div>
                             ) : null}
                             {displayHighlights.length ? (
-                                <div className="mt-3 space-y-1.5">
-                                    <p className={`text-[12px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
+                                <div className="mt-3.5 space-y-1.5">
+                                    <p className={`text-[11px] font-semibold tracking-[0.01em] ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
                                         Destaques
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {displayHighlights.map((highlight, hIdx) => (
                                             <span
                                                 key={`${card.title}-highlight-${hIdx}`}
-                                                className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold whitespace-normal break-words ${isInverse ? 'bg-white/10 text-white' : 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-100'}`}
+                                                className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold whitespace-normal break-words ${isInverse ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'}`}
                                             >
                                                 {highlight}
                                             </span>
@@ -707,7 +709,7 @@ export function CommunityInspirationMessage({
                                         href={card.link?.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`inline-flex items-center justify-center rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${isInverse
+                                        className={`inline-flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors sm:w-auto ${isInverse
                                             ? 'bg-white text-slate-900 hover:bg-white/90'
                                             : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
                                         onClick={() => track('community_inspiration_card_click_link', { card_index: idx, url: card.link?.url })}
@@ -716,10 +718,10 @@ export function CommunityInspirationMessage({
                                     </a>
                                 </div>
                             )}
-                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <div className="mt-3 grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                                 <button
                                     type="button"
-                                    className={`inline-flex items-center justify-center rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors ${isInverse
+                                    className={`inline-flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors sm:w-auto ${isInverse
                                         ? 'bg-white/10 text-white hover:bg-white/20'
                                         : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
                                     onClick={async () => {
@@ -747,24 +749,37 @@ export function CommunityInspirationMessage({
                                 </button>
                                 <button
                                     type="button"
-                                    className={`inline-flex items-center justify-center rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors ${isInverse
+                                    className={`inline-flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-colors sm:w-auto ${isInverse
                                         ? 'bg-white/10 text-white hover:bg-white/20'
                                         : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
-                                    onClick={async () => {
-                                        const ok = await copyPrompt(ideaPrompt);
-                                        if (ok) {
-                                            setCtaCopied((prev) => ({ ...prev, [idx]: true }));
-                                            window.setTimeout(() => setCtaCopied((prev) => ({ ...prev, [idx]: false })), 1600);
-                                        } else {
-                                            showManualCopy('card', idx, ideaPrompt);
-                                        }
-                                    }}
+                                    onClick={() => setShowSecondaryActions((prev) => ({ ...prev, [idx]: !prev[idx] }))}
                                 >
-                                    Copiar prompt
+                                    {showSecondaryActions[idx] ? 'Ocultar opções' : 'Mais opções'}
                                 </button>
                             </div>
+                            {showSecondaryActions[idx] ? (
+                                <div className="mt-2 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                                    <button
+                                        type="button"
+                                        className={`inline-flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-[12px] font-semibold transition-colors sm:w-auto ${isInverse
+                                            ? 'bg-white/10 text-white hover:bg-white/20'
+                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                                        onClick={async () => {
+                                            const ok = await copyPrompt(ideaPrompt);
+                                            if (ok) {
+                                                setCtaCopied((prev) => ({ ...prev, [idx]: true }));
+                                                window.setTimeout(() => setCtaCopied((prev) => ({ ...prev, [idx]: false })), 1600);
+                                            } else {
+                                                showManualCopy('card', idx, ideaPrompt);
+                                            }
+                                        }}
+                                    >
+                                        Copiar prompt
+                                    </button>
+                                </div>
+                            ) : null}
                             {manualCopyCard[idx] ? (
-                                <div className={`mt-2 rounded-lg border ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-gray-50'} p-2`}>
+                                <div className={`mt-2 rounded-xl border ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-gray-50'} p-2.5`}>
                                     <p className={`text-[11px] font-semibold ${isInverse ? 'text-white/70' : 'text-gray-600'}`}>Copie manualmente:</p>
                                     <div className="mt-1 flex items-center gap-2">
                                         <input
@@ -795,10 +810,11 @@ export function CommunityInspirationMessage({
                 })}
             </div>
             {parsed.footer?.items?.length ? (
-                <div className={`rounded-2xl border ${borderClass} p-4 shadow-sm`}>
-                    <p className={`text-[13px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
+                <details className={`overflow-hidden rounded-2xl border ${borderClass}`}>
+                    <summary className={`cursor-pointer list-none px-4 py-3 text-[13px] font-semibold ${isInverse ? 'text-white/70' : 'text-gray-500'} [&::-webkit-details-marker]:hidden`}>
                         {parsed.footer.heading}
-                    </p>
+                    </summary>
+                    <div className="px-4 pb-4">
                     <div className="mt-3 flex flex-wrap gap-2">
                         {parsed.footer.items.map((item, idx) => {
                             const prompt = `Quero avançar com: "${item}"`;
@@ -807,7 +823,7 @@ export function CommunityInspirationMessage({
                                 <div key={`footer-${idx}`} className="flex flex-wrap items-center gap-2">
                                     <button
                                         type="button"
-                                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold transition-colors ${isInverse
+                                        className={`inline-flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors sm:w-auto ${isInverse
                                             ? 'bg-white/10 text-white hover:bg-white/20'
                                             : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'}`}
                                         onClick={async () => {
@@ -835,7 +851,7 @@ export function CommunityInspirationMessage({
                                     </button>
                                     <button
                                         type="button"
-                                        className={`inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${isInverse
+                                        className={`inline-flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-semibold transition-colors sm:w-auto ${isInverse
                                             ? 'bg-white/10 text-white hover:bg-white/20'
                                             : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
                                         onClick={async () => {
@@ -881,42 +897,48 @@ export function CommunityInspirationMessage({
                             );
                         })}
                     </div>
-                </div>
+                    </div>
+                </details>
             ) : null}
             {quickActions && quickActions.length ? (
-                <div className="flex flex-wrap gap-2">
-                    {quickActions.map((action, idx) => {
-                        const sent = quickActionSent[idx] === true;
-                        return (
-                            <button
-                                key={`quick-${idx}`}
-                                type="button"
-                                className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${isInverse
-                                    ? 'bg-white/10 text-white hover:bg-white/20'
-                                    : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'}`}
-                                onClick={async () => {
-                                    if (onSendPrompt) {
-                                        try {
-                                            await onSendPrompt(action.prompt);
+                <details className={`overflow-hidden rounded-2xl border ${borderClass}`}>
+                    <summary className={`cursor-pointer list-none px-4 py-3 text-[12px] font-semibold tracking-[0.01em] ${isInverse ? 'text-white/80' : 'text-gray-600'} [&::-webkit-details-marker]:hidden`}>
+                        Ver mais inspirações relacionadas
+                    </summary>
+                    <div className="grid grid-cols-1 gap-2 px-4 pb-4 sm:flex sm:flex-wrap">
+                        {quickActions.map((action, idx) => {
+                            const sent = quickActionSent[idx] === true;
+                            return (
+                                <button
+                                    key={`quick-${idx}`}
+                                    type="button"
+                                    className={`inline-flex w-full items-center justify-center rounded-full px-3 py-2 text-[12px] font-semibold transition-colors sm:w-auto ${isInverse
+                                        ? 'bg-white/10 text-white hover:bg-white/20'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                    onClick={async () => {
+                                        if (onSendPrompt) {
+                                            try {
+                                                await onSendPrompt(action.prompt);
+                                                setQuickActionSent((prev) => ({ ...prev, [idx]: true }));
+                                                window.setTimeout(() => setQuickActionSent((prev) => ({ ...prev, [idx]: false })), 1400);
+                                                return;
+                                            } catch {
+                                                // fallback to copy
+                                            }
+                                        }
+                                        const ok = await copyPrompt(action.prompt);
+                                        if (ok) {
                                             setQuickActionSent((prev) => ({ ...prev, [idx]: true }));
                                             window.setTimeout(() => setQuickActionSent((prev) => ({ ...prev, [idx]: false })), 1400);
-                                            return;
-                                        } catch {
-                                            // fallback to copy
                                         }
-                                    }
-                                    const ok = await copyPrompt(action.prompt);
-                                    if (ok) {
-                                        setQuickActionSent((prev) => ({ ...prev, [idx]: true }));
-                                        window.setTimeout(() => setQuickActionSent((prev) => ({ ...prev, [idx]: false })), 1400);
-                                    }
-                                }}
-                            >
-                                {sent ? 'Enviado!' : action.label}
-                            </button>
-                        );
-                    })}
-                </div>
+                                    }}
+                                >
+                                    {sent ? 'Enviado!' : action.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </details>
             ) : null}
             {parsed.contextNote ? (
                 <div className={`rounded-2xl border ${contextCardClass} p-4`}>

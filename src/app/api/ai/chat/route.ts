@@ -42,7 +42,6 @@ import {
   shouldHandleChatPricing,
 } from "@/app/lib/pricing/chatPricing";
 import { runPubliCalculator, type CalculatorParams } from "@/app/lib/pricing/publiCalculator";
-import { subDays } from "date-fns";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -50,6 +49,7 @@ export const dynamic = 'force-dynamic';
 
 const HISTORY_LIMIT_SAFE = HISTORY_LIMIT || 10;
 const SUMMARY_INTERVAL_SAFE = SUMMARY_GENERATION_INTERVAL || 6;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const MAX_AI_EXCERPT = 1500;
 const MAX_QUERY_CHARS = 4000;
@@ -99,6 +99,440 @@ export function sanitizeTables(markdown: string): string {
   return output.join('\n');
 }
 
+type ScriptTableRow = {
+  time: string;
+  visual: string;
+  audio: string;
+};
+
+type ScriptContractQuality = {
+  hasRoteiroBlock: boolean;
+  hasLegendaBlock: boolean;
+  sceneCount: number;
+  hasCta: boolean;
+};
+
+type ScriptContractResult = {
+  normalized: string;
+  repaired: boolean;
+  issues: string[];
+  quality: ScriptContractQuality;
+};
+
+type ScriptInspirationHint = {
+  title?: string;
+  coverUrl?: string;
+  postLink?: string;
+  reason?: string;
+  supportingInspirations?: Array<{
+    role: 'gancho' | 'desenvolvimento' | 'cta';
+    title?: string;
+    postLink?: string;
+    reason?: string;
+    narrativeScore?: number;
+  }>;
+};
+
+type ScriptContractHints = {
+  inspiration?: ScriptInspirationHint | null;
+};
+
+const stripMarkdownMarkers = (value: string) =>
+  (value || '')
+    .replace(/\*\*/g, '')
+    .replace(/^[-*]\s+/, '')
+    .replace(/^"+|"+$/g, '')
+    .trim();
+
+const extractTaggedBlock = (text: string, tag: string): string | null => {
+  const re = new RegExp(`\\[${tag}\\]([\\s\\S]*?)\\[\\/${tag}\\]`, 'i');
+  const match = text.match(re);
+  return match?.[1]?.trim() || null;
+};
+
+const findMetadataValue = (content: string, labels: string[]): string | null => {
+  const lines = content.split('\n');
+  for (const rawLine of lines) {
+    const line = stripMarkdownMarkers(rawLine);
+    for (const rawLabel of labels) {
+      const label = rawLabel.toLowerCase();
+      const normalizedLine = line.toLowerCase();
+      const marker = `${label}:`;
+      if (!normalizedLine.includes(marker)) continue;
+      const idx = normalizedLine.indexOf(marker);
+      const value = line.slice(idx + marker.length).trim();
+      if (value) return value;
+    }
+  }
+  return null;
+};
+
+const parseInspirationJson = (value: string | null): ScriptInspirationHint | null => {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const title = typeof parsed.title === 'string' ? parsed.title.trim() : '';
+    const coverUrl = typeof parsed.coverUrl === 'string' ? parsed.coverUrl.trim() : '';
+    const postLink = typeof parsed.postLink === 'string' ? parsed.postLink.trim() : '';
+    const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
+    const supportingInspirations = Array.isArray((parsed as any).supportingInspirations)
+      ? (parsed as any).supportingInspirations
+        .map((item: any) => {
+          const rawRole = typeof item?.role === 'string' ? item.role.toLowerCase().trim() : '';
+          const role =
+            rawRole === 'gancho' || rawRole === 'desenvolvimento' || rawRole === 'cta'
+              ? rawRole
+              : null;
+          if (!role) return null;
+          const itemTitle = typeof item?.title === 'string' ? item.title.trim() : '';
+          const itemPostLink = typeof item?.postLink === 'string' ? item.postLink.trim() : '';
+          const itemReason = typeof item?.reason === 'string' ? item.reason.trim() : '';
+          const itemNarrativeScore = typeof item?.narrativeScore === 'number' ? item.narrativeScore : undefined;
+          if (!itemTitle && !itemPostLink && !itemReason) return null;
+          return {
+            role,
+            title: itemTitle || undefined,
+            postLink: itemPostLink || undefined,
+            reason: itemReason || undefined,
+            narrativeScore: itemNarrativeScore,
+          };
+        })
+        .filter(Boolean) as ScriptInspirationHint['supportingInspirations']
+      : undefined;
+
+    if (!title && !coverUrl && !postLink && !reason && !supportingInspirations?.length) return null;
+    return {
+      title: title || undefined,
+      coverUrl: coverUrl || undefined,
+      postLink: postLink || undefined,
+      reason: reason || undefined,
+      supportingInspirations,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const parseTableRowsFromScript = (content: string): ScriptTableRow[] => {
+  const rows: ScriptTableRow[] = [];
+  const lines = content.split('\n');
+  let start = -1;
+
+  for (let i = 0; i < lines.length - 1; i += 1) {
+    const line = (lines[i] || '').trim();
+    const next = (lines[i + 1] || '').trim();
+    if (!line.startsWith('|') || !line.endsWith('|')) continue;
+    if (!/tempo|time/i.test(line) || !/visual|cena/i.test(line) || !/a[úu]dio|fala|narra/i.test(line)) continue;
+    if (!/---/.test(next)) continue;
+    start = i + 2;
+    break;
+  }
+
+  if (start < 0) return rows;
+  for (let j = start; j < lines.length; j += 1) {
+    const raw = (lines[j] || '').trim();
+    if (!raw || !raw.startsWith('|')) break;
+    const cols = raw.split('|').map((c) => c.trim()).filter(Boolean);
+    if (cols.length < 2) continue;
+    rows.push({
+      time: cols[0] || 'Auto',
+      visual: cols.length >= 3 ? (cols[1] || '') : (cols[0] || ''),
+      audio: cols.length >= 3 ? cols.slice(2).join(' | ') : (cols[1] || ''),
+    });
+  }
+
+  return rows;
+};
+
+const parseLooseRowsFromScript = (content: string): ScriptTableRow[] => {
+  const rows: ScriptTableRow[] = [];
+  const lines = content.split('\n').map((line) => stripMarkdownMarkers(line)).filter(Boolean);
+
+  for (const line of lines) {
+    const normalized = line.toLowerCase();
+    const value = line.includes(':') ? line.split(':').slice(1).join(':').trim() : line;
+    if (!value) continue;
+    if (/gancho|hook/.test(normalized)) {
+      rows.push({ time: '00-03s', visual: value, audio: value });
+      continue;
+    }
+    if (/desenvolvimento|corpo|explica|passo/.test(normalized)) {
+      rows.push({ time: '03-20s', visual: value, audio: value });
+      continue;
+    }
+    if (/cta|call to action|chamada/.test(normalized)) {
+      rows.push({ time: '20-30s', visual: value, audio: value });
+      continue;
+    }
+  }
+
+  return rows;
+};
+
+const buildDefaultRows = (topic: string): ScriptTableRow[] => [
+  {
+    time: '00-03s',
+    visual: `Close no criador com texto na tela: "${topic}"`,
+    audio: `Se você quer melhorar em ${topic}, começa por esse ponto agora.`,
+  },
+  {
+    time: '03-20s',
+    visual: 'Demonstração em 2 passos, alternando close e detalhe da execução.',
+    audio: 'Mostre o erro comum, depois apresente o ajuste prático e objetivo.',
+  },
+  {
+    time: '20-30s',
+    visual: 'Tela final com reforço do benefício e gesto apontando para a legenda.',
+    audio: 'Se isso te ajudou, salve este vídeo e compartilhe com quem precisa.',
+  },
+];
+
+const ensureRowsQuality = (rows: ScriptTableRow[], topic: string): { rows: ScriptTableRow[]; hasCta: boolean } => {
+  const safeRows = rows.map((row) => ({
+    time: row.time || 'Auto',
+    visual: stripMarkdownMarkers(row.visual || ''),
+    audio: stripMarkdownMarkers(row.audio || ''),
+  })).filter((row) => row.visual || row.audio);
+
+  if (!safeRows.length) {
+    return { rows: buildDefaultRows(topic), hasCta: true };
+  }
+
+  let curated = safeRows.slice(0, 6);
+  while (curated.length < 3) {
+    curated = [...curated, ...buildDefaultRows(topic)].slice(0, 3);
+  }
+
+  const hasCta = curated.some((row) =>
+    /cta|call to action|salve|compartilhe|comente|dm|link|seguir/i.test(`${row.time} ${row.visual} ${row.audio}`)
+  );
+
+  let hasCtaFinal = hasCta;
+  if (!hasCta) {
+    curated.push({
+      time: '20-30s',
+      visual: 'Encerramento com reforço do benefício e ação sugerida.',
+      audio: 'Se fez sentido, salve este roteiro e compartilhe com alguém do seu nicho.',
+    });
+    hasCtaFinal = true;
+  }
+
+  return { rows: curated.slice(0, 6), hasCta: hasCtaFinal };
+};
+
+const ensureCaptionVariants = (captionContent: string, topic: string): string => {
+  const normalizedLines = (captionContent || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const variantMap = new Map<number, string>();
+
+  for (const line of normalizedLines) {
+    const match = line.match(/^V\s*([123])\s*[:\-]\s*(.+)$/i);
+    if (!match) continue;
+    const index = Number(match[1]);
+    const text = stripMarkdownMarkers(match[2] || '');
+    if (index >= 1 && index <= 3 && text) {
+      variantMap.set(index, text);
+    }
+  }
+
+  const base = variantMap.get(1) || stripMarkdownMarkers(normalizedLines[0] || '') || `Ideia prática sobre ${topic}.`;
+  if (!variantMap.get(1)) {
+    variantMap.set(1, `${base} Salve para aplicar ainda hoje.`);
+  }
+  if (!variantMap.get(2)) {
+    variantMap.set(2, `${base} Comente "quero" para receber a próxima variação.`);
+  }
+  if (!variantMap.get(3)) {
+    variantMap.set(3, `${base} Compartilhe com alguém que precisa desse roteiro.`);
+  }
+
+  return [
+    `V1: ${variantMap.get(1)}`,
+    `V2: ${variantMap.get(2)}`,
+    `V3: ${variantMap.get(3)}`,
+  ].join('\n\n');
+};
+
+const buildFallbackScriptResponse = (query: string) => {
+  const topic = summarizeRequestTopic(query) || 'seu tema';
+  const rows = buildDefaultRows(topic);
+  const tableRows = rows.map((row) => `| ${row.time} | ${row.visual} | ${row.audio} |`).join('\n');
+  return [
+    '[ROTEIRO]',
+    `**Título Sugerido:** ${topic.charAt(0).toUpperCase()}${topic.slice(1)} em 30 segundos`,
+    '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+    '',
+    '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+    '| :--- | :--- | :--- |',
+    tableRows,
+    '[/ROTEIRO]',
+    '',
+    '[LEGENDA]',
+    ensureCaptionVariants('', topic),
+    '[/LEGENDA]',
+  ].join('\n');
+};
+
+export function enforceScriptContract(response: string, userQuery: string, hints?: ScriptContractHints): ScriptContractResult {
+  const issues: string[] = [];
+  const topic = summarizeRequestTopic(userQuery) || 'seu tema';
+  let roteiroBody = extractTaggedBlock(response, 'ROTEIRO');
+  let legendaBody = extractTaggedBlock(response, 'LEGENDA');
+  let repaired = false;
+
+  if (!roteiroBody) {
+    const withoutLegenda = response.split(/\[LEGENDA\]/i)[0]?.trim() || '';
+    roteiroBody = withoutLegenda || null;
+    issues.push('missing_roteiro_block');
+    repaired = true;
+  }
+
+  if (!roteiroBody) {
+    const fallback = buildFallbackScriptResponse(userQuery);
+    return {
+      normalized: fallback,
+      repaired: true,
+      issues: [...issues, 'fallback_generated'],
+      quality: {
+        hasRoteiroBlock: true,
+        hasLegendaBlock: true,
+        sceneCount: 3,
+        hasCta: true,
+      },
+    };
+  }
+
+  const title = findMetadataValue(roteiroBody, ['Título Sugerido', 'Titulo Sugerido']) || `${topic.charAt(0).toUpperCase()}${topic.slice(1)} em 30 segundos`;
+  const formatRaw = findMetadataValue(roteiroBody, ['Formato Ideal']) || 'Reels';
+  const durationRaw =
+    findMetadataValue(roteiroBody, ['Duração Estimada', 'Duração Est', 'Duracao Estimada', 'Duracao Est']) ||
+    '30s';
+  const audioRaw = findMetadataValue(roteiroBody, ['Áudio Sugerido', 'Audio Sugerido']);
+  const inspirationRaw = findMetadataValue(roteiroBody, ['Inspiração Viral', 'Inspiracao Viral']);
+  const inspirationReasonRaw = findMetadataValue(roteiroBody, [
+    'Por que essa inspiração',
+    'Por que essa inspiracao',
+    'Racional da inspiração',
+    'Racional da inspiracao',
+  ]);
+  const inspirationJsonRaw = extractTaggedBlock(roteiroBody, 'INSPIRATION_JSON');
+  const inspirationJson = parseInspirationJson(inspirationJsonRaw);
+
+  const tableRows = parseTableRowsFromScript(roteiroBody);
+  const looseRows = tableRows.length ? [] : parseLooseRowsFromScript(roteiroBody);
+  if (!tableRows.length) {
+    issues.push('missing_script_table');
+    repaired = true;
+  }
+
+  const ensured = ensureRowsQuality(tableRows.length ? tableRows : looseRows, topic);
+  const rows = ensured.rows;
+
+  if (rows.length < 3) {
+    issues.push('insufficient_scenes');
+    repaired = true;
+  }
+
+  if (!ensured.hasCta) {
+    issues.push('missing_cta');
+    repaired = true;
+  }
+
+  if (!legendaBody) {
+    issues.push('missing_legenda_block');
+    repaired = true;
+  }
+
+  legendaBody = ensureCaptionVariants(legendaBody || '', topic);
+
+  const inspirationHint = hints?.inspiration || null;
+  const inspirationPayload = inspirationJson || inspirationHint || null;
+  const inspirationReason = stripMarkdownMarkers(
+    inspirationReasonRaw ||
+    inspirationPayload?.reason ||
+    (inspirationPayload
+      ? `Escolhida por narrativa semelhante ao tema "${topic}" e potencial de retenção.`
+      : '')
+  );
+
+  const roteiroLines: string[] = [];
+  if (inspirationPayload && (inspirationPayload.title || inspirationPayload.coverUrl || inspirationPayload.postLink || inspirationPayload.reason || inspirationPayload.supportingInspirations?.length)) {
+    const jsonPayload: Record<string, unknown> = {};
+    if (inspirationPayload.title) jsonPayload.title = inspirationPayload.title;
+    if (inspirationPayload.coverUrl) jsonPayload.coverUrl = inspirationPayload.coverUrl;
+    if (inspirationPayload.postLink) jsonPayload.postLink = inspirationPayload.postLink;
+    if (inspirationReason) jsonPayload.reason = inspirationReason;
+    if (Array.isArray(inspirationPayload.supportingInspirations) && inspirationPayload.supportingInspirations.length) {
+      jsonPayload.supportingInspirations = inspirationPayload.supportingInspirations.slice(0, 3).map((item) => ({
+        role: item.role,
+        title: item.title || undefined,
+        postLink: item.postLink || undefined,
+        reason: item.reason || undefined,
+        narrativeScore: typeof item.narrativeScore === 'number' ? item.narrativeScore : undefined,
+      }));
+    }
+    roteiroLines.push('[INSPIRATION_JSON]');
+    roteiroLines.push(JSON.stringify(jsonPayload, null, 2));
+    roteiroLines.push('[/INSPIRATION_JSON]');
+    roteiroLines.push('');
+  }
+  roteiroLines.push(`**Título Sugerido:** ${title}`);
+  if (inspirationRaw && !inspirationPayload) {
+    roteiroLines.push(`**Inspiração Viral:** ${inspirationRaw}`);
+  }
+  roteiroLines.push(`**Formato Ideal:** ${formatRaw} | **Duração Estimada:** ${durationRaw}`);
+  if (audioRaw) {
+    roteiroLines.push(`**Áudio Sugerido:** ${audioRaw}`);
+  }
+  if (inspirationReason) {
+    roteiroLines.push(`**Por que essa inspiração:** ${inspirationReason}`);
+  }
+  if (inspirationPayload?.supportingInspirations?.length) {
+    roteiroLines.push('**Inspirações narrativas de apoio:**');
+    inspirationPayload.supportingInspirations.slice(0, 3).forEach((item) => {
+      const roleLabel = item.role === 'gancho'
+        ? 'Gancho'
+        : item.role === 'desenvolvimento'
+          ? 'Desenvolvimento'
+          : 'CTA';
+      const title = item.title || 'Referência sem título';
+      const scoreText = typeof item.narrativeScore === 'number' ? ` (${Math.round(item.narrativeScore * 100)}% narrativa)` : '';
+      roteiroLines.push(`- ${roleLabel}: ${title}${scoreText}`);
+    });
+  }
+  roteiroLines.push('');
+  roteiroLines.push('| Tempo | Visual (o que aparece) | Fala (o que dizer) |');
+  roteiroLines.push('| :--- | :--- | :--- |');
+  rows.forEach((row) => {
+    roteiroLines.push(`| ${row.time} | ${row.visual} | ${row.audio} |`);
+  });
+
+  const normalized = [
+    '[ROTEIRO]',
+    roteiroLines.join('\n').trim(),
+    '[/ROTEIRO]',
+    '',
+    '[LEGENDA]',
+    legendaBody,
+    '[/LEGENDA]',
+  ].join('\n');
+
+  return {
+    normalized,
+    repaired,
+    issues,
+    quality: {
+      hasRoteiroBlock: true,
+      hasLegendaBlock: true,
+      sceneCount: rows.length,
+      hasCta: ensured.hasCta,
+    },
+  };
+}
+
 const isHttpUrl = (value?: string | null): value is string =>
   typeof value === 'string' && /^https?:\/\//i.test(value.trim());
 
@@ -127,6 +561,27 @@ const normalizeInstagramUrl = (url?: string | null) => {
 };
 
 const SCRIPT_INTENTS = new Set(['script_request', 'humor_script_request', 'proactive_script_accept']);
+type NarrativePreference = 'prefer_similar' | 'prefer_different';
+
+const detectNarrativeFeedbackFromQuery = (query: string): {
+  preference: NarrativePreference | null;
+  note?: string | null;
+} => {
+  const normalized = (query || '').toLowerCase();
+  if (!normalized) return { preference: null };
+
+  const hasNarrativeContext = /(narrativa|estilo|linha|gancho|cta|roteiro)/i.test(normalized);
+  const positive = /(curti|gostei|boa|mantenha|continua|segue nessa|alinhad[oa]|representa)/i.test(normalized);
+  const negative = /(n[aã]o curti|nao curti|n[aã]o gostei|nao gostei|mudar|trocar|evitar|diferente|n[aã]o combina|nao combina)/i.test(normalized);
+
+  if (hasNarrativeContext && positive && !negative) {
+    return { preference: 'prefer_similar', note: 'Usuário aprovou a linha narrativa atual.' };
+  }
+  if (hasNarrativeContext && negative) {
+    return { preference: 'prefer_different', note: 'Usuário pediu mudança da linha narrativa.' };
+  }
+  return { preference: null };
+};
 
 function inferScriptObjective(query: string): string | null {
   const text = (query || '').toLowerCase();
@@ -153,13 +608,21 @@ async function buildScriptContext(params: {
   query: string;
   intent?: string | null;
   answerEngineResult?: any;
+  dialogueState?: IDialogueState | null;
+  narrativePreferenceOverride?: NarrativePreference | null;
 }): Promise<EnrichedAIContext['scriptContext']> {
-  const { user, query, intent, answerEngineResult } = params;
+  const { user, query, intent, answerEngineResult, dialogueState, narrativePreferenceOverride } = params;
   const userId = user?._id?.toString?.();
   const objectiveHint = inferScriptObjective(query);
   const isHumor = intent === 'humor_script_request' || /humor|com[eé]dia|engraç|piada|cena c[oô]mica/.test((query || '').toLowerCase());
   const toneHint = isHumor ? 'humorous' : null;
   const communityOptIn = Boolean((user as any)?.communityInspirationOptIn);
+  const persistedPreference = (dialogueState as any)?.scriptPreferences?.narrativePreference;
+  const narrativePreference =
+    narrativePreferenceOverride ||
+    (persistedPreference === 'prefer_similar' || persistedPreference === 'prefer_different'
+      ? persistedPreference
+      : null);
 
   const topPosts = Array.isArray(answerEngineResult?.topPosts)
     ? answerEngineResult.topPosts.slice(0, 3).map((p: any) => ({
@@ -185,7 +648,8 @@ async function buildScriptContext(params: {
   let topCategories: any = undefined;
   if (userId) {
     const now = new Date();
-    const dateRange = { startDate: subDays(now, 180), endDate: now };
+    const startDate = new Date(now.getTime() - (180 * ONE_DAY_MS));
+    const dateRange = { startDate, endDate: now };
     const tasks = [
       fetchTopCategories({ userId, dateRange, category: 'proposal', metric: 'shares', limit: 4 }),
       fetchTopCategories({ userId, dateRange, category: 'context', metric: 'shares', limit: 4 }),
@@ -212,6 +676,7 @@ async function buildScriptContext(params: {
   return {
     objectiveHint,
     toneHint,
+    narrativePreference,
     topCategories,
     topPosts,
     communityOptIn,
@@ -251,8 +716,18 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
       tone?: string;
       reference?: string;
       primaryObjective?: string;
+      narrativeQuery?: string;
     };
     fallbackMessage?: string;
+    rankingSignals?: {
+      personalizedByUserPerformance?: boolean;
+      userTopCategories?: {
+        proposal?: string[];
+        context?: string[];
+        format?: string[];
+        tone?: string[];
+      };
+    };
   } | null = null;
   for (const msg of history) {
     if (msg.role !== 'function') continue;
@@ -265,8 +740,10 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
       if (Array.isArray(parsed?.inspirations)) {
         inspirations.push(...parsed.inspirations);
       }
-      if (parsed?.matchType || parsed?.usedFilters || parsed?.fallbackMessage) {
+      if (parsed?.matchType || parsed?.usedFilters || parsed?.fallbackMessage || parsed?.rankingSignals) {
         const rawFilters = parsed?.usedFilters || {};
+        const rawRankingSignals = parsed?.rankingSignals || {};
+        const rawTopCategories = rawRankingSignals?.userTopCategories || {};
         meta = {
           matchType: typeof parsed.matchType === 'string' ? parsed.matchType : undefined,
           usedFilters: {
@@ -275,11 +752,29 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
             format: typeof rawFilters.format === 'string' ? rawFilters.format : undefined,
             tone: typeof rawFilters.tone === 'string' ? rawFilters.tone : undefined,
             reference: typeof rawFilters.reference === 'string' ? rawFilters.reference : undefined,
+            narrativeQuery: typeof rawFilters.narrativeQuery === 'string' ? rawFilters.narrativeQuery : undefined,
             primaryObjective: typeof rawFilters.primaryObjectiveAchieved_Qualitative === 'string'
               ? rawFilters.primaryObjectiveAchieved_Qualitative
               : undefined,
           },
           fallbackMessage: typeof parsed.fallbackMessage === 'string' ? parsed.fallbackMessage : undefined,
+          rankingSignals: {
+            personalizedByUserPerformance: Boolean(rawRankingSignals?.personalizedByUserPerformance),
+            userTopCategories: {
+              proposal: Array.isArray(rawTopCategories.proposal)
+                ? rawTopCategories.proposal.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              context: Array.isArray(rawTopCategories.context)
+                ? rawTopCategories.context.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              format: Array.isArray(rawTopCategories.format)
+                ? rawTopCategories.format.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              tone: Array.isArray(rawTopCategories.tone)
+                ? rawTopCategories.tone.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+            },
+          },
         };
       }
     } catch {
@@ -287,6 +782,123 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
     }
   }
   return { inspirations, meta };
+};
+
+const describeScriptMatchType = (matchType?: string | null) => {
+  const normalized = (matchType || '').toLowerCase();
+  if (normalized === 'exact') return 'match exato de proposta e contexto';
+  if (normalized === 'proposal_only') return 'mesma proposta do pedido';
+  if (normalized === 'context_only' || normalized === 'broad_context') return 'contexto semelhante ao pedido';
+  return 'referência próxima ao objetivo do roteiro';
+};
+
+const inferNarrativeRole = (
+  inspiration: { description?: string; matchReasons?: string[] },
+  fallbackIndex: number
+): 'gancho' | 'desenvolvimento' | 'cta' => {
+  const text = [
+    inspiration.description || '',
+    ...(Array.isArray(inspiration.matchReasons) ? inspiration.matchReasons : []),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  const ctaScore = /(cta|call to action|salve|comente|compartilhe|link|dm)/i.test(text) ? 2 : 0;
+  const hookScore = /(gancho|hook|abertura|primeiros segundos|erro comum|dor)/i.test(text) ? 2 : 0;
+  const developmentScore = /(desenvolvimento|explica|passo|tutorial|prova|demonstra)/i.test(text) ? 2 : 0;
+
+  if (hookScore >= ctaScore && hookScore >= developmentScore) return 'gancho';
+  if (ctaScore >= hookScore && ctaScore >= developmentScore) return 'cta';
+  if (developmentScore >= 1) return 'desenvolvimento';
+
+  if (fallbackIndex === 0) return 'gancho';
+  if (fallbackIndex === 2) return 'cta';
+  return 'desenvolvimento';
+};
+
+const buildScriptInspirationHint = (
+  inspirations: Array<{
+    title?: string;
+    description?: string;
+    permalink?: string;
+    format?: string;
+    proposal?: string;
+    context?: string;
+    tone?: string;
+    matchReasons?: string[];
+    narrativeScore?: number;
+    performanceScore?: number;
+    personalizationScore?: number;
+  }>,
+  meta: {
+    matchType?: string;
+    usedFilters?: {
+      proposal?: string;
+      context?: string;
+      format?: string;
+      tone?: string;
+    };
+    rankingSignals?: {
+      personalizedByUserPerformance?: boolean;
+      userTopCategories?: {
+        proposal?: string[];
+        context?: string[];
+        format?: string[];
+        tone?: string[];
+      };
+    };
+  } | null,
+  topic: string,
+): ScriptInspirationHint | null => {
+  if (!Array.isArray(inspirations) || !inspirations.length) return null;
+  const selected = inspirations.slice(0, 3);
+  const roleOrder: Array<'gancho' | 'desenvolvimento' | 'cta'> = ['gancho', 'desenvolvimento', 'cta'];
+  const assigned = new Set<'gancho' | 'desenvolvimento' | 'cta'>();
+  const withRoles = selected.map((inspiration, idx) => {
+    const inferred = inferNarrativeRole(inspiration, idx);
+    const role = assigned.has(inferred)
+      ? (roleOrder.find((candidate) => !assigned.has(candidate)) || inferred)
+      : inferred;
+    assigned.add(role);
+    return { inspiration, role };
+  });
+  if (!withRoles.length) return null;
+  const preferredPrimary = withRoles.find((item) => item.role === 'gancho') || withRoles[0];
+  if (!preferredPrimary) return null;
+  const first = preferredPrimary.inspiration;
+  const proposal = meta?.usedFilters?.proposal || first?.proposal;
+  const context = meta?.usedFilters?.context || first?.context;
+  const format = meta?.usedFilters?.format || first?.format;
+  const tone = meta?.usedFilters?.tone || first?.tone;
+  const personalized = Boolean(meta?.rankingSignals?.personalizedByUserPerformance);
+  const parts = [
+    describeScriptMatchType(meta?.matchType),
+    proposal ? `proposta ${proposal}` : null,
+    context ? `contexto ${context}` : null,
+    format ? `formato ${format}` : null,
+    tone ? `tom ${tone}` : null,
+    personalized ? 'alinhamento com seu histórico de performance' : null,
+  ].filter(Boolean);
+  const reason = parts.length
+    ? `Escolhida por ${parts.join(', ')} para sustentar o roteiro sobre "${topic}".`
+    : `Escolhida por narrativa semelhante ao tema "${topic}".`;
+
+  return {
+    title: first?.title || undefined,
+    postLink: first?.permalink || undefined,
+    reason,
+    supportingInspirations: withRoles.map((item) => ({
+      role: item.role,
+      title: item.inspiration.title || undefined,
+      postLink: item.inspiration.permalink || undefined,
+      reason: Array.isArray(item.inspiration.matchReasons) && item.inspiration.matchReasons.length
+        ? item.inspiration.matchReasons[0]
+        : undefined,
+      narrativeScore: typeof item.inspiration.narrativeScore === 'number'
+        ? item.inspiration.narrativeScore
+        : undefined,
+    })),
+  };
 };
 
 const SURVEY_STALE_MS = 1000 * 60 * 60 * 24 * 120; // ~4 meses
@@ -882,12 +1494,16 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       }
     }
 
+    const narrativeFeedbackSignal = detectNarrativeFeedbackFromQuery(truncatedQuery);
+
     const scriptContext = SCRIPT_INTENTS.has(effectiveIntent)
       ? await buildScriptContext({
         user: targetUser,
         query: truncatedQuery.trim(),
         intent: effectiveIntent,
         answerEngineResult,
+        dialogueState,
+        narrativePreferenceOverride: narrativeFeedbackSignal.preference,
       })
       : null;
 
@@ -960,6 +1576,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     }
     const hasAnswerEvidence = Boolean(answerEngineResult?.topPosts?.length || answerEngineResult?.contextPack?.top_posts?.length);
     sanitizedResponse = stripUnprovenCommunityClaims(sanitizedResponse, hasAnswerEvidence);
+    const isScriptMode = SCRIPT_INTENTS.has(effectiveIntent);
     let communityInspirations: Array<{
       id: string;
       title?: string;
@@ -974,6 +1591,11 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       primaryObjective?: string;
       source: 'community';
       linkVerified?: boolean;
+      narrativeScore?: number;
+      performanceScore?: number;
+      personalizationScore?: number;
+      narrativeRole?: 'gancho' | 'desenvolvimento' | 'cta';
+      matchReasons?: string[];
     }> = [];
     let communityMeta: {
       matchType?: string;
@@ -983,9 +1605,19 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         format?: string;
         tone?: string;
         reference?: string;
+        narrativeQuery?: string;
         primaryObjective?: string;
       };
       fallbackMessage?: string;
+      rankingSignals?: {
+        personalizedByUserPerformance?: boolean;
+        userTopCategories?: {
+          proposal?: string[];
+          context?: string[];
+          format?: string[];
+          tone?: string[];
+        };
+      };
     } | null = null;
     if (historyPromise) {
       try {
@@ -1012,6 +1644,19 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           const primaryObjective = typeof insp?.primaryObjectiveAchieved_Qualitative === 'string'
             ? insp.primaryObjectiveAchieved_Qualitative.trim()
             : '';
+          const narrativeScore = typeof insp?.narrativeScore === 'number' ? insp.narrativeScore : undefined;
+          const performanceScore = typeof insp?.performanceScore === 'number' ? insp.performanceScore : undefined;
+          const personalizationScore = typeof insp?.personalizationScore === 'number' ? insp.personalizationScore : undefined;
+          const matchReasons = Array.isArray(insp?.matchReasons)
+            ? insp.matchReasons.map((reason: any) => String(reason).trim()).filter(Boolean)
+            : [];
+          const narrativeRole = inferNarrativeRole(
+            {
+              description: typeof insp?.contentSummary === 'string' ? insp.contentSummary : undefined,
+              matchReasons,
+            },
+            idx
+          );
           const summary = typeof insp?.contentSummary === 'string' ? insp.contentSummary.trim() : '';
           const title = proposal || [format, context].filter(Boolean).join(' • ') || reference || `Inspiração ${idx + 1}`;
           acc.push({
@@ -1028,6 +1673,11 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
             primaryObjective: primaryObjective || undefined,
             source: 'community',
             linkVerified: Boolean(permalink),
+            narrativeScore,
+            performanceScore,
+            personalizationScore,
+            narrativeRole,
+            matchReasons: matchReasons.length ? matchReasons : undefined,
           });
           return acc;
         }, []);
@@ -1144,8 +1794,8 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           ? {
               version: 'v1',
               intent: effectiveIntent,
-              intent_group: 'inspiration',
-              asked_for_examples: true,
+              intent_group: isScriptMode ? 'planning' : 'inspiration',
+              asked_for_examples: !isScriptMode,
               thresholds: {},
               baselines: {
                 windowDays: 0,
@@ -1180,17 +1830,49 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       }
     }
     sanitizedResponse = sanitizeInstagramLinks(sanitizedResponse, allowedLinks);
-    const surveyNudgeNeeded = !access.isAdmin && (surveyFreshness.isStale || surveyFreshness.missingCore.length > 0);
+    if (isScriptMode) {
+      const scriptInspirationHint = buildScriptInspirationHint(
+        communityInspirations,
+        communityMeta,
+        summarizeRequestTopic(truncatedQuery) || 'seu tema'
+      );
+      const scriptContract = enforceScriptContract(sanitizedResponse, truncatedQuery, {
+        inspiration: scriptInspirationHint,
+      });
+      sanitizedResponse = scriptContract.normalized;
+      if (scriptContract.repaired) {
+        logger.info('[ai/chat] script_contract_repaired', {
+          issues: scriptContract.issues,
+          quality: scriptContract.quality,
+          actor: actorId,
+          target: access.targetUserId,
+        });
+      }
+      logger.info('[ai/chat] script_mode_metrics', {
+        event: 'script_response_ready',
+        actor: actorId,
+        target: access.targetUserId,
+        repaired: scriptContract.repaired,
+        sceneCount: scriptContract.quality.sceneCount,
+        hasCta: scriptContract.quality.hasCta,
+        communityInspirationsUsed: communityInspirations.length,
+        communityMatchType: communityMeta?.matchType || null,
+      });
+    }
+
+    const surveyNudgeNeeded = !isScriptMode && !access.isAdmin && (surveyFreshness.isStale || surveyFreshness.missingCore.length > 0);
     const surveyNudgeText = surveyNudgeNeeded
       ? `Para personalizar com o que você preencheu na pesquisa, confirme seu ${surveyFreshness.missingCore.join('/') || 'perfil'} rapidinho (leva 2 min).`
       : null;
-    const surveyContextNote = (!surveyNudgeNeeded && buildSurveyContextNote(surveyProfile, truncatedQuery)) || null;
+    const surveyContextNote = (!isScriptMode && !surveyNudgeNeeded && buildSurveyContextNote(surveyProfile, truncatedQuery)) || null;
     if (surveyNudgeText) {
       sanitizedResponse = `${sanitizedResponse}\n\n> [!IMPORTANT]\n> ${surveyNudgeText}`;
     } else if (surveyContextNote && effectiveIntent !== 'ask_community_inspiration') {
       sanitizedResponse = `${sanitizedResponse}\n\n> [!NOTE]\n> Contexto aplicado (pesquisa): ${surveyContextNote}`;
     }
-    const pendingActionInfo = aiResponseSuggestsPendingAction(sanitizedResponse);
+    const pendingActionInfo = isScriptMode
+      ? { suggests: false, actionType: null, pendingActionContext: null }
+      : aiResponseSuggestsPendingAction(sanitizedResponse);
     let pendingActionPayload: { type: string; context?: any } | null = surveyNudgeNeeded
       ? { type: 'survey_update_request', context: { missingFields: surveyFreshness.missingCore, stale: surveyFreshness.isStale } }
       : null;
@@ -1262,6 +1944,16 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         },
       };
 
+      if (narrativeFeedbackSignal.preference) {
+        const previousScriptPrefs = (dialogueState as any)?.scriptPreferences || {};
+        dialogueUpdate.scriptPreferences = {
+          ...previousScriptPrefs,
+          narrativePreference: narrativeFeedbackSignal.preference,
+          lastNarrativeFeedbackAt: Date.now(),
+          note: narrativeFeedbackSignal.note || previousScriptPrefs?.note || null,
+        } as any;
+      }
+
       // Auto-generate title if this is the start of a conversation
       if (threadId && historyMessages.length === 0) {
         // Fire and forget
@@ -1271,7 +1963,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         dialogueUpdate.lastAIQuestionType = 'survey_update_request';
         dialogueUpdate.pendingActionContext = { missingFields: surveyFreshness.missingCore, stale: surveyFreshness.isStale };
       } else if (pendingActionInfo.suggests) {
-        dialogueUpdate.lastAIQuestionType = pendingActionInfo.actionType;
+        dialogueUpdate.lastAIQuestionType = pendingActionInfo.actionType || undefined;
         dialogueUpdate.pendingActionContext = pendingActionInfo.pendingActionContext;
       } else if (pendingActionContextFromIntent) {
         dialogueUpdate.pendingActionContext = pendingActionContextFromIntent;
@@ -1328,6 +2020,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       assistantMessageId,
       userMessageId,
       sessionId: sessionDoc?._id?.toString?.() || null,
+      intent: effectiveIntent,
       answerEvidence,
     }, { status: 200 });
   } catch (error: unknown) {

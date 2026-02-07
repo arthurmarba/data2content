@@ -1,8 +1,8 @@
-import React from 'react';
-import { PromptChip } from './PromptChip';
+import React, { useEffect, useMemo, useState } from 'react';
 import { RenderTheme } from './chatUtils';
 import Image from 'next/image';
-import { ArrowUpRight, PlayCircle } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
+import { track } from '@/lib/track';
 
 // --- Types ---
 
@@ -12,6 +12,7 @@ interface ScriptMetadata {
     duration?: string;
     audio?: string;
     inspiration?: string;
+    inspirationReason?: string;
 }
 
 interface ScriptScene {
@@ -24,14 +25,28 @@ interface InspirationData {
     title?: string;
     coverUrl?: string;
     postLink?: string;
+    supportingInspirations?: Array<{
+        role: 'gancho' | 'desenvolvimento' | 'cta';
+        title?: string;
+        postLink?: string;
+        reason?: string;
+        narrativeScore?: number;
+    }>;
 }
 
-interface ParsedScript {
+interface ScriptVariation {
+    id: string;
+    label: string;
     metadata: ScriptMetadata;
     scenes: ScriptScene[];
     caption?: string;
+    rawText: string;
+}
+
+interface ParsedScript {
+    variations: ScriptVariation[];
     inspirationData?: InspirationData;
-    rawBody: string; // Fallback
+    rawBody: string;
 }
 
 export interface ScriptBlockProps {
@@ -42,26 +57,222 @@ export interface ScriptBlockProps {
 
 // --- Parsing Logic ---
 
-const parseScriptContent = (content: string): ParsedScript => {
-    const lines = content.split('\n');
+const stripMarkdownMarkers = (value: string) =>
+    (value || '')
+        .replace(/\*\*/g, '')
+        .replace(/^[-*]\s+/, '')
+        .replace(/^"+|"+$/g, '')
+        .trim();
+
+const extractAfterColon = (line: string) => {
+    const idx = line.indexOf(':');
+    if (idx < 0) return '';
+    return line.slice(idx + 1).trim();
+};
+
+const extractTaggedBlock = (text: string, tag: string) => {
+    const re = new RegExp(`\\[${tag}\\]([\\s\\S]*?)\\[\\/${tag}\\]`, 'i');
+    const match = text.match(re);
+    return match?.[1]?.trim() || null;
+};
+
+const isVariationHeading = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    if (/^#{1,4}\s*(?:v|varia(?:c|ç)[aã]o)\s*\d+\s*:?\s*$/i.test(trimmed)) return true;
+    if (/^\*{0,2}(?:v|varia(?:c|ç)[aã]o)\s*\d+\*{0,2}\s*:?\s*$/i.test(trimmed)) return true;
+    return false;
+};
+
+const normalizeVariationLabel = (line: string, fallbackIndex: number) => {
+    const match = line.match(/(\d+)/);
+    if (match?.[1]) return `V${match[1]}`;
+    return `V${fallbackIndex + 1}`;
+};
+
+const splitVariationChunks = (lines: string[]) => {
+    const chunks: Array<{ label: string; lines: string[] }> = [];
+    let currentLabel = 'V1';
+    let currentLines: string[] = [];
+
+    for (const line of lines) {
+        if (isVariationHeading(line)) {
+            if (currentLines.some((entry) => entry.trim().length > 0)) {
+                chunks.push({ label: currentLabel, lines: currentLines });
+            }
+            currentLabel = normalizeVariationLabel(line, chunks.length);
+            currentLines = [];
+            continue;
+        }
+        currentLines.push(line);
+    }
+
+    if (currentLines.some((entry) => entry.trim().length > 0)) {
+        chunks.push({ label: currentLabel, lines: currentLines });
+    }
+
+    if (!chunks.length) {
+        chunks.push({ label: 'V1', lines });
+    }
+
+    return chunks;
+};
+
+const parseCaptionVariants = (captionBody: string) => {
+    const variantMap = new Map<string, string>();
+    if (!captionBody.trim()) return variantMap;
+    const lines = captionBody.split('\n');
+    let currentLabel = '';
+    let currentLines: string[] = [];
+
+    const flush = () => {
+        if (!currentLabel) return;
+        const value = currentLines.join('\n').trim();
+        if (value) variantMap.set(currentLabel, value);
+    };
+
+    for (const line of lines) {
+        const match = line.trim().match(/^V\s*([123])\s*[:\-]\s*(.*)$/i);
+        if (match) {
+            flush();
+            currentLabel = `V${match[1]}`;
+            currentLines = [];
+            const first = (match[2] || '').trim();
+            if (first) currentLines.push(first);
+            continue;
+        }
+        if (!currentLabel) {
+            currentLabel = 'V1';
+            currentLines = [];
+        }
+        currentLines.push(line);
+    }
+    flush();
+    return variantMap;
+};
+
+const parseVariationChunk = (label: string, lines: string[]): ScriptVariation => {
     const metadata: ScriptMetadata = {};
     const scenes: ScriptScene[] = [];
-    let captionLines: string[] = [];
-    let inspirationData: InspirationData | undefined;
+    const captionLines: string[] = [];
 
     let isParsingCaption = false;
     let isParsingTable = false;
+
+    const listSceneRegex = /^[-*]\s*\*\*(.*?):\*\*\s*(.*)$/;
+
+    for (const rawLine of lines) {
+        const trimmed = rawLine.trim();
+        if (!trimmed) continue;
+        const normalized = stripMarkdownMarkers(trimmed);
+
+        if (/^\[LEGENDA\]$/i.test(trimmed)) {
+            isParsingCaption = true;
+            continue;
+        }
+        if (/^\[\/LEGENDA\]$/i.test(trimmed)) {
+            isParsingCaption = false;
+            continue;
+        }
+        if (isParsingCaption) {
+            captionLines.push(rawLine);
+            continue;
+        }
+
+        if (/^t[íi]tulo sugerido\s*:/i.test(normalized)) {
+            metadata.title = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^formato ideal\s*:/i.test(normalized) || /^formato\s*:/i.test(normalized)) {
+            const parts = normalized.split('|').map((part) => part.trim()).filter(Boolean);
+            const formatPart = parts[0] || normalized;
+            metadata.format = extractAfterColon(formatPart);
+            const durationPart = parts.find((part) => /dura(?:ç|c)[aã]o|duracao/i.test(part));
+            if (durationPart) metadata.duration = extractAfterColon(durationPart);
+            continue;
+        }
+
+        if (/^a[úu]dio sugerido\s*:/i.test(normalized) || /^audio sugerido\s*:/i.test(normalized)) {
+            metadata.audio = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^inspira(?:ç|c)[aã]o viral\s*:/i.test(normalized)) {
+            metadata.inspiration = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^por que essa inspira(?:ç|c)[aã]o\s*:/i.test(normalized) || /^racional da inspira(?:ç|c)[aã]o\s*:/i.test(normalized)) {
+            metadata.inspirationReason = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (
+            (trimmed.startsWith('|') && /tempo|time/i.test(trimmed) && /visual|cena/i.test(trimmed) && /a[úu]dio|fala|narra/i.test(trimmed))
+        ) {
+            isParsingTable = true;
+            continue;
+        }
+
+        if (isParsingTable && /^\|\s*:?[-\s|]+:?\|?$/.test(trimmed)) {
+            continue;
+        }
+
+        if (isParsingTable && trimmed.startsWith('|')) {
+            const cols = trimmed.split('|').map((col) => col.trim()).filter(Boolean);
+            if (cols.length >= 2) {
+                scenes.push({
+                    time: cols.length >= 3 ? (cols[0] || 'Auto') : 'Auto',
+                    visual: cols.length >= 3 ? (cols[1] || '') : (cols[0] || ''),
+                    audio: cols.length >= 3 ? cols.slice(2).join(' | ') : (cols[1] || ''),
+                });
+                continue;
+            }
+        }
+
+        if (isParsingTable && !trimmed.startsWith('|')) {
+            isParsingTable = false;
+        }
+
+        const listMatch = trimmed.match(listSceneRegex);
+        if (listMatch && listMatch[1] && listMatch[2]) {
+            const tag = stripMarkdownMarkers(listMatch[1]).toLowerCase();
+            const value = stripMarkdownMarkers(listMatch[2]);
+            if (!value) continue;
+            if (/gancho|hook/.test(tag)) {
+                scenes.push({ time: '00-03s', visual: value, audio: value });
+            } else if (/desenvolvimento|corpo|conte[úu]do/.test(tag)) {
+                scenes.push({ time: '03-20s', visual: value, audio: value });
+            } else if (/cta|call to action|chamada/.test(tag)) {
+                scenes.push({ time: '20-30s', visual: value, audio: value });
+            } else if (/visual|take|cena/.test(tag)) {
+                scenes.push({ time: 'Auto', visual: value, audio: '...' });
+            }
+        }
+    }
+
+    return {
+        id: label,
+        label,
+        metadata,
+        scenes,
+        caption: captionLines.length ? captionLines.join('\n').trim() : undefined,
+        rawText: lines.join('\n').trim(),
+    };
+};
+
+const parseScriptContent = (content: string): ParsedScript => {
+    const roteiroBody = extractTaggedBlock(content, 'ROTEIRO') || content;
+    const legendaBody = extractTaggedBlock(content, 'LEGENDA') || '';
+    const lines = roteiroBody.split('\n');
+    let inspirationData: InspirationData | undefined;
     let isParsingJson = false;
-    let jsonLines: string[] = [];
+    const jsonLines: string[] = [];
+    const contentLines: string[] = [];
 
-    // Regex for list-based scene parsing (Fallback)
-    // Matches: - **TagName:** Content
-    const listSceneRegex = /^-\s*\*\*(.*?):\*\*\s*(.*)$/;
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-
-        // 0. JSON Parsing
+    for (const rawLine of lines) {
+        const trimmed = rawLine.trim();
         if (trimmed.includes('[INSPIRATION_JSON]')) {
             isParsingJson = true;
             continue;
@@ -69,258 +280,282 @@ const parseScriptContent = (content: string): ParsedScript => {
         if (trimmed.includes('[/INSPIRATION_JSON]')) {
             isParsingJson = false;
             try {
-                inspirationData = JSON.parse(jsonLines.join('\n'));
-            } catch (e) {
-                console.error('Failed to parse inspiration JSON', e);
+                const parsed = JSON.parse(jsonLines.join('\n'));
+                type SupportingInspirationItem = NonNullable<InspirationData['supportingInspirations']>[number];
+                const supportingInspirations = Array.isArray(parsed?.supportingInspirations)
+                    ? parsed.supportingInspirations
+                        .map((item: any) => {
+                            const roleRaw = typeof item?.role === 'string' ? item.role.toLowerCase().trim() : '';
+                            const role: 'gancho' | 'desenvolvimento' | 'cta' | null =
+                                roleRaw === 'gancho' || roleRaw === 'desenvolvimento' || roleRaw === 'cta'
+                                    ? (roleRaw as 'gancho' | 'desenvolvimento' | 'cta')
+                                    : null;
+                            if (!role) return null;
+                            const title = typeof item?.title === 'string' ? item.title.trim() : '';
+                            const postLink = typeof item?.postLink === 'string' ? item.postLink.trim() : '';
+                            const reason = typeof item?.reason === 'string' ? item.reason.trim() : '';
+                            const narrativeScore = typeof item?.narrativeScore === 'number' ? item.narrativeScore : undefined;
+                            return {
+                                role,
+                                title: title || undefined,
+                                postLink: postLink || undefined,
+                                reason: reason || undefined,
+                                narrativeScore,
+                            };
+                        })
+                        .filter(Boolean) as SupportingInspirationItem[]
+                    : ([] as SupportingInspirationItem[]);
+                inspirationData = {
+                    title: typeof parsed?.title === 'string' ? parsed.title : undefined,
+                    coverUrl: typeof parsed?.coverUrl === 'string' ? parsed.coverUrl : undefined,
+                    postLink: typeof parsed?.postLink === 'string' ? parsed.postLink : undefined,
+                    supportingInspirations: supportingInspirations.length ? supportingInspirations : undefined,
+                };
+            } catch (error) {
+                console.error('Failed to parse inspiration JSON', error);
             }
+            jsonLines.length = 0;
             continue;
         }
         if (isParsingJson) {
-            jsonLines.push(line);
+            jsonLines.push(rawLine);
             continue;
         }
-
-        // 1. Metadata Extraction
-        if (trimmed.startsWith('**Título Sugerido:**')) metadata.title = trimmed.split('**')[2]?.trim();
-        if (trimmed.startsWith('**Formato Ideal:**')) {
-            const parts = trimmed.split('|');
-            metadata.format = parts[0]?.split('**')[2]?.trim();
-            if (parts[1]) metadata.duration = parts[1].split('**')[2]?.trim();
-        }
-        if (trimmed.startsWith('**Áudio Sugerido:**')) metadata.audio = trimmed.split('**')[2]?.trim();
-        if (trimmed.startsWith('**Inspiração Viral:**')) metadata.inspiration = trimmed.split('**')[2]?.trim();
-
-        // 2. Caption Extraction (start/end)
-        if (trimmed.includes('[LEGENDA]')) {
-            isParsingCaption = true;
-            continue;
-        }
-        if (trimmed.includes('[/LEGENDA]')) {
-            isParsingCaption = false;
-            continue;
-        }
-        if (isParsingCaption) {
-            captionLines.push(line); // Keep indentation
-            continue;
-        }
-
-        // 3. Table Parsing (Preferred)
-        if (trimmed.startsWith('| Time') || trimmed.startsWith('| Visual')) {
-            isParsingTable = true;
-            continue;
-        }
-        if (trimmed.startsWith('|---') || trimmed.startsWith('| :---')) continue;
-
-        if (isParsingTable && trimmed.startsWith('|')) {
-            const cols = trimmed.split('|').map(c => c.trim()).filter(c => c !== '');
-            if (cols.length >= 3) {
-                scenes.push({
-                    time: cols[0] || '?',
-                    visual: cols[1] || '',
-                    audio: cols[2] || ''
-                });
-                continue; // Skip list check if table row found
-            } else if (trimmed === '') {
-                isParsingTable = false;
-            }
-        }
-
-        // 4. List Parsing (Fallback for AI inconsistency)
-        if (!isParsingTable && !isParsingCaption && !isParsingJson && trimmed.startsWith('- **')) {
-            const match = trimmed.match(listSceneRegex);
-            if (match) {
-                const tag = match[1].toLowerCase();
-                const content = match[2];
-
-                // Map known tags to scene structure
-                if (tag.includes('gancho') || tag.includes('hook')) {
-                    scenes.push({ time: '0-3s', visual: content, audio: '(Intro)' });
-                } else if (tag.includes('corpo') || tag.includes('desenvolvimento') || tag.includes('v1')) {
-                    scenes.push({ time: '3-15s', visual: content, audio: '(Conteúdo)' });
-                } else if (tag.includes('cta') || tag.includes('chamada')) {
-                    scenes.push({ time: 'Final', visual: content, audio: '(Call to Action)' });
-                } else if (tag.includes('take') || tag.includes('visual')) {
-                    scenes.push({ time: 'Take', visual: content, audio: '...' });
-                }
-            }
-        }
+        contentLines.push(rawLine);
     }
 
-    const caption = captionLines.length > 0 ? captionLines.join('\n').trim() : undefined;
+    const chunks = splitVariationChunks(contentLines);
+    const parsedVariations = chunks
+        .map((chunk, idx) => parseVariationChunk(chunk.label || `V${idx + 1}`, chunk.lines))
+        .filter((variation) => (
+            variation.scenes.length > 0 ||
+            Boolean(variation.metadata.title || variation.metadata.format || variation.metadata.duration || variation.metadata.audio) ||
+            Boolean(variation.caption)
+        ));
+
+    const captionVariants = parseCaptionVariants(legendaBody);
+    const fallbackCaption = captionVariants.get('V1')
+        || captionVariants.get('V2')
+        || captionVariants.get('V3')
+        || '';
+    const variations = parsedVariations.map((variation, idx) => {
+        const byLabel = captionVariants.get(variation.label.toUpperCase());
+        const byIndex = captionVariants.get(`V${idx + 1}`);
+        const mergedCaption = byLabel || byIndex || variation.caption || fallbackCaption || undefined;
+        return {
+            ...variation,
+            caption: mergedCaption,
+        };
+    });
 
     return {
-        metadata,
-        scenes,
-        caption,
+        variations,
         inspirationData,
-        rawBody: content
+        rawBody: content,
     };
 };
 
 // --- Components ---
 
-const InspirationCard: React.FC<{ data: InspirationData; theme: RenderTheme }> = ({ data, theme }) => {
+const cleanText = (value: string) => stripMarkdownMarkers(value);
+
+const formatSceneTime = (value: string) => {
+    const trimmed = (value || '').trim();
+    if (!trimmed) return 'Auto';
+    if (/^\d+(-\d+)?s?$/i.test(trimmed)) {
+        return trimmed.toLowerCase().endsWith('s') ? trimmed : `${trimmed}s`;
+    }
+    return trimmed;
+};
+
+const HeroInspirationCard: React.FC<{ data: InspirationData; theme: RenderTheme }> = ({ data, theme }) => {
     if (!data.title && !data.postLink) return null;
     const isInverse = theme === 'inverse';
 
     return (
-        <div className={`mt-4 mx-5 p-3 rounded-xl border flex items-start gap-3 ${isInverse ? 'bg-white/5 border-white/10' : 'bg-amber-50/50 border-amber-100'}`}>
-            <div className="relative w-16 h-24 flex-none rounded-lg overflow-hidden bg-gray-200">
-                {data.coverUrl ? (
-                    <Image
-                        src={data.coverUrl}
-                        alt="Inspiration Cover"
-                        fill
-                        className="object-cover"
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-amber-300">
-                        <PlayCircle size={24} />
-                    </div>
-                )}
-            </div>
-            <div className="flex-1 min-w-0 py-1">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-100 px-1.5 rounded">
-                        Inspiração Viral
-                    </span>
+        <div className={`mx-4 my-3 rounded-xl border p-3 sm:mx-5 ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+            <div className="flex items-start gap-3">
+                <div className={`relative h-14 w-14 flex-none overflow-hidden rounded-lg ${isInverse ? 'bg-white/10' : 'bg-gray-200'}`}>
+                    {data.coverUrl ? (
+                        <Image
+                            src={data.coverUrl}
+                            alt="Inspiration Cover"
+                            fill
+                            className="object-cover"
+                        />
+                    ) : (
+                        <div className={`h-full w-full ${isInverse ? 'bg-white/10' : 'bg-gray-200'}`} />
+                    )}
                 </div>
-                <h4 className={`text-sm font-semibold truncate mb-1 ${isInverse ? 'text-white' : 'text-gray-900'}`}>
-                    {data.title || "Referência Viral"}
-                </h4>
-                <p className={`text-xs mb-2 line-clamp-2 ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
-                    Use este vídeo como referência visual e de ritmo para sua gravação.
-                </p>
-                {data.postLink && (
-                    <a
-                        href={data.postLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700 hover:underline"
-                    >
-                        Ver original <ArrowUpRight size={12} />
-                    </a>
-                )}
-            </div>
-        </div>
-    );
-}
 
-const MetadataHeader: React.FC<{ metadata: ScriptMetadata; theme: RenderTheme }> = ({ metadata, theme }) => {
-    const isInverse = theme === 'inverse';
-    return (
-        <div className={`px-5 py-4 border-b ${isInverse ? 'border-white/10 bg-white/5' : 'border-violet-100 bg-violet-50/30'}`}>
-            <div className="flex flex-col gap-2">
-                {/* Title */}
-                {metadata.title && (
-                    <h3 className={`text-lg font-bold leading-tight ${isInverse ? 'text-white' : 'text-gray-900'}`}>
-                        {metadata.title}
-                    </h3>
-                )}
-                {/* Badges */}
-                <div className="flex flex-wrap gap-2 text-xs mt-1">
-                    {metadata.inspiration && !metadata.inspiration.includes('{') && (
-                        // Fallback badge if no JSON card
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${isInverse
-                            ? 'bg-amber-500/10 text-amber-200 border-amber-500/20'
-                            : 'bg-amber-50 text-amber-700 border-amber-100'
-                            }`}>
-                            🔥 Ref: {metadata.inspiration}
-                        </span>
-                    )}
-                    {metadata.format && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-medium text-gray-500 border border-gray-200 bg-white`}>
-                            📱 {metadata.format}
-                        </span>
-                    )}
-                    {metadata.duration && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-medium text-gray-500 border border-gray-200 bg-white`}>
-                            ⏱️ {metadata.duration}
-                        </span>
+                <div className="min-w-0 flex-1">
+                    <p className={`text-[10px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
+                        Referência
+                    </p>
+                    <h4 className={`mt-1 text-sm font-semibold leading-tight ${isInverse ? 'text-white' : 'text-gray-900'}`}>
+                        {data.title || 'Conteúdo de referência'}
+                    </h4>
+
+                    {data.postLink && (
+                        <a
+                            href={data.postLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`mt-2 inline-flex items-center text-xs font-medium underline underline-offset-2 ${isInverse ? 'text-white/80 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
+                        >
+                            Ver original
+                        </a>
                     )}
                 </div>
             </div>
-
-            {/* Old inspiration badge removed as it's now handled by InspirationCard or the fallback above */}
-            {/* Old format/duration/audio badges removed as they are now handled by the new badge block */}
         </div>
     );
 };
 
-const SceneRow: React.FC<{ scene: ScriptScene; index: number; theme: RenderTheme }> = ({ scene, index, theme }) => {
+const SupportingInspirations: React.FC<{ data: InspirationData; theme: RenderTheme }> = ({ data, theme }) => {
+    const items = Array.isArray(data.supportingInspirations) ? data.supportingInspirations.slice(0, 3) : [];
+    if (!items.length) return null;
     const isInverse = theme === 'inverse';
-
-    // Helper to bold text inside visual/audio if needed (simple heuristic)
-    const formatText = (text: string) => {
-        // Remove markdown bold chars for cleaner look since we style via CSS or keep consistent
-        // Or keep them. Let's strip standard md bold for custom styling if we want
-        return text;
-    };
+    const roleLabel = (role: 'gancho' | 'desenvolvimento' | 'cta') =>
+        role === 'gancho' ? 'Gancho' : role === 'desenvolvimento' ? 'Desenvolvimento' : 'CTA';
 
     return (
-        <div className={`relative flex gap-4 p-4 ${index !== 0 ? (isInverse ? 'border-t border-white/5' : 'border-t border-gray-100') : ''}`}>
-            {/* Timeline Connector */}
-            <div className="absolute left-[3.2rem] top-0 bottom-0 w-px bg-gray-200/50 dark:bg-white/10 -z-10" />
-
-            {/* Time Column */}
-            <div className="flex-none w-20 pt-0.5">
-                <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight ${isInverse ? 'bg-white/10 text-white/80' : 'bg-gray-100 text-gray-600'}`}>
-                    {scene.time}
-                </span>
-            </div>
-
-            {/* Content Columns (Visual + Audio) */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Visual */}
-                <div className="flex flex-col gap-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isInverse ? 'text-white/40' : 'text-gray-400'}`}>
-                        Visual (👁️)
-                    </span>
-                    <p className={`text-[13px] leading-relaxed whitespace-pre-wrap ${isInverse ? 'text-white/90' : 'text-gray-700'}`}>
-                        {formatText(scene.visual)}
-                    </p>
-                </div>
-
-                {/* Audio */}
-                <div className="flex flex-col gap-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isInverse ? 'text-white/40' : 'text-gray-400'}`}>
-                        Áudio (🎙️)
-                    </span>
-                    <div className={`p-2.5 rounded-lg rounded-tl-sm text-[13px] leading-relaxed italic ${isInverse ? 'bg-white/5 text-white/80' : 'bg-violet-50/50 text-gray-700'}`}>
-                        {formatText(scene.audio)}
+        <details className={`mx-4 mb-3 overflow-hidden rounded-xl border sm:mx-5 ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-white'}`}>
+            <summary className={`cursor-pointer list-none px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-600'} [&::-webkit-details-marker]:hidden`}>
+                Inspirações por etapa narrativa
+            </summary>
+            <div className="space-y-2 px-3 pb-3">
+                {items.map((item, idx) => (
+                    <div
+                        key={`${item.role}-${item.title || idx}`}
+                        className={`rounded-lg border px-2.5 py-2 ${isInverse ? 'border-white/15 bg-black/10' : 'border-gray-200 bg-gray-50/40'}`}
+                    >
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>
+                                {roleLabel(item.role)}
+                            </span>
+                            {typeof item.narrativeScore === 'number' ? (
+                                <span className={`text-[11px] font-semibold ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
+                                    Narrativa {(item.narrativeScore * 100).toFixed(0)}%
+                                </span>
+                            ) : null}
+                        </div>
+                        <p className={`mt-1 text-[13px] font-semibold ${isInverse ? 'text-white' : 'text-gray-800'}`}>
+                            {item.title || 'Referência da comunidade'}
+                        </p>
+                        {item.reason ? (
+                            <p className={`mt-0.5 text-[12px] ${isInverse ? 'text-white/70' : 'text-gray-600'}`}>
+                                {item.reason}
+                            </p>
+                        ) : null}
+                        {item.postLink ? (
+                            <a
+                                href={item.postLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`mt-1 inline-flex text-[12px] font-medium underline underline-offset-2 ${isInverse ? 'text-white/80 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
+                            >
+                                Ver original
+                            </a>
+                        ) : null}
                     </div>
-                </div>
+                ))}
             </div>
+        </details>
+    );
+};
+
+const MetadataHeader: React.FC<{ metadata: ScriptMetadata; theme: RenderTheme; label?: string }> = ({ metadata, theme, label }) => {
+    const isInverse = theme === 'inverse';
+    const displayTitle = metadata.title || 'Roteiro sugerido';
+    const metaItems = [
+        metadata.format ? `Formato: ${metadata.format}` : null,
+        metadata.duration ? `Duração: ${metadata.duration}` : null,
+        metadata.audio ? `Áudio: ${metadata.audio}` : null,
+        metadata.inspiration ? `Base: ${metadata.inspiration}` : null,
+    ].filter(Boolean) as string[];
+
+    return (
+        <div className={`px-4 py-3 sm:px-5 sm:py-4 ${isInverse ? 'text-white' : 'text-gray-900'}`}>
+            <div className="flex items-center justify-between gap-2">
+                <h3 className={`text-lg font-semibold leading-tight ${isInverse ? 'text-white' : 'text-gray-900'}`}>
+                    {displayTitle}
+                </h3>
+                {label ? (
+                    <span className={`inline-flex rounded-md border px-2 py-0.5 text-[12px] font-semibold ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>
+                        {label}
+                    </span>
+                ) : null}
+            </div>
+            {metaItems.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                    {metaItems.map((item) => (
+                        <span
+                            key={item}
+                            className={`inline-flex rounded-md border px-2 py-0.5 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/75' : 'border-gray-200 text-gray-600'}`}
+                        >
+                            {item}
+                        </span>
+                    ))}
+                </div>
+            )}
+            {metadata.inspirationReason ? (
+                <p className={`mt-2 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
+                    <span className="font-semibold">Por que essa inspiração:</span> {metadata.inspirationReason}
+                </p>
+            ) : null}
+        </div>
+    );
+};
+
+const TimelineScene: React.FC<{ scene: ScriptScene; theme: RenderTheme; isFirst: boolean }> = ({ scene, theme, isFirst }) => {
+    const isInverse = theme === 'inverse';
+
+    return (
+        <div className={`py-2.5 sm:py-3 ${!isFirst ? (isInverse ? 'border-t border-white/10' : 'border-t border-gray-100') : ''}`}>
+            <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
+                {formatSceneTime(scene.time)}
+            </p>
+            <p className={`text-[14px] leading-[1.55] ${isInverse ? 'text-white/90' : 'text-gray-800'}`}>
+                {cleanText(scene.visual)}
+            </p>
+            {scene.audio && scene.audio !== '...' && (
+                <p className={`mt-1.5 text-[13px] leading-[1.5] ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
+                    <span className="font-semibold">Fala:</span> {cleanText(scene.audio).replace(/"/g, '')}
+                </p>
+            )}
         </div>
     );
 };
 
 const CaptionBox: React.FC<{ text: string; theme: RenderTheme }> = ({ text, theme }) => {
     const isInverse = theme === 'inverse';
-    const [copied, setCopied] = React.useState(false);
+    const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(text);
+        track('chat_script_caption_copied', { caption_length: text.length });
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), 1800);
     };
 
     return (
-        <div className={`mx-5 my-4 p-3 rounded-xl border border-dashed ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-300 bg-gray-50'}`}>
-            <div className="flex items-center justify-between mb-2">
-                <span className={`text-[10px] uppercase font-bold tracking-wider ${isInverse ? 'text-white/50' : 'text-gray-500'}`}>
-                    Legenda para postar
+        <div className={`mx-4 my-3 rounded-xl border p-3.5 sm:mx-5 sm:p-4 ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <span className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
+                    Legenda
                 </span>
                 <button
                     onClick={handleCopy}
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded transition-colors ${copied
-                        ? 'bg-green-100 text-green-700'
-                        : (isInverse ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100')}`}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${copied
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : (isInverse ? 'border-white/20 text-white/80 hover:text-white' : 'border-gray-200 text-gray-600 hover:text-gray-900')
+                        }`}
                 >
-                    {copied ? 'Copiada!' : 'Copiar Legenda'}
+                    {copied ? <><Check size={12} /> Copiada</> : <><Copy size={12} /> Copiar</>}
                 </button>
             </div>
-            <p className={`text-[12px] font-mono leading-relaxed whitespace-pre-wrap ${isInverse ? 'text-white/80' : 'text-gray-600'}`}>
+            <p className={`whitespace-pre-wrap text-[14px] leading-[1.6] ${isInverse ? 'text-white/85' : 'text-gray-700'}`}>
                 {text}
             </p>
         </div>
@@ -330,14 +565,33 @@ const CaptionBox: React.FC<{ text: string; theme: RenderTheme }> = ({ text, them
 // --- Main Component ---
 
 export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSendPrompt }) => {
-    const data = React.useMemo(() => parseScriptContent(content), [content]);
+    const data = useMemo(() => parseScriptContent(content), [content]);
     const isInverse = theme === 'inverse';
+    const [copied, setCopied] = useState(false);
+    const [showActionOptions, setShowActionOptions] = useState(false);
+    const [activeVariationIndex, setActiveVariationIndex] = useState(0);
 
-    const [copied, setCopied] = React.useState(false);
+    useEffect(() => {
+        setActiveVariationIndex(0);
+    }, [content]);
+
+    const activeVariation = data.variations[activeVariationIndex] || data.variations[0];
 
     const handleCopyAll = async () => {
         try {
-            await navigator.clipboard.writeText(content);
+            const source = activeVariation
+                ? [
+                    '[ROTEIRO]',
+                    activeVariation.rawText,
+                    '[/ROTEIRO]',
+                    activeVariation.caption ? ['', '[LEGENDA]', activeVariation.caption, '[/LEGENDA]'].join('\n') : '',
+                ].filter(Boolean).join('\n')
+                : content;
+            await navigator.clipboard.writeText(source);
+            track('chat_script_copied', {
+                variation: activeVariation?.label || 'V1',
+                has_caption: Boolean(activeVariation?.caption),
+            });
             setCopied(true);
             setTimeout(() => setCopied(false), 1600);
         } catch (error) {
@@ -346,79 +600,152 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
     };
 
     const wrapperClass = isInverse
-        ? 'border-white/15 bg-white/5 text-white'
-        : 'border-violet-200 bg-white text-gray-900 shadow-sm';
+        ? 'border-white/15 bg-gray-900 text-white'
+        : 'border-gray-200 bg-white text-gray-900';
 
-    // Quick Actions Def
     const quickActions = [
-        { label: '⚡ Encurtar (15s)', prompt: 'Reescreva este roteiro para ter no máximo 15 segundos, focado em retenção rápida.' },
-        { label: '🔥 Polêmica', prompt: 'Torne o gancho deste roteiro mais polêmico e direto para chamar atenção.' },
-        { label: '🎓 Didático', prompt: 'Adapte o roteiro para ser mais educativo e passo-a-passo.' },
-        { label: '🪝 +3 Hooks', prompt: 'Gere mais 3 opções de gancho visual e falado para este mesmo roteiro.' },
+        { label: 'Narrativa alinhada', prompt: 'Curti essa linha narrativa. Para os próximos roteiros, mantenha um estilo parecido de gancho, desenvolvimento e CTA.' },
+        { label: 'Quero outra linha', prompt: 'Essa narrativa não combinou comigo. Para os próximos roteiros, mude a linha narrativa e traga outra abordagem de gancho e CTA.' },
+        { label: 'Encurtar para 15s', prompt: 'Reescreva este roteiro para ter no máximo 15 segundos, focado em retenção rápida.' },
+        { label: 'Gancho mais forte', prompt: 'Torne o gancho deste roteiro mais direto e chamativo sem perder clareza.' },
+        { label: 'Versão didática', prompt: 'Adapte o roteiro para um formato mais didático e passo a passo.' },
+        { label: 'Gerar alternativa', prompt: 'Gere uma opção totalmente diferente para o mesmo tema.' },
     ];
 
-    if (!data.scenes.length) {
-        // Fallback if parsing fails (shouldn't happen with strict prompt, but safe)
+    if (!activeVariation || (!activeVariation.scenes.length && !activeVariation.caption)) {
         return (
-            <div className={`p-4 rounded-lg text-sm font-mono whitespace-pre-wrap ${isInverse ? 'bg-white/5 text-white/70' : 'bg-gray-50 text-gray-600 border border-gray-100'}`}>
+            <div className={`rounded-lg border p-4 text-sm whitespace-pre-wrap ${isInverse ? 'border-white/15 bg-white/5 text-white/80' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+                <div className={`mb-2 text-xs font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
+                    Conteúdo bruto
+                </div>
                 {content}
             </div>
         );
     }
 
     return (
-        <div className={`my-6 overflow-hidden rounded-2xl border ${wrapperClass} ring-1 ring-black/5`}>
-            {/* Top Toolbar */}
-            <div className={`flex items-center justify-between gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wider border-b ${isInverse ? 'border-white/10' : 'border-violet-100 bg-violet-50/50'}`}>
-                <div className="flex items-center gap-2 font-bold text-violet-600 dark:text-violet-300">
-                    <span className="flex items-center justify-center w-5 h-5 rounded bg-violet-100 text-violet-700 text-[12px]">🎬</span>
-                    <span>Roteiro Premium</span>
-                </div>
+        <div className={`my-4 overflow-hidden rounded-2xl border ${wrapperClass}`}>
+            <div className={`flex items-center justify-between gap-2 border-b px-4 py-2.5 sm:px-5 sm:py-3 ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
+                <span className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/80' : 'text-gray-700'}`}>
+                    Roteiro
+                </span>
                 <button
-                    type="button"
                     onClick={handleCopyAll}
-                    className={`rounded-full px-3 py-1 text-[10px] font-bold transition-all active:scale-95 ${isInverse
-                        ? 'bg-white/10 text-white hover:bg-white/20'
-                        : 'bg-white text-violet-700 border border-violet-200 hover:bg-violet-50 shadow-sm'}`}
+                    disabled={copied}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${copied
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : (isInverse ? 'border-white/20 text-white/80 hover:text-white' : 'border-gray-200 text-gray-600 hover:text-gray-900')
+                        }`}
                 >
-                    {copied ? 'Copiado!' : 'Copiar Tudo'}
+                    {copied ? <Check size={12} /> : <Copy size={12} />}
+                    {copied ? 'Copiado' : 'Copiar'}
                 </button>
             </div>
 
-            {/* Semantic Content */}
-            <MetadataHeader metadata={data.metadata} theme={theme} />
-
-            {/* Visual Inspiration Card (New) */}
-            {data.inspirationData && (
-                <InspirationCard data={data.inspirationData} theme={theme} />
+            {data.variations.length > 1 && (
+                <div className={`px-4 pt-3 sm:px-5 ${isInverse ? 'bg-white/5' : 'bg-gray-50/60'}`}>
+                    <div className={`inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border p-0.5 [-webkit-overflow-scrolling:touch] ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-white'}`}>
+                        {data.variations.map((variation, idx) => (
+                            <button
+                                key={variation.id}
+                                type="button"
+                                onClick={() => {
+                                    setActiveVariationIndex(idx);
+                                    track('chat_script_variation_selected', { variation: variation.label });
+                                }}
+                                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${idx === activeVariationIndex
+                                    ? (isInverse ? 'bg-white/20 text-white' : 'bg-gray-900 text-white')
+                                    : (isInverse ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+                                    }`}
+                            >
+                                {variation.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             )}
 
-            <div className="flex flex-col">
-                {data.scenes.map((scene, idx) => (
-                    <SceneRow key={idx} scene={scene} index={idx} theme={theme} />
+            <MetadataHeader
+                metadata={activeVariation.metadata}
+                theme={theme}
+                label={data.variations.length > 1 ? activeVariation.label : undefined}
+            />
+            <div className="px-4 pb-1 sm:px-5 sm:pb-2">
+                {activeVariation.scenes.map((scene, idx) => (
+                    <TimelineScene
+                        key={`${activeVariation.id}-${idx}`}
+                        scene={scene}
+                        theme={theme}
+                        isFirst={idx === 0}
+                    />
                 ))}
             </div>
 
-            {data.caption && <CaptionBox text={data.caption} theme={theme} />}
+            {activeVariation.caption && <CaptionBox text={activeVariation.caption} theme={theme} />}
 
-            {/* Quick Actions Footer */}
             {onSendPrompt && (
-                <div className={`px-4 py-3 border-t flex flex-wrap gap-2 ${isInverse ? 'border-white/10' : 'border-violet-100/50 bg-violet-50/20'}`}>
-                    {quickActions.map((action) => (
+                <div className={`border-t px-4 py-2.5 sm:px-5 sm:py-3 ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
+                    <div className="flex flex-wrap items-center gap-2.5">
                         <button
-                            key={action.label}
                             type="button"
-                            onClick={() => onSendPrompt(action.prompt)}
-                            className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors ${isInverse
-                                ? 'bg-white/10 text-white hover:bg-white/20'
-                                : 'bg-white text-violet-600 border border-violet-200 hover:bg-violet-100 hover:text-violet-800'
+                            onClick={() => {
+                                track('chat_script_action_clicked', { action: 'refinar_roteiro', variation: activeVariation?.label || 'V1' });
+                                onSendPrompt('Refine este roteiro mantendo a ideia principal, com linguagem mais clara e direta.');
+                            }}
+                            className={`w-full rounded-md px-3 py-2.5 text-[13px] font-semibold transition-colors sm:w-auto ${isInverse
+                                ? 'bg-white/10 text-white hover:bg-white/15'
+                                : 'bg-gray-900 text-white hover:bg-black'
                                 }`}
                         >
-                            {action.label}
+                            Refinar roteiro
                         </button>
-                    ))}
+                        <button
+                            type="button"
+                            onClick={() => setShowActionOptions((prev) => !prev)}
+                            className={`w-full rounded-md border px-3 py-2.5 text-[13px] font-medium transition-colors sm:w-auto ${isInverse
+                                ? 'border-white/20 text-white/80 hover:text-white'
+                                : 'border-gray-200 text-gray-600 hover:text-gray-900'
+                                }`}
+                        >
+                            {showActionOptions ? 'Ocultar opções' : 'Mais opções'}
+                        </button>
+                    </div>
+                    {showActionOptions && (
+                        <div className="mt-2 grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                            {quickActions.map((action) => (
+                                <button
+                                    key={action.label}
+                                    type="button"
+                                    onClick={() => {
+                                        track('chat_script_action_clicked', {
+                                            action: action.label,
+                                            variation: activeVariation?.label || 'V1',
+                                        });
+                                        onSendPrompt(action.prompt);
+                                    }}
+                                    className={`rounded-md border px-2.5 py-2 text-[12px] font-medium transition-colors ${isInverse
+                                        ? 'border-white/20 text-white/80 hover:text-white'
+                                        : 'border-gray-200 text-gray-600 hover:text-gray-900'
+                                        }`}
+                                >
+                                    {action.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
+            {data.inspirationData ? (
+                <details className={`border-t px-4 py-2.5 sm:px-5 sm:py-3 ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
+                    <summary className={`cursor-pointer list-none text-[13px] font-semibold tracking-[0.01em] ${isInverse ? 'text-white/80' : 'text-gray-600'} [&::-webkit-details-marker]:hidden`}>
+                        Inspirações usadas neste roteiro
+                    </summary>
+                    <div className="mt-2">
+                        <HeroInspirationCard data={data.inspirationData} theme={theme} />
+                        <SupportingInspirations data={data.inspirationData} theme={theme} />
+                    </div>
+                </details>
+            ) : null}
         </div>
     );
 };

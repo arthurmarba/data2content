@@ -217,13 +217,19 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
   })
     .optional()
     .describe(`Opcional. Referência ou elemento utilizado. Valores válidos: ${VALID_REFERENCES.join(', ')}`),
+  narrativeQuery: z.string()
+    .trim()
+    .min(8, "A narrativa precisa ter pelo menos 8 caracteres.")
+    .max(280, "A narrativa pode ter no máximo 280 caracteres.")
+    .optional()
+    .describe("Opcional. Frase curta com o tipo de narrativa/gancho desejado para priorizar similaridade semântica."),
   primaryObjectiveAchieved_Qualitative: z.enum(VALID_QUALITATIVE_OBJECTIVES, {
     invalid_type_error: "Objetivo qualitativo inválido. Por favor, use um dos valores de objetivo conhecidos."
   })
     .optional()
     .describe(`Opcional. O objetivo qualitativo principal que a inspiração deve ter demonstrado. Valores válidos: ${VALID_QUALITATIVE_OBJECTIVES.join(', ')}`),
-  count: z.number().int().min(1).max(3).optional().default(2)
-    .describe("Número de exemplos de inspiração a retornar (padrão 2, mínimo 1, máximo 3).")
+  count: z.number().int().min(1).max(3).optional().default(3)
+    .describe("Número de exemplos de inspiração a retornar (padrão 3, mínimo 1, máximo 3).")
 }).strict().describe("Argumentos para buscar inspirações na comunidade de criadores IA Mobi.");
 
 

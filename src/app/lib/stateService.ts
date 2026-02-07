@@ -108,6 +108,11 @@ const IDialogueStateSchema = z.object({
     learningStyles: z.array(z.string()).optional(),
     updatedAt: z.number().optional(),
   }).nullable().optional(),
+  scriptPreferences: z.object({
+    narrativePreference: z.enum(['prefer_similar', 'prefer_different']).optional(),
+    lastNarrativeFeedbackAt: z.number().optional(),
+    note: z.string().nullable().optional(),
+  }).nullable().optional(),
 });
 type IDialogueState = z.infer<typeof IDialogueStateSchema>;
 
@@ -195,6 +200,7 @@ export const getDefaultDialogueState = (): IDialogueState => ({
   lastAIQuestionType: undefined,
   conversationSummary: undefined,
   surveyPrefs: null,
+  scriptPreferences: null,
 });
 
 export async function getDialogueState(userId: string): Promise<IDialogueState> {

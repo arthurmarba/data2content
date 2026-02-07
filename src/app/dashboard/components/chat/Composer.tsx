@@ -135,12 +135,7 @@ export const Composer = React.memo(function Composer({
     }, [input]);
 
     return (
-        <div
-            className="relative w-full flex-none bg-white px-4 pt-2 pb-safe z-20 shadow-[0_-6px_24px_-12px_rgba(15,23,42,0.3)]"
-        >
-            {/* Gradient Fade - Positioned absolutely above the composer */}
-            <div className="absolute -top-8 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/60 to-transparent pointer-events-none" />
-
+        <div className="relative z-20 w-full flex-none border-t border-gray-100 bg-white/95 px-3 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] backdrop-blur-sm sm:px-4">
             <div className="mx-auto max-w-6xl relative">
                 <ToolsDrawer
                     isOpen={isToolsOpen}
@@ -162,7 +157,7 @@ export const Composer = React.memo(function Composer({
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 10 }}
-                            className="mb-3 flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg"
+                            className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
                             role="alert"
                         >
                             <FaExclamationTriangle className="flex-shrink-0" />
@@ -171,12 +166,12 @@ export const Composer = React.memo(function Composer({
                     )}
                 </AnimatePresence>
 
-                <div className="relative flex items-end gap-1.5 sm:gap-2 bg-white rounded-[28px] border border-gray-200/80 focus-within:border-brand-primary/40 focus-within:shadow-lg focus-within:shadow-brand-primary/10 transition-all duration-300 p-1.5">
+                <div className="relative flex items-end gap-1.5 rounded-2xl border border-gray-200 bg-gray-50/80 p-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors focus-within:border-gray-300 focus-within:bg-white sm:gap-2">
                     <div className="flex items-center gap-1">
                         <button
                             onPointerDown={(event) => handlePointerActivation(onOpenTools, event)}
                             onClick={() => runWithClickSuppression(onOpenTools)}
-                            className={`relative flex-shrink-0 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all touch-manipulation ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex h-11 w-11 touch-manipulation items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 ${isToolsOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
                             aria-label="Abrir ferramentas"
                             title="Ferramentas"
                         >
@@ -186,14 +181,13 @@ export const Composer = React.memo(function Composer({
                         <button
                             onPointerDown={(event) => handlePointerActivation(toggleAlerts, event)}
                             onClick={() => runWithClickSuppression(toggleAlerts)}
-                            className={`relative flex-shrink-0 flex items-center justify-center rounded-full px-2.5 sm:px-3 h-10 sm:h-11 text-[12px] sm:text-[13px] font-semibold transition-all border touch-manipulation ${isAlertsOpen ? 'bg-gray-900 text-white border-gray-900' : 'text-gray-600 border-gray-200 hover:bg-gray-100'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50`}
+                            className={`relative flex h-11 w-11 touch-manipulation flex-shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 ${isAlertsOpen ? 'bg-gray-200 text-gray-800' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
                             aria-label="Abrir conversas"
                             title="Conversas"
                         >
                             <FaBell className="text-[12px] sm:text-[13px]" />
-                            <span className="hidden sm:inline">Conversas</span>
                             {alertsBadgeCount > 0 && (
-                                <span className="ml-2 inline-flex min-w-[18px] rounded-full bg-red-500 px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
+                                <span className="absolute -right-1 -top-0.5 inline-flex min-w-[18px] rounded-full bg-red-500 px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
                                     {alertsBadgeCount > 99 ? '99+' : alertsBadgeCount}
                                 </span>
                             )}
@@ -212,7 +206,7 @@ export const Composer = React.memo(function Composer({
                             }
                         }}
                         placeholder="Digite sua mensagem..."
-                        className="flex-1 min-h-[44px] resize-none overflow-hidden bg-transparent py-2.5 px-2.5 border-0 ring-0 focus:ring-0 outline-none text-base leading-6 placeholder-gray-400 text-gray-900 max-h-[200px] rounded-2xl focus:bg-white/50 transition-colors break-words"
+                        className="max-h-[200px] min-h-[44px] flex-1 resize-none overflow-hidden rounded-xl border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-gray-900 outline-none ring-0 transition-colors placeholder:text-gray-400 focus:bg-white focus:ring-0 break-words"
                         style={{ minHeight: '44px' }}
                         disabled={isSending}
                         data-testid="chat-input"
@@ -226,8 +220,8 @@ export const Composer = React.memo(function Composer({
                         }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onSend}
-                        className={`flex-shrink-0 flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full transition-all duration-300 ${input.trim().length > 0
-                            ? 'bg-brand-primary text-white hover:bg-brand-primary-dark shadow-md shadow-brand-primary/25'
+                        className={`flex h-11 w-11 touch-manipulation flex-shrink-0 items-center justify-center rounded-full transition-colors duration-200 ${input.trim().length > 0
+                            ? 'bg-gray-900 text-white hover:bg-gray-800'
                             : 'bg-gray-200 text-gray-400'
                             }`}
                         disabled={!input.trim() || isSending}
@@ -242,16 +236,16 @@ export const Composer = React.memo(function Composer({
                     </motion.button>
                 </div>
 
-                <div className="mt-2 flex justify-center">
+                <div className="mt-1 flex justify-center">
                     {!instagramConnected ? (
                         <button
                             onClick={onConnectInstagram}
-                            className="text-xs font-medium text-brand-primary hover:text-brand-primary-dark hover:underline flex items-center gap-1"
+                            className="flex items-center gap-1 text-[11px] font-medium text-gray-500 transition-colors hover:text-brand-primary"
                         >
-                            <FaInstagram /> Conectar Instagram para melhores resultados
+                            <FaInstagram /> Conectar Instagram para respostas mais precisas
                         </button>
                     ) : (
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        <span className="flex items-center gap-1 text-[10px] text-gray-400">
                             <FaCheckCircle className="text-emerald-500" />
                             Conectado como @{instagramUsername}
                         </span>

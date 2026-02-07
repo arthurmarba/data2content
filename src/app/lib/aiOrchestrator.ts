@@ -1600,10 +1600,10 @@ export async function askLLMWithEnrichedContext(
             initialMsgs.push({
                 role: 'system',
                 content: `PROTOCOLO ROTEIRISTA ATIVADO:
-                1. SEARCH: Use 'fetchCommunityInspirations' para encontrar estrutura viral compatível.
+                1. SEARCH: Use 'fetchCommunityInspirations' (count=3) para encontrar estrutura viral compatível e envie 'narrativeQuery' com o gancho principal do pedido.
                 2. ADAPT: Nunca copie. Adapte a estrutura viral para o nicho do usuário.
-                3. FORMAT: O output FINAL deve ser estritamente no bloco [ROTEIRO]...[/ROTEIRO].
-                4. REASONING: Cite qual inspiração você usou.`
+                3. FORMAT: O output FINAL deve ser estritamente em [ROTEIRO]...[/ROTEIRO] + [LEGENDA]...[/LEGENDA].
+                4. REASONING: Quando usar inspiração, explique em 1 linha por que ela foi escolhida.`
             });
         }
 
@@ -1646,6 +1646,7 @@ export async function askLLMWithEnrichedContext(
             const scriptPayload = {
                 objectiveHint: scriptContext.objectiveHint || undefined,
                 toneHint: scriptContext.toneHint || undefined,
+                narrativePreference: scriptContext.narrativePreference || undefined,
                 topCategories: scriptContext.topCategories || undefined,
                 topPosts: scriptContext.topPosts || undefined,
                 communityOptIn: scriptContext.communityOptIn ?? false,
@@ -1656,6 +1657,8 @@ export async function askLLMWithEnrichedContext(
                     'SCRIPT CONTEXT PACK (USO OBRIGATÓRIO): use estes sinais para orientar o roteiro, gancho e CTA. ' +
                     'As categorias abaixo são do histórico do criador (taxonomia interna). ' +
                     'Se for chamar `fetchCommunityInspirations`, traduza para a taxonomia da comunidade (Proposal/Context/Format/Tone do tool). ' +
+                    'Se narrativePreference=prefer_similar, mantenha estrutura próxima das últimas inspirações aprovadas. ' +
+                    'Se narrativePreference=prefer_different, varie gancho e CTA em relação ao padrão anterior. ' +
                     'Se communityOptIn=false, NÃO chame `fetchCommunityInspirations`.\n' +
                     `\`\`\`json\n${JSON.stringify(scriptPayload, null, 2)}\n\`\`\``,
             });
@@ -1715,37 +1718,26 @@ export async function askLLMWithEnrichedContext(
             initialMsgs.push({
                 role: 'system',
                 content:
-                    'MODO ROTEIRO (CRÍTICO): Você deve responder com um roteiro de vídeo claro e acionável. ' +
+                    'MODO ROTEIRO (CRÍTICO): responda SOMENTE com 2 blocos, nesta ordem exata: [ROTEIRO]...[/ROTEIRO] e [LEGENDA]...[/LEGENDA]. ' +
                     'IGNORE a estrutura "Diagnóstico/Plano/Próximo Passo" para este caso. ' +
-                    'Saída obrigatória: um bloco [ROTEIRO]...[/ROTEIRO]. ' +
                     'Se faltar tema/produto/assunto, faça UMA pergunta objetiva e pare (não gere roteiro incompleto). ' +
-                    'Dentro do [ROTEIRO], gere 3 variações completas e concisas (V1, V2, V3) por padrão. ' +
-                    'Se o usuário pedir explicitamente "um roteiro", "rápido", "curto" ou indicar urgência, gere apenas V1. ' +
-                    'Se o usuário pedir opções/variações, mantenha V1–V3. ' +
-                    'Antes de escrever, infira o objetivo principal do usuário (educar, engajar, viralizar, converter, autoridade). ' +
-                    'Se o objetivo estiver explícito, siga-o; se estiver implícito, escolha o mais provável e mantenha CTA coerente. ' +
-                    'Cada variação deve seguir o esqueleto abaixo (linhas curtas):\n' +
-                    '- Formato: (use formato pedido; se não houver, escolha entre USER_PREFERRED_FORMATS; fallback: Reel)\n' +
-                    '- Objetivo: (educar | engajar | viralizar | converter | autoridade)\n' +
-                    '- Duração: (escolha e marque 1: 15s | 30s | 45s; se não informado, use 30s)\n' +
-                    '- Gancho (0–3s): frase direta que prende atenção\n' +
-                    '- Desenvolvimento (3–20s): 2–4 linhas com passos ou cena\n' +
-                    '- CTA (20–25s): peça salvar/compartilhar/comentar conforme o objetivo\n' +
-                    '- Voz/Narração: 1–2 linhas com o tom de fala\n' +
-                    '- Texto na tela: 1–2 linhas\n' +
-                    '- Visual/B‑roll: 1–2 sugestões rápidas\n' +
-                    '- Takes (2 opções curtas): Take 1 e Take 2 com variação mínima (troca de verbo/gancho)\n' +
-                    'Se o formato for carrossel/foto, adapte para "Slides" (ex.: Slide 1 gancho, Slide 2–5 desenvolvimento, Slide final CTA). ' +
-                    'Se for humor, inclua setup → conflito → punchline → reação. ' +
-                    'Se houver top_posts no pack de evidências, use 1 hook/ideia deles como inspiração (sem copiar). ' +
-                    'Se communityOptIn=true e houver dados suficientes, chame `fetchCommunityInspirations` ANTES de escrever o roteiro para trazer 1–2 narrativas similares. ' +
-                    'Se faltar proposta/contexto para essa busca, faça UMA pergunta objetiva e pare. ' +
-                    'CTA deve refletir o objetivo implícito: ' +
-                    'educar/ensinar → salvar; comunidade/engajamento → comentar; alcance/viral → compartilhar; ' +
-                    'conversão → DM/clique; autoridade → salvar/seguir. ' +
-                    'Após o [/ROTEIRO], inclua um bloco [LEGENDA] com 3 variações (V1, V2, V3), ' +
-                    'cada uma com 1–3 frases + 3–6 hashtags no final. ' +
-                    'Feche com 2 botões de ação rápida no formato [BUTTON: ...].'
+                    'Use formato pedido pelo usuário; se não houver, escolha entre USER_PREFERRED_FORMATS; fallback: Reels. ' +
+                    'Infira objetivo principal (educar, engajar, viralizar, converter, autoridade) e mantenha CTA coerente. ' +
+                    'No bloco [ROTEIRO], use o contrato abaixo sem inventar seções extras:\n' +
+                    '**Título Sugerido:** ...\n' +
+                    '**Formato Ideal:** ... | **Duração Estimada:** ...\n' +
+                    '(opcional) **Áudio Sugerido:** ...\n' +
+                    '(opcional, quando houver inspiração) **Por que essa inspiração:** ...\n' +
+                    '| Tempo | Visual (o que aparece) | Fala (o que dizer) |\n' +
+                    '| :--- | :--- | :--- |\n' +
+                    '| ... |\n' +
+                    'REGRAS DA TABELA: mínimo 3 linhas de cena, máximo 6; linha final deve ter CTA explícito. ' +
+                    'Se formato for carrossel/foto, adapte para Slides na coluna Visual/Fala. ' +
+                    'Se for humor, inclua setup -> conflito -> punchline -> reação na progressão das cenas. ' +
+                    'Se houver top_posts no pack, use somente como referência estrutural (nunca copiar frases). ' +
+                    'Se communityOptIn=true e dados suficientes, chame fetchCommunityInspirations antes de escrever com count=3 e inclua narrativeQuery com 1 frase do gancho; se faltar contexto para a busca, faça UMA pergunta e pare. ' +
+                    'No bloco [LEGENDA], sempre entregar V1, V2 e V3 (1-3 frases cada + 3-6 hashtags). ' +
+                    'NÃO adicionar [BUTTON], introduções, conclusões ou texto fora dos blocos.'
             });
         } else {
             // Instruções de estilo e próxima ação — mantém o assistente sempre acionável.

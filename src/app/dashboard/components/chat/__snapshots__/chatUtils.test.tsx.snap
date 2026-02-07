@@ -36,6 +36,7 @@ exports[`renderFormatted renders headings, lists, tables, and checklists 1`] = `
     >
       <li
         class="flex items-start gap-3"
+        style="margin-left: 0px;"
       >
         <span
           aria-hidden="true"
@@ -51,6 +52,7 @@ exports[`renderFormatted renders headings, lists, tables, and checklists 1`] = `
       </li>
       <li
         class="flex items-start gap-3"
+        style="margin-left: 0px;"
       >
         <span
           aria-hidden="true"
@@ -65,44 +67,72 @@ exports[`renderFormatted renders headings, lists, tables, and checklists 1`] = `
         </span>
       </li>
     </ol>
-    <ul
-      class="space-y-2 text-[15px] my-3 leading-[1.55] text-gray-800"
+    <div
+      class="my-3 rounded-xl border border-gray-200 bg-gray-50/50 p-1"
     >
-      <li
-        class="flex items-start gap-2"
+      <ul
+        class="space-y-1"
       >
-        <span
-          aria-hidden="true"
-          class="mt-0.5 flex h-4 w-4 items-center justify-center rounded border border-gray-300 bg-white bg-emerald-500 text-white"
+        <li
+          class="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors bg-emerald-50/50"
         >
-          x
-        </span>
-        <span
-          class="sr-only"
+          <span
+            aria-hidden="true"
+            class="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border text-[10px] transition-colors border-emerald-300 bg-emerald-500 text-white shadow-sm"
+          >
+            <svg
+              class="h-3.5 w-3.5 block"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2.5"
+              viewBox="0 0 14 14"
+            >
+              <polyline
+                points="2.5 7 5.5 10 11.5 3.5"
+              />
+            </svg>
+          </span>
+          <span
+            class="text-[15px] leading-relaxed text-gray-500 line-through decoration-emerald-500/30"
+          >
+            <span>
+              feito
+            </span>
+          </span>
+        </li>
+        <li
+          class="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors bg-white hover:bg-gray-50"
         >
-          Concluído: 
-        </span>
-        <span>
-          feito
-        </span>
-      </li>
-      <li
-        class="flex items-start gap-2"
-      >
-        <span
-          aria-hidden="true"
-          class="mt-0.5 flex h-4 w-4 items-center justify-center rounded border border-gray-300 bg-white "
-        />
-        <span
-          class="sr-only"
-        >
-          Pendente: 
-        </span>
-        <span>
-          pendente
-        </span>
-      </li>
-    </ul>
+          <span
+            aria-hidden="true"
+            class="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-md border text-[10px] transition-colors border-gray-300 bg-white text-transparent group-hover:border-gray-400"
+          >
+            <svg
+              class="h-3.5 w-3.5 hidden"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2.5"
+              viewBox="0 0 14 14"
+            >
+              <polyline
+                points="2.5 7 5.5 10 11.5 3.5"
+              />
+            </svg>
+          </span>
+          <span
+            class="text-[15px] leading-relaxed text-gray-700"
+          >
+            <span>
+              pendente
+            </span>
+          </span>
+        </li>
+      </ul>
+    </div>
     <div
       class="my-3"
       data-testid="chat-table-container"

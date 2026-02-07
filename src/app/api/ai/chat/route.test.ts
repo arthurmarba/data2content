@@ -205,3 +205,95 @@ it('mantém tabelas, mesmo que esparsas', () => {
   expect(sanitized).toEqual(input);
   expect(sanitized).not.toContain('- **A**');
 });
+
+it('aplica contrato completo no modo roteirista com inspiração contextual', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** Roteiro para vendas',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Cena 1 | Fala 1 |',
+      '| 03-15s | Cena 2 | Fala 2 |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Legenda base',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([
+      {
+        role: 'function',
+        name: 'fetchCommunityInspirations',
+        content: JSON.stringify({
+          matchType: 'exact',
+          usedFilters: {
+            proposal: 'tutorial',
+            context: 'educational',
+            narrativeQuery: 'gancho sobre erro comum e correção',
+          },
+          inspirations: [
+            {
+              id: 'insp1',
+              originalInstagramPostUrl: 'https://www.instagram.com/reel/ABC123xyz/',
+              proposal: 'tutorial',
+              context: 'educational',
+              format: 'reel',
+              tone: 'educational',
+              contentSummary: 'Mostra erro comum, depois ajuste prático com CTA.',
+              matchReasons: ['match exato de proposta/contexto', 'narrativa similar (erro, ajuste)'],
+              narrativeScore: 0.64,
+            },
+          ],
+        }),
+      } as any,
+    ]),
+  });
+
+  const res = await chat(makeRequest({ query: 'crie um roteiro para vender mentoria no reels' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.pendingAction).toBeNull();
+  expect(json.answer).toContain('[ROTEIRO]');
+  expect(json.answer).toContain('[LEGENDA]');
+  expect(json.answer).toContain('**Por que essa inspiração:**');
+  expect(json.answer).toContain('[INSPIRATION_JSON]');
+  expect(json.answer).toContain('V2:');
+  expect(json.answer).toContain('V3:');
+  expect(json.answerEvidence?.intent_group).toBe('planning');
+});
+
+it('salva preferência narrativa quando usuário dá feedback explícito', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** Ajuste de narrativa',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Cena 1 | Fala 1 |',
+      '| 03-20s | Cena 2 | Fala 2 |',
+      '| 20-30s | Cena 3 | CTA |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Legenda',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([]),
+  });
+
+  const res = await chat(makeRequest({ query: 'curti essa narrativa, mantenha esse estilo nos próximos roteiros' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.answer).toContain('[ROTEIRO]');
+  expect(mockUpdateDialogue).toHaveBeenCalled();
+  const lastCall = mockUpdateDialogue.mock.calls[mockUpdateDialogue.mock.calls.length - 1];
+  const dialoguePatch = lastCall?.[1];
+  expect(dialoguePatch?.scriptPreferences?.narrativePreference).toBe('prefer_similar');
+});

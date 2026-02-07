@@ -3,7 +3,7 @@ export interface Message {
     text: string;
     messageId?: string | null;
     sessionId?: string | null;
-    messageType?: 'content_plan' | 'community_inspiration' | 'other';
+    messageType?: 'content_plan' | 'community_inspiration' | 'script' | 'other';
     cta?: {
         label: string;
         action: string;
@@ -148,18 +148,33 @@ export interface AnswerEvidence {
         primaryObjective?: string;
         source: 'community';
         linkVerified?: boolean;
+        narrativeScore?: number;
+        performanceScore?: number;
+        personalizationScore?: number;
+        narrativeRole?: 'gancho' | 'desenvolvimento' | 'cta';
+        matchReasons?: string[];
     }>;
     communityMeta?: {
-        matchType?: string;
-        usedFilters?: {
-            proposal?: string;
-            context?: string;
-            format?: string;
-            tone?: string;
-            reference?: string;
-            primaryObjective?: string;
+      matchType?: string;
+      usedFilters?: {
+        proposal?: string;
+        context?: string;
+        format?: string;
+        tone?: string;
+        reference?: string;
+        narrativeQuery?: string;
+        primaryObjective?: string;
+      };
+      fallbackMessage?: string;
+      rankingSignals?: {
+        personalizedByUserPerformance?: boolean;
+        userTopCategories?: {
+          proposal?: string[];
+          context?: string[];
+          format?: string[];
+          tone?: string[];
         };
-        fallbackMessage?: string;
+      };
     };
     relaxApplied?: Array<{ step: string; reason?: string }>;
     filtersApplied?: { tagsLocked?: boolean; formatLocked?: boolean };

@@ -206,15 +206,15 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
           <div className="flex flex-col items-center gap-4 md:gap-10 px-6 md:px-4">
             <h1 className="max-w-[15ch] text-[3.5rem] md:text-[5.5rem] lg:text-[6.5rem] font-black leading-[1.1] md:leading-[0.9] tracking-tighter text-brand-dark text-balance pb-6">
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
-                Revisão estratégica
+                Consultoria
               </span>
               <span className="block mt-3 md:mt-4 bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
-                via IA em reuniões semanais.
+                para criadores de conteúdo via IA.
               </span>
             </h1>
 
-            <p className="max-w-3xl px-2 md:px-0 text-[1.2rem] md:text-3xl font-medium text-slate-600 leading-[1.4] text-balance">
-              Plataforma que <span className="text-brand-dark font-bold">analisa cada post seu</span>, te coloca na vitrine para marcas e organiza sua rotina de forma estratégica.
+            <p className="max-w-3xl px-2 md:px-0 text-base md:text-2xl font-medium text-slate-600 leading-[1.4] text-balance">
+              Mais que uma plataforma de IA: uma agência consultiva que revisa pessoalmente seu conteúdo toda semana, garantindo o posicionamento ideal para atrair marcas e gerar vendas.
             </p>
           </div>
 

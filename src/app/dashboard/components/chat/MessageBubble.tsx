@@ -35,11 +35,11 @@ const hashString = (value: string) => {
 };
 
 const shouldSampleNormalization = (
-    messageType: 'content_plan' | 'community_inspiration' | 'other',
+    messageType: 'content_plan' | 'community_inspiration' | 'script' | 'other',
     sessionId?: string | null,
     messageId?: string | null
 ) => {
-    if (messageType === 'content_plan' || messageType === 'community_inspiration') return true;
+    if (messageType === 'content_plan' || messageType === 'community_inspiration' || messageType === 'script') return true;
     if (!sessionId) return Math.random() < NORMALIZATION_SAMPLE_RATE_OTHER;
     const seed = `${sessionId}:${messageId ?? ''}`;
     const bucket = hashString(seed) % 1000;
@@ -120,6 +120,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     const [showReasonSelector, setShowReasonSelector] = React.useState(false);
     const [selectedReason, setSelectedReason] = React.useState<FeedbackReasonCode | null>(null);
     const [otherReasonText, setOtherReasonText] = React.useState('');
+    const [showFeedbackControls, setShowFeedbackControls] = React.useState(false);
     const [isExpanded, setIsExpanded] = React.useState(false);
     const normalizationTrackedRef = React.useRef<string | null>(null);
     React.useEffect(() => {
@@ -128,15 +129,17 @@ export const MessageBubble = React.memo(function MessageBubble({
         }
     }, [initialFeedback]);
 
-    React.useEffect(() => {
-        setIsExpanded(false);
-    }, [message.messageId, message.text]);
-
     const resetReason = () => {
         setShowReasonSelector(false);
         setSelectedReason(null);
         setOtherReasonText('');
     };
+
+    React.useEffect(() => {
+        setIsExpanded(false);
+        setShowFeedbackControls(false);
+        resetReason();
+    }, [message.messageId, message.text]);
 
     const handleFeedback = async (rating: 'up' | 'down', reasonCode?: FeedbackReasonCode | null, reasonDetail?: string) => {
         if (isSendingFeedback) return;
@@ -189,6 +192,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 
     const submitDownvote = async () => {
         if (!selectedReason && !otherReasonText.trim()) {
+            setShowFeedbackControls(true);
             setShowReasonSelector(true);
             return;
         }
@@ -301,18 +305,35 @@ export const MessageBubble = React.memo(function MessageBubble({
         if (!inspirations.length) return [];
         return inspirations.map((insp, idx) => {
             const hasLink = isInstagramPostUrl(insp.permalink) && (insp.linkVerified ?? true);
+            const narrativeRoleLabel = insp.narrativeRole === 'gancho'
+                ? 'Gancho'
+                : insp.narrativeRole === 'cta'
+                    ? 'CTA'
+                    : insp.narrativeRole === 'desenvolvimento'
+                        ? 'Desenvolvimento'
+                        : null;
             const metaTags = [
                 insp.proposal,
                 insp.context,
+                narrativeRoleLabel ? `Papel: ${narrativeRoleLabel}` : null,
                 insp.tone ? `Tom: ${toneLabel(insp.tone)}` : null,
                 insp.reference ? `Ref: ${humanizeToken(insp.reference)}` : null,
                 insp.primaryObjective ? `Objetivo: ${humanizeToken(insp.primaryObjective)}` : null,
+                typeof insp.narrativeScore === 'number' ? `Narrativa: ${(insp.narrativeScore * 100).toFixed(0)}%` : null,
+                typeof insp.personalizationScore === 'number' ? `Fit perfil: ${(insp.personalizationScore * 100).toFixed(0)}%` : null,
+                typeof insp.performanceScore === 'number' ? `Força comunidade: ${(insp.performanceScore * 100).toFixed(0)}%` : null,
             ].filter(Boolean) as string[];
+            const reasonHighlights = Array.isArray(insp.matchReasons)
+                ? insp.matchReasons.map((reason) => reason.trim()).filter(Boolean)
+                : [];
             return {
                 label: insp.format || undefined,
                 title: insp.title || `Inspiração ${idx + 1}`,
                 description: insp.description || undefined,
-                highlights: Array.isArray(insp.highlights) ? insp.highlights : [],
+                highlights: [
+                    ...(Array.isArray(insp.highlights) ? insp.highlights : []),
+                    ...reasonHighlights,
+                ],
                 metaTags,
                 link: hasLink && insp.permalink ? { url: insp.permalink, label: 'Ver post' } : undefined,
             };
@@ -329,14 +350,18 @@ export const MessageBubble = React.memo(function MessageBubble({
         const format = filters.format || fallback?.format;
         const tone = filters.tone || fallback?.tone;
         const reference = filters.reference || fallback?.reference;
+        const narrativeQuery = filters.narrativeQuery;
         const primaryObjective = filters.primaryObjective || fallback?.primaryObjective;
+        const personalizedByUserPerformance = Boolean(evidence.communityMeta?.rankingSignals?.personalizedByUserPerformance);
         const metaChips = [
             proposal ? `Proposta: ${proposal}` : null,
             context ? `Contexto: ${context}` : null,
             format ? `Formato: ${format}` : null,
             tone ? `Tom: ${toneLabel(tone)}` : null,
             reference ? `Referência: ${humanizeToken(reference)}` : null,
+            narrativeQuery ? `Narrativa: ${String(narrativeQuery).slice(0, 40)}` : null,
             primaryObjective ? `Objetivo: ${humanizeToken(primaryObjective)}` : null,
+            personalizedByUserPerformance ? 'Ranking: personalizado pelo seu histórico' : null,
         ].filter(Boolean) as string[];
         const matchLabel = matchTypeLabel(evidence.communityMeta?.matchType || '');
         const count = evidence.communityInspirations.length;
@@ -473,12 +498,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 
     return (
         <li className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`} style={virtualizationStyle}>
-            <div className={`flex flex-col gap-1.5 w-full ${isUser ? 'items-end' : 'items-start'}`}>
+            <div className={`flex w-full flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
                 <div
                     className={[
                         isUser
-                            ? 'max-w-[92%] sm:max-w-[75%] rounded-2xl rounded-tr-sm bg-brand-primary text-white shadow-sm px-3.5 py-2.5'
-                            : 'max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch] text-gray-800 px-1',
+                            ? 'max-w-[94%] sm:max-w-[75%] rounded-2xl rounded-tr-sm bg-brand-primary text-white shadow-sm px-3.5 py-2.5'
+                            : 'max-w-[94%] sm:max-w-[80%] lg:max-w-[72ch] rounded-2xl border border-gray-200/80 bg-white/95 px-3 py-2.5 text-gray-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:px-3.5 sm:py-3',
                     ].join(' ')}
                 >
                     {isAlert && (
@@ -491,9 +516,9 @@ export const MessageBubble = React.memo(function MessageBubble({
                             ) : null}
                         </div>
                     )}
-                    <div className={isUser ? 'text-white/95' : undefined}>
+                    <div className={isUser ? 'text-[14px] leading-[1.62] text-white/95 sm:text-[15px]' : 'text-[14px] leading-[1.62] text-gray-700 sm:text-[15px]'}>
                         {communityContent || (shouldRenderMarkdown ? formattedContent : (
-                            <p className="text-[15px] leading-[1.6] whitespace-pre-wrap break-words">
+                            <p className="text-[14px] leading-[1.55] whitespace-pre-wrap break-words sm:text-[15px]">
                                 {displayText}
                             </p>
                         ))}
@@ -548,62 +573,78 @@ export const MessageBubble = React.memo(function MessageBubble({
                         </div>
                     )}
                     {!isUser && !isAlert && canSendFeedback ? (
-                        <div className="mt-3 flex flex-col gap-2 text-xs text-gray-500">
-                            <div className="flex items-center gap-2">
-                                <span>Essa resposta ajudou?</span>
+                        <div className="mt-3 flex flex-col gap-2.5 text-xs text-gray-500">
+                            {!showFeedbackControls && feedbackState === 'none' ? (
                                 <button
                                     type="button"
-                                    disabled={isSendingFeedback}
-                                    aria-pressed={feedbackState === 'up'}
                                     onClick={() => {
-                                        if (feedbackState === 'up') return; // já ativo, evita clique infinito
+                                        setShowFeedbackControls(true);
                                         onFeedbackStart?.();
-                                        handleFeedback('up');
                                     }}
-                                    className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackState === 'up'
-                                        ? 'bg-emerald-100 border-emerald-200 text-emerald-700'
-                                        : 'border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-700'}`}
-                                    aria-label="Gostei"
+                                    className="self-start rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
                                 >
-                                    👍
+                                    Avaliar resposta
                                 </button>
-                                <button
-                                    type="button"
-                                    disabled={isSendingFeedback}
-                                    onClick={() => setShowReasonSelector((prev) => {
-                                        const next = !prev;
-                                        if (!next) {
-                                            resetReason();
-                                            onFeedbackEnd?.();
-                                        } else {
+                            ) : null}
+                            {(showFeedbackControls || feedbackState !== 'none') ? (
+                                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/80 px-2.5 py-2">
+                                    <span className="w-full text-[11px] font-medium sm:w-auto">Essa resposta ajudou?</span>
+                                    <button
+                                        type="button"
+                                        disabled={isSendingFeedback}
+                                        aria-pressed={feedbackState === 'up'}
+                                        onClick={() => {
+                                            if (feedbackState === 'up') return; // já ativo, evita clique infinito
                                             onFeedbackStart?.();
-                                        }
-                                        return next;
-                                    })}
-                                    className={`inline-flex items-center justify-center h-7 w-7 rounded-full border transition-colors ${feedbackState === 'down'
-                                        ? 'bg-red-100 border-red-200 text-red-700'
-                                        : 'border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-700'}`}
-                                    aria-label="Não gostei"
-                                >
-                                    👎
-                                </button>
-                                {showThanks && feedbackState === 'up' ? (
-                                    <span className="text-[11px] font-semibold text-emerald-600">Valeu!</span>
-                                ) : null}
-                                {feedbackError ? (
-                                    <span className="text-[11px] font-semibold text-rose-600">{feedbackError}</span>
-                                ) : null}
-                            </div>
+                                            setShowFeedbackControls(true);
+                                            handleFeedback('up');
+                                        }}
+                                        className={`inline-flex items-center justify-center h-8 w-8 rounded-full border transition-colors ${feedbackState === 'up'
+                                            ? 'bg-emerald-100 border-emerald-200 text-emerald-700'
+                                            : 'border-gray-200 text-gray-500 hover:border-emerald-300 hover:text-emerald-700'}`}
+                                        aria-label="Gostei"
+                                    >
+                                        👍
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={isSendingFeedback}
+                                        onClick={() => setShowReasonSelector((prev) => {
+                                            const next = !prev;
+                                            setShowFeedbackControls(true);
+                                            if (!next) {
+                                                resetReason();
+                                                onFeedbackEnd?.();
+                                            } else {
+                                                onFeedbackStart?.();
+                                            }
+                                            return next;
+                                        })}
+                                        className={`inline-flex items-center justify-center h-8 w-8 rounded-full border transition-colors ${feedbackState === 'down'
+                                            ? 'bg-red-100 border-red-200 text-red-700'
+                                            : 'border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-700'}`}
+                                        aria-label="Não gostei"
+                                    >
+                                        👎
+                                    </button>
+                                    {showThanks && feedbackState === 'up' ? (
+                                        <span className="text-[11px] font-semibold text-emerald-600">Valeu!</span>
+                                    ) : null}
+                                    {feedbackError ? (
+                                        <span className="text-[11px] font-semibold text-rose-600">{feedbackError}</span>
+                                    ) : null}
+                                </div>
+                            ) : null}
                             {showReasonSelector ? (
-                                <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
-                                    <p className="mb-2 text-[11px] font-semibold text-gray-700">Por que não ajudou?</p>
+                                <div className="rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-3">
+                                    <p className="mb-2 text-[12px] font-semibold text-gray-700">Por que não ajudou?</p>
                                     <div className="flex flex-wrap gap-2">
                                         {FEEDBACK_REASONS.map((opt) => (
                                             <button
                                                 key={opt.code}
                                                 type="button"
                                                 onClick={() => setSelectedReason(opt.code)}
-                                                className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${selectedReason === opt.code
+                                                className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${selectedReason === opt.code
                                                     ? 'border-red-200 bg-red-50 text-red-700'
                                                     : 'border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-700'}`}
                                             >
@@ -613,7 +654,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                                     </div>
                                     {selectedReason === 'other' ? (
                                         <textarea
-                                            className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-[12px] text-gray-700 focus:border-red-300 focus:outline-none"
+                                            className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] text-gray-700 focus:border-red-300 focus:outline-none"
                                             placeholder="Conte rapidamente o que houve"
                                             value={otherReasonText}
                                             onChange={(e) => setOtherReasonText(e.target.value)}
@@ -622,17 +663,17 @@ export const MessageBubble = React.memo(function MessageBubble({
                                     ) : null}
                                     {selectedReason && selectedReason !== 'other' ? (
                                         <textarea
-                                            className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-[12px] text-gray-700 focus:border-red-300 focus:outline-none"
+                                            className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] text-gray-700 focus:border-red-300 focus:outline-none"
                                             placeholder="Quer explicar rapidinho? (opcional)"
                                             value={otherReasonText}
                                             onChange={(e) => setOtherReasonText(e.target.value)}
                                             rows={2}
                                         />
                                     ) : null}
-                                    <div className="mt-2 flex justify-end gap-2">
+                                    <div className="mt-2 flex flex-wrap justify-end gap-2">
                                         <button
                                             type="button"
-                                            className="text-[11px] font-semibold text-gray-500"
+                                            className="rounded-full px-2 py-1 text-[12px] font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                                             onClick={() => {
                                                 resetReason();
                                                 onFeedbackEnd?.();
@@ -644,7 +685,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                                             type="button"
                                             disabled={isSendingFeedback}
                                             onClick={submitDownvote}
-                                            className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+                                            className="rounded-full bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
                                         >
                                             {isSendingFeedback ? 'Enviando...' : 'Enviar'}
                                         </button>
@@ -657,7 +698,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                         </div>
                     ) : null}
                 </div>
-                <span className="text-[11px] text-gray-400 px-1">
+                <span className="px-1 text-[11px] text-gray-400">
                     {isUser ? 'Você' : 'Mobi IA'}
                 </span>
             </div>

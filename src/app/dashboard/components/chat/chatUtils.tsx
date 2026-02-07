@@ -660,18 +660,43 @@ const parseTextToBlocks = (text: string): Block[] => {
             flushParagraph();
             const captionType = captionStartMatch[1]?.toUpperCase() || 'LEGENDA';
             const captionLabel = captionType === 'ROTEIRO' ? 'Roteiro' : 'Legenda';
-            const captionLines: string[] = [];
-            let j = i + 1;
-            while (j < lines.length) {
-                const candidate = (lines[j] ?? "").trim();
-                if (candidate.match(/^\[\/(LEGENDA|ROTEIRO)\]$/i)) {
-                    break;
+
+            const captureBlock = (startIdx: number, tag: 'ROTEIRO' | 'LEGENDA') => {
+                const collected: string[] = [];
+                let cursor = startIdx + 1;
+                while (cursor < lines.length) {
+                    const candidate = (lines[cursor] ?? '').trim();
+                    if (candidate.match(new RegExp(`^\\[\\/${tag}\\]$`, 'i'))) break;
+                    collected.push(lines[cursor] ?? '');
+                    cursor += 1;
                 }
-                captionLines.push(lines[j] ?? "");
-                j++;
+                return { content: collected.join('\n').trim(), endIdx: cursor };
+            };
+
+            const primary = captureBlock(i, captionType as 'ROTEIRO' | 'LEGENDA');
+            let captionContent = '';
+            let endIdx = primary.endIdx;
+
+            if (captionType === 'ROTEIRO') {
+                const roteiroSegment = primary.content
+                    ? ['[ROTEIRO]', primary.content, '[/ROTEIRO]'].join('\n')
+                    : '';
+                let legendaSegment = '';
+                let nextIdx = primary.endIdx + 1;
+                while (nextIdx < lines.length && !(lines[nextIdx] ?? '').trim()) nextIdx += 1;
+                if ((lines[nextIdx] ?? '').trim().match(/^\[LEGENDA\]$/i)) {
+                    const legenda = captureBlock(nextIdx, 'LEGENDA');
+                    endIdx = legenda.endIdx;
+                    if (legenda.content) {
+                        legendaSegment = ['[LEGENDA]', legenda.content, '[/LEGENDA]'].join('\n');
+                    }
+                }
+                captionContent = [roteiroSegment, legendaSegment].filter(Boolean).join('\n\n').trim();
+            } else {
+                captionContent = primary.content;
             }
-            i = j; // Skip the closing tag
-            const captionContent = captionLines.join('\n').trim();
+
+            i = endIdx; // Skip the closing tag(s)
             if (captionContent) {
                 blocks.push({ type: 'caption', content: captionContent, label: captionLabel });
                 continue;
@@ -1053,11 +1078,11 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
     const tocSummaryClass = isInverse ? 'text-white/90 hover:text-white' : 'text-gray-800 hover:text-gray-900';
     const tocBadgeClass = isInverse ? 'bg-white/10 text-white/80' : 'bg-gray-100 text-gray-600';
     const tocLinkClass = isInverse ? 'text-white/80 hover:text-white underline decoration-white/30' : 'text-gray-700 hover:text-gray-900 underline decoration-gray-200';
-    const summaryCardClass = 'my-4 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-4 text-gray-800 shadow-sm';
-    const insightsCardClass = 'my-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-4 text-gray-800 shadow-sm';
-    const actionsCardClass = 'my-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-4 text-gray-800 shadow-sm';
-    const diagnosisCardClass = 'my-4 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-4 text-gray-800 shadow-sm';
-    const planCardClass = 'my-4 rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-4 text-gray-800 shadow-sm';
+    const summaryCardClass = 'my-3 rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3.5 text-gray-800';
+    const insightsCardClass = 'my-3 rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3.5 text-gray-800';
+    const actionsCardClass = 'my-3 rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3.5 text-gray-800';
+    const diagnosisCardClass = 'my-3 rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3.5 text-gray-800';
+    const planCardClass = 'my-3 rounded-2xl border border-gray-200 bg-gray-50/60 px-4 py-3.5 text-gray-800';
 
     const alertBaseClass = "my-4 rounded-xl p-4 text-sm border-l-4";
     const alertStyles: Record<AlertType, string> = {
@@ -1505,16 +1530,13 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                         const isPlan = sectionKind === 'plan';
                         const cardClass = isDiagnosis ? diagnosisCardClass : (isPlan ? planCardClass : summaryCardClass);
                         const label = isDiagnosis ? 'Diagnóstico' : (isPlan ? 'Plano Estratégico' : 'Resumo');
-                        const iconChar = isDiagnosis ? 'D' : (isPlan ? 'P' : 'R');
-                        const iconBg = isDiagnosis ? 'bg-sky-100 text-sky-800' : (isPlan ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800');
 
                         elements.push(
                             <section key={`section-${sectionKind}-${keyBase}`} id={headingId} className={cardClass} data-testid={`chat-section-${sectionKind}`}>
-                                <div className="mb-2 flex items-center gap-2">
-                                    <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold ${iconBg}`}>{iconChar}</span>
-                                    <h3 className="text-lg font-semibold text-gray-900">{label}</h3>
+                                <div className="mb-2">
+                                    <h3 className="text-base font-semibold text-gray-900">{label}</h3>
                                 </div>
-                                <div className="space-y-2 text-[15px] leading-[1.6] text-gray-800">
+                                <div className="space-y-1.5 text-[14px] leading-[1.55] text-gray-800">
                                     {sectionItems.slice(0, 6).map((item, i) => (
                                         <p key={i} dangerouslySetInnerHTML={{ __html: inlineHtml(item) }} />
                                     ))}
@@ -1528,14 +1550,13 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     if (sectionKind === 'insights' && sectionItems?.length) {
                         elements.push(
                             <section key={`section-insights-${keyBase}`} id={headingId} className={insightsCardClass} data-testid="chat-section-insights">
-                                <div className="mb-2 flex items-center gap-2">
-                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-800 text-[12px] font-bold">I</span>
-                                    <h3 className="text-lg font-semibold text-gray-900">Principais insights</h3>
+                                <div className="mb-2">
+                                    <h3 className="text-base font-semibold text-gray-900">Principais insights</h3>
                                 </div>
-                                <ul className="space-y-2 pl-1 text-[15px] leading-[1.6] text-gray-800">
+                                <ul className="space-y-1.5 pl-1 text-[14px] leading-[1.55] text-gray-800">
                                     {sectionItems.map((item, i) => (
                                         <li key={i} className="flex items-start gap-2">
-                                            <span className="mt-[6px] inline-block h-1.5 w-1.5 rounded-full bg-indigo-400" aria-hidden />
+                                            <span className="mt-[7px] inline-block h-1.5 w-1.5 rounded-full bg-gray-300" aria-hidden />
                                             <span>{renderInsightItem(item)}</span>
                                         </li>
                                     ))}
@@ -1549,16 +1570,15 @@ export function renderFormatted(text: string, theme: RenderTheme = 'default', op
                     if (sectionKind === 'actions' && actionItems?.length) {
                         elements.push(
                             <section key={`section-actions-${keyBase}`} id={headingId} className={actionsCardClass} data-testid="chat-section-actions">
-                                <div className="mb-2 flex items-center gap-2">
-                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[12px] font-bold">A</span>
-                                    <h3 className="text-lg font-semibold text-gray-900">Próximas ações</h3>
+                                <div className="mb-2">
+                                    <h3 className="text-base font-semibold text-gray-900">Próximas ações</h3>
                                 </div>
-                                <ul className="space-y-2 text-[15px] leading-[1.55] text-gray-800">
+                                <ul className="space-y-1.5 text-[14px] leading-[1.5] text-gray-800">
                                     {actionItems.map((item, i) => (
                                         <li key={i} className="flex items-start gap-2">
                                             <span
                                                 aria-hidden
-                                                className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded border ${item.checked ? 'border-emerald-300 bg-emerald-500 text-white' : 'border-gray-300 bg-white'}`}
+                                                className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded border ${item.checked ? 'border-gray-400 bg-gray-700 text-white' : 'border-gray-300 bg-white'}`}
                                             >
                                                 {item.checked ? 'x' : ''}
                                             </span>

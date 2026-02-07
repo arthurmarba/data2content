@@ -146,6 +146,13 @@ export interface CommunityInspirationFilters {
   format?: FormatType;
   tone?: ToneType;
   reference?: ReferenceType;
+  narrativeQuery?: string;
+  userTopCategories?: {
+    proposal?: ProposalType[];
+    context?: ContextType[];
+    format?: FormatType[];
+    tone?: ToneType[];
+  };
   primaryObjectiveAchieved_Qualitative?: QualitativeObjectiveType;
   performanceHighlights_Qualitative_INCLUDES_ANY?: PerformanceHighlightType[];
   performanceHighlights_Qualitative_CONTAINS?: string;

@@ -688,7 +688,7 @@ export default function ChatPanel({
   const isWelcome = messages.length === 0;
   const fullName = (session?.user?.name || "").trim();
   const firstName = fullName ? fullName.split(" ")[0] : "visitante";
-  const messageSpacingClass = viewMode === 'compact' ? 'space-y-2 sm:space-y-3' : 'space-y-4 sm:space-y-6';
+  const messageSpacingClass = viewMode === 'compact' ? 'space-y-2.5 sm:space-y-3.5' : 'space-y-3.5 sm:space-y-5';
   const renderDensity: RenderDensity = viewMode === 'compact' ? 'compact' : 'comfortable';
   const shouldVirtualize = messages.length >= 60;
 
@@ -1165,63 +1165,69 @@ export default function ChatPanel({
         ) : (
           <div className="relative mx-auto max-w-6xl w-full pb-4">
             {messages.length > 0 ? (
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-gray-600">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Visualização</span>
-                  <div className="flex items-center rounded-full border border-gray-200 bg-white p-0.5 shadow-sm">
+              <div className="mb-3 flex items-center justify-end">
+                <details className="relative">
+                  <summary className="inline-flex cursor-pointer list-none items-center rounded-full border border-gray-200 bg-white/95 px-3.5 py-2 text-[11px] font-semibold tracking-[0.01em] text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-900 [&::-webkit-details-marker]:hidden">
+                    Opções
+                  </summary>
+                  <div className="absolute right-0 z-10 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+                    <p className="px-3 pt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Visualização</p>
+                    <div className="mb-2 mt-1 flex items-center rounded-full border border-gray-200 bg-white p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleViewMode('reading')}
+                        aria-pressed={viewMode === 'reading'}
+                        data-testid="chat-mode-read"
+                        className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${viewMode === 'reading'
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-600 hover:text-gray-900'}`}
+                      >
+                        Leitura
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleViewMode('compact')}
+                        aria-pressed={viewMode === 'compact'}
+                        data-testid="chat-mode-compact"
+                        className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${viewMode === 'compact'
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-600 hover:text-gray-900'}`}
+                      >
+                        Compacto
+                      </button>
+                    </div>
+                    {(showSummaryActions || hasDisclosure) ? (
+                      <div className="my-1 h-px bg-gray-100" />
+                    ) : null}
+                    {showSummaryActions && hasSummary ? (
+                      <button
+                        type="button"
+                        onClick={() => handleCopySection('summary', summaryText)}
+                        className="w-full rounded-lg px-3 py-2 text-left text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        {copiedSection === 'summary' ? 'Resumo copiado' : 'Copiar resumo'}
+                      </button>
+                    ) : null}
+                    {showSummaryActions && hasActions ? (
+                      <button
+                        type="button"
+                        onClick={() => handleCopySection('actions', actionsText)}
+                        className="w-full rounded-lg px-3 py-2 text-left text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        {copiedSection === 'actions' ? 'Ações copiadas' : 'Copiar ações'}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
-                      onClick={() => handleToggleViewMode('reading')}
-                      aria-pressed={viewMode === 'reading'}
-                      data-testid="chat-mode-read"
-                      className={`rounded-full px-3 py-1 font-semibold transition-colors ${viewMode === 'reading'
-                        ? 'bg-brand-primary text-white'
-                        : 'text-gray-600 hover:text-gray-900'}`}
+                      onClick={handleToggleDisclosures}
+                      disabled={!hasDisclosure}
+                      data-testid="chat-disclosure-toggle"
+                      className="w-full rounded-lg px-3 py-2 text-left text-[12px] font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Leitura
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleViewMode('compact')}
-                      aria-pressed={viewMode === 'compact'}
-                      data-testid="chat-mode-compact"
-                      className={`rounded-full px-3 py-1 font-semibold transition-colors ${viewMode === 'compact'
-                        ? 'bg-brand-primary text-white'
-                        : 'text-gray-600 hover:text-gray-900'}`}
-                    >
-                      Compacto
+                      {disclosureOpen ? 'Recolher tudo' : 'Expandir tudo'}
                     </button>
                   </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {showSummaryActions && hasSummary ? (
-                    <button
-                      type="button"
-                      onClick={() => handleCopySection('summary', summaryText)}
-                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-semibold text-gray-600 shadow-sm transition-colors hover:border-brand-primary/40 hover:text-gray-900"
-                    >
-                      {copiedSection === 'summary' ? 'Resumo copiado' : 'Copiar resumo'}
-                    </button>
-                  ) : null}
-                  {showSummaryActions && hasActions ? (
-                    <button
-                      type="button"
-                      onClick={() => handleCopySection('actions', actionsText)}
-                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-semibold text-gray-600 shadow-sm transition-colors hover:border-brand-primary/40 hover:text-gray-900"
-                    >
-                      {copiedSection === 'actions' ? 'Ações copiadas' : 'Copiar ações'}
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={handleToggleDisclosures}
-                    disabled={!hasDisclosure}
-                    data-testid="chat-disclosure-toggle"
-                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-semibold text-gray-600 shadow-sm transition-colors hover:border-brand-primary/40 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {disclosureOpen ? 'Recolher tudo' : 'Expandir tudo'}
-                  </button>
-                </div>
+                </details>
               </div>
             ) : null}
             <ul role="list" aria-live="polite" className={messageSpacingClass}>

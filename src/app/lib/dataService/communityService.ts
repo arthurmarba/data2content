@@ -295,7 +295,15 @@ export async function getInspirationsWeighted(
     limit: number = 3,
     excludeIds?: string[],
     excludeCreatorId?: string
-): Promise<{ inspiration: ICommunityInspiration, matchType: string, score: number }[]> {
+): Promise<{
+    inspiration: ICommunityInspiration;
+    matchType: string;
+    score: number;
+    narrativeScore: number;
+    performanceScore: number;
+    personalizationScore: number;
+    matchReasons: string[];
+}[]> {
     const TAG = `${SERVICE_TAG}[getInspirationsWeighted]`;
     logger.info(`${TAG} Buscando inspirações ponderadas. Filtros: ${JSON.stringify(filters)}, limite: ${limit}`);
 
@@ -377,6 +385,8 @@ export async function getInspirationsWeighted(
             });
         }
 
+        const pipelineLimit = Math.max(limit, limit * 5);
+
         const pipeline: PipelineStage[] = [
             { $match: matchStage },
             {
@@ -400,7 +410,7 @@ export async function getInspirationsWeighted(
                 }
             },
             { $sort: { matchScore: -1, 'internalMetricsSnapshot.saveRate': -1 } },
-            { $limit: limit },
+            { $limit: pipelineLimit },
             {
                 $project: {
                     inspiration: "$$ROOT",
@@ -417,12 +427,119 @@ export async function getInspirationsWeighted(
 
         const results = await CommunityInspirationModel.aggregate(pipeline).exec();
 
-        logger.info(`${TAG} Encontradas ${results.length} inspirações ponderadas.`);
-        return results.map(r => ({
-            inspiration: r.inspiration,
-            matchType: r.matchType,
-            score: r.matchScore
-        }));
+        const tokenize = (value: string) =>
+            (value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .split(/[^a-z0-9]+/)
+                .map((token) => token.trim())
+                .filter((token) => token.length >= 3);
+        const stopwords = new Set([
+            'para', 'com', 'sem', 'sobre', 'como', 'porque', 'mais', 'menos', 'muito', 'muita', 'depois', 'antes',
+            'roteiro', 'conteudo', 'conteudos', 'video', 'videos', 'post', 'posts', 'reel', 'reels', 'story', 'stories',
+            'instagram', 'tiktok', 'youtube', 'quero', 'preciso', 'fazer', 'sobre',
+        ]);
+        const uniqueTokens = (tokens: string[]) => Array.from(new Set(tokens.filter((token) => !stopwords.has(token))));
+        const queryTokens = uniqueTokens(tokenize(filters.narrativeQuery || '')).slice(0, 14);
+        const queryTokenSet = new Set(queryTokens);
+        const userTop = filters.userTopCategories || {};
+        const topProposal = new Set((userTop.proposal || []).map((v) => String(v).trim()).filter(Boolean));
+        const topContext = new Set((userTop.context || []).map((v) => String(v).trim()).filter(Boolean));
+        const topFormat = new Set((userTop.format || []).map((v) => String(v).trim()).filter(Boolean));
+        const topTone = new Set((userTop.tone || []).map((v) => String(v).trim()).filter(Boolean));
+
+        const enriched = results.map((row: any) => {
+            const inspiration = row.inspiration as ICommunityInspiration;
+            const summaryTokens = uniqueTokens(tokenize(inspiration.contentSummary || ''));
+            const highlightsTokens = uniqueTokens(
+                tokenize(
+                    Array.isArray(inspiration.performanceHighlights_Qualitative)
+                        ? inspiration.performanceHighlights_Qualitative.join(' ')
+                        : ''
+                )
+            );
+            const sourceSet = new Set([...summaryTokens, ...highlightsTokens]);
+            const overlap = queryTokens.length
+                ? queryTokens.filter((token) => sourceSet.has(token)).length
+                : 0;
+            const narrativeScore = queryTokens.length ? overlap / queryTokens.length : 0;
+            const reasonPieces: string[] = [];
+            if (row.matchType === 'exact') {
+                reasonPieces.push('match exato de proposta/contexto');
+            } else if (row.matchType === 'proposal_only') {
+                reasonPieces.push('mesma proposta');
+            } else if (row.matchType === 'context_only' || row.matchType === 'broad_context') {
+                reasonPieces.push('contexto semelhante');
+            }
+            if (hasFormat && row?.inspiration?.format === filters.format) {
+                reasonPieces.push('formato alinhado');
+            }
+            if (hasTone && row?.inspiration?.tone === filters.tone) {
+                reasonPieces.push('tom alinhado');
+            }
+            if (narrativeScore >= 0.2) {
+                const overlapTokens = summaryTokens
+                    .filter((token) => queryTokenSet.has(token))
+                    .slice(0, 3);
+                if (overlapTokens.length) {
+                    reasonPieces.push(`narrativa similar (${overlapTokens.join(', ')})`);
+                } else {
+                    reasonPieces.push('narrativa semelhante ao pedido');
+                }
+            }
+            const metrics = (inspiration?.internalMetricsSnapshot || {}) as Record<string, number | undefined>;
+            const saveRate = Number(metrics.saveRate ?? 0);
+            const shareRate = Number(metrics.shareRate ?? 0);
+            const comments = Number(metrics.comments ?? 0);
+            const likes = Number(metrics.likes ?? 0);
+            const interactions = Number(metrics.totalInteractions ?? 0);
+
+            const normalizedSaveRate = Math.max(0, Math.min(saveRate, 0.2)) / 0.2;
+            const normalizedShareRate = Math.max(0, Math.min(shareRate, 0.12)) / 0.12;
+            const normalizedCommentLike = Math.max(0, Math.min(comments / Math.max(likes, 1), 0.2)) / 0.2;
+            const normalizedInteractions = Math.max(0, Math.min(interactions, 10000)) / 10000;
+            const performanceScore =
+                normalizedSaveRate * 0.45 +
+                normalizedShareRate * 0.35 +
+                normalizedCommentLike * 0.1 +
+                normalizedInteractions * 0.1;
+
+            let personalizationScore = 0;
+            if (inspiration?.proposal && topProposal.has(String(inspiration.proposal))) personalizationScore += 0.45;
+            if (inspiration?.context && topContext.has(String(inspiration.context))) personalizationScore += 0.35;
+            if (inspiration?.format && topFormat.has(String(inspiration.format))) personalizationScore += 0.15;
+            if (inspiration?.tone && topTone.has(String(inspiration.tone))) personalizationScore += 0.05;
+
+            if (personalizationScore >= 0.4) {
+                reasonPieces.push('alinhado com o que mais performa no seu perfil');
+            }
+            if (performanceScore >= 0.55) {
+                reasonPieces.push('desempenho forte na comunidade (salvamentos/compartilhamentos)');
+            }
+
+            const finalScore =
+                Number(row.matchScore || 0) +
+                narrativeScore * 4 +
+                performanceScore * 3 +
+                personalizationScore * 3;
+            return {
+                inspiration,
+                matchType: row.matchType as string,
+                score: finalScore,
+                narrativeScore,
+                performanceScore,
+                personalizationScore,
+                matchReasons: reasonPieces,
+            };
+        });
+
+        const ranked = enriched
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit);
+
+        logger.info(`${TAG} Encontradas ${ranked.length} inspirações ponderadas após rerank semântico.`);
+        return ranked;
 
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar inspirações ponderadas:`, error);

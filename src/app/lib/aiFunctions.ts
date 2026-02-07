@@ -124,16 +124,20 @@ export const functionSchemas = [
           type: 'string',
           description: `Opcional. Referência ou elemento utilizado. Valores válidos: ${VALID_REFERENCES.join(', ')}.`
         },
+        narrativeQuery: {
+          type: 'string',
+          description: 'Opcional. Frase curta com o resumo da narrativa desejada para priorizar inspirações semanticamente parecidas.'
+        },
         primaryObjectiveAchieved_Qualitative: {
           type: 'string',
           description: `Opcional. O objetivo qualitativo principal que a inspiração deve ter demonstrado. Valores válidos: ${VALID_QUALITATIVE_OBJECTIVES.join(', ')}.`
         },
         count: {
           type: 'number',
-          default: 2,
+          default: 3,
           minimum: 1,
           maximum: 3,
-          description: "Número de exemplos a retornar (padrão 2, mínimo 1, máximo 3)."
+          description: "Número de exemplos a retornar (padrão 3, mínimo 1, máximo 3). Para roteirista, priorize 3."
         }
       },
       required: ['proposal', 'context']
@@ -540,12 +544,40 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       };
     }
 
+    const userId = loggedUser._id.toString();
+    const endDate = new Date();
+    const startDate = subDays(endDate, 180);
+    const [proposalRanking, contextRanking, formatRanking, toneRanking] = await Promise.allSettled([
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'proposal', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'context', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'format', metric: 'shares', limit: 3 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'tone', metric: 'shares', limit: 3 }),
+    ]);
+    const asList = (settled: PromiseSettledResult<any>) =>
+      settled.status === 'fulfilled'
+        ? settled.value.map((row: any) => String(row?.category || '').trim()).filter(Boolean)
+        : [];
+    const userTopCategories: NonNullable<CommunityInspirationFilters['userTopCategories']> = {
+      proposal: asList(proposalRanking) as any,
+      context: asList(contextRanking) as any,
+      format: asList(formatRanking) as any,
+      tone: asList(toneRanking) as any,
+    };
+    const hasPersonalSignals = Boolean(
+      (userTopCategories.proposal?.length || 0) ||
+      (userTopCategories.context?.length || 0) ||
+      (userTopCategories.format?.length || 0) ||
+      (userTopCategories.tone?.length || 0)
+    );
+
     const initialFilters: CommunityInspirationFilters = {
       proposal: args.proposal,
       context: args.context,
       format: args.format,
       tone: args.tone,
       reference: args.reference,
+      narrativeQuery: args.narrativeQuery,
+      userTopCategories: hasPersonalSignals ? userTopCategories : undefined,
       primaryObjectiveAchieved_Qualitative: args.primaryObjectiveAchieved_Qualitative,
     };
 
@@ -596,7 +628,13 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       logger.warn(`${fnTag} Falha ao registrar inspirações mostradas para User ${loggedUser._id}:`, recordError);
     }
 
-    const formattedInspirations = inspirations.map(insp => ({
+    const weightedById = new Map(
+      weightedResults.map((item) => [item.inspiration._id.toString(), item])
+    );
+
+    const formattedInspirations = inspirations.map(insp => {
+      const weight = weightedById.get(insp._id.toString());
+      return {
       id: insp._id.toString(),
       originalInstagramPostUrl: insp.originalInstagramPostUrl,
       proposal: insp.proposal,
@@ -607,7 +645,12 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       contentSummary: insp.contentSummary,
       performanceHighlights_Qualitative: insp.performanceHighlights_Qualitative,
       primaryObjectiveAchieved_Qualitative: insp.primaryObjectiveAchieved_Qualitative,
-    }));
+      narrativeScore: typeof weight?.narrativeScore === 'number' ? weight.narrativeScore : undefined,
+      performanceScore: typeof weight?.performanceScore === 'number' ? weight.performanceScore : undefined,
+      personalizationScore: typeof weight?.personalizationScore === 'number' ? weight.personalizationScore : undefined,
+      matchReasons: Array.isArray(weight?.matchReasons) ? weight.matchReasons : undefined,
+    };
+    });
 
     let fallbackMessage = "";
     if (matchType !== 'exact') {
@@ -623,7 +666,11 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       inspirations: formattedInspirations,
       matchType,
       fallbackMessage, // Mensagem sugerida para a IA usar se quiser explicar o fallback
-      usedFilters: initialFilters
+      usedFilters: initialFilters,
+      rankingSignals: {
+        personalizedByUserPerformance: hasPersonalSignals,
+        userTopCategories: hasPersonalSignals ? userTopCategories : undefined,
+      },
     };
   } catch (err: any) {
     logger.error(`${fnTag} Erro ao buscar inspirações da comunidade para User ${loggedUser._id}:`, err);
