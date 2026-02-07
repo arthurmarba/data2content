@@ -107,5 +107,19 @@ export interface EnrichedAIContext {
       postDate?: string | null;
     }>;
     communityOptIn?: boolean;
+    plannerSignals?: {
+      dayOfWeek?: number;
+      blockStartHour?: number;
+      format?: string;
+      categories?: {
+        context?: string[];
+        proposal?: string[];
+        reference?: string[];
+        tone?: string;
+      };
+      keyword?: string;
+      themes?: string[];
+      winningCaptions?: string[];
+    };
   } | null;
 }

@@ -14,6 +14,9 @@ const mockCreateThread = jest.fn();
 const mockPersistMessage = jest.fn();
 const mockGenerateThreadTitle = jest.fn();
 const mockRunPubliCalculator = jest.fn();
+const mockRecommendWeeklySlots = jest.fn();
+const mockGetThemesForSlot = jest.fn();
+const mockGetBlockSampleCaptions = jest.fn();
 import { determineIntent } from '@/app/lib/intentService';
 import { callOpenAIForQuestion, generateConversationSummary } from '@/app/lib/aiService';
 
@@ -47,6 +50,15 @@ jest.mock('@/utils/rateLimit', () => ({
 jest.mock('@/app/lib/chatTelemetry', () => ({
   ensureChatSession: jest.fn().mockResolvedValue({ _id: 'session1' }),
   logChatMessage: jest.fn().mockResolvedValue(null),
+}));
+jest.mock('@/app/lib/planner/recommender', () => ({
+  recommendWeeklySlots: (...args: any[]) => mockRecommendWeeklySlots(...args),
+}));
+jest.mock('@/app/lib/planner/themes', () => ({
+  getThemesForSlot: (...args: any[]) => mockGetThemesForSlot(...args),
+}));
+jest.mock('@/utils/getBlockSampleCaptions', () => ({
+  getBlockSampleCaptions: (...args: any[]) => mockGetBlockSampleCaptions(...args),
 }));
 
 let chat: typeof import('./route').POST;
@@ -119,6 +131,9 @@ beforeEach(() => {
   mockGenSummary.mockResolvedValue('Resumo');
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'general' });
   mockAskLLM.mockResolvedValue({ stream: streamFromText('Resposta padrão') });
+  mockRecommendWeeklySlots.mockResolvedValue([]);
+  mockGetThemesForSlot.mockResolvedValue({ keyword: 'tema', themes: [] });
+  mockGetBlockSampleCaptions.mockResolvedValue([]);
   mockRunPubliCalculator.mockResolvedValue({
     metrics: { reach: 1000, engagement: 0.05, profileSegment: 'default' },
     params: {
@@ -329,4 +344,60 @@ it('pede clarificação no modo roteirista quando o pedido é genérico demais',
   expect(json.answer).toMatch(/público|publico/i);
   expect(json.answer).toMatch(/objetivo principal/i);
   expect(json.answer).toContain('[BUTTON: Quero preencher tema, público e objetivo]');
+});
+
+it('usa pauta do calendário/histórico quando pedido de roteiro é genérico', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockRecommendWeeklySlots.mockResolvedValue([
+    {
+      dayOfWeek: 2,
+      blockStartHour: 18,
+      format: 'reel',
+      categories: {
+        context: ['finance'],
+        proposal: ['tutorial'],
+        reference: ['daily_life'],
+        tone: 'educational',
+      },
+    },
+  ]);
+  mockGetThemesForSlot.mockResolvedValue({
+    keyword: 'orçamento',
+    themes: [
+      '3 erros de orçamento doméstico que te fazem perder dinheiro',
+      'como organizar orçamento sem planilha complicada',
+      'o ajuste simples para sobrar dinheiro no fim do mês',
+    ],
+  });
+  mockGetBlockSampleCaptions.mockResolvedValue([
+    'Erro comum: gastar sem categorias e perder controle do orçamento.',
+    'Passo a passo simples para fechar o mês no azul.',
+    'Ajuste prático que aumenta sua sobra semanal.',
+  ]);
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** Crie um roteiro de conteúdo para que eu possa postar amanhã',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Close no rosto e texto: que eu possa postar amanhã | Se você quer resultado em que eu possa postar amanhã, faça isso |',
+      '| 03-20s | Mostre o erro comum em que eu possa postar amanhã | Esse erro derruba retenção |',
+      '| 20-30s | Final com CTA | Salve e compartilhe |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Legenda base',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([]),
+  });
+
+  const res = await chat(makeRequest({ query: 'crie um roteiro de conteúdo para que eu possa postar amanhã' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.answer).toContain('[ROTEIRO]');
+  expect(json.answer).not.toMatch(/preciso de contexto/i);
+  expect(json.answer).toMatch(/orçamento doméstico|orcamento domestico/i);
 });

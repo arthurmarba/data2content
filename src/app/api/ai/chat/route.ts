@@ -34,6 +34,9 @@ import { validateAnswerWithContext } from "@/app/lib/ai/answerEngine/validator";
 import { coerceToAnswerIntent } from "@/app/lib/ai/answerEngine/policies";
 import { stripUnprovenCommunityClaims } from "@/app/lib/text/sanitizeCommunityClaims";
 import { fetchTopCategories } from "@/app/lib/dataService";
+import { recommendWeeklySlots } from "@/app/lib/planner/recommender";
+import { getThemesForSlot } from "@/app/lib/planner/themes";
+import { getBlockSampleCaptions } from "@/utils/getBlockSampleCaptions";
 import {
   buildChatPricingClarification,
   buildChatPricingInsufficientData,
@@ -51,8 +54,10 @@ const HISTORY_LIMIT_SAFE = HISTORY_LIMIT || 10;
 const SUMMARY_INTERVAL_SAFE = SUMMARY_GENERATION_INTERVAL || 6;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-const MAX_AI_EXCERPT = 1500;
+const MAX_AI_EXCERPT = 900;
 const MAX_QUERY_CHARS = 4000;
+const CONTEXT_EXTRACTION_MIN_LEN_FOR_AI = 220;
+const AI_INSTIGATING_QUESTION_ENABLED = process.env.CHAT_AI_INSTIGATING_QUESTION === 'true';
 const HARMFUL_PATTERNS = [/su[ií]c[ií]dio/i, /\bme matar\b/i, /\bmatar algu[eé]m\b/i, /aut[oô]mutila/i];
 const ANSWER_ENGINE_ENABLED = process.env.ANSWER_ENGINE_ENABLED !== 'false';
 
@@ -135,6 +140,8 @@ type ScriptInspirationHint = {
 
 type ScriptContractHints = {
   inspiration?: ScriptInspirationHint | null;
+  topic?: string | null;
+  plannerThemes?: string[];
 };
 
 const stripMarkdownMarkers = (value: string) =>
@@ -229,7 +236,8 @@ const GENERIC_TOPIC_TOKENS = new Set([
   'na', 'nas', 'no', 'nos', 'o', 'os', 'ou', 'para', 'pra', 'por', 'que', 'se', 'sua', 'seu', 'um', 'uma',
   'conteudo', 'post', 'postar', 'posts', 'publicar', 'reels', 'reel', 'roteiro', 'script', 'video', 'videos',
   'instagram', 'tiktok', 'segundo', 'segundos', 's', 'ia', 'mobi', 'tema', 'nicho', 'crie', 'criar', 'gere', 'gerar', 'faca',
-  'fazer', 'possa', 'quero', 'preciso', 'hoje', 'agora',
+  'fazer', 'possa', 'quero', 'preciso', 'hoje', 'agora', 'amanha', 'amanhã', 'depois', 'semana', 'mes', 'mês',
+  'proximo', 'próximo', 'proxima', 'próxima',
 ]);
 
 const isPlaceholderLike = (value?: string | null) => {
@@ -290,6 +298,29 @@ const resolveScriptTitle = (candidateTitle: string | null, topic: string, userQu
   if (looksLikePromptEcho(cleaned, userQuery)) return fallbackTitle;
   if (!hasMeaningfulTopic(cleaned)) return fallbackTitle;
   return cleaned;
+};
+
+const humanizeCategoryToken = (value?: string | null) =>
+  (value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const normalizeTopicCandidate = (value?: string | null) =>
+  stripMarkdownMarkers(value || '')
+    .replace(/[|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[?.!,:;]+$/g, '')
+    .trim();
+
+const pickBestTopicCandidate = (candidates: Array<string | null | undefined>) => {
+  for (const raw of candidates) {
+    const candidate = normalizeTopicCandidate(raw);
+    if (!candidate) continue;
+    if (!hasMeaningfulTopic(candidate)) continue;
+    return candidate;
+  }
+  return '';
 };
 
 const cleanScriptCell = (value: string) => stripMarkdownMarkers(value || '').replace(/\s+/g, ' ').trim();
@@ -481,7 +512,8 @@ const buildFallbackScriptResponse = (query: string) => {
 
 export function enforceScriptContract(response: string, userQuery: string, hints?: ScriptContractHints): ScriptContractResult {
   const issues: string[] = [];
-  const topic = summarizeRequestTopic(userQuery) || 'um tema do seu nicho';
+  const hintedTopic = pickBestTopicCandidate([hints?.topic, ...(hints?.plannerThemes || [])]);
+  const topic = hintedTopic || summarizeRequestTopic(userQuery) || 'um tema do seu nicho';
   let roteiroBody = extractTaggedBlock(response, 'ROTEIRO');
   let legendaBody = extractTaggedBlock(response, 'LEGENDA');
   let repaired = false;
@@ -543,7 +575,16 @@ export function enforceScriptContract(response: string, userQuery: string, hints
   }
 
   const ensured = ensureRowsQuality(tableRows.length ? tableRows : looseRows, topic);
-  const rows = ensured.rows;
+  let rows = ensured.rows;
+
+  const genericPromptEchoRows = rows.filter((row) =>
+    looksLikePromptEcho(`${row.visual} ${row.audio}`, userQuery)
+  );
+  if (rows.length >= 3 && genericPromptEchoRows.length >= Math.ceil(rows.length / 2) && hasMeaningfulTopic(topic)) {
+    rows = buildDefaultRows(topic);
+    issues.push('generic_prompt_echo_rows');
+    repaired = true;
+  }
 
   if (rows.length < 3) {
     issues.push('insufficient_scenes');
@@ -728,6 +769,9 @@ async function buildScriptContext(params: {
   const { user, query, intent, answerEngineResult, dialogueState, narrativePreferenceOverride } = params;
   const userId = user?._id?.toString?.();
   const objectiveHint = inferScriptObjective(query);
+  const queryTopic = summarizeRequestTopic(query);
+  const queryLooksLikeTimingOnlyRequest = /\b(amanh[ãa]|hoje|essa semana|este m[eê]s|pr[oó]ximo post|o que postar)\b/i
+    .test((query || '').toLowerCase());
   const isHumor = intent === 'humor_script_request' || /humor|com[eé]dia|engraç|piada|cena c[oô]mica/.test((query || '').toLowerCase());
   const toneHint = isHumor ? 'humorous' : null;
   const communityOptIn = Boolean((user as any)?.communityInspirationOptIn);
@@ -760,6 +804,7 @@ async function buildScriptContext(params: {
     : [];
 
   let topCategories: any = undefined;
+  let plannerSignals: any = undefined;
   if (userId) {
     const now = new Date();
     const startDate = new Date(now.getTime() - (180 * ONE_DAY_MS));
@@ -785,6 +830,49 @@ async function buildScriptContext(params: {
       format: formats.length ? Array.from(new Set(formats)) : undefined,
       tone: tones.length ? Array.from(new Set(tones)) : undefined,
     };
+
+    const shouldHydratePlannerSignals = !hasMeaningfulTopic(queryTopic) || queryLooksLikeTimingOnlyRequest;
+    if (shouldHydratePlannerSignals) {
+      try {
+        const slots = await recommendWeeklySlots({
+          userId,
+          targetSlotsPerWeek: 3,
+          periodDays: 90,
+        });
+        const bestSlot = Array.isArray(slots) ? slots[0] : null;
+        if (bestSlot?.categories && bestSlot.dayOfWeek && bestSlot.blockStartHour) {
+          const [themesResult, winningCaptions] = await Promise.all([
+            getThemesForSlot(userId, 90, bestSlot.dayOfWeek, bestSlot.blockStartHour, bestSlot.categories),
+            getBlockSampleCaptions(
+              userId,
+              90,
+              bestSlot.dayOfWeek,
+              bestSlot.blockStartHour,
+              {
+                contextId: bestSlot.categories.context?.[0],
+                proposalId: bestSlot.categories.proposal?.[0],
+                referenceId: bestSlot.categories.reference?.[0],
+              },
+              3
+            ),
+          ]);
+          plannerSignals = {
+            dayOfWeek: bestSlot.dayOfWeek,
+            blockStartHour: bestSlot.blockStartHour,
+            format: bestSlot.format,
+            categories: bestSlot.categories,
+            keyword: themesResult?.keyword || undefined,
+            themes: Array.isArray(themesResult?.themes) ? themesResult.themes.slice(0, 5) : [],
+            winningCaptions: Array.isArray(winningCaptions) ? winningCaptions.slice(0, 3) : [],
+          };
+        }
+      } catch (error) {
+        logger.warn('[ai/chat] failed to hydrate planner signals for script context', {
+          actor: userId,
+          error: (error as Error)?.message || 'unknown',
+        });
+      }
+    }
   }
 
   return {
@@ -794,6 +882,7 @@ async function buildScriptContext(params: {
     topCategories,
     topPosts,
     communityOptIn,
+    plannerSignals,
   };
 }
 
@@ -1086,6 +1175,50 @@ function summarizeRequestTopic(value?: string | null) {
   return '';
 }
 
+const extractHeadingTopic = (text: string): string => {
+  const lines = text
+    .split('\n')
+    .map((line) => stripMarkdownMarkers(line).trim())
+    .filter(Boolean)
+    .slice(0, 20);
+
+  for (const line of lines) {
+    if (/^\[\/?[A-Z_]+\]$/i.test(line)) continue;
+    if (/^\|/.test(line)) continue;
+    if (/^v\d+\s*:/i.test(line)) continue;
+    const compact = line.replace(/^#{1,6}\s*/, '').trim();
+    if (!compact) continue;
+    if (/^(formato|dura[çc][aã]o|tempo|visual|fala|legenda|roteiro)\b/i.test(compact)) continue;
+    if (hasMeaningfulTopic(compact)) return compact;
+  }
+  return '';
+};
+
+const extractContextTopicHeuristically = (aiResponseText: string, fallbackTopic?: string | null) => {
+  const titleMatch = aiResponseText.match(/\*\*T[íi]tulo\s+Sugerido:\*\*\s*([^\n]+)/i);
+  const title = normalizeTopicCandidate(titleMatch?.[1] || '');
+  if (hasMeaningfulTopic(title)) return title;
+
+  const topicFromText = summarizeRequestTopic(aiResponseText);
+  if (hasMeaningfulTopic(topicFromText)) return topicFromText;
+
+  const headingTopic = extractHeadingTopic(aiResponseText);
+  if (hasMeaningfulTopic(headingTopic)) return headingTopic;
+
+  const fallback = normalizeTopicCandidate(fallbackTopic || '');
+  if (hasMeaningfulTopic(fallback)) return fallback;
+  return '';
+};
+
+const deriveEntitiesFromTopic = (topic?: string | null) => {
+  if (!topic) return [];
+  const entities = normalizeTopicText(topic)
+    .split(' ')
+    .map((token) => token.trim())
+    .filter((token) => token.length > 3 && !GENERIC_TOPIC_TOKENS.has(token));
+  return Array.from(new Set(entities)).slice(0, 4);
+};
+
 const SCRIPT_REFINEMENT_HINT = /\b(curti|gostei|mantenha|mantem|continue|continua|refine|refinar|encurta|encurtar|adapte|adaptar|mude|mudar|troque|trocar|outra linha|vers[aã]o)\b/i;
 const SCRIPT_CREATION_HINT = /\b(crie|criar|gere|gerar|monte|montar|fa[cç]a|fazer|escreva|elabore|roteiro|script|o que postar)\b/i;
 
@@ -1110,6 +1243,30 @@ const buildScriptClarificationMessage = () =>
     '[BUTTON: Usar meu nicho atual e gerar uma primeira versão]',
     '[BUTTON: Me mostre exemplos de prompts prontos]',
   ].join('\n');
+
+const extractTopicFromScriptContext = (scriptContext?: EnrichedAIContext['scriptContext'] | null) => {
+  if (!scriptContext) return '';
+
+  const plannerTheme = pickBestTopicCandidate(scriptContext.plannerSignals?.themes || []);
+  if (plannerTheme) return plannerTheme;
+
+  const plannerKeyword = pickBestTopicCandidate([scriptContext.plannerSignals?.keyword]);
+  if (plannerKeyword) return plannerKeyword;
+
+  const proposal = humanizeCategoryToken(scriptContext.topCategories?.proposal?.[0]);
+  const context = humanizeCategoryToken(scriptContext.topCategories?.context?.[0]);
+  const categoryTopic = pickBestTopicCandidate([
+    proposal && context ? `${proposal} para ${context}` : '',
+    context,
+    proposal,
+  ]);
+  if (categoryTopic) return categoryTopic;
+
+  const topCaptionTopic = pickBestTopicCandidate(
+    (scriptContext.topPosts || []).map((post) => summarizeRequestTopic(post.captionSnippet || ''))
+  );
+  return topCaptionTopic || '';
+};
 
 function buildSurveyContextNote(profile: any, userRequest?: string) {
   if (!profile) return null;
@@ -1170,9 +1327,19 @@ function decidePromptVariant(profile: any, options: { isAdminTest: boolean; requ
 async function extractContextFromAIResponse(aiResponseText: string, userId: string) {
   const trimmed = (aiResponseText || '').trim();
   const wasQuestion = trimmed.endsWith('?');
+  const heuristicTopic = extractContextTopicHeuristically(trimmed);
+  const heuristicEntities = deriveEntitiesFromTopic(heuristicTopic);
 
   if (!trimmed || trimmed.length < 10) {
-    return { timestamp: Date.now(), wasQuestion };
+    return { topic: heuristicTopic || undefined, entities: heuristicEntities, timestamp: Date.now(), wasQuestion };
+  }
+
+  if (trimmed.length < CONTEXT_EXTRACTION_MIN_LEN_FOR_AI) {
+    return { topic: heuristicTopic || undefined, entities: heuristicEntities, timestamp: Date.now(), wasQuestion };
+  }
+
+  if (heuristicTopic && heuristicEntities.length >= 2) {
+    return { topic: heuristicTopic, entities: heuristicEntities, timestamp: Date.now(), wasQuestion };
   }
 
   const prompt = `
@@ -1188,19 +1355,23 @@ ${trimmed.substring(0, MAX_AI_EXCERPT)}${trimmed.length > MAX_AI_EXCERPT ? "\n[.
 JSON:`;
 
   try {
-    const extraction = await callOpenAIForQuestion(prompt, { max_tokens: 120, temperature: 0.2 });
+    const extraction = await callOpenAIForQuestion(prompt, { max_tokens: 64, temperature: 0.1 });
     const jsonMatch = extraction?.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch?.[0] ? JSON.parse(jsonMatch[0]) : null;
-    const topic = parsed && typeof parsed.topic === 'string' && parsed.topic.trim() ? parsed.topic.trim() : undefined;
-    const entities = parsed && Array.isArray(parsed.entities) ? parsed.entities.map((e: any) => String(e).trim()).filter(Boolean) : [];
+    const extractedTopic = parsed && typeof parsed.topic === 'string' && parsed.topic.trim() ? parsed.topic.trim() : '';
+    const topic = hasMeaningfulTopic(extractedTopic) ? extractedTopic : heuristicTopic || undefined;
+    const entities = parsed && Array.isArray(parsed.entities)
+      ? parsed.entities.map((e: any) => String(e).trim()).filter(Boolean).slice(0, 4)
+      : heuristicEntities;
     return { topic, entities, timestamp: Date.now(), wasQuestion };
   } catch (error) {
     logger.error(`[ai/chat] extractContextFromAIResponse failed for user ${userId}:`, error);
-    return { timestamp: Date.now(), wasQuestion };
+    return { topic: heuristicTopic || undefined, entities: heuristicEntities, timestamp: Date.now(), wasQuestion };
   }
 }
 
 async function generateInstigatingQuestion(aiResponseText: string, dialogueState: any, userId: string) {
+  if (!AI_INSTIGATING_QUESTION_ENABLED) return null;
   const trimmed = (aiResponseText || '').trim();
   if (!trimmed || trimmed.length < 15) return null;
   const lastSegment = trimmed.includes('\n\n') ? trimmed.slice(trimmed.lastIndexOf('\n\n') + 2) : trimmed;
@@ -1746,6 +1917,9 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     const hasAnswerEvidence = Boolean(answerEngineResult?.topPosts?.length || answerEngineResult?.contextPack?.top_posts?.length);
     sanitizedResponse = stripUnprovenCommunityClaims(sanitizedResponse, hasAnswerEvidence);
     const isScriptMode = SCRIPT_INTENTS.has(effectiveIntent);
+    const scriptContextTopicHint = isScriptMode
+      ? pickBestTopicCandidate([summarizeRequestTopic(truncatedQuery), extractTopicFromScriptContext(scriptContext)])
+      : '';
     let communityInspirations: Array<{
       id: string;
       title?: string;
@@ -2000,8 +2174,12 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
     }
     sanitizedResponse = sanitizeInstagramLinks(sanitizedResponse, allowedLinks);
     if (isScriptMode) {
-      const scriptTopic = summarizeRequestTopic(truncatedQuery);
-      if (shouldAskScriptClarification(truncatedQuery, scriptTopic)) {
+      const scriptTopicFromQuery = summarizeRequestTopic(truncatedQuery);
+      const scriptTopicFromContext = extractTopicFromScriptContext(scriptContext);
+      const resolvedScriptTopic = pickBestTopicCandidate([scriptTopicFromQuery, scriptTopicFromContext]);
+      const shouldClarify = shouldAskScriptClarification(truncatedQuery, scriptTopicFromQuery) && !hasMeaningfulTopic(scriptTopicFromContext);
+
+      if (shouldClarify) {
         sanitizedResponse = buildScriptClarificationMessage();
         logger.info('[ai/chat] script_clarification_required', {
           actor: actorId,
@@ -2009,13 +2187,22 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           query: summarizeRequestTopic(truncatedQuery),
         });
       } else {
+        if (!hasMeaningfulTopic(scriptTopicFromQuery) && hasMeaningfulTopic(scriptTopicFromContext)) {
+          logger.info('[ai/chat] script_topic_autofilled_from_history', {
+            actor: actorId,
+            target: access.targetUserId,
+            topic: scriptTopicFromContext,
+          });
+        }
         const scriptInspirationHint = buildScriptInspirationHint(
           communityInspirations,
           communityMeta,
-          scriptTopic || 'seu tema'
+          resolvedScriptTopic || 'seu tema'
         );
         const scriptContract = enforceScriptContract(sanitizedResponse, truncatedQuery, {
           inspiration: scriptInspirationHint,
+          topic: resolvedScriptTopic,
+          plannerThemes: scriptContext?.plannerSignals?.themes || [],
         });
         sanitizedResponse = scriptContract.normalized;
         if (scriptContract.repaired) {
@@ -2095,7 +2282,19 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         contextSourcesUsed: (sessionDoc as any)?.contextSourcesUsed || null,
       });
 
-      const extractedContext = await extractContextFromAIResponse(sanitizedResponse, access.targetUserId);
+      const extractedContext = isScriptMode
+        ? {
+            topic:
+              scriptContextTopicHint ||
+              extractContextTopicHeuristically(sanitizedResponse) ||
+              undefined,
+            entities: deriveEntitiesFromTopic(
+              scriptContextTopicHint || extractContextTopicHeuristically(sanitizedResponse)
+            ),
+            timestamp: Date.now(),
+            wasQuestion: sanitizedResponse.trim().endsWith('?'),
+          }
+        : await extractContextFromAIResponse(sanitizedResponse, access.targetUserId);
       const counter = (dialogueState?.summaryTurnCounter ?? 0) + 1;
       const previousTopic = dialogueState?.lastResponseContext?.topic;
       const currentTopic = extractedContext?.topic;

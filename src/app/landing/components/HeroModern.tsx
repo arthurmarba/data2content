@@ -172,9 +172,9 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
   return (
     <section
       id="inicio"
-      className="landing-section relative min-h-[90vh] overflow-hidden bg-white pt-8 md:pt-0"
+      className="landing-section relative min-h-[82vh] overflow-hidden bg-white pt-4 sm:min-h-[88vh] sm:pt-6 md:min-h-[90vh] md:pt-0"
       style={{
-        paddingTop: `calc(var(--space-fluid-4, 5rem) + var(--sat, 0px) + var(--landing-header-h, 4.5rem) + 1rem)`,
+        paddingTop: `calc(var(--space-fluid-4, 5rem) + var(--sat, 0px) + var(--landing-header-h, 4.5rem) + 0.5rem)`,
       }}
     >
       {/* Premium Mesh Background */}
@@ -186,46 +186,46 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
       <motion.div style={{ y: y1, opacity }} className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-brand-primary/5 rounded-full blur-[140px]" />
       <motion.div style={{ y: y2, opacity }} className="absolute top-40 -right-20 w-[500px] h-[500px] bg-brand-accent/5 rounded-full blur-[120px]" />
 
-      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-16 md:gap-24">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-10 text-center">
+      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-10 sm:gap-14 md:gap-24">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:gap-8 md:gap-10">
 
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 group flex items-center gap-2 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-5 py-2.5 transition-all hover:bg-brand-primary/15"
+            className="relative z-10 group flex items-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-1.5 transition-all hover:bg-brand-primary/15 sm:gap-2 sm:px-5 sm:py-2.5"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
             </span>
-            <span className="text-xs font-black uppercase tracking-[0.25em] text-brand-primary">
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-brand-primary sm:text-xs sm:tracking-[0.25em]">
               IA Viva na Creator Economy
             </span>
           </motion.div>
 
-          <div className="flex flex-col items-center gap-4 md:gap-10 px-6 md:px-4">
-            <h1 className="max-w-[15ch] text-[3.5rem] md:text-[5.5rem] lg:text-[6.5rem] font-black leading-[1.1] md:leading-[0.9] tracking-tighter text-brand-dark text-balance pb-6">
+          <div className="flex flex-col items-center gap-3 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
+            <h1 className="max-w-[13ch] text-[2.35rem] font-black leading-[1.03] tracking-[-0.03em] text-brand-dark text-balance sm:max-w-[14ch] sm:text-[3rem] sm:leading-[1.02] md:max-w-[15ch] md:text-[5.5rem] md:leading-[0.9] lg:text-[6.5rem]">
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
                 Consultoria
               </span>
-              <span className="block mt-3 md:mt-4 bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
+              <span className="mt-2 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] sm:mt-3 md:mt-4 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
                 para criadores de conteúdo via IA.
               </span>
             </h1>
 
-            <p className="max-w-3xl px-2 md:px-0 text-base md:text-2xl font-medium text-slate-600 leading-[1.4] text-balance">
+            <p className="max-w-[34ch] px-1 text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-3xl md:px-0 md:text-2xl md:leading-[1.4]">
               Mais que uma plataforma de IA: uma agência consultiva que revisa pessoalmente seu conteúdo toda semana, garantindo o posicionamento ideal para atrair marcas e gerar vendas.
             </p>
           </div>
 
-          <div className="mt-3 md:mt-2 flex w-full flex-row items-center gap-3 px-6 md:px-0 sm:justify-center">
+          <div className="mt-2 flex w-full flex-row items-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0">
             <ButtonPrimary
               onClick={onCreatorCta}
               size="lg"
               variant="brand"
-              className="group relative w-[46%] sm:w-auto sm:min-w-[260px] overflow-hidden rounded-2xl px-6 py-4 text-base sm:px-8 sm:py-5 sm:text-lg shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98]"
+              className="group relative w-[48%] overflow-hidden rounded-2xl px-4 py-3.5 text-[0.95rem] shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98] sm:w-auto sm:min-w-[260px] sm:px-8 sm:py-5 sm:text-lg"
             >
-              <span className="relative z-10 flex items-center justify-center gap-2 font-black text-base sm:text-lg whitespace-nowrap">
+              <span className="relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.95rem] font-black sm:gap-2 sm:text-lg">
                 Sou Criador <span className="transition-transform group-hover:translate-x-1">→</span>
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
@@ -233,7 +233,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
 
             <button
               onClick={onBrandCta}
-              className="w-[46%] sm:w-auto sm:min-w-[200px] rounded-2xl border-2 border-slate-200 bg-white/50 px-6 py-4 text-base sm:px-8 sm:py-5 sm:text-lg font-black text-brand-dark shadow-lg shadow-slate-200/50 backdrop-blur-sm transition-all hover:border-brand-dark hover:bg-white hover:shadow-xl hover:shadow-slate-300/50"
+              className="w-[48%] rounded-2xl border-2 border-slate-200 bg-white/50 px-4 py-3.5 text-[0.95rem] font-black text-brand-dark shadow-lg shadow-slate-200/50 backdrop-blur-sm transition-all hover:border-brand-dark hover:bg-white hover:shadow-xl hover:shadow-slate-300/50 sm:w-auto sm:min-w-[200px] sm:px-8 sm:py-5 sm:text-lg"
             >
               Sou Marca
             </button>
@@ -244,29 +244,29 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="relative mt-16 md:mt-8 group w-full max-w-3xl overflow-hidden rounded-[3rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl"
+            className="relative mt-8 w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-12 sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]"
           >
             <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/40 to-transparent" />
-            <div className="relative bg-white/40 p-6 md:p-10 transition-all group-hover:bg-white/50">
-              <div className="mb-6 inline-flex rounded-2xl bg-[#141C2F] px-4 py-2 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-white">
+            <div className="relative bg-white/40 p-4 transition-all group-hover:bg-white/50 sm:p-6 md:p-10">
+              <div className="mb-3 inline-flex rounded-2xl bg-[#141C2F] px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-white sm:mb-6 sm:px-4 sm:py-2 sm:text-[9px] md:text-[10px] md:tracking-[0.3em]">
                 Networking & Curadoria
               </div>
-              <h3 className="text-xl md:text-3xl font-black text-brand-dark tracking-tight">
+              <h3 className="text-[1.25rem] font-black tracking-tight text-brand-dark sm:text-[1.45rem] md:text-3xl">
                 Seu portal direto para o mercado.
               </h3>
-              <p className="mt-6 text-base font-bold text-slate-500/80 leading-relaxed md:text-lg">
+              <p className="mt-3 text-sm font-bold leading-[1.55] text-slate-500/80 sm:mt-4 sm:text-[0.98rem] md:mt-6 md:text-lg md:leading-relaxed">
                 Crie seu mídia kit auditado para fechar publis melhores. Se bater insegurança na hora de <span className="text-brand-dark">precificar</span> ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA.
               </p>
 
-              <div className="mt-8 md:mt-12 grid grid-cols-3 gap-4 border-t border-brand-dark/5 pt-8 md:flex md:flex-wrap md:justify-center md:gap-10 md:pt-12">
+              <div className="mt-5 grid grid-cols-3 gap-3 border-t border-brand-dark/5 pt-5 sm:mt-8 sm:gap-4 sm:pt-8 md:mt-12 md:flex md:flex-wrap md:justify-center md:gap-10 md:pt-12">
                 {[
                   { label: "Mídia Kit Vivo", icon: "💎" },
                   { label: "Suporte 1:1", icon: "🤝" },
                   { label: "Jobs Auditados", icon: "🛡️" }
                 ].map(item => (
-                  <div key={item.label} className="flex flex-col md:flex-row items-center gap-2 md:gap-3 group/item">
-                    <span className="text-xl md:text-2xl transition-transform group-hover/item:scale-125 duration-300">{item.icon}</span>
-                    <span className="text-[10px] md:text-xs font-black text-brand-dark uppercase tracking-[0.15em] md:tracking-[0.2em] text-center md:text-left">{item.label}</span>
+                  <div key={item.label} className="group/item flex flex-col items-center gap-1.5 md:flex-row md:gap-3">
+                    <span className="text-lg transition-transform duration-300 group-hover/item:scale-125 sm:text-xl md:text-2xl">{item.icon}</span>
+                    <span className="text-center text-[9px] font-black uppercase tracking-[0.12em] text-brand-dark sm:text-[10px] sm:tracking-[0.15em] md:text-left md:text-xs md:tracking-[0.2em]">{item.label}</span>
                   </div>
                 ))}
               </div>

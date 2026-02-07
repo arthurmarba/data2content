@@ -1650,6 +1650,7 @@ export async function askLLMWithEnrichedContext(
                 topCategories: scriptContext.topCategories || undefined,
                 topPosts: scriptContext.topPosts || undefined,
                 communityOptIn: scriptContext.communityOptIn ?? false,
+                plannerSignals: scriptContext.plannerSignals || undefined,
             };
             initialMsgs.push({
                 role: 'system',
@@ -1657,6 +1658,8 @@ export async function askLLMWithEnrichedContext(
                     'SCRIPT CONTEXT PACK (USO OBRIGATÓRIO): use estes sinais para orientar o roteiro, gancho e CTA. ' +
                     'As categorias abaixo são do histórico do criador (taxonomia interna). ' +
                     'Se for chamar `fetchCommunityInspirations`, traduza para a taxonomia da comunidade (Proposal/Context/Format/Tone do tool). ' +
+                    'Quando o pedido do usuário for genérico (ex.: "o que postar amanhã"), priorize `plannerSignals.themes` como pauta principal e reaproveite padrões narrativos de `plannerSignals.winningCaptions` e `topPosts.captionSnippet`. ' +
+                    'NUNCA repita literalmente frases genéricas do usuário como título ou roteiro. ' +
                     'Se narrativePreference=prefer_similar, mantenha estrutura próxima das últimas inspirações aprovadas. ' +
                     'Se narrativePreference=prefer_different, varie gancho e CTA em relação ao padrão anterior. ' +
                     'Se communityOptIn=false, NÃO chame `fetchCommunityInspirations`.\n' +
