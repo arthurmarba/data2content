@@ -6,10 +6,16 @@ import { track } from '@/lib/track';
 
 // --- Types ---
 
+const SCRIPT_UI_CAPTION_TABS_ENABLED = process.env.NEXT_PUBLIC_SCRIPT_UI_CAPTION_TABS !== 'false';
+const SCRIPT_LAYOUT_V2_ENABLED = process.env.NEXT_PUBLIC_SCRIPT_LAYOUT_V2 !== 'false';
+
+type ScriptLayoutVersion = 'v1' | 'v2';
+
 interface ScriptMetadata {
     title?: string;
     strategicTheme?: string;
     engagementBase?: string;
+    evidenceConfidence?: string;
     inspirationSource?: string;
     format?: string;
     duration?: string;
@@ -23,6 +29,8 @@ interface ScriptScene {
     visual: string;
     audio: string;
 }
+
+type SceneExpandedMap = Record<string, { visual: boolean; audio: boolean }>;
 
 interface InspirationData {
     source?: 'community' | 'user_top_posts' | 'none';
@@ -44,6 +52,7 @@ interface ScriptVariation {
     metadata: ScriptMetadata;
     scenes: ScriptScene[];
     caption?: string;
+    captionVariants?: Array<{ label: string; text: string }>;
     rawText: string;
 }
 
@@ -58,6 +67,15 @@ export interface ScriptBlockProps {
     theme: RenderTheme;
     onSendPrompt?: (prompt: string) => void | Promise<void>;
 }
+
+type SceneCardProps = {
+    scene: ScriptScene;
+    index: number;
+    totalScenes: number;
+    theme: RenderTheme;
+    isExpandedMap: SceneExpandedMap;
+    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio') => void;
+};
 
 // --- Parsing Logic ---
 
@@ -223,6 +241,11 @@ const parseVariationChunk = (label: string, lines: string[]): ScriptVariation =>
 
         if (/^base de engajamento\s*:/i.test(normalized)) {
             metadata.engagementBase = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^confian(?:ç|c)a da base\s*:/i.test(normalized)) {
+            metadata.evidenceConfidence = extractAfterColon(normalized);
             continue;
         }
 
@@ -393,10 +416,23 @@ const parseScriptContent = (content: string): ParsedScript => {
         || captionVariants.get('V2')
         || captionVariants.get('V3')
         || '';
+    const captionVariantsList = (['V1', 'V2', 'V3'] as const)
+        .map((label) => {
+            const text = captionVariants.get(label);
+            return text ? { label, text } : null;
+        })
+        .filter(Boolean) as Array<{ label: string; text: string }>;
     const variations = parsedVariations.map((variation, idx) => {
         const byLabel = captionVariants.get(variation.label.toUpperCase());
         const byIndex = captionVariants.get(`V${idx + 1}`);
         const mergedCaption = byLabel || byIndex || variation.caption || fallbackCaption || undefined;
+        const variationCaptionVariants = SCRIPT_UI_CAPTION_TABS_ENABLED
+            ? (
+                captionVariantsList.length
+                    ? captionVariantsList
+                    : (mergedCaption ? [{ label: 'V1', text: mergedCaption }] : [])
+            )
+            : [];
         return {
             ...variation,
             metadata: {
@@ -409,6 +445,7 @@ const parseScriptContent = (content: string): ParsedScript => {
                             : variation.metadata.inspirationSource),
             },
             caption: mergedCaption,
+            captionVariants: variationCaptionVariants,
         };
     });
 
@@ -433,16 +470,16 @@ const formatSceneTime = (value: string) => {
 };
 
 const SCRIPT_CONTEXT_REQUIRED_PATTERNS = [
-    /preciso de contexto/i,
+    /falta um detalhe/i,
     /tema espec[íi]fico/i,
-    /p[úu]blico/i,
-    /objetivo principal/i,
+    /use meu nicho/i,
+    /preciso de contexto/i,
 ];
 
 const isScriptContextRequiredMessage = (value: string) => {
     const normalized = (value || '').trim();
     if (!normalized) return false;
-    return SCRIPT_CONTEXT_REQUIRED_PATTERNS.every((pattern) => pattern.test(normalized));
+    return SCRIPT_CONTEXT_REQUIRED_PATTERNS.some((pattern) => pattern.test(normalized));
 };
 
 const HeroInspirationCard: React.FC<{ data: InspirationData; theme: RenderTheme }> = ({ data, theme }) => {
@@ -542,113 +579,288 @@ const SupportingInspirations: React.FC<{ data: InspirationData; theme: RenderThe
     );
 };
 
-const MetadataHeader: React.FC<{ metadata: ScriptMetadata; theme: RenderTheme; label?: string }> = ({ metadata, theme, label }) => {
+const normalizeEvidenceConfidence = (value?: string) => {
+    const normalized = (value || '').trim().toLowerCase();
+    if (!normalized) return null;
+    if (/alt/.test(normalized)) return 'Alta';
+    if (/m[eé]d/.test(normalized)) return 'Média';
+    if (/baix/.test(normalized)) return 'Baixa';
+    return null;
+};
+
+const CountedEvidenceSummary: React.FC<{ total: number; theme: RenderTheme }> = ({ total, theme }) => {
+    const isInverse = theme === 'inverse';
+    return (
+        <summary className={`cursor-pointer list-none px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/75' : 'text-gray-600'} [&::-webkit-details-marker]:hidden`}>
+            Evidências ({total})
+        </summary>
+    );
+};
+
+const MetadataHeader: React.FC<{
+    metadata: ScriptMetadata;
+    theme: RenderTheme;
+    label?: string;
+    onCopyAll?: () => void;
+    copied?: boolean;
+}> = ({ metadata, theme, label, onCopyAll, copied = false }) => {
     const isInverse = theme === 'inverse';
     const displayTitle = metadata.title || 'Roteiro sugerido';
+    const confidenceLabel = normalizeEvidenceConfidence(metadata.evidenceConfidence);
     const metaItems = [
         metadata.format ? `Formato: ${metadata.format}` : null,
         metadata.duration ? `Duração: ${metadata.duration}` : null,
-        metadata.audio ? `Áudio: ${metadata.audio}` : null,
-        metadata.inspiration ? `Base: ${metadata.inspiration}` : null,
+        confidenceLabel ? `Confiança: ${confidenceLabel}` : null,
     ].filter(Boolean) as string[];
 
+    const evidenceItems = [
+        metadata.engagementBase ? { label: 'Base de engajamento', value: metadata.engagementBase } : null,
+        metadata.evidenceConfidence ? { label: 'Confiança da base', value: metadata.evidenceConfidence } : null,
+        metadata.inspirationSource ? { label: 'Fonte da inspiração', value: metadata.inspirationSource } : null,
+        metadata.inspirationReason ? { label: 'Por que essa inspiração', value: metadata.inspirationReason } : null,
+    ].filter(Boolean) as Array<{ label: string; value: string }>;
+
+    const strategicThemeStyle: React.CSSProperties = {
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+    };
+
     return (
-        <div className={`px-4 py-3 sm:px-5 sm:py-4 ${isInverse ? 'text-white' : 'text-gray-900'}`}>
-            <div className="flex items-center justify-between gap-2">
-                <h3 className={`text-lg font-semibold leading-tight ${isInverse ? 'text-white' : 'text-gray-900'}`}>
-                    {displayTitle}
-                </h3>
-                {label ? (
-                    <span className={`inline-flex rounded-md border px-2 py-0.5 text-[12px] font-semibold ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>
-                        {label}
-                    </span>
+        <div className={`px-4 py-4 sm:px-5 sm:py-[18px] ${isInverse ? 'text-white' : 'text-gray-900'}`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className={`text-[20px] font-semibold leading-tight ${isInverse ? 'text-white' : 'text-gray-900'}`}>
+                            {displayTitle}
+                        </h3>
+                        {label ? (
+                            <span className={`inline-flex rounded-md border px-2 py-0.5 text-[12px] font-semibold ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>
+                                {label}
+                            </span>
+                        ) : null}
+                    </div>
+                </div>
+                {onCopyAll ? (
+                    <button
+                        type="button"
+                        onClick={onCopyAll}
+                        disabled={copied}
+                        className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${copied
+                            ? 'border-green-200 bg-green-50 text-green-700'
+                            : (isInverse ? 'border-white/20 text-white/80 hover:text-white' : 'border-gray-200 text-gray-600 hover:text-gray-900')
+                            }`}
+                    >
+                        {copied ? <Check size={12} /> : <Copy size={12} />}
+                        {copied ? 'Copiado' : 'Copiar roteiro'}
+                    </button>
                 ) : null}
             </div>
-            {metaItems.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+
+            {metaItems.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
                     {metaItems.map((item) => (
                         <span
                             key={item}
-                            className={`inline-flex rounded-md border px-2 py-0.5 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/75' : 'border-gray-200 text-gray-600'}`}
+                            className={`inline-flex rounded-md border px-2.5 py-1 text-[12px] font-semibold ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-700'}`}
                         >
                             {item}
                         </span>
                     ))}
                 </div>
-            )}
+            ) : null}
+
             {metadata.strategicTheme ? (
-                <p className={`mt-2 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
+                <p className={`mt-3 text-[14px] leading-relaxed ${isInverse ? 'text-white/80' : 'text-gray-700'}`} style={strategicThemeStyle}>
                     <span className="font-semibold">Pauta estratégica:</span> {metadata.strategicTheme}
                 </p>
             ) : null}
-            {metadata.engagementBase ? (
-                <p className={`mt-1 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
-                    <span className="font-semibold">Base de engajamento:</span> {metadata.engagementBase}
-                </p>
-            ) : null}
-            {metadata.inspirationSource ? (
-                <p className={`mt-1 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
-                    <span className="font-semibold">Fonte da inspiração:</span> {metadata.inspirationSource}
-                </p>
-            ) : null}
-            {metadata.inspirationReason ? (
-                <p className={`mt-2 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
-                    <span className="font-semibold">Por que essa inspiração:</span> {metadata.inspirationReason}
-                </p>
+
+            {evidenceItems.length > 0 ? (
+                <details className={`mt-3 overflow-hidden rounded-lg border ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+                    <CountedEvidenceSummary total={evidenceItems.length} theme={theme} />
+                    <div className="space-y-1.5 px-3 pb-3">
+                        {evidenceItems.map((item) => (
+                            <p key={item.label} className={`text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
+                                <span className="font-semibold">{item.label}:</span> {item.value}
+                            </p>
+                        ))}
+                    </div>
+                </details>
             ) : null}
         </div>
     );
 };
 
-const TimelineScene: React.FC<{ scene: ScriptScene; theme: RenderTheme; isFirst: boolean }> = ({ scene, theme, isFirst }) => {
+const SceneField: React.FC<{
+    label: 'Visual' | 'Fala';
+    text: string;
+    maxLines: number;
+    sceneKey: string;
+    field: 'visual' | 'audio';
+    theme: RenderTheme;
+    isExpandedMap: SceneExpandedMap;
+    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio') => void;
+}> = ({ label, text, maxLines, sceneKey, field, theme, isExpandedMap, onToggleExpand }) => {
     const isInverse = theme === 'inverse';
+    const cleanValue = cleanText(text).replace(/"/g, '');
+    if (!cleanValue || cleanValue === '...') return null;
+    const isExpanded = Boolean(isExpandedMap[sceneKey]?.[field]);
+    const shouldCollapse = cleanValue.length > (field === 'visual' ? 140 : 180);
+    const clampStyle: React.CSSProperties = isExpanded || !shouldCollapse
+        ? {}
+        : {
+            display: '-webkit-box',
+            WebkitLineClamp: maxLines,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+        };
 
     return (
-        <div className={`py-2.5 sm:py-3 ${!isFirst ? (isInverse ? 'border-t border-white/10' : 'border-t border-gray-100') : ''}`}>
+        <div className={`rounded-lg border px-3 py-2 ${isInverse ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
             <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
-                {formatSceneTime(scene.time)}
+                {label}
             </p>
-            <p className={`text-[14px] leading-[1.55] ${isInverse ? 'text-white/90' : 'text-gray-800'}`}>
-                {cleanText(scene.visual)}
+            <p
+                className={`${label === 'Visual' ? 'text-[15px] leading-[1.55]' : 'text-[14px] leading-[1.55]'} ${isInverse ? (label === 'Visual' ? 'text-white/92' : 'text-white/80') : (label === 'Visual' ? 'text-gray-800' : 'text-gray-700')}`}
+                style={clampStyle}
+            >
+                {cleanValue}
             </p>
-            {scene.audio && scene.audio !== '...' && (
-                <p className={`mt-1.5 text-[13px] leading-[1.5] ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
-                    <span className="font-semibold">Fala:</span> {cleanText(scene.audio).replace(/"/g, '')}
-                </p>
-            )}
+            {shouldCollapse ? (
+                <button
+                    type="button"
+                    onClick={() => onToggleExpand(sceneKey, field)}
+                    className={`mt-1 text-[12px] font-semibold ${isInverse ? 'text-white/75 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                >
+                    {isExpanded ? 'Ver menos' : 'Ver mais'}
+                </button>
+            ) : null}
         </div>
     );
 };
 
-const CaptionBox: React.FC<{ text: string; theme: RenderTheme }> = ({ text, theme }) => {
+const SceneCard: React.FC<SceneCardProps> = ({
+    scene,
+    index,
+    totalScenes,
+    theme,
+    isExpandedMap,
+    onToggleExpand,
+}) => {
+    const isInverse = theme === 'inverse';
+    const sceneKey = `${index}`;
+    const isLastScene = index === totalScenes - 1;
+
+    return (
+        <article
+            data-testid={`script-scene-card-${index + 1}`}
+            className={`rounded-xl border px-3 py-4 sm:px-4 sm:py-[18px] ${isLastScene
+                ? (isInverse ? 'border-emerald-300/40 bg-emerald-300/5' : 'border-emerald-200 bg-emerald-50/50')
+                : (isInverse ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white')
+                }`}
+        >
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <span className={`text-[12px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-500'}`}>
+                    Cena {index + 1}
+                </span>
+                <span className={`text-[12px] font-semibold ${isInverse ? 'text-white/70' : 'text-gray-600'}`}>
+                    {formatSceneTime(scene.time)}
+                </span>
+            </div>
+            <div className="space-y-2.5">
+                <SceneField
+                    label="Visual"
+                    text={scene.visual}
+                    maxLines={3}
+                    sceneKey={sceneKey}
+                    field="visual"
+                    theme={theme}
+                    isExpandedMap={isExpandedMap}
+                    onToggleExpand={onToggleExpand}
+                />
+                <SceneField
+                    label="Fala"
+                    text={scene.audio}
+                    maxLines={4}
+                    sceneKey={sceneKey}
+                    field="audio"
+                    theme={theme}
+                    isExpandedMap={isExpandedMap}
+                    onToggleExpand={onToggleExpand}
+                />
+            </div>
+        </article>
+    );
+};
+
+const CaptionBox: React.FC<{
+    text: string;
+    theme: RenderTheme;
+    variants?: Array<{ label: string; text: string }>;
+}> = ({ text, theme, variants = [] }) => {
     const isInverse = theme === 'inverse';
     const [copied, setCopied] = useState(false);
+    const [activeCaptionIndex, setActiveCaptionIndex] = useState(0);
+    const hasCaptionTabs = SCRIPT_UI_CAPTION_TABS_ENABLED && variants.length > 1;
+    const captionVariantsSignature = useMemo(
+        () => variants.map((variant) => `${variant.label}:${variant.text}`).join('|'),
+        [variants]
+    );
+    const activeCaption =
+        (hasCaptionTabs ? (variants[activeCaptionIndex] || variants[0]) : { label: 'V1', text }) ||
+        { label: 'V1', text };
+
+    useEffect(() => {
+        setActiveCaptionIndex(0);
+    }, [text, captionVariantsSignature]);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(text);
-        track('chat_script_caption_copied', { caption_length: text.length });
+        navigator.clipboard.writeText(activeCaption.text);
+        track('chat_script_caption_copied', { caption_length: activeCaption.text.length, caption_variant: activeCaption.label });
         setCopied(true);
         setTimeout(() => setCopied(false), 1800);
     };
 
     return (
-        <div className={`mx-4 my-3 rounded-xl border p-3.5 sm:mx-5 sm:p-4 ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
-            <div className="mb-2 flex items-center justify-between gap-2">
+        <div className={`relative mx-4 my-3 rounded-xl border p-4 sm:mx-5 sm:p-[18px] ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+            <button
+                onClick={handleCopy}
+                className={`absolute right-4 top-4 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${copied
+                    ? 'border-green-200 bg-green-50 text-green-700'
+                    : (isInverse ? 'border-white/20 text-white/80 hover:text-white' : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900')
+                    }`}
+            >
+                {copied ? <><Check size={12} /> Copiada</> : <><Copy size={12} /> Copiar legenda</>}
+            </button>
+            <div className="pr-[120px]">
                 <span className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
-                    Legenda
+                    Legenda pronta
                 </span>
-                <button
-                    onClick={handleCopy}
-                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${copied
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : (isInverse ? 'border-white/20 text-white/80 hover:text-white' : 'border-gray-200 text-gray-600 hover:text-gray-900')
-                        }`}
-                >
-                    {copied ? <><Check size={12} /> Copiada</> : <><Copy size={12} /> Copiar</>}
-                </button>
             </div>
-            <p className={`whitespace-pre-wrap text-[14px] leading-[1.6] ${isInverse ? 'text-white/85' : 'text-gray-700'}`}>
-                {text}
+            {hasCaptionTabs ? (
+                <div className={`mt-3 grid w-full grid-cols-3 gap-1 rounded-lg border p-0.5 sm:inline-flex sm:w-auto ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-white'}`}>
+                    {variants.map((variant, idx) => (
+                        <button
+                            key={variant.label}
+                            type="button"
+                            onClick={() => setActiveCaptionIndex(idx)}
+                            className={`rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${idx === activeCaptionIndex
+                                ? (isInverse ? 'bg-white/30 text-white' : 'bg-gray-900 text-white')
+                                : (isInverse ? 'text-white/70 hover:text-white' : 'text-gray-600 hover:text-gray-900')
+                                }`}
+                        >
+                            {variant.label}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+            <p className={`mt-3 whitespace-pre-wrap text-[14px] leading-[1.62] ${isInverse ? 'text-white/88' : 'text-gray-700'}`}>
+                {activeCaption.text}
+            </p>
+            <p className={`mt-2 text-right text-[11px] font-medium ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
+                {activeCaption.text.length} caracteres
             </p>
         </div>
     );
@@ -659,15 +871,21 @@ const CaptionBox: React.FC<{ text: string; theme: RenderTheme }> = ({ text, them
 export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSendPrompt }) => {
     const data = useMemo(() => parseScriptContent(content), [content]);
     const isInverse = theme === 'inverse';
+    const layoutVersion: ScriptLayoutVersion = SCRIPT_LAYOUT_V2_ENABLED ? 'v2' : 'v1';
     const [copied, setCopied] = useState(false);
     const [showActionOptions, setShowActionOptions] = useState(false);
     const [activeVariationIndex, setActiveVariationIndex] = useState(0);
+    const [sceneExpandedMap, setSceneExpandedMap] = useState<SceneExpandedMap>({});
 
     useEffect(() => {
         setActiveVariationIndex(0);
+        setShowActionOptions(false);
+        setSceneExpandedMap({});
     }, [content]);
 
     const activeVariation = data.variations[activeVariationIndex] || data.variations[0];
+    const isLowEvidenceConfidence = normalizeEvidenceConfidence(activeVariation?.metadata?.evidenceConfidence) === 'Baixa';
+    const variationLabel = activeVariation?.label || 'V1';
 
     const handleCopyAll = async () => {
         try {
@@ -681,8 +899,9 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                 : content;
             await navigator.clipboard.writeText(source);
             track('chat_script_copied', {
-                variation: activeVariation?.label || 'V1',
+                variation: variationLabel,
                 has_caption: Boolean(activeVariation?.caption),
+                layout_version: layoutVersion,
             });
             setCopied(true);
             setTimeout(() => setCopied(false), 1600);
@@ -691,17 +910,49 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
         }
     };
 
+    const handleToggleSceneExpand = (sceneKey: string, field: 'visual' | 'audio') => {
+        setSceneExpandedMap((prev) => ({
+            ...prev,
+            [sceneKey]: {
+                visual: field === 'visual' ? !prev[sceneKey]?.visual : Boolean(prev[sceneKey]?.visual),
+                audio: field === 'audio' ? !prev[sceneKey]?.audio : Boolean(prev[sceneKey]?.audio),
+            },
+        }));
+    };
+
+    const trackAction = (action: string) => {
+        track('chat_script_action_clicked', {
+            action,
+            variation: variationLabel,
+            layout_version: layoutVersion,
+        });
+    };
+
+    const handleToggleMoreActions = () => {
+        setShowActionOptions((prev) => {
+            const next = !prev;
+            track('chat_script_more_actions_toggled', {
+                expanded: next,
+                variation: variationLabel,
+                layout_version: layoutVersion,
+            });
+            return next;
+        });
+    };
+
     const wrapperClass = isInverse
         ? 'border-white/15 bg-gray-900 text-white'
         : 'border-gray-200 bg-white text-gray-900';
 
+    const moreSpecificPrompt = 'Reescreva o roteiro com exemplos mais específicos e aplicáveis ao meu tema.';
+
     const quickActions = [
         { label: 'Manter narrativa', prompt: 'Curti essa linha narrativa. Para os próximos roteiros, mantenha um estilo parecido de gancho, desenvolvimento e CTA.' },
         { label: 'Trocar narrativa', prompt: 'Essa narrativa não combinou comigo. Para os próximos roteiros, mude a linha narrativa e traga outra abordagem de gancho e CTA.' },
-        { label: 'Comprimir para 15s', prompt: 'Reescreva este roteiro para ter no máximo 15 segundos, focado em retenção rápida.' },
+        { label: 'Mais direto (15s)', prompt: 'Reescreva este roteiro para ter no máximo 15 segundos, focado em retenção rápida.' },
+        { label: 'Mais prático', prompt: 'Adapte o roteiro para ficar mais prático, com execução clara em passos objetivos.' },
         { label: 'Gancho mais forte', prompt: 'Torne o gancho deste roteiro mais direto e chamativo sem perder clareza.' },
-        { label: 'Tom mais didático', prompt: 'Adapte o roteiro para um formato mais didático e passo a passo.' },
-        { label: 'Gerar variação A/B', prompt: 'Gere uma opção totalmente diferente para o mesmo tema.' },
+        { label: 'Variação totalmente nova', prompt: 'Gere uma opção totalmente diferente para o mesmo tema.' },
     ];
 
     if (!activeVariation || (!activeVariation.scenes.length && !activeVariation.caption)) {
@@ -712,39 +963,33 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                         Roteirista IA
                     </div>
                     <h3 className={`mt-1 text-[17px] font-semibold leading-tight ${isInverse ? 'text-white' : 'text-gray-900'}`}>
-                        Falta contexto para gerar um roteiro realmente bom
+                        Falta um detalhe para fechar seu roteiro
                     </h3>
                     <p className={`mt-2 text-[14px] leading-[1.6] ${isInverse ? 'text-white/80' : 'text-gray-700'}`}>
-                        Envie em 1 linha: tema específico, público e objetivo principal. Assim o roteiro sai com narrativa certa e CTA coerente.
+                        Qual tema específico você quer abordar neste roteiro?
                     </p>
-
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                        <span className={`rounded-md border px-2 py-1 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>Tema</span>
-                        <span className={`rounded-md border px-2 py-1 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>Público</span>
-                        <span className={`rounded-md border px-2 py-1 text-[12px] font-medium ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>Objetivo</span>
-                    </div>
 
                     {onSendPrompt ? (
                         <div className="mt-3 flex flex-wrap gap-2">
                             <button
                                 type="button"
-                                onClick={() => onSendPrompt('Tema: [preencha aqui] | Público: [preencha aqui] | Objetivo: [educar, engajar, viralizar ou converter]')}
+                                onClick={() => onSendPrompt('Tema específico: [descreva aqui]. Gere o roteiro com esse tema, mantendo CTA claro.')}
                                 className={`rounded-md px-3 py-2 text-[13px] font-semibold transition-colors ${isInverse
                                     ? 'bg-white/10 text-white hover:bg-white/15'
                                     : 'bg-gray-900 text-white hover:bg-black'
                                     }`}
                             >
-                                Preencher contexto
+                                Informar tema específico
                             </button>
                             <button
                                 type="button"
-                                onClick={() => onSendPrompt('Use meu nicho atual e gere um roteiro inicial com foco em retenção e CTA claro.')}
+                                onClick={() => onSendPrompt('Pode usar meu nicho atual e gerar um roteiro inicial com foco em retenção e CTA claro.')}
                                 className={`rounded-md border px-3 py-2 text-[13px] font-medium transition-colors ${isInverse
                                     ? 'border-white/20 text-white/80 hover:text-white'
                                     : 'border-gray-200 text-gray-600 hover:text-gray-900'
                                     }`}
                             >
-                                Gerar versão inicial
+                                Pode usar meu nicho atual
                             </button>
                         </div>
                     ) : null}
@@ -764,21 +1009,10 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
 
     return (
         <div className={`my-4 overflow-hidden rounded-2xl border ${wrapperClass}`}>
-            <div className={`flex items-center justify-between gap-2 border-b px-4 py-2.5 sm:px-5 sm:py-3 ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
+            <div className={`flex items-center gap-2 border-b px-4 py-3 sm:px-5 sm:py-[14px] ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
                 <span className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/80' : 'text-gray-700'}`}>
                     Roteiro
                 </span>
-                <button
-                    onClick={handleCopyAll}
-                    disabled={copied}
-                    className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${copied
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : (isInverse ? 'border-white/20 text-white/80 hover:text-white' : 'border-gray-200 text-gray-600 hover:text-gray-900')
-                        }`}
-                >
-                    {copied ? <Check size={12} /> : <Copy size={12} />}
-                    {copied ? 'Copiado' : 'Copiar'}
-                </button>
             </div>
 
             {data.variations.length > 1 && (
@@ -808,27 +1042,38 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                 metadata={activeVariation.metadata}
                 theme={theme}
                 label={data.variations.length > 1 ? activeVariation.label : undefined}
+                onCopyAll={handleCopyAll}
+                copied={copied}
             />
-            <div className="px-4 pb-1 sm:px-5 sm:pb-2">
+            <div className="space-y-3 px-4 pb-2 sm:px-5 sm:pb-3">
                 {activeVariation.scenes.map((scene, idx) => (
-                    <TimelineScene
+                    <SceneCard
                         key={`${activeVariation.id}-${idx}`}
                         scene={scene}
+                        index={idx}
+                        totalScenes={activeVariation.scenes.length}
                         theme={theme}
-                        isFirst={idx === 0}
+                        isExpandedMap={sceneExpandedMap}
+                        onToggleExpand={handleToggleSceneExpand}
                     />
                 ))}
             </div>
 
-            {activeVariation.caption && <CaptionBox text={activeVariation.caption} theme={theme} />}
+            {activeVariation.caption && (
+                <CaptionBox
+                    text={activeVariation.caption}
+                    variants={activeVariation.captionVariants}
+                    theme={theme}
+                />
+            )}
 
             {onSendPrompt && (
-                <div className={`border-t px-4 py-2.5 sm:px-5 sm:py-3 ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
+                <div className={`border-t px-4 py-3 sm:px-5 sm:py-[14px] ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
                     <div className="flex flex-wrap items-center gap-2.5">
                         <button
                             type="button"
                             onClick={() => {
-                                track('chat_script_action_clicked', { action: 'refinar_roteiro', variation: activeVariation?.label || 'V1' });
+                                trackAction('refinar_roteiro');
                                 onSendPrompt('Ajuste este roteiro para o meu nicho, mantendo a ideia principal, com gancho mais específico e CTA mais claro.');
                             }}
                             className={`w-full rounded-md px-3 py-2.5 text-[13px] font-semibold transition-colors sm:w-auto ${isInverse
@@ -840,26 +1085,51 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                         </button>
                         <button
                             type="button"
-                            onClick={() => setShowActionOptions((prev) => !prev)}
+                            onClick={() => {
+                                trackAction('mais_especifico');
+                                onSendPrompt(moreSpecificPrompt);
+                            }}
                             className={`w-full rounded-md border px-3 py-2.5 text-[13px] font-medium transition-colors sm:w-auto ${isInverse
                                 ? 'border-white/20 text-white/80 hover:text-white'
                                 : 'border-gray-200 text-gray-600 hover:text-gray-900'
                                 }`}
                         >
-                            {showActionOptions ? 'Ocultar variações' : 'Explorar variações'}
+                            Mais específico
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleToggleMoreActions}
+                            className={`w-full rounded-md border px-3 py-2.5 text-[13px] font-medium transition-colors sm:w-auto ${isInverse
+                                ? 'border-white/20 text-white/80 hover:text-white'
+                                : 'border-gray-200 text-gray-600 hover:text-gray-900'
+                                }`}
+                        >
+                            {showActionOptions ? 'Ocultar melhorias' : 'Outras melhorias'}
                         </button>
                     </div>
                     {showActionOptions && (
                         <div className="mt-2 grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                            {isLowEvidenceConfidence ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        trackAction('refinar_tema_especifico');
+                                        onSendPrompt('Refine este roteiro com um tema específico e exemplo concreto do meu nicho, mantendo o objetivo principal.');
+                                    }}
+                                    className={`rounded-md border px-2.5 py-2 text-[12px] font-medium transition-colors ${isInverse
+                                        ? 'border-amber-300/50 bg-amber-300/10 text-amber-100 hover:bg-amber-300/15'
+                                        : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                                        }`}
+                                >
+                                    Refinar com tema específico
+                                </button>
+                            ) : null}
                             {quickActions.map((action) => (
                                 <button
                                     key={action.label}
                                     type="button"
                                     onClick={() => {
-                                        track('chat_script_action_clicked', {
-                                            action: action.label,
-                                            variation: activeVariation?.label || 'V1',
-                                        });
+                                        trackAction(action.label);
                                         onSendPrompt(action.prompt);
                                     }}
                                     className={`rounded-md border px-2.5 py-2 text-[12px] font-medium transition-colors ${isInverse
@@ -875,7 +1145,7 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                 </div>
             )}
             {data.inspirationData ? (
-                <details className={`border-t px-4 py-2.5 sm:px-5 sm:py-3 ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
+                <details className={`border-t px-4 py-3 sm:px-5 sm:py-[14px] ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
                     <summary className={`cursor-pointer list-none text-[13px] font-semibold tracking-[0.01em] ${isInverse ? 'text-white/80' : 'text-gray-600'} [&::-webkit-details-marker]:hidden`}>
                         Inspirações usadas neste roteiro
                     </summary>

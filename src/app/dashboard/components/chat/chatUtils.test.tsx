@@ -139,19 +139,18 @@ describe('renderFormatted', () => {
 
     it('renders context-collection actions when script clarification is returned', () => {
         const text = [
-            '### Preciso de contexto para montar um roteiro forte',
+            '### Falta um detalhe para fechar seu roteiro',
             '> [!IMPORTANT]',
-            '> Me passe 3 dados rápidos e eu já te devolvo um roteiro pronto.',
-            '> `Tema específico` | `Público` | `Objetivo principal`',
+            '> Qual tema específico você quer abordar neste roteiro?',
             '',
-            '[BUTTON: Quero preencher tema, público e objetivo]',
-            '[BUTTON: Usar meu nicho atual e gerar uma primeira versão]',
+            '[BUTTON: Informar tema específico]',
+            '[BUTTON: Pode usar meu nicho atual]',
         ].join('\n');
 
         render(renderFormatted(text, 'default', { onSendPrompt: jest.fn(), allowSuggestedActions: true }));
 
-        expect(screen.getByRole('button', { name: 'Quero preencher tema, público e objetivo' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Usar meu nicho atual e gerar uma primeira versão' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Informar tema específico' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Pode usar meu nicho atual' })).toBeInTheDocument();
     });
 
     it('renders roteiro e legenda no mesmo ScriptBlock', () => {
@@ -160,6 +159,7 @@ describe('renderFormatted', () => {
             '**Título Sugerido:** Roteiro de teste',
             '**Pauta Estratégica:** orçamento doméstico prático',
             '**Base de Engajamento:** Categorias com melhor engajamento: tutorial + finance',
+            '**Confiança da Base:** Média',
             '**Fonte da Inspiração:** Top posts do criador',
             '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
             ':---',
@@ -182,13 +182,18 @@ describe('renderFormatted', () => {
         render(renderFormatted(text, 'default', { onSendPrompt: jest.fn(), allowSuggestedActions: true }));
 
         expect(screen.getAllByText('Roteiro').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Legenda').length).toBeGreaterThan(0);
+        expect(screen.getByText(/Legenda pronta/i)).toBeInTheDocument();
         expect(screen.getByText('Legenda principal de teste')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'V1' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'V2' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'V3' })).toBeInTheDocument();
+        expect(screen.getByText(/Evidências \(3\)/i)).toBeInTheDocument();
+        expect(screen.getAllByText('Visual').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Fala').length).toBeGreaterThan(0);
         expect(screen.getByText(/Pauta estratégica:/i)).toBeInTheDocument();
-        expect(screen.getByText(/Base de engajamento:/i)).toBeInTheDocument();
-        expect(screen.getByText(/Fonte da inspiração:/i)).toBeInTheDocument();
         expect(screen.queryByText(':---')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Ajustar para meu nicho' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Explorar variações' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Mais específico' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Outras melhorias' })).toBeInTheDocument();
     });
 });

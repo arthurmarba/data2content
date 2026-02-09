@@ -1,5 +1,10 @@
 export const FEEDBACK_REASON_CODES = [
   "generic",
+  "generic_script",
+  "prompt_echo",
+  "not_actionable",
+  "bad_language",
+  "wrong_objective",
   "wrong",
   "didnt_use_context",
   "confusing",

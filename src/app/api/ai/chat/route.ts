@@ -62,6 +62,8 @@ const HARMFUL_PATTERNS = [/su[ií]c[ií]dio/i, /\bme matar\b/i, /\bmatar algu[e�
 const ANSWER_ENGINE_ENABLED = process.env.ANSWER_ENGINE_ENABLED !== 'false';
 const SCRIPT_ALWAYS_GENERATE = process.env.SCRIPT_ALWAYS_GENERATE !== 'false';
 const SCRIPT_TOP_POST_INSPIRATION_FALLBACK = process.env.SCRIPT_TOP_POST_INSPIRATION_FALLBACK !== 'false';
+const SCRIPT_BRIEF_V2_ENABLED = process.env.SCRIPT_BRIEF_V2 !== 'false';
+const SCRIPT_REWRITE_PASS_ENABLED = process.env.SCRIPT_REWRITE_PASS !== 'false';
 
 async function resolveAuthOptions() {
   if (process.env.NODE_ENV === 'test') return {};
@@ -120,24 +122,30 @@ type ScriptExecutionPlan = {
   hookAngle?: string;
   ctaAngle?: string;
   evidenceSummary?: string;
+  evidenceConfidence?: 'alto' | 'medio' | 'baixo';
   sourcePriority?: string[];
   contextStrength?: number;
 };
 
-type ScriptQualityScore = {
-  echoRatio: number;
+type ScriptQualityScoreV2 = {
+  semanticEchoRatio: number;
   speechStrength: number;
+  actionabilityScore: number;
+  languageNaturalnessPtBr: number;
   specificity: number;
   ctaPresence: boolean;
 };
+
+type ScriptFallbackLevel = 'none' | 'rewrite_pass' | 'static_fallback';
 
 type ScriptContractQuality = {
   hasRoteiroBlock: boolean;
   hasLegendaBlock: boolean;
   sceneCount: number;
   hasCta: boolean;
-  score?: ScriptQualityScore;
+  score?: ScriptQualityScoreV2;
   fallbackSource?: ScriptInspirationSource;
+  fallbackLevel?: ScriptFallbackLevel;
 };
 
 type ScriptContractResult = {
@@ -169,6 +177,16 @@ type ScriptContractHints = {
   isHumor?: boolean;
   executionPlan?: ScriptExecutionPlan | null;
   inspirationSource?: ScriptInspirationSource;
+};
+
+type ScriptBrief = {
+  topic: string;
+  audience?: string;
+  objective?: string;
+  timeConstraint?: string;
+  confidence: number;
+  ambiguityReasons: string[];
+  usedContextFallback?: boolean;
 };
 
 const stripMarkdownMarkers = (value: string) =>
@@ -329,9 +347,69 @@ const GENERIC_SCRIPT_ECHO_PATTERNS = [
   /\bcrie um roteiro\b/i,
   /\bo que postar\b/i,
   /\bque eu possa postar\b/i,
+  /\bpara que eu possa postar\b/i,
+  /\bpara postar (hoje|amanh[ãa])\b/i,
   /\bme traga um roteiro\b/i,
   /\broteiro de conte[úu]do\b/i,
+  /\bmonte um roteiro\b/i,
+  /\broteiro para eu postar\b/i,
 ];
+
+const BROKEN_PTBR_PATTERNS = [
+  /\bem quando\b/i,
+  /\bisso em quando\b/i,
+  /\bque eu possa postar\b/i,
+  /\bpara que eu possa postar\b/i,
+  /\bfa[zs] assim:\s*passo 1 para\b/i,
+];
+
+const ACTIONABLE_SCRIPT_PATTERNS = [
+  /\bmostr[ea]\b/i,
+  /\babra\b/i,
+  /\bgrave\b/i,
+  /\bdemonstr[ea]\b/i,
+  /\bcompare\b/i,
+  /\bapresente\b/i,
+  /\bcorte\b/i,
+  /\buse\b/i,
+  /\binclua\b/i,
+  /\baponte\b/i,
+  /\bfinalize\b/i,
+  /\bcomente\b/i,
+  /\bsalve\b/i,
+  /\bcompartilhe\b/i,
+];
+
+const isBrokenPtBr = (value: string) => {
+  const cleaned = cleanScriptCell(value || '');
+  if (!cleaned) return false;
+  return BROKEN_PTBR_PATTERNS.some((pattern) => pattern.test(cleaned));
+};
+
+const tokenizeForScriptSimilarity = (value: string) =>
+  normalizeTopicText(value || '')
+    .split(' ')
+    .map((token) => token.trim())
+    .filter((token) => token.length > 2 && !GENERIC_TOPIC_TOKENS.has(token));
+
+const computeTokenOverlapScore = (left: string, right: string) => {
+  const leftTokens = Array.from(new Set(tokenizeForScriptSimilarity(left)));
+  const rightTokens = Array.from(new Set(tokenizeForScriptSimilarity(right)));
+  if (!leftTokens.length || !rightTokens.length) return 0;
+  const rightSet = new Set(rightTokens);
+  const overlap = leftTokens.filter((token) => rightSet.has(token)).length;
+  return roundRatio(overlap / Math.max(1, Math.min(leftTokens.length, rightTokens.length)));
+};
+
+const isActionableScriptRow = (row: ScriptTableRow) => {
+  const visual = cleanScriptCell(row.visual || '');
+  const audio = cleanScriptCell(row.audio || '');
+  const combined = `${visual} ${audio}`.trim();
+  if (!combined) return false;
+  const hasActionVerb = ACTIONABLE_SCRIPT_PATTERNS.some((pattern) => pattern.test(combined));
+  const hasSpecificityCue = /\b(passo|antes|depois|exemplo|resultado|prova|cta|texto na tela|corte|benef[ií]cio)\b/i.test(combined);
+  return hasActionVerb && (hasSpecificityCue || combined.length > 60);
+};
 
 const hasGenericScriptEcho = (value: string, userQuery: string) => {
   const cleaned = cleanScriptCell(value || '');
@@ -345,6 +423,7 @@ const isWeakScriptSpeech = (value: string, userQuery: string) => {
   if (!cleaned) return true;
   if (isPlaceholderLike(cleaned)) return true;
   if (cleaned.length < 24) return true;
+  if (isBrokenPtBr(cleaned)) return true;
   if (hasGenericScriptEcho(cleaned, userQuery)) return true;
   return false;
 };
@@ -625,6 +704,7 @@ const buildFallbackScriptResponse = (
     `**Título Sugerido:** ${buildScriptTitleFromTopic(topic)}`,
     `**Pauta Estratégica:** ${topic}`,
     `**Base de Engajamento:** ${baseSummary}`,
+    `**Confiança da Base:** ${executionPlan?.evidenceConfidence === 'alto' ? 'Alta' : executionPlan?.evidenceConfidence === 'medio' ? 'Média' : 'Baixa'}`,
     `**Fonte da Inspiração:** ${resolveInspirationSourceLabel(inspirationSource)}`,
     '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
     '',
@@ -671,6 +751,7 @@ export function enforceScriptContract(response: string, userQuery: string, hints
         hasLegendaBlock: true,
         sceneCount: 3,
         hasCta: true,
+        fallbackLevel: 'static_fallback',
       },
     };
   }
@@ -715,6 +796,7 @@ export function enforceScriptContract(response: string, userQuery: string, hints
     isHumor,
   });
   let rows = ensured.rows;
+  let fallbackLevel: ScriptFallbackLevel = 'none';
 
   const genericPromptEchoRows = rows.filter((row) =>
     hasGenericScriptEcho(`${row.visual} ${row.audio}`, userQuery)
@@ -728,8 +810,15 @@ export function enforceScriptContract(response: string, userQuery: string, hints
       weakAudioRows.length >= Math.ceil(rows.length / 2)
     );
   if (shouldReplaceAllRows) {
-    rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
-    issues.push('generic_prompt_echo_rows');
+    if (SCRIPT_REWRITE_PASS_ENABLED) {
+      rows = rewriteRowsWithExecutionPlan(rows, topic, isHumor, executionPlan);
+      fallbackLevel = 'rewrite_pass';
+      issues.push('generic_prompt_echo_rows_rewritten');
+    } else {
+      rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
+      fallbackLevel = 'static_fallback';
+      issues.push('generic_prompt_echo_rows');
+    }
     repaired = true;
   }
 
@@ -753,14 +842,34 @@ export function enforceScriptContract(response: string, userQuery: string, hints
   let hasCtaFinal = rows.some((row) =>
     /cta|call to action|salve|compartilhe|comente|dm|link|seguir/i.test(`${row.time} ${row.visual} ${row.audio}`)
   );
-  const qualityScoreBeforeRewrite = evaluateScriptQuality(rows, userQuery, hasCtaFinal);
-  if (shouldRewriteByQuality(qualityScoreBeforeRewrite)) {
-    rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
-    hasCtaFinal = true;
-    issues.push('quality_rewrite');
+  const qualityScoreBeforeRewrite = evaluateScriptQualityV2(rows, userQuery, hasCtaFinal);
+  if (shouldRewriteByQualityV2(qualityScoreBeforeRewrite)) {
+    if (SCRIPT_REWRITE_PASS_ENABLED) {
+      const rewrittenRows = rewriteRowsWithExecutionPlan(rows, topic, isHumor, executionPlan);
+      const rewrittenHasCta = rewrittenRows.some((row) =>
+        /cta|call to action|salve|compartilhe|comente|dm|link|seguir/i.test(`${row.time} ${row.visual} ${row.audio}`)
+      );
+      const rewrittenScore = evaluateScriptQualityV2(rewrittenRows, userQuery, rewrittenHasCta);
+      if (shouldRewriteByQualityV2(rewrittenScore)) {
+        rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
+        hasCtaFinal = true;
+        fallbackLevel = 'static_fallback';
+        issues.push('quality_static_fallback');
+      } else {
+        rows = rewrittenRows;
+        hasCtaFinal = rewrittenHasCta;
+        if (fallbackLevel === 'none') fallbackLevel = 'rewrite_pass';
+        issues.push('quality_rewrite_pass');
+      }
+    } else {
+      rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
+      hasCtaFinal = true;
+      fallbackLevel = 'static_fallback';
+      issues.push('quality_rewrite');
+    }
     repaired = true;
   }
-  const finalQualityScore = evaluateScriptQuality(rows, userQuery, hasCtaFinal);
+  const finalQualityScore = evaluateScriptQualityV2(rows, userQuery, hasCtaFinal);
 
   const inspirationHint = hints?.inspiration || null;
   const inspirationPayload = inspirationJson || inspirationHint || null;
@@ -799,9 +908,15 @@ export function enforceScriptContract(response: string, userQuery: string, hints
   const engagementBase =
     executionPlan?.evidenceSummary ||
     'Baseado em sinais recentes de engajamento (categorias e conteúdos com maior tração).';
+  const evidenceConfidenceLabel = resolveEvidenceConfidenceLabel({
+    executionPlan,
+    inspirationSource,
+    qualityScore: finalQualityScore,
+  });
   roteiroLines.push(`**Título Sugerido:** ${title}`);
   roteiroLines.push(`**Pauta Estratégica:** ${strategicTheme}`);
   roteiroLines.push(`**Base de Engajamento:** ${engagementBase}`);
+  roteiroLines.push(`**Confiança da Base:** ${evidenceConfidenceLabel}`);
   roteiroLines.push(`**Fonte da Inspiração:** ${resolveInspirationSourceLabel(inspirationSource)}`);
   if (inspirationRaw && !inspirationPayload) {
     roteiroLines.push(`**Inspiração Viral:** ${inspirationRaw}`);
@@ -854,6 +969,7 @@ export function enforceScriptContract(response: string, userQuery: string, hints
       hasCta: hasCtaFinal,
       score: finalQualityScore,
       fallbackSource: inspirationSource,
+      fallbackLevel,
     },
   };
 }
@@ -959,6 +1075,22 @@ const resolveInspirationSourceLabel = (source: ScriptInspirationSource) => {
   return 'Sem referência externa (roteiro orientado por sinais do histórico)';
 };
 
+const resolveEvidenceConfidenceLabel = (params: {
+  executionPlan?: ScriptExecutionPlan | null;
+  inspirationSource?: ScriptInspirationSource;
+  qualityScore?: ScriptQualityScoreV2 | null;
+}): 'Alta' | 'Média' | 'Baixa' => {
+  const confidence = params.executionPlan?.evidenceConfidence || 'baixo';
+  let score = confidence === 'alto' ? 2 : confidence === 'medio' ? 1 : 0;
+  if (params.inspirationSource && params.inspirationSource !== 'none') score += 1;
+  if ((params.executionPlan?.contextStrength || 0) >= 3) score += 1;
+  if ((params.qualityScore?.semanticEchoRatio || 0) <= 0.1) score += 1;
+  if ((params.qualityScore?.actionabilityScore || 0) >= 0.75) score += 1;
+  if (score >= 5) return 'Alta';
+  if (score >= 3) return 'Média';
+  return 'Baixa';
+};
+
 const resolveUserNicheTopic = (user: IUser): string => {
   const profileNiches = [
     ...toArrayOfStrings((user as any)?.creatorProfileExtended?.niches),
@@ -972,7 +1104,7 @@ const buildScriptEvidenceSummary = (params: {
   plannerTheme?: string;
   topCategories?: { proposal?: string[]; context?: string[] };
   topPosts?: Array<{ captionSnippet?: string; stats?: { shares?: number | null; saved?: number | null; comments?: number | null } }>;
-}): string => {
+}): { summary: string; confidence: 'alto' | 'medio' | 'baixo' } => {
   const { plannerTheme, topCategories, topPosts } = params;
   const parts: string[] = [];
   if (plannerTheme) {
@@ -999,7 +1131,28 @@ const buildScriptEvidenceSummary = (params: {
   if (metricBits.length) {
     parts.push(`Métricas de referência: ${metricBits.join(' | ')}`);
   }
-  return parts.join(' — ') || 'Baseado em padrões recentes de engajamento do seu histórico.';
+  if (!parts.length) {
+    return {
+      summary: 'Sinal inicial baseado no histórico recente; valide com um teste curto antes de escalar.',
+      confidence: 'baixo',
+    };
+  }
+  if (parts.length === 1) {
+    return {
+      summary: `Sinal parcial: ${parts[0]}. Use como hipótese inicial e ajuste após teste.`,
+      confidence: 'medio',
+    };
+  }
+  if (parts.length >= 3) {
+    return {
+      summary: parts.join(' — '),
+      confidence: 'alto',
+    };
+  }
+  return {
+    summary: parts.join(' — '),
+    confidence: 'medio',
+  };
 };
 
 const buildScriptExecutionPlan = (params: {
@@ -1068,7 +1221,7 @@ const buildScriptExecutionPlan = (params: {
       ? 'Fechar com CTA de compartilhamento/salvamento para ampliar alcance.'
       : 'Fechar com CTA de comentário e salvamento para reforçar engajamento e recorrência.';
 
-  const evidenceSummary = buildScriptEvidenceSummary({
+  const evidence = buildScriptEvidenceSummary({
     plannerTheme,
     topCategories,
     topPosts,
@@ -1079,7 +1232,8 @@ const buildScriptExecutionPlan = (params: {
     objective,
     hookAngle,
     ctaAngle,
-    evidenceSummary,
+    evidenceSummary: evidence.summary,
+    evidenceConfidence: evidence.confidence,
     sourcePriority: sourcePriority.length ? sourcePriority : ['fallback'],
     contextStrength: sourcePriority.length,
   };
@@ -1396,6 +1550,27 @@ const inferNarrativeRole = (
   return 'desenvolvimento';
 };
 
+const parsePostDateToDaysAgo = (rawDate?: string | null) => {
+  if (!rawDate) return null;
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / ONE_DAY_MS));
+};
+
+const recencyScore = (rawDate?: string | null) => {
+  const daysAgo = parsePostDateToDaysAgo(rawDate);
+  if (daysAgo === null) return 0.3;
+  if (daysAgo <= 14) return 1;
+  if (daysAgo <= 45) return 0.78;
+  if (daysAgo <= 90) return 0.6;
+  return 0.35;
+};
+
+const normalizeScriptScore = (value?: number | null, divisor = 100) => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(1, value / divisor);
+};
+
 const buildScriptInspirationHint = (
   inspirations: Array<{
     title?: string;
@@ -1409,6 +1584,7 @@ const buildScriptInspirationHint = (
     narrativeScore?: number;
     performanceScore?: number;
     personalizationScore?: number;
+    postDate?: string;
   }>,
   meta: {
     matchType?: string;
@@ -1431,7 +1607,26 @@ const buildScriptInspirationHint = (
   topic: string,
 ): ScriptInspirationHint | null => {
   if (!Array.isArray(inspirations) || !inspirations.length) return null;
-  const selected = inspirations.slice(0, 3);
+  const ranked = inspirations
+    .map((inspiration, idx) => {
+      const narrative = normalizeScriptScore(inspiration.narrativeScore, 1);
+      const performance = normalizeScriptScore(inspiration.performanceScore, 1);
+      const personalization = normalizeScriptScore(inspiration.personalizationScore, 1);
+      const topicSimilarity = Math.max(
+        computeTokenOverlapScore(inspiration.title || '', topic),
+        computeTokenOverlapScore(inspiration.description || '', topic)
+      );
+      const rankScore =
+        (topicSimilarity * 0.4) +
+        (performance * 0.25) +
+        (personalization * 0.18) +
+        (narrative * 0.12) +
+        (recencyScore(inspiration.postDate) * 0.05) +
+        Math.max(0, (0.03 - (idx * 0.01)));
+      return { inspiration, rankScore };
+    })
+    .sort((a, b) => b.rankScore - a.rankScore);
+  const selected = ranked.slice(0, 3).map((item) => item.inspiration);
   const roleOrder: Array<'gancho' | 'desenvolvimento' | 'cta'> = ['gancho', 'desenvolvimento', 'cta'];
   const assigned = new Set<'gancho' | 'desenvolvimento' | 'cta'>();
   const withRoles = selected.map((inspiration, idx) => {
@@ -1459,9 +1654,11 @@ const buildScriptInspirationHint = (
     tone ? `tom ${tone}` : null,
     personalized ? 'alinhamento com seu histórico de performance' : null,
   ].filter(Boolean);
-  const reason = parts.length
+  const reason = parts.length >= 3
     ? `Escolhida por ${parts.join(', ')} para sustentar o roteiro sobre "${topic}".`
-    : `Escolhida por narrativa semelhante ao tema "${topic}".`;
+    : parts.length
+      ? `Sinal parcial: ${parts.join(', ')}. Use como hipótese inicial para "${topic}".`
+      : `Sinal parcial de narrativa semelhante ao tema "${topic}".`;
 
   return {
     source: 'community',
@@ -1488,6 +1685,7 @@ const buildScriptInspirationFallbackFromTopPosts = (
     captionSnippet?: string;
     permalink?: string;
     coverUrl?: string;
+    postDate?: string | null;
     stats?: {
       shares?: number | null;
       saved?: number | null;
@@ -1498,7 +1696,23 @@ const buildScriptInspirationFallbackFromTopPosts = (
   topic: string
 ): ScriptInspirationHint | null => {
   if (!Array.isArray(topPosts) || !topPosts.length) return null;
-  const selected = topPosts.slice(0, 3);
+  const ranked = topPosts
+    .map((post, idx) => {
+      const topicSimilarity = computeTokenOverlapScore(post.captionSnippet || '', topic);
+      const qualityScore = (
+        normalizeScriptScore(post.stats?.shares, 250) * 0.4 +
+        normalizeScriptScore(post.stats?.saved, 200) * 0.3 +
+        normalizeScriptScore(post.stats?.total_interactions, 1200) * 0.3
+      );
+      const rankScore =
+        (topicSimilarity * 0.45) +
+        (qualityScore * 0.4) +
+        (recencyScore(post.postDate) * 0.1) +
+        Math.max(0, (0.05 - (idx * 0.02)));
+      return { post, rankScore };
+    })
+    .sort((a, b) => b.rankScore - a.rankScore);
+  const selected = ranked.slice(0, 3).map((item) => item.post);
   const withRoles = selected.map((post, idx) => ({
     role: inferNarrativeRole(
       {
@@ -1521,7 +1735,7 @@ const buildScriptInspirationFallbackFromTopPosts = (
   ].filter(Boolean);
   const reason = scoreBits.length
     ? `Baseado nos seus posts de maior engajamento (${scoreBits.join(' | ')}) para sustentar a narrativa sobre "${topic}".`
-    : `Baseado nos seus posts de maior engajamento para sustentar a narrativa sobre "${topic}".`;
+    : `Sinal parcial baseado nos seus posts com melhor tração para o tema "${topic}".`;
 
   return {
     source: 'user_top_posts',
@@ -1606,18 +1820,111 @@ const applyExecutionPlanToRows = (
   ];
 };
 
-const evaluateScriptQuality = (
+const rewriteRowsWithExecutionPlan = (
+  rows: ScriptTableRow[],
+  topic: string,
+  isHumor: boolean,
+  plan?: ScriptExecutionPlan | null
+): ScriptTableRow[] => {
+  const safeTopic = pickBestTopicCandidate([plan?.primaryIdea, topic]) || topic || 'uma dor real do seu nicho';
+  const objective = objectiveLabel(plan?.objective);
+  const stageBlueprint = isHumor
+    ? [
+        {
+          time: '00-03s',
+          visual: `Abertura com movimento e expressão exagerada sobre ${safeTopic}.`,
+          audio: `Cena real de ${safeTopic}: parecia simples, até virar um perrengue.`,
+        },
+        {
+          time: '03-10s',
+          visual: 'Conflito rápido com erro visível e reação cômica.',
+          audio: 'Mostra o erro acontecendo e a reação imediata para segurar retenção.',
+        },
+        {
+          time: '10-22s',
+          visual: 'Virada com ajuste simples, mantendo o ritmo da comédia.',
+          audio: 'Ajuste em dois passos curtos para resolver sem perder o tom leve.',
+        },
+        {
+          time: '22-30s',
+          visual: 'Fechamento com reação + CTA escrito na tela.',
+          audio: 'Se você já viveu isso, comenta "eu", salva e manda para alguém.',
+        },
+      ]
+    : [
+        {
+          time: '00-03s',
+          visual: `Abertura com frase na tela sobre ${safeTopic} e gesto de quebra de padrão.`,
+          audio: plan?.hookAngle || `Você ainda comete esse erro em ${safeTopic} e perde resultado por isso.`,
+        },
+        {
+          time: '03-10s',
+          visual: 'Mostre o erro em um exemplo real (antes) com detalhe visível.',
+          audio: 'Esse erro reduz clareza, retenção e resposta do público.',
+        },
+        {
+          time: '10-22s',
+          visual: 'Mostre o ajuste aplicado em dois passos práticos (depois).',
+          audio: objective === 'converter'
+            ? 'Passo 1 para gerar valor percebido, passo 2 para levar para ação comercial sem atrito.'
+            : 'Passo 1 para corrigir a base, passo 2 para manter consistência com execução simples.',
+        },
+        {
+          time: '22-30s',
+          visual: 'Fechamento com benefício final + CTA explícito na tela.',
+          audio: plan?.ctaAngle || (objective === 'viralizar'
+            ? 'Se isso ajudou, salva e compartilha com alguém que precisa desse roteiro.'
+            : 'Se fez sentido, salva este vídeo e comenta "roteiro" para receber outra versão.'),
+        },
+      ];
+
+  return rows.map((row, idx) => {
+    const fallback =
+      stageBlueprint[Math.min(idx, stageBlueprint.length - 1)] ||
+      stageBlueprint[0] ||
+      {
+        time: '00-03s',
+        visual: 'Abertura com contexto objetivo do tema.',
+        audio: 'Traga um gancho claro e específico para iniciar o roteiro.',
+      };
+    const visual = isActionableScriptRow(row) && !hasGenericScriptEcho(row.visual, topic)
+      ? row.visual
+      : fallback.visual;
+    const audio = !isWeakScriptSpeech(row.audio, topic) && !isBrokenPtBr(row.audio)
+      ? row.audio
+      : fallback.audio;
+    return {
+      time: row.time || fallback.time,
+      visual: cleanScriptCell(visual),
+      audio: cleanScriptCell(audio),
+    };
+  });
+};
+
+const evaluateScriptQualityV2 = (
   rows: ScriptTableRow[],
   userQuery: string,
   hasCta: boolean
-): ScriptQualityScore => {
+): ScriptQualityScoreV2 => {
   if (!rows.length) {
-    return { echoRatio: 1, speechStrength: 0, specificity: 0, ctaPresence: false };
+    return {
+      semanticEchoRatio: 1,
+      speechStrength: 0,
+      actionabilityScore: 0,
+      languageNaturalnessPtBr: 0,
+      specificity: 0,
+      ctaPresence: false,
+    };
   }
-  const echoHits = rows.filter((row) =>
-    hasGenericScriptEcho(`${row.visual} ${row.audio}`, userQuery)
-  ).length;
+  const echoHits = rows.filter((row) => {
+    const combined = `${row.visual} ${row.audio}`.trim();
+    if (hasGenericScriptEcho(combined, userQuery)) return true;
+    const overlap = computeTokenOverlapScore(combined, userQuery);
+    return overlap >= 0.7;
+  }).length;
   const strongSpeechHits = rows.filter((row) => !isWeakScriptSpeech(row.audio, userQuery)).length;
+  const actionableRows = rows.filter((row) => isActionableScriptRow(row)).length;
+  const brokenLanguageRows = rows.filter((row) => isBrokenPtBr(`${row.visual} ${row.audio}`)).length;
   const specificRows = rows.filter((row) => {
     const visual = cleanScriptCell(row.visual || '');
     const audio = cleanScriptCell(row.audio || '');
@@ -1626,17 +1933,21 @@ const evaluateScriptQuality = (
   }).length;
 
   return {
-    echoRatio: roundRatio(echoHits / rows.length),
+    semanticEchoRatio: roundRatio(echoHits / rows.length),
     speechStrength: roundRatio(strongSpeechHits / rows.length),
+    actionabilityScore: roundRatio(actionableRows / rows.length),
+    languageNaturalnessPtBr: roundRatio(1 - (brokenLanguageRows / rows.length)),
     specificity: roundRatio(specificRows / rows.length),
     ctaPresence: hasCta,
   };
 };
 
-const shouldRewriteByQuality = (score: ScriptQualityScore) =>
-  score.echoRatio >= 0.12 ||
-  score.speechStrength < 0.72 ||
-  score.specificity < 0.5 ||
+const shouldRewriteByQualityV2 = (score: ScriptQualityScoreV2) =>
+  score.semanticEchoRatio >= 0.18 ||
+  score.speechStrength < 0.75 ||
+  score.actionabilityScore < 0.65 ||
+  score.languageNaturalnessPtBr < 0.72 ||
+  score.specificity < 0.55 ||
   !score.ctaPresence;
 
 const SURVEY_STALE_MS = 1000 * 60 * 60 * 24 * 120; // ~4 meses
@@ -1699,8 +2010,11 @@ function summarizeRequestTopic(value?: string | null) {
   for (const rawCandidate of candidates) {
     const cleaned = rawCandidate
       .replace(/\b(em|com)\s+\d+\s*(s|seg(?:undo)?s?|min(?:uto)?s?)\b/gi, '')
+      .replace(/\b(?:para|pra)\s+(?:que\s+)?(?:eu\s+)?(?:possa\s+)?(?:postar|publicar)\b(?:\s+(?:hoje|amanh[ãa]|agora|essa semana|este m[eê]s|semana que vem))?/gi, '')
+      .replace(/\b(?:que\s+)?(?:eu\s+)?(?:possa\s+)?(?:postar|publicar)\b(?:\s+(?:hoje|amanh[ãa]|agora|essa semana|este m[eê]s|semana que vem))?/gi, '')
       .replace(/^(?:um|uma|o|a)\s+/i, '')
       .replace(/[?.!,:;]+$/g, '')
+      .replace(/\s{2,}/g, ' ')
       .trim();
     if (!cleaned) continue;
     if (!hasMeaningfulTopic(cleaned)) continue;
@@ -1757,27 +2071,127 @@ const deriveEntitiesFromTopic = (topic?: string | null) => {
 const SCRIPT_REFINEMENT_HINT = /\b(curti|gostei|mantenha|mantem|continue|continua|refine|refinar|encurta|encurtar|adapte|adaptar|mude|mudar|troque|trocar|outra linha|vers[aã]o)\b/i;
 const SCRIPT_CREATION_HINT = /\b(crie|criar|gere|gerar|monte|montar|fa[cç]a|fazer|escreva|elabore|roteiro|script|o que postar)\b/i;
 
-const shouldAskScriptClarification = (query: string, summarizedTopic: string) => {
+const extractAudienceFromQuery = (query: string) => {
+  const match = (query || '').match(/\b(?:para|pra)\s+([^,.|]{4,80})/i);
+  if (!match?.[1]) return '';
+  const candidate = normalizeTopicCandidate(match[1]);
+  if (!candidate) return '';
+  if (/^(o|a|um|uma)\s+/i.test(candidate) && candidate.split(' ').length <= 2) return '';
+  return candidate;
+};
+
+const extractTimeConstraintFromQuery = (query: string) => {
+  const text = (query || '').toLowerCase();
+  const relativeMatch = text.match(/\b(hoje|amanh[ãa]|essa semana|este m[eê]s|semana que vem)\b/i);
+  if (relativeMatch?.[1]) return relativeMatch[1];
+  const durationMatch = text.match(/\b(\d{1,3}\s*(?:s|seg(?:undo)?s?|min(?:uto)?s?))\b/i);
+  return durationMatch?.[1] || '';
+};
+
+const normalizeScriptBriefTopic = (topic: string) => normalizeTopicCandidate(topic).slice(0, 120).trim();
+
+const isAbstractScriptTopic = (topic: string) => {
+  const tokens = tokenizeForScriptSimilarity(topic);
+  if (!tokens.length) return true;
+  const onlyToken = tokens[0] || '';
+  if (tokens.length === 1 && /(tema|conteudo|nicho|video|reels|instagram|roteiro|postar)/i.test(onlyToken)) {
+    return true;
+  }
+  return false;
+};
+
+const extractScriptBrief = (
+  query: string,
+  scriptContext?: EnrichedAIContext['scriptContext'] | null
+): ScriptBrief => {
+  const trimmedQuery = (query || '').trim();
+  const summarizedTopic = summarizeRequestTopic(trimmedQuery);
+  const contextTopic = extractTopicFromScriptContext(scriptContext);
+  const explicitTopic = normalizeScriptBriefTopic(summarizedTopic);
+  const fallbackTopic = normalizeScriptBriefTopic(contextTopic);
+  const topic = explicitTopic || fallbackTopic;
+  const objective = inferScriptObjective(trimmedQuery) || scriptContext?.executionPlan?.objective || undefined;
+  const audience = extractAudienceFromQuery(trimmedQuery) || undefined;
+  const timeConstraint = extractTimeConstraintFromQuery(trimmedQuery) || undefined;
+
+  const ambiguityReasons: string[] = [];
+  let confidence = 0.15;
+
+  if (!trimmedQuery) {
+    ambiguityReasons.push('missing_query');
+    return { topic: '', confidence: 0, ambiguityReasons };
+  }
+
+  if (explicitTopic && hasMeaningfulTopic(explicitTopic) && !isAbstractScriptTopic(explicitTopic)) {
+    confidence += 0.5;
+  } else if (fallbackTopic && hasMeaningfulTopic(fallbackTopic)) {
+    confidence += 0.28;
+    ambiguityReasons.push('topic_inferred_from_history');
+  } else {
+    ambiguityReasons.push('missing_topic');
+  }
+
+  if (objective) confidence += 0.12;
+  else ambiguityReasons.push('missing_objective');
+
+  if (audience) confidence += 0.08;
+  if (timeConstraint) confidence += 0.05;
+
+  if (SCRIPT_CREATION_HINT.test(trimmedQuery) && !explicitTopic) {
+    ambiguityReasons.push('generic_creation_prompt');
+  }
+  if (/^(?:crie|gere|fa[cç]a|monte)\s+(?:um|uma)?\s*(?:roteiro|script)/i.test(trimmedQuery)) {
+    ambiguityReasons.push('broad_script_request');
+  }
+  if (timeConstraint && !explicitTopic) {
+    ambiguityReasons.push('timing_without_theme');
+  }
+  if (topic && isAbstractScriptTopic(topic)) {
+    ambiguityReasons.push('abstract_topic');
+  }
+
+  return {
+    topic,
+    audience,
+    objective,
+    timeConstraint,
+    confidence: roundRatio(Math.max(0, Math.min(confidence, 1))),
+    ambiguityReasons: Array.from(new Set(ambiguityReasons)),
+    usedContextFallback: Boolean(!explicitTopic && fallbackTopic),
+  };
+};
+
+const shouldAskScriptClarification = (query: string, brief: ScriptBrief) => {
   if (!query || !query.trim()) return true;
   if (SCRIPT_REFINEMENT_HINT.test(query)) return false;
   if (!SCRIPT_CREATION_HINT.test(query)) return false;
-  return !hasMeaningfulTopic(summarizedTopic);
+  if (!SCRIPT_BRIEF_V2_ENABLED) return !hasMeaningfulTopic(brief.topic);
+
+  if (!brief.topic) return true;
+  if (brief.confidence < 0.62) return true;
+  if (brief.ambiguityReasons.includes('generic_creation_prompt')) return true;
+  if (brief.ambiguityReasons.includes('broad_script_request') && brief.confidence < 0.7) return true;
+  if (brief.ambiguityReasons.includes('timing_without_theme')) return true;
+  if (brief.ambiguityReasons.includes('abstract_topic')) return true;
+  return false;
 };
 
 const buildScriptClarificationMessage = () =>
   [
-    '### Preciso de contexto para montar um roteiro forte',
+    '### Falta um detalhe para fechar seu roteiro',
     '> [!IMPORTANT]',
-    '> Me passe 3 dados rápidos e eu já te devolvo um roteiro pronto, com narrativa e CTA alinhados.',
-    '>',
-    '> `Tema específico` | `Público` | `Objetivo principal` (educar, engajar, viralizar ou converter).',
+    '> Qual tema específico você quer abordar neste roteiro?',
+    '> Se preferir, eu posso usar seu nicho atual e te entregar uma primeira versão agora.',
     '',
-    'Exemplo: "Tema: rotina de skincare para pele oleosa | Público: mulheres 25-35 | Objetivo: gerar salvamentos".',
-    '',
-    '[BUTTON: Quero preencher tema, público e objetivo]',
-    '[BUTTON: Usar meu nicho atual e gerar uma primeira versão]',
-    '[BUTTON: Me mostre exemplos de prompts prontos]',
+    '[BUTTON: Informar tema específico]',
+    '[BUTTON: Pode usar meu nicho atual]',
   ].join('\n');
+
+export const __scriptInternals = {
+  extractScriptBrief,
+  evaluateScriptQualityV2,
+  shouldRewriteByQualityV2,
+};
 
 const extractTopicFromScriptContext = (scriptContext?: EnrichedAIContext['scriptContext'] | null) => {
   if (!scriptContext) return '';
@@ -2475,6 +2889,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       narrativeScore?: number;
       performanceScore?: number;
       personalizationScore?: number;
+      postDate?: string;
       narrativeRole?: 'gancho' | 'desenvolvimento' | 'cta';
       matchReasons?: string[];
     }> = [];
@@ -2528,6 +2943,12 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           const narrativeScore = typeof insp?.narrativeScore === 'number' ? insp.narrativeScore : undefined;
           const performanceScore = typeof insp?.performanceScore === 'number' ? insp.performanceScore : undefined;
           const personalizationScore = typeof insp?.personalizationScore === 'number' ? insp.personalizationScore : undefined;
+          const postDate = (() => {
+            if (!insp?.postDate) return undefined;
+            const parsedDate = new Date(insp.postDate);
+            if (Number.isNaN(parsedDate.getTime())) return undefined;
+            return parsedDate.toISOString();
+          })();
           const matchReasons = Array.isArray(insp?.matchReasons)
             ? insp.matchReasons.map((reason: any) => String(reason).trim()).filter(Boolean)
             : [];
@@ -2557,6 +2978,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
             narrativeScore,
             performanceScore,
             personalizationScore,
+            postDate,
             narrativeRole,
             matchReasons: matchReasons.length ? matchReasons : undefined,
           });
@@ -2716,13 +3138,19 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       });
     }
     sanitizedResponse = sanitizeInstagramLinks(sanitizedResponse, allowedLinks);
+    let scriptContractTelemetry: {
+      repaired: boolean;
+      issues: string[];
+      quality: ScriptContractQuality;
+    } | null = null;
     if (isScriptMode) {
+      const scriptBrief = extractScriptBrief(truncatedQuery, scriptContext);
       const scriptTopicFromQuery = summarizeRequestTopic(truncatedQuery);
       const scriptTopicFromContext = extractTopicFromScriptContext(scriptContext);
-      const resolvedScriptTopic = pickBestTopicCandidate([scriptTopicFromQuery, scriptTopicFromContext]);
+      const resolvedScriptTopic = pickBestTopicCandidate([scriptBrief.topic, scriptTopicFromQuery, scriptTopicFromContext]);
       const shouldClarify = SCRIPT_ALWAYS_GENERATE
-        ? !truncatedQuery.trim()
-        : shouldAskScriptClarification(truncatedQuery, scriptTopicFromQuery) && !hasMeaningfulTopic(scriptTopicFromContext);
+        ? (!truncatedQuery.trim() || shouldAskScriptClarification(truncatedQuery, scriptBrief))
+        : shouldAskScriptClarification(truncatedQuery, scriptBrief);
 
       if (shouldClarify) {
         sanitizedResponse = buildScriptClarificationMessage();
@@ -2730,6 +3158,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           actor: actorId,
           target: access.targetUserId,
           query: summarizeRequestTopic(truncatedQuery),
+          brief: scriptBrief,
         });
       } else {
         if (!hasMeaningfulTopic(scriptTopicFromQuery) && hasMeaningfulTopic(scriptTopicFromContext)) {
@@ -2763,6 +3192,11 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           inspirationSource: fallbackSource,
         });
         sanitizedResponse = scriptContract.normalized;
+        scriptContractTelemetry = {
+          repaired: scriptContract.repaired,
+          issues: scriptContract.issues,
+          quality: scriptContract.quality,
+        };
         if (scriptContract.repaired) {
           logger.info('[ai/chat] script_contract_repaired', {
             issues: scriptContract.issues,
@@ -2776,13 +3210,14 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           target: access.targetUserId,
           score: scriptContract.quality.score || null,
           fallback_source: scriptContract.quality.fallbackSource || fallbackSource,
+          fallback_level: scriptContract.quality.fallbackLevel || 'none',
           context_strength: scriptContext?.executionPlan?.contextStrength ?? null,
         });
-        if ((scriptContract.quality.score?.echoRatio || 0) > 0) {
+        if ((scriptContract.quality.score?.semanticEchoRatio || 0) > 0) {
           logger.info('[ai/chat] echo_detected', {
             actor: actorId,
             target: access.targetUserId,
-            echo_ratio: scriptContract.quality.score?.echoRatio || 0,
+            echo_ratio: scriptContract.quality.score?.semanticEchoRatio || 0,
           });
         }
         logger.info('[ai/chat] script_mode_metrics', {
@@ -2795,6 +3230,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           communityInspirationsUsed: communityInspirations.length,
           communityMatchType: communityMeta?.matchType || null,
           fallback_source: scriptContract.quality.fallbackSource || fallbackSource,
+          fallback_level: scriptContract.quality.fallbackLevel || 'none',
           context_strength: scriptContext?.executionPlan?.contextStrength ?? null,
         });
       }
@@ -2854,6 +3290,10 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         modelVersion: (sessionDoc as any)?.modelVersion || null,
         ragEnabled: (sessionDoc as any)?.ragEnabled || null,
         contextSourcesUsed: (sessionDoc as any)?.contextSourcesUsed || null,
+        scriptRepaired: scriptContractTelemetry?.repaired ?? null,
+        scriptRepairIssues: scriptContractTelemetry?.issues || null,
+        scriptQualityScoreV2: scriptContractTelemetry?.quality?.score || null,
+        scriptFallbackLevel: scriptContractTelemetry?.quality?.fallbackLevel || 'none',
       });
 
       const extractedContext = isScriptMode

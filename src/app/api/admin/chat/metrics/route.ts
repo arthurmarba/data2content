@@ -237,7 +237,7 @@ export async function GET(req: Request) {
     { $match: { rating: "down", ...logMatch } },
     {
       $group: {
-        _id: "$reason",
+        _id: { $ifNull: ["$reasonCode", "$reason"] },
         count: { $sum: 1 },
       },
     },
@@ -260,6 +260,30 @@ export async function GET(req: Request) {
         _id: { fallbackReason: "$fallbackReason", intent: "$intent", hash: "$hash" },
         count: { $sum: 1 },
         sample: { $first: "$content" },
+      },
+    },
+    { $sort: { count: -1 } },
+    { $limit: 20 },
+  ]);
+
+  const scriptFallbackLevels = await ChatMessageLogModel.aggregate([
+    { $match: { ...logMatch, role: "assistant", intent: { $in: ["script_request", "humor_script_request", "proactive_script_accept"] } } },
+    {
+      $group: {
+        _id: { $ifNull: ["$scriptFallbackLevel", "none"] },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { count: -1 } },
+  ]);
+
+  const scriptRepairIssues = await ChatMessageLogModel.aggregate([
+    { $match: { ...logMatch, role: "assistant", intent: { $in: ["script_request", "humor_script_request", "proactive_script_accept"] } } },
+    { $unwind: { path: "$scriptRepairIssues", preserveNullAndEmptyArrays: false } },
+    {
+      $group: {
+        _id: "$scriptRepairIssues",
+        count: { $sum: 1 },
       },
     },
     { $sort: { count: -1 } },
@@ -358,6 +382,8 @@ export async function GET(req: Request) {
       contextSourcesWithThumbsDown: topContextSources,
       thumbsDownReasons: topDownReasons,
       fallbackQuestions: topFallbackQuestions,
+      scriptFallbackLevels,
+      scriptRepairIssues,
     },
     timeseries: timeSeries,
   });

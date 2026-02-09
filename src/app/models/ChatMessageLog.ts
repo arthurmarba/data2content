@@ -19,6 +19,17 @@ export interface IChatMessageLog extends Document {
   tokensActualOut?: number | null;
   hadFallback?: boolean | null;
   fallbackReason?: string | null;
+  scriptRepaired?: boolean | null;
+  scriptRepairIssues?: string[] | null;
+  scriptQualityScoreV2?: {
+    semanticEchoRatio?: number;
+    speechStrength?: number;
+    actionabilityScore?: number;
+    languageNaturalnessPtBr?: number;
+    specificity?: number;
+    ctaPresence?: boolean;
+  } | null;
+  scriptFallbackLevel?: "none" | "rewrite_pass" | "static_fallback" | null;
   errorType?: string | null;
   httpStatus?: number | null;
   wasStreamed?: boolean | null;
@@ -49,6 +60,10 @@ const chatMessageLogSchema = new Schema<IChatMessageLog>(
     tokensActualOut: { type: Number, default: null },
     hadFallback: { type: Boolean, default: null },
     fallbackReason: { type: String, default: null },
+    scriptRepaired: { type: Boolean, default: null },
+    scriptRepairIssues: { type: [String], default: null },
+    scriptQualityScoreV2: { type: Schema.Types.Mixed, default: null },
+    scriptFallbackLevel: { type: String, default: null },
     errorType: { type: String, default: null },
     httpStatus: { type: Number, default: null },
     wasStreamed: { type: Boolean, default: null },

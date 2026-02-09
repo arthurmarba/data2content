@@ -189,7 +189,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
       <div className="landing-section__inner relative z-10 flex w-full flex-col gap-4 sm:gap-14 md:gap-24">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 text-center sm:gap-8 md:gap-10">
 
-          <div className="relative z-10 group flex items-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-1.5 transition-all hover:bg-brand-primary/15 sm:gap-2 sm:px-5 sm:py-2.5">
+          <div className="relative z-10 mb-3 group flex items-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-1.5 transition-all hover:bg-brand-primary/15 sm:mb-0 sm:gap-2 sm:px-5 sm:py-2.5">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
@@ -200,17 +200,17 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
           </div>
 
           <div className="flex flex-col items-center gap-5 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
-            <h1 className="max-w-[13ch] text-[4.2rem] font-black leading-[0.92] tracking-[-0.04em] text-brand-dark text-balance sm:max-w-[14ch] sm:text-[3rem] sm:leading-[1.02] md:max-w-[15ch] md:text-[5.5rem] md:leading-[0.9] lg:text-[6.5rem]">
+            <h1 className="max-w-[13ch] text-[3.9rem] font-black leading-[0.92] tracking-[-0.04em] text-brand-dark text-balance sm:max-w-[14ch] sm:text-[3rem] sm:leading-[1.02] md:max-w-[15ch] md:text-[5.5rem] md:leading-[0.9] lg:text-[6.5rem]">
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
-                Consultoria
+                Agência consultiva
               </span>
-              <span className="mt-2 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] sm:mt-3 md:mt-4 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
-                para criadores de conteúdo via IA.
+              <span className="mt-1 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] sm:mt-3 md:mt-4 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
+                para creators via IA.
               </span>
             </h1>
 
             <p className="max-w-[34ch] px-1 text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-3xl md:px-0 md:text-2xl md:leading-[1.4]">
-              Mais que uma plataforma de IA: uma agência consultiva que revisa pessoalmente seu conteúdo toda semana, garantindo o posicionamento ideal para atrair marcas e gerar vendas.
+              Revisão pessoal de posts e análise via IA em reuniões semanais. Sua estratégia narrativa desenhada por especialistas para atrair marcas e gerar resultados.
             </p>
           </div>
 

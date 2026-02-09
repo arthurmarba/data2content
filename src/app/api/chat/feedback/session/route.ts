@@ -5,6 +5,7 @@ import { recordSessionFeedback, closeChatSession } from "@/app/lib/chatTelemetry
 import { logger } from "@/app/lib/logger";
 import ChatSessionModel from "@/app/models/ChatSession";
 import ChatMessageFeedbackModel from "@/app/models/ChatMessageFeedback";
+import { FEEDBACK_REASON_CODES } from "@/app/lib/feedbackReasons";
 
 export async function POST(req: Request) {
   const session = (await getServerSession(authOptions)) as any;
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     if (!sessionId || Number.isNaN(score) || score < 1 || score > 5) {
       return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
     }
-    const allowedCodes = ["generic", "wrong", "didnt_use_context", "hard_to_follow", "too_long", "too_short", "slow", "other"];
+    const allowedCodes = FEEDBACK_REASON_CODES as readonly string[];
     const reasons = Array.isArray(reasonCodes)
       ? Array.from(new Set(reasonCodes.map((r: any) => String(r || "").trim().toLowerCase()).filter((r: string) => allowedCodes.includes(r))))
       : [];

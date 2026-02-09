@@ -6,6 +6,11 @@ export const FEEDBACK_REASONS: Array<{ code: FeedbackReasonCode; label: string; 
   FEEDBACK_REASON_CODES.filter((c) => c !== "hard_to_follow").map((code) => {
     const labels: Record<FeedbackReasonCode, string> = {
       generic: "Genérico",
+      generic_script: "Roteiro genérico",
+      prompt_echo: "Ecoou meu pedido",
+      not_actionable: "Pouco acionável",
+      bad_language: "Linguagem ruim",
+      wrong_objective: "Objetivo errado",
       wrong: "Parece errado",
       didnt_use_context: "Ignorou meu contexto",
       confusing: "Confuso/difícil",

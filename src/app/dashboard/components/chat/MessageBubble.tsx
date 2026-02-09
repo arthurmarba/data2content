@@ -495,6 +495,9 @@ export const MessageBubble = React.memo(function MessageBubble({
         : undefined;
 
     const evidence = message.answerEvidence;
+    const assistantBubbleMaxWidth = message.messageType === 'script'
+        ? 'max-w-[94%] sm:max-w-[80%] lg:max-w-[84ch]'
+        : 'max-w-[94%] sm:max-w-[80%] lg:max-w-[72ch]';
 
     return (
         <li className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`} style={virtualizationStyle}>
@@ -503,7 +506,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                     className={[
                         isUser
                             ? 'max-w-[94%] sm:max-w-[75%] rounded-2xl rounded-tr-sm bg-brand-primary text-white shadow-sm px-3.5 py-2.5'
-                            : 'max-w-[94%] sm:max-w-[80%] lg:max-w-[72ch] rounded-2xl border border-gray-200/80 bg-white/95 px-3 py-2.5 text-gray-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:px-3.5 sm:py-3',
+                            : `${assistantBubbleMaxWidth} rounded-2xl border border-gray-200/80 bg-white/95 px-3 py-2.5 text-gray-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:px-3.5 sm:py-3`,
                     ].join(' ')}
                 >
                     {isAlert && (

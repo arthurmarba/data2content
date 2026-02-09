@@ -69,6 +69,7 @@ jest.mock('@/utils/getBlockSampleCaptions', () => ({
 
 let chat: typeof import('./route').POST;
 let sanitizeTables: typeof import('./route').sanitizeTables;
+let scriptInternals: typeof import('./route').__scriptInternals;
 
 const mockSession = getServerSession as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
@@ -115,6 +116,7 @@ beforeEach(() => {
     const routeModule = require('./route');
     chat = routeModule.POST;
     sanitizeTables = routeModule.sanitizeTables;
+    scriptInternals = routeModule.__scriptInternals;
   });
   mockSession.mockResolvedValue({ user: { id: testUserId, planStatus: 'active' } });
   mockConnect.mockResolvedValue(null);
@@ -229,6 +231,34 @@ it('mantém tabelas, mesmo que esparsas', () => {
   expect(sanitized).not.toContain('- **A**');
 });
 
+it('extractScriptBrief reduz confiança em pedido genérico', () => {
+  const brief = scriptInternals.extractScriptBrief('Crie um roteiro de conteúdo para que eu possa postar', null as any);
+  expect(brief.topic).toBe('');
+  expect(brief.confidence).toBeLessThan(0.62);
+  expect(brief.ambiguityReasons).toContain('generic_creation_prompt');
+});
+
+it('extractScriptBrief aumenta confiança quando tema está explícito', () => {
+  const brief = scriptInternals.extractScriptBrief('Crie um roteiro sobre orçamento doméstico para mulheres autônomas', null as any);
+  expect(brief.topic).toMatch(/orçamento doméstico/i);
+  expect(brief.confidence).toBeGreaterThanOrEqual(0.62);
+});
+
+it('evaluateScriptQualityV2 detecta eco semântico e baixa acionabilidade', () => {
+  const score = scriptInternals.evaluateScriptQualityV2(
+    [
+      { time: '00-03s', visual: 'crie um roteiro de conteúdo para eu postar amanhã', audio: 'crie um roteiro de conteúdo para eu postar amanhã' },
+      { time: '03-20s', visual: 'crie um roteiro de conteúdo para eu postar amanhã', audio: 'crie um roteiro de conteúdo para eu postar amanhã' },
+      { time: '20-30s', visual: 'final', audio: 'ok' },
+    ],
+    'crie um roteiro de conteúdo para eu postar amanhã',
+    false
+  );
+  expect(score.semanticEchoRatio).toBeGreaterThan(0.5);
+  expect(score.actionabilityScore).toBeLessThan(0.7);
+  expect(scriptInternals.shouldRewriteByQualityV2(score)).toBe(true);
+});
+
 it('aplica contrato completo no modo roteirista com inspiração contextual', async () => {
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
   mockAskLLM.mockResolvedValue({
@@ -321,7 +351,7 @@ it('salva preferência narrativa quando usuário dá feedback explícito', async
   expect(dialoguePatch?.scriptPreferences?.narrativePreference).toBe('prefer_similar');
 });
 
-it('gera roteiro completo no modo roteirista mesmo quando o pedido é genérico', async () => {
+it('solicita 1 detalhe quando o pedido de roteiro é genérico', async () => {
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
   mockGetTopPostsByMetric.mockResolvedValue([
     {
@@ -358,14 +388,13 @@ it('gera roteiro completo no modo roteirista mesmo quando o pedido é genérico'
   const json = await res.json();
 
   expect(res.status).toBe(200);
-  expect(json.answer).toContain('[ROTEIRO]');
-  expect(json.answer).toContain('**Pauta Estratégica:**');
-  expect(json.answer).toContain('**Base de Engajamento:**');
-  expect(json.answer).toContain('**Fonte da Inspiração:**');
-  expect(json.answer).not.toMatch(/preciso de contexto/i);
+  expect(json.answer).toContain('Qual tema específico você quer abordar neste roteiro?');
+  expect(json.answer).toContain('[BUTTON: Informar tema específico]');
+  expect(json.answer).toContain('[BUTTON: Pode usar meu nicho atual]');
+  expect(json.answer).not.toContain('[ROTEIRO]');
 });
 
-it('usa pauta do calendário/histórico quando pedido de roteiro é genérico', async () => {
+it('usa pauta do calendário/histórico quando o pedido traz tema claro', async () => {
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
   mockRecommendWeeklySlots.mockResolvedValue([
     {
@@ -396,12 +425,12 @@ it('usa pauta do calendário/histórico quando pedido de roteiro é genérico', 
   mockAskLLM.mockResolvedValue({
     stream: streamFromText([
       '[ROTEIRO]',
-      '**Título Sugerido:** Crie um roteiro de conteúdo para que eu possa postar amanhã',
+      '**Título Sugerido:** Roteiro para orçamento doméstico',
       '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
       '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
       '| :--- | :--- | :--- |',
-      '| 00-03s | Close no rosto e texto: que eu possa postar amanhã | Se você quer resultado em que eu possa postar amanhã, faça isso |',
-      '| 03-20s | Mostre o erro comum em que eu possa postar amanhã | Esse erro derruba retenção |',
+      '| 00-03s | Close no rosto e texto: erro de orçamento doméstico | Se você quer melhorar seu orçamento doméstico, comece por este ajuste |',
+      '| 03-20s | Mostre o erro comum no orçamento doméstico | Esse erro derruba retenção |',
       '| 20-30s | Final com CTA | Salve e compartilhe |',
       '[/ROTEIRO]',
       '',
@@ -412,7 +441,7 @@ it('usa pauta do calendário/histórico quando pedido de roteiro é genérico', 
     historyPromise: Promise.resolve([]),
   });
 
-  const res = await chat(makeRequest({ query: 'crie um roteiro de conteúdo para que eu possa postar amanhã' }));
+  const res = await chat(makeRequest({ query: 'crie um roteiro sobre orçamento doméstico para eu postar amanhã' }));
   const json = await res.json();
 
   expect(res.status).toBe(200);
@@ -446,29 +475,29 @@ it('repara roteiro quando a IA ecoa a pergunta do usuário nas falas', async () 
   mockAskLLM.mockResolvedValue({
     stream: streamFromText([
       '[ROTEIRO]',
-      '**Título Sugerido:** Crie um roteiro de conteúdo para que eu possa postar amanhã',
+      '**Título Sugerido:** Roteiro sobre orçamento doméstico',
       '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
       '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
       '| :--- | :--- | :--- |',
-      '| 00-03s | Close em que eu possa postar amanhã | Se você quer melhorar em que eu possa postar amanhã |',
-      '| 03-20s | Mostre em que eu possa postar amanhã | Mostre em que eu possa postar amanhã agora |',
-      '| 20-30s | Final em que eu possa postar amanhã | Se isso ajudou em que eu possa postar amanhã |',
+      '| 00-03s | Close em orçamento doméstico para eu postar amanhã | Se você quer melhorar em orçamento doméstico para eu postar amanhã |',
+      '| 03-20s | Mostre em orçamento doméstico para eu postar amanhã | Mostre em orçamento doméstico para eu postar amanhã agora |',
+      '| 20-30s | Final em orçamento doméstico para eu postar amanhã | Se isso ajudou em orçamento doméstico para eu postar amanhã |',
       '[/ROTEIRO]',
       '',
       '[LEGENDA]',
-      'V1: em que eu possa postar amanhã',
+      'V1: orçamento doméstico para eu postar amanhã',
       '[/LEGENDA]',
     ].join('\n')),
     historyPromise: Promise.resolve([]),
   });
 
-  const res = await chat(makeRequest({ query: 'crie um roteiro de conteúdo para que eu possa postar amanhã' }));
+  const res = await chat(makeRequest({ query: 'crie um roteiro sobre orçamento doméstico para eu postar amanhã' }));
   const json = await res.json();
 
   expect(res.status).toBe(200);
   expect(json.answer).toContain('[ROTEIRO]');
-  expect(json.answer).not.toMatch(/que eu possa postar amanhã/i);
-  expect(json.answer).toMatch(/passo 1 para destravar|erro que trava sua evolução/i);
+  expect(json.answer).not.toMatch(/orçamento doméstico para eu postar amanhã/i);
+  expect(json.answer).toMatch(/passo 1|erro comum|benef[ií]cio/i);
 });
 
 it('usa top posts do criador como fallback de inspiração quando comunidade não está disponível', async () => {
@@ -514,7 +543,7 @@ it('usa top posts do criador como fallback de inspiração quando comunidade nã
     historyPromise: Promise.resolve([]),
   });
 
-  const res = await chat(makeRequest({ query: 'crie um roteiro de conteúdo para eu postar amanhã' }));
+  const res = await chat(makeRequest({ query: 'crie um roteiro sobre orçamento doméstico para eu postar amanhã' }));
   const json = await res.json();
 
   expect(res.status).toBe(200);

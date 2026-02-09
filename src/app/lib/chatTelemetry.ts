@@ -12,6 +12,11 @@ const INACTIVITY_MS = 20 * 60 * 1000; // 20 minutos
 const NEGATIVE_REASON_CODES = FEEDBACK_REASON_CODES;
 const REASON_TO_CATEGORY: Record<string, string> = {
   generic: "resposta_generica",
+  generic_script: "resposta_generica",
+  prompt_echo: "resposta_generica",
+  not_actionable: "raso",
+  bad_language: "confuso",
+  wrong_objective: "nao_usou_contexto",
   wrong: "resposta_errada",
   didnt_use_context: "nao_usou_contexto",
   hard_to_follow: "confuso",
@@ -175,6 +180,17 @@ export async function logChatMessage(params: {
   tokensActualOut?: number | null;
   hadFallback?: boolean | null;
   fallbackReason?: string | null;
+  scriptRepaired?: boolean | null;
+  scriptRepairIssues?: string[] | null;
+  scriptQualityScoreV2?: {
+    semanticEchoRatio?: number;
+    speechStrength?: number;
+    actionabilityScore?: number;
+    languageNaturalnessPtBr?: number;
+    specificity?: number;
+    ctaPresence?: boolean;
+  } | null;
+  scriptFallbackLevel?: "none" | "rewrite_pass" | "static_fallback" | null;
   errorType?: string | null;
   httpStatus?: number | null;
   wasStreamed?: boolean | null;
@@ -205,6 +221,10 @@ export async function logChatMessage(params: {
         tokensActualOut: params.tokensActualOut ?? null,
         hadFallback: params.hadFallback ?? null,
         fallbackReason: params.fallbackReason ?? null,
+        scriptRepaired: params.scriptRepaired ?? null,
+        scriptRepairIssues: params.scriptRepairIssues ?? null,
+        scriptQualityScoreV2: params.scriptQualityScoreV2 ?? null,
+        scriptFallbackLevel: params.scriptFallbackLevel ?? null,
         errorType: params.errorType ?? null,
         httpStatus: params.httpStatus ?? null,
         wasStreamed: params.wasStreamed ?? null,
@@ -240,6 +260,10 @@ export async function logChatMessage(params: {
             tokensActualOut: params.tokensActualOut ?? null,
             hadFallback: params.hadFallback ?? null,
             fallbackReason: params.fallbackReason ?? null,
+            scriptRepaired: params.scriptRepaired ?? null,
+            scriptRepairIssues: params.scriptRepairIssues ?? null,
+            scriptQualityScoreV2: params.scriptQualityScoreV2 ?? null,
+            scriptFallbackLevel: params.scriptFallbackLevel ?? null,
             errorType: params.errorType ?? null,
             httpStatus: params.httpStatus ?? null,
             wasStreamed: params.wasStreamed ?? null,
