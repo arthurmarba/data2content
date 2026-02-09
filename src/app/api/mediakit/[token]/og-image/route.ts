@@ -5,6 +5,7 @@ import path from 'path';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import AccountInsightModel from '@/app/models/AccountInsight';
+import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -95,7 +96,12 @@ export async function GET(
 ) {
   await connectToDatabase();
 
-  const user = await UserModel.findOne({ mediaKitSlug: params.token })
+  const resolvedToken = await resolveMediaKitToken(params.token);
+  if (!resolvedToken?.userId) {
+    return loadFallbackImage();
+  }
+
+  const user = await UserModel.findById(resolvedToken.userId)
     .select('profile_picture_url image instagram availableIgAccounts.profile_picture_url')
     .lean();
 

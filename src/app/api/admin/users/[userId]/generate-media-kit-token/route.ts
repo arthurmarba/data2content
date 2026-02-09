@@ -2,14 +2,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import crypto from 'crypto';
-import slugify from '@/utils/slugify';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { getAdminSession } from '@/lib/getAdminSession';
 import { getClientIp } from '@/utils/getClientIp';
+import {
+  buildMediaKitPublicUrl,
+  buildMediaKitSlugBase,
+  ensureUniqueMediaKitSlug,
+} from '@/app/lib/mediakit/slugService';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,42 +49,42 @@ export async function POST(
 
   await connectToDatabase();
 
-  const user = await UserModel.findById(userId).select('name').lean();
+  const user = await UserModel.findById(userId).select('name mediaKitDisplayName mediaKitSlug').lean();
   if (!user) {
     return apiError('Usuário não encontrado.', 404);
   }
 
-  const baseSlug = slugify(user.name || 'usuario');
-  let slug = baseSlug;
-  const existing = await UserModel.findOne({ mediaKitSlug: slug });
-  if (existing && existing._id.toString() !== userId) {
-    slug = `${baseSlug}-${crypto.randomBytes(2).toString('hex')}`;
+  if (user.mediaKitSlug) {
+    const slug = String(user.mediaKitSlug);
+    const url = buildMediaKitPublicUrl(req.nextUrl.origin, slug);
+    return NextResponse.json({ slug, url });
   }
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const updated = await UserModel.findByIdAndUpdate(
-        userId,
-        { mediaKitSlug: slug },
-        { new: true }
-      );
-      if (!updated) {
-        return apiError('Usuário não encontrado.', 404);
-      }
-      const url = `${req.nextUrl.origin}/mediakit/${slug}`;
-      logger.info(`${TAG} Slug generated for user ${userId}`);
-      return NextResponse.json({ slug, url });
-    } catch (err: any) {
-      if (err.code === 11000 && attempt === 0) {
-        slug = `${baseSlug}-${crypto.randomBytes(2).toString('hex')}`;
-        continue;
-      }
-      logger.error(`${TAG} Error generating slug:`, err);
-      return apiError('Erro ao gerar slug.', 500);
+  try {
+    const idSuffix = String(userId).slice(-4).toLowerCase();
+    const fallback = `usuario-${idSuffix}`;
+    const slugBase = buildMediaKitSlugBase(
+      user.mediaKitDisplayName || user.name || '',
+      fallback
+    );
+    const slug = await ensureUniqueMediaKitSlug(slugBase, userId);
+
+    const updated = await UserModel.findByIdAndUpdate(
+      userId,
+      { mediaKitSlug: slug },
+      { new: true }
+    );
+    if (!updated) {
+      return apiError('Usuário não encontrado.', 404);
     }
-  }
 
-  return apiError('Erro ao gerar slug.', 500);
+    const url = buildMediaKitPublicUrl(req.nextUrl.origin, slug);
+    logger.info(`${TAG} Slug generated for user ${userId}`);
+    return NextResponse.json({ slug, url });
+  } catch (err: any) {
+    logger.error(`${TAG} Error generating slug:`, err);
+    return apiError('Erro ao gerar slug.', 500);
+  }
 }
 
 export async function GET(
@@ -109,7 +112,7 @@ export async function GET(
   }
 
   const slug = user.mediaKitSlug;
-  const url = slug ? `${req.nextUrl.origin}/mediakit/${slug}` : null;
+  const url = slug ? buildMediaKitPublicUrl(req.nextUrl.origin, String(slug)) : null;
   logger.info(`${TAG} Returning slug for user ${userId}`);
   return NextResponse.json({ slug, url });
 }

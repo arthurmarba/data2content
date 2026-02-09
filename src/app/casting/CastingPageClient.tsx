@@ -351,11 +351,21 @@ function resolvePrimaryTag(creator: LandingCreatorHighlight) {
 }
 
 function computeEngagementRate(creator: LandingCreatorHighlight): number | null {
-  const followers = creator.followers ?? 0;
-  if (!followers) return null;
+  if (typeof creator.engagementRate === "number" && Number.isFinite(creator.engagementRate)) {
+    return creator.engagementRate;
+  }
+
+  const totalReach = creator.totalReach ?? 0;
+  const totalInteractions = creator.totalInteractions ?? 0;
+  if (totalReach > 0) {
+    const rate = (totalInteractions / totalReach) * 100;
+    return Number.isFinite(rate) ? Number(rate) : null;
+  }
+
+  const avgReach = creator.avgReachPerPost ?? 0;
   const avg = creator.avgInteractionsPerPost ?? 0;
-  if (!avg) return null;
-  const rate = (avg / followers) * 100;
+  if (!avgReach || avgReach <= 0) return null;
+  const rate = (avg / avgReach) * 100;
   return Number.isFinite(rate) ? Number(rate) : null;
 }
 

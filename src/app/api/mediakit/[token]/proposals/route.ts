@@ -9,6 +9,7 @@ import { sendProposalReceivedEmail } from '@/app/lib/emailService';
 import { getClientIp } from '@/utils/getClientIp';
 import rateLimit from '@/utils/rateLimit';
 import { formatCurrencySafely, normalizeCurrencyCode } from '@/utils/currency';
+import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
 
 export const runtime = 'nodejs';
 
@@ -106,7 +107,12 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
 
   await connectToDatabase();
 
-  const creator = await User.findOne({ mediaKitSlug: token })
+  const resolvedToken = await resolveMediaKitToken(token);
+  if (!resolvedToken?.userId) {
+    return NextResponse.json({ error: 'Media Kit não encontrado.' }, { status: 404 });
+  }
+
+  const creator = await User.findById(resolvedToken.userId)
     .select('_id mediaKitSlug email name username instagramUsername instagram')
     .lean();
   if (!creator?._id) {

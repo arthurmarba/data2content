@@ -584,7 +584,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                                         setShowFeedbackControls(true);
                                         onFeedbackStart?.();
                                     }}
-                                    className="self-start rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
+                                    className="self-start px-0 py-0.5 text-[12px] font-semibold text-gray-500 underline underline-offset-2 transition-colors hover:text-gray-700"
                                 >
                                     Avaliar resposta
                                 </button>

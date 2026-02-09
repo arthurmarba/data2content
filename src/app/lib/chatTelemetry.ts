@@ -185,12 +185,16 @@ export async function logChatMessage(params: {
   scriptQualityScoreV2?: {
     semanticEchoRatio?: number;
     speechStrength?: number;
+    speakabilityScore?: number;
+    instructionalSpeechRatio?: number;
     actionabilityScore?: number;
     languageNaturalnessPtBr?: number;
     specificity?: number;
     ctaPresence?: boolean;
   } | null;
   scriptFallbackLevel?: "none" | "rewrite_pass" | "static_fallback" | null;
+  scriptInstructionalSpeechRatio?: number | null;
+  scriptSpeakabilityScore?: number | null;
   errorType?: string | null;
   httpStatus?: number | null;
   wasStreamed?: boolean | null;
@@ -225,6 +229,8 @@ export async function logChatMessage(params: {
         scriptRepairIssues: params.scriptRepairIssues ?? null,
         scriptQualityScoreV2: params.scriptQualityScoreV2 ?? null,
         scriptFallbackLevel: params.scriptFallbackLevel ?? null,
+        scriptInstructionalSpeechRatio: params.scriptInstructionalSpeechRatio ?? null,
+        scriptSpeakabilityScore: params.scriptSpeakabilityScore ?? null,
         errorType: params.errorType ?? null,
         httpStatus: params.httpStatus ?? null,
         wasStreamed: params.wasStreamed ?? null,
@@ -264,6 +270,8 @@ export async function logChatMessage(params: {
             scriptRepairIssues: params.scriptRepairIssues ?? null,
             scriptQualityScoreV2: params.scriptQualityScoreV2 ?? null,
             scriptFallbackLevel: params.scriptFallbackLevel ?? null,
+            scriptInstructionalSpeechRatio: params.scriptInstructionalSpeechRatio ?? null,
+            scriptSpeakabilityScore: params.scriptSpeakabilityScore ?? null,
             errorType: params.errorType ?? null,
             httpStatus: params.httpStatus ?? null,
             wasStreamed: params.wasStreamed ?? null,

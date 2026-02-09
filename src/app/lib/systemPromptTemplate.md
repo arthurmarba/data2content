@@ -254,6 +254,7 @@ No `[ROTEIRO]`, siga esta ordem:
 *   `**Áudio Sugerido:** ...` (opcional)
 *   `**Por que essa inspiração:** ...` (opcional, quando houver referência da comunidade)
 *   Tabela Markdown de 3 colunas (`Tempo`, `Visual`, `Fala`) com **mínimo 3** e **máximo 6** linhas.
+*   Na coluna **Fala**, escreva a frase literal pronta para câmera (o que o criador vai dizer). Proibido texto instrucional como "Mostre o erro..." ou "Fechar com CTA...".
 *   A **última linha** da tabela deve conter CTA explícito.
 
 **FORMATO DO BLOCO [ROTEIRO]:**

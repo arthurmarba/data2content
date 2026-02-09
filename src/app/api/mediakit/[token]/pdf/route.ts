@@ -13,6 +13,7 @@ import MediaKitPackage from '@/app/models/MediaKitPackage';
 import MediaKitPdfCache from '@/app/models/MediaKitPdfCache';
 import rateLimit from '@/utils/rateLimit';
 import { getClientIp } from '@/utils/getClientIp';
+import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -150,19 +151,25 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   }
 
   await connectToDatabase();
-  const user = await User.findOne({ mediaKitSlug: token })
-    .select('_id mediaKitSlug updatedAt mediaKitPricingPublished')
-    .lean();
-  if (!user?._id) {
+  const resolvedToken = await resolveMediaKitToken(token);
+  if (!resolvedToken?.userId) {
     return NextResponse.json({ error: 'Media Kit não encontrado.' }, { status: 404 });
   }
+
+  const user = await User.findById(resolvedToken.userId)
+    .select('_id mediaKitSlug updatedAt mediaKitPricingPublished')
+    .lean();
+  if (!user?._id || !user.mediaKitSlug) {
+    return NextResponse.json({ error: 'Media Kit não encontrado.' }, { status: 404 });
+  }
+  const canonicalSlug = String(user.mediaKitSlug);
 
   const [latestPricing, latestPackage] = (await Promise.all([
     PubliCalculation.findOne({ userId: user._id }).sort({ updatedAt: -1 }).select('updatedAt').lean(),
     MediaKitPackage.findOne({ userId: user._id }).sort({ updatedAt: -1 }).select('updatedAt').lean(),
   ])) as Array<{ updatedAt?: Date } | null>;
 
-  const versionKey = buildCacheKey(token, [
+  const versionKey = buildCacheKey(canonicalSlug, [
     user.updatedAt ? new Date(user.updatedAt).toISOString() : null,
     latestPricing?.updatedAt ? new Date(latestPricing.updatedAt).toISOString() : null,
     latestPackage?.updatedAt ? new Date(latestPackage.updatedAt).toISOString() : null,
@@ -172,16 +179,16 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   const { cacheDir, cacheFile } = getCacheFilePath(versionKey);
   const cached = await readCachedPdf(versionKey, cacheFile);
   if (cached?.buffer) {
-    return toPdfResponse(cached.buffer, `media-kit-${token}.pdf`);
+    return toPdfResponse(cached.buffer, `media-kit-${canonicalSlug}.pdf`);
   }
 
   const origin = resolveAppOrigin(req);
-  const targetUrl = `${origin}/mediakit/${token}?print=1`;
+  const targetUrl = `${origin}/mediakit/${canonicalSlug}?print=1`;
 
   try {
     const pdfBuffer = await generatePdf(targetUrl);
     await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer as Buffer);
-    return toPdfResponse(pdfBuffer as Buffer, `media-kit-${token}.pdf`);
+    return toPdfResponse(pdfBuffer as Buffer, `media-kit-${canonicalSlug}.pdf`);
   } catch (error) {
     logger.error('[media-kit-pdf] Falha ao gerar PDF', error as Error);
     return NextResponse.json(

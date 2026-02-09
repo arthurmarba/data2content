@@ -130,6 +130,8 @@ type ScriptExecutionPlan = {
 type ScriptQualityScoreV2 = {
   semanticEchoRatio: number;
   speechStrength: number;
+  speakabilityScore: number;
+  instructionalSpeechRatio: number;
   actionabilityScore: number;
   languageNaturalnessPtBr: number;
   specificity: number;
@@ -380,10 +382,69 @@ const ACTIONABLE_SCRIPT_PATTERNS = [
   /\bcompartilhe\b/i,
 ];
 
+const INSTRUCTIONAL_SPEECH_PATTERNS = [
+  /^\s*(mostre|mostra|apresente|demonstre|abra|grave|compare|inclua|aponte|finalize)\b/i,
+  /^\s*(abrir com|fechar com|encerrar com|encerramento com)\b/i,
+  /^\s*(gancho|hook|cta)\b/i,
+  /\bpasso\s*[12]\s+para\b/i,
+  /\bcall to action\b/i,
+  /\bchamada para a[cç][aã]o\b/i,
+  /\bcta\b/i,
+];
+
+const SPEAKABLE_SPEECH_REQUIREMENTS = {
+  minWords: 8,
+  maxWords: 34,
+  subjectPatterns: [/\beu\b/i, /\bvoc[eê]\b/i, /\bse voc[eê]\b/i, /\bquando voc[eê]\b/i],
+  actionOrResultPatterns: [
+    /\bcorrig/i,
+    /\bev[it]/i,
+    /\bganh/i,
+    /\bmelhor/i,
+    /\baument/i,
+    /\bresolv/i,
+    /\bdestrav/i,
+    /\breduz/i,
+    /\borganiza/i,
+    /\beconomiz/i,
+    /\bfuncion/i,
+    /\bresultado\b/i,
+    /\bcomenta\b/i,
+    /\bsalve\b/i,
+    /\bcompartilhe\b/i,
+    /\bmanda\b/i,
+  ],
+};
+
 const isBrokenPtBr = (value: string) => {
   const cleaned = cleanScriptCell(value || '');
   if (!cleaned) return false;
   return BROKEN_PTBR_PATTERNS.some((pattern) => pattern.test(cleaned));
+};
+
+const countWords = (value: string) =>
+  (value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+const hasInstructionalSpeechPattern = (value: string) => {
+  const cleaned = cleanScriptCell(value || '');
+  if (!cleaned) return false;
+  return INSTRUCTIONAL_SPEECH_PATTERNS.some((pattern) => pattern.test(cleaned));
+};
+
+const isPracticalCreatorSpeech = (value: string) => {
+  const cleaned = cleanScriptCell(value || '');
+  if (!cleaned) return false;
+  if (hasInstructionalSpeechPattern(cleaned)) return false;
+  const words = countWords(cleaned);
+  if (words < SPEAKABLE_SPEECH_REQUIREMENTS.minWords || words > SPEAKABLE_SPEECH_REQUIREMENTS.maxWords) {
+    return false;
+  }
+  const hasConversationalSubject = SPEAKABLE_SPEECH_REQUIREMENTS.subjectPatterns.some((pattern) => pattern.test(cleaned));
+  if (!hasConversationalSubject) return false;
+  return SPEAKABLE_SPEECH_REQUIREMENTS.actionOrResultPatterns.some((pattern) => pattern.test(cleaned));
 };
 
 const tokenizeForScriptSimilarity = (value: string) =>
@@ -422,7 +483,8 @@ const isWeakScriptSpeech = (value: string, userQuery: string) => {
   const cleaned = cleanScriptCell(value || '');
   if (!cleaned) return true;
   if (isPlaceholderLike(cleaned)) return true;
-  if (cleaned.length < 24) return true;
+  if (hasInstructionalSpeechPattern(cleaned)) return true;
+  if (!isPracticalCreatorSpeech(cleaned)) return true;
   if (isBrokenPtBr(cleaned)) return true;
   if (hasGenericScriptEcho(cleaned, userQuery)) return true;
   return false;
@@ -532,66 +594,84 @@ const parseLooseRowsFromScript = (content: string): ScriptTableRow[] => {
   return rows;
 };
 
-const buildDefaultHumorRows = (topic: string): ScriptTableRow[] => {
-  const safeTopic = hasMeaningfulTopic(topic) ? topic : 'uma situação do seu nicho';
+const buildSpeakableSceneBlueprint = (
+  topic: string,
+  objective?: string | null,
+  isHumor = false
+): ScriptTableRow[] => {
+  const safeTopic = hasMeaningfulTopic(topic) ? topic : 'uma dor real do seu nicho';
+  const normalizedObjective = objectiveLabel(objective);
+
+  if (isHumor) {
+    return [
+      {
+        time: '00-03s',
+        visual: `Setup rápido com expressão exagerada sobre ${safeTopic}.`,
+        audio: `Eu achei que ${safeTopic} seria fácil, mas o perrengue veio em segundos.`,
+      },
+      {
+        time: '03-10s',
+        visual: 'Conflito com erro visível e reação cômica.',
+        audio: 'Quando eu repeti esse erro, o resultado ficou tão ruim que eu ri de nervoso.',
+      },
+      {
+        time: '10-22s',
+        visual: 'Virada com ajuste simples e punchline final.',
+        audio: 'Se você corrigir esse ponto agora, você evita retrabalho e ganha fluidez na execução.',
+      },
+      {
+        time: '22-30s',
+        visual: 'Fechamento com reação + CTA na tela.',
+        audio: 'Se você já passou por isso, comenta "eu", salva e manda para quem vive esse caos.',
+      },
+    ];
+  }
+
+  const ctaLine = normalizedObjective === 'converter'
+    ? 'Se você quer aplicar no seu caso, comenta "quero" ou me chama no direct para eu te enviar o próximo passo.'
+    : normalizedObjective === 'viralizar'
+      ? 'Se isso te ajudou, salva agora e compartilha com alguém que precisa destravar esse resultado.'
+      : 'Se isso fez sentido, salva esse vídeo e comenta "roteiro" que eu te mando outra variação prática.';
+
+  const adjustmentLine = normalizedObjective === 'converter'
+    ? 'Você corrige assim: primeiro gere valor claro, depois puxe ação sem travar a conversa.'
+    : 'Você corrige assim: primeiro ajuste a base, depois mantenha consistência sem complicar.';
+
   return [
     {
       time: '00-03s',
-      visual: `Setup rápido: criador em cena relatando a situação comum de ${safeTopic}.`,
-      audio: `Eu jurava que isso em ${safeTopic} era normal... até quebrar a cara.`,
+      visual: `Close no rosto + texto forte sobre ${safeTopic}.`,
+      audio: `Se você ainda erra em ${safeTopic}, hoje você vai corrigir isso de forma simples e prática.`,
     },
     {
-      time: '03-09s',
-      visual: 'Conflito: mostre a tentativa que dá errado com reação de surpresa.',
-      audio: 'Fiz exatamente o que todo mundo faz, e o resultado foi um desastre engraçado.',
+      time: '03-10s',
+      visual: 'Exemplo rápido do erro comum (antes), com destaque visual.',
+      audio: 'Quando você repete esse erro, você perde clareza, retenção e resposta do público.',
     },
     {
-      time: '09-20s',
-      visual: 'Punchline com corte seco e exagero visual para maximizar a virada.',
-      audio: 'Na prática eu parecia um tutorial de "como não fazer". Foi aí que entendi o ajuste certo.',
+      time: '10-22s',
+      visual: 'Ajuste em 2 passos aplicado na prática (depois).',
+      audio: adjustmentLine,
     },
     {
-      time: '20-30s',
-      visual: 'Reação final + resolução curta + CTA na tela.',
-      audio: 'Se você já passou por isso, comenta "eu". Salva esse roteiro e manda para um amigo rir com você.',
+      time: '22-30s',
+      visual: 'Fechamento com benefício final e CTA explícito na tela.',
+      audio: ctaLine,
     },
   ];
 };
 
-const buildDefaultRows = (topic: string, isHumor = false): ScriptTableRow[] => {
-  if (isHumor) {
-    return buildDefaultHumorRows(topic);
-  }
-  const safeTopic = hasMeaningfulTopic(topic) ? topic : 'uma dor real do seu nicho';
-  return [
-  {
-    time: '00-02s',
-    visual: `Close direto no rosto + texto forte: "Você ainda erra isso em ${safeTopic}?"`,
-    audio: `Se você quer resultado em ${safeTopic}, precisa corrigir isso agora.`,
-  },
-  {
-    time: '02-07s',
-    visual: 'Mostre rapidamente o erro comum em um exemplo real (antes).',
-    audio: 'Esse é o erro que trava sua evolução e derruba retenção.',
-  },
-  {
-    time: '07-20s',
-    visual: 'Apresente o ajuste em 2 passos, com detalhe prático na execução (depois).',
-    audio: 'Agora faz assim: passo 1 para destravar, passo 2 para manter consistência.',
-  },
-  {
-    time: '20-30s',
-    visual: 'Fechamento com benefício final + prova rápida + gesto para legenda.',
-    audio: 'Se fez sentido, salve este vídeo e comente "roteiro" para eu te enviar outra variação.',
-  },
-];
-};
+const buildDefaultHumorRows = (topic: string): ScriptTableRow[] =>
+  buildSpeakableSceneBlueprint(topic, 'engajar', true);
+
+const buildDefaultRows = (topic: string, isHumor = false): ScriptTableRow[] =>
+  buildSpeakableSceneBlueprint(topic, undefined, isHumor);
 
 const ensureRowsQuality = (
   rows: ScriptTableRow[],
   topic: string,
   opts?: { userQuery?: string; isHumor?: boolean }
-): { rows: ScriptTableRow[]; hasCta: boolean } => {
+): { rows: ScriptTableRow[]; hasCta: boolean; rewrittenAudioCount: number } => {
   const isHumor = Boolean(opts?.isHumor);
   const userQuery = opts?.userQuery || '';
   const fallbackRows = buildDefaultRows(topic, isHumor);
@@ -604,7 +684,7 @@ const ensureRowsQuality = (
     .filter((row) => isMeaningfulScene(row));
 
   if (!safeRows.length) {
-    return { rows: fallbackRows, hasCta: true };
+    return { rows: fallbackRows, hasCta: true, rewrittenAudioCount: fallbackRows.length };
   }
 
   let curated = safeRows.slice(0, 6);
@@ -612,17 +692,22 @@ const ensureRowsQuality = (
     curated = [...curated, ...fallbackRows].slice(0, 3);
   }
 
+  let rewrittenAudioCount = 0;
   curated = curated.map((row, idx) => {
     const fallback =
       fallbackRows[Math.min(idx, fallbackRows.length - 1)] ||
       fallbackRows[0] ||
-      { time: '00-03s', visual: 'Cena de apoio', audio: 'Ajuste sua fala para ficar clara e prática.' };
+      { time: '00-03s', visual: 'Cena de apoio', audio: 'Se você simplificar a mensagem agora, você ganha clareza e resposta mais rápida.' };
     const visual = (!row.visual || isPlaceholderLike(row.visual) || hasGenericScriptEcho(row.visual, userQuery))
       ? fallback.visual
       : row.visual;
-    const audio = isWeakScriptSpeech(row.audio, userQuery)
+    const shouldRewriteAudio = isWeakScriptSpeech(row.audio, userQuery);
+    const audio = shouldRewriteAudio
       ? fallback.audio
       : row.audio;
+    if (shouldRewriteAudio) {
+      rewrittenAudioCount += 1;
+    }
     return {
       time: row.time || fallback.time,
       visual,
@@ -644,9 +729,10 @@ const ensureRowsQuality = (
         : 'Se fez sentido, salve este roteiro e compartilhe com alguém do seu nicho.',
     });
     hasCtaFinal = true;
+    rewrittenAudioCount += 1;
   }
 
-  return { rows: curated.slice(0, 6), hasCta: hasCtaFinal };
+  return { rows: curated.slice(0, 6), hasCta: hasCtaFinal, rewrittenAudioCount };
 };
 
 const ensureCaptionVariants = (captionContent: string, topic: string, userQuery?: string): string => {
@@ -797,15 +883,28 @@ export function enforceScriptContract(response: string, userQuery: string, hints
   });
   let rows = ensured.rows;
   let fallbackLevel: ScriptFallbackLevel = 'none';
+  if (ensured.rewrittenAudioCount > 0) {
+    issues.push('speech_row_rewritten_practical');
+    repaired = true;
+  }
+  if (ensured.rewrittenAudioCount >= 3) {
+    issues.push('all_speech_rows_rewritten_practical');
+  }
 
   const genericPromptEchoRows = rows.filter((row) =>
     hasGenericScriptEcho(`${row.visual} ${row.audio}`, userQuery)
   );
+  const instructionalSpeechRows = rows.filter((row) => hasInstructionalSpeechPattern(row.audio));
   const weakAudioRows = rows.filter((row) => isWeakScriptSpeech(row.audio, userQuery));
+  if (instructionalSpeechRows.length > 0) {
+    issues.push('instructional_speech_detected');
+    repaired = true;
+  }
   const shouldReplaceAllRows =
     rows.length >= 3 &&
     hasMeaningfulTopic(topic) &&
     (
+      instructionalSpeechRows.length > 0 ||
       genericPromptEchoRows.length >= Math.max(2, Math.ceil(rows.length / 3)) ||
       weakAudioRows.length >= Math.ceil(rows.length / 2)
     );
@@ -1761,63 +1860,7 @@ const applyExecutionPlanToRows = (
   plan?: ScriptExecutionPlan | null
 ): ScriptTableRow[] => {
   const safeTopic = pickBestTopicCandidate([plan?.primaryIdea, topic]) || topic || 'uma dor real do seu nicho';
-  const baseRows = buildDefaultRows(safeTopic, isHumor);
-  if (!plan) return baseRows;
-
-  if (isHumor) {
-    return [
-      {
-        time: '00-03s',
-        visual: `Setup: situação comum de ${safeTopic} com expressão exagerada.`,
-        audio: `Todo mundo acha que ${safeTopic} é simples... até acontecer esse perrengue.`,
-      },
-      {
-        time: '03-10s',
-        visual: 'Conflito com tentativa que dá errado e reação cômica.',
-        audio: 'Eu fiz o básico e virou uma sequência de erros em cadeia.',
-      },
-      {
-        time: '10-22s',
-        visual: 'Virada com punchline + ajuste prático em 2 passos.',
-        audio: 'A virada foi aplicar um ajuste ridiculamente simples e instantâneo.',
-      },
-      {
-        time: '22-30s',
-        visual: 'Reação final + texto de fechamento na tela.',
-        audio: 'Se você também já passou por isso, comenta "eu", salva e envia para um amigo.',
-      },
-    ];
-  }
-
-  const objective = objectiveLabel(plan.objective);
-  const ctaByObjective = objective === 'converter'
-    ? 'Comenta "quero" ou me chama no direct para receber a versão aplicada ao seu caso.'
-    : objective === 'viralizar'
-      ? 'Se isso te ajudou, salva agora e compartilha com alguém que precisa desse roteiro.'
-      : 'Se isso fez sentido, salva esse vídeo e comenta "roteiro" para receber uma variação.';
-
-  return [
-    {
-      time: '00-03s',
-      visual: `Close no rosto + texto de impacto sobre ${safeTopic}.`,
-      audio: plan.hookAngle || `Você está cometendo esse erro em ${safeTopic} e isso está travando seu resultado.`,
-    },
-    {
-      time: '03-10s',
-      visual: 'Exemplo rápido do erro comum (antes) com destaque visual.',
-      audio: 'Esse erro derruba retenção e tira clareza da sua mensagem.',
-    },
-    {
-      time: '10-22s',
-      visual: 'Demonstração do ajuste em 2 passos práticos (depois).',
-      audio: 'Faz assim: passo 1 para corrigir a base, passo 2 para manter consistência.',
-    },
-    {
-      time: '22-30s',
-      visual: 'Fechamento com benefício final e chamada para ação.',
-      audio: plan.ctaAngle || ctaByObjective,
-    },
-  ];
+  return buildSpeakableSceneBlueprint(safeTopic, plan?.objective, isHumor);
 };
 
 const rewriteRowsWithExecutionPlan = (
@@ -1827,56 +1870,7 @@ const rewriteRowsWithExecutionPlan = (
   plan?: ScriptExecutionPlan | null
 ): ScriptTableRow[] => {
   const safeTopic = pickBestTopicCandidate([plan?.primaryIdea, topic]) || topic || 'uma dor real do seu nicho';
-  const objective = objectiveLabel(plan?.objective);
-  const stageBlueprint = isHumor
-    ? [
-        {
-          time: '00-03s',
-          visual: `Abertura com movimento e expressão exagerada sobre ${safeTopic}.`,
-          audio: `Cena real de ${safeTopic}: parecia simples, até virar um perrengue.`,
-        },
-        {
-          time: '03-10s',
-          visual: 'Conflito rápido com erro visível e reação cômica.',
-          audio: 'Mostra o erro acontecendo e a reação imediata para segurar retenção.',
-        },
-        {
-          time: '10-22s',
-          visual: 'Virada com ajuste simples, mantendo o ritmo da comédia.',
-          audio: 'Ajuste em dois passos curtos para resolver sem perder o tom leve.',
-        },
-        {
-          time: '22-30s',
-          visual: 'Fechamento com reação + CTA escrito na tela.',
-          audio: 'Se você já viveu isso, comenta "eu", salva e manda para alguém.',
-        },
-      ]
-    : [
-        {
-          time: '00-03s',
-          visual: `Abertura com frase na tela sobre ${safeTopic} e gesto de quebra de padrão.`,
-          audio: plan?.hookAngle || `Você ainda comete esse erro em ${safeTopic} e perde resultado por isso.`,
-        },
-        {
-          time: '03-10s',
-          visual: 'Mostre o erro em um exemplo real (antes) com detalhe visível.',
-          audio: 'Esse erro reduz clareza, retenção e resposta do público.',
-        },
-        {
-          time: '10-22s',
-          visual: 'Mostre o ajuste aplicado em dois passos práticos (depois).',
-          audio: objective === 'converter'
-            ? 'Passo 1 para gerar valor percebido, passo 2 para levar para ação comercial sem atrito.'
-            : 'Passo 1 para corrigir a base, passo 2 para manter consistência com execução simples.',
-        },
-        {
-          time: '22-30s',
-          visual: 'Fechamento com benefício final + CTA explícito na tela.',
-          audio: plan?.ctaAngle || (objective === 'viralizar'
-            ? 'Se isso ajudou, salva e compartilha com alguém que precisa desse roteiro.'
-            : 'Se fez sentido, salva este vídeo e comenta "roteiro" para receber outra versão.'),
-        },
-      ];
+  const stageBlueprint = buildSpeakableSceneBlueprint(safeTopic, plan?.objective, isHumor);
 
   return rows.map((row, idx) => {
     const fallback =
@@ -1890,7 +1884,7 @@ const rewriteRowsWithExecutionPlan = (
     const visual = isActionableScriptRow(row) && !hasGenericScriptEcho(row.visual, topic)
       ? row.visual
       : fallback.visual;
-    const audio = !isWeakScriptSpeech(row.audio, topic) && !isBrokenPtBr(row.audio)
+    const audio = isPracticalCreatorSpeech(row.audio) && !isBrokenPtBr(row.audio) && !hasGenericScriptEcho(row.audio, topic)
       ? row.audio
       : fallback.audio;
     return {
@@ -1910,6 +1904,8 @@ const evaluateScriptQualityV2 = (
     return {
       semanticEchoRatio: 1,
       speechStrength: 0,
+      speakabilityScore: 0,
+      instructionalSpeechRatio: 1,
       actionabilityScore: 0,
       languageNaturalnessPtBr: 0,
       specificity: 0,
@@ -1923,6 +1919,8 @@ const evaluateScriptQualityV2 = (
     return overlap >= 0.7;
   }).length;
   const strongSpeechHits = rows.filter((row) => !isWeakScriptSpeech(row.audio, userQuery)).length;
+  const speakableSpeechHits = rows.filter((row) => isPracticalCreatorSpeech(row.audio)).length;
+  const instructionalSpeechHits = rows.filter((row) => hasInstructionalSpeechPattern(row.audio)).length;
   const actionableRows = rows.filter((row) => isActionableScriptRow(row)).length;
   const brokenLanguageRows = rows.filter((row) => isBrokenPtBr(`${row.visual} ${row.audio}`)).length;
   const specificRows = rows.filter((row) => {
@@ -1935,6 +1933,8 @@ const evaluateScriptQualityV2 = (
   return {
     semanticEchoRatio: roundRatio(echoHits / rows.length),
     speechStrength: roundRatio(strongSpeechHits / rows.length),
+    speakabilityScore: roundRatio(speakableSpeechHits / rows.length),
+    instructionalSpeechRatio: roundRatio(instructionalSpeechHits / rows.length),
     actionabilityScore: roundRatio(actionableRows / rows.length),
     languageNaturalnessPtBr: roundRatio(1 - (brokenLanguageRows / rows.length)),
     specificity: roundRatio(specificRows / rows.length),
@@ -1945,6 +1945,8 @@ const evaluateScriptQualityV2 = (
 const shouldRewriteByQualityV2 = (score: ScriptQualityScoreV2) =>
   score.semanticEchoRatio >= 0.18 ||
   score.speechStrength < 0.75 ||
+  score.speakabilityScore < 1 ||
+  score.instructionalSpeechRatio > 0 ||
   score.actionabilityScore < 0.65 ||
   score.languageNaturalnessPtBr < 0.72 ||
   score.specificity < 0.55 ||
@@ -3294,6 +3296,8 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         scriptRepairIssues: scriptContractTelemetry?.issues || null,
         scriptQualityScoreV2: scriptContractTelemetry?.quality?.score || null,
         scriptFallbackLevel: scriptContractTelemetry?.quality?.fallbackLevel || 'none',
+        scriptInstructionalSpeechRatio: scriptContractTelemetry?.quality?.score?.instructionalSpeechRatio ?? null,
+        scriptSpeakabilityScore: scriptContractTelemetry?.quality?.score?.speakabilityScore ?? null,
       });
 
       const extractedContext = isScriptMode

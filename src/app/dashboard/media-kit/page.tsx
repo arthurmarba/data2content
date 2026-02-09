@@ -220,10 +220,12 @@ function SelfMediaKitContent({
   compactPadding,
   publicUrlForCopy,
   premiumAccess,
+  onPublicUrlChange,
 }: {
   userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null;
   compactPadding?: boolean; publicUrlForCopy?: string | null;
   premiumAccess?: MediaKitPremiumAccessConfig;
+  onPublicUrlChange?: (nextUrl: string | null) => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -404,9 +406,11 @@ function SelfMediaKitContent({
         }
 
         const updatedUser = payload?.user ?? null;
+        const mediaKitPayload = payload?.mediaKit ?? null;
         setOwnerProfile((prev: any) => {
           const merged = { ...(prev ?? {}), ...(updatedUser ?? {}) };
           merged.mediaKitDisplayName = updatedUser?.mediaKitDisplayName ?? (normalized ? normalized : null);
+          merged.mediaKitSlug = updatedUser?.mediaKitSlug ?? mediaKitPayload?.slug ?? prev?.mediaKitSlug ?? null;
           if (!merged.name && (prev?.name || fallbackName)) {
             merged.name = merged.name ?? prev?.name ?? fallbackName ?? null;
           }
@@ -414,6 +418,9 @@ function SelfMediaKitContent({
           merged.profile_picture_url = updatedUser?.profile_picture_url ?? prev?.profile_picture_url ?? null;
           return merged;
         });
+        if (typeof mediaKitPayload?.url === 'string' && mediaKitPayload.url.length > 0) {
+          onPublicUrlChange?.(mediaKitPayload.url);
+        }
         setNameInput(normalized);
         setNameSuccess('Nome atualizado no mídia kit.');
         if (opts?.closeAfter) {
@@ -425,7 +432,7 @@ function SelfMediaKitContent({
         setSavingName(false);
       }
     },
-    [fallbackName, nameInput],
+    [fallbackName, nameInput, onPublicUrlChange],
   );
 
   const handleResetDisplayName = useCallback(() => {
@@ -839,12 +846,18 @@ export default function MediaKitSelfServePage() {
           O CTA vive apenas dentro do MediaKitView para evitar duplicação. */}
 
       <section className="w-full bg-white pb-10 px-6 border-t border-l border-slate-200 lg:rounded-tl-3xl" aria-label="Mídia Kit">
+        {error && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {error}
+          </div>
+        )}
         <SelfMediaKitContent
           userId={(session?.user as any)?.id as string}
           fallbackName={session?.user?.name}
           fallbackEmail={session?.user?.email}
           fallbackImage={session?.user?.image}
           publicUrlForCopy={url}
+          onPublicUrlChange={setUrl}
           compactPadding
           premiumAccess={premiumAccessConfig}
         />

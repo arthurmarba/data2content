@@ -16,6 +16,7 @@ interface ButtonPrimaryProps {
   rel?: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  disabled?: boolean;
 }
 
 const baseClasses =
@@ -52,10 +53,19 @@ export default function ButtonPrimary({
   rel,
   variant = "brand",
   size = "md",
+  disabled = false,
 }: ButtonPrimaryProps) {
-  const composedClasses = composeClasses(variant, size, className);
+  const composedClasses = composeClasses(
+    variant,
+    size,
+    `${className ?? ""} ${disabled ? "pointer-events-none opacity-60" : ""}`.trim()
+  );
 
-  const handleClick = () => {
+  const handleClick = (e?: React.MouseEvent) => {
+    if (disabled) {
+      e?.preventDefault();
+      return;
+    }
     event("select_content", {
       content_type: "button",
       item_id: "button_primary",
@@ -66,14 +76,20 @@ export default function ButtonPrimary({
   // Se a prop 'href' for fornecida, renderiza um componente Link do Next.js
   if (href) {
     return (
-      <Link href={href} className={composedClasses} rel={rel} onClick={handleClick}>
+      <Link
+        href={href}
+        className={composedClasses}
+        rel={rel}
+        onClick={handleClick}
+        aria-disabled={disabled}
+      >
         {children}
       </Link>
     );
   }
 
   return (
-    <button onClick={handleClick} className={composedClasses}>
+    <button onClick={handleClick} className={composedClasses} disabled={disabled}>
       {children}
     </button>
   );

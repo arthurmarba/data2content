@@ -259,6 +259,21 @@ it('evaluateScriptQualityV2 detecta eco semântico e baixa acionabilidade', () =
   expect(scriptInternals.shouldRewriteByQualityV2(score)).toBe(true);
 });
 
+it('evaluateScriptQualityV2 reprova falas instrucionais sem locução pronta', () => {
+  const score = scriptInternals.evaluateScriptQualityV2(
+    [
+      { time: '00-03s', visual: 'Close no rosto', audio: 'Mostre o erro principal e apresente o ajuste.' },
+      { time: '03-20s', visual: 'Tela com antes/depois', audio: 'Passo 1 para destravar e passo 2 para manter consistência.' },
+      { time: '20-30s', visual: 'Final com CTA', audio: 'Fechar com CTA de comentário e salvamento.' },
+    ],
+    'roteiro sobre produtividade para reels',
+    true
+  );
+  expect(score.instructionalSpeechRatio).toBeGreaterThan(0);
+  expect(score.speakabilityScore).toBeLessThan(1);
+  expect(scriptInternals.shouldRewriteByQualityV2(score)).toBe(true);
+});
+
 it('aplica contrato completo no modo roteirista com inspiração contextual', async () => {
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
   mockAskLLM.mockResolvedValue({
@@ -500,6 +515,51 @@ it('repara roteiro quando a IA ecoa a pergunta do usuário nas falas', async () 
   expect(json.answer).toMatch(/passo 1|erro comum|benef[ií]cio/i);
 });
 
+it('repara roteiro com falas instrucionais para locução pronta em todas as cenas', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** 3 Dicas Práticas para Potencializar Resultados no Seu Negócio',
+      '**Pauta Estratégica:** recomendação de conteúdo.',
+      '**Base de Engajamento:** Categorias com melhor engajamento.',
+      '**Confiança da Base:** Média',
+      '**Fonte da Inspiração:** Comunidade (narrativas similares)',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Close no rosto + texto de impacto | Abrir com erro comum e mostrar ajuste executável em 2 passos. |',
+      '| 03-10s | Exemplo rápido do erro comum (antes) | Mostre o erro e explique por que derruba retenção. |',
+      '| 10-22s | Demonstração do ajuste em 2 passos (depois) | Faz assim: passo 1 para corrigir a base, passo 2 para manter consistência. |',
+      '| 22-30s | Fechamento com benefício final e chamada para ação | Fechar com CTA de comentário e salvamento. |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Potencialize os resultados do seu negócio com estas 3 dicas práticas! Salve para não perder.',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([]),
+  });
+
+  const res = await chat(makeRequest({ query: 'crie um roteiro sobre como melhorar resultados de vendas no instagram' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.answer).toContain('[ROTEIRO]');
+  expect(json.answer).toContain('[LEGENDA]');
+  const speechCells = String(json.answer)
+    .split('\n')
+    .filter((line) => line.trim().startsWith('|') && /\d{2}-\d{2}s/.test(line))
+    .map((line) => line.split('|').map((col) => col.trim())[3] || '')
+    .filter(Boolean);
+  expect(speechCells.length).toBeGreaterThanOrEqual(3);
+  speechCells.forEach((speech) => {
+    expect(speech).not.toMatch(/\b(mostre|apresente|fechar com|abrir com|passo 1 para|cta)\b/i);
+    expect(speech).toMatch(/(eu|você|se você|quando você)/i);
+    expect(speech.split(/\s+/).filter(Boolean).length).toBeGreaterThanOrEqual(8);
+  });
+});
+
 it('usa top posts do criador como fallback de inspiração quando comunidade não está disponível', async () => {
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
   mockGetTopPostsByMetric.mockResolvedValue([
@@ -581,4 +641,12 @@ it('aplica estrutura de humor quando o pedido é de roteiro humorístico', async
   expect(json.answer).toContain('[ROTEIRO]');
   expect(json.answer).toMatch(/punchline|setup|conflito|reação/i);
   expect(json.answer).not.toMatch(/crie um roteiro de humor para hoje/i);
+  const speechCells = String(json.answer)
+    .split('\n')
+    .filter((line) => line.trim().startsWith('|') && /\d{2}-\d{2}s/.test(line))
+    .map((line) => line.split('|').map((col) => col.trim())[3] || '')
+    .filter(Boolean);
+  speechCells.forEach((speech) => {
+    expect(speech).not.toMatch(/\b(mostre|apresente|fechar com|abrir com|passo 1 para|cta)\b/i);
+  });
 });

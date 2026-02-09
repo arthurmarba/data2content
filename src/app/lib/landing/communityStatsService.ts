@@ -463,7 +463,9 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
     const avgInteractions = Number(item.avgInteractionsPerPost ?? 0);
     const postCount = Number(item.postCount ?? 0);
     const totalInteractions = Number(item.totalInteractions ?? 0);
+    const totalReach = Number((item as any).totalReach ?? 0);
     const avgReachPerPost = Number((item as any).avgReachPerPost ?? 0);
+    const engagementRate = totalReach > 0 ? (totalInteractions / totalReach) * 100 : null;
     const consistencyScore = postCount > 0 ? Number((postCount / RANK_WINDOW_DAYS).toFixed(2)) : null;
     const userIdString = item.userId ? String(item.userId) : undefined;
     const rawAvatar = item.user?.profile_picture_url ?? (userIdString ? avatarByUserId[userIdString] : null);
@@ -475,9 +477,11 @@ async function computeTopCreators(userIds: Types.ObjectId[], since: Date): Promi
       followers: item.user?.followers_count ?? null,
       avatarUrl: toProxyAvatar(rawAvatar ?? null),
       totalInteractions,
+      totalReach,
       postCount,
       avgInteractionsPerPost: avgInteractions,
       avgReachPerPost,
+      engagementRate,
       rank: index + 1,
       consistencyScore,
       mediaKitSlug: item.user?.mediaKitSlug ?? null,

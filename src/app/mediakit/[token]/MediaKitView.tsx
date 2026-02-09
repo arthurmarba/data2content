@@ -138,6 +138,17 @@ const buildAffiliateSignupLink = ({
   }
 };
 
+const extractSlugFromMediaKitUrl = (rawUrl?: string | null) => {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  try {
+    const parsed = new URL(rawUrl);
+    const match = parsed.pathname.match(/\/mediakit\/([^/?#]+)/i);
+    return match?.[1]?.trim()?.toLowerCase() || null;
+  } catch {
+    return null;
+  }
+};
+
 const COMPARISON_TO_TIME_PERIOD = {
   month_vs_previous: 'last_30_days',
   last_7d_vs_previous_7d: 'last_7_days',
@@ -145,6 +156,7 @@ const COMPARISON_TO_TIME_PERIOD = {
   last_60d_vs_previous_60d: 'last_60_days',
   last_90d_vs_previous_90d: 'last_90_days',
 } as const;
+const OWNER_SLUG_RESOLVE_RETRY_MS = 8000;
 
 type ComparisonPeriodKey = keyof typeof COMPARISON_TO_TIME_PERIOD;
 type TrendPeriod = (typeof COMPARISON_TO_TIME_PERIOD)[ComparisonPeriodKey];
@@ -1948,10 +1960,39 @@ export default function MediaKitView({
 
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ownerSlugLastAttemptAtRef = useRef(0);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [runtimeMediaKitSlug, setRuntimeMediaKitSlug] = useState<string | null>(null);
+  const [isResolvingOwnerSlug, setIsResolvingOwnerSlug] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const parsedSlugFromPublicUrl = useMemo(
+    () => extractSlugFromMediaKitUrl(publicUrlForCopy || null),
+    [publicUrlForCopy]
+  );
+  const resolvedMediaKitSlug = useMemo(() => {
+    const fromRuntime = runtimeMediaKitSlug?.trim().toLowerCase();
+    if (fromRuntime) return fromRuntime;
+    const fromProp = typeof mediaKitSlug === 'string' ? mediaKitSlug.trim().toLowerCase() : '';
+    if (fromProp) return fromProp;
+    const fromUser =
+      typeof (user as any)?.mediaKitSlug === 'string'
+        ? (user as any).mediaKitSlug.trim().toLowerCase()
+        : '';
+    if (fromUser) return fromUser;
+    return parsedSlugFromPublicUrl;
+  }, [mediaKitSlug, parsedSlugFromPublicUrl, runtimeMediaKitSlug, user]);
+  const resolvedShareUrl = useMemo(() => {
+    if (!showOwnerCtas) {
+      return publicUrlForCopy || (typeof window !== 'undefined' ? window.location.href : '');
+    }
+    if (!resolvedMediaKitSlug) return '';
+    const origin = resolveAppOrigin();
+    if (!origin) return '';
+    return `${origin}/mediakit/${resolvedMediaKitSlug}`;
+  }, [publicUrlForCopy, resolvedMediaKitSlug, showOwnerCtas]);
+  const shareDisabledForOwner = Boolean(showOwnerCtas && isResolvingOwnerSlug);
   const heroDescriptor = useMemo(() => {
     const candidates = [
       (user as any)?.headline,
@@ -1969,6 +2010,65 @@ export default function MediaKitView({
     return '';
   }, [user]);
 
+  const ensureOwnerMediaKitSlug = useCallback(async (): Promise<string | null> => {
+    if (!showOwnerCtas) return null;
+    if (resolvedMediaKitSlug) return resolvedMediaKitSlug;
+    if (isResolvingOwnerSlug) return null;
+    if (typeof fetch !== 'function') return null;
+
+    ownerSlugLastAttemptAtRef.current = Date.now();
+    setIsResolvingOwnerSlug(true);
+    try {
+      const readRes = await fetch('/api/users/media-kit-token', { cache: 'no-store' });
+      const readPayload = await readRes.json().catch(() => ({}));
+      let slug =
+        typeof readPayload?.slug === 'string' && readPayload.slug.trim().length
+          ? readPayload.slug.trim().toLowerCase()
+          : null;
+
+      if (!slug) {
+        const createRes = await fetch('/api/users/media-kit-token', { method: 'POST' });
+        const createPayload = await createRes.json().catch(() => ({}));
+        if (!createRes.ok) {
+          throw new Error(createPayload?.error || 'Não foi possível gerar o link público do mídia kit.');
+        }
+        slug =
+          typeof createPayload?.slug === 'string' && createPayload.slug.trim().length
+            ? createPayload.slug.trim().toLowerCase()
+            : null;
+      }
+
+      if (!slug) {
+        throw new Error('Não foi possível gerar o link público do mídia kit.');
+      }
+
+      setRuntimeMediaKitSlug(slug);
+      return slug;
+    } catch {
+      return null;
+    } finally {
+      setIsResolvingOwnerSlug(false);
+    }
+  }, [isResolvingOwnerSlug, resolvedMediaKitSlug, showOwnerCtas]);
+
+  useEffect(() => {
+    if (!showOwnerCtas) return;
+    if (resolvedMediaKitSlug) return;
+    if (isResolvingOwnerSlug) return;
+
+    const elapsed = Date.now() - ownerSlugLastAttemptAtRef.current;
+    if (elapsed >= OWNER_SLUG_RESOLVE_RETRY_MS) {
+      void ensureOwnerMediaKitSlug();
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      void ensureOwnerMediaKitSlug();
+    }, OWNER_SLUG_RESOLVE_RETRY_MS - elapsed);
+
+    return () => clearTimeout(timeoutId);
+  }, [ensureOwnerMediaKitSlug, isResolvingOwnerSlug, resolvedMediaKitSlug, showOwnerCtas]);
+
   useEffect(() => {
     if (typeof navigator === 'undefined') return;
     const ua = navigator.userAgent || '';
@@ -1984,10 +2084,7 @@ export default function MediaKitView({
     if (isPrintMode) return;
     if (hasTrackedViewRef.current) return;
     const creatorId = (user as any)?._id ? String((user as any)._id) : null;
-    const mediaKitId =
-      typeof mediaKitSlug === 'string' && mediaKitSlug.length > 0
-        ? mediaKitSlug
-        : (user as any)?.mediaKitSlug ?? null;
+    const mediaKitId = resolvedMediaKitSlug;
     if (!creatorId || !mediaKitId) return;
     hasTrackedViewRef.current = true;
     const browserReferrer =
@@ -2002,7 +2099,7 @@ export default function MediaKitView({
       utm_content: utm.utm_content ?? null,
       utm_term: utm.utm_term ?? null,
     });
-  }, [isPrintMode, mediaKitSlug, user, utm]);
+  }, [isPrintMode, resolvedMediaKitSlug, user, utm]);
   const heroLocationLabel = useMemo(() => {
     const locationParts = [
       (user as any)?.city,
@@ -2051,13 +2148,22 @@ export default function MediaKitView({
   );
 
   const handleShareClick = useCallback(async () => {
-    const shareUrl = publicUrlForCopy || (typeof window !== 'undefined' ? window.location.href : '');
+    let slugForShare = resolvedMediaKitSlug;
+    if (showOwnerCtas && !slugForShare) {
+      slugForShare = await ensureOwnerMediaKitSlug();
+    }
+
+    const shareUrl = showOwnerCtas
+      ? (() => {
+        if (!slugForShare) return '';
+        const origin = resolveAppOrigin();
+        if (!origin) return '';
+        return `${origin}/mediakit/${slugForShare}`;
+      })()
+      : resolvedShareUrl;
     if (!shareUrl || typeof navigator === 'undefined') return;
     const creatorId = (user as any)?._id ? String((user as any)._id) : null;
-    const mediaKitId =
-      typeof mediaKitSlug === 'string' && mediaKitSlug.length > 0
-        ? mediaKitSlug
-        : (user as any)?.mediaKitSlug ?? null;
+    const mediaKitId = slugForShare || resolvedMediaKitSlug;
     const copyMethod = await tryCopyShareUrl(shareUrl);
     if (copyMethod) {
       setHasCopiedLink(true);
@@ -2090,19 +2196,27 @@ export default function MediaKitView({
     } catch {
       // Se share falhar também, apenas silencie; UX mostra botão novamente
     }
-  }, [mediaKitSlug, publicUrlForCopy, tryCopyShareUrl, user]);
+  }, [ensureOwnerMediaKitSlug, resolvedMediaKitSlug, resolvedShareUrl, showOwnerCtas, tryCopyShareUrl, user]);
 
   const handlePdfExport = useCallback(async () => {
     if (isPdfGenerating) return;
-    if (!mediaKitSlug) {
-      setPdfError('Não foi possível gerar o PDF agora. Tente novamente em instantes.');
+    if (typeof window === 'undefined') return;
+
+    let slugForPdf = resolvedMediaKitSlug;
+    if (!slugForPdf && showOwnerCtas) {
+      slugForPdf = await ensureOwnerMediaKitSlug();
+    }
+    if (!slugForPdf) {
+      setPdfError('Seu link público está sendo gerado. Tente novamente em alguns segundos.');
+      track('media_kit_pdf_export_failed', { reason: 'missing_slug' });
       return;
     }
-    if (typeof window === 'undefined') return;
+
     setPdfError(null);
     setIsPdfGenerating(true);
+    let failureTracked = false;
     try {
-      const downloadUrl = `/api/mediakit/${mediaKitSlug}/pdf`;
+      const downloadUrl = `/api/mediakit/${slugForPdf}/pdf`;
       if (isMobile) {
         window.location.assign(downloadUrl);
         return;
@@ -2116,11 +2230,13 @@ export default function MediaKitView({
         } catch {
           // Mantém mensagem padrão
         }
+        track('media_kit_pdf_export_failed', { reason: 'api_error' });
+        failureTracked = true;
         throw new Error(errorMessage);
       }
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      const fileName = `media-kit-${mediaKitSlug}.pdf`;
+      const fileName = `media-kit-${slugForPdf}.pdf`;
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = fileName;
@@ -2129,12 +2245,15 @@ export default function MediaKitView({
       link.remove();
       window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
     } catch (error) {
+      if (!failureTracked) {
+        track('media_kit_pdf_export_failed', { reason: 'network_error' });
+      }
       const message = error instanceof Error ? error.message : 'Não foi possível gerar o PDF agora.';
       setPdfError(message);
     } finally {
       setIsPdfGenerating(false);
     }
-  }, [isMobile, isPdfGenerating, mediaKitSlug]);
+  }, [ensureOwnerMediaKitSlug, isMobile, isPdfGenerating, resolvedMediaKitSlug, showOwnerCtas]);
   useEffect(
     () => () => {
       if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);
@@ -2531,6 +2650,7 @@ export default function MediaKitView({
                     <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                       <ButtonPrimary
                         onClick={handleShareClick}
+                        disabled={shareDisabledForOwner}
                         variant="outline"
                         size="sm"
                         className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
@@ -2574,6 +2694,13 @@ export default function MediaKitView({
                       ) : isMobile ? (
                         <span>No mobile, o PDF pode abrir em uma nova aba para download.</span>
                       ) : null}
+                    </div>
+                  )}
+                  {!isPrintMode && showOwnerCtas && !resolvedMediaKitSlug && (
+                    <div className="mt-2 text-xs text-slate-500">
+                      {isResolvingOwnerSlug
+                        ? 'Gerando link público...'
+                        : 'Link público ainda não disponível. Aguarde alguns segundos.'}
                     </div>
                   )}
                 </div>

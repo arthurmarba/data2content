@@ -5,6 +5,7 @@ import UserModel from '@/app/models/User';
 import AccountInsightModel from '@/app/models/AccountInsight';
 import { fetchBasicAccountData } from '@/app/lib/instagram/api/fetchers';
 import { logger } from '@/app/lib/logger';
+import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -166,7 +167,12 @@ export async function GET(
 ) {
   await connectToDatabase();
 
-  const user = await UserModel.findOne({ mediaKitSlug: params.token })
+  const resolvedToken = await resolveMediaKitToken(params.token);
+  if (!resolvedToken?.userId) {
+    return new Response(null, { status: 404 });
+  }
+
+  const user = await UserModel.findById(resolvedToken.userId)
     .select(
       'profile_picture_url image instagram availableIgAccounts.profile_picture_url instagramAccountId instagramAccessToken'
     )

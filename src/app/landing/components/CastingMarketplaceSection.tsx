@@ -93,10 +93,22 @@ function formatMetricValue(value?: number | null) {
 }
 
 function computeEngagementRate(creator: LandingCreatorHighlight): number | null {
-    const followers = creator.followers ?? 0;
-    if (!followers) return null;
-    const avg = creator.avgInteractionsPerPost ?? 0;
-    return (avg / followers) * 100;
+    if (typeof creator.engagementRate === "number" && Number.isFinite(creator.engagementRate)) {
+        return creator.engagementRate;
+    }
+
+    const totalReach = creator.totalReach ?? 0;
+    const totalInteractions = creator.totalInteractions ?? 0;
+    if (totalReach > 0) {
+        const rate = (totalInteractions / totalReach) * 100;
+        return Number.isFinite(rate) ? rate : null;
+    }
+
+    const avgReach = creator.avgReachPerPost ?? 0;
+    const avgInteractions = creator.avgInteractionsPerPost ?? 0;
+    if (avgReach <= 0) return null;
+    const rate = (avgInteractions / avgReach) * 100;
+    return Number.isFinite(rate) ? rate : null;
 }
 
 function pickPrimaryNiche(creator: LandingCreatorHighlight) {

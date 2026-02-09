@@ -35,9 +35,11 @@ export interface LandingCreatorHighlight {
   stage?: CreatorStage | null;
   surveyCompleted?: boolean | null;
   totalInteractions: number;
+  totalReach?: number;
   postCount: number;
   avgInteractionsPerPost: number;
   avgReachPerPost: number;
+  engagementRate?: number | null;
   rank: number;
   consistencyScore?: number | null;
   mediaKitSlug?: string | null;

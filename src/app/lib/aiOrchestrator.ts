@@ -1782,6 +1782,7 @@ export async function askLLMWithEnrichedContext(
                     '| Tempo | Visual (o que aparece) | Fala (o que dizer) |\n' +
                     '| :--- | :--- | :--- |\n' +
                     '| ... |\n' +
+                    'REGRA DE FALA (OBRIGATÓRIA): na coluna Fala, escreva a frase exata que o criador vai dizer em câmera. Proibido texto instrucional. Exemplo ruim: "Mostre o erro..." ou "Fechar com CTA...". Exemplo bom: "Você está cometendo esse erro; corrige assim...". ' +
                     'REGRAS DA TABELA: mínimo 3 linhas de cena, máximo 6; linha final deve ter CTA explícito. ' +
                     'Se formato for carrossel/foto, adapte para Slides na coluna Visual/Fala. ' +
                     'Se for humor, inclua setup -> conflito -> punchline -> reação na progressão das cenas. ' +

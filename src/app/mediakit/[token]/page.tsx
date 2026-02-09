@@ -11,6 +11,7 @@ import MediaKitPackage from '@/app/models/MediaKitPackage';
 import AccountInsightModel from '@/app/models/AccountInsight';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
+import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
 
 import MediaKitView from './MediaKitView';
 
@@ -64,7 +65,15 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   await connectToDatabase();
 
-  const user = await UserModel.findOne({ mediaKitSlug: params.token })
+  const resolvedToken = await resolveMediaKitToken(params.token);
+  if (!resolvedToken) {
+    return {
+      title: 'Mídia Kit | Data2Content',
+      description: 'Conheça os dados de desempenho dos nossos criadores.',
+    };
+  }
+
+  const user = await UserModel.findById(resolvedToken.userId)
     .select('name mediaKitDisplayName biography')
     .lean();
 
@@ -81,8 +90,8 @@ export async function generateMetadata(
     ? String(user.biography).slice(0, 160)
     : `Dados de desempenho e publicações de destaque de ${displayName}.`;
 
-  const pageUrl = absoluteUrl(`/mediakit/${params.token}`);
-  const ogImage = absoluteUrl(`/api/mediakit/${params.token}/og-image`);
+  const pageUrl = absoluteUrl(`/mediakit/${resolvedToken.canonicalSlug}`);
+  const ogImage = absoluteUrl(`/api/mediakit/${resolvedToken.canonicalSlug}/og-image`);
 
   return {
     title,
@@ -203,7 +212,14 @@ export default async function MediaKitPage(
 ) {
   await connectToDatabase();
 
-  const user = await UserModel.findOne({ mediaKitSlug: params.token }).lean();
+  const resolvedToken = await resolveMediaKitToken(params.token);
+  if (!resolvedToken) {
+    notFound();
+  }
+
+  // Redirecionamento canônico permanente (308) é aplicado no middleware.
+
+  const user = await UserModel.findById(resolvedToken.userId).lean();
   if (!user) {
     notFound();
   }
@@ -360,7 +376,7 @@ export default async function MediaKitPage(
           demographics={demographics}
           engagementTrend={engagementTrend}
           showOwnerCtas={false}
-          mediaKitSlug={params.token}
+          mediaKitSlug={resolvedToken.canonicalSlug}
           premiumAccess={premiumAccessConfig}
           pricing={pricingPublished ? pricing : null}
           pricingPublished={pricingPublished}

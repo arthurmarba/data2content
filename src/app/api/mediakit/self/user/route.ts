@@ -5,6 +5,12 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import AccountInsightModel from '@/app/models/AccountInsight';
+import {
+  buildMediaKitPublicUrl,
+  buildMediaKitSlugBase,
+  ensureUniqueMediaKitSlug,
+  updateMediaKitSlugWithAlias,
+} from '@/app/lib/mediakit/slugService';
 
 export const runtime = 'nodejs';
 
@@ -184,10 +190,47 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
   }
 
+  const previousSlug = typeof user.mediaKitSlug === 'string' ? user.mediaKitSlug.trim().toLowerCase() : null;
   user.mediaKitDisplayName = normalizedName.length ? normalizedName : null;
+
+  const idSuffix = String(user._id).slice(-4).toLowerCase();
+  const slugFallback = `usuario-${idSuffix}`;
+  const slugBase = buildMediaKitSlugBase(
+    normalizedName || user.name || '',
+    slugFallback,
+  );
+
+  let nextSlug = previousSlug;
+  if (!previousSlug || previousSlug !== slugBase) {
+    nextSlug = await ensureUniqueMediaKitSlug(slugBase, String(user._id));
+  }
+
+  const slugChanged = Boolean(previousSlug && nextSlug && previousSlug !== nextSlug);
+  if (nextSlug) {
+    user.mediaKitSlug = nextSlug;
+  }
+
   await user.save();
+
+  if (nextSlug) {
+    await updateMediaKitSlugWithAlias({
+      userId: user._id,
+      previousSlug,
+      nextSlug,
+    });
+  }
 
   const resolvedAvatar = await resolveAvatar(user.toObject());
   const payload = serializeUser(user.toObject(), resolvedAvatar);
-  return NextResponse.json({ user: payload });
+  const origin = new URL(req.url).origin;
+  const mediaKitUrl = nextSlug ? buildMediaKitPublicUrl(origin, nextSlug) : null;
+  return NextResponse.json({
+    user: payload,
+    mediaKit: {
+      slug: nextSlug ?? null,
+      url: mediaKitUrl,
+      previousSlug: previousSlug ?? null,
+      slugChanged,
+    },
+  });
 }

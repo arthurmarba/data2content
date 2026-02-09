@@ -72,6 +72,7 @@ type SceneCardProps = {
     scene: ScriptScene;
     index: number;
     totalScenes: number;
+    isFirstScene: boolean;
     theme: RenderTheme;
     isExpandedMap: SceneExpandedMap;
     onToggleExpand: (sceneKey: string, field: 'visual' | 'audio') => void;
@@ -487,7 +488,7 @@ const HeroInspirationCard: React.FC<{ data: InspirationData; theme: RenderTheme 
     const isInverse = theme === 'inverse';
 
     return (
-        <div className={`mx-4 my-3 rounded-xl border p-3 sm:mx-5 ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+        <div className={`py-2 ${isInverse ? 'text-white' : 'text-gray-900'}`}>
             <div className="flex items-start gap-3">
                 <div className={`relative h-14 w-14 flex-none overflow-hidden rounded-lg ${isInverse ? 'bg-white/10' : 'bg-gray-200'}`}>
                     {data.coverUrl ? (
@@ -534,15 +535,15 @@ const SupportingInspirations: React.FC<{ data: InspirationData; theme: RenderThe
         role === 'gancho' ? 'Gancho' : role === 'desenvolvimento' ? 'Desenvolvimento' : 'CTA';
 
     return (
-        <details className={`mx-4 mb-3 overflow-hidden rounded-xl border sm:mx-5 ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-white'}`}>
-            <summary className={`cursor-pointer list-none px-3 py-2 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-600'} [&::-webkit-details-marker]:hidden`}>
+        <details className="py-1">
+            <summary className={`cursor-pointer list-none py-1 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/70' : 'text-gray-600'} [&::-webkit-details-marker]:hidden`}>
                 Inspirações por etapa narrativa
             </summary>
-            <div className="space-y-2 px-3 pb-3">
+            <div className="space-y-2 pt-1">
                 {items.map((item, idx) => (
                     <div
                         key={`${item.role}-${item.title || idx}`}
-                        className={`rounded-lg border px-2.5 py-2 ${isInverse ? 'border-white/15 bg-black/10' : 'border-gray-200 bg-gray-50/40'}`}
+                        className={`border-l-2 pl-2.5 py-0.5 ${isInverse ? 'border-white/20' : 'border-gray-200'}`}
                     >
                         <div className="flex flex-wrap items-center gap-2">
                             <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${isInverse ? 'border-white/20 text-white/80' : 'border-gray-200 text-gray-600'}`}>
@@ -678,9 +679,9 @@ const MetadataHeader: React.FC<{
             ) : null}
 
             {evidenceItems.length > 0 ? (
-                <details className={`mt-3 overflow-hidden rounded-lg border ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+                <details className={`mt-3 ${isInverse ? 'text-white/80' : 'text-gray-700'}`}>
                     <CountedEvidenceSummary total={evidenceItems.length} theme={theme} />
-                    <div className="space-y-1.5 px-3 pb-3">
+                    <div className={`space-y-1.5 border-l-2 pl-3 pb-1 ${isInverse ? 'border-white/15' : 'border-gray-200'}`}>
                         {evidenceItems.map((item) => (
                             <p key={item.label} className={`text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
                                 <span className="font-semibold">{item.label}:</span> {item.value}
@@ -718,12 +719,12 @@ const SceneField: React.FC<{
         };
 
     return (
-        <div className={`rounded-lg border px-3 py-2 ${isInverse ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+        <div className={label === 'Fala' ? 'mt-3.5' : ''}>
             <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
                 {label}
             </p>
             <p
-                className={`${label === 'Visual' ? 'text-[15px] leading-[1.55]' : 'text-[14px] leading-[1.55]'} ${isInverse ? (label === 'Visual' ? 'text-white/92' : 'text-white/80') : (label === 'Visual' ? 'text-gray-800' : 'text-gray-700')}`}
+                className={`${label === 'Visual' ? 'text-[15px] leading-[1.55] font-medium' : 'text-[14px] leading-[1.6] font-semibold'} ${isInverse ? (label === 'Visual' ? 'text-white/92' : 'text-white/88') : (label === 'Visual' ? 'text-gray-800' : 'text-gray-900')}`}
                 style={clampStyle}
             >
                 {cleanValue}
@@ -745,6 +746,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
     scene,
     index,
     totalScenes,
+    isFirstScene,
     theme,
     isExpandedMap,
     onToggleExpand,
@@ -756,9 +758,12 @@ const SceneCard: React.FC<SceneCardProps> = ({
     return (
         <article
             data-testid={`script-scene-card-${index + 1}`}
-            className={`rounded-xl border px-3 py-4 sm:px-4 sm:py-[18px] ${isLastScene
-                ? (isInverse ? 'border-emerald-300/40 bg-emerald-300/5' : 'border-emerald-200 bg-emerald-50/50')
-                : (isInverse ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white')
+            className={`px-1 py-4 sm:py-[18px] ${!isFirstScene
+                ? (isInverse ? 'mt-2 border-t border-white/12 pt-6' : 'mt-2 border-t border-gray-200/90 pt-6')
+                : ''
+                } ${isLastScene
+                ? (isInverse ? 'border-l-2 border-emerald-300/50 pl-3' : 'border-l-2 border-emerald-300 pl-3')
+                : ''
                 }`}
         >
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -769,7 +774,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
                     {formatSceneTime(scene.time)}
                 </span>
             </div>
-            <div className="space-y-2.5">
+            <div className="pt-1">
                 <SceneField
                     label="Visual"
                     text={scene.visual}
@@ -824,7 +829,7 @@ const CaptionBox: React.FC<{
     };
 
     return (
-        <div className={`relative mx-4 my-3 rounded-xl border p-4 sm:mx-5 sm:p-[18px] ${isInverse ? 'border-white/15 bg-white/5' : 'border-gray-200 bg-gray-50/60'}`}>
+        <div className={`relative mx-4 my-2 border-t pt-4 sm:mx-5 sm:pt-[18px] ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
             <button
                 onClick={handleCopy}
                 className={`absolute right-4 top-4 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${copied
@@ -840,7 +845,7 @@ const CaptionBox: React.FC<{
                 </span>
             </div>
             {hasCaptionTabs ? (
-                <div className={`mt-3 grid w-full grid-cols-3 gap-1 rounded-lg border p-0.5 sm:inline-flex sm:w-auto ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-white'}`}>
+                <div className={`mt-3 grid w-full grid-cols-3 gap-1 rounded-lg p-0.5 sm:inline-flex sm:w-auto ${isInverse ? 'bg-white/5' : 'bg-gray-100'}`}>
                     {variants.map((variant, idx) => (
                         <button
                             key={variant.label}
@@ -940,9 +945,7 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
         });
     };
 
-    const wrapperClass = isInverse
-        ? 'border-white/15 bg-gray-900 text-white'
-        : 'border-gray-200 bg-white text-gray-900';
+    const contentToneClass = isInverse ? 'text-white' : 'text-gray-900';
 
     const moreSpecificPrompt = 'Reescreva o roteiro com exemplos mais específicos e aplicáveis ao meu tema.';
 
@@ -1008,16 +1011,16 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
     }
 
     return (
-        <div className={`my-4 overflow-hidden rounded-2xl border ${wrapperClass}`}>
-            <div className={`flex items-center gap-2 border-b px-4 py-3 sm:px-5 sm:py-[14px] ${isInverse ? 'border-white/10' : 'border-gray-100'}`}>
+        <div className={`my-3 ${contentToneClass}`}>
+            <div className="flex items-center gap-2 px-4 py-2 sm:px-5">
                 <span className={`text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/80' : 'text-gray-700'}`}>
                     Roteiro
                 </span>
             </div>
 
             {data.variations.length > 1 && (
-                <div className={`px-4 pt-3 sm:px-5 ${isInverse ? 'bg-white/5' : 'bg-gray-50/60'}`}>
-                    <div className={`inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border p-0.5 [-webkit-overflow-scrolling:touch] ${isInverse ? 'border-white/20 bg-white/5' : 'border-gray-200 bg-white'}`}>
+                <div className="px-4 pb-1 pt-2 sm:px-5">
+                    <div className={`inline-flex max-w-full gap-1 overflow-x-auto rounded-lg p-0.5 [-webkit-overflow-scrolling:touch] ${isInverse ? 'bg-white/5' : 'bg-gray-100'}`}>
                         {data.variations.map((variation, idx) => (
                             <button
                                 key={variation.id}
@@ -1045,13 +1048,14 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
                 onCopyAll={handleCopyAll}
                 copied={copied}
             />
-            <div className="space-y-3 px-4 pb-2 sm:px-5 sm:pb-3">
+            <div className="px-4 pb-2 sm:px-5 sm:pb-3">
                 {activeVariation.scenes.map((scene, idx) => (
                     <SceneCard
                         key={`${activeVariation.id}-${idx}`}
                         scene={scene}
                         index={idx}
                         totalScenes={activeVariation.scenes.length}
+                        isFirstScene={idx === 0}
                         theme={theme}
                         isExpandedMap={sceneExpandedMap}
                         onToggleExpand={handleToggleSceneExpand}

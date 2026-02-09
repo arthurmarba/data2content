@@ -475,9 +475,14 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
       stage: (stage as CreatorStage | null) ?? null,
       surveyCompleted,
       totalInteractions: metrics?.totalInteractions ?? 0,
+      totalReach: metrics?.totalReach ?? 0,
       postCount: metrics?.postCount ?? 0,
       avgInteractionsPerPost: metrics?.avgInteractionsPerPost ?? 0,
       avgReachPerPost: metrics?.avgReachPerPost ?? 0,
+      engagementRate:
+        (metrics?.totalReach ?? 0) > 0
+          ? ((metrics?.totalInteractions ?? 0) / (metrics?.totalReach ?? 0)) * 100
+          : null,
       rank: 0, // placeholder until sorted
       consistencyScore: null,
       mediaKitSlug: creator.mediaKitSlug ?? null,

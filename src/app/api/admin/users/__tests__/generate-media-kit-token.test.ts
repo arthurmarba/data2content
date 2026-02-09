@@ -28,6 +28,11 @@ jest.mock('@/app/models/User', () => {
 jest.mock('@/app/lib/mongoose', () => ({
   connectToDatabase: jest.fn(),
 }));
+jest.mock('@/app/lib/mediakit/slugService', () => ({
+  buildMediaKitPublicUrl: jest.fn((origin: string, slug: string) => `${origin}/mediakit/${slug}`),
+  buildMediaKitSlugBase: jest.fn(() => 'usuario-teste'),
+  ensureUniqueMediaKitSlug: jest.fn(async () => 'usuario-teste'),
+}));
 jest.mock('next-auth/next', () => ({
   getServerSession: jest.fn(),
 }));
