@@ -82,6 +82,16 @@ export interface EnrichedAIContext {
     objectiveHint?: string | null;
     toneHint?: string | null;
     narrativePreference?: 'prefer_similar' | 'prefer_different' | null;
+    executionPlan?: {
+      primaryIdea?: string;
+      objective?: string;
+      hookAngle?: string;
+      ctaAngle?: string;
+      evidenceSummary?: string;
+      sourcePriority?: string[];
+      contextStrength?: number;
+    };
+    inspirationFallback?: 'community' | 'user_top_posts' | 'none';
     topCategories?: {
       proposal?: string[];
       context?: string[];
@@ -95,6 +105,8 @@ export interface EnrichedAIContext {
       proposal?: string[];
       context?: string[];
       tone?: string[];
+      permalink?: string;
+      coverUrl?: string;
       stats?: {
         shares?: number | null;
         saved?: number | null;

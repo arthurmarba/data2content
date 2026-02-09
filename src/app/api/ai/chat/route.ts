@@ -33,7 +33,7 @@ import { runAnswerEngine } from "@/app/lib/ai/answerEngine/engine";
 import { validateAnswerWithContext } from "@/app/lib/ai/answerEngine/validator";
 import { coerceToAnswerIntent } from "@/app/lib/ai/answerEngine/policies";
 import { stripUnprovenCommunityClaims } from "@/app/lib/text/sanitizeCommunityClaims";
-import { fetchTopCategories } from "@/app/lib/dataService";
+import { fetchTopCategories, getTopPostsByMetric } from "@/app/lib/dataService";
 import { recommendWeeklySlots } from "@/app/lib/planner/recommender";
 import { getThemesForSlot } from "@/app/lib/planner/themes";
 import { getBlockSampleCaptions } from "@/utils/getBlockSampleCaptions";
@@ -60,6 +60,8 @@ const CONTEXT_EXTRACTION_MIN_LEN_FOR_AI = 220;
 const AI_INSTIGATING_QUESTION_ENABLED = process.env.CHAT_AI_INSTIGATING_QUESTION === 'true';
 const HARMFUL_PATTERNS = [/su[ií]c[ií]dio/i, /\bme matar\b/i, /\bmatar algu[eé]m\b/i, /aut[oô]mutila/i];
 const ANSWER_ENGINE_ENABLED = process.env.ANSWER_ENGINE_ENABLED !== 'false';
+const SCRIPT_ALWAYS_GENERATE = process.env.SCRIPT_ALWAYS_GENERATE !== 'false';
+const SCRIPT_TOP_POST_INSPIRATION_FALLBACK = process.env.SCRIPT_TOP_POST_INSPIRATION_FALLBACK !== 'false';
 
 async function resolveAuthOptions() {
   if (process.env.NODE_ENV === 'test') return {};
@@ -110,11 +112,32 @@ type ScriptTableRow = {
   audio: string;
 };
 
+type ScriptInspirationSource = 'community' | 'user_top_posts' | 'none';
+
+type ScriptExecutionPlan = {
+  primaryIdea?: string;
+  objective?: string;
+  hookAngle?: string;
+  ctaAngle?: string;
+  evidenceSummary?: string;
+  sourcePriority?: string[];
+  contextStrength?: number;
+};
+
+type ScriptQualityScore = {
+  echoRatio: number;
+  speechStrength: number;
+  specificity: number;
+  ctaPresence: boolean;
+};
+
 type ScriptContractQuality = {
   hasRoteiroBlock: boolean;
   hasLegendaBlock: boolean;
   sceneCount: number;
   hasCta: boolean;
+  score?: ScriptQualityScore;
+  fallbackSource?: ScriptInspirationSource;
 };
 
 type ScriptContractResult = {
@@ -125,6 +148,7 @@ type ScriptContractResult = {
 };
 
 type ScriptInspirationHint = {
+  source?: ScriptInspirationSource;
   title?: string;
   coverUrl?: string;
   postLink?: string;
@@ -142,6 +166,9 @@ type ScriptContractHints = {
   inspiration?: ScriptInspirationHint | null;
   topic?: string | null;
   plannerThemes?: string[];
+  isHumor?: boolean;
+  executionPlan?: ScriptExecutionPlan | null;
+  inspirationSource?: ScriptInspirationSource;
 };
 
 const stripMarkdownMarkers = (value: string) =>
@@ -179,6 +206,13 @@ const parseInspirationJson = (value: string | null): ScriptInspirationHint | nul
   try {
     const parsed = JSON.parse(value);
     if (!parsed || typeof parsed !== 'object') return null;
+    const sourceRaw = typeof (parsed as any).source === 'string'
+      ? (parsed as any).source.trim().toLowerCase()
+      : '';
+    const source: ScriptInspirationSource | undefined =
+      sourceRaw === 'community' || sourceRaw === 'user_top_posts' || sourceRaw === 'none'
+        ? (sourceRaw as ScriptInspirationSource)
+        : undefined;
     const title = typeof parsed.title === 'string' ? parsed.title.trim() : '';
     const coverUrl = typeof parsed.coverUrl === 'string' ? parsed.coverUrl.trim() : '';
     const postLink = typeof parsed.postLink === 'string' ? parsed.postLink.trim() : '';
@@ -210,6 +244,7 @@ const parseInspirationJson = (value: string | null): ScriptInspirationHint | nul
 
     if (!title && !coverUrl && !postLink && !reason && !supportingInspirations?.length) return null;
     return {
+      source,
       title: title || undefined,
       coverUrl: coverUrl || undefined,
       postLink: postLink || undefined,
@@ -290,12 +325,37 @@ const looksLikePromptEcho = (candidate: string, userQuery: string) => {
   );
 };
 
+const GENERIC_SCRIPT_ECHO_PATTERNS = [
+  /\bcrie um roteiro\b/i,
+  /\bo que postar\b/i,
+  /\bque eu possa postar\b/i,
+  /\bme traga um roteiro\b/i,
+  /\broteiro de conte[úu]do\b/i,
+];
+
+const hasGenericScriptEcho = (value: string, userQuery: string) => {
+  const cleaned = cleanScriptCell(value || '');
+  if (!cleaned) return false;
+  if (looksLikePromptEcho(cleaned, userQuery)) return true;
+  return GENERIC_SCRIPT_ECHO_PATTERNS.some((pattern) => pattern.test(cleaned));
+};
+
+const isWeakScriptSpeech = (value: string, userQuery: string) => {
+  const cleaned = cleanScriptCell(value || '');
+  if (!cleaned) return true;
+  if (isPlaceholderLike(cleaned)) return true;
+  if (cleaned.length < 24) return true;
+  if (hasGenericScriptEcho(cleaned, userQuery)) return true;
+  return false;
+};
+
 const resolveScriptTitle = (candidateTitle: string | null, topic: string, userQuery: string) => {
   const fallbackTitle = buildScriptTitleFromTopic(topic);
   if (!candidateTitle) return fallbackTitle;
   const cleaned = stripMarkdownMarkers(candidateTitle);
   if (!cleaned) return fallbackTitle;
   if (looksLikePromptEcho(cleaned, userQuery)) return fallbackTitle;
+  if (hasGenericScriptEcho(cleaned, userQuery)) return fallbackTitle;
   if (!hasMeaningfulTopic(cleaned)) return fallbackTitle;
   return cleaned;
 };
@@ -393,7 +453,36 @@ const parseLooseRowsFromScript = (content: string): ScriptTableRow[] => {
   return rows;
 };
 
-const buildDefaultRows = (topic: string): ScriptTableRow[] => {
+const buildDefaultHumorRows = (topic: string): ScriptTableRow[] => {
+  const safeTopic = hasMeaningfulTopic(topic) ? topic : 'uma situação do seu nicho';
+  return [
+    {
+      time: '00-03s',
+      visual: `Setup rápido: criador em cena relatando a situação comum de ${safeTopic}.`,
+      audio: `Eu jurava que isso em ${safeTopic} era normal... até quebrar a cara.`,
+    },
+    {
+      time: '03-09s',
+      visual: 'Conflito: mostre a tentativa que dá errado com reação de surpresa.',
+      audio: 'Fiz exatamente o que todo mundo faz, e o resultado foi um desastre engraçado.',
+    },
+    {
+      time: '09-20s',
+      visual: 'Punchline com corte seco e exagero visual para maximizar a virada.',
+      audio: 'Na prática eu parecia um tutorial de "como não fazer". Foi aí que entendi o ajuste certo.',
+    },
+    {
+      time: '20-30s',
+      visual: 'Reação final + resolução curta + CTA na tela.',
+      audio: 'Se você já passou por isso, comenta "eu". Salva esse roteiro e manda para um amigo rir com você.',
+    },
+  ];
+};
+
+const buildDefaultRows = (topic: string, isHumor = false): ScriptTableRow[] => {
+  if (isHumor) {
+    return buildDefaultHumorRows(topic);
+  }
   const safeTopic = hasMeaningfulTopic(topic) ? topic : 'uma dor real do seu nicho';
   return [
   {
@@ -419,7 +508,14 @@ const buildDefaultRows = (topic: string): ScriptTableRow[] => {
 ];
 };
 
-const ensureRowsQuality = (rows: ScriptTableRow[], topic: string): { rows: ScriptTableRow[]; hasCta: boolean } => {
+const ensureRowsQuality = (
+  rows: ScriptTableRow[],
+  topic: string,
+  opts?: { userQuery?: string; isHumor?: boolean }
+): { rows: ScriptTableRow[]; hasCta: boolean } => {
+  const isHumor = Boolean(opts?.isHumor);
+  const userQuery = opts?.userQuery || '';
+  const fallbackRows = buildDefaultRows(topic, isHumor);
   const safeRows = rows
     .map((row) => ({
       time: cleanScriptCell(row.time || 'Auto') || 'Auto',
@@ -429,13 +525,31 @@ const ensureRowsQuality = (rows: ScriptTableRow[], topic: string): { rows: Scrip
     .filter((row) => isMeaningfulScene(row));
 
   if (!safeRows.length) {
-    return { rows: buildDefaultRows(topic), hasCta: true };
+    return { rows: fallbackRows, hasCta: true };
   }
 
   let curated = safeRows.slice(0, 6);
   while (curated.length < 3) {
-    curated = [...curated, ...buildDefaultRows(topic)].slice(0, 3);
+    curated = [...curated, ...fallbackRows].slice(0, 3);
   }
+
+  curated = curated.map((row, idx) => {
+    const fallback =
+      fallbackRows[Math.min(idx, fallbackRows.length - 1)] ||
+      fallbackRows[0] ||
+      { time: '00-03s', visual: 'Cena de apoio', audio: 'Ajuste sua fala para ficar clara e prática.' };
+    const visual = (!row.visual || isPlaceholderLike(row.visual) || hasGenericScriptEcho(row.visual, userQuery))
+      ? fallback.visual
+      : row.visual;
+    const audio = isWeakScriptSpeech(row.audio, userQuery)
+      ? fallback.audio
+      : row.audio;
+    return {
+      time: row.time || fallback.time,
+      visual,
+      audio,
+    };
+  });
 
   const hasCta = curated.some((row) =>
     /cta|call to action|salve|compartilhe|comente|dm|link|seguir/i.test(`${row.time} ${row.visual} ${row.audio}`)
@@ -446,7 +560,9 @@ const ensureRowsQuality = (rows: ScriptTableRow[], topic: string): { rows: Scrip
     curated.push({
       time: '20-30s',
       visual: 'Encerramento com reforço do benefício e ação sugerida.',
-      audio: 'Se fez sentido, salve este roteiro e compartilhe com alguém do seu nicho.',
+      audio: isHumor
+        ? 'Se você riu e aprendeu, comenta "parte 2", salva e envia para aquele amigo que precisa dessa ideia.'
+        : 'Se fez sentido, salve este roteiro e compartilhe com alguém do seu nicho.',
     });
     hasCtaFinal = true;
   }
@@ -454,7 +570,7 @@ const ensureRowsQuality = (rows: ScriptTableRow[], topic: string): { rows: Scrip
   return { rows: curated.slice(0, 6), hasCta: hasCtaFinal };
 };
 
-const ensureCaptionVariants = (captionContent: string, topic: string): string => {
+const ensureCaptionVariants = (captionContent: string, topic: string, userQuery?: string): string => {
   const normalizedLines = (captionContent || '')
     .split('\n')
     .map((line) => line.trim())
@@ -472,8 +588,12 @@ const ensureCaptionVariants = (captionContent: string, topic: string): string =>
   }
 
   const safeTopic = hasMeaningfulTopic(topic) ? topic : 'um problema comum do seu nicho';
-  const base = variantMap.get(1) || stripMarkdownMarkers(normalizedLines[0] || '') || `Ideia prática para resolver ${safeTopic}.`;
-  if (!variantMap.get(1)) {
+  const rawBase = variantMap.get(1) || stripMarkdownMarkers(normalizedLines[0] || '');
+  const base =
+    rawBase && !hasGenericScriptEcho(rawBase, userQuery || '')
+      ? rawBase
+      : `Ideia prática para resolver ${safeTopic}.`;
+  if (!variantMap.get(1) || hasGenericScriptEcho(variantMap.get(1) || '', userQuery || '')) {
     variantMap.set(1, `${base} Salve para aplicar ainda hoje.`);
   }
   if (!variantMap.get(2)) {
@@ -490,13 +610,22 @@ const ensureCaptionVariants = (captionContent: string, topic: string): string =>
   ].join('\n\n');
 };
 
-const buildFallbackScriptResponse = (query: string) => {
-  const topic = summarizeRequestTopic(query) || 'um tema do seu nicho';
-  const rows = buildDefaultRows(topic);
+const buildFallbackScriptResponse = (
+  query: string,
+  isHumor = false,
+  executionPlan?: ScriptExecutionPlan | null,
+  inspirationSource: ScriptInspirationSource = 'none'
+) => {
+  const topic = pickBestTopicCandidate([executionPlan?.primaryIdea, summarizeRequestTopic(query)]) || 'um tema do seu nicho';
+  const rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
+  const baseSummary = executionPlan?.evidenceSummary || 'Baseado em sinais históricos de engajamento da conta.';
   const tableRows = rows.map((row) => `| ${row.time} | ${row.visual} | ${row.audio} |`).join('\n');
   return [
     '[ROTEIRO]',
     `**Título Sugerido:** ${buildScriptTitleFromTopic(topic)}`,
+    `**Pauta Estratégica:** ${topic}`,
+    `**Base de Engajamento:** ${baseSummary}`,
+    `**Fonte da Inspiração:** ${resolveInspirationSourceLabel(inspirationSource)}`,
     '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
     '',
     '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
@@ -505,7 +634,7 @@ const buildFallbackScriptResponse = (query: string) => {
     '[/ROTEIRO]',
     '',
     '[LEGENDA]',
-    ensureCaptionVariants('', topic),
+    ensureCaptionVariants('', topic, query),
     '[/LEGENDA]',
   ].join('\n');
 };
@@ -514,6 +643,7 @@ export function enforceScriptContract(response: string, userQuery: string, hints
   const issues: string[] = [];
   const hintedTopic = pickBestTopicCandidate([hints?.topic, ...(hints?.plannerThemes || [])]);
   const topic = hintedTopic || summarizeRequestTopic(userQuery) || 'um tema do seu nicho';
+  const executionPlan = hints?.executionPlan || null;
   let roteiroBody = extractTaggedBlock(response, 'ROTEIRO');
   let legendaBody = extractTaggedBlock(response, 'LEGENDA');
   let repaired = false;
@@ -526,7 +656,12 @@ export function enforceScriptContract(response: string, userQuery: string, hints
   }
 
   if (!roteiroBody) {
-    const fallback = buildFallbackScriptResponse(userQuery);
+    const fallback = buildFallbackScriptResponse(
+      userQuery,
+      Boolean(hints?.isHumor),
+      executionPlan,
+      hints?.inspirationSource || 'none'
+    );
     return {
       normalized: fallback,
       repaired: true,
@@ -574,14 +709,26 @@ export function enforceScriptContract(response: string, userQuery: string, hints
     repaired = true;
   }
 
-  const ensured = ensureRowsQuality(tableRows.length ? tableRows : looseRows, topic);
+  const isHumor = Boolean(hints?.isHumor);
+  const ensured = ensureRowsQuality(tableRows.length ? tableRows : looseRows, topic, {
+    userQuery,
+    isHumor,
+  });
   let rows = ensured.rows;
 
   const genericPromptEchoRows = rows.filter((row) =>
-    looksLikePromptEcho(`${row.visual} ${row.audio}`, userQuery)
+    hasGenericScriptEcho(`${row.visual} ${row.audio}`, userQuery)
   );
-  if (rows.length >= 3 && genericPromptEchoRows.length >= Math.ceil(rows.length / 2) && hasMeaningfulTopic(topic)) {
-    rows = buildDefaultRows(topic);
+  const weakAudioRows = rows.filter((row) => isWeakScriptSpeech(row.audio, userQuery));
+  const shouldReplaceAllRows =
+    rows.length >= 3 &&
+    hasMeaningfulTopic(topic) &&
+    (
+      genericPromptEchoRows.length >= Math.max(2, Math.ceil(rows.length / 3)) ||
+      weakAudioRows.length >= Math.ceil(rows.length / 2)
+    );
+  if (shouldReplaceAllRows) {
+    rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
     issues.push('generic_prompt_echo_rows');
     repaired = true;
   }
@@ -601,10 +748,23 @@ export function enforceScriptContract(response: string, userQuery: string, hints
     repaired = true;
   }
 
-  legendaBody = ensureCaptionVariants(legendaBody || '', topic);
+  legendaBody = ensureCaptionVariants(legendaBody || '', topic, userQuery);
+
+  let hasCtaFinal = rows.some((row) =>
+    /cta|call to action|salve|compartilhe|comente|dm|link|seguir/i.test(`${row.time} ${row.visual} ${row.audio}`)
+  );
+  const qualityScoreBeforeRewrite = evaluateScriptQuality(rows, userQuery, hasCtaFinal);
+  if (shouldRewriteByQuality(qualityScoreBeforeRewrite)) {
+    rows = applyExecutionPlanToRows(topic, isHumor, executionPlan);
+    hasCtaFinal = true;
+    issues.push('quality_rewrite');
+    repaired = true;
+  }
+  const finalQualityScore = evaluateScriptQuality(rows, userQuery, hasCtaFinal);
 
   const inspirationHint = hints?.inspiration || null;
   const inspirationPayload = inspirationJson || inspirationHint || null;
+  const inspirationSource = (inspirationPayload?.source || hints?.inspirationSource || 'none') as ScriptInspirationSource;
   const inspirationReason = stripMarkdownMarkers(
     inspirationReasonRaw ||
     inspirationPayload?.reason ||
@@ -616,6 +776,7 @@ export function enforceScriptContract(response: string, userQuery: string, hints
   const roteiroLines: string[] = [];
   if (inspirationPayload && (inspirationPayload.title || inspirationPayload.coverUrl || inspirationPayload.postLink || inspirationPayload.reason || inspirationPayload.supportingInspirations?.length)) {
     const jsonPayload: Record<string, unknown> = {};
+    if (inspirationPayload.source) jsonPayload.source = inspirationPayload.source;
     if (inspirationPayload.title) jsonPayload.title = inspirationPayload.title;
     if (inspirationPayload.coverUrl) jsonPayload.coverUrl = inspirationPayload.coverUrl;
     if (inspirationPayload.postLink) jsonPayload.postLink = inspirationPayload.postLink;
@@ -634,7 +795,14 @@ export function enforceScriptContract(response: string, userQuery: string, hints
     roteiroLines.push('[/INSPIRATION_JSON]');
     roteiroLines.push('');
   }
+  const strategicTheme = pickBestTopicCandidate([executionPlan?.primaryIdea, topic]) || topic;
+  const engagementBase =
+    executionPlan?.evidenceSummary ||
+    'Baseado em sinais recentes de engajamento (categorias e conteúdos com maior tração).';
   roteiroLines.push(`**Título Sugerido:** ${title}`);
+  roteiroLines.push(`**Pauta Estratégica:** ${strategicTheme}`);
+  roteiroLines.push(`**Base de Engajamento:** ${engagementBase}`);
+  roteiroLines.push(`**Fonte da Inspiração:** ${resolveInspirationSourceLabel(inspirationSource)}`);
   if (inspirationRaw && !inspirationPayload) {
     roteiroLines.push(`**Inspiração Viral:** ${inspirationRaw}`);
   }
@@ -683,7 +851,9 @@ export function enforceScriptContract(response: string, userQuery: string, hints
       hasRoteiroBlock: true,
       hasLegendaBlock: true,
       sceneCount: rows.length,
-      hasCta: ensured.hasCta,
+      hasCta: hasCtaFinal,
+      score: finalQualityScore,
+      fallbackSource: inspirationSource,
     },
   };
 }
@@ -758,6 +928,163 @@ function inferScriptObjective(query: string): string | null {
   return null;
 }
 
+const toArrayOfStrings = (value: any): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+  const raw = String(value).trim();
+  return raw ? [raw] : [];
+};
+
+const clampRatio = (value: number) => {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+};
+
+const roundRatio = (value: number) => Math.round(clampRatio(value) * 100) / 100;
+
+const objectiveLabel = (value?: string | null) => {
+  const normalized = (value || '').toLowerCase();
+  if (normalized === 'converter') return 'converter';
+  if (normalized === 'viralizar') return 'viralizar';
+  if (normalized === 'educar') return 'educar';
+  if (normalized === 'autoridade') return 'construir autoridade';
+  return 'engajar';
+};
+
+const resolveInspirationSourceLabel = (source: ScriptInspirationSource) => {
+  if (source === 'community') return 'Comunidade (narrativas similares)';
+  if (source === 'user_top_posts') return 'Top posts do criador';
+  return 'Sem referência externa (roteiro orientado por sinais do histórico)';
+};
+
+const resolveUserNicheTopic = (user: IUser): string => {
+  const profileNiches = [
+    ...toArrayOfStrings((user as any)?.creatorProfileExtended?.niches),
+    ...toArrayOfStrings((user as any)?.creatorProfile?.niches),
+    ...toArrayOfStrings((user as any)?.niches),
+  ];
+  return pickBestTopicCandidate(profileNiches);
+};
+
+const buildScriptEvidenceSummary = (params: {
+  plannerTheme?: string;
+  topCategories?: { proposal?: string[]; context?: string[] };
+  topPosts?: Array<{ captionSnippet?: string; stats?: { shares?: number | null; saved?: number | null; comments?: number | null } }>;
+}): string => {
+  const { plannerTheme, topCategories, topPosts } = params;
+  const parts: string[] = [];
+  if (plannerTheme) {
+    parts.push(`Tema de pauta com maior aderência: ${plannerTheme}`);
+  }
+  const proposal = topCategories?.proposal?.[0];
+  const context = topCategories?.context?.[0];
+  if (proposal || context) {
+    parts.push(`Categorias com melhor engajamento: ${[proposal, context].filter(Boolean).join(' + ')}`);
+  }
+  const firstPost = (topPosts || [])[0];
+  const firstCaptionTopic = summarizeRequestTopic(firstPost?.captionSnippet || '');
+  if (firstCaptionTopic) {
+    parts.push(`Legenda de alto desempenho reforça o tema: ${firstCaptionTopic}`);
+  }
+  const shares = typeof firstPost?.stats?.shares === 'number' ? firstPost.stats.shares : null;
+  const saves = typeof firstPost?.stats?.saved === 'number' ? firstPost.stats.saved : null;
+  const comments = typeof firstPost?.stats?.comments === 'number' ? firstPost.stats.comments : null;
+  const metricBits = [
+    shares !== null ? `${shares} compartilhamentos` : null,
+    saves !== null ? `${saves} salvamentos` : null,
+    comments !== null ? `${comments} comentários` : null,
+  ].filter(Boolean);
+  if (metricBits.length) {
+    parts.push(`Métricas de referência: ${metricBits.join(' | ')}`);
+  }
+  return parts.join(' — ') || 'Baseado em padrões recentes de engajamento do seu histórico.';
+};
+
+const buildScriptExecutionPlan = (params: {
+  user: IUser;
+  queryTopic: string;
+  objectiveHint?: string | null;
+  toneHint?: string | null;
+  topCategories?: {
+    proposal?: string[];
+    context?: string[];
+  };
+  plannerSignals?: {
+    themes?: string[];
+    keyword?: string;
+  } | null;
+  topPosts?: Array<{
+    captionSnippet?: string;
+    stats?: { shares?: number | null; saved?: number | null; comments?: number | null };
+  }>;
+}): ScriptExecutionPlan => {
+  const { user, queryTopic, objectiveHint, toneHint, topCategories, plannerSignals, topPosts } = params;
+  const sourcePriority: string[] = [];
+
+  const plannerTheme = pickBestTopicCandidate([plannerSignals?.themes?.[0], plannerSignals?.keyword]);
+  if (plannerTheme) sourcePriority.push('planner_theme');
+
+  const topPostTopic = pickBestTopicCandidate(
+    (topPosts || []).map((post) => summarizeRequestTopic(post.captionSnippet || ''))
+  );
+  if (topPostTopic) sourcePriority.push('top_post_caption');
+
+  const categoryTopic = pickBestTopicCandidate([
+    topCategories?.proposal?.[0] && topCategories?.context?.[0]
+      ? `${topCategories.proposal[0]} para ${topCategories.context[0]}`
+      : '',
+    topCategories?.context?.[0] || '',
+    topCategories?.proposal?.[0] || '',
+  ]);
+  if (categoryTopic) sourcePriority.push('top_categories');
+
+  const nicheTopic = resolveUserNicheTopic(user);
+  if (nicheTopic) sourcePriority.push('user_niche');
+
+  const primaryIdea = pickBestTopicCandidate([
+    plannerTheme,
+    topPostTopic,
+    categoryTopic,
+    nicheTopic,
+    queryTopic,
+    'uma dor recorrente do seu nicho',
+  ]) || 'uma dor recorrente do seu nicho';
+
+  const objective = objectiveLabel(objectiveHint);
+  const isHumor = toneHint === 'humorous';
+  const hookAngle = isHumor
+    ? `Abrir com situação real de ${primaryIdea}, escalar para conflito e virar com punchline sem ecoar pedido.`
+    : objective === 'converter'
+      ? `Gancho direto em ${primaryIdea} com promessa de resultado e prova prática em até 20s.`
+      : objective === 'viralizar'
+        ? `Gancho de quebra de padrão em ${primaryIdea} para maximizar retenção e compartilhamentos.`
+        : `Abrir com erro comum em ${primaryIdea} e mostrar ajuste executável em 2 passos.`;
+
+  const ctaAngle = objective === 'converter'
+    ? 'Fechar com CTA de ação comercial clara (DM/link/comentário de intenção) sem soar forçado.'
+    : objective === 'viralizar'
+      ? 'Fechar com CTA de compartilhamento/salvamento para ampliar alcance.'
+      : 'Fechar com CTA de comentário e salvamento para reforçar engajamento e recorrência.';
+
+  const evidenceSummary = buildScriptEvidenceSummary({
+    plannerTheme,
+    topCategories,
+    topPosts,
+  });
+
+  return {
+    primaryIdea,
+    objective,
+    hookAngle,
+    ctaAngle,
+    evidenceSummary,
+    sourcePriority: sourcePriority.length ? sourcePriority : ['fallback'],
+    contextStrength: sourcePriority.length,
+  };
+};
+
 async function buildScriptContext(params: {
   user: IUser;
   query: string;
@@ -782,7 +1109,7 @@ async function buildScriptContext(params: {
       ? persistedPreference
       : null);
 
-  const topPosts = Array.isArray(answerEngineResult?.topPosts)
+  let topPosts = Array.isArray(answerEngineResult?.topPosts)
     ? answerEngineResult.topPosts.slice(0, 3).map((p: any) => ({
       id: String(p.id || ''),
       captionSnippet: (p.raw?.description || p.description || '').toString().slice(0, 160) || undefined,
@@ -790,6 +1117,8 @@ async function buildScriptContext(params: {
       proposal: Array.isArray(p.raw?.proposal) ? p.raw.proposal : undefined,
       context: Array.isArray(p.raw?.context) ? p.raw.context : undefined,
       tone: Array.isArray(p.raw?.tone) ? p.raw.tone : undefined,
+      permalink: isInstagramPostUrl(p?.permalink || p?.raw?.postLink) ? String(p.permalink || p.raw?.postLink).trim() : undefined,
+      coverUrl: typeof p?.raw?.coverUrl === 'string' ? String(p.raw.coverUrl).trim() : undefined,
       stats: {
         shares: typeof p.stats?.shares === 'number' ? p.stats.shares : null,
         saved: typeof p.stats?.saves === 'number' ? p.stats.saves : null,
@@ -802,6 +1131,37 @@ async function buildScriptContext(params: {
       postDate: p.postDate ? new Date(p.postDate).toISOString() : null,
     }))
     : [];
+
+  if (userId && !topPosts.length) {
+    try {
+      const topFromHistory = await getTopPostsByMetric(userId, 'shares', 3);
+      topPosts = topFromHistory.map((post: any) => ({
+        id: String(post?._id || ''),
+        captionSnippet: (post?.description || '').toString().slice(0, 160) || undefined,
+        format: post?.format || undefined,
+        proposal: toArrayOfStrings(post?.proposal),
+        context: toArrayOfStrings(post?.context),
+        tone: toArrayOfStrings(post?.tone),
+        permalink: isInstagramPostUrl(post?.postLink) ? String(post.postLink).trim() : undefined,
+        coverUrl: typeof post?.coverUrl === 'string' ? String(post.coverUrl).trim() : undefined,
+        stats: {
+          shares: typeof post?.stats?.shares === 'number' ? post.stats.shares : null,
+          saved: typeof post?.stats?.saved === 'number' ? post.stats.saved : null,
+          comments: typeof post?.stats?.comments === 'number' ? post.stats.comments : null,
+          likes: typeof post?.stats?.likes === 'number' ? post.stats.likes : null,
+          reach: typeof post?.stats?.reach === 'number' ? post.stats.reach : null,
+          views: typeof post?.stats?.video_views === 'number' ? post.stats.video_views : null,
+          total_interactions: typeof post?.stats?.total_interactions === 'number' ? post.stats.total_interactions : null,
+        },
+        postDate: post?.postDate ? new Date(post.postDate).toISOString() : null,
+      })).filter((post: any) => post.id);
+    } catch (error) {
+      logger.warn('[ai/chat] failed to hydrate top posts fallback for script context', {
+        actor: userId,
+        error: (error as Error)?.message || 'unknown',
+      });
+    }
+  }
 
   let topCategories: any = undefined;
   let plannerSignals: any = undefined;
@@ -875,10 +1235,27 @@ async function buildScriptContext(params: {
     }
   }
 
+  const executionPlan = buildScriptExecutionPlan({
+    user,
+    queryTopic,
+    objectiveHint,
+    toneHint,
+    topCategories,
+    plannerSignals,
+    topPosts,
+  });
+  const inspirationFallback: ScriptInspirationSource = communityOptIn
+    ? 'community'
+    : topPosts.length
+      ? 'user_top_posts'
+      : 'none';
+
   return {
     objectiveHint,
     toneHint,
     narrativePreference,
+    executionPlan,
+    inspirationFallback,
     topCategories,
     topPosts,
     communityOptIn,
@@ -1087,6 +1464,7 @@ const buildScriptInspirationHint = (
     : `Escolhida por narrativa semelhante ao tema "${topic}".`;
 
   return {
+    source: 'community',
     title: first?.title || undefined,
     postLink: first?.permalink || undefined,
     reason,
@@ -1103,6 +1481,163 @@ const buildScriptInspirationHint = (
     })),
   };
 };
+
+const buildScriptInspirationFallbackFromTopPosts = (
+  topPosts: Array<{
+    id: string;
+    captionSnippet?: string;
+    permalink?: string;
+    coverUrl?: string;
+    stats?: {
+      shares?: number | null;
+      saved?: number | null;
+      comments?: number | null;
+      total_interactions?: number | null;
+    };
+  }>,
+  topic: string
+): ScriptInspirationHint | null => {
+  if (!Array.isArray(topPosts) || !topPosts.length) return null;
+  const selected = topPosts.slice(0, 3);
+  const withRoles = selected.map((post, idx) => ({
+    role: inferNarrativeRole(
+      {
+        description: post.captionSnippet || '',
+        matchReasons: [],
+      },
+      idx
+    ),
+    post,
+  }));
+
+  const first = withRoles[0]?.post;
+  if (!first) return null;
+  const firstTitle = summarizeRequestTopic(first.captionSnippet || '') || `Post de alto engajamento #1`;
+  const firstStats = first.stats || {};
+  const scoreBits = [
+    typeof firstStats.shares === 'number' ? `${firstStats.shares} compartilhamentos` : null,
+    typeof firstStats.saved === 'number' ? `${firstStats.saved} salvamentos` : null,
+    typeof firstStats.total_interactions === 'number' ? `${firstStats.total_interactions} interações` : null,
+  ].filter(Boolean);
+  const reason = scoreBits.length
+    ? `Baseado nos seus posts de maior engajamento (${scoreBits.join(' | ')}) para sustentar a narrativa sobre "${topic}".`
+    : `Baseado nos seus posts de maior engajamento para sustentar a narrativa sobre "${topic}".`;
+
+  return {
+    source: 'user_top_posts',
+    title: firstTitle,
+    postLink: first.permalink || undefined,
+    coverUrl: first.coverUrl || undefined,
+    reason,
+    supportingInspirations: withRoles.map(({ role, post }, idx) => {
+      const title = summarizeRequestTopic(post.captionSnippet || '') || `Post de referência #${idx + 1}`;
+      return {
+        role,
+        title,
+        postLink: post.permalink || undefined,
+        reason: 'Estrutura narrativa validada por desempenho histórico.',
+      };
+    }),
+  };
+};
+
+const applyExecutionPlanToRows = (
+  topic: string,
+  isHumor: boolean,
+  plan?: ScriptExecutionPlan | null
+): ScriptTableRow[] => {
+  const safeTopic = pickBestTopicCandidate([plan?.primaryIdea, topic]) || topic || 'uma dor real do seu nicho';
+  const baseRows = buildDefaultRows(safeTopic, isHumor);
+  if (!plan) return baseRows;
+
+  if (isHumor) {
+    return [
+      {
+        time: '00-03s',
+        visual: `Setup: situação comum de ${safeTopic} com expressão exagerada.`,
+        audio: `Todo mundo acha que ${safeTopic} é simples... até acontecer esse perrengue.`,
+      },
+      {
+        time: '03-10s',
+        visual: 'Conflito com tentativa que dá errado e reação cômica.',
+        audio: 'Eu fiz o básico e virou uma sequência de erros em cadeia.',
+      },
+      {
+        time: '10-22s',
+        visual: 'Virada com punchline + ajuste prático em 2 passos.',
+        audio: 'A virada foi aplicar um ajuste ridiculamente simples e instantâneo.',
+      },
+      {
+        time: '22-30s',
+        visual: 'Reação final + texto de fechamento na tela.',
+        audio: 'Se você também já passou por isso, comenta "eu", salva e envia para um amigo.',
+      },
+    ];
+  }
+
+  const objective = objectiveLabel(plan.objective);
+  const ctaByObjective = objective === 'converter'
+    ? 'Comenta "quero" ou me chama no direct para receber a versão aplicada ao seu caso.'
+    : objective === 'viralizar'
+      ? 'Se isso te ajudou, salva agora e compartilha com alguém que precisa desse roteiro.'
+      : 'Se isso fez sentido, salva esse vídeo e comenta "roteiro" para receber uma variação.';
+
+  return [
+    {
+      time: '00-03s',
+      visual: `Close no rosto + texto de impacto sobre ${safeTopic}.`,
+      audio: plan.hookAngle || `Você está cometendo esse erro em ${safeTopic} e isso está travando seu resultado.`,
+    },
+    {
+      time: '03-10s',
+      visual: 'Exemplo rápido do erro comum (antes) com destaque visual.',
+      audio: 'Esse erro derruba retenção e tira clareza da sua mensagem.',
+    },
+    {
+      time: '10-22s',
+      visual: 'Demonstração do ajuste em 2 passos práticos (depois).',
+      audio: 'Faz assim: passo 1 para corrigir a base, passo 2 para manter consistência.',
+    },
+    {
+      time: '22-30s',
+      visual: 'Fechamento com benefício final e chamada para ação.',
+      audio: plan.ctaAngle || ctaByObjective,
+    },
+  ];
+};
+
+const evaluateScriptQuality = (
+  rows: ScriptTableRow[],
+  userQuery: string,
+  hasCta: boolean
+): ScriptQualityScore => {
+  if (!rows.length) {
+    return { echoRatio: 1, speechStrength: 0, specificity: 0, ctaPresence: false };
+  }
+  const echoHits = rows.filter((row) =>
+    hasGenericScriptEcho(`${row.visual} ${row.audio}`, userQuery)
+  ).length;
+  const strongSpeechHits = rows.filter((row) => !isWeakScriptSpeech(row.audio, userQuery)).length;
+  const specificRows = rows.filter((row) => {
+    const visual = cleanScriptCell(row.visual || '');
+    const audio = cleanScriptCell(row.audio || '');
+    if (hasMeaningfulTopic(visual) || hasMeaningfulTopic(audio)) return true;
+    return visual.length > 28 && audio.length > 28;
+  }).length;
+
+  return {
+    echoRatio: roundRatio(echoHits / rows.length),
+    speechStrength: roundRatio(strongSpeechHits / rows.length),
+    specificity: roundRatio(specificRows / rows.length),
+    ctaPresence: hasCta,
+  };
+};
+
+const shouldRewriteByQuality = (score: ScriptQualityScore) =>
+  score.echoRatio >= 0.12 ||
+  score.speechStrength < 0.72 ||
+  score.specificity < 0.5 ||
+  !score.ctaPresence;
 
 const SURVEY_STALE_MS = 1000 * 60 * 60 * 24 * 120; // ~4 meses
 
@@ -1246,6 +1781,9 @@ const buildScriptClarificationMessage = () =>
 
 const extractTopicFromScriptContext = (scriptContext?: EnrichedAIContext['scriptContext'] | null) => {
   if (!scriptContext) return '';
+
+  const executionIdea = pickBestTopicCandidate([scriptContext.executionPlan?.primaryIdea]);
+  if (executionIdea) return executionIdea;
 
   const plannerTheme = pickBestTopicCandidate(scriptContext.plannerSignals?.themes || []);
   if (plannerTheme) return plannerTheme;
@@ -2150,13 +2688,13 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           : null);
 
     const allowedLinks = new Set<string>();
+    const pushAllowed = (url?: string | null, verified?: boolean) => {
+      const normalized = normalizeInstagramUrl(url || undefined);
+      if (!normalized) return;
+      if (verified === false) return;
+      allowedLinks.add(normalized);
+    };
     if (answerEvidence) {
-      const pushAllowed = (url?: string | null, verified?: boolean) => {
-        const normalized = normalizeInstagramUrl(url || undefined);
-        if (!normalized) return;
-        if (verified === false) return;
-        allowedLinks.add(normalized);
-      };
       answerEvidence.topPosts?.forEach((post: any) => {
         if (post?.source && post.source !== 'user') return;
         pushAllowed(post.permalink, post.linkVerified);
@@ -2172,12 +2710,19 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         });
       }
     }
+    if (isScriptMode && Array.isArray(scriptContext?.topPosts)) {
+      scriptContext.topPosts.forEach((post) => {
+        pushAllowed((post as any)?.permalink, true);
+      });
+    }
     sanitizedResponse = sanitizeInstagramLinks(sanitizedResponse, allowedLinks);
     if (isScriptMode) {
       const scriptTopicFromQuery = summarizeRequestTopic(truncatedQuery);
       const scriptTopicFromContext = extractTopicFromScriptContext(scriptContext);
       const resolvedScriptTopic = pickBestTopicCandidate([scriptTopicFromQuery, scriptTopicFromContext]);
-      const shouldClarify = shouldAskScriptClarification(truncatedQuery, scriptTopicFromQuery) && !hasMeaningfulTopic(scriptTopicFromContext);
+      const shouldClarify = SCRIPT_ALWAYS_GENERATE
+        ? !truncatedQuery.trim()
+        : shouldAskScriptClarification(truncatedQuery, scriptTopicFromQuery) && !hasMeaningfulTopic(scriptTopicFromContext);
 
       if (shouldClarify) {
         sanitizedResponse = buildScriptClarificationMessage();
@@ -2199,10 +2744,23 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           communityMeta,
           resolvedScriptTopic || 'seu tema'
         );
+        const scriptInspirationFallback = (!scriptInspirationHint && SCRIPT_TOP_POST_INSPIRATION_FALLBACK)
+          ? buildScriptInspirationFallbackFromTopPosts(
+            scriptContext?.topPosts || [],
+            resolvedScriptTopic || scriptContext?.executionPlan?.primaryIdea || 'seu tema'
+          )
+          : null;
+        const finalInspirationHint = scriptInspirationHint || scriptInspirationFallback || null;
+        const fallbackSource = (finalInspirationHint?.source ||
+          scriptContext?.inspirationFallback ||
+          'none') as ScriptInspirationSource;
         const scriptContract = enforceScriptContract(sanitizedResponse, truncatedQuery, {
-          inspiration: scriptInspirationHint,
+          inspiration: finalInspirationHint,
           topic: resolvedScriptTopic,
           plannerThemes: scriptContext?.plannerSignals?.themes || [],
+          isHumor: effectiveIntent === 'humor_script_request' || scriptContext?.toneHint === 'humorous',
+          executionPlan: scriptContext?.executionPlan || null,
+          inspirationSource: fallbackSource,
         });
         sanitizedResponse = scriptContract.normalized;
         if (scriptContract.repaired) {
@@ -2211,6 +2769,20 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
             quality: scriptContract.quality,
             actor: actorId,
             target: access.targetUserId,
+          });
+        }
+        logger.info('[ai/chat] script_quality_score', {
+          actor: actorId,
+          target: access.targetUserId,
+          score: scriptContract.quality.score || null,
+          fallback_source: scriptContract.quality.fallbackSource || fallbackSource,
+          context_strength: scriptContext?.executionPlan?.contextStrength ?? null,
+        });
+        if ((scriptContract.quality.score?.echoRatio || 0) > 0) {
+          logger.info('[ai/chat] echo_detected', {
+            actor: actorId,
+            target: access.targetUserId,
+            echo_ratio: scriptContract.quality.score?.echoRatio || 0,
           });
         }
         logger.info('[ai/chat] script_mode_metrics', {
@@ -2222,6 +2794,8 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           hasCta: scriptContract.quality.hasCta,
           communityInspirationsUsed: communityInspirations.length,
           communityMatchType: communityMeta?.matchType || null,
+          fallback_source: scriptContract.quality.fallbackSource || fallbackSource,
+          context_strength: scriptContext?.executionPlan?.contextStrength ?? null,
         });
       }
     }

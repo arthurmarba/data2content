@@ -8,6 +8,9 @@ import { track } from '@/lib/track';
 
 interface ScriptMetadata {
     title?: string;
+    strategicTheme?: string;
+    engagementBase?: string;
+    inspirationSource?: string;
     format?: string;
     duration?: string;
     audio?: string;
@@ -22,6 +25,7 @@ interface ScriptScene {
 }
 
 interface InspirationData {
+    source?: 'community' | 'user_top_posts' | 'none';
     title?: string;
     coverUrl?: string;
     postLink?: string;
@@ -191,6 +195,7 @@ const parseVariationChunk = (label: string, lines: string[]): ScriptVariation =>
     for (const rawLine of lines) {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
+        if (/^:?-{2,}:?$/.test(trimmed)) continue;
         const normalized = stripMarkdownMarkers(trimmed);
 
         if (/^\[LEGENDA\]$/i.test(trimmed)) {
@@ -208,6 +213,21 @@ const parseVariationChunk = (label: string, lines: string[]): ScriptVariation =>
 
         if (/^t[íi]tulo sugerido\s*:/i.test(normalized)) {
             metadata.title = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^pauta estrat[ée]gica\s*:/i.test(normalized)) {
+            metadata.strategicTheme = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^base de engajamento\s*:/i.test(normalized)) {
+            metadata.engagementBase = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^fonte da inspira(?:ç|c)[aã]o\s*:/i.test(normalized)) {
+            metadata.inspirationSource = extractAfterColon(normalized);
             continue;
         }
 
@@ -338,6 +358,9 @@ const parseScriptContent = (content: string): ParsedScript => {
                         .filter(Boolean) as SupportingInspirationItem[]
                     : ([] as SupportingInspirationItem[]);
                 inspirationData = {
+                    source: parsed?.source === 'community' || parsed?.source === 'user_top_posts' || parsed?.source === 'none'
+                        ? parsed.source
+                        : undefined,
                     title: typeof parsed?.title === 'string' ? parsed.title : undefined,
                     coverUrl: typeof parsed?.coverUrl === 'string' ? parsed.coverUrl : undefined,
                     postLink: typeof parsed?.postLink === 'string' ? parsed.postLink : undefined,
@@ -376,6 +399,15 @@ const parseScriptContent = (content: string): ParsedScript => {
         const mergedCaption = byLabel || byIndex || variation.caption || fallbackCaption || undefined;
         return {
             ...variation,
+            metadata: {
+                ...variation.metadata,
+                inspirationSource: variation.metadata.inspirationSource
+                    || (inspirationData?.source === 'community'
+                        ? 'Comunidade (narrativas similares)'
+                        : inspirationData?.source === 'user_top_posts'
+                            ? 'Top posts do criador'
+                            : variation.metadata.inspirationSource),
+            },
             caption: mergedCaption,
         };
     });
@@ -544,6 +576,21 @@ const MetadataHeader: React.FC<{ metadata: ScriptMetadata; theme: RenderTheme; l
                     ))}
                 </div>
             )}
+            {metadata.strategicTheme ? (
+                <p className={`mt-2 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
+                    <span className="font-semibold">Pauta estratégica:</span> {metadata.strategicTheme}
+                </p>
+            ) : null}
+            {metadata.engagementBase ? (
+                <p className={`mt-1 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
+                    <span className="font-semibold">Base de engajamento:</span> {metadata.engagementBase}
+                </p>
+            ) : null}
+            {metadata.inspirationSource ? (
+                <p className={`mt-1 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
+                    <span className="font-semibold">Fonte da inspiração:</span> {metadata.inspirationSource}
+                </p>
+            ) : null}
             {metadata.inspirationReason ? (
                 <p className={`mt-2 text-[13px] leading-relaxed ${isInverse ? 'text-white/75' : 'text-gray-600'}`}>
                     <span className="font-semibold">Por que essa inspiração:</span> {metadata.inspirationReason}

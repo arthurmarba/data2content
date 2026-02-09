@@ -172,9 +172,9 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
   return (
     <section
       id="inicio"
-      className="landing-section relative min-h-[82vh] overflow-hidden bg-white pt-4 sm:min-h-[88vh] sm:pt-6 md:min-h-[90vh] md:pt-0"
+      className="landing-section relative min-h-[100dvh] overflow-visible bg-white pt-4 sm:min-h-[88vh] sm:pt-6 md:min-h-[90vh] md:pt-0"
       style={{
-        paddingTop: `calc(var(--space-fluid-4, 5rem) + var(--sat, 0px) + var(--landing-header-h, 4.5rem) + 0.5rem)`,
+        paddingTop: `calc(var(--space-fluid-4, 5.5rem) + var(--sat, 0px) + var(--landing-header-h, 4.5rem))`,
       }}
     >
       {/* Premium Mesh Background */}
@@ -186,14 +186,10 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
       <motion.div style={{ y: y1, opacity }} className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-brand-primary/5 rounded-full blur-[140px]" />
       <motion.div style={{ y: y2, opacity }} className="absolute top-40 -right-20 w-[500px] h-[500px] bg-brand-accent/5 rounded-full blur-[120px]" />
 
-      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-10 sm:gap-14 md:gap-24">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:gap-8 md:gap-10">
+      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-4 sm:gap-14 md:gap-24">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 text-center sm:gap-8 md:gap-10">
 
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative z-10 group flex items-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-1.5 transition-all hover:bg-brand-primary/15 sm:gap-2 sm:px-5 sm:py-2.5"
-          >
+          <div className="relative z-10 group flex items-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-1.5 transition-all hover:bg-brand-primary/15 sm:gap-2 sm:px-5 sm:py-2.5">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
@@ -201,10 +197,10 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
             <span className="text-[10px] font-black uppercase tracking-[0.16em] text-brand-primary sm:text-xs sm:tracking-[0.25em]">
               IA Viva na Creator Economy
             </span>
-          </motion.div>
+          </div>
 
-          <div className="flex flex-col items-center gap-3 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
-            <h1 className="max-w-[13ch] text-[2.35rem] font-black leading-[1.03] tracking-[-0.03em] text-brand-dark text-balance sm:max-w-[14ch] sm:text-[3rem] sm:leading-[1.02] md:max-w-[15ch] md:text-[5.5rem] md:leading-[0.9] lg:text-[6.5rem]">
+          <div className="flex flex-col items-center gap-5 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
+            <h1 className="max-w-[13ch] text-[4.2rem] font-black leading-[0.92] tracking-[-0.04em] text-brand-dark text-balance sm:max-w-[14ch] sm:text-[3rem] sm:leading-[1.02] md:max-w-[15ch] md:text-[5.5rem] md:leading-[0.9] lg:text-[6.5rem]">
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
                 Consultoria
               </span>
@@ -218,7 +214,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
             </p>
           </div>
 
-          <div className="mt-2 flex w-full flex-row items-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0">
+          <div className="mt-4 flex w-full flex-row items-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0">
             <ButtonPrimary
               onClick={onCreatorCta}
               size="lg"
@@ -240,12 +236,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
           </div>
 
           {/* New Integrated Media Kit Info Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="relative mt-8 w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-12 sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]"
-          >
+          <div className="relative mt-6 w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-8 sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]">
             <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/40 to-transparent" />
             <div className="relative bg-white/40 p-4 transition-all group-hover:bg-white/50 sm:p-6 md:p-10">
               <div className="mb-3 inline-flex rounded-2xl bg-[#141C2F] px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-white sm:mb-6 sm:px-4 sm:py-2 sm:text-[9px] md:text-[10px] md:tracking-[0.3em]">
@@ -271,7 +262,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
                 ))}
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         <div className="hidden md:grid gap-6 md:grid-cols-2 lg:grid-cols-3">

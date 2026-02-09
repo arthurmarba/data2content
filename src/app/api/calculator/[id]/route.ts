@@ -5,6 +5,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import mongoose from 'mongoose';
 import { logger } from '@/app/lib/logger';
+import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
 
 export const runtime = 'nodejs';
 
@@ -34,35 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Acesso não autorizado ao cálculo solicitado.' }, { status: 403 });
     }
 
-    const serializeNumber = (value: unknown): number | null =>
-      typeof value === 'number' && Number.isFinite(value) ? value : null;
-
-    return NextResponse.json(
-      {
-        estrategico: serializeNumber(calculation.result?.estrategico) ?? 0,
-        justo: serializeNumber(calculation.result?.justo) ?? 0,
-        premium: serializeNumber(calculation.result?.premium) ?? 0,
-        cpm: serializeNumber(calculation.cpmApplied) ?? 0,
-        cpmSource: calculation.cpmSource ?? 'dynamic',
-        params: {
-          format: calculation.params?.format ?? null,
-          exclusivity: calculation.params?.exclusivity ?? null,
-          usageRights: calculation.params?.usageRights ?? null,
-          complexity: calculation.params?.complexity ?? null,
-        },
-        metrics: {
-          reach: serializeNumber((calculation.metrics as any)?.reach) ?? 0,
-          engagement: serializeNumber((calculation.metrics as any)?.engagement) ?? 0,
-          profileSegment: calculation.metrics?.profileSegment ?? 'default',
-        },
-        avgTicket: serializeNumber(calculation.avgTicket),
-        totalDeals: typeof calculation.totalDeals === 'number' ? calculation.totalDeals : 0,
-        calculationId: calculation._id.toString(),
-        explanation: calculation.explanation ?? null,
-        createdAt: calculation.createdAt ? new Date(calculation.createdAt).toISOString() : null,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json(serializeCalculation(calculation), { status: 200 });
   } catch (error) {
     logger.error('[GET /api/calculator/:id] Erro inesperado', error);
     return NextResponse.json({ error: 'Erro interno ao carregar o cálculo.' }, { status: 500 });

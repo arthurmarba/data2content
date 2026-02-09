@@ -6,6 +6,11 @@ const FORMAT_LABELS: Record<string, string> = {
     post: 'Post no feed',
     stories: 'Stories',
     pacote: 'Pacote multiformato',
+    evento: 'Presença em evento',
+};
+const DELIVERY_TYPE_LABELS: Record<string, string> = {
+    conteudo: 'Conteúdo',
+    evento: 'Evento',
 };
 const EXCLUSIVITY_LABELS: Record<string, string> = {
     nenhuma: 'Sem exclusividade',
@@ -71,6 +76,7 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                 cpmSource: base.cpmSource ?? 'dynamic',
                 params: base.params,
                 metrics: base.metrics,
+                breakdown: base.breakdown ?? null,
                 avgTicket: base.avgTicket ?? null,
                 totalDeals: base.totalDeals ?? null,
                 explanation: base.explanation ?? null,
@@ -90,6 +96,7 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                             cpmSource: (payload as any)?.cpmSource ?? calcData.cpmSource,
                             params: payload?.params ?? calcData.params,
                             metrics: payload?.metrics ?? calcData.metrics,
+                            breakdown: (payload as any)?.breakdown ?? calcData.breakdown,
                             avgTicket: typeof payload?.avgTicket === 'number' ? payload.avgTicket : calcData.avgTicket,
                             totalDeals: typeof payload?.totalDeals === 'number' ? payload.totalDeals : calcData.totalDeals,
                             explanation: payload?.explanation ?? calcData.explanation,
@@ -158,6 +165,32 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                 const label = FORMAT_LABELS[calcData.params.format] ?? calcData.params.format;
                 summaryParts.push(`Formato: ${label}`);
             }
+            if (calcData.params?.deliveryType) {
+                const label = DELIVERY_TYPE_LABELS[calcData.params.deliveryType] ?? calcData.params.deliveryType;
+                summaryParts.push(`Modo: ${label}`);
+            }
+            const fq = calcData.params?.formatQuantities;
+            if (fq && (fq.reels || fq.post || fq.stories)) {
+                const quantityLabels: string[] = [];
+                if (fq.reels) quantityLabels.push(`${fq.reels} Reels`);
+                if (fq.post) quantityLabels.push(`${fq.post} Posts`);
+                if (fq.stories) quantityLabels.push(`${fq.stories} Stories`);
+                if (quantityLabels.length) summaryParts.push(`Entregas: ${quantityLabels.join(' + ')}`);
+            }
+            const eventDetails = calcData.params?.eventDetails;
+            if (eventDetails && calcData.params?.deliveryType === 'evento') {
+                summaryParts.push(
+                    `Evento: ${eventDetails.durationHours || 4}h, ${eventDetails.travelTier || 'local'}, ${(eventDetails.hotelNights || 0)} noite(s)`
+                );
+            }
+            const coverage = calcData.params?.eventCoverageQuantities;
+            if (coverage && (coverage.reels || coverage.post || coverage.stories)) {
+                const coverageLabels: string[] = [];
+                if (coverage.reels) coverageLabels.push(`${coverage.reels} Reels`);
+                if (coverage.post) coverageLabels.push(`${coverage.post} Posts`);
+                if (coverage.stories) coverageLabels.push(`${coverage.stories} Stories`);
+                if (coverageLabels.length) summaryParts.push(`Cobertura opcional: ${coverageLabels.join(' + ')}`);
+            }
             if (calcData.params?.exclusivity) {
                 const label = EXCLUSIVITY_LABELS[calcData.params.exclusivity] ?? calcData.params.exclusivity;
                 summaryParts.push(`Exclusividade: ${label}`);
@@ -175,6 +208,9 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
             }
             if (typeof calcData.totalDeals === 'number' && calcData.totalDeals > 0) {
                 summaryParts.push(`Publis analisadas: ${calcData.totalDeals}`);
+            }
+            if (typeof calcData.breakdown?.logisticsSuggested === 'number' && calcData.breakdown.logisticsSuggested > 0) {
+                summaryParts.push(`Logística sugerida (extra): ${currencyFormatter.format(calcData.breakdown.logisticsSuggested)}`);
             }
             const summaryLine = summaryParts.length ? summaryParts.join(' • ') : null;
 
@@ -231,6 +267,7 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                 cpmSource: calcData.cpmSource,
                 params: calcData.params,
                 metrics: calcData.metrics,
+                breakdown: calcData.breakdown,
                 avgTicket: calcData.avgTicket,
                 totalDeals: calcData.totalDeals,
                 explanation: calcData.explanation,

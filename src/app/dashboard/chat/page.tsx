@@ -25,15 +25,44 @@ type ChatCalcContext = {
   cpmSource?: 'seed' | 'dynamic';
   params?: {
     format?: string | null;
+    deliveryType?: 'conteudo' | 'evento' | string | null;
+    formatQuantities?: {
+      reels?: number;
+      post?: number;
+      stories?: number;
+    } | null;
+    eventDetails?: {
+      durationHours?: 2 | 4 | 8 | number;
+      travelTier?: 'local' | 'nacional' | 'internacional' | string;
+      hotelNights?: number;
+    } | null;
+    eventCoverageQuantities?: {
+      reels?: number;
+      post?: number;
+      stories?: number;
+    } | null;
     exclusivity?: string | null;
     usageRights?: string | null;
     complexity?: string | null;
+    authority?: string | null;
+    seasonality?: string | null;
   };
   metrics: {
     reach: number;
     engagement: number;
     profileSegment: string;
   };
+  breakdown?: {
+    contentUnits?: number;
+    contentJusto?: number;
+    eventPresenceJusto?: number;
+    coverageUnits?: number;
+    coverageJusto?: number;
+    travelCost?: number;
+    hotelCost?: number;
+    logisticsSuggested?: number;
+    logisticsIncludedInCache?: boolean;
+  } | null;
   avgTicket?: number | null;
   totalDeals?: number | null;
   explanation: string | null;
@@ -108,15 +137,22 @@ export default function ChatHomePage() {
           cpmSource: (payload as any)?.cpmSource ?? 'dynamic',
           params: {
             format: paramsPayload?.format ?? null,
+            deliveryType: paramsPayload?.deliveryType ?? null,
+            formatQuantities: paramsPayload?.formatQuantities ?? null,
+            eventDetails: paramsPayload?.eventDetails ?? null,
+            eventCoverageQuantities: paramsPayload?.eventCoverageQuantities ?? null,
             exclusivity: paramsPayload?.exclusivity ?? null,
             usageRights: paramsPayload?.usageRights ?? null,
             complexity: paramsPayload?.complexity ?? null,
+            authority: paramsPayload?.authority ?? null,
+            seasonality: paramsPayload?.seasonality ?? null,
           },
           metrics: {
             reach: typeof metricsPayload?.reach === "number" ? metricsPayload.reach : 0,
             engagement: typeof metricsPayload?.engagement === "number" ? metricsPayload.engagement : 0,
             profileSegment: metricsPayload?.profileSegment ?? "default",
           },
+          breakdown: (payload as any)?.breakdown ?? null,
           avgTicket: typeof avgTicket === "number" ? avgTicket : null,
           totalDeals: typeof totalDeals === "number" ? totalDeals : null,
           explanation: (payload as any)?.explanation ?? null,

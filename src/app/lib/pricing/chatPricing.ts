@@ -46,6 +46,7 @@ const FORMAT_LABELS: Record<CalculatorParams['format'], string> = {
   post: 'Post no feed',
   stories: 'Stories',
   pacote: 'Pacote multiformato',
+  evento: 'Presença em evento',
 };
 const EXCLUSIVITY_LABELS: Record<CalculatorParams['exclusivity'], string> = {
   nenhuma: 'Sem exclusividade',
@@ -79,6 +80,7 @@ const FORMAT_UNIT_LABELS: Record<CalculatorParams['format'], string> = {
   post: 'Post',
   stories: 'Story',
   pacote: 'Pacote',
+  evento: 'Evento',
 };
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -385,7 +387,7 @@ export function buildChatPricingResponse(options: {
     }
   }
 
-  let quantityFormats = Array.from(preferredFormats).filter((format) => format !== 'pacote');
+  let quantityFormats = Array.from(preferredFormats).filter((format) => format !== 'pacote' && format !== 'evento');
   if (!quantityFormats.length) {
     quantityFormats = ['reels', 'stories', 'post'];
   }

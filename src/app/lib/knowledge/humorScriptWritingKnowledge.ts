@@ -239,3 +239,17 @@ Para garantir que o humor gerado seja eficaz e bem recebido:
 **Instrução para IA:** Seu objetivo é gerar conteúdo de humor que seja percebido como criativo, inteligente e adequado ao pedido. Revise internamente o material gerado sob a ótica destes princípios de qualidade.
     `;
 }
+
+/**
+ * Diretriz compacta para reduzir tokens no prompt do chat sem perder estrutura cômica.
+ */
+export function getHumorScriptCompactDirectives(): string {
+    return `
+MODO HUMOR (COMPACTO):
+- Estruture o roteiro em progressão clara: setup -> conflito -> punchline -> reação.
+- Evite ecoar a pergunta do usuário literalmente; transforme em cena específica.
+- Falas devem soar performáveis (frases curtas, ritmo oral, virada no final da fala-chave).
+- Use exagero, inversão ou contraste para criar surpresa.
+- Última cena obrigatoriamente fecha com CTA coerente com humor (ex.: comentar, enviar para amigo, salvar).
+`;
+}

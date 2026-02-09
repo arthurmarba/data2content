@@ -10,8 +10,24 @@ import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, 
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
+type DeliveryType = "conteudo" | "evento";
+type CalculatorFormat = "post" | "reels" | "stories" | "pacote" | "evento";
+type FormatQuantities = {
+  reels: number;
+  post: number;
+  stories: number;
+};
+type EventDetails = {
+  durationHours: 2 | 4 | 8;
+  travelTier: "local" | "nacional" | "internacional";
+  hotelNights: number;
+};
 type CalculatorParams = {
-  format: "post" | "reels" | "stories" | "pacote";
+  format: CalculatorFormat;
+  deliveryType: DeliveryType;
+  formatQuantities: FormatQuantities;
+  eventDetails: EventDetails;
+  eventCoverageQuantities: FormatQuantities;
   exclusivity: "nenhuma" | "7d" | "15d" | "30d";
   usageRights: "organico" | "midiapaga" | "global";
   complexity: "simples" | "roteiro" | "profissional";
@@ -19,11 +35,24 @@ type CalculatorParams = {
   seasonality: "normal" | "alta" | "baixa";
 };
 
+type CalculationBreakdown = {
+  contentUnits: number;
+  contentJusto: number;
+  eventPresenceJusto: number;
+  coverageUnits: number;
+  coverageJusto: number;
+  travelCost: number;
+  hotelCost: number;
+  logisticsSuggested: number;
+  logisticsIncludedInCache: false;
+};
+
 type CalculationResult = {
   estrategico: number;
   justo: number;
   premium: number;
   cpm: number;
+  breakdown: CalculationBreakdown;
   params: CalculatorParams;
   metrics: {
     reach: number;
@@ -47,18 +76,20 @@ type MediaKitPackage = {
   id?: string; // For internal UI keying
 };
 
-const FORMAT_VALUES: CalculatorParams["format"][] = ["reels", "post", "stories", "pacote"];
+const FORMAT_VALUES: CalculatorFormat[] = ["reels", "post", "stories", "pacote", "evento"];
+const DELIVERY_TYPE_VALUES: DeliveryType[] = ["conteudo", "evento"];
 const EXCLUSIVITY_VALUES: CalculatorParams["exclusivity"][] = ["nenhuma", "7d", "15d", "30d"];
 const USAGE_VALUES: CalculatorParams["usageRights"][] = ["organico", "midiapaga", "global"];
 const COMPLEXITY_VALUES: CalculatorParams["complexity"][] = ["simples", "roteiro", "profissional"];
 const AUTHORITY_VALUES: CalculatorParams["authority"][] = ["padrao", "ascensao", "autoridade", "celebridade"];
 const SEASONALITY_VALUES: CalculatorParams["seasonality"][] = ["normal", "alta", "baixa"];
+const EVENT_DURATION_VALUES: EventDetails["durationHours"][] = [2, 4, 8];
+const TRAVEL_TIER_VALUES: EventDetails["travelTier"][] = ["local", "nacional", "internacional"];
 
 const FORMAT_OPTIONS = [
   { value: "reels", label: "Reels", icon: FaVideo, helper: "Vídeo curto (até 90s)" },
   { value: "post", label: "Post no Feed", icon: FaImage, helper: "Foto única ou carrossel" },
   { value: "stories", label: "Stories", icon: FaInstagram, helper: "Sequência de 3 stories" },
-  { value: "pacote", label: "Pacote", icon: FaLayerGroup, helper: "Combo personalizado" },
 ];
 
 const EXCLUSIVITY_OPTIONS = [
@@ -134,6 +165,10 @@ export default function CalculatorClient() {
 
   const [calcParams, setCalcParams] = useState<CalculatorParams>({
     format: "reels",
+    deliveryType: "conteudo",
+    formatQuantities: { reels: 1, post: 0, stories: 0 },
+    eventDetails: { durationHours: 4, travelTier: "local", hotelNights: 0 },
+    eventCoverageQuantities: { reels: 0, post: 0, stories: 0 },
     exclusivity: "nenhuma",
     usageRights: "organico",
     complexity: "simples",
@@ -231,6 +266,121 @@ export default function CalculatorClient() {
     setError(null);
   };
 
+  const clampQuantity = (value: number) => Math.min(20, Math.max(0, Math.trunc(value)));
+  const quantityTotal = (quantities: FormatQuantities) => quantities.reels + quantities.post + quantities.stories;
+  const hasAnyQuantity = (quantities: FormatQuantities) => quantityTotal(quantities) > 0;
+
+  const deriveLegacyFormat = (params: CalculatorParams): CalculatorFormat => {
+    if (params.deliveryType === "evento") return "evento";
+
+    const positiveEntries = Object.entries(params.formatQuantities).filter(([, qty]) => qty > 0) as Array<
+      [keyof FormatQuantities, number]
+    >;
+
+    const singleEntry = positiveEntries[0];
+    if (positiveEntries.length === 1 && singleEntry && singleEntry[1] === 1) {
+      return singleEntry[0];
+    }
+
+    return "pacote";
+  };
+
+  const normalizeParamsForSubmit = (params: CalculatorParams): CalculatorParams => {
+    const formatQuantities = {
+      reels: clampQuantity(params.formatQuantities.reels),
+      post: clampQuantity(params.formatQuantities.post),
+      stories: clampQuantity(params.formatQuantities.stories),
+    };
+
+    const eventCoverageQuantities = {
+      reels: clampQuantity(params.eventCoverageQuantities.reels),
+      post: clampQuantity(params.eventCoverageQuantities.post),
+      stories: clampQuantity(params.eventCoverageQuantities.stories),
+    };
+
+    const eventDetails: EventDetails = {
+      durationHours: EVENT_DURATION_VALUES.includes(params.eventDetails.durationHours)
+        ? params.eventDetails.durationHours
+        : 4,
+      travelTier: TRAVEL_TIER_VALUES.includes(params.eventDetails.travelTier)
+        ? params.eventDetails.travelTier
+        : "local",
+      hotelNights: clampQuantity(params.eventDetails.hotelNights),
+    };
+
+    const normalized: CalculatorParams = {
+      ...params,
+      deliveryType: DELIVERY_TYPE_VALUES.includes(params.deliveryType) ? params.deliveryType : "conteudo",
+      formatQuantities,
+      eventCoverageQuantities,
+      eventDetails,
+      format: params.format,
+    };
+
+    return {
+      ...normalized,
+      format: deriveLegacyFormat(normalized),
+    };
+  };
+
+  const sanitizeCalculationParams = (raw: Partial<CalculatorParams> | undefined, fallback: CalculatorParams): CalculatorParams => {
+    const deliveryType: DeliveryType = raw?.deliveryType === "evento" ? "evento" : raw?.deliveryType === "conteudo" ? "conteudo" : (raw?.format === "evento" ? "evento" : fallback.deliveryType);
+
+    const fallbackQuantities = deliveryType === "conteudo"
+      ? fallback.formatQuantities
+      : { reels: 0, post: 0, stories: 0 };
+
+    const formatQuantities: FormatQuantities = {
+      reels: clampQuantity(raw?.formatQuantities?.reels ?? fallbackQuantities.reels),
+      post: clampQuantity(raw?.formatQuantities?.post ?? fallbackQuantities.post),
+      stories: clampQuantity(raw?.formatQuantities?.stories ?? fallbackQuantities.stories),
+    };
+
+    const eventCoverageQuantities: FormatQuantities = {
+      reels: clampQuantity(raw?.eventCoverageQuantities?.reels ?? fallback.eventCoverageQuantities.reels),
+      post: clampQuantity(raw?.eventCoverageQuantities?.post ?? fallback.eventCoverageQuantities.post),
+      stories: clampQuantity(raw?.eventCoverageQuantities?.stories ?? fallback.eventCoverageQuantities.stories),
+    };
+
+    const eventDetails: EventDetails = {
+      durationHours: EVENT_DURATION_VALUES.includes(raw?.eventDetails?.durationHours as EventDetails["durationHours"])
+        ? (raw?.eventDetails?.durationHours as EventDetails["durationHours"])
+        : fallback.eventDetails.durationHours,
+      travelTier: TRAVEL_TIER_VALUES.includes(raw?.eventDetails?.travelTier as EventDetails["travelTier"])
+        ? (raw?.eventDetails?.travelTier as EventDetails["travelTier"])
+        : fallback.eventDetails.travelTier,
+      hotelNights: clampQuantity(raw?.eventDetails?.hotelNights ?? fallback.eventDetails.hotelNights),
+    };
+
+    const candidate: CalculatorParams = {
+      format: FORMAT_VALUES.includes(raw?.format as CalculatorFormat) ? (raw?.format as CalculatorFormat) : fallback.format,
+      deliveryType,
+      formatQuantities,
+      eventDetails,
+      eventCoverageQuantities,
+      exclusivity: EXCLUSIVITY_VALUES.includes(raw?.exclusivity as CalculatorParams["exclusivity"])
+        ? (raw?.exclusivity as CalculatorParams["exclusivity"])
+        : fallback.exclusivity,
+      usageRights: USAGE_VALUES.includes(raw?.usageRights as CalculatorParams["usageRights"])
+        ? (raw?.usageRights as CalculatorParams["usageRights"])
+        : fallback.usageRights,
+      complexity: COMPLEXITY_VALUES.includes(raw?.complexity as CalculatorParams["complexity"])
+        ? (raw?.complexity as CalculatorParams["complexity"])
+        : fallback.complexity,
+      authority: AUTHORITY_VALUES.includes(raw?.authority as CalculatorParams["authority"])
+        ? (raw?.authority as CalculatorParams["authority"])
+        : fallback.authority,
+      seasonality: SEASONALITY_VALUES.includes(raw?.seasonality as CalculatorParams["seasonality"])
+        ? (raw?.seasonality as CalculatorParams["seasonality"])
+        : fallback.seasonality,
+    };
+
+    return {
+      ...candidate,
+      format: deriveLegacyFormat(candidate),
+    };
+  };
+
   const formatCurrency = (value: number) => currencyFormatter.format(value);
   const formatPercent = (value: number) => `${percentFormatter.format(value)}%`;
   const formatDateTime = (iso?: string | null) => {
@@ -244,10 +394,22 @@ export default function CalculatorClient() {
     setIsCalculating(true);
     setError(null);
     try {
+      const normalizedParams = normalizeParamsForSubmit(calcParams);
+      if (normalizedParams.deliveryType === "conteudo" && !hasAnyQuantity(normalizedParams.formatQuantities)) {
+        const message = "Selecione pelo menos uma entrega (Reels, Post ou Stories) para calcular.";
+        setError(message);
+        toast({
+          variant: "error",
+          title: "Entregas obrigatórias",
+          description: message,
+        });
+        return;
+      }
+
       const response = await fetch("/api/calculator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(calcParams),
+        body: JSON.stringify(normalizedParams),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -272,31 +434,23 @@ export default function CalculatorClient() {
         throw new Error("Resposta inválida do servidor.");
       }
 
-      const sanitizedParams = {
-        format: FORMAT_VALUES.includes((parsed.params as any)?.format)
-          ? ((parsed.params as any).format as CalculatorParams["format"])
-          : calcParams.format,
-        exclusivity: EXCLUSIVITY_VALUES.includes((parsed.params as any)?.exclusivity)
-          ? ((parsed.params as any).exclusivity as CalculatorParams["exclusivity"])
-          : calcParams.exclusivity,
-        usageRights: USAGE_VALUES.includes((parsed.params as any)?.usageRights)
-          ? ((parsed.params as any).usageRights as CalculatorParams["usageRights"])
-          : calcParams.usageRights,
-        complexity: COMPLEXITY_VALUES.includes((parsed.params as any)?.complexity)
-          ? ((parsed.params as any).complexity as CalculatorParams["complexity"])
-          : calcParams.complexity,
-        authority: AUTHORITY_VALUES.includes((parsed.params as any)?.authority)
-          ? ((parsed.params as any).authority as CalculatorParams["authority"])
-          : calcParams.authority,
-        seasonality: SEASONALITY_VALUES.includes((parsed.params as any)?.seasonality)
-          ? ((parsed.params as any).seasonality as CalculatorParams["seasonality"])
-          : calcParams.seasonality,
-      };
+      const sanitizedParams = sanitizeCalculationParams(parsed.params as Partial<CalculatorParams> | undefined, normalizedParams);
 
       const sanitized: CalculationResult = {
         estrategico: parsed.estrategico,
         justo: parsed.justo,
         premium: parsed.premium,
+        breakdown: {
+          contentUnits: typeof (parsed as any)?.breakdown?.contentUnits === "number" ? (parsed as any).breakdown.contentUnits : 0,
+          contentJusto: typeof (parsed as any)?.breakdown?.contentJusto === "number" ? (parsed as any).breakdown.contentJusto : 0,
+          eventPresenceJusto: typeof (parsed as any)?.breakdown?.eventPresenceJusto === "number" ? (parsed as any).breakdown.eventPresenceJusto : 0,
+          coverageUnits: typeof (parsed as any)?.breakdown?.coverageUnits === "number" ? (parsed as any).breakdown.coverageUnits : 0,
+          coverageJusto: typeof (parsed as any)?.breakdown?.coverageJusto === "number" ? (parsed as any).breakdown.coverageJusto : 0,
+          travelCost: typeof (parsed as any)?.breakdown?.travelCost === "number" ? (parsed as any).breakdown.travelCost : 0,
+          hotelCost: typeof (parsed as any)?.breakdown?.hotelCost === "number" ? (parsed as any).breakdown.hotelCost : 0,
+          logisticsSuggested: typeof (parsed as any)?.breakdown?.logisticsSuggested === "number" ? (parsed as any).breakdown.logisticsSuggested : 0,
+          logisticsIncludedInCache: false,
+        },
         cpm: typeof parsed.cpm === "number" ? parsed.cpm : 0,
         params: sanitizedParams,
         metrics: {
@@ -310,6 +464,7 @@ export default function CalculatorClient() {
         explanation: parsed.explanation ?? null,
         createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString(),
       };
+      setCalcParams(sanitizedParams);
       setCalculation(sanitized);
     } catch (err: any) {
       const message = err?.message || "Erro inesperado ao calcular.";
@@ -484,6 +639,122 @@ export default function CalculatorClient() {
     </div>
   );
 
+  const QuantitySelectionGroup = ({
+    label,
+    quantities,
+    onChange,
+    disabled,
+  }: {
+    label: string;
+    quantities: FormatQuantities;
+    onChange: (key: keyof FormatQuantities, nextValue: number) => void;
+    disabled?: boolean;
+  }) => (
+    <div className="space-y-3">
+      <label className="text-sm font-semibold text-slate-800">{label}</label>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {FORMAT_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const currentValue = quantities[option.value as keyof FormatQuantities] ?? 0;
+          const isSelected = currentValue > 0;
+          const optionKey = option.value as keyof FormatQuantities;
+          return (
+            <div
+              key={option.value}
+              className={`rounded-2xl border p-4 transition-all sm:p-5 ${isSelected
+                ? "border-[#F6007B]/50 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] ring-2 ring-[#F6007B]/25"
+                : "border-gray-200 bg-white"
+                } ${disabled ? "opacity-70" : ""}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg transition-colors ${isSelected ? "bg-[#F6007B]/10 text-[#F6007B]" : "bg-slate-100 text-slate-500"}`}>
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${isSelected ? "bg-[#F6007B]/10 text-[#F6007B]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
+                  onClick={() => onChange(optionKey, isSelected ? 0 : 1)}
+                >
+                  {isSelected ? "Ativo" : "Ativar"}
+                </button>
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                {option.helper && <p className="text-xs text-slate-500">{option.helper}</p>}
+              </div>
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => onChange(optionKey, clampQuantity(currentValue - 1))}
+                  disabled={disabled || currentValue <= 0}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label={`Diminuir ${option.label}`}
+                >
+                  -
+                </button>
+                <span className="text-sm font-semibold text-slate-900">{currentValue}</span>
+                <button
+                  type="button"
+                  onClick={() => onChange(optionKey, clampQuantity(currentValue + 1))}
+                  disabled={disabled || currentValue >= 20}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label={`Aumentar ${option.label}`}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const updateFormatQuantity = (key: keyof FormatQuantities, nextValue: number) => {
+    setCalcParams((prev) => {
+      const nextQuantities = {
+        ...prev.formatQuantities,
+        [key]: clampQuantity(nextValue),
+      };
+      const nextParams: CalculatorParams = {
+        ...prev,
+        formatQuantities: nextQuantities,
+      };
+      return {
+        ...nextParams,
+        format: deriveLegacyFormat(nextParams),
+      };
+    });
+    setError(null);
+  };
+
+  const updateCoverageQuantity = (key: keyof FormatQuantities, nextValue: number) => {
+    setCalcParams((prev) => ({
+      ...prev,
+      eventCoverageQuantities: {
+        ...prev.eventCoverageQuantities,
+        [key]: clampQuantity(nextValue),
+      },
+      format: deriveLegacyFormat(prev),
+    }));
+    setError(null);
+  };
+
+  const setDeliveryType = (nextType: DeliveryType) => {
+    setCalcParams((prev) => {
+      const nextParams: CalculatorParams = {
+        ...prev,
+        deliveryType: nextType,
+      };
+      return {
+        ...nextParams,
+        format: deriveLegacyFormat(nextParams),
+      };
+    });
+    setError(null);
+  };
+
   return (
     <div className="dashboard-page-shell py-10 space-y-10">
       <header className="space-y-4 text-center sm:text-left">
@@ -540,13 +811,109 @@ export default function CalculatorClient() {
             Detalhes da Entrega
           </h3>
           <div className="space-y-8">
-            <SelectionGroup
-              label="Qual o formato do conteúdo?"
-              options={FORMAT_OPTIONS}
-              value={calcParams.format}
-              onChange={(v: any) => handleChange("format", v)}
-              disabled={disableInputs}
-            />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType("conteudo")}
+                  disabled={disableInputs}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${calcParams.deliveryType === "conteudo"
+                    ? "bg-white text-[#F6007B] shadow-sm ring-1 ring-[#F6007B]/20"
+                    : "text-slate-600 hover:bg-white/70"
+                    }`}
+                >
+                  Conteúdo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType("evento")}
+                  disabled={disableInputs}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${calcParams.deliveryType === "evento"
+                    ? "bg-white text-[#F6007B] shadow-sm ring-1 ring-[#F6007B]/20"
+                    : "text-slate-600 hover:bg-white/70"
+                    }`}
+                >
+                  Presença em Evento
+                </button>
+              </div>
+            </div>
+
+            {calcParams.deliveryType === "conteudo" ? (
+              <QuantitySelectionGroup
+                label="Quais entregas entram no cálculo?"
+                quantities={calcParams.formatQuantities}
+                onChange={updateFormatQuantity}
+                disabled={disableInputs}
+              />
+            ) : (
+              <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="space-y-1 text-sm">
+                    <span className="font-semibold text-slate-800">Duração do evento</span>
+                    <select
+                      value={calcParams.eventDetails.durationHours}
+                      disabled={disableInputs}
+                      onChange={(e) =>
+                        setCalcParams((prev) => ({
+                          ...prev,
+                          eventDetails: { ...prev.eventDetails, durationHours: Number(e.target.value) as EventDetails["durationHours"] },
+                          format: "evento",
+                        }))
+                      }
+                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-[#F6007B] focus:ring-[#F6007B]"
+                    >
+                      <option value={2}>2 horas</option>
+                      <option value={4}>4 horas</option>
+                      <option value={8}>8 horas</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-sm">
+                    <span className="font-semibold text-slate-800">Deslocamento</span>
+                    <select
+                      value={calcParams.eventDetails.travelTier}
+                      disabled={disableInputs}
+                      onChange={(e) =>
+                        setCalcParams((prev) => ({
+                          ...prev,
+                          eventDetails: { ...prev.eventDetails, travelTier: e.target.value as EventDetails["travelTier"] },
+                          format: "evento",
+                        }))
+                      }
+                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-[#F6007B] focus:ring-[#F6007B]"
+                    >
+                      <option value="local">Local</option>
+                      <option value="nacional">Nacional</option>
+                      <option value="internacional">Internacional</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-sm">
+                    <span className="font-semibold text-slate-800">Noites de hotel</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={calcParams.eventDetails.hotelNights}
+                      disabled={disableInputs}
+                      onChange={(e) =>
+                        setCalcParams((prev) => ({
+                          ...prev,
+                          eventDetails: { ...prev.eventDetails, hotelNights: clampQuantity(Number(e.target.value)) },
+                          format: "evento",
+                        }))
+                      }
+                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-[#F6007B] focus:ring-[#F6007B]"
+                    />
+                  </label>
+                </div>
+
+                <QuantitySelectionGroup
+                  label="Cobertura opcional no evento (não obrigatória)"
+                  quantities={calcParams.eventCoverageQuantities}
+                  onChange={updateCoverageQuantity}
+                  disabled={disableInputs}
+                />
+              </div>
+            )}
             <SelectionGroup
               label="Qual a complexidade da produção?"
               options={COMPLEXITY_OPTIONS}
@@ -759,6 +1126,12 @@ export default function CalculatorClient() {
                   <h4 className="mb-3 text-sm font-semibold text-slate-900">Fatores de impacto</h4>
                   <ul className="space-y-2 text-sm text-slate-600">
                     <li className="flex justify-between">
+                      <span>Modo</span>
+                      <span className="font-medium text-slate-900">
+                        {calculation.params.deliveryType === "evento" ? "Evento" : "Conteúdo"}
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
                       <span>Alcance Base</span>
                       <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span>
                     </li>
@@ -770,13 +1143,48 @@ export default function CalculatorClient() {
                       <span>Sazonalidade</span>
                       <span className="font-medium text-slate-900 capitalize">{calculation.params.seasonality || "Normal"}</span>
                     </li>
+                    {calculation.params.deliveryType === "conteudo" ? (
+                      <li className="flex justify-between">
+                        <span>Unidades de conteúdo</span>
+                        <span className="font-medium text-slate-900">
+                          {calculation.breakdown.contentUnits.toFixed(2)}
+                        </span>
+                      </li>
+                    ) : (
+                      <>
+                        <li className="flex justify-between">
+                          <span>Presença no evento</span>
+                          <span className="font-medium text-slate-900">
+                            {formatCurrency(calculation.breakdown.eventPresenceJusto)}
+                          </span>
+                        </li>
+                        {calculation.breakdown.coverageJusto > 0 ? (
+                          <li className="flex justify-between">
+                            <span>Cobertura opcional</span>
+                            <span className="font-medium text-slate-900">
+                              {formatCurrency(calculation.breakdown.coverageJusto)}
+                            </span>
+                          </li>
+                        ) : null}
+                        <li className="flex justify-between">
+                          <span>Logística sugerida (extra)</span>
+                          <span className="font-medium text-slate-900">
+                            {formatCurrency(calculation.breakdown.logisticsSuggested)}
+                          </span>
+                        </li>
+                      </>
+                    )}
                     <li className="flex justify-between">
                       <span>CPM do Nicho</span>
                       <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span>
                     </li>
                   </ul>
                   <div className="mt-3 border-t border-gray-200 pt-3 text-xs text-slate-500">
-                    <p>Fórmula simplificada: (Alcance / 1.000) x CPM Ajustado = Valor Total</p>
+                    {calculation.params.deliveryType === "conteudo" ? (
+                      <p>Fórmula: (Alcance / 1.000) x CPM x multiplicadores x unidades de conteúdo.</p>
+                    ) : (
+                      <p>Fórmula: presença em evento + cobertura opcional (logística exibida separadamente).</p>
+                    )}
                   </div>
                 </div>
                 <p className="text-sm leading-relaxed text-slate-500">

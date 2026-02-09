@@ -17,6 +17,8 @@ const mockRunPubliCalculator = jest.fn();
 const mockRecommendWeeklySlots = jest.fn();
 const mockGetThemesForSlot = jest.fn();
 const mockGetBlockSampleCaptions = jest.fn();
+const mockFetchTopCategories = jest.fn();
+const mockGetTopPostsByMetric = jest.fn();
 import { determineIntent } from '@/app/lib/intentService';
 import { callOpenAIForQuestion, generateConversationSummary } from '@/app/lib/aiService';
 
@@ -46,6 +48,10 @@ jest.mock('@/app/lib/pricing/publiCalculator', () => ({
 }));
 jest.mock('@/utils/rateLimit', () => ({
   checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
+}));
+jest.mock('@/app/lib/dataService', () => ({
+  fetchTopCategories: (...args: any[]) => mockFetchTopCategories(...args),
+  getTopPostsByMetric: (...args: any[]) => mockGetTopPostsByMetric(...args),
 }));
 jest.mock('@/app/lib/chatTelemetry', () => ({
   ensureChatSession: jest.fn().mockResolvedValue({ _id: 'session1' }),
@@ -131,6 +137,8 @@ beforeEach(() => {
   mockGenSummary.mockResolvedValue('Resumo');
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'general' });
   mockAskLLM.mockResolvedValue({ stream: streamFromText('Resposta padrão') });
+  mockFetchTopCategories.mockResolvedValue([]);
+  mockGetTopPostsByMetric.mockResolvedValue([]);
   mockRecommendWeeklySlots.mockResolvedValue([]);
   mockGetThemesForSlot.mockResolvedValue({ keyword: 'tema', themes: [] });
   mockGetBlockSampleCaptions.mockResolvedValue([]);
@@ -313,8 +321,20 @@ it('salva preferência narrativa quando usuário dá feedback explícito', async
   expect(dialoguePatch?.scriptPreferences?.narrativePreference).toBe('prefer_similar');
 });
 
-it('pede clarificação no modo roteirista quando o pedido é genérico demais', async () => {
+it('gera roteiro completo no modo roteirista mesmo quando o pedido é genérico', async () => {
   mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockGetTopPostsByMetric.mockResolvedValue([
+    {
+      _id: 'post1',
+      description: '3 erros de orçamento doméstico que te fazem perder dinheiro',
+      postLink: 'https://www.instagram.com/reel/AAA111/',
+      format: 'reel',
+      proposal: ['tutorial'],
+      context: ['finance'],
+      stats: { shares: 120, saved: 90, comments: 33, likes: 420, reach: 5800, video_views: 6300, total_interactions: 663 },
+      postDate: new Date('2025-12-10T00:00:00.000Z'),
+    },
+  ]);
   mockAskLLM.mockResolvedValue({
     stream: streamFromText([
       '[ROTEIRO]',
@@ -338,12 +358,11 @@ it('pede clarificação no modo roteirista quando o pedido é genérico demais',
   const json = await res.json();
 
   expect(res.status).toBe(200);
-  expect(json.answer).not.toContain('[ROTEIRO]');
-  expect(json.answer).toMatch(/preciso de contexto/i);
-  expect(json.answer).toMatch(/tema específico|tema especifico/i);
-  expect(json.answer).toMatch(/público|publico/i);
-  expect(json.answer).toMatch(/objetivo principal/i);
-  expect(json.answer).toContain('[BUTTON: Quero preencher tema, público e objetivo]');
+  expect(json.answer).toContain('[ROTEIRO]');
+  expect(json.answer).toContain('**Pauta Estratégica:**');
+  expect(json.answer).toContain('**Base de Engajamento:**');
+  expect(json.answer).toContain('**Fonte da Inspiração:**');
+  expect(json.answer).not.toMatch(/preciso de contexto/i);
 });
 
 it('usa pauta do calendário/histórico quando pedido de roteiro é genérico', async () => {
@@ -400,4 +419,137 @@ it('usa pauta do calendário/histórico quando pedido de roteiro é genérico', 
   expect(json.answer).toContain('[ROTEIRO]');
   expect(json.answer).not.toMatch(/preciso de contexto/i);
   expect(json.answer).toMatch(/orçamento doméstico|orcamento domestico/i);
+});
+
+it('repara roteiro quando a IA ecoa a pergunta do usuário nas falas', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockRecommendWeeklySlots.mockResolvedValue([
+    {
+      dayOfWeek: 2,
+      blockStartHour: 18,
+      format: 'reel',
+      categories: {
+        context: ['finance'],
+        proposal: ['tutorial'],
+        reference: ['daily_life'],
+        tone: 'educational',
+      },
+    },
+  ]);
+  mockGetThemesForSlot.mockResolvedValue({
+    keyword: 'orçamento',
+    themes: ['3 erros de orçamento doméstico que te fazem perder dinheiro'],
+  });
+  mockGetBlockSampleCaptions.mockResolvedValue([
+    'Erro comum em orçamento doméstico.',
+  ]);
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** Crie um roteiro de conteúdo para que eu possa postar amanhã',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Close em que eu possa postar amanhã | Se você quer melhorar em que eu possa postar amanhã |',
+      '| 03-20s | Mostre em que eu possa postar amanhã | Mostre em que eu possa postar amanhã agora |',
+      '| 20-30s | Final em que eu possa postar amanhã | Se isso ajudou em que eu possa postar amanhã |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: em que eu possa postar amanhã',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([]),
+  });
+
+  const res = await chat(makeRequest({ query: 'crie um roteiro de conteúdo para que eu possa postar amanhã' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.answer).toContain('[ROTEIRO]');
+  expect(json.answer).not.toMatch(/que eu possa postar amanhã/i);
+  expect(json.answer).toMatch(/passo 1 para destravar|erro que trava sua evolução/i);
+});
+
+it('usa top posts do criador como fallback de inspiração quando comunidade não está disponível', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'script_request' });
+  mockGetTopPostsByMetric.mockResolvedValue([
+    {
+      _id: 'post1',
+      description: 'Erro comum no orçamento doméstico e ajuste em 2 passos',
+      postLink: 'https://www.instagram.com/reel/FALLBK1/',
+      format: 'reel',
+      proposal: ['tutorial'],
+      context: ['finance'],
+      stats: { shares: 210, saved: 150, comments: 42, likes: 700, reach: 9100, video_views: 9800, total_interactions: 1102 },
+      postDate: new Date('2025-12-11T00:00:00.000Z'),
+    },
+    {
+      _id: 'post2',
+      description: 'Como fechar o mês no azul sem planilha complexa',
+      postLink: 'https://www.instagram.com/reel/FALLBK2/',
+      format: 'reel',
+      proposal: ['tutorial'],
+      context: ['finance'],
+      stats: { shares: 180, saved: 130, comments: 30, likes: 640, reach: 8700, video_views: 9400, total_interactions: 980 },
+      postDate: new Date('2025-12-09T00:00:00.000Z'),
+    },
+  ]);
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** Crie um roteiro para amanhã',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Cena 1 | Fala 1 |',
+      '| 03-20s | Cena 2 | Fala 2 |',
+      '| 20-30s | Cena 3 | CTA |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Legenda base',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([]),
+  });
+
+  const res = await chat(makeRequest({ query: 'crie um roteiro de conteúdo para eu postar amanhã' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.answer).toContain('[INSPIRATION_JSON]');
+  expect(json.answer).toContain('"source": "user_top_posts"');
+  expect(json.answer).toContain('**Fonte da Inspiração:** Top posts do criador');
+  expect(json.answer).toContain('**Base de Engajamento:**');
+});
+
+it('aplica estrutura de humor quando o pedido é de roteiro humorístico', async () => {
+  mockIntent.mockResolvedValue({ type: 'intent_determined', intent: 'humor_script_request' });
+  mockAskLLM.mockResolvedValue({
+    stream: streamFromText([
+      '[ROTEIRO]',
+      '**Título Sugerido:** Crie um roteiro de humor para hoje',
+      '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+      '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
+      '| :--- | :--- | :--- |',
+      '| 00-03s | Crie um roteiro de humor para hoje | Crie um roteiro de humor para hoje |',
+      '| 03-20s | Crie um roteiro de humor para hoje | Crie um roteiro de humor para hoje |',
+      '| 20-30s | Crie um roteiro de humor para hoje | Crie um roteiro de humor para hoje |',
+      '[/ROTEIRO]',
+      '',
+      '[LEGENDA]',
+      'V1: Crie um roteiro de humor para hoje',
+      '[/LEGENDA]',
+    ].join('\n')),
+    historyPromise: Promise.resolve([]),
+  });
+
+  const res = await chat(makeRequest({ query: 'crie um roteiro de humor sobre perrengue para gravar em casa' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(json.answer).toContain('[ROTEIRO]');
+  expect(json.answer).toMatch(/punchline|setup|conflito|reação/i);
+  expect(json.answer).not.toMatch(/crie um roteiro de humor para hoje/i);
 });

@@ -31,15 +31,44 @@ export interface ChatCalculationContext {
     cpmSource?: 'seed' | 'dynamic';
     params?: {
         format?: string | null;
+        deliveryType?: 'conteudo' | 'evento' | string | null;
+        formatQuantities?: {
+            reels?: number;
+            post?: number;
+            stories?: number;
+        } | null;
+        eventDetails?: {
+            durationHours?: 2 | 4 | 8 | number;
+            travelTier?: 'local' | 'nacional' | 'internacional' | string;
+            hotelNights?: number;
+        } | null;
+        eventCoverageQuantities?: {
+            reels?: number;
+            post?: number;
+            stories?: number;
+        } | null;
         exclusivity?: string | null;
         usageRights?: string | null;
         complexity?: string | null;
+        authority?: string | null;
+        seasonality?: string | null;
     };
     metrics?: {
         reach?: number;
         engagement?: number;
         profileSegment?: string;
     };
+    breakdown?: {
+        contentUnits?: number;
+        contentJusto?: number;
+        eventPresenceJusto?: number;
+        coverageUnits?: number;
+        coverageJusto?: number;
+        travelCost?: number;
+        hotelCost?: number;
+        logisticsSuggested?: number;
+        logisticsIncludedInCache?: boolean;
+    } | null;
     avgTicket?: number | null;
     totalDeals?: number | null;
     explanation?: string | null;
@@ -56,6 +85,7 @@ export type PricingAnalysisContext = {
     cpmSource?: 'seed' | 'dynamic';
     params?: ChatCalculationContext['params'];
     metrics?: ChatCalculationContext['metrics'];
+    breakdown?: ChatCalculationContext['breakdown'];
     avgTicket?: number | null;
     totalDeals?: number | null;
     explanation?: string | null;

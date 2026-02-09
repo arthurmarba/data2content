@@ -46,6 +46,7 @@ import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
 import { DEFAULT_METRICS_FETCH_DAYS } from '@/app/lib/constants';
 import { formatCurrencySafely, normalizeCurrencyCode } from '@/utils/currency';
+import { getHumorScriptCompactDirectives } from '@/app/lib/knowledge/humorScriptWritingKnowledge';
 
 
 // Configuração do cliente OpenAI e constantes
@@ -72,6 +73,7 @@ const QUICK_ACK_MAX_TOKENS = Number(process.env.OPENAI_QUICK_ACK_MAX_TOKENS) || 
 const MAX_ITERS = 6; // Máximo de iterações de chamada de função
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
 const QUICK_ACK_TIMEOUT_MS = Number(process.env.OPENAI_QUICK_ACK_TIMEOUT_MS) || 10_000;
+const SCRIPT_CONTEXT_COMPACT = process.env.SCRIPT_CONTEXT_COMPACT !== 'false';
 
 // Removida a interface EnrichedContext local, usaremos EnrichedAIContext de types.ts
 
@@ -1463,6 +1465,10 @@ export async function askLLMWithEnrichedContext(
         intent === 'script_request' ||
         intent === 'humor_script_request' ||
         intent === 'proactive_script_accept';
+    const isHumorScriptMode =
+        intent === 'humor_script_request' ||
+        scriptContext?.toneHint === 'humorous' ||
+        /humor|com[eé]dia|piada|esquete|engra[cç]/i.test(incomingText || '');
     const baseFocus = isWebChannel && intent !== 'generate_proactive_alert'
         ? extractQuestionFocus(incomingText, intent)
         : null;
@@ -1600,7 +1606,7 @@ export async function askLLMWithEnrichedContext(
             initialMsgs.push({
                 role: 'system',
                 content: `PROTOCOLO ROTEIRISTA ATIVADO:
-                1. SEARCH: Use 'fetchCommunityInspirations' (count=3) para encontrar estrutura viral compatível e envie 'narrativeQuery' com o gancho principal do pedido.
+                1. SEARCH (SELETIVO): Use 'fetchCommunityInspirations' (count=3) apenas quando communityOptIn=true e faltar referência forte em topPosts, ou quando o usuário pedir exemplos da comunidade.
                 2. ADAPT: Nunca copie. Adapte a estrutura viral para o nicho do usuário.
                 3. FORMAT: O output FINAL deve ser estritamente em [ROTEIRO]...[/ROTEIRO] + [LEGENDA]...[/LEGENDA].
                 4. REASONING: Quando usar inspiração, explique em 1 linha por que ela foi escolhida.`
@@ -1643,14 +1649,52 @@ export async function askLLMWithEnrichedContext(
         const hasAnswerEvidence = Array.isArray(answerEnginePack?.top_posts) && answerEnginePack.top_posts.length > 0;
 
         if (isScriptIntent && scriptContext) {
+            const compactTopCategories = scriptContext.topCategories
+                ? {
+                    proposal: (scriptContext.topCategories.proposal || []).slice(0, 2),
+                    context: (scriptContext.topCategories.context || []).slice(0, 2),
+                    format: (scriptContext.topCategories.format || []).slice(0, 2),
+                    tone: (scriptContext.topCategories.tone || []).slice(0, 2),
+                }
+                : undefined;
+            const compactTopPosts = (scriptContext.topPosts || [])
+                .slice(0, SCRIPT_CONTEXT_COMPACT ? 2 : 3)
+                .map((post) => ({
+                    id: post.id,
+                    captionSnippet: post.captionSnippet,
+                    format: Array.isArray(post.format) ? post.format.slice(0, 2) : post.format,
+                    proposal: (post.proposal || []).slice(0, 2),
+                    context: (post.context || []).slice(0, 2),
+                    tone: (post.tone || []).slice(0, 2),
+                    permalink: post.permalink || undefined,
+                    stats: {
+                        shares: post.stats?.shares ?? null,
+                        saved: post.stats?.saved ?? null,
+                        comments: post.stats?.comments ?? null,
+                        total_interactions: post.stats?.total_interactions ?? null,
+                    },
+                }));
+            const compactPlannerSignals = scriptContext.plannerSignals
+                ? {
+                    dayOfWeek: scriptContext.plannerSignals.dayOfWeek,
+                    blockStartHour: scriptContext.plannerSignals.blockStartHour,
+                    format: scriptContext.plannerSignals.format,
+                    categories: scriptContext.plannerSignals.categories || undefined,
+                    keyword: scriptContext.plannerSignals.keyword || undefined,
+                    themes: (scriptContext.plannerSignals.themes || []).slice(0, SCRIPT_CONTEXT_COMPACT ? 2 : 4),
+                    winningCaptions: (scriptContext.plannerSignals.winningCaptions || []).slice(0, SCRIPT_CONTEXT_COMPACT ? 2 : 3),
+                }
+                : undefined;
             const scriptPayload = {
                 objectiveHint: scriptContext.objectiveHint || undefined,
                 toneHint: scriptContext.toneHint || undefined,
                 narrativePreference: scriptContext.narrativePreference || undefined,
-                topCategories: scriptContext.topCategories || undefined,
-                topPosts: scriptContext.topPosts || undefined,
+                executionPlan: scriptContext.executionPlan || undefined,
+                inspirationFallback: scriptContext.inspirationFallback || undefined,
+                topCategories: compactTopCategories,
+                topPosts: compactTopPosts.length ? compactTopPosts : undefined,
                 communityOptIn: scriptContext.communityOptIn ?? false,
-                plannerSignals: scriptContext.plannerSignals || undefined,
+                plannerSignals: compactPlannerSignals,
             };
             initialMsgs.push({
                 role: 'system',
@@ -1658,10 +1702,11 @@ export async function askLLMWithEnrichedContext(
                     'SCRIPT CONTEXT PACK (USO OBRIGATÓRIO): use estes sinais para orientar o roteiro, gancho e CTA. ' +
                     'As categorias abaixo são do histórico do criador (taxonomia interna). ' +
                     'Se for chamar `fetchCommunityInspirations`, traduza para a taxonomia da comunidade (Proposal/Context/Format/Tone do tool). ' +
-                    'Quando o pedido do usuário for genérico (ex.: "o que postar amanhã"), priorize `plannerSignals.themes` como pauta principal e reaproveite padrões narrativos de `plannerSignals.winningCaptions` e `topPosts.captionSnippet`. ' +
+                    'Quando o pedido do usuário for genérico (ex.: "o que postar amanhã"), priorize `executionPlan.primaryIdea` e `plannerSignals.themes[0]` como pauta. ' +
                     'NUNCA repita literalmente frases genéricas do usuário como título ou roteiro. ' +
                     'Se narrativePreference=prefer_similar, mantenha estrutura próxima das últimas inspirações aprovadas. ' +
                     'Se narrativePreference=prefer_different, varie gancho e CTA em relação ao padrão anterior. ' +
+                    'Se inspirationFallback=user_top_posts, prefira topPosts como inspiração antes de chamar comunidade. ' +
                     'Se communityOptIn=false, NÃO chame `fetchCommunityInspirations`.\n' +
                     `\`\`\`json\n${JSON.stringify(scriptPayload, null, 2)}\n\`\`\``,
             });
@@ -1723,11 +1768,14 @@ export async function askLLMWithEnrichedContext(
                 content:
                     'MODO ROTEIRO (CRÍTICO): responda SOMENTE com 2 blocos, nesta ordem exata: [ROTEIRO]...[/ROTEIRO] e [LEGENDA]...[/LEGENDA]. ' +
                     'IGNORE a estrutura "Diagnóstico/Plano/Próximo Passo" para este caso. ' +
-                    'Se faltar tema/produto/assunto, faça UMA pergunta objetiva e pare (não gere roteiro incompleto). ' +
+                    'Se o pedido for genérico, gere usando executionPlan/topPosts/plannerSignals (não bloqueie com pergunta). Só pergunte se a mensagem estiver vazia. ' +
                     'Use formato pedido pelo usuário; se não houver, escolha entre USER_PREFERRED_FORMATS; fallback: Reels. ' +
                     'Infira objetivo principal (educar, engajar, viralizar, converter, autoridade) e mantenha CTA coerente. ' +
                     'No bloco [ROTEIRO], use o contrato abaixo sem inventar seções extras:\n' +
                     '**Título Sugerido:** ...\n' +
+                    '**Pauta Estratégica:** ...\n' +
+                    '**Base de Engajamento:** ...\n' +
+                    '**Fonte da Inspiração:** ...\n' +
                     '**Formato Ideal:** ... | **Duração Estimada:** ...\n' +
                     '(opcional) **Áudio Sugerido:** ...\n' +
                     '(opcional, quando houver inspiração) **Por que essa inspiração:** ...\n' +
@@ -1738,10 +1786,16 @@ export async function askLLMWithEnrichedContext(
                     'Se formato for carrossel/foto, adapte para Slides na coluna Visual/Fala. ' +
                     'Se for humor, inclua setup -> conflito -> punchline -> reação na progressão das cenas. ' +
                     'Se houver top_posts no pack, use somente como referência estrutural (nunca copiar frases). ' +
-                    'Se communityOptIn=true e dados suficientes, chame fetchCommunityInspirations antes de escrever com count=3 e inclua narrativeQuery com 1 frase do gancho; se faltar contexto para a busca, faça UMA pergunta e pare. ' +
+                    'Use fetchCommunityInspirations somente quando communityOptIn=true e faltar referência forte em topPosts ou quando o usuário pedir explicitamente exemplos da comunidade. ' +
                     'No bloco [LEGENDA], sempre entregar V1, V2 e V3 (1-3 frases cada + 3-6 hashtags). ' +
                     'NÃO adicionar [BUTTON], introduções, conclusões ou texto fora dos blocos.'
             });
+            if (isHumorScriptMode) {
+                initialMsgs.push({
+                    role: 'system',
+                    content: getHumorScriptCompactDirectives(),
+                });
+            }
         } else {
             // Instruções de estilo e próxima ação — mantém o assistente sempre acionável.
             initialMsgs.push({
@@ -2196,9 +2250,26 @@ export async function askLLMWithEnrichedContext(
             const shouldKeepCommunityInspirationsForGeneral =
                 currentIntent === 'general' &&
                 currentEnrichedContext.dialogueState?.currentTask?.name === 'ask_community_inspiration';
-            const filteredFunctions = currentIntent === 'general' && !shouldKeepCommunityInspirationsForGeneral
+            const isScriptTurn =
+                currentIntent === 'script_request' ||
+                currentIntent === 'humor_script_request' ||
+                currentIntent === 'proactive_script_accept';
+            const userExplicitlyAskedCommunity = /comunidade|inspira[cç][aã]o|exemplos?\s+da\s+comunidade|refer[eê]ncias?\s+da\s+comunidade/i
+                .test(incomingText || '');
+            const hasStrongTopPosts = (currentEnrichedContext.scriptContext?.topPosts || []).length >= 2;
+            const shouldAllowCommunityToolOnScriptTurn = isScriptTurn
+                ? Boolean(
+                    currentEnrichedContext.scriptContext?.communityOptIn &&
+                    (userExplicitlyAskedCommunity || !hasStrongTopPosts)
+                )
+                : true;
+            let filteredFunctions = currentIntent === 'general' && !shouldKeepCommunityInspirationsForGeneral
                 ? defaultFunctions.filter((fn) => fn.name !== 'fetchCommunityInspirations')
                 : defaultFunctions;
+            if (isScriptTurn && !shouldAllowCommunityToolOnScriptTurn) {
+                filteredFunctions = filteredFunctions.filter((fn) => fn.name !== 'fetchCommunityInspirations');
+                logger.info(`${turnTag} Script turn com sinais fortes locais: removido 'fetchCommunityInspirations' para reduzir custo/token.`);
+            }
             if (currentIntent === 'general') {
                 if (shouldKeepCommunityInspirationsForGeneral) {
                     logger.info(`${turnTag} Intenção 'general' em continuidade de inspiração: mantendo 'fetchCommunityInspirations'.`);

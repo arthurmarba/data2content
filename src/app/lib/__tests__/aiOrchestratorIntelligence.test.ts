@@ -144,4 +144,48 @@ describe('aiOrchestrator Intelligence Logic Check', () => {
         expect(injectedSystemMsg).toContain('CAUSA RAIZ');
         expect(injectedSystemMsg).toContain('getMetricDetailsById');
     });
+
+    it('verifies script context compact payload keeps only top 2 signals', () => {
+        const scriptContext = {
+            topCategories: {
+                proposal: ['tutorial', 'lista', 'opiniao'],
+                context: ['finance', 'lifestyle', 'news'],
+                format: ['reel', 'carousel', 'story'],
+                tone: ['educational', 'neutral', 'humorous'],
+            },
+            topPosts: [
+                { id: '1', captionSnippet: 'a', proposal: ['tutorial'], context: ['finance'] },
+                { id: '2', captionSnippet: 'b', proposal: ['tutorial'], context: ['finance'] },
+                { id: '3', captionSnippet: 'c', proposal: ['tutorial'], context: ['finance'] },
+            ],
+            plannerSignals: {
+                themes: ['t1', 't2', 't3'],
+                winningCaptions: ['c1', 'c2', 'c3'],
+            },
+        } as any;
+
+        const compact = {
+            proposal: (scriptContext.topCategories.proposal || []).slice(0, 2),
+            context: (scriptContext.topCategories.context || []).slice(0, 2),
+            themes: (scriptContext.plannerSignals.themes || []).slice(0, 2),
+            winningCaptions: (scriptContext.plannerSignals.winningCaptions || []).slice(0, 2),
+            topPosts: (scriptContext.topPosts || []).slice(0, 2),
+        };
+
+        expect(compact.proposal).toEqual(['tutorial', 'lista']);
+        expect(compact.context).toEqual(['finance', 'lifestyle']);
+        expect(compact.themes).toEqual(['t1', 't2']);
+        expect(compact.winningCaptions).toEqual(['c1', 'c2']);
+        expect(compact.topPosts).toHaveLength(2);
+    });
+
+    it('verifies selective community tool usage for script mode', () => {
+        const canUseCommunityTool = (params: { communityOptIn: boolean; hasStrongTopPosts: boolean; askedCommunity: boolean }) =>
+            params.communityOptIn && (params.askedCommunity || !params.hasStrongTopPosts);
+
+        expect(canUseCommunityTool({ communityOptIn: true, hasStrongTopPosts: false, askedCommunity: false })).toBe(true);
+        expect(canUseCommunityTool({ communityOptIn: true, hasStrongTopPosts: true, askedCommunity: false })).toBe(false);
+        expect(canUseCommunityTool({ communityOptIn: true, hasStrongTopPosts: true, askedCommunity: true })).toBe(true);
+        expect(canUseCommunityTool({ communityOptIn: false, hasStrongTopPosts: false, askedCommunity: true })).toBe(false);
+    });
 });

@@ -158,7 +158,11 @@ describe('renderFormatted', () => {
         const text = [
             '[ROTEIRO]',
             '**Título Sugerido:** Roteiro de teste',
+            '**Pauta Estratégica:** orçamento doméstico prático',
+            '**Base de Engajamento:** Categorias com melhor engajamento: tutorial + finance',
+            '**Fonte da Inspiração:** Top posts do criador',
             '**Formato Ideal:** Reels | **Duração Estimada:** 30s',
+            ':---',
             '| Tempo | Visual (o que aparece) | Fala (o que dizer) |',
             '| :--- | :--- | :--- |',
             '| 00-03s | Gancho visual | Gancho falado |',
@@ -180,6 +184,10 @@ describe('renderFormatted', () => {
         expect(screen.getAllByText('Roteiro').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Legenda').length).toBeGreaterThan(0);
         expect(screen.getByText('Legenda principal de teste')).toBeInTheDocument();
+        expect(screen.getByText(/Pauta estratégica:/i)).toBeInTheDocument();
+        expect(screen.getByText(/Base de engajamento:/i)).toBeInTheDocument();
+        expect(screen.getByText(/Fonte da inspiração:/i)).toBeInTheDocument();
+        expect(screen.queryByText(':---')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Ajustar para meu nicho' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Explorar variações' })).toBeInTheDocument();
     });
