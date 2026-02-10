@@ -87,6 +87,10 @@ const nextConfig = {
     serverActions: true,
     outputFileTracingIncludes: {
       '/app/**/*': ['./src/app/lib/**/*.md'],
+      '/api/mediakit/[token]/pdf': [
+        './node_modules/playwright-core/.local-browsers/**/*',
+        './node_modules/playwright/.local-browsers/**/*',
+      ],
     },
   },
 

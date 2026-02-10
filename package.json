@@ -5,8 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "NEXT_DISABLE_SERVER_IPC=1 next build",
+    "build": "npm run playwright:install-chromium && NEXT_DISABLE_SERVER_IPC=1 next build",
     "start": "next start",
+    "playwright:install-chromium": "node scripts/install-playwright-chromium.mjs",
     "lint": "next lint",
     "typecheck": "npm run smoke:types",
     "test": "jest --watchAll=false",

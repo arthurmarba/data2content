@@ -2217,10 +2217,6 @@ export default function MediaKitView({
     let failureTracked = false;
     try {
       const downloadUrl = `/api/mediakit/${slugForPdf}/pdf`;
-      if (isMobile) {
-        window.location.assign(downloadUrl);
-        return;
-      }
       const response = await fetch(downloadUrl, { method: 'GET' });
       if (!response.ok) {
         let errorMessage = 'Não foi possível gerar o PDF agora. Tente novamente em instantes.';
@@ -2234,16 +2230,41 @@ export default function MediaKitView({
         failureTracked = true;
         throw new Error(errorMessage);
       }
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      if (!contentType.includes('application/pdf')) {
+        throw new Error('Resposta inválida ao gerar o PDF. Tente novamente em instantes.');
+      }
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      const fileName = `media-kit-${slugForPdf}.pdf`;
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+      const fallbackFileName = `media-kit-${slugForPdf}.pdf`;
+      const contentDisposition = response.headers.get('content-disposition');
+      const utf8FileName = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const asciiFileName = contentDisposition?.match(/filename=\"?([^\";]+)\"?/i)?.[1];
+      const parsedFileName = (() => {
+        const candidate = utf8FileName || asciiFileName;
+        if (!candidate) return null;
+        try {
+          return decodeURIComponent(candidate).trim();
+        } catch {
+          return candidate.trim();
+        }
+      })();
+      const fileName = parsedFileName || fallbackFileName;
+
+      if (isIOS) {
+        const popup = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+        if (!popup) {
+          window.location.assign(blobUrl);
+        }
+      } else {
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60_000);
     } catch (error) {
       if (!failureTracked) {
         track('media_kit_pdf_export_failed', { reason: 'network_error' });
@@ -2253,7 +2274,7 @@ export default function MediaKitView({
     } finally {
       setIsPdfGenerating(false);
     }
-  }, [ensureOwnerMediaKitSlug, isMobile, isPdfGenerating, resolvedMediaKitSlug, showOwnerCtas]);
+  }, [ensureOwnerMediaKitSlug, isIOS, isPdfGenerating, resolvedMediaKitSlug, showOwnerCtas]);
   useEffect(
     () => () => {
       if (copyFeedbackTimeout.current) clearTimeout(copyFeedbackTimeout.current);

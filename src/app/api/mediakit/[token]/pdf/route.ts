@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
@@ -51,6 +51,73 @@ const getCacheFilePath = (key: string) => {
 };
 
 const CACHE_BACKEND = (process.env.MEDIA_KIT_PDF_CACHE || 'mongo').toLowerCase();
+const DEFAULT_CHROMIUM_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'];
+
+const resolveChromiumArgs = () => {
+  const extraArgs = (process.env.PLAYWRIGHT_EXTRA_ARGS || '')
+    .split(/\s+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return Array.from(new Set([...DEFAULT_CHROMIUM_ARGS, ...extraArgs]));
+};
+
+const hasInstalledLocalChromium = (localBrowserPath: string) => {
+  if (!existsSync(localBrowserPath)) return false;
+  try {
+    const entries = readdirSync(localBrowserPath, { withFileTypes: true });
+    return entries.some((entry) => entry.isDirectory() && entry.name.startsWith('chromium'));
+  } catch {
+    return false;
+  }
+};
+
+const ensureLocalPlaywrightBrowsersPath = () => {
+  if (process.env.PLAYWRIGHT_BROWSERS_PATH) return;
+  const localBrowserPath = path.join(process.cwd(), 'node_modules', 'playwright-core', '.local-browsers');
+  if (hasInstalledLocalChromium(localBrowserPath)) {
+    process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
+  }
+};
+
+const resolveExecutableCandidates = () => {
+  const envCandidates = [
+    process.env.PLAYWRIGHT_CHROMIUM_BIN,
+    process.env.PLAYWRIGHT_EXECUTABLE_PATH,
+    process.env.CHROME_BIN,
+  ];
+
+  const platformCandidates =
+    process.platform === 'linux'
+      ? [
+          '/usr/bin/chromium-browser',
+          '/usr/bin/chromium',
+          '/usr/bin/google-chrome',
+          '/usr/bin/google-chrome-stable',
+        ]
+      : process.platform === 'darwin'
+        ? [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium',
+          ]
+        : [];
+
+  return Array.from(
+    new Set(
+      [...envCandidates, ...platformCandidates]
+        .map((candidate) => (typeof candidate === 'string' ? candidate.trim() : ''))
+        .filter(Boolean)
+    )
+  ).filter((candidate) => existsSync(candidate));
+};
+
+const isMissingBrowserBinaryError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return (
+    message.includes("Executable doesn't exist") ||
+    message.includes('download new browsers') ||
+    message.includes('Please run the following command to download new browsers')
+  );
+};
 
 const readCachedPdf = async (cacheKey: string, cacheFile: string) => {
   if (CACHE_BACKEND === 'mongo') {
@@ -114,11 +181,41 @@ const toPdfResponse = (buffer: Buffer, filename: string) => {
 };
 
 async function generatePdf(url: string) {
+  ensureLocalPlaywrightBrowsersPath();
   const { chromium } = await import('playwright');
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-  });
+  const chromiumArgs = resolveChromiumArgs();
+  const launchAttempts: Array<{ label: string; executablePath?: string }> = [
+    { label: 'playwright-managed' },
+    ...resolveExecutableCandidates().map((candidate) => ({
+      label: `executable:${candidate}`,
+      executablePath: candidate,
+    })),
+  ];
+
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+  let launchError: unknown = null;
+  for (const attempt of launchAttempts) {
+    try {
+      browser = await chromium.launch({
+        headless: true,
+        args: chromiumArgs,
+        ...(attempt.executablePath ? { executablePath: attempt.executablePath } : {}),
+      });
+      break;
+    } catch (error) {
+      launchError = error;
+      logger.warn(
+        `[media-kit-pdf] Falha ao iniciar Chromium (${attempt.label}): ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  if (!browser) {
+    throw launchError instanceof Error ? launchError : new Error('Falha ao iniciar o navegador de exportação de PDF.');
+  }
+
   const context = await browser.newContext({
     viewport: { width: 1200, height: 1600 },
     deviceScaleFactor: 2,
@@ -209,15 +306,23 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer as Buffer);
     return toPdfResponse(pdfBuffer as Buffer, `media-kit-${canonicalSlug}.pdf`);
   } catch (error) {
+    const missingBrowserBinary = isMissingBrowserBinaryError(error);
     logger.error('[media-kit-pdf] Falha ao gerar PDF', {
       error: (error as Error).message,
       stack: (error as Error).stack,
       targetUrl,
       origin,
+      missingBrowserBinary,
+      playwrightBrowsersPath: process.env.PLAYWRIGHT_BROWSERS_PATH || null,
+      chromiumBin: process.env.PLAYWRIGHT_CHROMIUM_BIN || process.env.PLAYWRIGHT_EXECUTABLE_PATH || process.env.CHROME_BIN || null,
     });
     return NextResponse.json(
-      { error: 'Não foi possível gerar o PDF agora. Tente novamente em instantes.' },
-      { status: 500 }
+      {
+        error: missingBrowserBinary
+          ? 'Serviço de exportação de PDF temporariamente indisponível. Tente novamente em instantes.'
+          : 'Não foi possível gerar o PDF agora. Tente novamente em instantes.',
+      },
+      { status: missingBrowserBinary ? 503 : 500 }
     );
   }
 }
