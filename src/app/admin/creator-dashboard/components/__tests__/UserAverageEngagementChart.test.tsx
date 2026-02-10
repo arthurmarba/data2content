@@ -11,17 +11,16 @@ jest.mock('../filters/GlobalTimePeriodContext', () => ({
 const mockUseGlobalTimePeriod = useGlobalTimePeriod as jest.Mock;
 
 describe('UserAverageEngagementChart', () => {
+  const userId = 'user-123';
+
   beforeEach(() => {
+    (global.fetch as jest.Mock).mockReset();
     mockUseGlobalTimePeriod.mockReturnValue({ timePeriod: 'last_30_days' });
-    (global.fetch as jest.Mock) = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ chartData: [], insightSummary: '' }),
-    });
   });
 
   it('calls user endpoint', async () => {
-    render(<UserAverageEngagementChart userId="u1" />);
+    render(<UserAverageEngagementChart userId="user-1" chartTitle="Average Engagement" />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('/api/v1/users/u1/performance/average-engagement');
+    expect((global.fetch as jest.Mock).mock.calls[0]![0]).toContain('/api/v1/users/user-1/performance/average-engagement');
   });
 });

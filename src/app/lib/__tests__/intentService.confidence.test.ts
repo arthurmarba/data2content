@@ -30,8 +30,8 @@ describe('determineIntent confidence', () => {
     );
 
     expect(res.type).toBe('intent_determined');
-    expect(res.intent).toBe('user_confirms_pending_action');
-    expect(res.confidence).toBeDefined();
+    expect((res as any).intent).toBe('user_confirms_pending_action');
+    expect((res as any).confidence).toBeDefined();
     expect(res.confidence).toBeGreaterThan(0.5);
     expect(res.confidence).toBeLessThanOrEqual(1);
   });

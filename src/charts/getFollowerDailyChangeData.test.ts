@@ -8,13 +8,13 @@ jest.mock('@/app/models/AccountInsight', () => ({
 }));
 
 function formatDateYYYYMMDD(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0]!;
 }
 
 function createDate(daysAgo: number, baseDate?: Date): Date {
   const date = baseDate ? new Date(baseDate) : new Date();
   date.setDate(date.getDate() - daysAgo);
-  date.setHours(12,0,0,0);
+  date.setHours(12, 0, 0, 0);
   return date;
 }
 
@@ -26,8 +26,8 @@ describe('getFollowerDailyChangeData', () => {
     (AccountInsightModel.find as jest.Mock).mockReset();
     (AccountInsightModel.findOne as jest.Mock).mockReset();
     baseTestDate = new Date();
-    baseTestDate.setHours(12,0,0,0);
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    baseTestDate.setHours(12, 0, 0, 0);
+    jest.spyOn(console, 'error').mockImplementation(() => { });
   });
 
   afterEach(() => {
@@ -60,7 +60,7 @@ describe('getFollowerDailyChangeData', () => {
     const result = await getFollowerDailyChangeData(userId, period);
 
     expect(result.chartData.length).toBe(numDays + 1);
-    const changeMap = new Map(result.chartData.map(p => [p.date, p.change]));
+    const changeMap = new Map(result.chartData.map(p => [p.date!, p.change]));
 
     const dayKeySnapshot1 = formatDateYYYYMMDD(createDate(numDays - 5, baseTestDate));
     expect(changeMap.get(dayKeySnapshot1)).toBe(5); // 105 - 100
@@ -74,7 +74,7 @@ describe('getFollowerDailyChangeData', () => {
     const dayKeySnapshot3 = formatDateYYYYMMDD(createDate(numDays - 25, baseTestDate));
     expect(changeMap.get(dayKeySnapshot3)).toBe(10); // 120 - 110
 
-    const lastPoint = result.chartData[result.chartData.length -1];
+    const lastPoint = result.chartData[result.chartData.length - 1]!;
     expect(lastPoint.change).toBe(0);
     expect(result.insightSummary).toContain('Ganho de 20 seguidores');
   });

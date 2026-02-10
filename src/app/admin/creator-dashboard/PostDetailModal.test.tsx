@@ -18,10 +18,10 @@ jest.mock('../components/SkeletonBlock', () => {
 
 // Mock Recharts (definido dentro da factory para evitar hoisting antes das consts)
 jest.mock('recharts', () => {
-  const MockResponsiveContainer = ({ children }) => <div data-testid="responsive-container">{children}</div>;
-  const MockLineChart = ({ data, children }) => <div data-testid="line-chart" data-chartdata={JSON.stringify(data)}>{children}</div>;
-  const MockLine = ({ dataKey, name }) => <div data-testid={`line-${dataKey}`} data-name={name}>Line-{dataKey}</div>;
-  const MockXAxis = ({ dataKey }) => <div data-testid={`xaxis-${dataKey}`}>XAxis-{dataKey}</div>;
+  const MockResponsiveContainer = ({ children }: { children: React.ReactNode }) => <div data-testid="responsive-container">{children}</div>;
+  const MockLineChart = ({ data, children }: { data: any[]; children: React.ReactNode }) => <div data-testid="line-chart" data-chartdata={JSON.stringify(data)}>{children}</div>;
+  const MockLine = ({ dataKey, name }: { dataKey: string; name: string }) => <div data-testid={`line-${dataKey}`} data-name={name}>Line-{dataKey}</div>;
+  const MockXAxis = ({ dataKey }: { dataKey: string }) => <div data-testid={`xaxis-${dataKey}`}>XAxis-{dataKey}</div>;
   const MockYAxis = () => <div data-testid="yaxis">YAxis</div>;
   const MockCartesianGrid = () => <div data-testid="cartesian-grid">CartesianGrid</div>;
   const MockTooltip = () => <div data-testid="tooltip">Tooltip</div>;
@@ -91,7 +91,7 @@ describe('PostDetailModal Component', () => {
   });
 
   test('renders loading state with skeletons initially when open with postId', () => {
-    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {}));
+    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => { }));
     const { container } = render(<PostDetailModal isOpen={true} onClose={mockOnClose} postId={testPostId} />);
     expect(screen.getByText(`Detalhes do Post`)).toBeInTheDocument();
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
@@ -101,12 +101,12 @@ describe('PostDetailModal Component', () => {
     beforeEach(async () => {
       render(<PostDetailModal isOpen={true} onClose={mockOnClose} postId={testPostId} />);
       // Wait for loading to finish (fetch mock resolves)
-      await waitFor(() => expect(screen.getByText(mockPostDetailsData.description)).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText(mockPostDetailsData.description!)).toBeInTheDocument());
     });
 
     test('renders modal title with postId and sections', async () => {
       // Ensure data is displayed (e.g., description)
-      expect(await screen.findByText(mockPostDetailsData.description)).toBeInTheDocument();
+      expect(await screen.findByText(mockPostDetailsData.description!)).toBeInTheDocument();
 
       expect(screen.getByText('Detalhes do Post')).toBeInTheDocument();
       expect(screen.getByText('Informações Gerais')).toBeInTheDocument();
@@ -116,10 +116,10 @@ describe('PostDetailModal Component', () => {
 
     test('displays fetched post details correctly', async () => {
       // Example: Check for description (use regex for partial match due to randomness)
-      expect(screen.getByText(mockPostDetailsData.description)).toBeInTheDocument();
-      expect(screen.getByText(mockPostDetailsData.stats.views!.toLocaleString('pt-BR'))).toBeInTheDocument();
+      expect(screen.getByText(mockPostDetailsData.description!)).toBeInTheDocument();
+      expect(screen.getByText(mockPostDetailsData.stats!.views!.toLocaleString('pt-BR'))).toBeInTheDocument();
       // Check for engagement rate formatting
-      const engagementRateValue = (mockPostDetailsData.stats.engagement_rate_on_reach! * 100).toFixed(2) + '%';
+      const engagementRateValue = (mockPostDetailsData.stats!.engagement_rate_on_reach! * 100).toFixed(2) + '%';
       expect(screen.getByText(engagementRateValue)).toBeInTheDocument();
     });
 
@@ -131,8 +131,8 @@ describe('PostDetailModal Component', () => {
       const chartData = JSON.parse(lineChart.getAttribute('data-chartdata') || '[]');
       // Dates in chartData will be ISO strings because of JSON.stringify.
       // Compare length and key values, or convert dates in mockPostDetailsData.dailySnapshots to ISO strings for exact match.
-      expect(chartData.length).toEqual(mockPostDetailsData.dailySnapshots.length);
-      expect(chartData[0].dailyViews).toEqual(mockPostDetailsData.dailySnapshots[0].dailyViews);
+      expect(chartData.length).toEqual(mockPostDetailsData.dailySnapshots!.length);
+      expect(chartData[0].dailyViews).toEqual(mockPostDetailsData.dailySnapshots![0]!.dailyViews);
 
       expect(screen.getByTestId('xaxis-date')).toBeInTheDocument();
       expect(screen.getByTestId('yaxis')).toBeInTheDocument();

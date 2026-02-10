@@ -86,7 +86,7 @@ describe('fetchUserAlerts - dataService', () => {
     const hasGroupStage = pipeline.some((stage: any) => stage.$group && stage.$group._id === '$dedupeKey');
     expect(hasGroupStage).toBe(true);
     expect(result).toHaveLength(2);
-    expect(result[0].type).toBe('no_event_found_today_with_insight');
-    expect(result[1].type).toBe('A');
+    expect(result[0]!.type).toBe('no_event_found_today_with_insight');
+    expect(result[1]!.type).toBe('A');
   });
 });

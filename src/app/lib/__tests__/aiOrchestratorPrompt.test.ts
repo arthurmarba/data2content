@@ -48,7 +48,7 @@ describe('populateSystemPrompt', () => {
     stateMocks.getFromCache.mockResolvedValue(null);
     stateMocks.setInCache.mockResolvedValue(undefined as any);
     stateMocks.deleteFromCache.mockResolvedValue(undefined as any);
-    execs.getAggregatedReport.mockResolvedValue({
+    execs.getAggregatedReport!.mockResolvedValue({
       reportData: {
         overallStats: { avgReach: 100, avgShares: 5, avgEngagementRate: 0.1 },
         historicalComparisons: {
@@ -69,12 +69,12 @@ describe('populateSystemPrompt', () => {
         dealsFrequency: 1.5,
       }
     });
-    execs.getUserTrend.mockResolvedValue({ insightSummary: 'alta' });
-    execs.getFpcTrendHistory.mockResolvedValue({ chartData: [{ avgInteractions: 1 }, { avgInteractions: 3 }] });
-    execs.getDayPCOStats.mockResolvedValue({ dayPCOStats: { '1': { dica: { tech: { avgTotalInteractions: 10 } } } } });
-    execs.getCategoryRanking.mockResolvedValue({ ranking: [{ category: 'reel' }, { category: 'carrossel' }] });
-    execs.getLatestAudienceDemographics.mockResolvedValue({ demographics: { follower_demographics: { country: { Brasil: 80 }, age: { '18-24': 50 } } } });
-    execs.getMetricsHistory.mockResolvedValue({
+    execs.getUserTrend!.mockResolvedValue({ insightSummary: 'alta' });
+    execs.getFpcTrendHistory!.mockResolvedValue({ chartData: [{ avgInteractions: 1 }, { avgInteractions: 3 }] });
+    execs.getDayPCOStats!.mockResolvedValue({ dayPCOStats: { '1': { dica: { tech: { avgTotalInteractions: 10 } } } } });
+    execs.getCategoryRanking!.mockResolvedValue({ ranking: [{ category: 'reel' }, { category: 'carrossel' }] });
+    execs.getLatestAudienceDemographics!.mockResolvedValue({ demographics: { follower_demographics: { country: { Brasil: 80 }, age: { '18-24': 50 } } } });
+    execs.getMetricsHistory!.mockResolvedValue({
       history: {
         propagationIndex: { labels: [], datasets: [{ data: [10, 20] }] },
         followerConversionRate: { labels: [], datasets: [{ data: [3, 5] }] },
@@ -119,13 +119,13 @@ describe('populateSystemPrompt', () => {
   });
 
   it('uses fallback phrase when metrics retrieval fails', async () => {
-    execs.getAggregatedReport.mockRejectedValue(new Error('fail'));
-    execs.getUserTrend.mockRejectedValue(new Error('fail'));
-    execs.getFpcTrendHistory.mockRejectedValue(new Error('fail'));
-    execs.getDayPCOStats.mockRejectedValue(new Error('fail'));
-    execs.getCategoryRanking.mockRejectedValue(new Error('fail'));
-    execs.getLatestAudienceDemographics.mockRejectedValue(new Error('fail'));
-    execs.getMetricsHistory.mockRejectedValue(new Error('fail'));
+    execs.getAggregatedReport!.mockRejectedValue(new Error('fail'));
+    execs.getUserTrend!.mockRejectedValue(new Error('fail'));
+    execs.getFpcTrendHistory!.mockRejectedValue(new Error('fail'));
+    execs.getDayPCOStats!.mockRejectedValue(new Error('fail'));
+    execs.getCategoryRanking!.mockRejectedValue(new Error('fail'));
+    execs.getLatestAudienceDemographics!.mockRejectedValue(new Error('fail'));
+    execs.getMetricsHistory!.mockRejectedValue(new Error('fail'));
     mockPerf.mockRejectedValue(new Error('fail'));
     mockDayPerf.mockRejectedValue(new Error('fail'));
     mockTimePerf.mockRejectedValue(new Error('fail'));

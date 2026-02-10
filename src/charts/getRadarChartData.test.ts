@@ -103,16 +103,16 @@ describe('getRadarChartData', () => {
 
     // Mock das funções de cálculo para userId1
     (calculateFollowerGrowthRate as jest.Mock)
-        .mockResolvedValueOnce({ currentFollowers: p1_followers })
-        .mockResolvedValueOnce({ percentageGrowth: p1_growth });
+      .mockResolvedValueOnce({ currentFollowers: p1_followers })
+      .mockResolvedValueOnce({ percentageGrowth: p1_growth });
     (calculateAverageEngagementPerPost as jest.Mock).mockResolvedValueOnce({ averageEngagementPerPost: p1_avgEng });
     (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValueOnce({ currentWeeklyFrequency: p1_freq });
     (calculateAverageVideoMetrics as jest.Mock).mockResolvedValueOnce({ averageRetentionRate: p1_retention });
 
     // Mock das funções de cálculo para userId2
     (calculateFollowerGrowthRate as jest.Mock)
-        .mockResolvedValueOnce({ currentFollowers: p2_followers })
-        .mockResolvedValueOnce({ percentageGrowth: p2_growth });
+      .mockResolvedValueOnce({ currentFollowers: p2_followers })
+      .mockResolvedValueOnce({ percentageGrowth: p2_growth });
     (calculateAverageEngagementPerPost as jest.Mock).mockResolvedValueOnce({ averageEngagementPerPost: p2_avgEng });
     (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValueOnce({ currentWeeklyFrequency: p2_freq });
     (calculateAverageVideoMetrics as jest.Mock).mockResolvedValueOnce({ averageRetentionRate: p2_retention });
@@ -125,17 +125,17 @@ describe('getRadarChartData', () => {
     expect(result.labels).toEqual(mockMetricSetConfig.map(m => m.label));
     expect(result.datasets.length).toBe(2);
 
-    expect(result.rawValues?.[0].data).toEqual([p1_followers, p1_growth, p1_avgEng, p1_freq, p1_retention]);
-    expect(result.rawValues?.[1].data).toEqual([p2_followers, p2_growth, p2_avgEng, p2_freq, p2_retention]);
+    expect(result.rawValues?.[0]!.data).toEqual([p1_followers, p1_growth, p1_avgEng, p1_freq, p1_retention]);
+    expect(result.rawValues?.[1]!.data).toEqual([p2_followers, p2_growth, p2_avgEng, p2_freq, p2_retention]);
 
     // Verificar valores normalizados com base na `actualNormalizeValue` e `mockPlatformMinMax`
-    expect(result.datasets[0].data[0]).toBe(actualNormalizeValue(p1_followers, mockPlatformMinMax.totalFollowers.min, mockPlatformMinMax.totalFollowers.max));
-    expect(result.datasets[0].data[1]).toBe(actualNormalizeValue(p1_growth, mockPlatformMinMax.followerGrowthRatePercent30d.min, mockPlatformMinMax.followerGrowthRatePercent30d.max));
-    expect(result.datasets[0].data[2]).toBe(actualNormalizeValue(p1_avgEng, mockPlatformMinMax.avgEngagementPerPost30d.min, mockPlatformMinMax.avgEngagementPerPost30d.max));
-    expect(result.datasets[0].data[3]).toBe(actualNormalizeValue(p1_freq, mockPlatformMinMax.avgWeeklyPostingFrequency30d.min, mockPlatformMinMax.avgWeeklyPostingFrequency30d.max));
-    expect(result.datasets[0].data[4]).toBe(actualNormalizeValue(p1_retention, mockPlatformMinMax.avgVideoRetentionRate90d.min, mockPlatformMinMax.avgVideoRetentionRate90d.max));
+    expect(result.datasets[0]!.data[0]).toBe(actualNormalizeValue(p1_followers, mockPlatformMinMax.totalFollowers!.min, mockPlatformMinMax.totalFollowers!.max));
+    expect(result.datasets[0]!.data[1]).toBe(actualNormalizeValue(p1_growth, mockPlatformMinMax.followerGrowthRatePercent30d!.min, mockPlatformMinMax.followerGrowthRatePercent30d!.max));
+    expect(result.datasets[0]!.data[2]).toBe(actualNormalizeValue(p1_avgEng, mockPlatformMinMax.avgEngagementPerPost30d!.min, mockPlatformMinMax.avgEngagementPerPost30d!.max));
+    expect(result.datasets[0]!.data[3]).toBe(actualNormalizeValue(p1_freq, mockPlatformMinMax.avgWeeklyPostingFrequency30d!.min, mockPlatformMinMax.avgWeeklyPostingFrequency30d!.max));
+    expect(result.datasets[0]!.data[4]).toBe(actualNormalizeValue(p1_retention, mockPlatformMinMax.avgVideoRetentionRate90d!.min, mockPlatformMinMax.avgVideoRetentionRate90d!.max));
 
-    expect(result.datasets[1].data[0]).toBe(actualNormalizeValue(p2_followers, mockPlatformMinMax.totalFollowers.min, mockPlatformMinMax.totalFollowers.max));
+    expect(result.datasets[1]!.data[0]).toBe(actualNormalizeValue(p2_followers, mockPlatformMinMax.totalFollowers!.min, mockPlatformMinMax.totalFollowers!.max));
     // ... e assim por diante para os outros dados do perfil 2
     expect(result.debugMinMax).toEqual(mockPlatformMinMax);
   });
@@ -143,8 +143,8 @@ describe('getRadarChartData', () => {
   test('Compara usuário com média de segmento, usando normalização real', async () => {
     const p1_followers = 60000; // Outros valores P1 como no teste anterior
     (calculateFollowerGrowthRate as jest.Mock)
-        .mockResolvedValueOnce({ currentFollowers: p1_followers })
-        .mockResolvedValueOnce({ percentageGrowth: 0.15 });
+      .mockResolvedValueOnce({ currentFollowers: p1_followers })
+      .mockResolvedValueOnce({ percentageGrowth: 0.15 });
     (calculateAverageEngagementPerPost as jest.Mock).mockResolvedValueOnce({ averageEngagementPerPost: 1800 });
     (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValueOnce({ currentWeeklyFrequency: 4.0 });
     (calculateAverageVideoMetrics as jest.Mock).mockResolvedValueOnce({ averageRetentionRate: 60.0 });
@@ -168,31 +168,31 @@ describe('getRadarChartData', () => {
 
     expect(getPlatformMinMaxValues).toHaveBeenCalled();
     expect(fetchSegmentRadarStats).toHaveBeenCalledWith(segmentId);
-    expect(result.datasets[1].label).toContain(`Média Segmento ${segmentId}`);
+    expect(result.datasets[1]!.label).toContain(`Média Segmento ${segmentId}`);
 
-    expect(result.rawValues?.[0].data).toEqual([60000, 0.15, 1800, 4.0, 60.0]);
-    expect(result.rawValues?.[1].data).toEqual([seg_followers, seg_growth, seg_avgEng, seg_freq, seg_retention]);
+    expect(result.rawValues?.[0]!.data).toEqual([60000, 0.15, 1800, 4.0, 60.0]);
+    expect(result.rawValues?.[1]!.data).toEqual([seg_followers, seg_growth, seg_avgEng, seg_freq, seg_retention]);
 
-    expect(result.datasets[0].data[0]).toBe(actualNormalizeValue(60000, mockPlatformMinMax.totalFollowers.min, mockPlatformMinMax.totalFollowers.max));
-    expect(result.datasets[1].data[0]).toBe(actualNormalizeValue(seg_followers, mockPlatformMinMax.totalFollowers.min, mockPlatformMinMax.totalFollowers.max));
+    expect(result.datasets[0]!.data[0]).toBe(actualNormalizeValue(60000, mockPlatformMinMax.totalFollowers!.min, mockPlatformMinMax.totalFollowers!.max));
+    expect(result.datasets[1]!.data[0]).toBe(actualNormalizeValue(seg_followers, mockPlatformMinMax.totalFollowers!.min, mockPlatformMinMax.totalFollowers!.max));
   });
 
   test('Lida com min/max iguais para uma métrica', async () => {
     (calculateFollowerGrowthRate as jest.Mock).mockResolvedValue({ currentFollowers: 10000 }); // Ambos os perfis terão 10k
 
-    const specificMinMax = { ...mockPlatformMinMax, "totalFollowers": {min: 10000, max: 10000}};
+    const specificMinMax = { ...mockPlatformMinMax, "totalFollowers": { min: 10000, max: 10000 } };
     (getPlatformMinMaxValues as jest.Mock).mockResolvedValue(specificMinMax);
 
     const result = await getRadarChartData(userId1, userId2, mockMetricSetConfig, actualNormalizeValue);
     // Conforme normalizeValue: se min===max, retorna 50 se valor !== 0, senão 0.
-    expect(result.datasets[0].data[0]).toBe(50);
-    expect(result.datasets[1].data[0]).toBe(50);
+    expect(result.datasets[0]!.data[0]).toBe(50);
+    expect(result.datasets[1]!.data[0]).toBe(50);
   });
 
   test('Lida com valor nulo de indicador e min/max nulos da plataforma', async () => {
     (calculateFollowerGrowthRate as jest.Mock)
-        .mockResolvedValueOnce({ currentFollowers: 30000 }) // P1 OK
-        .mockResolvedValueOnce({ percentageGrowth: null }); // P1 Crescimento NULO
+      .mockResolvedValueOnce({ currentFollowers: 30000 }) // P1 OK
+      .mockResolvedValueOnce({ percentageGrowth: null }); // P1 Crescimento NULO
     // ... outros P1 OK
     (calculateAverageEngagementPerPost as jest.Mock).mockResolvedValue({ averageEngagementPerPost: 1000 });
     (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValue({ currentWeeklyFrequency: 3 });
@@ -200,20 +200,20 @@ describe('getRadarChartData', () => {
 
     // P2 OK para todas as métricas
     (calculateFollowerGrowthRate as jest.Mock)
-        .mockResolvedValueOnce({ currentFollowers: 40000 })
-        .mockResolvedValueOnce({ percentageGrowth: 0.1 });
+      .mockResolvedValueOnce({ currentFollowers: 40000 })
+      .mockResolvedValueOnce({ percentageGrowth: 0.1 });
 
     // Simular que getPlatformMinMaxValues retorna null para min/max de followerGrowthRatePercent30d
-    const minMaxWithNulls = { ...mockPlatformMinMax, "followerGrowthRatePercent30d": {min: null, max: null} as any};
+    const minMaxWithNulls = { ...mockPlatformMinMax, "followerGrowthRatePercent30d": { min: null, max: null } as any };
     (getPlatformMinMaxValues as jest.Mock).mockResolvedValue(minMaxWithNulls);
 
     const result = await getRadarChartData(userId1, userId2, mockMetricSetConfig, actualNormalizeValue);
 
-    expect(result.rawValues?.[0].data[1]).toBeNull(); // P1 Crescimento % bruto é nulo
+    expect(result.rawValues?.[0]!.data[1]).toBeNull(); // P1 Crescimento % bruto é nulo
     // normalizeValue retorna 0 se min ou max for null
-    expect(result.datasets[0].data[1]).toBe(0);
+    expect(result.datasets[0]!.data[1]).toBe(0);
     // P2 tem valor, mas min/max são null, então também normaliza para 0
-    expect(result.datasets[1].data[1]).toBe(0);
+    expect(result.datasets[1]!.data[1]).toBe(0);
   });
 
 
@@ -225,7 +225,7 @@ describe('getRadarChartData', () => {
     (calculateAverageEngagementPerPost as jest.Mock).mockResolvedValue({ averageEngagementPerPost: 1500 });
     (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValue({ currentWeeklyFrequency: 3.5 });
     (calculateAverageVideoMetrics as jest.Mock).mockResolvedValue({ averageRetentionRate: 45.0 });
-     // Segunda leva de mocks para o segundo perfil
+    // Segunda leva de mocks para o segundo perfil
     (calculateFollowerGrowthRate as jest.Mock).mockResolvedValue({ currentFollowers: 80000, percentageGrowth: 0.05 });
     (calculateAverageEngagementPerPost as jest.Mock).mockResolvedValue({ averageEngagementPerPost: 1200 });
     (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValue({ currentWeeklyFrequency: 2.5 });

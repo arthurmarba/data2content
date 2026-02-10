@@ -2730,7 +2730,7 @@ export default function MediaKitView({
                     </div>
                     <div className="mt-auto">
                       <span className="block text-2xl font-bold leading-tight text-slate-900 break-words">{metric.value}</span>
-                      {metric.change !== undefined && metric.change !== null && (
+                      {!isPublicView && metric.change !== undefined && metric.change !== null && (
                         <div className="mt-2">
                           <DeltaPill value={metric.change} />
                         </div>
@@ -3113,7 +3113,9 @@ export default function MediaKitView({
                             <span className={`text-4xl font-bold ${engagementRateColor}`}>
                               {engagementRateDisplay}
                             </span>
-                            <TrendIndicator value={displayKpis?.engagementRate?.percentageChange ?? null} />
+                            {!isPublicView ? (
+                              <TrendIndicator value={displayKpis?.engagementRate?.percentageChange ?? null} />
+                            ) : null}
                           </div>
                         </div>
                       </div>

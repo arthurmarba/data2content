@@ -9,12 +9,12 @@ interface DailyEngagementPoint {
   totalDailyEngagement: number;
 }
 
-interface MovingAverageDataPoint {
+export interface MovingAverageDataPoint {
   date: string; // YYYY-MM-DD
   movingAverageEngagement: number | null;
 }
 
-interface MovingAverageEngagementResult {
+export interface MovingAverageEngagementResult {
   series: MovingAverageDataPoint[];
   dataStartDate?: Date;
   dataEndDate?: Date;
@@ -54,7 +54,7 @@ async function calculateMovingAverageEngagement(
 
   const resultSeries: MovingAverageDataPoint[] = [];
   const initialResult: MovingAverageEngagementResult = {
-    series: [],
+    series: resultSeries, // Use resultSeries instead of empty []
     dataStartDate,
     dataEndDate,
     dataFullStartDate,

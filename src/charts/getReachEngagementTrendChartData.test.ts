@@ -1,6 +1,12 @@
 import { Types } from 'mongoose';
 import getReachEngagementTrendChartData from './getReachEngagementTrendChartData'; // Ajuste
-import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod, PeriodEnum } from '@/app/models/AccountInsight'; // Ajuste
+import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod } from '@/app/models/AccountInsight'; // Ajuste
+
+enum PeriodEnum {
+  DAY = 'day',
+  WEEK = 'week',
+  MONTH = 'month'
+}
 
 jest.mock('@/app/models/AccountInsight', () => ({
   find: jest.fn(),
@@ -15,7 +21,7 @@ function formatDateYYYYMMDD(date: Date): string {
 function createDate(daysAgo: number, baseDate?: Date): Date {
   const date = baseDate ? new Date(baseDate) : new Date();
   date.setDate(date.getDate() - daysAgo);
-  date.setHours(12,0,0,0);
+  date.setHours(12, 0, 0, 0);
   return date;
 }
 // Função para obter o identificador da semana YYYY-WW (copiada da implementação para testes)
@@ -40,7 +46,7 @@ describe('getReachEngagementTrendChartData', () => {
   beforeEach(() => {
     (AccountInsightModel.find as jest.Mock).mockReset();
     baseTestDate = new Date(2023, 10, 15, 12, 0, 0, 0); // 15 de Novembro de 2023
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => { });
   });
   afterEach(() => {
     (console.error as jest.Mock).mockRestore();
@@ -95,18 +101,18 @@ describe('getReachEngagementTrendChartData', () => {
     });
 
     test('Snapshot com accountInsightsPeriod como array, pega o "day"', async () => {
-        const period = "last_3_days"; // Nov 13, 14, 15
-        const dailyData = mockInsightPeriodData(PeriodEnum.DAY, 100, 10);
-        const weeklyData = mockInsightPeriodData(PeriodEnum.WEEK, 700, 70);
-        const snapshots = [
-            mockAccountInsightSnapshot(createDate(0, baseTestDate), [dailyData, weeklyData]), // Nov 15
-        ];
-        (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshots);
-        const result = await getReachEngagementTrendChartData(userId, period, "daily");
-        expect(result.chartData.length).toBe(3);
-        expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(createDate(0, baseTestDate)), reach: 100, totalInteractions: 10 });
-        expect(result.chartData[0].reach).toBeNull(); // Gaps para Nov 13, 14
-        expect(result.chartData[1].reach).toBeNull();
+      const period = "last_3_days"; // Nov 13, 14, 15
+      const dailyData = mockInsightPeriodData(PeriodEnum.DAY, 100, 10);
+      const weeklyData = mockInsightPeriodData(PeriodEnum.WEEK, 700, 70);
+      const snapshots = [
+        mockAccountInsightSnapshot(createDate(0, baseTestDate), [dailyData, weeklyData]), // Nov 15
+      ];
+      (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshots);
+      const result = await getReachEngagementTrendChartData(userId, period, "daily");
+      expect(result.chartData.length).toBe(3);
+      expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(createDate(0, baseTestDate)), reach: 100, totalInteractions: 10 });
+      expect(result.chartData[0].reach).toBeNull(); // Gaps para Nov 13, 14
+      expect(result.chartData[1].reach).toBeNull();
     });
   });
 
@@ -142,22 +148,22 @@ describe('getReachEngagementTrendChartData', () => {
       const weekForNov15 = getYearWeek(createDate(0, baseTestDate));  // 2023-46
       const weekForOct25 = getYearWeek(createDate(21, baseTestDate)); // 2023-43 (gap)
 
-      expect(result.chartData.find(p=>p.date === weekForOct18)).toEqual({ date: weekForOct18, reach: 700, totalInteractions: 70 });
-      expect(result.chartData.find(p=>p.date === weekForOct25)).toEqual({ date: weekForOct25, reach: null, totalInteractions: null });
-      expect(result.chartData.find(p=>p.date === weekForNov1)).toEqual({ date: weekForNov1, reach: 800, totalInteractions: 80 });
-      expect(result.chartData.find(p=>p.date === getYearWeek(createDate(7, baseTestDate)))).toEqual({ date: getYearWeek(createDate(7, baseTestDate)), reach: null, totalInteractions: null }); // 2023-45 (gap)
-      expect(result.chartData.find(p=>p.date === weekForNov15)).toEqual({ date: weekForNov15, reach: 900, totalInteractions: 90 });
+      expect(result.chartData.find(p => p.date === weekForOct18)).toEqual({ date: weekForOct18, reach: 700, totalInteractions: 70 });
+      expect(result.chartData.find(p => p.date === weekForOct25)).toEqual({ date: weekForOct25, reach: null, totalInteractions: null });
+      expect(result.chartData.find(p => p.date === weekForNov1)).toEqual({ date: weekForNov1, reach: 800, totalInteractions: 80 });
+      expect(result.chartData.find(p => p.date === getYearWeek(createDate(7, baseTestDate)))).toEqual({ date: getYearWeek(createDate(7, baseTestDate)), reach: null, totalInteractions: null }); // 2023-45 (gap)
+      expect(result.chartData.find(p => p.date === weekForNov15)).toEqual({ date: weekForNov15, reach: 900, totalInteractions: 90 });
     });
-     test('Sobrescreve com o último snapshot se múltiplos para a mesma semana/dia', async () => {
-        const snapshots = [
-            mockAccountInsightSnapshot(createDate(6, baseTestDate), mockInsightPeriodData(PeriodEnum.DAY, 100, 10)), // Nov 9
-            mockAccountInsightSnapshot(addDays(createDate(6, baseTestDate),0.5), mockInsightPeriodData(PeriodEnum.DAY, 105, 11)), // Nov 9, mais tarde
-        ];
-        (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshots);
-        const result = await getReachEngagementTrendChartData(userId, "last_7_days", "daily");
-        const pointForNov9 = result.chartData.find(p=>p.date === formatDateYYYYMMDD(createDate(6, baseTestDate)));
-        expect(pointForNov9?.reach).toBe(105); // Valor do último snapshot para o dia
-        expect(pointForNov9?.totalInteractions).toBe(11);
+    test('Sobrescreve com o último snapshot se múltiplos para a mesma semana/dia', async () => {
+      const snapshots = [
+        mockAccountInsightSnapshot(createDate(6, baseTestDate), mockInsightPeriodData(PeriodEnum.DAY, 100, 10)), // Nov 9
+        mockAccountInsightSnapshot(addDays(createDate(6, baseTestDate), 0.5), mockInsightPeriodData(PeriodEnum.DAY, 105, 11)), // Nov 9, mais tarde
+      ];
+      (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshots);
+      const result = await getReachEngagementTrendChartData(userId, "last_7_days", "daily");
+      const pointForNov9 = result.chartData.find(p => p.date === formatDateYYYYMMDD(createDate(6, baseTestDate)));
+      expect(pointForNov9?.reach).toBe(105); // Valor do último snapshot para o dia
+      expect(pointForNov9?.totalInteractions).toBe(11);
     });
   });
 
@@ -166,8 +172,8 @@ describe('getReachEngagementTrendChartData', () => {
     const result = await getReachEngagementTrendChartData(userId, "last_7_days", "daily");
     expect(result.chartData.length).toBe(7); // Deve preencher com nulos
     result.chartData.forEach(dp => {
-        expect(dp.reach).toBeNull();
-        expect(dp.totalInteractions).toBeNull();
+      expect(dp.reach).toBeNull();
+      expect(dp.totalInteractions).toBeNull();
     });
     expect(result.insightSummary).toBe("Erro ao buscar dados de alcance e engajamento.");
     expect(console.error).toHaveBeenCalled();

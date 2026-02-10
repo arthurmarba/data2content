@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { cache } from 'swr/_internal';
-import '@testing-library/jest-dom';
+import { SWRConfig } from 'swr';
 import TopMoversWidget from './TopMoversWidget';
 import { GlobalTimePeriodProvider } from './components/filters/GlobalTimePeriodContext';
 import { ITopMoverResult } from '@/app/lib/dataService/marketAnalysisService';
@@ -14,14 +13,15 @@ const mockData: ITopMoverResult[] = [
 
 const renderWidget = () =>
   render(
-    <GlobalTimePeriodProvider>
-      <TopMoversWidget />
-    </GlobalTimePeriodProvider>
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <GlobalTimePeriodProvider>
+        <TopMoversWidget />
+      </GlobalTimePeriodProvider>
+    </SWRConfig>
   );
 
 describe('TopMoversWidget', () => {
   beforeEach(() => {
-    cache.clear();
     (fetch as jest.Mock).mockClear();
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => mockData });
   });

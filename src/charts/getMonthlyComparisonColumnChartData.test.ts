@@ -86,16 +86,16 @@ describe('getMonthlyComparisonColumnChartData', () => {
     expect(result.metricCompared).toBe("totalPosts");
 
     // Mês Passado (Out) vs Mês Retrasado (Set)
-    expect(result.chartData[0].value).toBe(1); // M-1 (Set)
-    expect(result.chartData[0].periodKey).toBe("M-1");
-    expect(result.chartData[1].value).toBe(2); // M0 (Out)
-    expect(result.chartData[1].periodKey).toBe("M0");
+    expect(result.chartData[0]!.value).toBe(1); // M-1 (Set)
+    expect(result.chartData[0]!.periodKey).toBe("M-1");
+    expect(result.chartData[1]!.value).toBe(2); // M0 (Out)
+    expect(result.chartData[1]!.periodKey).toBe("M0");
 
     // Este Mês (Nov) vs Mês Passado (Out)
-    expect(result.chartData[2].value).toBe(2); // M0 (Out)
-    expect(result.chartData[2].periodKey).toBe("M0");
-    expect(result.chartData[3].value).toBe(3); // M1 (Nov)
-    expect(result.chartData[3].periodKey).toBe("M1");
+    expect(result.chartData[2]!.value).toBe(2); // M0 (Out)
+    expect(result.chartData[2]!.periodKey).toBe("M0");
+    expect(result.chartData[3]!.value).toBe(3); // M1 (Nov)
+    expect(result.chartData[3]!.periodKey).toBe("M1");
 
     expect(result.insightSummary).toContain("Este Mês vs Mês Passado: +1 (50%)"); // 3 vs 2
     expect(result.insightSummary).toContain("Mês Passado vs Retrasado: +1 (100%)"); // 2 vs 1
@@ -128,10 +128,10 @@ describe('getMonthlyComparisonColumnChartData', () => {
     expect(result.chartData.length).toBe(4);
     expect(result.metricCompared).toBe(metricField);
 
-    expect(result.chartData[0].value).toBe(20); // M-1
-    expect(result.chartData[1].value).toBe(70); // M0
-    expect(result.chartData[2].value).toBe(70); // M0
-    expect(result.chartData[3].value).toBe(110); // M1
+    expect(result.chartData[0]!.value).toBe(20); // M-1
+    expect(result.chartData[1]!.value).toBe(70); // M0
+    expect(result.chartData[2]!.value).toBe(70); // M0
+    expect(result.chartData[3]!.value).toBe(110); // M1
 
     // 110 vs 70: +40. (40/70)*100 = 57.14%
     expect(result.insightSummary).toContain("Este Mês vs Mês Passado: +40 (57%)");
@@ -151,10 +151,10 @@ describe('getMonthlyComparisonColumnChartData', () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
 
     const result = await getMonthlyComparisonColumnChartData(userId, "totalPosts", baseTestDate);
-    expect(result.chartData[0].value).toBe(1); // M-1
-    expect(result.chartData[1].value).toBe(0); // M0
-    expect(result.chartData[2].value).toBe(0); // M0
-    expect(result.chartData[3].value).toBe(1); // M1
+    expect(result.chartData[0]!.value).toBe(1); // M-1
+    expect(result.chartData[1]!.value).toBe(0); // M0
+    expect(result.chartData[2]!.value).toBe(0); // M0
+    expect(result.chartData[3]!.value).toBe(1); // M1
 
     // 1 vs 0: +1. (1/0)*100 -> 100% (conforme lógica de insight)
     expect(result.insightSummary).toContain("Este Mês vs Mês Passado: +1 (100%)");
@@ -169,10 +169,10 @@ describe('getMonthlyComparisonColumnChartData', () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
 
     const result = await getMonthlyComparisonColumnChartData(userId, "totalPosts", baseTestDate);
-    expect(result.chartData[0].value).toBe(0); // M-1
-    expect(result.chartData[1].value).toBe(0); // M0
-    expect(result.chartData[2].value).toBe(0); // M0
-    expect(result.chartData[3].value).toBe(1); // M1
+    expect(result.chartData[0]!.value).toBe(0); // M-1
+    expect(result.chartData[1]!.value).toBe(0); // M0
+    expect(result.chartData[2]!.value).toBe(0); // M0
+    expect(result.chartData[3]!.value).toBe(1); // M1
 
     expect(result.insightSummary).toContain("Este Mês vs Mês Passado: +1 (100%)"); // 1 vs 0
     expect(result.insightSummary).toContain("Mês Passado vs Retrasado: +0 (0%)");   // 0 vs 0

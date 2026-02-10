@@ -19,7 +19,7 @@ describe('DeleteAccountSection', () => {
   it('shows blocked modal when plan active', async () => {
     mockUseSession.mockReturnValue({ data: { user: { planStatus: 'active', affiliateBalances: {} } } });
     render(<DeleteAccountSection />);
-    fireEvent.click(screen.getAllByText('Excluir conta')[1]);
+    fireEvent.click(screen.getAllByText('Excluir conta')[1]!);
     expect(await screen.findByText('Você precisa cancelar sua assinatura primeiro')).toBeInTheDocument();
   });
 
@@ -27,7 +27,7 @@ describe('DeleteAccountSection', () => {
     mockUseSession.mockReturnValue({ data: { user: { planStatus: 'inactive', affiliateBalances: {} } } });
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }) as any;
     render(<DeleteAccountSection />);
-    fireEvent.click(screen.getAllByText('Excluir conta')[1]);
+    fireEvent.click(screen.getAllByText('Excluir conta')[1]!);
     expect(await screen.findByText('Excluir conta — ação permanente')).toBeInTheDocument();
     const input = screen.getByPlaceholderText('Digite EXCLUIR');
     const button = screen.getByText('Excluir definitivamente') as HTMLButtonElement;

@@ -138,6 +138,7 @@ export interface IGlobalPostResult {
     views?: number;
     impressions?: number;
     video_duration_seconds?: number;
+    engagement_rate_on_reach?: number;
   };
 }
 
@@ -169,12 +170,14 @@ export interface IFetchDashboardCreatorsListParams {
 export interface IDashboardCreator {
   _id: Types.ObjectId;
   name: string;
+  status?: 'pending' | 'approved' | 'active';
   planStatus?: string;
   inferredExpertiseLevel?: string;
   totalPosts: number;
   lastActivityDate?: Date;
   avgEngagementRate: number;
   profilePictureUrl?: string;
+  followers_count?: number;
   recentAlertsSummary?: {
     count: number;
     alerts: Array<{ type: string; date: Date; message?: string }>;

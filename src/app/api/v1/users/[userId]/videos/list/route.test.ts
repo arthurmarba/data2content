@@ -1,13 +1,14 @@
 import { GET } from './route';
 import { NextRequest } from 'next/server';
-import { findUserVideoPosts } from '@/app/lib/dataService/marketAnalysis/postsService';
+import { findUserPosts } from '@/app/lib/dataService/marketAnalysis/postsService';
 import { Types } from 'mongoose';
 
 jest.mock('@/app/lib/dataService/marketAnalysis/postsService', () => ({
-  findUserVideoPosts: jest.fn(),
+  findUserPosts: jest.fn(),
+  toProxyUrl: jest.fn((url) => url),
 }));
 
-const mockFindUserVideoPosts = findUserVideoPosts as jest.Mock;
+const mockFindUserPosts = findUserPosts as jest.Mock;
 
 const createRequest = (userId: string, search: string = ''): NextRequest => {
   const url = `http://localhost/api/v1/users/${userId}/videos/list${search}`;
@@ -22,9 +23,9 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
   const userId = new Types.ObjectId().toString();
 
   it('returns videos with pagination using defaults', async () => {
-    mockFindUserVideoPosts.mockResolvedValueOnce({
-      videos: [{ id: 1 }],
-      totalVideos: 3,
+    mockFindUserPosts.mockResolvedValueOnce({
+      posts: [{ id: 1 }],
+      totalPosts: 3,
       page: 1,
       limit: 10,
     });
@@ -34,9 +35,9 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.videos).toEqual([{ id: 1 }]);
-    expect(body.pagination.totalVideos).toBe(3);
-    expect(mockFindUserVideoPosts).toHaveBeenCalledWith({
+    expect(body.posts).toEqual([{ id: 1 }]);
+    expect(body.pagination.totalPosts).toBe(3);
+    expect(mockFindUserPosts).toHaveBeenCalledWith({
       userId,
       timePeriod: 'last_90_days',
       sortBy: 'postDate',
@@ -47,9 +48,9 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
   });
 
   it('maps sortBy params using helper', async () => {
-    mockFindUserVideoPosts.mockResolvedValueOnce({
-      videos: [],
-      totalVideos: 0,
+    mockFindUserPosts.mockResolvedValueOnce({
+      posts: [],
+      totalPosts: 0,
       page: 1,
       limit: 10,
     });
@@ -57,7 +58,7 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     const req = createRequest(userId, '?sortBy=views');
     await GET(req, { params: { userId } });
 
-    expect(mockFindUserVideoPosts).toHaveBeenCalledWith({
+    expect(mockFindUserPosts).toHaveBeenCalledWith({
       userId,
       timePeriod: 'last_90_days',
       sortBy: 'stats.views',
@@ -74,11 +75,11 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
 
     expect(res.status).toBe(400);
     expect(body.error).toContain('timePeriod inválido');
-    expect(mockFindUserVideoPosts).not.toHaveBeenCalled();
+    expect(mockFindUserPosts).not.toHaveBeenCalled();
   });
 
   it('handles db errors', async () => {
-    mockFindUserVideoPosts.mockRejectedValueOnce(new Error('db error'));
+    mockFindUserPosts.mockRejectedValueOnce(new Error('db error'));
     const req = createRequest(userId);
     const res = await GET(req, { params: { userId } });
     const body = await res.json();

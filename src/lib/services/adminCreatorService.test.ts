@@ -62,66 +62,66 @@ describe('AdminCreatorService', () => {
 
   describe('fetchCreators', () => {
     it('should call UserModel.find with correct query for default params', async () => {
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce([]); // Para o find().exec()
-      (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce([]); // Para o find().exec()
+      ((UserModel as any).countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
       const params: AdminCreatorListParams = {};
       await fetchCreators(params);
 
       expect(mockConnectToDatabase).toHaveBeenCalled();
       expect(UserModel.find).toHaveBeenCalledWith({});
-      expect(UserModel.sort).toHaveBeenCalledWith({ registrationDate: -1 }); // Default sort
-      expect(UserModel.skip).toHaveBeenCalledWith(0); // Default page 1
-      expect(UserModel.limit).toHaveBeenCalledWith(10); // Default limit 10
-      expect(UserModel.countDocuments).toHaveBeenCalledWith({});
+      expect((UserModel as any).sort).toHaveBeenCalledWith({ registrationDate: -1 }); // Default sort
+      expect((UserModel as any).skip).toHaveBeenCalledWith(0); // Default page 1
+      expect((UserModel as any).limit).toHaveBeenCalledWith(10); // Default limit 10
+      expect((UserModel as any).countDocuments).toHaveBeenCalledWith({});
     });
 
     it('should build query with search term', async () => {
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
-      (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce([]);
+      ((UserModel as any).countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
       const params: AdminCreatorListParams = { search: 'testuser' };
       await fetchCreators(params);
 
       const expectedQuery = { $text: { $search: 'testuser' } };
       expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
-      expect(UserModel.countDocuments).toHaveBeenCalledWith(expectedQuery);
+      expect((UserModel as any).countDocuments).toHaveBeenCalledWith(expectedQuery);
     });
 
     it('should build query with status filter', async () => {
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
-      (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce([]);
+      ((UserModel as any).countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
       const params: AdminCreatorListParams = { status: 'approved' };
       await fetchCreators(params);
 
       const expectedQuery = { adminStatus: 'approved' };
       expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
-      expect(UserModel.countDocuments).toHaveBeenCalledWith(expectedQuery);
+      expect((UserModel as any).countDocuments).toHaveBeenCalledWith(expectedQuery);
     });
 
     it('should build query with planStatus filter as string', async () => {
-        (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
-        (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce([]);
+      ((UserModel as any).countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
-        const params: AdminCreatorListParams = { planStatus: 'active' };
-        await fetchCreators(params);
+      const params: AdminCreatorListParams = { planStatus: 'active' };
+      await fetchCreators(params);
 
-        const expectedQuery = { planStatus: 'active' };
-        expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
-        expect(UserModel.countDocuments).toHaveBeenCalledWith(expectedQuery);
-      });
+      const expectedQuery = { planStatus: 'active' };
+      expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
+      expect((UserModel as any).countDocuments).toHaveBeenCalledWith(expectedQuery);
+    });
 
     it('should build query with planStatus filter as array', async () => {
-        (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
-        (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce([]);
+      ((UserModel as any).countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
-        const params: AdminCreatorListParams = { planStatus: ['active', 'trialing'] };
-        await fetchCreators(params);
+      const params: AdminCreatorListParams = { planStatus: ['active', 'trialing'] };
+      await fetchCreators(params);
 
-        const expectedQuery = { planStatus: { $in: ['active', 'trialing'] } };
-        expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
-        expect(UserModel.countDocuments).toHaveBeenCalledWith(expectedQuery);
+      const expectedQuery = { planStatus: { $in: ['active', 'trialing'] } };
+      expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
+      expect((UserModel as any).countDocuments).toHaveBeenCalledWith(expectedQuery);
     });
 
 
@@ -149,14 +149,14 @@ describe('AdminCreatorService', () => {
           mediaKitSlug: undefined,
         },
       ];
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUserData); // manter ObjectId para usar getTimestamp
-      (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(mockUserData.length);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce(mockUserData); // manter ObjectId para usar getTimestamp
+      ((UserModel as any).countDocuments as jest.Mock).mockResolvedValueOnce(mockUserData.length);
 
       const { creators } = await fetchCreators({});
 
       expect(creators.length).toBe(2);
-      expect(creators[0]).toEqual(expect.objectContaining({
-        _id: mockUserData[0]._id.toString(),
+      expect(creators[0]!).toEqual(expect.objectContaining({
+        _id: mockUserData[0]!._id.toString(),
         name: 'User One',
         email: 'one@example.com',
         planStatus: 'active',
@@ -165,8 +165,8 @@ describe('AdminCreatorService', () => {
         mediaKitSlug: 'token1',
         registrationDate: date1, // from _id.getTimestamp()
       }));
-       expect(creators[1]).toEqual(expect.objectContaining({
-        _id: mockUserData[1]._id.toString(),
+      expect(creators[1]!).toEqual(expect.objectContaining({
+        _id: mockUserData[1]!._id.toString(),
         name: 'User Two',
         email: 'two@example.com',
         adminStatus: 'pending',
@@ -181,7 +181,7 @@ describe('AdminCreatorService', () => {
     it('should call findByIdAndUpdate with correct parameters', async () => {
       const creatorId = new Types.ObjectId().toString();
       const mockUpdatedUser = { _id: creatorId, adminStatus: 'approved' };
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
 
       const payload = { status: 'approved' as const };
       const result = await updateCreatorStatus(creatorId, payload);
@@ -195,21 +195,21 @@ describe('AdminCreatorService', () => {
     });
 
     it('should throw error if creator not found', async () => {
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce(null);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce(null);
 
       await expect(updateCreatorStatus(new Types.ObjectId().toString(), { status: 'approved' })).rejects.toThrow('Creator not found.');
     });
 
     it('should throw error for invalid creatorId format', async () => {
-        await expect(updateCreatorStatus('invalidId', { status: 'approved' })).rejects.toThrow('Invalid creatorId format.');
+      await expect(updateCreatorStatus('invalidId', { status: 'approved' })).rejects.toThrow('Invalid creatorId format.');
     });
   });
 
   describe('fetchAffiliates', () => {
     it('should call UserModel.find with correct query for default affiliate params (placeholder)', async () => {
       // Mockear UserModel.exec e UserModel.countDocuments
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
-      (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce([]);
+      ((UserModel as any).countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
       const params: AdminAffiliateListParams = {}; // Usar AdminAffiliateListParams importado
       await fetchAffiliates(params); // Usar fetchAffiliates importado
@@ -221,7 +221,7 @@ describe('AdminCreatorService', () => {
       expect(UserModel.find).toHaveBeenCalledWith(expect.objectContaining({
         affiliateStatus: { $exists: true }
       }));
-      expect(UserModel.sort).toHaveBeenCalledWith({ registrationDate: -1 }); // Ou 'affiliateSince'
+      expect((UserModel as any).sort).toHaveBeenCalledWith({ registrationDate: -1 }); // Ou 'affiliateSince'
       // ... mais asserções
     });
     // Adicionar mais testes para filtros, busca, paginação, ordenação e mapeamento de dados
@@ -231,7 +231,7 @@ describe('AdminCreatorService', () => {
     it('should call findByIdAndUpdate for affiliate status (placeholder)', async () => {
       const userId = new Types.ObjectId().toString();
       const mockUpdatedUser = { _id: userId, affiliateStatus: 'active' };
-      (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
+      ((UserModel as any).exec as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
 
 
       const payload: AdminAffiliateUpdateStatusPayload = { status: 'active' as const };

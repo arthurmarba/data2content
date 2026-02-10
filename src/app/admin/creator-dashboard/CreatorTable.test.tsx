@@ -23,27 +23,27 @@ jest.mock('next/navigation', () => ({
 
 // Mock CreatorDetailModal
 jest.mock('./CreatorDetailModal', () => {
-    const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creator }) => { // Changed props to 'creator'
-        if (!isOpen || !creator) return null;
-        return React.createElement('div', { 'data-testid': 'mock-creator-detail-modal' },
-            React.createElement('h2', null, `Modal for ${creator.name} (ID: ${creator._id.toString()})`),
-            React.createElement('p', null, `Seguidores Atuais: ${creator.followers_count?.toLocaleString('pt-BR') || 'N/A'}`),
-            React.createElement('p', null, '[Engagement Rate Chart Placeholder]'), // Keep this as per previous tests
-            React.createElement('button', { onClick: onClose }, 'Close Modal')
-        );
-    });
-    return { __esModule: true, default: MockCreatorDetailModal };
+  const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creator }: { isOpen: boolean; onClose: () => void; creator: IDashboardCreator | null }) => { // Changed props to 'creator'
+    if (!isOpen || !creator) return null;
+    return React.createElement('div', { 'data-testid': 'mock-creator-detail-modal' },
+      React.createElement('h2', null, `Modal for ${creator.name} (ID: ${creator._id.toString()})`),
+      React.createElement('p', null, `Seguidores Atuais: ${creator.followers_count?.toLocaleString('pt-BR') || 'N/A'}`),
+      React.createElement('p', null, '[Engagement Rate Chart Placeholder]'), // Keep this as per previous tests
+      React.createElement('button', { onClick: onClose }, 'Close Modal')
+    );
+  });
+  return { __esModule: true, default: MockCreatorDetailModal };
 });
 
 // Mock CreatorComparisonModal
 jest.mock('./CreatorComparisonModal', () => {
-    const MockCreatorComparisonModal = jest.fn(({ isOpen, onClose, creatorIdsToCompare }) =>
-        isOpen ? React.createElement('div', { 'data-testid': 'mock-creator-comparison-modal' },
-            React.createElement('h3', null, `Comparing: ${creatorIdsToCompare.join(', ')}`),
-            React.createElement('button', { onClick: onClose }, 'Close Comparison')
-        ) : null
-    );
-    return { __esModule: true, default: MockCreatorComparisonModal };
+  const MockCreatorComparisonModal = jest.fn(({ isOpen, onClose, creatorIdsToCompare }: { isOpen: boolean; onClose: () => void; creatorIdsToCompare: string[] }) =>
+    isOpen ? React.createElement('div', { 'data-testid': 'mock-creator-comparison-modal' },
+      React.createElement('h3', null, `Comparing: ${creatorIdsToCompare.join(', ')}`),
+      React.createElement('button', { onClick: onClose }, 'Close Comparison')
+    ) : null
+  );
+  return { __esModule: true, default: MockCreatorComparisonModal };
 });
 
 // Updated Mock Data to include followers_count and use recentAlertsSummary
@@ -84,9 +84,9 @@ const mockCreatorsPage2: IDashboardCreator[] = [
 
 // Helper to get the mock creator by name, ensures _id is stringified for some comparisons if needed
 const getMockCreatorByName = (name: string) => {
-    const found = [...mockCreatorsPage1, ...mockCreatorsPage2].find(c => c.name === name);
-    if (found) return { ...found, _id: found._id.toString() }; // Ensure _id is string for prop comparisons if modal stringifies it
-    return undefined;
+  const found = [...mockCreatorsPage1, ...mockCreatorsPage2].find(c => c.name === name);
+  if (found) return { ...found, _id: found._id.toString() }; // Ensure _id is string for prop comparisons if modal stringifies it
+  return undefined;
 }
 
 
@@ -109,7 +109,7 @@ describe('CreatorTable Component', () => {
 
   test('displays loading state initially', async () => {
     (fetch as jest.Mock).mockReset();
-    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {})); // Promise that never resolves to keep it in loading state
+    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => { })); // Promise that never resolves to keep it in loading state
     render(<CreatorTable />);
     expect(screen.getByTestId('skeleton-table')).toBeInTheDocument();
   });
@@ -154,12 +154,12 @@ describe('CreatorTable Component', () => {
 
     // Click again to sort descending
     (fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ creators: mockCreatorsPage1, totalCreators: 3 }),
+      ok: true,
+      json: async () => ({ creators: mockCreatorsPage1, totalCreators: 3 }),
     });
     fireEvent.click(screen.getByText('Criador'));
     await waitFor(() => {
-        expect(fetch).toHaveBeenNthCalledWith(3, expect.stringContaining('sortBy=name&sortOrder=desc'));
+      expect(fetch).toHaveBeenNthCalledWith(3, expect.stringContaining('sortBy=name&sortOrder=desc'));
     });
   });
 
@@ -213,7 +213,7 @@ describe('CreatorTable Component', () => {
 
     // Fast-forward timers
     act(() => {
-        jest.advanceTimersByTime(500); // DEBOUNCE_DELAY
+      jest.advanceTimersByTime(500); // DEBOUNCE_DELAY
     });
 
     await waitFor(() => {
@@ -228,17 +228,17 @@ describe('CreatorTable Component', () => {
   test('fetches with planStatusFilter and expertiseLevelFilter props', async () => {
     (fetch as jest.Mock).mockReset(); // Clear queued mocks
     (fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ creators: [], totalCreators: 0 }),
+      ok: true,
+      json: async () => ({ creators: [], totalCreators: 0 }),
     });
 
     render(<CreatorTable planStatusFilter="Pro" expertiseLevelFilter="Avançado" />);
 
     await waitFor(() => {
-        expect(fetch).toHaveBeenCalledTimes(1); // Ensure it's called once on initial render with these props
-        expect(fetch).toHaveBeenCalledWith(
-            expect.stringContaining('planStatus=Pro&expertiseLevel=Avan%C3%A7ado')
-        );
+      expect(fetch).toHaveBeenCalledTimes(1); // Ensure it's called once on initial render with these props
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('planStatus=Pro&expertiseLevel=Avan%C3%A7ado')
+      );
     });
     await screen.findByText('Nenhum Criador Encontrado');
   });
@@ -248,7 +248,7 @@ describe('CreatorTable Component', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ creators: [], totalCreators: 0 }) });
     render(<CreatorTable planStatusFilter="Pro,Premium" />);
     await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('planStatus=Pro%2CPremium')); // %2C is comma
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('planStatus=Pro%2CPremium')); // %2C is comma
     });
     await screen.findByText('Nenhum Criador Encontrado');
   });
@@ -258,9 +258,9 @@ describe('CreatorTable Component', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ creators: [], totalCreators: 0 }) });
     render(<CreatorTable planStatusFilter="" expertiseLevelFilter="Iniciante" />);
     await waitFor(() => {
-        // planStatus should not be in the URL if its filter string is empty
-        expect(fetch).toHaveBeenCalledWith(expect.not.stringContaining('planStatus='));
-        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('expertiseLevel=Iniciante'));
+      // planStatus should not be in the URL if its filter string is empty
+      expect(fetch).toHaveBeenCalledWith(expect.not.stringContaining('planStatus='));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('expertiseLevel=Iniciante'));
     });
     await screen.findByText('Nenhum Criador Encontrado');
   });
@@ -270,8 +270,8 @@ describe('CreatorTable Component', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ creators: [], totalCreators: 0 }) });
     render(<CreatorTable planStatusFilter={undefined} expertiseLevelFilter="Avançado" />);
     await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(expect.not.stringContaining('planStatus='));
-        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('expertiseLevel=Avan%C3%A7ado'));
+      expect(fetch).toHaveBeenCalledWith(expect.not.stringContaining('planStatus='));
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('expertiseLevel=Avan%C3%A7ado'));
     });
     await screen.findByText('Nenhum Criador Encontrado');
   });
@@ -281,7 +281,7 @@ describe('CreatorTable Component', () => {
     const dateRange = { startDate: '2023-01-01', endDate: '2023-01-31' };
     render(<CreatorTable dateRangeFilter={dateRange} />);
 
-    const creatorToClick = mockCreatorsPage1[0];
+    const creatorToClick = mockCreatorsPage1[0]!;
 
     const creatorNameElement = await screen.findByText(creatorToClick.name);
     fireEvent.click(creatorNameElement);
@@ -292,16 +292,16 @@ describe('CreatorTable Component', () => {
 
   test('modal closes when its onClose is triggered (simulated by clicking its close button)', async () => {
     render(<CreatorTable />);
-    await screen.findByText(mockCreatorsPage1[0].name);
+    await screen.findByText(mockCreatorsPage1[0]!.name);
 
-    fireEvent.click(screen.getByText(mockCreatorsPage1[0].name)); // Open the detail modal
-    await screen.findByText(`Detalhes de ${mockCreatorsPage1[0].name}`);
+    fireEvent.click(screen.getByText(mockCreatorsPage1[0]!.name)); // Open the detail modal
+    await screen.findByText(`Detalhes de ${mockCreatorsPage1[0]!.name}`);
 
     const closeModalButton = screen.getByLabelText('Fechar detalhes do criador');
     fireEvent.click(closeModalButton);
 
     await waitFor(() => {
-      expect(screen.queryByText(`Detalhes de ${mockCreatorsPage1[0].name}`)).not.toBeInTheDocument();
+      expect(screen.queryByText(`Detalhes de ${mockCreatorsPage1[0]!.name}`)).not.toBeInTheDocument();
     });
   });
 
@@ -314,19 +314,19 @@ describe('CreatorTable Component', () => {
       expect(checkboxes.length).toBe(mockCreatorsPage1.length); // One checkbox per creator
 
       // Select first creator
-      fireEvent.click(checkboxes[0]);
-      expect(checkboxes[0].checked).toBe(true);
+      fireEvent.click(checkboxes[0]!);
+      expect(checkboxes[0]!.checked).toBe(true);
       expect(screen.getByText('Comparar (1)')).toBeInTheDocument();
 
 
       // Select second creator
-      fireEvent.click(checkboxes[1]);
-      expect(checkboxes[1].checked).toBe(true);
+      fireEvent.click(checkboxes[1]!);
+      expect(checkboxes[1]!.checked).toBe(true);
       expect(screen.getByText('Comparar (2)')).toBeInTheDocument();
 
       // Unselect first creator
-      fireEvent.click(checkboxes[0]);
-      expect(checkboxes[0].checked).toBe(false);
+      fireEvent.click(checkboxes[0]!);
+      expect(checkboxes[0]!.checked).toBe(false);
       expect(screen.getByText('Comparar (1)')).toBeInTheDocument();
     });
 
@@ -338,11 +338,11 @@ describe('CreatorTable Component', () => {
       expect(compareButton).toBeDisabled(); // Initially disabled (0 selected)
 
       const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-      fireEvent.click(checkboxes[0]); // Select 1
+      fireEvent.click(checkboxes[0]!); // Select 1
       expect(compareButton).toBeDisabled(); // Still disabled (1 selected)
       expect(screen.getByText('Comparar (1)')).toBeInTheDocument();
 
-      fireEvent.click(checkboxes[1]); // Select 2
+      fireEvent.click(checkboxes[1]!); // Select 2
       expect(compareButton).not.toBeDisabled(); // Enabled (2 selected)
       expect(screen.getByText('Comparar (2)')).toBeInTheDocument();
     });
@@ -352,13 +352,13 @@ describe('CreatorTable Component', () => {
       await screen.findByText('Alice Wonderland');
 
       const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-      fireEvent.click(checkboxes[0]); // Select Alice
-      fireEvent.click(checkboxes[1]); // Select Bob
+      fireEvent.click(checkboxes[0]!); // Select Alice
+      fireEvent.click(checkboxes[1]!); // Select Bob
 
       const compareButton = screen.getByText('Comparar (2)');
       fireEvent.click(compareButton);
 
-      const expectedIds = [mockCreatorsPage1[0]._id.toString(), mockCreatorsPage1[1]._id.toString()];
+      const expectedIds = [mockCreatorsPage1[0]!._id.toString(), mockCreatorsPage1[1]!._id.toString()];
 
       // Check if comparison modal is rendered
       expect(await screen.findByText('Comparando Criadores')).toBeInTheDocument();

@@ -7,7 +7,10 @@ import type { AnswerEnginePolicy, CandidatePost, UserBaselines } from '../types'
 
 const baselines: UserBaselines = {
   totalInteractionsP50: 80,
+  totalInteractionsP75: 120,
+  totalInteractionsP90: 160,
   engagementRateP50: 0.04,
+  engagementRateP60: 0.05,
   perFormat: {},
   sampleSize: 8,
   computedAt: Date.now(),
@@ -52,8 +55,8 @@ describe('ranker', () => {
       now: new Date('2024-02-01'),
     });
 
-    expect(ranked[0].id).toBe('post-b');
-    expect(ranked[0].passesThreshold).toBe(true);
+    expect(ranked[0]!.id).toBe('post-b');
+    expect(ranked[0]!.passesThreshold).toBe(true);
     const stale = ranked.find((c) => c.id === 'post-c');
     expect(stale?.recencyBoost).toBeLessThan(1);
   });
@@ -87,7 +90,7 @@ describe('ranker', () => {
       now: new Date('2024-02-10'),
     });
 
-    expect(ranked[0].id).toBe('balanced');
+    expect(ranked[0]!.id).toBe('balanced');
     expect(ranked.every((c) => Number.isFinite(c.score))).toBe(true);
   });
 });

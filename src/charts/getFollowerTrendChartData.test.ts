@@ -24,17 +24,17 @@ jest.mock('@/app/models/AccountInsight', () => ({
 
 // Helper para formatar data como YYYY-MM-DD
 function formatDateYYYYMMDD(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0]!;
 }
 function formatDateYYYYMM(date: Date): string {
-  return date.toISOString().substring(0,7);
+  return date.toISOString().substring(0, 7);
 }
 
 // Helper para criar datas para mocks
 function createDate(daysAgo: number, baseDate?: Date): Date {
   const date = baseDate ? new Date(baseDate) : new Date();
   date.setDate(date.getDate() - daysAgo);
-  date.setHours(12,0,0,0); // Consistent time to avoid TZ issues across test runs
+  date.setHours(12, 0, 0, 0); // Consistent time to avoid TZ issues across test runs
   return date;
 }
 
@@ -55,10 +55,10 @@ describe('getFollowerTrendChartData', () => {
     (AccountInsightModel.findOne as jest.Mock).mockReset();
     // baseTestDate = new Date(2023, 10, 15, 12, 0, 0, 0); // 15 de Novembro de 2023, meio-dia
     baseTestDate = new Date(); // Use current date for more dynamic tests, or fixed for stability
-    baseTestDate.setHours(12,0,0,0);
+    baseTestDate.setHours(12, 0, 0, 0);
 
 
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => { });
   });
 
   afterEach(() => {
@@ -98,10 +98,10 @@ describe('getFollowerTrendChartData', () => {
       expect((AccountInsightModel.find as jest.Mock)).toHaveBeenCalledTimes(1);
 
       // Verificar carry-forward inicial
-      expect(result.chartData[0].value).toBe(100);
+      expect(result.chartData[0]!.value).toBe(100);
       // O primeiro dia do gráfico deve ser 30 dias antes de baseTestDate
       const expectedChartStartDate = createDate(numDays - 1, baseTestDate);
-      expect(result.chartData[0].date).toBe(formatDateYYYYMMDD(expectedChartStartDate));
+      expect(result.chartData[0]!.date).toBe(formatDateYYYYMMDD(expectedChartStartDate));
 
 
       // Verificar ponto com snapshot
@@ -112,20 +112,20 @@ describe('getFollowerTrendChartData', () => {
       // Verificar carry-forward entre snapshots
       const dateAfterSnapshot1 = createDate(numDays - 6, baseTestDate); // dia seguinte ao snapshot1 (mais antigo)
       const pointAfter1 = result.chartData.find(p => p.date === formatDateYYYYMMDD(dateAfterSnapshot1));
-       // Se snapshot1 foi em D-25, e o anterior em D-30 (inicial), D-26, D-27, D-28, D-29 devem ser 100.
-       // O ponto em D-25 é 105. O ponto em D-24 deve ser 105.
+      // Se snapshot1 foi em D-25, e o anterior em D-30 (inicial), D-26, D-27, D-28, D-29 devem ser 100.
+      // O ponto em D-25 é 105. O ponto em D-24 deve ser 105.
       const dayBeforeSnapshot1 = result.chartData.find(p => p.date === formatDateYYYYMMDD(addDays(dateOfSnapshot1, -1)));
-      if(dayBeforeSnapshot1) expect(dayBeforeSnapshot1.value).toBe(100); // Valor do carry-forward inicial
+      if (dayBeforeSnapshot1) expect(dayBeforeSnapshot1.value).toBe(100); // Valor do carry-forward inicial
 
       const dayAfterSnapshot1 = result.chartData.find(p => p.date === formatDateYYYYMMDD(addDays(dateOfSnapshot1, 1)));
-      if(dayAfterSnapshot1) expect(dayAfterSnapshot1.value).toBe(105); // Carry-forward do valor de snapshot1
+      if (dayAfterSnapshot1) expect(dayAfterSnapshot1.value).toBe(105); // Carry-forward do valor de snapshot1
 
 
       // Verificar que o último valor de um dia com múltiplos snapshots é usado (não testável diretamente com map)
       // A lógica de dailyDataMap.set já cuida disso.
 
       // Verificar último ponto
-      const lastChartPoint = result.chartData[result.chartData.length -1];
+      const lastChartPoint = result.chartData[result.chartData.length - 1]!;
       expect(lastChartPoint.date).toBe(formatDateYYYYMMDD(baseTestDate)); // "Hoje"
       expect(lastChartPoint.value).toBe(120); // Último valor conhecido
 
@@ -181,10 +181,10 @@ describe('getFollowerTrendChartData', () => {
       expect(result.chartData.length).toBe(13); // 12 meses + mês atual = 13 pontos
 
       // Verificar carry-forward inicial
-      const firstMonthData = result.chartData[0];
+      const firstMonthData = result.chartData[0]!;
       // O primeiro mês do gráfico deve ser 12 meses antes do baseTestDate
-      const expectedChartStartMonth = addMonths(createDate(0, baseTestDate),-12)
-      expectedChartStartMonth.setDate(1) // O loop mensal começa no dia 1
+      const expectedChartStartMonth = addMonths(createDate(0, baseTestDate), -12);
+      expectedChartStartMonth.setDate(1); // O loop mensal começa no dia 1
 
       // A data retornada é YYYY-MM
       expect(firstMonthData.date).toBe(formatDateYYYYMM(expectedChartStartMonth));
@@ -203,7 +203,7 @@ describe('getFollowerTrendChartData', () => {
       expect(monthMinus9Data?.value).toBe(1150); // Último valor do mês
 
       // Último ponto do gráfico (mês atual)
-      const lastChartPoint = result.chartData[result.chartData.length - 1];
+      const lastChartPoint = result.chartData[result.chartData.length - 1]!;
       expect(lastChartPoint.date).toBe(formatDateYYYYMM(baseTestDate));
       expect(lastChartPoint.value).toBe(1200); // Último valor conhecido (do Mês -5)
 
@@ -211,12 +211,12 @@ describe('getFollowerTrendChartData', () => {
     });
 
     test('Sem snapshots no período mensal, mas com anterior', async () => {
-        (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(mockInsight(500, addMonths(createDate(0,baseTestDate), -3))));
-        (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery([]));
-        const result = await getFollowerTrendChartData(userId, "last_3_months", "monthly");
-        expect(result.chartData.length).toBe(4); // 3 meses + atual
-        result.chartData.forEach(p => expect(p.value).toBe(500));
-        expect(result.insightSummary).toContain("Sem mudança");
+      (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(mockInsight(500, addMonths(createDate(0, baseTestDate), -3))));
+      (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery([]));
+      const result = await getFollowerTrendChartData(userId, "last_3_months", "monthly");
+      expect(result.chartData.length).toBe(4); // 3 meses + atual
+      result.chartData.forEach(p => expect(p.value).toBe(500));
+      expect(result.insightSummary).toContain("Sem mudança");
     });
   });
 
@@ -232,13 +232,13 @@ describe('getFollowerTrendChartData', () => {
     expect(logger.error).toHaveBeenCalled();
   });
 
-   test('Time period customizado "last_7_days"', async () => {
-      (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(mockInsight(100, createDate(7, baseTestDate))));
-      const snapshotsInPeriod = [mockInsight(105, createDate(3, baseTestDate))];
-      (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery(snapshotsInPeriod));
+  test('Time period customizado "last_7_days"', async () => {
+    (AccountInsightModel.findOne as jest.Mock).mockReturnValueOnce(mockQuery(mockInsight(100, createDate(7, baseTestDate))));
+    const snapshotsInPeriod = [mockInsight(105, createDate(3, baseTestDate))];
+    (AccountInsightModel.find as jest.Mock).mockReturnValue(mockQuery(snapshotsInPeriod));
 
-      const result = await getFollowerTrendChartData(userId, "last_7_days", "daily");
-      expect(result.chartData.length).toBe(7); // 7 dias incluindo hoje
-      expect(result.insightSummary).toContain("Ganho de 5 seguidores");
+    const result = await getFollowerTrendChartData(userId, "last_7_days", "daily");
+    expect(result.chartData.length).toBe(7); // 7 dias incluindo hoje
+    expect(result.insightSummary).toContain("Ganho de 5 seguidores");
   });
 });

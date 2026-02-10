@@ -36,22 +36,7 @@ interface ITimeSeriesDataPoint {
 }
 
 // --- Definições de Tipos e Mapeamentos ---
-interface IDashboardCreator {
-  _id: { toString: () => string };
-  name: string;
-  status?: 'pending' | 'approved' | 'active'; // Adicionando status para ações
-  planStatus?: 'Pro' | 'Free' | 'Trial';
-  inferredExpertiseLevel?: string;
-  totalPosts: number;
-  lastActivityDate?: Date;
-  avgEngagementRate: number;
-  profilePictureUrl?: string;
-  followers_count?: number;
-  recentAlertsSummary?: {
-    count: number;
-    alerts: Array<{ type: string; date: Date; message?: string }>;
-  };
-}
+import { IDashboardCreator } from '@/app/lib/dataService/marketAnalysis/types';
 
 const CREATOR_STATUS_MAPPINGS = {
   Pro: { label: 'Pro', bgColor: 'bg-green-100', textColor: 'text-green-800', borderColor: 'border-green-200' },

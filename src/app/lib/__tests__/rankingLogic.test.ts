@@ -7,7 +7,10 @@ describe('Strict Double-Gate Ranking Logic (Phase 3)', () => {
     // Mock Base Data
     const mockBaselines: UserBaselines = {
         totalInteractionsP50: 100,
-        engagementRateP50: 0.05, // 5%
+        totalInteractionsP75: 150,
+        totalInteractionsP90: 200,
+        engagementRateP50: 0.05,
+        engagementRateP60: 0.06,
         perFormat: {},
         sampleSize: 50,
         computedAt: Date.now(),
@@ -58,7 +61,7 @@ describe('Strict Double-Gate Ranking Logic (Phase 3)', () => {
             baselines: mockBaselines
         });
 
-        const result = ranked[0];
+        const result = ranked[0]!;
         expect(result.passesThreshold).toBe(false);
         expect(result.score).toBe(0); // Boost shouldn't save it in strict mode
     });
@@ -71,7 +74,7 @@ describe('Strict Double-Gate Ranking Logic (Phase 3)', () => {
             baselines: mockBaselines
         });
 
-        const result = ranked[0];
+        const result = ranked[0]!;
         expect(result.passesThreshold).toBe(false);
         expect(result.score).toBe(0);
     });
@@ -84,7 +87,7 @@ describe('Strict Double-Gate Ranking Logic (Phase 3)', () => {
             baselines: mockBaselines
         });
 
-        const result = ranked[0];
+        const result = ranked[0]!;
         expect(result.passesThreshold).toBe(true);
         expect(result.score).toBeGreaterThan(0);
     });
@@ -97,7 +100,7 @@ describe('Strict Double-Gate Ranking Logic (Phase 3)', () => {
             baselines: mockBaselines
         });
 
-        const result = ranked[0];
+        const result = ranked[0]!;
         expect(result.passesThreshold).toBe(true);
     });
 });

@@ -1,9 +1,17 @@
 import { Types } from 'mongoose';
 import getAverageEngagementByGrouping, { GroupingType } from './getAverageEngagementByGrouping'; // Ajuste
-import MetricModel, { IMetric, FormatType, IMetricStats } from '@/app/models/Metric'; // Ajuste
+import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric'; // Ajuste
 import { getNestedValue } from "./dataAccessHelpers"; // Importar para mock ou referência
 import { getStartDateFromTimePeriod } from "./dateHelpers"; // Para referência de datas
 import { isValidCategoryId } from '@/app/lib/classification';
+
+enum FormatType {
+  REEL = 'reel',
+  PHOTO = 'photo',
+  IMAGE = 'photo',
+  VIDEO = 'video',
+  CAROUSEL_ALBUM = 'carousel'
+}
 
 jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
@@ -22,7 +30,7 @@ describe('getAverageEngagementByGrouping', () => {
   beforeEach(() => {
     (MetricModel.find as jest.Mock).mockReset();
     (getNestedValue as jest.Mock).mockReset();
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => { });
   });
   afterEach(() => {
     (console.error as jest.Mock).mockRestore();
@@ -44,9 +52,9 @@ describe('getAverageEngagementByGrouping', () => {
       _id: new Types.ObjectId(id),
       user: new Types.ObjectId(userId),
       postDate: postDate || new Date(),
-      format: format as FormatType, // Cast para o tipo esperado
-      context: context,
-      proposal: proposal ?? undefined,
+      format: [format as string], // Cast para array
+      context: context ? [context] : [],
+      proposal: proposal ? [proposal] : [],
       stats: Object.keys(stats).length > 0 ? stats : undefined,
     };
   };
@@ -69,31 +77,31 @@ describe('getAverageEngagementByGrouping', () => {
       const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
 
       expect(result.length).toBe(2); // REEL e IMAGE. VIDEO não tem interações válidas.
-      result.sort((a,b) => a.name.localeCompare(b.name)); // Ordenar para teste consistente
+      result.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar para teste consistente
 
-      expect(result[0].name).toBe("Image"); // DEFAULT_FORMAT_MAPPING não aplicado no mock, usa nome padrão
-      expect(result[0].value).toBe(150); // 300/2
-      expect(result[0].postsCount).toBe(2);
+      expect(result[0]!.name).toBe("Image"); // DEFAULT_FORMAT_MAPPING não aplicado no mock, usa nome padrão
+      expect(result[0]!.value).toBe(150); // 300/2
+      expect(result[0]!.postsCount).toBe(2);
 
-      expect(result[1].name).toBe("Reel");
-      expect(result[1].value).toBe(75); // 150/2
-      expect(result[1].postsCount).toBe(2);
+      expect(result[1]!.name).toBe("Reel");
+      expect(result[1]!.value).toBe(75); // 150/2
+      expect(result[1]!.postsCount).toBe(2);
     });
 
     test('Usa formatMapping e default formatting', async () => {
-        const posts = [
-            mockMetric('p1', FormatType.CAROUSEL_ALBUM, "c1", 100),
-            mockMetric('p2', "CUSTOM_FORMAT" as FormatType, "c1", 50),
-        ];
-        (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-        (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
+      const posts = [
+        mockMetric('p1', FormatType.CAROUSEL_ALBUM, "c1", 100),
+        mockMetric('p2', "CUSTOM_FORMAT" as FormatType, "c1", 50),
+      ];
+      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
 
-        const formatMapping = { [FormatType.CAROUSEL_ALBUM]: "My Carousel" };
-        const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy, formatMapping);
-        result.sort((a,b) => a.name.localeCompare(b.name));
+      const formatMapping = { [FormatType.CAROUSEL_ALBUM]: "My Carousel" };
+      const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy, formatMapping);
+      result.sort((a, b) => a.name.localeCompare(b.name));
 
-        expect(result.find(r => r.name === "Custom Format")?.value).toBe(50); // Default formatting
-        expect(result.find(r => r.name === "My Carousel")?.value).toBe(100); // Mapped
+      expect(result.find(r => r.name === "Custom Format")?.value).toBe(50); // Default formatting
+      expect(result.find(r => r.name === "My Carousel")?.value).toBe(100); // Mapped
     });
   });
 
@@ -111,15 +119,15 @@ describe('getAverageEngagementByGrouping', () => {
 
       const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
       expect(result.length).toBe(2); // Educational e Entertainment
-      result.sort((a,b) => a.name.localeCompare(b.name));
+      result.sort((a, b) => a.name.localeCompare(b.name));
 
-      expect(result[0].name).toBe("Educational");
-      expect(result[0].value).toBe(75);
-      expect(result[0].postsCount).toBe(2);
+      expect(result[0]!.name).toBe("Educational");
+      expect(result[0]!.value).toBe(75);
+      expect(result[0]!.postsCount).toBe(2);
 
-      expect(result[1].name).toBe("Entertainment");
-      expect(result[1].value).toBe(200);
-      expect(result[1].postsCount).toBe(1);
+      expect(result[1]!.name).toBe("Entertainment");
+      expect(result[1]!.value).toBe(200);
+      expect(result[1]!.postsCount).toBe(1);
     });
   });
 
@@ -137,8 +145,8 @@ describe('getAverageEngagementByGrouping', () => {
       const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
       expect(result.length).toBeGreaterThan(0);
       // Order for test determinism
-      result.sort((a,b) => a.name.localeCompare(b.name));
-      expect(result[0].postsCount).toBeGreaterThan(0);
+      result.sort((a, b) => a.name.localeCompare(b.name));
+      expect(result[0]!.postsCount).toBeGreaterThan(0);
     });
   });
 
@@ -157,7 +165,7 @@ describe('getAverageEngagementByGrouping', () => {
     expect(result).toEqual([]);
   });
 
-   test('Retorna array vazio se nenhum post tiver groupKey válido', async () => {
+  test('Retorna array vazio se nenhum post tiver groupKey válido', async () => {
     const posts = [mockMetric('p1', "" as FormatType, null, 100)]; // Formato vazio e contexto nulo
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
     (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
@@ -181,9 +189,9 @@ describe('getAverageEngagementByGrouping', () => {
 
     const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, "format");
     expect(result.length).toBe(3);
-    expect(result[0].value).toBe(200); // IMAGE
-    expect(result[1].value).toBe(100); // VIDEO
-    expect(result[2].value).toBe(50);  // REEL
+    expect(result[0]!.value).toBe(200); // IMAGE
+    expect(result[1]!.value).toBe(100); // VIDEO
+    expect(result[2]!.value).toBe(50);  // REEL
   });
 
   test('Erro no DB retorna array vazio', async () => {

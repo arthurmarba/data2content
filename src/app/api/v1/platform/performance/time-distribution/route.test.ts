@@ -1,5 +1,5 @@
 import { GET } from './route';
-import aggregatePlatformTimePerformance from '@/utils/aggregatePlatformTimePerformance';
+import { aggregatePlatformTimePerformance } from '@/utils/aggregatePlatformTimePerformance';
 import { NextRequest } from 'next/server';
 
 jest.mock('@/utils/aggregatePlatformTimePerformance');
@@ -14,9 +14,9 @@ describe('GET /api/v1/platform/performance/time-distribution', () => {
 
   it('returns aggregated data', async () => {
     mockAgg.mockResolvedValueOnce({
-      buckets: [{ dayOfWeek: 1, timeBlock: '6-12', average: 10, count: 2 }],
-      bestSlots: [{ dayOfWeek: 1, timeBlock: '6-12', average: 10, count: 2 }],
-      worstSlots: [{ dayOfWeek: 2, timeBlock: '0-6', average: 1, count: 1 }],
+      buckets: [{ dayOfWeek: 1, hour: 8, average: 10, count: 2 }],
+      bestSlots: [{ dayOfWeek: 1, hour: 8, average: 10, count: 2 }],
+      worstSlots: [{ dayOfWeek: 2, hour: 2, average: 1, count: 1 }],
     });
 
     const res = await GET(makeRequest('?timePeriod=last_30_days&format=reel&metric=stats.total_interactions'));

@@ -3,18 +3,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ContentPerformanceByTypeChart from './ContentPerformanceByTypeChart';
 
-// Mock Heroicons (similar to CreatorTable.test.tsx)
 jest.mock('@heroicons/react/24/outline', () => ({
-  ...jest.requireActual('@heroicons/react/24/outline'), // Keep other icons if any
-  ChartBarIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chart-bar-icon' }),
-  ExclamationCircleIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'exclamation-circle-icon' }),
+  ...jest.requireActual('@heroicons/react/24/outline'),
+  ChartBarIcon: (props: any) => React.createElement('div', { ...props, 'data-testid': 'chart-bar-icon' }),
+  ExclamationCircleIcon: (props: any) => React.createElement('div', { ...props, 'data-testid': 'exclamation-circle-icon' }),
 }));
 
 // Mock setTimeout to control async operations
 jest.useFakeTimers();
 
 describe('ContentPerformanceByTypeChart Component', () => {
-  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
   beforeEach(() => {
     consoleErrorSpy.mockClear();
@@ -60,7 +59,7 @@ describe('ContentPerformanceByTypeChart Component', () => {
     const originalMathRandom = Math.random;
     Math.random = () => { throw new Error("Simulated fetch error"); };
 
-    render(<ContentPerformanceByTypeChart dateRangeFilter={{ startDate: '2023-01-01', endDate: '2023-01-31'}} />); // Added a prop to trigger useEffect re-run if needed
+    render(<ContentPerformanceByTypeChart dateRangeFilter={{ startDate: '2023-01-01', endDate: '2023-01-31' }} />); // Added a prop to trigger useEffect re-run if needed
 
     jest.runAllTimers(); // Complete the simulated fetch
 
@@ -75,7 +74,6 @@ describe('ContentPerformanceByTypeChart Component', () => {
   test('renders "no data found" message when data is empty after loading (and no error)', async () => {
     // To test this, we need to ensure the simulated data generation results in an empty array.
     // We can temporarily override the CONTENT_TYPES used by the component for this test.
-    const originalContentTypes = require('./ContentPerformanceByTypeChart').CONTENT_TYPES; // Assuming it's exported or accessible
     // If not directly accessible, this test is harder. For now, assuming we can't easily force empty data.
     // This component always generates data for CONTENT_TYPES. So, an empty state is unlikely unless CONTENT_TYPES is empty.
     // Let's skip this specific test case if forcing empty data is too complex without refactoring the component.
@@ -94,7 +92,7 @@ describe('ContentPerformanceByTypeChart Component', () => {
     render(<ContentPerformanceByTypeChart />);
     jest.runAllTimers();
     await waitFor(() => {
-        expect(screen.getByText('Desempenho Médio por Tipo de Conteúdo')).toBeInTheDocument();
+      expect(screen.getByText('Desempenho Médio por Tipo de Conteúdo')).toBeInTheDocument();
     });
   });
 

@@ -37,7 +37,7 @@ describe('POST /api/webhooks/payment (Mercado Pago)', () => {
       body: { external_reference: 'agency1', status: 'authorized' },
     });
 
-    const agency = { _id: 'agency1', planStatus: 'inactive', save: jest.fn() };
+    const agency = { _id: 'agency1', planStatus: 'inactive', paymentGatewaySubscriptionId: '', save: jest.fn() };
     agencyModelMock.findById.mockResolvedValue(agency);
 
     const req = new NextRequest('http://localhost/api/webhooks/payment', {

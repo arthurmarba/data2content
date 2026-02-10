@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { Types } from 'mongoose';
 import CreatorRankingCard from './CreatorRankingCard';
 import { ICreatorMetricRankItem } from '@/app/lib/dataService/marketAnalysisService';
 // Assuming SkeletonBlock is a simple component that doesn't need complex mocking itself
@@ -8,9 +9,9 @@ import { ICreatorMetricRankItem } from '@/app/lib/dataService/marketAnalysisServ
 // For now, let's assume it renders something identifiable or just works.
 
 const mockRankingData: ICreatorMetricRankItem[] = [
-  { creatorId: '1', creatorName: 'Alice Wonderland', metricValue: 95.5, profilePictureUrl: 'https://example.com/alice.jpg' },
-  { creatorId: '2', creatorName: 'Bob The Builder', metricValue: 88, profilePictureUrl: 'https://example.com/bob.jpg' },
-  { creatorId: '3', creatorName: 'Charlie Brown', metricValue: 72.123, profilePictureUrl: null }, // Test null profile picture
+  { creatorId: new Types.ObjectId() as any, creatorName: 'Alice Wonderland', metricValue: 95.5, profilePictureUrl: 'https://example.com/alice.jpg' },
+  { creatorId: new Types.ObjectId() as any, creatorName: 'Bob The Builder', metricValue: 88, profilePictureUrl: 'https://example.com/bob.jpg' },
+  { creatorId: new Types.ObjectId() as any, creatorName: 'Charlie Brown', metricValue: 72.123, profilePictureUrl: undefined }, // Test null profile picture
 ];
 
 const mockEmptyData: ICreatorMetricRankItem[] = [];
@@ -26,7 +27,7 @@ describe('CreatorRankingCard', () => {
   });
 
   it('renders loading state initially', async () => {
-    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {})); // Simulate pending fetch
+    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => { })); // Simulate pending fetch
 
     render(
       <CreatorRankingCard
@@ -43,9 +44,9 @@ describe('CreatorRankingCard', () => {
     // A more robust test would check for specific skeleton item counts.
     // Using 'listitem' role implicitly added by <li> in renderSkeleton
     await waitFor(() => {
-        const listItems = screen.getAllByRole('listitem');
-        // Check if class 'animate-pulse' is present on any parent
-        expect(listItems[0].closest('ul')).toHaveClass('animate-pulse');
+      const listItems = screen.getAllByRole('listitem');
+      // Check if class 'animate-pulse' is present on any parent
+      expect(listItems[0]!.closest('ul')).toHaveClass('animate-pulse');
     });
   });
 
@@ -148,21 +149,21 @@ describe('CreatorRankingCard', () => {
     cleanup();
 
     render(
-        <CreatorRankingCard
-          title="No Date Range At All"
-          apiEndpoint="/api/nodate2"
-          // dateRangeFilter is undefined
-        />
-      );
-      expect(fetch).not.toHaveBeenCalled();
-      expect(
-        screen.getAllByText('Nenhum dado disponível para o período selecionado.')
-      ).toHaveLength(1);
+      <CreatorRankingCard
+        title="No Date Range At All"
+        apiEndpoint="/api/nodate2"
+      // dateRangeFilter is undefined
+      />
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(
+      screen.getAllByText('Nenhum dado disponível para o período selecionado.')
+    ).toHaveLength(1);
   });
 
-   it('displays correct metric formatting for very small numbers', async () => {
+  it('displays correct metric formatting for very small numbers', async () => {
     const smallValueData: ICreatorMetricRankItem[] = [
-      { creatorId: '1', creatorName: 'Tiny Tim', metricValue: 0.0075, profilePictureUrl: null },
+      { creatorId: new Types.ObjectId() as any, creatorName: 'Tiny Tim', metricValue: 0.0075, profilePictureUrl: undefined },
     ];
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,

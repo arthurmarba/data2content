@@ -1,0 +1,272 @@
+src/app/admin/creator-dashboard/components/__tests__/UserAverageEngagementChart.test.tsx(23,13): error TS2741: Property 'chartTitle' is missing in type '{ userId: string; }' but required in type 'UserAverageEngagementChartProps'.
+src/app/admin/creator-dashboard/ContentPerformanceByTypeChart.test.tsx(9,18): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentPerformanceByTypeChart.test.tsx(10,27): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(79,21): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(124,22): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(152,26): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(160,26): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(169,24): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(170,24): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(173,24): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(174,24): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentSegmentComparison.test.tsx(202,22): error TS2345: Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'Element | Node | Document | Window'.
+  Type 'undefined' is not assignable to type 'Element | Node | Document | Window'.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(14,27): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(15,16): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(16,16): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(17,11): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(18,11): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(19,13): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(20,13): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(21,15): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(22,14): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(23,21): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(24,12): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(32,55): error TS2353: Object literal may only specify known properties, and 'avgEngagement' does not exist in type '{ format: string; count: number; }'.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(33,62): error TS2353: Object literal may only specify known properties, and 'avgEngagement' does not exist in type '{ proposal: string; count: number; }'.
+src/app/admin/creator-dashboard/ContentStatsWidgets.test.tsx(34,56): error TS2353: Object literal may only specify known properties, and 'avgEngagement' does not exist in type '{ context: string; count: number; }'.
+src/app/admin/creator-dashboard/CreatorRankingCard.test.tsx(11,5): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/app/admin/creator-dashboard/CreatorRankingCard.test.tsx(12,5): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/app/admin/creator-dashboard/CreatorRankingCard.test.tsx(13,5): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/app/admin/creator-dashboard/CreatorRankingCard.test.tsx(13,72): error TS2322: Type 'null' is not assignable to type 'string | undefined'.
+src/app/admin/creator-dashboard/CreatorRankingCard.test.tsx(48,16): error TS2532: Object is possibly 'undefined'.
+src/app/admin/creator-dashboard/CreatorRankingCard.test.tsx(165,9): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/app/admin/creator-dashboard/CreatorRankingCard.test.tsx(165,71): error TS2322: Type 'null' is not assignable to type 'string | undefined'.
+src/app/lib/__tests__/rankingLogic.test.ts(65,16): error TS18048: 'result' is possibly 'undefined'.
+src/app/lib/__tests__/rankingLogic.test.ts(66,16): error TS18048: 'result' is possibly 'undefined'.
+src/app/lib/__tests__/rankingLogic.test.ts(78,16): error TS18048: 'result' is possibly 'undefined'.
+src/app/lib/__tests__/rankingLogic.test.ts(79,16): error TS18048: 'result' is possibly 'undefined'.
+src/app/lib/__tests__/rankingLogic.test.ts(91,16): error TS18048: 'result' is possibly 'undefined'.
+src/app/lib/__tests__/rankingLogic.test.ts(92,16): error TS18048: 'result' is possibly 'undefined'.
+src/app/lib/__tests__/rankingLogic.test.ts(104,16): error TS18048: 'result' is possibly 'undefined'.
+src/app/lib/adminAiFunctions.test.ts(65,32): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/adminAiFunctions.test.ts(81,32): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/adminAiFunctions.test.ts(100,34): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/adminAiFunctions.test.ts(112,34): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/adminAiFunctions.test.ts(126,34): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/adminAiFunctions.test.ts(150,34): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/ai/answerEngine/__tests__/ranker.test.ts(8,7): error TS2739: Type '{ totalInteractionsP50: number; engagementRateP50: number; perFormat: {}; sampleSize: number; computedAt: number; windowDays: number; }' is missing the following properties from type 'UserBaselines': totalInteractionsP75, totalInteractionsP90, engagementRateP60
+src/app/lib/ai/answerEngine/__tests__/ranker.test.ts(55,12): error TS2532: Object is possibly 'undefined'.
+src/app/lib/ai/answerEngine/__tests__/ranker.test.ts(56,12): error TS2532: Object is possibly 'undefined'.
+src/app/lib/ai/answerEngine/__tests__/ranker.test.ts(90,12): error TS2532: Object is possibly 'undefined'.
+src/app/lib/ai/answerEngine/__tests__/validator.test.ts(9,3): error TS2739: Type '{ totalInteractionsP50: number; engagementRateP50: number; perFormat: {}; sampleSize: number; computedAt: number; windowDays: number; }' is missing the following properties from type 'UserBaselines': totalInteractionsP75, totalInteractionsP90, engagementRateP60
+src/app/lib/ai/answerEngine/__tests__/validator.test.ts(20,5): error TS2739: Type '{ minAbsolute: number; minRelativeInteractions: number; minRelativeEr: number; effectiveInteractions: number; effectiveEr: number; baselineInteractionP50: number; baselineErP50: number; }' is missing the following properties from type 'Thresholds': baselineInteractionP75, baselineErP60
+src/app/lib/ai/answerEngine/__tests__/validator.test.ts(81,56): error TS2345: Argument of type '{ top_posts: never[]; intent: string; policy: { intent: string; requireHighEngagement: boolean; metricsRequired: undefined; thresholds: Thresholds; formatLocked?: string | null; }; ... 7 more ...; diagnostic?: { insufficient?: boolean; per_format: Array<{ format: string; sample_size: number; insufficient?: boolean; ...' is not assignable to parameter of type 'ContextPack'.
+  The types of 'policy.intent' are incompatible between these types.
+    Type 'string' is not assignable to type 'AnswerIntent'.
+src/app/lib/dataService/__tests__/communityService.findUserPostsEligibleForCommunity.test.ts(70,12): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/__tests__/userService.fetchUserAlerts.test.ts(89,12): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/__tests__/userService.fetchUserAlerts.test.ts(90,12): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(98,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(99,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(100,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(101,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(110,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(111,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(144,16): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(144,16): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(145,16): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysis/dashboardService.test.ts(146,16): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(243,30): error TS2304: Cannot find name 'IGlobalPostResult'.
+src/app/lib/dataService/marketAnalysisService.test.ts(296,25): error TS2554: Expected 1 arguments, but got 0.
+src/app/lib/dataService/marketAnalysisService.test.ts(301,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(304,25): error TS2554: Expected 1 arguments, but got 0.
+src/app/lib/dataService/marketAnalysisService.test.ts(347,27): error TS2554: Expected 1 arguments, but got 0.
+src/app/lib/dataService/marketAnalysisService.test.ts(351,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(398,5): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(423,28): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+src/app/lib/dataService/marketAnalysisService.test.ts(424,28): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+src/app/lib/dataService/marketAnalysisService.test.ts(425,28): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+src/app/lib/dataService/marketAnalysisService.test.ts(426,28): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+src/app/lib/dataService/marketAnalysisService.test.ts(433,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(434,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(435,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(436,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(437,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/dataService/marketAnalysisService.test.ts(438,14): error TS2532: Object is possibly 'undefined'.
+src/app/lib/getCategoryRanking.test.ts(28,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/getCategoryRanking.test.ts(38,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/lib/getConsultingKnowledge.test.ts(15,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/app/mediakit/[token]/page.test.ts(65,17): error TS2540: Cannot assign to 'NODE_ENV' because it is a read-only property.
+src/app/mediakit/[token]/page.test.ts(68,17): error TS2540: Cannot assign to 'NODE_ENV' because it is a read-only property.
+src/charts/getCreatorsScatterPlotData.test.ts(80,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(82,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(83,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(85,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(87,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(88,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(102,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(103,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(117,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getCreatorsScatterPlotData.test.ts(118,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getEngagementDistributionByFormatChartData.test.ts(65,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getEngagementDistributionByFormatChartData.test.ts(66,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getEngagementDistributionByFormatChartData.test.ts(67,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getEngagementDistributionByFormatChartData.test.ts(80,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getFollowerDailyChangeData.test.ts(11,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/charts/getFollowerDailyChangeData.test.ts(78,12): error TS18048: 'lastPoint' is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(27,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/charts/getFollowerTrendChartData.test.ts(101,14): error TS2532: Object is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(104,14): error TS2532: Object is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(129,14): error TS18048: 'lastChartPoint' is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(130,14): error TS18048: 'lastChartPoint' is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(190,14): error TS18048: 'firstMonthData' is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(191,14): error TS18048: 'firstMonthData' is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(207,14): error TS18048: 'lastChartPoint' is possibly 'undefined'.
+src/charts/getFollowerTrendChartData.test.ts(208,14): error TS18048: 'lastChartPoint' is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(89,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(90,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(91,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(92,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(95,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(96,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(97,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(98,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(131,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(132,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(133,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(134,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(154,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(155,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(156,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(157,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(172,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(173,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(174,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getMonthlyComparisonColumnChartData.test.ts(175,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(128,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(129,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(132,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(132,80): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(132,119): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(133,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(133,77): error TS18048: 'mockPlatformMinMax.followerGrowthRatePercent30d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(133,130): error TS18048: 'mockPlatformMinMax.followerGrowthRatePercent30d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(134,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(134,77): error TS18048: 'mockPlatformMinMax.avgEngagementPerPost30d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(134,125): error TS18048: 'mockPlatformMinMax.avgEngagementPerPost30d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(135,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(135,75): error TS18048: 'mockPlatformMinMax.avgWeeklyPostingFrequency30d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(135,128): error TS18048: 'mockPlatformMinMax.avgWeeklyPostingFrequency30d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(136,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(136,80): error TS18048: 'mockPlatformMinMax.avgVideoRetentionRate90d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(136,129): error TS18048: 'mockPlatformMinMax.avgVideoRetentionRate90d' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(138,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(138,80): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(138,119): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(171,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(173,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(174,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(176,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(176,73): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(176,112): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(177,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(177,81): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(177,120): error TS18048: 'mockPlatformMinMax.totalFollowers' is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(188,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(189,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(212,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(214,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getRadarChartData.test.ts(216,12): error TS2532: Object is possibly 'undefined'.
+src/charts/getReachEngagementTrendChartData.test.ts(3,72): error TS2614: Module '"@/app/models/AccountInsight"' has no exported member 'PeriodEnum'. Did you mean to use 'import PeriodEnum from "@/app/models/AccountInsight"' instead?
+src/charts/getReachEngagementTrendChartData.test.ts(12,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/charts/getReachEngagementTrendChartData.test.ts(108,16): error TS2532: Object is possibly 'undefined'.
+src/charts/getReachEngagementTrendChartData.test.ts(109,16): error TS2532: Object is possibly 'undefined'.
+src/hooks/useAffiliateSummary.test.ts(24,44): error TS2322: Type '{ debtCents: number; availableCents?: number | undefined; pendingCents?: number | undefined; nextMatureAt?: string | null | undefined; minRedeemCents?: number | undefined; }' is not assignable to type 'CurrencySummary'.
+  Types of property 'availableCents' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/hooks/useAffiliateSummary.test.ts(31,44): error TS2322: Type '{ availableCents: number; pendingCents?: number | undefined; debtCents?: number | undefined; nextMatureAt?: string | null | undefined; minRedeemCents?: number | undefined; }' is not assignable to type 'CurrencySummary'.
+  Types of property 'pendingCents' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/lib/services/adminCreatorService.test.ts(65,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(73,24): error TS2339: Property 'sort' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(74,24): error TS2339: Property 'skip' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(75,24): error TS2339: Property 'limit' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(80,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(92,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(104,20): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(116,20): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(152,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(159,14): error TS2532: Object is possibly 'undefined'.
+src/lib/services/adminCreatorService.test.ts(169,14): error TS2532: Object is possibly 'undefined'.
+src/lib/services/adminCreatorService.test.ts(184,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(198,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(211,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(224,24): error TS2339: Property 'sort' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/adminCreatorService.test.ts(234,18): error TS2339: Property 'exec' does not exist on type 'Model<IUser, {}, {}, {}, Document<unknown, {}, IUser> & IUser & Required<{ _id: ObjectId; }>, any>'.
+src/lib/services/userAlertsService.test.ts(48,12): error TS2532: Object is possibly 'undefined'.
+src/lib/services/userAlertsService.test.ts(50,12): error TS2532: Object is possibly 'undefined'.
+src/lib/services/userAlertsService.test.ts(50,47): error TS2532: Object is possibly 'undefined'.
+src/utils/__tests__/aggregateCreatorsByRegion.test.ts(36,12): error TS2532: Object is possibly 'undefined'.
+src/utils/__tests__/aggregatePlatformDayPerformance.test.ts(33,12): error TS2532: Object is possibly 'undefined'.
+src/utils/__tests__/aggregatePlatformDayPerformance.test.ts(34,12): error TS2532: Object is possibly 'undefined'.
+src/utils/__tests__/aggregatePlatformTimePerformance.test.ts(1,8): error TS2613: Module '"/Users/arthurmarba/d2c-frontend/src/utils/aggregatePlatformTimePerformance"' has no default export. Did you mean to use 'import { aggregatePlatformTimePerformance } from "/Users/arthurmarba/d2c-frontend/src/utils/aggregatePlatformTimePerformance"' instead?
+src/utils/calculateAccountFollowerConversionRate.test.ts(2,50): error TS2614: Module '"./calculateAccountFollowerConversionRate"' has no exported member 'AccountFollowerConversionRateData'. Did you mean to use 'import AccountFollowerConversionRateData from "./calculateAccountFollowerConversionRate"' instead?
+src/utils/calculateAverageEngagementPerPost.test.ts(2,45): error TS2614: Module '"./calculateAverageEngagementPerPost"' has no exported member 'AverageEngagementData'. Did you mean to use 'import AverageEngagementData from "./calculateAverageEngagementPerPost"' instead?
+src/utils/calculateFollowerGrowthRate.test.ts(2,39): error TS2614: Module '"./calculateFollowerGrowthRate"' has no exported member 'FollowerGrowthData'. Did you mean to use 'import FollowerGrowthData from "./calculateFollowerGrowthRate"' instead?
+src/utils/calculateMovingAverageEngagement.test.ts(2,44): error TS2614: Module '"./calculateMovingAverageEngagement"' has no exported member 'MovingAverageDataPoint'. Did you mean to use 'import MovingAverageDataPoint from "./calculateMovingAverageEngagement"' instead?
+src/utils/calculateMovingAverageEngagement.test.ts(24,3): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/utils/calculateMovingAverageEngagement.test.ts(53,5): error TS2353: Object literal may only specify known properties, and 'user' does not exist in type 'Partial<IDailyMetricSnapshot>'.
+src/utils/calculateMovingAverageEngagement.test.ts(91,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(92,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(95,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(96,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(99,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(100,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(142,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(143,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(146,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(147,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(150,16): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(173,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(174,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(176,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(177,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(179,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(180,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(188,70): error TS2345: Argument of type '() => void' is not assignable to parameter of type '(infoObject: object) => Logger'.
+  Type 'void' is not assignable to type 'Logger'.
+src/utils/calculateMovingAverageEngagement.test.ts(220,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(221,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(223,12): error TS2532: Object is possibly 'undefined'.
+src/utils/calculateMovingAverageEngagement.test.ts(224,12): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(3,32): error TS2614: Module '"@/app/models/Metric"' has no exported member 'FormatType'. Did you mean to use 'import FormatType from "@/app/models/Metric"' instead?
+src/utils/getAverageEngagementByGrouping.test.ts(48,7): error TS2322: Type 'string | null' is not assignable to type 'string[] | undefined'.
+  Type 'null' is not assignable to type 'string[] | undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(49,7): error TS2322: Type 'string | undefined' is not assignable to type 'string[] | undefined'.
+  Type 'string' is not assignable to type 'string[]'.
+src/utils/getAverageEngagementByGrouping.test.ts(74,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(75,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(76,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(78,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(79,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(80,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(116,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(117,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(118,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(120,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(121,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(122,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(141,14): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(184,12): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(185,12): error TS2532: Object is possibly 'undefined'.
+src/utils/getAverageEngagementByGrouping.test.ts(186,12): error TS2532: Object is possibly 'undefined'.
+src/utils/getContextPerformance.test.ts(54,7): error TS2322: Type 'string[] | null | undefined' is not assignable to type 'string[] | undefined'.
+  Type 'null' is not assignable to type 'string[] | undefined'.
+src/utils/getFormatPerformance.test.ts(4,32): error TS2614: Module '"@/app/models/Metric"' has no exported member 'FormatType'. Did you mean to use 'import FormatType from "@/app/models/Metric"' instead?
+src/utils/platformMetricsHelpers.test.ts(64,12): error TS18048: 'res.totalFollowers' is possibly 'undefined'.
+src/utils/platformMetricsHelpers.test.ts(65,12): error TS18048: 'res.totalFollowers' is possibly 'undefined'.

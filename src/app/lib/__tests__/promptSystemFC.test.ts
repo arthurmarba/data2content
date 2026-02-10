@@ -88,13 +88,13 @@ describe('populateSystemPrompt user preference placeholders', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    execs.getAggregatedReport.mockResolvedValue({ reportData: {}, adDealInsights: {} });
-    execs.getUserTrend.mockResolvedValue({});
-    execs.getFpcTrendHistory.mockResolvedValue({});
-    execs.getDayPCOStats.mockResolvedValue({});
-    execs.getCategoryRanking.mockResolvedValue({});
-    execs.getLatestAudienceDemographics.mockResolvedValue({});
-    execs.getMetricsHistory.mockResolvedValue({ history: {} });
+    execs.getAggregatedReport!.mockResolvedValue({ reportData: {}, adDealInsights: {} });
+    execs.getUserTrend!.mockResolvedValue({});
+    execs.getFpcTrendHistory!.mockResolvedValue({});
+    execs.getDayPCOStats!.mockResolvedValue({});
+    execs.getCategoryRanking!.mockResolvedValue({});
+    execs.getLatestAudienceDemographics!.mockResolvedValue({});
+    execs.getMetricsHistory!.mockResolvedValue({ history: {} });
     mockPerf.mockResolvedValue({});
     mockDayPerf.mockResolvedValue({});
     mockTimePerf.mockResolvedValue({});

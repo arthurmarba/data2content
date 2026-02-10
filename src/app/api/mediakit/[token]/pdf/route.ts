@@ -27,6 +27,15 @@ const limiter = rateLimit({
 
 const resolveAppOrigin = (req: NextRequest) => {
   const envOrigin = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '').trim();
+  const host = req.headers.get('host') || '';
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+
+  // No ambiente local, priorizamos a URL do request para garantir que o Playwright
+  // acesse a instância correta (ex: localhost:3000 em vez de produção).
+  if (isLocal) {
+    return req.nextUrl.origin.replace(/\/$/, '');
+  }
+
   if (envOrigin) return envOrigin.replace(/\/$/, '');
   return req.nextUrl.origin.replace(/\/$/, '');
 };
@@ -118,10 +127,19 @@ async function generatePdf(url: string) {
 
   const page = await context.newPage();
   try {
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 60_000 });
+    // Usamos 'load' em vez de 'networkidle' para evitar timeouts causados por rastreadores
+    // ou conexões persistentes que não impedem a renderização visual.
+    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+
+    // Forçamos o modo 'screen' para garantir que o layout mobile/visual seja mantido
     await page.emulateMedia({ media: 'screen' });
+
+    // Garantimos que as fontes estejam carregadas
     await page.evaluate(() => (document as any).fonts?.ready ?? Promise.resolve());
-    await page.waitForTimeout(500);
+
+    // Pequena pausa para garantir que animações iniciais de entrada (framer-motion) terminem
+    await page.waitForTimeout(1000);
+
     return await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -186,11 +204,17 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   const targetUrl = `${origin}/mediakit/${canonicalSlug}?print=1`;
 
   try {
+    logger.debug(`[media-kit-pdf] Iniciando geração para ${targetUrl} (origin: ${origin})`);
     const pdfBuffer = await generatePdf(targetUrl);
     await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer as Buffer);
     return toPdfResponse(pdfBuffer as Buffer, `media-kit-${canonicalSlug}.pdf`);
   } catch (error) {
-    logger.error('[media-kit-pdf] Falha ao gerar PDF', error as Error);
+    logger.error('[media-kit-pdf] Falha ao gerar PDF', {
+      error: (error as Error).message,
+      stack: (error as Error).stack,
+      targetUrl,
+      origin,
+    });
     return NextResponse.json(
       { error: 'Não foi possível gerar o PDF agora. Tente novamente em instantes.' },
       { status: 500 }

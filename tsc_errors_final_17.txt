@@ -1,0 +1,2 @@
+src/app/admin/creator-dashboard/components/__tests__/UserAverageEngagementChart.test.tsx(28,1): error TS1160: Unterminated template literal.
+src/app/admin/creator-dashboard/ContentPerformanceByTypeChart.test.tsx(125,1): error TS1160: Unterminated template literal.

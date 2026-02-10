@@ -27,15 +27,15 @@ Próximo passo
 
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(2);
-        expect(parsed.cards[0].title).toContain('Interações Engraçadas');
-        expect(parsed.cards[0].highlights).toEqual([
+        expect(parsed.cards[0]!.title).toContain('Interações Engraçadas');
+        expect(parsed.cards[0]!.highlights).toEqual([
             'Engajamento alto',
             'Comentários positivos',
             'Formato rápido',
         ]);
-        expect(parsed.cards[0].link?.url).toBe('https://example.com/r1');
-        expect(parsed.cards[1].description).toContain('Linha A Linha B');
-        expect(parsed.cards[1].link?.url).toBe('https://example.com/r2');
+        expect(parsed.cards[0]!.link?.url).toBe('https://example.com/r1');
+        expect(parsed.cards[1]!.description).toContain('Linha A Linha B');
+        expect(parsed.cards[1]!.link?.url).toBe('https://example.com/r2');
         expect(parsed.contextNote).toBe('Nicho humor');
         expect(parsed.footer?.heading.toLowerCase()).toContain('próximo passo');
         expect(parsed.footer?.items).toEqual(['Pergunta 1?', 'Pergunta 2?']);
@@ -54,8 +54,8 @@ Destaques: chip1; chip2; chip3; chip4
 
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(2);
-        expect(parsed.cards[0].link?.url).toBe('https://foo.com/post/1');
-        expect(parsed.cards[1].highlights).toEqual(['chip1', 'chip2', 'chip3', 'chip4']);
+        expect(parsed.cards[0]!.link?.url).toBe('https://foo.com/post/1');
+        expect(parsed.cards[1]!.highlights).toEqual(['chip1', 'chip2', 'chip3', 'chip4']);
         expect(parsed.contextNote).toBeUndefined();
     });
 
@@ -70,8 +70,8 @@ Link: [Ver post](https://bar.com/r2)
 
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(2);
-        expect(parsed.cards[0].highlights).toEqual([]);
-        expect(parsed.cards[1].link?.url).toBe('https://bar.com/r2');
+        expect(parsed.cards[0]!.highlights).toEqual([]);
+        expect(parsed.cards[1]!.link?.url).toBe('https://bar.com/r2');
     });
 
     it('strips status noise and fixes glued headings before parsing cards', () => {
@@ -81,7 +81,7 @@ Descrição: abc`;
 
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(1);
-        expect(parsed.cards[0].title).toContain('Teste');
+        expect(parsed.cards[0]!.title).toContain('Teste');
     });
 
     it('parses numbered post items with resumo/performance/link labels', () => {
@@ -98,9 +98,9 @@ Resumo: Continuação
 `;
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(2);
-        expect(parsed.cards[0].description).toContain('Piada');
-        expect(parsed.cards[0].highlights).toEqual(['Viralizou', 'Alcance alto']);
-        expect(parsed.cards[0].link?.url).toBe('https://example.com/p1');
+        expect(parsed.cards[0]!.description).toContain('Piada');
+        expect(parsed.cards[0]!.highlights).toEqual(['Viralizou', 'Alcance alto']);
+        expect(parsed.cards[0]!.link?.url).toBe('https://example.com/p1');
     });
 
     it('sanitizes markdown headings, bullets and open question placeholders', () => {
@@ -112,9 +112,9 @@ Descrição: **Teste** com *markdown* e ## heading
 `;
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(1);
-        expect(parsed.cards[0].title).toBe('Reel 1 — Ideia forte');
-        expect(parsed.cards[0].description).toBe('Teste com markdown e heading');
-        expect(parsed.cards[0].highlights).toEqual(['Destaque 1']);
+        expect(parsed.cards[0]!.title).toBe('Reel 1 — Ideia forte');
+        expect(parsed.cards[0]!.description).toBe('Teste com markdown e heading');
+        expect(parsed.cards[0]!.highlights).toEqual(['Destaque 1']);
         expect(parsed.footer).toBeNull();
     });
 
@@ -128,10 +128,10 @@ Descrição: **Teste** com *markdown* e ## heading
 }`;
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(1);
-        expect(parsed.cards[0].label).toBe('Ideia A');
-        expect(parsed.cards[0].title).toBe('Título');
-        expect(parsed.cards[0].description).toBe('Desc');
-        expect(parsed.cards[0].highlights).toEqual(['Chip']);
+        expect(parsed.cards[0]!.label).toBe('Ideia A');
+        expect(parsed.cards[0]!.title).toBe('Título');
+        expect(parsed.cards[0]!.description).toBe('Desc');
+        expect(parsed.cards[0]!.highlights).toEqual(['Chip']);
         expect(parsed.footer?.items).toEqual(['Qual priorizar?']);
     });
 
@@ -152,8 +152,8 @@ Descrição: **Teste** com *markdown* e ## heading
 \`\`\``;
         const parsed = parseCommunityInspirationText(input);
         expect(parsed.cards).toHaveLength(1);
-        expect(parsed.cards[0].label).toBe('Reel 1');
-        expect(parsed.cards[0].highlights).toEqual(['alto_engajamento_nos_comentarios']);
+        expect(parsed.cards[0]!.label).toBe('Reel 1');
+        expect(parsed.cards[0]!.highlights).toEqual(['alto_engajamento_nos_comentarios']);
         expect(parsed.footer?.items).toEqual(['Qual dessas ideias?']);
     });
 });

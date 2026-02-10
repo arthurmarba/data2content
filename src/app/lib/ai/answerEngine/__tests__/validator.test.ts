@@ -2,13 +2,16 @@
  * @jest-environment node
  */
 import { validateAnswerWithContext } from '../validator';
-import type { ContextPack } from '../types';
+import type { ContextPack, AnswerIntent } from '../types';
 
 const pack: ContextPack = {
   user_profile: {},
   user_baselines: {
     totalInteractionsP50: 100,
+    totalInteractionsP75: 120, // Add
+    totalInteractionsP90: 150, // Add
     engagementRateP50: 0.04,
+    engagementRateP60: 0.05, // Add
     perFormat: {},
     sampleSize: 3,
     computedAt: Date.now(),
@@ -24,7 +27,9 @@ const pack: ContextPack = {
       effectiveInteractions: 125,
       effectiveEr: 0.05,
       baselineInteractionP50: 100,
+      baselineInteractionP75: 120, // Add
       baselineErP50: 0.04,
+      baselineErP60: 0.05, // Add
     },
   },
   top_posts: [
@@ -45,7 +50,7 @@ const pack: ContextPack = {
   ],
   generated_at: new Date().toISOString(),
   query: 'maior engajamento',
-  intent: 'top_performance_inspirations',
+  intent: 'top_performance_inspirations' as AnswerIntent,
   notes: [],
 };
 
@@ -69,12 +74,14 @@ describe('validator', () => {
     const emptyPricingPack = {
       ...pack,
       top_posts: [],
-      intent: 'pricing_suggestion',
+      intent: 'pricing_suggestion' as AnswerIntent,
       policy: {
         ...pack.policy,
-        intent: 'pricing_suggestion',
+        intent: 'pricing_suggestion' as AnswerIntent,
         requireHighEngagement: false,
         metricsRequired: undefined,
+        maxPosts: 5, // Policy needs this
+        windowDays: 90, // Policy needs this
       },
     };
     const response = 'Posso estimar a faixa de preço com base nas entregas.';

@@ -20,7 +20,7 @@ MockEmptyState.displayName = 'MockEmptyState';
 jest.mock('./EmptyState', () => MockEmptyState);
 
 
-const mockPosts: IGlobalPostResult[] = [
+const mockPosts: any[] = [
   { _id: 'post1', text_content: 'First amazing post content', creatorName: 'Creator Alpha', postDate: new Date('2023-11-01T10:00:00Z'), format: 'Reel', proposal: 'Educativo', context: 'Tecnologia', stats: { total_interactions: 150, likes: 100, shares: 20, comments: 30, views: 1000, reach: 800, engagement_rate_on_reach: 0.125 } },
   { _id: 'post2', description: 'Second post, a bit shorter.', creatorName: 'Creator Beta', postDate: new Date('2023-11-02T12:30:00Z'), format: 'Post Estático', proposal: 'Humor', context: 'Entretenimento', stats: { total_interactions: 250, likes: 200, shares: 10, comments: 40, views: 2000, reach: 1500, engagement_rate_on_reach: 0.133 } },
 ];
@@ -85,7 +85,7 @@ describe('GlobalPostsExplorer Component', () => {
     await screen.findByText('First amazing post content');
 
     const detailButtons = screen.getAllByTitle('Ver detalhes');
-    fireEvent.click(detailButtons[0]);
+    fireEvent.click(detailButtons[0]!);
 
     await screen.findByText(/Criador:/);
     expect(screen.getByText(/Detailed content/)).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('GlobalPostsExplorer Component', () => {
     await screen.findByText('First amazing post content');
 
     const trendButtons = screen.getAllByTitle('Ver tendência');
-    fireEvent.click(trendButtons[0]);
+    fireEvent.click(trendButtons[0]!);
 
     await screen.findByText('Gráfico de Tendência para o Post ID: post1');
   });
@@ -106,7 +106,7 @@ describe('GlobalPostsExplorer Component', () => {
     render(<GlobalPostsExplorer dateRangeFilter={{ startDate: '2023-01-01', endDate: '2023-01-31' }} />);
 
     await screen.findByText('First amazing post content');
-    fireEvent.click(screen.getAllByTitle('Ver tendência')[0]);
+    fireEvent.click(screen.getAllByTitle('Ver tendência')[0]!);
 
     await screen.findByText('Gráfico de Tendência para o Post ID: post1');
 
@@ -123,7 +123,7 @@ describe('GlobalPostsExplorer Component', () => {
 
     // Open the modal first
     const detailButtons = screen.getAllByTitle('Ver detalhes');
-    fireEvent.click(detailButtons[0]);
+    fireEvent.click(detailButtons[0]!);
 
     await screen.findByText(/Criador:/);
 
@@ -135,7 +135,7 @@ describe('GlobalPostsExplorer Component', () => {
   });
 
   test('renders skeleton loading state for table including actions column', async () => {
-    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {})); // Keep it in loading state
+    (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => { })); // Keep it in loading state
     render(<GlobalPostsExplorer />);
 
     // Check for multiple skeleton blocks, indicating table rows
