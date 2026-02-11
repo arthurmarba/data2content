@@ -5,6 +5,7 @@ export const FEATURE_FLAG_KEYS = [
   'modules.community_on_home',
   'paywall.modal_enabled',
   'home.tutorial_minimal',
+  'scripts_intelligence_v2',
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -18,6 +19,8 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   // Mantemos a nova Home como padrão em todos os ambientes. Caso precisemos voltar
   // temporariamente para o layout antigo, usamos o endpoint /api/feature-flags.
   'home.tutorial_minimal': true,
+  // O rollout da inteligência do roteirista é controlado por ambiente.
+  'scripts_intelligence_v2': false,
 };
 
 export const parseFeatureFlags = <T extends string>(

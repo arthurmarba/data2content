@@ -30,6 +30,10 @@ export const navigationLabels = {
     menu: "Calendário",
     tooltip: "Monte seu calendário com IA",
   },
+  planningScripts: {
+    menu: "Meus Roteiros",
+    tooltip: "Salve, edite e ajuste roteiros com IA",
+  },
   pro: {
     menu: "Plano Pro",
     tooltip: "Desbloquear Plano Pro",

@@ -6,6 +6,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
+import { syncLinkedScriptsFromPlannerPlan } from '@/app/lib/scripts/scriptSync';
 
 import { Types } from 'mongoose';
 import { getCategoryByValue } from '@/app/lib/classification';
@@ -356,6 +357,12 @@ export async function POST(request: Request) {
       { $set: { userTimeZone, slots: deduped } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ).lean().exec();
+
+    await syncLinkedScriptsFromPlannerPlan({
+      userId: session.user.id,
+      weekStart,
+      slots: Array.isArray(upserted?.slots) ? upserted.slots : [],
+    });
 
     return NextResponse.json({ ok: true, plan: upserted, weekStart });
   } catch (err) {

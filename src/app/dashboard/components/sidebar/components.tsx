@@ -45,6 +45,7 @@ const ITEM_GROUP: Record<string, "pinned" | "main" | "footer"> = {
   "planning.chat": "main",
   "planning.charts": "main",
   "planning.calendar": "main",
+  "planning.scripts": "main",
   "planning.discover": "main",
   "campaigns.overview": "main",
   publis: "main",

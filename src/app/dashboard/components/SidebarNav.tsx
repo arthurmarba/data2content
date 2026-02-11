@@ -12,6 +12,7 @@ import { SidebarSectionList, type SidebarPresentationTokens } from "./sidebar/co
 import { useSidebarViewport, useBodyScrollLock, useMobileAutoClose, usePaywallOpener } from "./sidebar/hooks";
 import { useAlerts } from "../hooks/useAlerts";
 import { usePostReviewNotifications } from "../hooks/usePostReviewNotifications";
+import { useScriptRecommendationsNotifications } from "../hooks/useScriptRecommendationsNotifications";
 
 interface SidebarNavProps {
   isCollapsed: boolean; // true = fechado; false = aberto
@@ -45,6 +46,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   } = useAlerts();
 
   const reviewsUnreadCount = usePostReviewNotifications();
+  const scriptsRecommendationsUnreadCount = useScriptRecommendationsNotifications();
 
   React.useEffect(() => {
     refreshAlertsBadge();
@@ -227,7 +229,8 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
               interaction={interaction}
               badges={{
                 "planning.chat": alertsUnreadCount,
-                "reviews": reviewsUnreadCount
+                "reviews": reviewsUnreadCount,
+                "planning.scripts": scriptsRecommendationsUnreadCount,
               }}
             />
           </div>

@@ -14,6 +14,7 @@ import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { logger } from '@/app/lib/logger';
 import { WINDOW_DAYS, PLANNER_TIMEZONE } from '@/app/lib/planner/constants';
+import { upsertLinkedScriptFromPlanner } from '@/app/lib/scripts/scriptSync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -374,6 +375,19 @@ export async function POST(request: Request) {
     else planDoc.slots.push(updatedSlot as any);
 
     await planDoc.save();
+    await upsertLinkedScriptFromPlanner({
+      userId: session.user.id,
+      weekStart,
+      slot: {
+        slotId: updatedSlot.slotId,
+        title: updatedSlot.title,
+        scriptShort: updatedSlot.scriptShort,
+        dayOfWeek: updatedSlot.dayOfWeek,
+        blockStartHour: updatedSlot.blockStartHour,
+        aiVersionId: String(aiDoc._id),
+      },
+      source: 'planner',
+    });
 
     return NextResponse.json({
       ok: true,
