@@ -9,12 +9,13 @@ import AIGeneratedPost from "@/app/models/AIGeneratedPost";
 import { generateScriptFromPrompt } from "@/app/lib/scripts/ai";
 import { applyScriptToPlannerSlot, normalizeToMondayInTZ } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
-import { isScriptsIntelligenceV2Enabled } from "@/app/lib/scripts/featureFlag";
+import { isScriptsIntelligenceV2Enabled, isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import {
   buildIntelligencePromptSnapshot,
   buildScriptIntelligenceContext,
   type ScriptIntelligenceContext,
 } from "@/app/lib/scripts/intelligenceContext";
+import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
 import {
   buildScriptOutputDiagnostics,
   logScriptsGenerationObservability,
@@ -384,6 +385,15 @@ export async function POST(request: Request) {
     : await ScriptEntry.create(payload);
 
   const asLean = (saved as any)?._doc ? (saved as any)._doc : saved;
+
+  const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
+  if (styleTrainingEnabled) {
+    try {
+      await refreshScriptStyleProfile(effectiveUserId);
+    } catch {
+      // Não bloqueia o fluxo de salvar roteiro.
+    }
+  }
 
   return NextResponse.json({
     ok: true,

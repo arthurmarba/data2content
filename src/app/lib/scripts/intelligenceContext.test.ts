@@ -92,6 +92,28 @@ describe("scripts/intelligenceContext", () => {
         recurringExpressions: ["criadores"],
         writingGuidelines: ["Use tom conversacional."],
       },
+      styleProfile: {
+        profileVersion: "scripts_style_profile_v1",
+        sampleSize: 8,
+        hasEnoughEvidence: true,
+        writingGuidelines: ["Use frases curtas e diretas."],
+        styleSignalsUsed: {
+          hookPatterns: ["deixa eu te mostrar"],
+          ctaPatterns: ["comentario"],
+          humorMarkers: ["humor"],
+          recurringExpressions: ["criadores"],
+          avgSentenceLength: 11,
+          emojiDensity: 0.01,
+          narrativeCadence: {
+            openingAvgChars: 80,
+            developmentAvgChars: 240,
+            closingAvgChars: 90,
+          },
+        },
+        styleExamples: ["Deixa eu te mostrar como simplificar isso hoje."],
+      },
+      styleProfileVersion: "scripts_style_profile_v1",
+      styleSampleSize: 8,
       captionEvidence: [
         {
           metricId: "m1",
@@ -115,6 +137,9 @@ describe("scripts/intelligenceContext", () => {
     const snapshot = buildIntelligencePromptSnapshot(context);
     expect(snapshot?.intelligenceVersion).toBe(SCRIPT_INTELLIGENCE_VERSION);
     expect(snapshot?.metricUsed).toBe(SCRIPT_INTELLIGENCE_METRIC);
+    expect(snapshot?.styleProfileVersion).toBe("scripts_style_profile_v1");
+    expect(snapshot?.styleSampleSize).toBe(8);
+    expect(snapshot?.styleSignalsUsed?.hookPatterns?.[0]).toBe("deixa eu te mostrar");
     expect(snapshot?.dnaEvidence.sampleSize).toBe(2);
     expect(snapshot?.dnaEvidence.avgInteractions).toBe(150);
     expect(snapshot?.dnaEvidence.usedFallbackRules).toBe(true);

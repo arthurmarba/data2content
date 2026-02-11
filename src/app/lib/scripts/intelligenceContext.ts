@@ -21,6 +21,9 @@ import {
   type CreatorDnaProfile,
   type ScriptCaptionSample,
 } from "./dnaProfile";
+import { isScriptsStyleTrainingV1Enabled } from "./featureFlag";
+import { buildScriptStyleContext, type ScriptStyleContext } from "./styleContext";
+import { getScriptStyleProfile } from "./styleTraining";
 
 const DEFAULT_LOOKBACK_DAYS = 180;
 const DEFAULT_TOP_CATEGORIES_LIMIT = 5;
@@ -66,6 +69,9 @@ export type ScriptIntelligenceContext = {
   resolvedCategories: ScriptCategorySelection;
   rankedCategories: RankedCategoriesByDimension;
   dnaProfile: CreatorDnaProfile;
+  styleProfile: ScriptStyleContext | null;
+  styleProfileVersion: string | null;
+  styleSampleSize: number;
   captionEvidence: ScriptIntelligenceCaptionEvidence[];
   relaxationLevel: number;
   usedFallbackRules: boolean;
@@ -78,6 +84,9 @@ export type ScriptIntelligencePromptSnapshot = {
   resolvedCategories: ScriptCategorySelection;
   metricUsed: typeof SCRIPT_INTELLIGENCE_METRIC;
   lookbackDays: number;
+  styleProfileVersion: string | null;
+  styleSampleSize: number;
+  styleSignalsUsed?: ScriptStyleContext["styleSignalsUsed"];
   dnaEvidence: {
     sampleSize: number;
     hasEnoughEvidence: boolean;
@@ -377,6 +386,23 @@ export async function buildScriptIntelligenceContext(params: {
   });
 
   const dnaProfile = buildCreatorDnaProfileFromCaptions(captionFetchResult.captions);
+  let styleProfile: ScriptStyleContext | null = null;
+  let styleProfileVersion: string | null = null;
+  let styleSampleSize = 0;
+
+  const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
+  if (styleTrainingEnabled) {
+    try {
+      const storedStyleProfile = await getScriptStyleProfile(params.userId);
+      styleProfile = buildScriptStyleContext(storedStyleProfile);
+      styleProfileVersion = styleProfile?.profileVersion || null;
+      styleSampleSize = styleProfile?.sampleSize || 0;
+    } catch {
+      styleProfile = null;
+      styleProfileVersion = null;
+      styleSampleSize = 0;
+    }
+  }
 
   return {
     intelligenceVersion: SCRIPT_INTELLIGENCE_VERSION,
@@ -388,6 +414,9 @@ export async function buildScriptIntelligenceContext(params: {
     resolvedCategories,
     rankedCategories,
     dnaProfile,
+    styleProfile,
+    styleProfileVersion,
+    styleSampleSize,
     captionEvidence: captionFetchResult.captions,
     relaxationLevel: captionFetchResult.relaxationLevel,
     usedFallbackRules: captionFetchResult.usedFallbackRules,
@@ -410,6 +439,9 @@ export function buildIntelligencePromptSnapshot(
     resolvedCategories: context.resolvedCategories,
     metricUsed: context.metricUsed,
     lookbackDays: context.lookbackDays,
+    styleProfileVersion: context.styleProfileVersion,
+    styleSampleSize: context.styleSampleSize,
+    styleSignalsUsed: context.styleProfile?.styleSignalsUsed,
     dnaEvidence: {
       sampleSize,
       hasEnoughEvidence: context.dnaProfile.hasEnoughEvidence,

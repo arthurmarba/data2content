@@ -14,6 +14,7 @@
     "test:e2e": "playwright test",
     "reclassify": "tsx --env-file=.env.local ./scripts/reclassifyAll.ts",
     "flag:scripts-intelligence:v2": "tsx --env-file=.env.local ./scripts/setScriptsIntelligenceFlag.ts",
+    "flag:scripts-style-training:v1": "tsx --env-file=.env.local ./scripts/setScriptsStyleTrainingFlag.ts",
     "reset-classification": "tsx --env-file=.env.local ./scripts/resetClassificationStatus.ts",
     "reset-classification-failed": "tsx --env-file=.env.local ./scripts/resetFailedClassificationStatus.ts",
     "normalize-format": "tsx --env-file=.env.local ./scripts/normalizeFormatFromMetricType.ts",

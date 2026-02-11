@@ -52,6 +52,28 @@ describe("scripts/observability", () => {
           recurringExpressions: ["criadores"],
           writingGuidelines: ["Use tom conversacional."],
         },
+        styleProfile: {
+          profileVersion: "scripts_style_profile_v1",
+          sampleSize: 10,
+          hasEnoughEvidence: true,
+          writingGuidelines: ["Use frases curtas."],
+          styleSignalsUsed: {
+            hookPatterns: ["oi pessoal"],
+            ctaPatterns: ["comentario"],
+            humorMarkers: ["humor"],
+            recurringExpressions: ["resultado"],
+            avgSentenceLength: 12,
+            emojiDensity: 0.02,
+            narrativeCadence: {
+              openingAvgChars: 80,
+              developmentAvgChars: 260,
+              closingAvgChars: 100,
+            },
+          },
+          styleExamples: ["Oi pessoal, vamos direto ao ponto."],
+        },
+        styleProfileVersion: "scripts_style_profile_v1",
+        styleSampleSize: 10,
         captionEvidence: [],
         relaxationLevel: 1,
         usedFallbackRules: false,
@@ -62,6 +84,9 @@ describe("scripts/observability", () => {
     expect(diagnostics.explicitCategoryCount).toBe(2);
     expect(diagnostics.explicitCategoryComplianceRate).toBe(1);
     expect(diagnostics.dnaSampleSize).toBe(10);
+    expect(diagnostics.styleProfileEnabled).toBe(true);
+    expect(diagnostics.styleSampleSize).toBe(10);
+    expect(typeof diagnostics.styleSimilarityScore).toBe("number");
   });
 
   it("computes delta diagnostics for adjustments", () => {

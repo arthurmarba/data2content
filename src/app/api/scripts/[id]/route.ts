@@ -7,6 +7,8 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import ScriptEntry from "@/app/models/ScriptEntry";
 import { applyScriptToPlannerSlot, clearScriptFromPlannerSlot } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
+import { isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
+import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,6 +95,15 @@ export async function PATCH(request: Request, { params }: Params) {
   doc.title = finalTitle;
   doc.content = content;
   await doc.save();
+
+  const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
+  if (styleTrainingEnabled) {
+    try {
+      await refreshScriptStyleProfile(effectiveUserId);
+    } catch {
+      // Não bloqueia edição manual.
+    }
+  }
 
   if (doc.linkType === "planner_slot" && doc.plannerRef?.weekStart && doc.plannerRef?.slotId) {
     await applyScriptToPlannerSlot({

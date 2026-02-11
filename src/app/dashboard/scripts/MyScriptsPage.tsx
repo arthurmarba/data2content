@@ -822,12 +822,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     <div className="min-h-screen bg-white pb-20">
       <div className="dashboard-page-shell py-8">
         {isAdminViewer ? (
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-            <p className="text-sm font-semibold text-slate-800">Gerar roteiro para usuário específico</p>
-            <p className="mt-1 text-xs text-slate-500">
-              Selecione um criador para salvar roteiros diretamente na conta dele com aviso de recomendação.
-            </p>
-            <div className="mt-3">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="w-full sm:max-w-md">
               <CreatorQuickSearch
                 onSelect={(creator) =>
                   setAdminTargetUser({
@@ -842,21 +838,14 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                 apiPrefix="/api/admin"
               />
             </div>
-            {isActingOnBehalf ? (
-              <p className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700">
-                Modo admin ativo: novos roteiros serão salvos para {adminTargetUser?.name}.
-              </p>
-            ) : null}
           </div>
         ) : null}
 
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Meus Roteiros</h1>
-          <p className="mt-1 text-slate-500">
-            {isActingOnBehalf
-              ? `Visualizando roteiros de ${adminTargetUser?.name}.`
-              : "Escolha um roteiro salvo ou comece um novo."}
-          </p>
+          {!isActingOnBehalf ? (
+            <p className="mt-1 text-slate-500">Escolha um roteiro salvo ou comece um novo.</p>
+          ) : null}
         </div>
 
         {globalError ? <p className="mb-4 text-sm text-rose-600">{globalError}</p> : null}
@@ -951,11 +940,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                       </p>
                       {script.recommendation?.isRecommended ? (
                         <p className="pt-1 text-[11px] font-medium text-amber-700">
-                          Recomendado para você
-                          {script.recommendation.recommendedByAdminName
-                            ? ` por ${script.recommendation.recommendedByAdminName}`
-                            : ""}
-                          .
+                          Recomendado por{" "}
+                          {script.recommendation.recommendedByAdminName || "Admin"}
                         </p>
                       ) : null}
                     </div>

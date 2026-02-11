@@ -9,7 +9,7 @@ import AIGeneratedPost from "@/app/models/AIGeneratedPost";
 import { adjustScriptFromPrompt } from "@/app/lib/scripts/ai";
 import { applyScriptToPlannerSlot } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
-import { isScriptsIntelligenceV2Enabled } from "@/app/lib/scripts/featureFlag";
+import { isScriptsIntelligenceV2Enabled, isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import {
   buildIntelligencePromptSnapshot,
   buildScriptIntelligenceContext,
@@ -19,6 +19,7 @@ import {
   buildScriptOutputDiagnostics,
   logScriptsGenerationObservability,
 } from "@/app/lib/scripts/observability";
+import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -163,6 +164,15 @@ export async function POST(request: Request, { params }: Params) {
     doc.recommendedAt = new Date();
   }
   await doc.save();
+
+  const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
+  if (styleTrainingEnabled) {
+    try {
+      await refreshScriptStyleProfile(effectiveUserId);
+    } catch {
+      // Não bloqueia ajuste de roteiro.
+    }
+  }
 
   logScriptsGenerationObservability({
     userId: effectiveUserId,

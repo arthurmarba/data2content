@@ -15,7 +15,8 @@ export interface IAIGeneratedPost extends Document {
   tone?: string;
   format?: PlannerFormat;
 
-  // Contexto de geração (flexível para evolução do prompt)
+  // Contexto de geração (flexível para evolução do prompt).
+  // Inclui snapshots versionados de inteligência (categorias + estilo aprendido).
   promptContext?: Record<string, any>;
   strategy?: string; // ex.: 'more_humor' | 'focus_shares' | 'shorter'
 
@@ -49,4 +50,3 @@ if (!mongoose.models.AIGeneratedPost) {
 }
 
 export default AIGeneratedPostModel;
-

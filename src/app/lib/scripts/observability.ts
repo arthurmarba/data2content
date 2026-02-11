@@ -2,6 +2,7 @@ import { logger } from "@/app/lib/logger";
 
 import type { ScriptIntelligenceContext } from "./intelligenceContext";
 import { SCRIPT_CATEGORY_DIMENSIONS, type ScriptCategoryDimension } from "./promptParser";
+import { computeStyleSimilarityScore } from "./styleContext";
 
 type ScriptOperation = "create" | "adjust";
 
@@ -19,6 +20,10 @@ export type ScriptOutputDiagnostics = {
   resolvedCategories?: Partial<Record<ScriptCategoryDimension, string>>;
   dnaSampleSize?: number;
   dnaHasEnoughEvidence?: boolean;
+  styleProfileEnabled?: boolean;
+  styleSampleSize?: number;
+  styleSimilarityScore?: number;
+  styleFallbackUsed?: boolean;
   relaxationLevel?: number;
   usedFallbackRules?: boolean;
   contentLengthDelta?: number;
@@ -102,6 +107,18 @@ export function buildScriptOutputDiagnostics(
     diagnostics.resolvedCategories = input.intelligenceContext.resolvedCategories;
     diagnostics.dnaSampleSize = input.intelligenceContext.dnaProfile.sampleSize;
     diagnostics.dnaHasEnoughEvidence = input.intelligenceContext.dnaProfile.hasEnoughEvidence;
+    diagnostics.styleProfileEnabled = Boolean(input.intelligenceContext.styleProfile);
+    diagnostics.styleSampleSize = input.intelligenceContext.styleSampleSize;
+    diagnostics.styleFallbackUsed = Boolean(
+      input.intelligenceContext.styleProfile && !input.intelligenceContext.styleProfile.hasEnoughEvidence
+    );
+    const similarity = computeStyleSimilarityScore(
+      normalizedContent,
+      input.intelligenceContext.styleProfile
+    );
+    if (typeof similarity === "number") {
+      diagnostics.styleSimilarityScore = similarity;
+    }
     diagnostics.relaxationLevel = input.intelligenceContext.relaxationLevel;
     diagnostics.usedFallbackRules = input.intelligenceContext.usedFallbackRules;
   }

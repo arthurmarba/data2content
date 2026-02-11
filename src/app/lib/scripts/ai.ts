@@ -148,7 +148,7 @@ function resolveCategoryLabel(dimension: keyof NonNullable<ScriptIntelligenceCon
   return `${category.label} (${id})`;
 }
 
-function buildIntelligencePromptBlock(context: ScriptIntelligenceContext | null | undefined): string {
+export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext | null | undefined): string {
   if (!context) return "";
 
   const resolved = context.resolvedCategories;
@@ -175,6 +175,29 @@ function buildIntelligencePromptBlock(context: ScriptIntelligenceContext | null 
     ? `Exemplos reais de linguagem do criador (resumo):\n${captionExamples}`
     : "Sem exemplos suficientes de legenda. Use regras base do roteirista.";
 
+  const styleGuidelines =
+    context.styleProfile?.writingGuidelines?.length
+      ? context.styleProfile.writingGuidelines.map((line) => `- ${line}`).join("\n")
+      : "- Sem sinais suficientes de estilo por roteiros salvos.";
+
+  const styleExamples =
+    context.styleProfile?.styleExamples?.length
+      ? context.styleProfile.styleExamples
+          .slice(0, 3)
+          .map((item, index) => `${index + 1}) ${item}`)
+          .join("\n")
+      : "";
+
+  const styleBlock =
+    context.styleProfile && context.styleSampleSize > 0
+      ? `\nPerfil de estilo do usuario (roteiros salvos):\n` +
+        `- Versao do perfil: ${context.styleProfileVersion || "desconhecida"}\n` +
+        `- Amostra de roteiros: ${context.styleSampleSize}\n` +
+        `- Regras de estilo:\n${styleGuidelines}\n` +
+        `${styleExamples ? `- Exemplos resumidos de estilo:\n${styleExamples}\n` : ""}` +
+        `- Imite o estilo do criador sem copiar frases literalmente.`
+      : "\nPerfil de estilo indisponivel: use apenas categorias vencedoras e regras base.";
+
   return (
     `\n\nContexto inteligente do criador (aplique silenciosamente, sem explicar ao usuario):\n` +
     `- Modo do pedido: ${context.promptMode}\n` +
@@ -183,7 +206,8 @@ function buildIntelligencePromptBlock(context: ScriptIntelligenceContext | null 
     `${categoryLines || "- Sem categorias resolvidas."}\n` +
     `- Evidencias de DNA: ${context.dnaProfile.sampleSize} legendas\n` +
     `- Perfil de linguagem:\n${dnaLines}\n` +
-    `${evidenceBlock}`
+    `${evidenceBlock}\n` +
+    `${styleBlock}`
   );
 }
 
@@ -319,6 +343,7 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     `- Retornar APENAS JSON válido com os campos title e content\n` +
     `- Entregar roteiro pronto para uso, sem explicar raciocínio\n` +
     `- Estrutura mínima: abertura forte, desenvolvimento e fechamento com CTA\n` +
+    `- Imitar o estilo do criador sem copiar frases literalmente\n` +
     `- Linguagem natural, objetiva e adequada ao criador\n` +
     `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
     `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
@@ -356,6 +381,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Script
     `- Preserve integralmente o que não foi pedido para mudar\n` +
     `- Se o pedido for pontual (ex.: primeiro parágrafo), altere só esse trecho\n` +
     `- Retorne sempre o roteiro completo atualizado (nunca apenas um trecho)\n` +
+    `- Imitar o estilo do criador sem copiar frases literalmente\n` +
     `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
     `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
     `- Resposta em JSON válido com {"title","content"}\n` +
