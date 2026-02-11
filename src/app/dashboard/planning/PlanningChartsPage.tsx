@@ -10,6 +10,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -50,6 +51,12 @@ const toNumber = (value: any): number | null => {
   const parsed = typeof value === "string" ? Number(value) : NaN;
   return Number.isFinite(parsed) ? parsed : null;
 };
+const formatPostsCount = (count: number) => {
+  const rounded = Math.max(0, Math.round(count));
+  return `${numberFormatter.format(rounded)} post${rounded === 1 ? "" : "s"}`;
+};
+type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
+type CategoryBarDatum = { name: string; value: number; postsCount: number };
 const getWeekStart = (d: string | Date) => {
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return null;
@@ -205,7 +212,7 @@ const matchesValue = (list: string[], target: string) => {
   });
 };
 
-const filterPostsByCategory = (posts: any[], field: "format" | "proposal" | "context" | "tone" | "references", value: string) =>
+const filterPostsByCategory = (posts: any[], field: CategoryField, value: string) =>
   posts.filter((p) => Array.isArray(p?.[field]) && matchesValue(p[field], value));
 
 const sortPostsByDateDesc = (posts: any[]) =>
@@ -214,6 +221,38 @@ const sortPostsByDateDesc = (posts: any[]) =>
     const bDate = b?.postDate ? new Date(b.postDate).getTime() : 0;
     return bDate - aDate;
   });
+
+const aggregateAverageInteractionsByCategory = (posts: any[], field: CategoryField): CategoryBarDatum[] => {
+  if (!Array.isArray(posts) || !posts.length) return [];
+  const acc = new Map<string, { interactionsSum: number; postsCount: number }>();
+
+  posts.forEach((post) => {
+    const categories = Array.from(
+      new Set(
+        toArray(post?.[field])
+          .map((value) => String(value).trim())
+          .filter(Boolean)
+      )
+    );
+    if (!categories.length) return;
+
+    const interactions = toNumber(post?.stats?.total_interactions) ?? 0;
+    categories.forEach((category) => {
+      const current = acc.get(category) || { interactionsSum: 0, postsCount: 0 };
+      current.interactionsSum += interactions;
+      current.postsCount += 1;
+      acc.set(category, current);
+    });
+  });
+
+  return Array.from(acc.entries())
+    .map(([name, data]) => ({
+      name,
+      value: data.postsCount ? data.interactionsSum / data.postsCount : 0,
+      postsCount: data.postsCount,
+    }))
+    .sort((a, b) => b.value - a.value);
+};
 
 export default function PlanningChartsPage() {
   const { data: session } = useSession();
@@ -460,10 +499,17 @@ export default function PlanningChartsPage() {
   }, [postsData, page, autoPaginating]);
 
   const hourBars = useMemo(() => {
-    const buckets: Array<{ hour: number; average: number }> = timeData?.buckets || [];
+    const buckets: Array<{ hour: number; average: number; count?: number }> = timeData?.buckets || [];
     const source =
       buckets.length > 0
-        ? buckets.map(({ hour, average }) => ({ hour, value: average }))
+        ? buckets.map(({ hour, average, count }) => {
+            const postsCount = typeof count === "number" && count > 0 ? count : 1;
+            return {
+              hour,
+              interactionsSum: (average || 0) * postsCount,
+              postsCount,
+            };
+          })
         : Array.isArray(postsSource)
           ? postsSource
             .filter((p) => p?.postDate)
@@ -471,43 +517,73 @@ export default function PlanningChartsPage() {
               const d = new Date(p.postDate);
               return {
                 hour: d.getHours(),
-                value: toNumber(p?.stats?.total_interactions) ?? 0,
+                interactionsSum: toNumber(p?.stats?.total_interactions) ?? 0,
+                postsCount: 1,
               };
             })
           : [];
+
     if (!source.length) return [];
-    const acc = new Map<number, { sum: number; count: number }>();
-    source.forEach(({ hour, value }) => {
-      const current = acc.get(hour) || { sum: 0, count: 0 };
-      acc.set(hour, { sum: current.sum + (value || 0), count: current.count + 1 });
+    const acc = new Map<number, { interactionsSum: number; postsCount: number }>();
+    source.forEach(({ hour, interactionsSum, postsCount }) => {
+      const current = acc.get(hour) || { interactionsSum: 0, postsCount: 0 };
+      acc.set(hour, {
+        interactionsSum: current.interactionsSum + (interactionsSum || 0),
+        postsCount: current.postsCount + (postsCount || 0),
+      });
     });
+
     return Array.from(acc.entries())
-      .map(([hour, { sum, count }]) => ({ hour, average: count ? sum / count : 0 }))
+      .map(([hour, { interactionsSum, postsCount }]) => ({
+        hour,
+        average: postsCount ? interactionsSum / postsCount : 0,
+        postsCount,
+      }))
       .sort((a, b) => a.hour - b.hour);
   }, [postsSource, timeData]);
 
   const bestHour = useMemo(() => hourBars?.slice().sort((a, b) => b.average - a.average)?.[0]?.hour ?? null, [hourBars]);
 
   const formatBars = useMemo(() => formatData?.chartData || [], [formatData]);
-  const proposalBars = useMemo(() => (proposalData?.chartData || []).slice(0, 6), [proposalData]);
-  const toneBars = useMemo(() => (toneData?.chartData || []).slice(0, 6), [toneData]);
-  const referenceBars = useMemo(() => (referenceData?.chartData || []).slice(0, 6), [referenceData]);
+  const proposalBars = useMemo(() => {
+    const fromApi = (proposalData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
+    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "proposal");
+    return fromApi.map((bar) => {
+      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
+      return {
+        ...bar,
+        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
+      };
+    });
+  }, [proposalData, normalizedPosts]);
+
+  const toneBars = useMemo(() => {
+    const fromApi = (toneData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
+    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "tone");
+    return fromApi.map((bar) => {
+      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
+      return {
+        ...bar,
+        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
+      };
+    });
+  }, [toneData, normalizedPosts]);
+
+  const referenceBars = useMemo(() => {
+    const fromApi = (referenceData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
+    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "references");
+    return fromApi.map((bar) => {
+      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
+      return {
+        ...bar,
+        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
+      };
+    });
+  }, [referenceData, normalizedPosts]);
+
   const contextBars = useMemo(() => {
-    const contexts =
-      Array.isArray(postsSource) && postsSource.length
-        ? postsSource.flatMap((p: any) => (Array.isArray(p?.context) ? p.context : p?.context ? [p.context] : []))
-        : [];
-    if (!contexts.length) return [];
-    const acc = contexts.reduce<Record<string, number>>((map, ctx) => {
-      const key = String(ctx);
-      map[key] = (map[key] || 0) + 1;
-      return map;
-    }, {});
-    return Object.entries(acc)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-  }, [postsSource]);
+    return aggregateAverageInteractionsByCategory(normalizedPosts, "context").slice(0, 6);
+  }, [normalizedPosts]);
 
   const followerMix = useMemo(() => {
     const posts = Array.isArray(postsSource) ? postsSource : [];
@@ -967,7 +1043,7 @@ export default function PlanningChartsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={hourBars}
-                      margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                      margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
                       style={{ cursor: "pointer" }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -981,12 +1057,17 @@ export default function PlanningChartsPage() {
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number) => [`${Math.round(value)}`, "Interações"]}
-                        labelFormatter={(label) => `${label}h`}
+                        labelFormatter={(label, payload: any[]) => {
+                          const postsCount = payload?.[0]?.payload?.postsCount;
+                          return typeof postsCount === "number"
+                            ? `${label}h • ${formatPostsCount(postsCount)}`
+                            : `${label}h`;
+                        }}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
                       />
                       <Bar
                         dataKey="average"
-                        name="Interações"
+                        name="Interações médias"
                         fill="#0ea5e9"
                         radius={[6, 6, 0, 0]}
                         onClick={({ payload }) => {
@@ -995,7 +1076,15 @@ export default function PlanningChartsPage() {
                             handleHourClick(hour, "Entrega média por hora");
                           }
                         }}
-                      />
+                      >
+                        <LabelList
+                          dataKey="postsCount"
+                          position="top"
+                          formatter={(value: number) => numberFormatter.format(Math.max(0, Math.round(value)))}
+                          fill="#64748b"
+                          fontSize={10}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1118,7 +1207,7 @@ export default function PlanningChartsPage() {
                     <BarChart
                       data={contextBars}
                       layout="vertical"
-                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
                       style={{ cursor: "pointer" }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
@@ -1133,18 +1222,32 @@ export default function PlanningChartsPage() {
                       />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                        labelFormatter={(label: string, payload: any[]) => {
+                          const postsCount = payload?.[0]?.payload?.postsCount;
+                          return typeof postsCount === "number"
+                            ? `${label} • ${formatPostsCount(postsCount)}`
+                            : label;
+                        }}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações"
+                        name="Interações médias"
                         fill="#0ea5e9"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
                           if (value) handleCategoryClick("context", value, "Interação média por contexto");
                         }}
-                      />
+                      >
+                        <LabelList
+                          dataKey="postsCount"
+                          position="right"
+                          formatter={(value: number) => formatPostsCount(value)}
+                          fill="#64748b"
+                          fontSize={11}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1169,7 +1272,7 @@ export default function PlanningChartsPage() {
                     <BarChart
                       data={proposalBars}
                       layout="vertical"
-                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
                       style={{ cursor: "pointer" }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
@@ -1184,18 +1287,32 @@ export default function PlanningChartsPage() {
                       />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                        labelFormatter={(label: string, payload: any[]) => {
+                          const postsCount = payload?.[0]?.payload?.postsCount;
+                          return typeof postsCount === "number"
+                            ? `${label} • ${formatPostsCount(postsCount)}`
+                            : label;
+                        }}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações"
+                        name="Interações médias"
                         fill="#6366f1"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
                           if (value) handleCategoryClick("proposal", value, "Interação média por proposta");
                         }}
-                      />
+                      >
+                        <LabelList
+                          dataKey="postsCount"
+                          position="right"
+                          formatter={(value: number) => formatPostsCount(value)}
+                          fill="#64748b"
+                          fontSize={11}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1222,7 +1339,7 @@ export default function PlanningChartsPage() {
                     <BarChart
                       data={toneBars}
                       layout="vertical"
-                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
                       style={{ cursor: "pointer" }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
@@ -1237,18 +1354,32 @@ export default function PlanningChartsPage() {
                       />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                        labelFormatter={(label: string, payload: any[]) => {
+                          const postsCount = payload?.[0]?.payload?.postsCount;
+                          return typeof postsCount === "number"
+                            ? `${label} • ${formatPostsCount(postsCount)}`
+                            : label;
+                        }}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações"
+                        name="Interações médias"
                         fill="#10b981"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
                           if (value) handleCategoryClick("tone", value, "Interação média por tom");
                         }}
-                      />
+                      >
+                        <LabelList
+                          dataKey="postsCount"
+                          position="right"
+                          formatter={(value: number) => formatPostsCount(value)}
+                          fill="#64748b"
+                          fontSize={11}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1273,7 +1404,7 @@ export default function PlanningChartsPage() {
                     <BarChart
                       data={referenceBars}
                       layout="vertical"
-                      margin={{ top: 6, right: 12, left: 30, bottom: 0 }}
+                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
                       style={{ cursor: "pointer" }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
@@ -1288,18 +1419,32 @@ export default function PlanningChartsPage() {
                       />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                        labelFormatter={(label: string, payload: any[]) => {
+                          const postsCount = payload?.[0]?.payload?.postsCount;
+                          return typeof postsCount === "number"
+                            ? `${label} • ${formatPostsCount(postsCount)}`
+                            : label;
+                        }}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações"
+                        name="Interações médias"
                         fill="#f59e0b"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
                           if (value) handleCategoryClick("references", value, "Interação média por referência");
                         }}
-                      />
+                      >
+                        <LabelList
+                          dataKey="postsCount"
+                          position="right"
+                          formatter={(value: number) => formatPostsCount(value)}
+                          fill="#64748b"
+                          fontSize={11}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1695,6 +1840,7 @@ export default function PlanningChartsPage() {
         title={sliceModal.title}
         subtitle={sliceModal.subtitle}
         posts={sliceModal.posts}
+        enableMetricSort
         onClose={closeSliceModal}
         onPlayClick={handlePlayVideo}
       />

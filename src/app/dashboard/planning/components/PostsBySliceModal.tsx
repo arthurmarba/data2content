@@ -13,6 +13,7 @@ type PostsBySliceModalProps = {
   title: string;
   subtitle?: string;
   posts: any[];
+  enableMetricSort?: boolean;
   onClose: () => void;
   onReviewClick?: (post: any) => void;
   onPlayClick?: (post: any) => void;
@@ -22,6 +23,51 @@ type PostsBySliceModalProps = {
 
 
 const numberFormatter = new Intl.NumberFormat("pt-BR");
+type SortMetric = "postDate" | "likes" | "comments" | "shares" | "saves" | "interactions" | "reach";
+type SortOrder = "asc" | "desc";
+
+const METRIC_LABELS: Record<SortMetric, string> = {
+  postDate: "Data do post",
+  likes: "Likes",
+  comments: "Comentarios",
+  shares: "Compartilhamentos",
+  saves: "Salvamentos",
+  interactions: "Interacoes",
+  reach: "Alcance",
+};
+
+const toMetricNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+};
+
+const getPostMetricValue = (post: any, metric: SortMetric) => {
+  const stats = post?.stats ?? {};
+  if (metric === "postDate") {
+    const ts = post?.postDate ? new Date(post.postDate).getTime() : 0;
+    return Number.isFinite(ts) ? ts : 0;
+  }
+  if (metric === "likes") return toMetricNumber(stats.likes ?? post?.likes);
+  if (metric === "comments") return toMetricNumber(stats.comments ?? post?.comments);
+  if (metric === "shares") return toMetricNumber(stats.shares ?? post?.shares);
+  if (metric === "saves") return toMetricNumber(stats.saved ?? stats.saves ?? post?.saved ?? post?.saves);
+  if (metric === "interactions") {
+    const explicit = toMetricNumber(stats.total_interactions ?? post?.total_interactions);
+    if (explicit > 0) return explicit;
+    return (
+      toMetricNumber(stats.likes ?? post?.likes) +
+      toMetricNumber(stats.comments ?? post?.comments) +
+      toMetricNumber(stats.shares ?? post?.shares) +
+      toMetricNumber(stats.saved ?? stats.saves ?? post?.saved ?? post?.saves)
+    );
+  }
+  if (metric === "reach") return toMetricNumber(stats.reach ?? post?.reach);
+  return 0;
+};
 
 function formatDate(value?: string | Date) {
   if (!value) return "—";
@@ -37,11 +83,23 @@ function resolveImageSrc(value?: string) {
   return value;
 }
 
-export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onClose, onReviewClick, onPlayClick, onDetailClick }: PostsBySliceModalProps) {
+export default function PostsBySliceModal({
+  isOpen,
+  title,
+  subtitle,
+  posts,
+  enableMetricSort = false,
+  onClose,
+  onReviewClick,
+  onPlayClick,
+  onDetailClick,
+}: PostsBySliceModalProps) {
 
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [sortMetric, setSortMetric] = useState<SortMetric>("postDate");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
   useEffect(() => {
     setMounted(true);
@@ -64,6 +122,16 @@ export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onCl
 
   if (!isOpen) return null;
 
+  const sortedPosts = posts.slice().sort((a, b) => {
+    const direction = sortOrder === "asc" ? 1 : -1;
+    const aValue = getPostMetricValue(a, sortMetric);
+    const bValue = getPostMetricValue(b, sortMetric);
+    if (aValue !== bValue) return (aValue - bValue) * direction;
+    const aDate = getPostMetricValue(a, "postDate");
+    const bDate = getPostMetricValue(b, "postDate");
+    return bDate - aDate;
+  });
+
   const modalContent = (
     <div
       className="fixed inset-0 z-[9999] flex w-screen items-start justify-center bg-slate-900/70 px-4 py-8 backdrop-blur-[2px]"
@@ -83,6 +151,34 @@ export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onCl
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{subtitle || "Seleção"}</p>
             <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
             <p className="text-xs text-slate-500">{posts.length} {posts.length === 1 ? "post" : "posts"} encontrados</p>
+            {enableMetricSort && posts.length > 1 && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ordenar por</span>
+                  <select
+                    value={sortMetric}
+                    onChange={(e) => setSortMetric(e.target.value as SortMetric)}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                  >
+                    <option value="postDate">{METRIC_LABELS.postDate}</option>
+                    <option value="likes">{METRIC_LABELS.likes}</option>
+                    <option value="comments">{METRIC_LABELS.comments}</option>
+                    <option value="shares">{METRIC_LABELS.shares}</option>
+                    <option value="saves">{METRIC_LABELS.saves}</option>
+                    <option value="interactions">{METRIC_LABELS.interactions}</option>
+                    <option value="reach">{METRIC_LABELS.reach}</option>
+                  </select>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                  >
+                    <option value="desc">Decrescente</option>
+                    <option value="asc">Crescente</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
           <button
             type="button"
@@ -103,7 +199,7 @@ export default function PostsBySliceModal({ isOpen, title, subtitle, posts, onCl
             </div>
           ) : (
             <ul className="divide-y divide-slate-200">
-              {posts.map((post, idx) => (
+              {sortedPosts.map((post, idx) => (
                 <li
                   key={post._id || idx}
                   className="flex gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors group"

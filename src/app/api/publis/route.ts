@@ -5,7 +5,7 @@ import { FilterQuery, PipelineStage, Types } from 'mongoose';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric, { IMetric } from '@/app/models/Metric';
-import { getCategoryById, getCategoryWithSubcategoryIds } from '@/app/lib/classification';
+import { PUBLI_CAPTION_INDICATOR_REGEX } from '@/app/lib/publisCaptionDetector';
 const normalizeValue = (value?: string | null) => {
     if (!value) return [];
     const trimmed = value.trim();
@@ -102,42 +102,14 @@ export async function GET(request: NextRequest) {
     const parsedStart = parseDateParam(rangeStart ?? searchParams.get('startDate'));
     const parsedEnd = parseDateParam(rangeEnd ?? searchParams.get('endDate'));
 
-    const buildClassFilter = (value: string, type: 'proposal' | 'tone') => {
-        const ids = getCategoryWithSubcategoryIds(value, type);
-        const labels = ids
-            .map(id => getCategoryById(id, type)?.label)
-            .filter((l): l is string => Boolean(l));
-
-        const variants = Array.from(
-            new Set(
-                [...ids, ...labels].flatMap(v => normalizeValue(v))
-            )
-        );
-
-        const field = type;
-        return { [field]: { $in: variants } } as FilterQuery<IMetric>;
-    };
-
-    const publiFilters: FilterQuery<IMetric>[] = [
-        buildClassFilter('publi_divulgation', 'proposal'),
-        buildClassFilter('promotional', 'tone'),
-    ];
-
-    // Heurísticas adicionais para capturar menções explícitas de publi na descrição.
-    const publiHeuristicRegex = /(publi\b|publipost|publi post|publipubli|#publi|#ad|publicidade|parceria paga|conte[uú]do pago)/i;
-    const heuristicFilters: FilterQuery<IMetric>[] = [
-        { isPubli: true },
-        { description: { $regex: publiHeuristicRegex } }
-    ];
-
     const userId = new Types.ObjectId(session.user.id);
 
     const query: FilterQuery<IMetric> = {
         user: userId,
         $and: [
             {
-                // Posts de publi podem ser marcados tanto pela proposta quanto pelo tom promocional.
-                $or: [...publiFilters, ...heuristicFilters],
+                // Identificação exclusiva via indicador "publi" (e variações) na legenda.
+                description: { $regex: PUBLI_CAPTION_INDICATOR_REGEX },
             }
         ],
     };

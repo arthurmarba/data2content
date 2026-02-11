@@ -489,6 +489,7 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({
         title={sliceModal.title}
         subtitle={sliceModal.subtitle}
         posts={sliceModal.posts}
+        enableMetricSort
         onClose={() => setSliceModal(prev => ({ ...prev, open: false }))}
         onReviewClick={handleOpenReview}
         onPlayClick={handlePlayVideo}
