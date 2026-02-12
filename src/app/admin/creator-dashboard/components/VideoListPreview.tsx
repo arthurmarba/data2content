@@ -21,6 +21,7 @@ type LabelType = "format" | "proposal" | "context" | "tone" | "reference";
 interface VideoListPreviewProps {
   userId: string;
   timePeriod: string;
+  source?: string;
   limit?: number;
   onExpand?: () => void;
   onRowClick?: (postId: string) => void; // Keep for backward compatibility or direct detail opens
@@ -36,10 +37,20 @@ interface VideoListPreviewProps {
   };
 }
 
-
-
+const DISPLAY_TIMEZONE = "America/Sao_Paulo";
+const AUTO_REFRESH_MS = 60_000;
 const formatDate = (d?: string | Date) =>
-  d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A";
+  d
+    ? new Date(d).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: DISPLAY_TIMEZONE,
+    })
+    : "N/A";
 
 const formatNumber = (n?: number) =>
   n?.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 }) ?? "-";
@@ -69,6 +80,7 @@ const labelConfig: {
 const VideoListPreview: React.FC<VideoListPreviewProps> = ({
   userId,
   timePeriod,
+  source,
   limit = 5,
   onExpand,
   onRowClick,
@@ -84,34 +96,57 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({
 
   useEffect(() => {
     if (!userId) return;
-    const fetchVideos = async () => {
-      setLoading(true);
+    let isCancelled = false;
+    const fetchVideos = async (silent = false) => {
+      if (!silent) setLoading(true);
       setError(null);
       try {
         const params = new URLSearchParams({
-          page: "1", limit: String(limit), sortBy: "views", sortOrder: "desc", timePeriod,
+          page: "1",
+          limit: String(limit),
+          sortBy: "postDate",
+          sortOrder: "desc",
+          timePeriod,
+          types: "REEL,VIDEO",
         });
+        if (source) params.set("source", source);
         if (filters.format) params.set("format", filters.format);
         if (filters.proposal) params.set("proposal", filters.proposal);
         if (filters.context) params.set("context", filters.context);
         if (filters.tone) params.set("tone", filters.tone);
         if (filters.reference) params.set("reference", filters.reference);
-        const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`);
+        const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`, {
+          cache: "no-store",
+        });
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
           throw new Error(data.error || response.statusText);
         }
         const data = await response.json();
-        setVideos(data.posts || data.videos || []);
+        if (!isCancelled) {
+          setVideos(data.posts || data.videos || []);
+        }
       } catch (err: any) {
-        setError(err.message);
+        if (!isCancelled) {
+          setError(err.message);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled && !silent) {
+          setLoading(false);
+        }
       }
     };
     fetchVideos();
+    const intervalId = window.setInterval(() => {
+      void fetchVideos(true);
+    }, AUTO_REFRESH_MS);
+    return () => {
+      isCancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [
     userId,
+    source,
     timePeriod,
     limit,
     filters.context,

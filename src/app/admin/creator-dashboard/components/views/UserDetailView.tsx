@@ -185,7 +185,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   const { data, error, isLoading } = useSWR<UserDetailWidgetsBatchResponse>(
     userId ? swrKey : null,
     fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000, refreshInterval: 60 * 1000 },
   );
   const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
   const kpis = errorMessage ? null : (data?.kpis ?? null);

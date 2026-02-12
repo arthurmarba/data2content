@@ -33,7 +33,7 @@ const DEFAULT_ENGAGEMENT_METRIC = 'stats.total_interactions';
 const DEFAULT_PERFORMANCE_METRIC = 'stats.total_interactions';
 const DEFAULT_PERFORMANCE_METRIC_LABEL = 'Interacoes (media por post)';
 const DEFAULT_HEATMAP_METRIC = 'stats.total_interactions';
-const MAX_METRIC_AGE_HOURS = 24;
+const MAX_API_VIDEO_METRIC_AGE_HOURS = 24;
 
 const ALLOWED_REGIONS = new Set(['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']);
 const ALLOWED_GENDERS = new Set(['F', 'M', 'U']);
@@ -210,14 +210,19 @@ async function fetchUserKpis(userId: string, comparisonPeriod: string): Promise<
   await connectToDatabase();
   const resolvedUserId = new Types.ObjectId(userId);
 
-  const latestMetric = await MetricModel.findOne({ user: resolvedUserId })
+  const latestApiVideoMetric = await MetricModel.findOne({
+    user: resolvedUserId,
+    source: 'api',
+    type: { $in: ['REEL', 'VIDEO'] },
+    instagramMediaId: { $exists: true, $nin: [null, ''] },
+  })
     .sort({ updatedAt: -1 })
     .select('updatedAt')
     .lean();
   const isStale =
-    !latestMetric?.updatedAt ||
-    Date.now() - new Date(latestMetric.updatedAt).getTime() >
-      MAX_METRIC_AGE_HOURS * 60 * 60 * 1000;
+    !latestApiVideoMetric?.updatedAt ||
+    Date.now() - new Date(latestApiVideoMetric.updatedAt).getTime() >
+      MAX_API_VIDEO_METRIC_AGE_HOURS * 60 * 60 * 1000;
   if (isStale) {
     try {
       await triggerDataRefresh(userId);

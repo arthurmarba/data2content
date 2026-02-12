@@ -61,7 +61,10 @@ describe('VideoDrillDownModal', () => {
     await waitFor(() => expect(screen.queryByText('Carregando vídeos...')).not.toBeInTheDocument());
 
     expect(screen.getByText('Video 1')).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('sortBy=views'));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('sortBy=views'),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
   });
 
   test('handles sorting when header is clicked', async () => {
@@ -72,8 +75,14 @@ describe('VideoDrillDownModal', () => {
     fireEvent.change(screen.getByLabelText('Ordenar por'), { target: { value: 'stats.views-desc' } });
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('sortBy=stats.views'));
-      expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('sortOrder=desc'));
+      expect(fetch).toHaveBeenLastCalledWith(
+        expect.stringContaining('sortBy=stats.views'),
+        expect.objectContaining({ cache: 'no-store' }),
+      );
+      expect(fetch).toHaveBeenLastCalledWith(
+        expect.stringContaining('sortOrder=desc'),
+        expect.objectContaining({ cache: 'no-store' }),
+      );
     });
   });
 
@@ -85,7 +94,10 @@ describe('VideoDrillDownModal', () => {
     fireEvent.click(screen.getByText('Próxima'));
 
     await screen.findByText('Video 2');
-    expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('page=2'));
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('page=2'),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
     expect(screen.getByText('Página 2 de 2')).toBeInTheDocument();
     expect(screen.getByText('Total: 20 resultados')).toBeInTheDocument();
 
@@ -93,7 +105,10 @@ describe('VideoDrillDownModal', () => {
     fireEvent.click(screen.getByText('Anterior'));
 
     expect(await screen.findByText('Video 1')).toBeInTheDocument();
-    expect(fetch).toHaveBeenLastCalledWith(expect.stringContaining('page=1'));
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('page=1'),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
   });
 
   test('opens PostDetailModal when a row is clicked', async () => {

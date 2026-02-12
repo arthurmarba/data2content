@@ -26,7 +26,7 @@ const ALLOWED_COMPARISON_PERIODS: {
   last_90d_vs_previous_90d: { currentPeriodDays: 90, periodNameCurrent: 'Últimos 90 Dias', periodNamePrevious: '90 Dias Anteriores' },
 };
 
-const MAX_METRIC_AGE_HOURS = 24;
+const MAX_API_VIDEO_METRIC_AGE_HOURS = 24;
 
 // Função auxiliar para calcular a variação percentual
 function calculatePercentageChange(current: number | null, previous: number | null): number | null {
@@ -88,14 +88,19 @@ export async function GET(
 
     const resolvedUserId = new Types.ObjectId(userId);
 
-    const latestMetric = await MetricModel.findOne({ user: resolvedUserId })
+    const latestApiVideoMetric = await MetricModel.findOne({
+      user: resolvedUserId,
+      source: 'api',
+      type: { $in: ['REEL', 'VIDEO'] },
+      instagramMediaId: { $exists: true, $nin: [null, ''] },
+    })
       .sort({ updatedAt: -1 })
       .select('updatedAt')
       .lean();
     const isStale =
-      !latestMetric?.updatedAt ||
-      Date.now() - new Date(latestMetric.updatedAt).getTime() >
-        MAX_METRIC_AGE_HOURS * 60 * 60 * 1000;
+      !latestApiVideoMetric?.updatedAt ||
+      Date.now() - new Date(latestApiVideoMetric.updatedAt).getTime() >
+        MAX_API_VIDEO_METRIC_AGE_HOURS * 60 * 60 * 1000;
     if (isStale) {
       try {
         await triggerDataRefresh(userId);

@@ -17,6 +17,9 @@ import {
 import PostReviewModal from './PostReviewModal';
 import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
 
+const DISPLAY_TIMEZONE = 'America/Sao_Paulo';
+const AUTO_REFRESH_MS = 60_000;
+
 
 
 
@@ -132,7 +135,18 @@ const VideoCard: React.FC<{
 
 
 
-  const formatDate = (d?: string | Date) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A';
+  const formatDate = (d?: string | Date) =>
+    d
+      ? new Date(d).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: DISPLAY_TIMEZONE,
+      })
+      : 'N/A';
   const formatNumber = (n?: number) => n?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '-';
   const calculateEngagementRate = (stats: VideoListItem['stats']) => {
     const views = stats?.views ?? 0;
@@ -279,6 +293,7 @@ interface VideoDrillDownModalProps {
   onClose: () => void;
   userId: string | null;
   timePeriod: string;
+  source?: string;
   drillDownMetric: string | null;
   startDate?: string;
   endDate?: string;
@@ -295,6 +310,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   onClose,
   userId,
   timePeriod,
+  source,
   drillDownMetric,
   startDate,
   endDate,
@@ -355,9 +371,9 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     return () => clearTimeout(handler);
   }, [filters]);
 
-  const fetchVideos = useCallback(async () => {
+  const fetchVideos = useCallback(async (silent = false) => {
     if (!isOpen || !userId) return;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     setError(null);
 
     const params = new URLSearchParams({
@@ -368,6 +384,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
       timePeriod,
       types: debouncedFilters.types,
     });
+    if (source) params.append('source', source);
 
 
     if (startDate) params.append('startDate', startDate);
@@ -378,7 +395,9 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     });
 
     try {
-      const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`);
+      const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || response.statusText);
@@ -390,9 +409,9 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
 
       setError(e.message);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }, [isOpen, userId, currentPage, limit, sortConfig, timePeriod, debouncedFilters, startDate, endDate]);
+  }, [isOpen, userId, currentPage, limit, sortConfig, timePeriod, source, debouncedFilters, startDate, endDate]);
 
   useEffect(() => {
     if (drillDownMetric) {
@@ -420,8 +439,13 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
 
   useEffect(() => {
     if (isOpen && userId) {
-      fetchVideos();
+      void fetchVideos();
+      const intervalId = window.setInterval(() => {
+        void fetchVideos(true);
+      }, AUTO_REFRESH_MS);
+      return () => window.clearInterval(intervalId);
     }
+    return undefined;
   }, [isOpen, userId, fetchVideos]);
 
   if (!isOpen) return null;

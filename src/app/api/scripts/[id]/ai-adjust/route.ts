@@ -6,7 +6,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import ScriptEntry from "@/app/models/ScriptEntry";
 import AIGeneratedPost from "@/app/models/AIGeneratedPost";
-import { adjustScriptFromPrompt } from "@/app/lib/scripts/ai";
+import { adjustScriptFromPrompt, ScriptAdjustScopeError } from "@/app/lib/scripts/ai";
 import { applyScriptToPlannerSlot } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
 import { isScriptsIntelligenceV2Enabled, isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
@@ -113,12 +113,23 @@ export async function POST(request: Request, { params }: Params) {
     }
   }
 
-  const adjusted = await adjustScriptFromPrompt({
-    prompt,
-    title: doc.title,
-    content: doc.content,
-    intelligenceContext,
-  });
+  let adjusted: Awaited<ReturnType<typeof adjustScriptFromPrompt>>;
+  try {
+    adjusted = await adjustScriptFromPrompt({
+      prompt,
+      title: doc.title,
+      content: doc.content,
+      intelligenceContext,
+    });
+  } catch (error: any) {
+    if (error instanceof ScriptAdjustScopeError) {
+      return NextResponse.json(
+        { ok: false, error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+    throw error;
+  }
 
   const diagnostics = buildScriptOutputDiagnostics({
     operation: "adjust",
@@ -127,6 +138,7 @@ export async function POST(request: Request, { params }: Params) {
     content: adjusted.content,
     previousContent: doc.content,
     intelligenceContext,
+    adjustMeta: adjusted.adjustMeta,
   });
 
   const aiDoc = await AIGeneratedPost.create({

@@ -244,7 +244,7 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
     const unifiedStats = {
       ...postData.stats,
       views:
-        postData.stats?.video_views || postData.stats?.reach || postData.stats?.views || postData.stats?.impressions || 0,
+        postData.stats?.views || postData.stats?.video_views || postData.stats?.reach || postData.stats?.impressions || 0,
     };
 
     const fetchedDailySnapshots = await DailyMetricSnapshotModel
@@ -289,6 +289,7 @@ export interface IFindUserPostsArgs { // ALTERADO
     format?: string;
     tone?: string;
     references?: string;
+    source?: string;
     linkSearch?: string;
     minViews?: number;
     types?: string[];
@@ -392,6 +393,13 @@ export async function findUserPosts({ // ALTERADO
 
     if (timePeriod !== 'all_time') matchStage.postDate = { $gte: startDate, $lte: endDate };
 
+    if (filters.source === 'api') {
+      matchStage.source = 'api';
+      (matchStage as any).instagramMediaId = { $exists: true, $nin: [null, ''] };
+    } else if (filters.source) {
+      matchStage.source = filters.source;
+    }
+
     // Filtros de classificação assertivos (ID exato + subcategorias; aceita labels)
     const buildClassFilter = (value: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
       const ids = getCategoryWithSubcategoryIds(value, type);
@@ -431,7 +439,17 @@ export async function findUserPosts({ // ALTERADO
       ];
     }
     if (typeof (filters as any).hour === 'number') {
-      matchStage.$expr = { $eq: [{ $hour: '$postDate' }, (filters as any).hour] };
+      matchStage.$expr = {
+        $eq: [
+          {
+            $hour: {
+              date: '$postDate',
+              timezone: 'America/Sao_Paulo',
+            }
+          },
+          (filters as any).hour
+        ]
+      };
     }
 
     const totalPosts = await MetricModel.countDocuments(matchStage); // ALTERADO
@@ -448,7 +466,15 @@ export async function findUserPosts({ // ALTERADO
         $addFields: {
           viewsSortable: {
             $ifNull: [
-              { $first: { $filter: { input: ['$stats.video_views', '$stats.reach', '$stats.views', '$stats.impressions'], as: 'viewValue', cond: { $gt: ['$$viewValue', 0] } } } },
+              {
+                $first: {
+                  $filter: {
+                    input: ['$stats.views', '$stats.video_views', '$stats.reach', '$stats.impressions'],
+                    as: 'viewValue',
+                    cond: { $gt: ['$$viewValue', 0] }
+                  }
+                }
+              },
               0,
             ],
           },

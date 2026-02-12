@@ -166,17 +166,19 @@ const UserVideoPerformanceMetrics: React.FC<
     useEffect(() => {
       setTimePeriod(globalTimePeriod);
     }, [globalTimePeriod]);
+    const hasActiveFilters = Boolean(format || proposal || context || tone || reference);
     const overrideMatches = Boolean(
       dataOverride
       && (!dataOverrideFilters
         || (dataOverrideFilters.timePeriod === timePeriod
           && (dataOverrideFilters.userId || null) === (userId || null)))
     );
-    const shouldBlockFetch = Boolean(loadingOverride) && !overrideMatches;
-    const shouldFetch = !disableFetch && !overrideMatches && !shouldBlockFetch;
-    const resolvedLoading = shouldBlockFetch ? true : (overrideMatches ? (loadingOverride ?? false) : loading);
-    const resolvedError = shouldBlockFetch ? (errorOverride ?? null) : (overrideMatches ? (errorOverride ?? null) : error);
-    const resolvedMetrics = overrideMatches
+    const canUseOverride = overrideMatches && !hasActiveFilters;
+    const shouldBlockFetch = Boolean(loadingOverride) && !canUseOverride && !hasActiveFilters;
+    const shouldFetch = !disableFetch && !canUseOverride && !shouldBlockFetch;
+    const resolvedLoading = shouldBlockFetch ? true : (canUseOverride ? (loadingOverride ?? false) : loading);
+    const resolvedError = shouldBlockFetch ? (errorOverride ?? null) : (canUseOverride ? (errorOverride ?? null) : error);
+    const resolvedMetrics = canUseOverride
       ? (dataOverride ? {
         averageViews: dataOverride.averageViews ?? null,
         averageWatchTimeSeconds: dataOverride.averageWatchTimeSeconds ?? null,
@@ -187,7 +189,7 @@ const UserVideoPerformanceMetrics: React.FC<
         averageSaves: dataOverride.averageSaves ?? null,
       } : null)
       : metrics;
-    const resolvedInsightSummary = overrideMatches ? dataOverride?.insightSummary : insightSummary;
+    const resolvedInsightSummary = canUseOverride ? dataOverride?.insightSummary : insightSummary;
 
     const fetchData = useCallback(async () => {
       if (!userId) {
@@ -457,6 +459,7 @@ const UserVideoPerformanceMetrics: React.FC<
             <VideoListPreview
               userId={userId!}
               timePeriod={timePeriod}
+              source="api"
               filters={{
                 format: format || undefined,
                 proposal: proposal || undefined,
@@ -501,6 +504,7 @@ const UserVideoPerformanceMetrics: React.FC<
           timePeriod={timePeriod}
           drillDownMetric={drillDownMetric}
           initialTypes="REEL,VIDEO"
+          source="api"
           onReviewClick={handleOpenReviewModal}
           onPlayClick={handlePlayVideo}
           onDetailClick={handleOpenDetail}

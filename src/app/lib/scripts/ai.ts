@@ -2,6 +2,13 @@ import OpenAI from "openai";
 
 import { getCategoryById } from "@/app/lib/classification";
 import type { ScriptIntelligenceContext } from "./intelligenceContext";
+import {
+  describeScriptAdjustTarget,
+  detectScriptAdjustScope,
+  type ScriptAdjustMode,
+  type ScriptAdjustTarget,
+} from "./adjustScope";
+import { mergeScopedSegment, resolveScopedSegment } from "./scriptSegmentation";
 
 type ScriptDraft = {
   title: string;
@@ -20,6 +27,19 @@ type AdjustInput = {
   intelligenceContext?: ScriptIntelligenceContext | null;
 };
 
+export type ScriptAdjustMeta = {
+  adjustMode: ScriptAdjustMode;
+  targetScope: ScriptAdjustTarget["type"];
+  targetIndex?: number | null;
+  scopeFound: boolean;
+  scopeEnforced: boolean;
+  outOfScopeChangeRate: number;
+};
+
+type AdjustResult = ScriptDraft & {
+  adjustMeta: ScriptAdjustMeta;
+};
+
 const SHORTEN_INTENT_REGEX =
   /(resum|encurt|reduz|compact|mais curto|diminu|simplifi|sintetiz|vers[aã]o curta|menos palavras)/i;
 const FIRST_PARAGRAPH_INTENT_REGEX =
@@ -28,6 +48,18 @@ const HAS_CTA_REGEX =
   /(cta|comente|coment[aá]rio|salve|salvar|compartilhe|compartilha|me conta|me diga|link na bio)/i;
 const MENTION_REGEX = /@([A-Za-z0-9._]{2,30})/g;
 const HASHTAG_REGEX = /#([\p{L}0-9_]{2,40})/gu;
+
+export class ScriptAdjustScopeError extends Error {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "ScriptAdjustScopeError";
+    this.status = 422;
+    this.code = "SCRIPT_ADJUST_SCOPE_NOT_FOUND";
+  }
+}
 
 function clampText(value: unknown, fallback: string, max: number) {
   const normalized = typeof value === "string" ? value.trim() : "";
@@ -132,6 +164,18 @@ function fallbackAdjust(input: AdjustInput): ScriptDraft {
     title: clampText(input.title, "Roteiro ajustado", 80),
     content: clampText(`${input.content}${appendix}`, input.content, 12000),
   };
+}
+
+function fallbackAdjustScoped(segmentText: string, prompt: string): string {
+  const normalizedSegment = String(segmentText || "").trim();
+  const normalizedPrompt = String(prompt || "").trim();
+  if (!normalizedSegment) return "";
+  if (!normalizedPrompt) return normalizedSegment;
+  return clampText(
+    `${normalizedSegment}\n\n[Ajuste solicitado]\n${normalizedPrompt}`,
+    normalizedSegment,
+    6000
+  );
 }
 
 function resolveCategoryLabel(dimension: keyof NonNullable<ScriptIntelligenceContext["resolvedCategories"]>, id: string): string {
@@ -363,29 +407,54 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
   return enforceGeneratedScriptContract(fallback, userPrompt);
 }
 
-export async function adjustScriptFromPrompt(input: AdjustInput): Promise<ScriptDraft> {
+export async function adjustScriptFromPrompt(input: AdjustInput): Promise<AdjustResult> {
   const userPrompt = input.prompt.trim();
   if (!userPrompt) {
     throw new Error("Descreva o ajuste que você quer aplicar.");
   }
 
-  const intelligenceBlock = buildIntelligencePromptBlock(input.intelligenceContext);
+  const scope = detectScriptAdjustScope(userPrompt);
+  const shouldEnforceScopedPatch = scope.mode === "patch" && scope.target.type !== "none";
+  const scopedResolution = shouldEnforceScopedPatch
+    ? resolveScopedSegment(input.content, scope.target)
+    : null;
 
-  const llmPrompt =
-    `Ajuste o roteiro existente com base no pedido do usuário.\n` +
-    `Título atual: ${input.title}\n` +
-    `Roteiro atual:\n${input.content}\n\n` +
-    `${intelligenceBlock}\n\n` +
-    `Ajuste solicitado: ${userPrompt}\n\n` +
-    `Regras obrigatórias:\n` +
-    `- Preserve integralmente o que não foi pedido para mudar\n` +
-    `- Se o pedido for pontual (ex.: primeiro parágrafo), altere só esse trecho\n` +
-    `- Retorne sempre o roteiro completo atualizado (nunca apenas um trecho)\n` +
-    `- Imitar o estilo do criador sem copiar frases literalmente\n` +
-    `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
-    `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
-    `- Resposta em JSON válido com {"title","content"}\n` +
-    `- Não inclua explicações fora do JSON`;
+  if (shouldEnforceScopedPatch && !scopedResolution) {
+    throw new ScriptAdjustScopeError(
+      `${describeScriptAdjustTarget(scope.target)} não foi encontrado no roteiro atual.`
+    );
+  }
+
+  const intelligenceBlock = buildIntelligencePromptBlock(input.intelligenceContext);
+  const llmPrompt = shouldEnforceScopedPatch
+    ? `Ajuste apenas o trecho alvo do roteiro com base no pedido do usuário.\n` +
+      `Título atual: ${input.title}\n` +
+      `Roteiro atual:\n${input.content}\n\n` +
+      `${intelligenceBlock}\n\n` +
+      `Trecho alvo: ${describeScriptAdjustTarget(scope.target)}\n` +
+      `Conteúdo atual do trecho alvo:\n${scopedResolution?.segment.text || ""}\n\n` +
+      `Ajuste solicitado: ${userPrompt}\n\n` +
+      `Regras obrigatórias:\n` +
+      `- Edite somente o trecho alvo informado\n` +
+      `- Não reescreva cenas/parágrafos fora do alvo\n` +
+      `- Retorne JSON válido com {"title","content"}\n` +
+      `- "title": mantenha o título atual, salvo pedido explícito para alterá-lo\n` +
+      `- "content": retorne APENAS o texto do trecho alvo revisado\n` +
+      `- Não inclua explicações fora do JSON`
+    : `Ajuste o roteiro existente com base no pedido do usuário.\n` +
+      `Título atual: ${input.title}\n` +
+      `Roteiro atual:\n${input.content}\n\n` +
+      `${intelligenceBlock}\n\n` +
+      `Ajuste solicitado: ${userPrompt}\n\n` +
+      `Regras obrigatórias:\n` +
+      `- Preserve integralmente o que não foi pedido para mudar\n` +
+      `- Se o pedido for pontual (ex.: primeiro parágrafo), altere só esse trecho\n` +
+      `- Retorne sempre o roteiro completo atualizado (nunca apenas um trecho)\n` +
+      `- Imitar o estilo do criador sem copiar frases literalmente\n` +
+      `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
+      `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
+      `- Resposta em JSON válido com {"title","content"}\n` +
+      `- Não inclua explicações fora do JSON`;
 
   const allowedIdentitySources = [userPrompt, input.title, input.content];
 
@@ -393,12 +462,83 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Script
     const result = await callModel(llmPrompt);
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, allowedIdentitySources);
-      return sanitizeAdjustedScript(input, sanitized);
+      if (shouldEnforceScopedPatch && scopedResolution) {
+        const mergedContent = mergeScopedSegment(
+          input.content,
+          scopedResolution,
+          clampText(sanitized.content, scopedResolution.segment.text, 6000)
+        );
+        const mergedDraft = sanitizeAdjustedScript(input, {
+          title: sanitized.title,
+          content: mergedContent,
+        });
+        return {
+          ...mergedDraft,
+          adjustMeta: {
+            adjustMode: scope.mode,
+            targetScope: scopedResolution.normalizedTargetType,
+            targetIndex: scopedResolution.normalizedTargetIndex,
+            scopeFound: true,
+            scopeEnforced: true,
+            outOfScopeChangeRate: 0,
+          },
+        };
+      }
+
+      const adjusted = sanitizeAdjustedScript(input, sanitized);
+      return {
+        ...adjusted,
+        adjustMeta: {
+          adjustMode: scope.mode,
+          targetScope: scope.target.type,
+          targetIndex:
+            scope.target.type === "scene" || scope.target.type === "paragraph"
+              ? scope.target.index
+              : null,
+          scopeFound: scopedResolution !== null || scope.target.type === "none",
+          scopeEnforced: false,
+          outOfScopeChangeRate: -1,
+        },
+      };
     }
   } catch {
     // Fallback local.
   }
 
+  if (shouldEnforceScopedPatch && scopedResolution) {
+    const fallbackSnippet = fallbackAdjustScoped(scopedResolution.segment.text, userPrompt);
+    const mergedContent = mergeScopedSegment(input.content, scopedResolution, fallbackSnippet);
+    const mergedDraft = sanitizeAdjustedScript(input, {
+      title: input.title,
+      content: mergedContent,
+    });
+    return {
+      ...mergedDraft,
+      adjustMeta: {
+        adjustMode: scope.mode,
+        targetScope: scopedResolution.normalizedTargetType,
+        targetIndex: scopedResolution.normalizedTargetIndex,
+        scopeFound: true,
+        scopeEnforced: true,
+        outOfScopeChangeRate: 0,
+      },
+    };
+  }
+
   const fallback = sanitizeScriptIdentityLeakage(fallbackAdjust(input), allowedIdentitySources);
-  return sanitizeAdjustedScript(input, fallback);
+  const adjusted = sanitizeAdjustedScript(input, fallback);
+  return {
+    ...adjusted,
+    adjustMeta: {
+      adjustMode: scope.mode,
+      targetScope: scope.target.type,
+      targetIndex:
+        scope.target.type === "scene" || scope.target.type === "paragraph"
+          ? scope.target.index
+          : null,
+      scopeFound: scopedResolution !== null || scope.target.type === "none",
+      scopeEnforced: false,
+      outOfScopeChangeRate: -1,
+    },
+  };
 }

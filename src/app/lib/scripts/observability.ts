@@ -3,6 +3,7 @@ import { logger } from "@/app/lib/logger";
 import type { ScriptIntelligenceContext } from "./intelligenceContext";
 import { SCRIPT_CATEGORY_DIMENSIONS, type ScriptCategoryDimension } from "./promptParser";
 import { computeStyleSimilarityScore } from "./styleContext";
+import type { ScriptAdjustMeta } from "./ai";
 
 type ScriptOperation = "create" | "adjust";
 
@@ -24,6 +25,12 @@ export type ScriptOutputDiagnostics = {
   styleSampleSize?: number;
   styleSimilarityScore?: number;
   styleFallbackUsed?: boolean;
+  adjustMode?: ScriptAdjustMeta["adjustMode"];
+  targetScope?: ScriptAdjustMeta["targetScope"];
+  targetIndex?: number | null;
+  scopeFound?: boolean;
+  scopeEnforced?: boolean;
+  outOfScopeChangeRate?: number;
   relaxationLevel?: number;
   usedFallbackRules?: boolean;
   contentLengthDelta?: number;
@@ -37,6 +44,7 @@ type BuildScriptOutputDiagnosticsInput = {
   content: string;
   intelligenceContext?: ScriptIntelligenceContext | null;
   previousContent?: string;
+  adjustMeta?: ScriptAdjustMeta;
 };
 
 function countParagraphs(content: string): number {
@@ -130,6 +138,15 @@ export function buildScriptOutputDiagnostics(
     diagnostics.contentLengthDeltaPct = previousLength
       ? Number((delta / previousLength).toFixed(3))
       : 0;
+  }
+
+  if (input.adjustMeta) {
+    diagnostics.adjustMode = input.adjustMeta.adjustMode;
+    diagnostics.targetScope = input.adjustMeta.targetScope;
+    diagnostics.targetIndex = input.adjustMeta.targetIndex ?? null;
+    diagnostics.scopeFound = input.adjustMeta.scopeFound;
+    diagnostics.scopeEnforced = input.adjustMeta.scopeEnforced;
+    diagnostics.outOfScopeChangeRate = input.adjustMeta.outOfScopeChangeRate;
   }
 
   return diagnostics;

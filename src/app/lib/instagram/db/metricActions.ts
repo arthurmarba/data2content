@@ -12,6 +12,7 @@ import { differenceInDays, startOfDay } from 'date-fns';
 
 const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClassificationClient = qstashToken ? new Client({ token: qstashToken }) : null;
+let invalidTimestampDiscardedCount = 0;
 
 if (!qstashClassificationClient && process.env.NODE_ENV === 'production') {
   logger.error("[metricActions] QSTASH_TOKEN não definido ou cliente QStash (para classificação) falhou ao inicializar. A classificação automática não funcionará.");
@@ -58,6 +59,35 @@ export async function saveMetricData(
     await connectToDatabase();
 
     const filter = { user: userId, instagramMediaId: media.id };
+    const parsedTimestamp = media.timestamp ? new Date(media.timestamp) : null;
+    const hasValidTimestamp = Boolean(parsedTimestamp && !Number.isNaN(parsedTimestamp.getTime()));
+    const existingMetricForDate = hasValidTimestamp
+      ? null
+      : await MetricModel.findOne(filter).select('_id postDate').lean<{ _id: Types.ObjectId; postDate?: Date } | null>();
+
+    if (!hasValidTimestamp && !existingMetricForDate) {
+      invalidTimestampDiscardedCount += 1;
+      logger.warn(`${TAG} Ignorando persistencia por timestamp invalido em novo registro.`, {
+        userId: userId.toString(),
+        instagramMediaId: media.id,
+        mediaTimestamp: media.timestamp ?? null,
+        discardedByInvalidTimestampTotal: invalidTimestampDiscardedCount,
+      });
+      return;
+    }
+
+    if (!hasValidTimestamp && (!existingMetricForDate?.postDate || Number.isNaN(new Date(existingMetricForDate.postDate).getTime()))) {
+      invalidTimestampDiscardedCount += 1;
+      logger.warn(`${TAG} Ignorando persistencia por timestamp invalido e postDate ausente/invalido no registro existente.`, {
+        userId: userId.toString(),
+        instagramMediaId: media.id,
+        mediaTimestamp: media.timestamp ?? null,
+        existingMetricId: existingMetricForDate?._id?.toString?.() ?? null,
+        discardedByInvalidTimestampTotal: invalidTimestampDiscardedCount,
+      });
+      return;
+    }
+
     const format = mapMediaTypeToFormat(media.media_type);
 
     let metricType: IMetric['type'] = 'UNKNOWN';
@@ -78,8 +108,6 @@ export async function saveMetricData(
         }
       });
     }
-
-    const currentPostDate = media.timestamp ? new Date(media.timestamp) : new Date();
 
     // Determine the best cover URL based on media type
     let coverUrl: string | null = null;
@@ -115,7 +143,7 @@ export async function saveMetricData(
         source: 'api',
         postLink: media.permalink ?? '',
         description: media.caption ?? '',
-        postDate: currentPostDate,
+        ...(hasValidTimestamp && parsedTimestamp ? { postDate: parsedTimestamp } : {}),
         type: metricType,
         format: format,
         updatedAt: new Date(),

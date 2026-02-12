@@ -30,6 +30,7 @@
     "qa:triggers": "bash qa/stripe-triggers.sh",
     "qa:http": "bash qa/http.sh",
     "cron:refresh-metrics": "tsx --env-file=.env.local ./scripts/cron/refreshMetrics.ts",
+    "audit:video-postdates": "node ./scripts/auditVideoPostDates.mjs",
     "smoke:types": "tsc -p tsconfig.smoke.json",
     "compliance:whatsapp": "node scripts/compliance-whatsapp.mjs"
   },

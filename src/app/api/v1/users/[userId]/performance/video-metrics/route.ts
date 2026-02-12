@@ -4,6 +4,8 @@ import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 
+export const dynamic = 'force-dynamic';
+
 interface AverageVideoMetricsData {
   averageRetentionRate: number;
   averageWatchTimeSeconds: number;

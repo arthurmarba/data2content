@@ -35,16 +35,19 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.posts).toEqual([{ id: 1 }]);
+    expect(body.posts).toEqual([expect.objectContaining({ id: 1 })]);
     expect(body.pagination.totalPosts).toBe(3);
-    expect(mockFindUserPosts).toHaveBeenCalledWith({
+    expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
       userId,
       timePeriod: 'last_90_days',
       sortBy: 'postDate',
       sortOrder: 'desc',
       page: 1,
       limit: 10,
-    });
+      filters: expect.objectContaining({
+        source: undefined,
+      }),
+    }));
   });
 
   it('maps sortBy params using helper', async () => {
@@ -58,14 +61,36 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     const req = createRequest(userId, '?sortBy=views');
     await GET(req, { params: { userId } });
 
-    expect(mockFindUserPosts).toHaveBeenCalledWith({
+    expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
       userId,
       timePeriod: 'last_90_days',
       sortBy: 'stats.views',
       sortOrder: 'desc',
       page: 1,
       limit: 10,
+      filters: expect.objectContaining({
+        source: undefined,
+      }),
+    }));
+  });
+
+  it('forwards source filter when provided', async () => {
+    mockFindUserPosts.mockResolvedValueOnce({
+      posts: [],
+      totalPosts: 0,
+      page: 1,
+      limit: 10,
     });
+
+    const req = createRequest(userId, '?source=api&types=REEL,VIDEO');
+    await GET(req, { params: { userId } });
+
+    expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
+      filters: expect.objectContaining({
+        source: 'api',
+        types: ['REEL', 'VIDEO'],
+      }),
+    }));
   });
 
   it('returns 400 for invalid timePeriod', async () => {
@@ -85,6 +110,6 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toBe('Erro ao buscar vídeos.');
+    expect(body.error).toBe('Erro ao buscar posts.');
   });
 });

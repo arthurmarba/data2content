@@ -70,6 +70,8 @@ async function calculateAverageVideoMetrics(
         $match: (Object as any).assign({
           user: resolvedUserId,
           postDate: { $gte: startDate, $lte: endDate },
+          source: 'api',
+          instagramMediaId: { $exists: true, $nin: [null, ''] },
           type: { $in: videoTypes },
         }, (function () {
           const match: any = {};
