@@ -1,6 +1,23 @@
 import mongoose, { Schema, Types, Document, model, models } from 'mongoose';
 
 export type BrandProposalStatus = 'novo' | 'visto' | 'respondido' | 'aceito' | 'rejeitado';
+export type BrandProposalSuggestionType =
+  | 'aceitar'
+  | 'ajustar'
+  | 'aceitar_com_extra'
+  | 'ajustar_escopo'
+  | 'coletar_orcamento';
+
+export interface IBrandProposalAnalysisSnapshot {
+  createdAt: Date;
+  version?: string;
+  analysis: string;
+  replyDraft: string;
+  suggestionType: BrandProposalSuggestionType;
+  suggestedValue?: number | null;
+  analysisV2?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
+}
 
 export interface IBrandProposal extends Document {
   userId: Types.ObjectId;
@@ -19,6 +36,8 @@ export interface IBrandProposal extends Document {
   userAgent?: string;
   lastResponseAt?: Date;
   lastResponseMessage?: string;
+  latestAnalysis?: IBrandProposalAnalysisSnapshot;
+  analysisHistory?: IBrandProposalAnalysisSnapshot[];
   upsellNotifiedAt?: Date;
   utmSource?: string;
   utmMedium?: string;
@@ -31,6 +50,48 @@ export interface IBrandProposal extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const ProposalAnalysisSnapshotSchema = new Schema<IBrandProposalAnalysisSnapshot>(
+  {
+    createdAt: {
+      type: Date,
+      required: true,
+    },
+    version: {
+      type: String,
+      trim: true,
+      default: '2.0.0',
+    },
+    analysis: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    replyDraft: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    suggestionType: {
+      type: String,
+      enum: ['aceitar', 'ajustar', 'aceitar_com_extra', 'ajustar_escopo', 'coletar_orcamento'],
+      required: true,
+      trim: true,
+    },
+    suggestedValue: {
+      type: Number,
+    },
+    analysisV2: {
+      type: Schema.Types.Mixed,
+    },
+    meta: {
+      type: Schema.Types.Mixed,
+    },
+  },
+  {
+    _id: false,
+  }
+);
 
 const BrandProposalSchema = new Schema<IBrandProposal>(
   {
@@ -106,6 +167,13 @@ const BrandProposalSchema = new Schema<IBrandProposal>(
     lastResponseMessage: {
       type: String,
       trim: true,
+    },
+    latestAnalysis: {
+      type: ProposalAnalysisSnapshotSchema,
+    },
+    analysisHistory: {
+      type: [ProposalAnalysisSnapshotSchema],
+      default: undefined,
     },
     upsellNotifiedAt: {
       type: Date,

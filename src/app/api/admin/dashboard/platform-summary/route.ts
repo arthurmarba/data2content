@@ -4,7 +4,11 @@ import { logger } from '@/app/lib/logger';
 import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAdminSession } from '@/lib/getAdminSession';
-import { dashboardCache, DEFAULT_DASHBOARD_TTL_MS } from '@/app/lib/cache/dashboardCache';
+import {
+  buildAdminPlatformSummaryCacheKey,
+  dashboardCache,
+  DEFAULT_DASHBOARD_TTL_MS,
+} from '@/app/lib/cache/dashboardCache';
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store' };
 
@@ -72,13 +76,13 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Query parameters validated. Date range: ${dateRange ? JSON.stringify(dateRange) : 'Not provided'}`);
 
   try {
-    const cacheKey = `${TAG}:${JSON.stringify({
-      startDate: dateRange?.startDate?.toISOString() ?? null,
-      endDate: dateRange?.endDate?.toISOString() ?? null,
+    const cacheKey = buildAdminPlatformSummaryCacheKey({
+      startDateIso: dateRange?.startDate?.toISOString() ?? null,
+      endDateIso: dateRange?.endDate?.toISOString() ?? null,
       onlyActiveSubscribers: validationResult.data.onlyActiveSubscribers ?? false,
-      context: validationResult.data.context ?? '',
-      creatorContext: validationResult.data.creatorContext ?? '',
-    })}`;
+      context: validationResult.data.context,
+      creatorContext: validationResult.data.creatorContext,
+    });
 
     const { value: summaryData, hit } = await dashboardCache.wrap(
       cacheKey,

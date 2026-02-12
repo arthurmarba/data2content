@@ -15,6 +15,27 @@ export interface CacheResult<T> {
 export class SimpleTtlCache {
   private store = new Map<string, CacheEntry<unknown>>();
 
+  get<T>(key: string): CacheResult<T> | null {
+    const now = Date.now();
+    const existing = this.store.get(key);
+    if (!existing) return null;
+
+    if (existing.expiresAt <= now) {
+      this.store.delete(key);
+      return null;
+    }
+
+    if (existing.promise) {
+      return null;
+    }
+
+    return { value: existing.value as T, hit: true };
+  }
+
+  set<T>(key: string, value: T, ttlMs: number) {
+    this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  }
+
   async wrap<T>(key: string, factory: () => Promise<T> | T, ttlMs: number): Promise<CacheResult<T>> {
     const now = Date.now();
     const existing = this.store.get(key);
@@ -50,6 +71,14 @@ export class SimpleTtlCache {
       this.store.delete(key);
     } else {
       this.store.clear();
+    }
+  }
+
+  clearByPrefix(prefix: string) {
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        this.store.delete(key);
+      }
     }
   }
 }

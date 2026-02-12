@@ -4,7 +4,11 @@ import { logger } from '@/app/lib/logger';
 import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAdminSession } from '@/lib/getAdminSession';
-import { dashboardCache, DEFAULT_DASHBOARD_TTL_MS } from '@/app/lib/cache/dashboardCache';
+import {
+  buildAdminPlatformSummaryBatchCacheKey,
+  dashboardCache,
+  DEFAULT_DASHBOARD_TTL_MS,
+} from '@/app/lib/cache/dashboardCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,15 +62,15 @@ export async function GET(req: NextRequest) {
   const previousStart = new Date(previousEnd.getTime() - diffMs);
 
   try {
-    const cacheKey = `${TAG}:${JSON.stringify({
-      currentStart: currentStart.toISOString(),
-      currentEnd: currentEnd.toISOString(),
-      previousStart: previousStart.toISOString(),
-      previousEnd: previousEnd.toISOString(),
+    const cacheKey = buildAdminPlatformSummaryBatchCacheKey({
+      currentStartIso: currentStart.toISOString(),
+      currentEndIso: currentEnd.toISOString(),
+      previousStartIso: previousStart.toISOString(),
+      previousEndIso: previousEnd.toISOString(),
       onlyActiveSubscribers: validationResult.data.onlyActiveSubscribers ?? false,
-      context: validationResult.data.context ?? '',
-      creatorContext: validationResult.data.creatorContext ?? '',
-    })}`;
+      context: validationResult.data.context,
+      creatorContext: validationResult.data.creatorContext,
+    });
 
     const { value: summaryData, hit } = await dashboardCache.wrap(
       cacheKey,

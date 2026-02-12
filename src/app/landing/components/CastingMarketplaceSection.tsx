@@ -189,6 +189,11 @@ function partitionRails(rails: CastingRail[]) {
  * MAIN COMPONENT
  */
 export default function CastingMarketplaceSection({ initialCreators = [], metrics }: { initialCreators?: LandingCreatorHighlight[]; metrics?: LandingCommunityMetrics | null }) {
+    const initialCreatorsAreFallback = React.useMemo(
+        () => initialCreators.length > 0 && initialCreators.every((creator) => creator.id.startsWith("fallback-")),
+        [initialCreators],
+    );
+    const shouldSkipInitialFetchRef = React.useRef(initialCreators.length > 0 && !initialCreatorsAreFallback);
     const [creators, setCreators] = React.useState(initialCreators);
     const [loading, setLoading] = React.useState(false);
     const [search, setSearch] = React.useState("");
@@ -224,10 +229,16 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
     }, [debouncedSearch, minFollowers, minAvgInteractions]);
 
     React.useEffect(() => {
+        const hasActiveFilters = Boolean(debouncedSearch || minFollowers || minAvgInteractions);
+        if (shouldSkipInitialFetchRef.current && !hasActiveFilters) {
+            shouldSkipInitialFetchRef.current = false;
+            return;
+        }
+        shouldSkipInitialFetchRef.current = false;
         const controller = new AbortController();
         fetchCreators(controller.signal);
         return () => controller.abort();
-    }, [fetchCreators]);
+    }, [fetchCreators, debouncedSearch, minFollowers, minAvgInteractions]);
 
     const handleBrandForm = React.useCallback(() => {
         track("marketplace_ranking_cta_click");

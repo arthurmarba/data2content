@@ -9,6 +9,22 @@ import { logger } from '@/app/lib/logger';
 
 export const runtime = 'nodejs';
 
+const serializeAnalysisSnapshot = (snapshot: any) => {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+
+  return {
+    createdAt: snapshot.createdAt ? new Date(snapshot.createdAt).toISOString() : null,
+    version: typeof snapshot.version === 'string' ? snapshot.version : null,
+    analysis: typeof snapshot.analysis === 'string' ? snapshot.analysis : null,
+    replyDraft: typeof snapshot.replyDraft === 'string' ? snapshot.replyDraft : null,
+    suggestionType: typeof snapshot.suggestionType === 'string' ? snapshot.suggestionType : null,
+    suggestedValue: typeof snapshot.suggestedValue === 'number' ? snapshot.suggestedValue : null,
+    analysisV2:
+      snapshot.analysisV2 && typeof snapshot.analysisV2 === 'object' ? snapshot.analysisV2 : null,
+    meta: snapshot.meta && typeof snapshot.meta === 'object' ? snapshot.meta : null,
+  };
+};
+
 const serializeProposal = (proposal: any) => ({
   id: proposal._id.toString(),
   brandName: proposal.brandName,
@@ -28,6 +44,10 @@ const serializeProposal = (proposal: any) => ({
   updatedAt: proposal.updatedAt ? proposal.updatedAt.toISOString() : null,
   lastResponseAt: proposal.lastResponseAt ? proposal.lastResponseAt.toISOString() : null,
   lastResponseMessage: proposal.lastResponseMessage ?? null,
+  latestAnalysis: serializeAnalysisSnapshot(proposal.latestAnalysis),
+  analysisHistory: Array.isArray(proposal.analysisHistory)
+    ? proposal.analysisHistory.map(serializeAnalysisSnapshot).filter(Boolean)
+    : [],
 });
 
 async function getAuthorizedProposal(request: NextRequest, id: string) {

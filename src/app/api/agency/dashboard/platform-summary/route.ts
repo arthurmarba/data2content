@@ -4,6 +4,11 @@ import { logger } from '@/app/lib/logger';
 import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAgencySession } from '@/lib/getAgencySession';
+import {
+  buildAgencyPlatformSummaryCacheKey,
+  dashboardCache,
+  DEFAULT_DASHBOARD_TTL_MS,
+} from '@/app/lib/cache/dashboardCache';
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store' };
 
@@ -27,6 +32,7 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const start = performance.now ? performance.now() : Date.now();
   logger.info(`${TAG} Request received`);
 
   const session = await getAgencySession(req);
@@ -37,7 +43,8 @@ export async function GET(req: NextRequest) {
 
   // CORRIGIDO: Adicionado um 'type guard' para garantir que o agencyId existe.
   // Se um usuário de parceiro está logado, ele DEVE ter um agencyId.
-  if (!session.user.agencyId) {
+  const agencyId = session.user.agencyId;
+  if (typeof agencyId !== 'string' || !agencyId) {
     logger.error(`${TAG} Authenticated user ${session.user.id || session.user.email} has no agencyId.`);
     return NextResponse.json({ error: 'User is not associated with an agency' }, { status: 400, headers: noStore });
   }
@@ -62,7 +69,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  let dateRange;
+  let dateRange: { startDate: Date; endDate: Date } | undefined;
   if (validationResult.data.startDate && validationResult.data.endDate) {
     dateRange = { startDate: new Date(validationResult.data.startDate), endDate: new Date(validationResult.data.endDate) };
   }
@@ -70,12 +77,28 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Query parameters validated. Date range: ${dateRange ? JSON.stringify(dateRange) : 'Not provided'}`);
 
   try {
-    // A partir daqui, o TypeScript sabe que session.user.agencyId é uma string.
-    const summaryData = await fetchPlatformSummary({
-      dateRange,
-      agencyId: session.user.agencyId,
-      ...(validationResult.data.creatorContext ? { creatorContext: validationResult.data.creatorContext } : {}),
+    const cacheKey = buildAgencyPlatformSummaryCacheKey({
+      agencyId,
+      startDateIso: dateRange?.startDate?.toISOString() ?? null,
+      endDateIso: dateRange?.endDate?.toISOString() ?? null,
+      creatorContext: validationResult.data.creatorContext,
     });
+
+    // A partir daqui, o TypeScript sabe que session.user.agencyId é uma string.
+    const { value: summaryData, hit } = await dashboardCache.wrap(
+      cacheKey,
+      () =>
+        fetchPlatformSummary({
+          dateRange,
+          agencyId,
+          ...(validationResult.data.creatorContext
+            ? { creatorContext: validationResult.data.creatorContext }
+            : {}),
+        }),
+      DEFAULT_DASHBOARD_TTL_MS
+    );
+    const duration = Math.round((performance.now ? performance.now() : Date.now()) - start);
+    logger.info(`${TAG} Responded in ${duration}ms (cacheHit=${hit})`);
     return NextResponse.json(summaryData, { status: 200, headers: noStore });
   } catch (error: any) {
     logger.error(`${TAG} Error in request handler:`, { message: error.message, stack: error.stack });

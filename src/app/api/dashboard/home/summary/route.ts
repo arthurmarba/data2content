@@ -29,6 +29,11 @@ import { ptBR } from "date-fns/locale";
 import { getUpcomingMentorshipEvent } from "@/app/lib/community/events";
 import { getPlanAccessMeta, isPlanActiveLike } from "@/utils/planStatus";
 import { isWhatsappTrialEnabled } from "@/app/lib/whatsappTrial";
+import {
+  buildDashboardHomeSummaryCacheKey,
+  dashboardCache,
+  SHORT_DASHBOARD_TTL_MS,
+} from "@/app/lib/cache/dashboardCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1259,6 +1264,11 @@ export async function GET(request: Request) {
   const scope = searchParams.get("scope") ?? "all";
   const periodParam = (searchParams.get("period") as PeriodKey | null) ?? "30d";
   const period = PERIOD_TO_DAYS[periodParam] ? periodParam : "30d";
+  const cacheKey = buildDashboardHomeSummaryCacheKey({ userId, scope, period });
+  const cached = dashboardCache.get<{ ok: true; data: Record<string, unknown> }>(cacheKey);
+  if (cached?.hit) {
+    return NextResponse.json(cached.value);
+  }
 
   try {
     await connectToDatabase();
@@ -1648,10 +1658,12 @@ export async function GET(request: Request) {
       responsePayload.journeyProgress = null;
     }
 
-    return NextResponse.json({
+    const payload = {
       ok: true,
       data: responsePayload,
-    });
+    } as const;
+    dashboardCache.set(cacheKey, payload, SHORT_DASHBOARD_TTL_MS);
+    return NextResponse.json(payload);
   }
 
   if (scope === "all" || scope === "community") {
@@ -1671,8 +1683,10 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({
+  const payload = {
     ok: true,
     data: responsePayload,
-  });
+  } as const;
+  dashboardCache.set(cacheKey, payload, SHORT_DASHBOARD_TTL_MS);
+  return NextResponse.json(payload);
 }

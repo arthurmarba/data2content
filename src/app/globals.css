@@ -9,6 +9,8 @@
    Variáveis & Helpers Gemini
    ========================= */
 :root {
+  --font-poppins: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
   /* Altura do header (atualizada dinamicamente pelo Header via ResizeObserver) */
   --header-h: 56px;
 

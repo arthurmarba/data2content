@@ -4,6 +4,11 @@ import { getCategoryById } from '@/app/lib/classification';
 import { logger } from '@/app/lib/logger';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 5;
+
+const PUBLIC_CACHE_CONTROL =
+  'public, max-age=30, s-maxage=300, stale-while-revalidate=1800, stale-if-error=3600';
+const BYPASS_CACHE_CONTROL = 'no-store';
 
 type LandingCategory = {
   id: string;
@@ -49,14 +54,19 @@ const cacheStore = (global as any).__landingDiscoveryCache as Record<string, Cac
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
+  const forceRefresh = url.searchParams.get('refresh') === 'true';
   const perCat = Math.max(1, Math.min(30, Number(url.searchParams.get('limit') || '15')));
   const ttlMs = Math.max(60_000, Math.min(15 * 60_000, Number(process.env.LANDING_DISCOVERY_TTL_MS || '300000')));
   const cacheKey = `viral:v2:limit=${perCat}`;
 
   const now = Date.now();
   const hit = cacheStore[cacheKey];
-  if (hit && hit.expires > now) {
-    return NextResponse.json(hit.payload);
+  if (!forceRefresh && hit && hit.expires > now) {
+    return NextResponse.json(hit.payload, {
+      headers: {
+        'Cache-Control': PUBLIC_CACHE_CONTROL,
+      },
+    });
   }
 
   // Helpers locais
@@ -166,8 +176,14 @@ export async function GET(req: NextRequest) {
     ];
 
     const payload = { categories };
-    cacheStore[cacheKey] = { expires: now + ttlMs, payload };
-    return NextResponse.json(payload);
+    if (!forceRefresh) {
+      cacheStore[cacheKey] = { expires: now + ttlMs, payload };
+    }
+    return NextResponse.json(payload, {
+      headers: {
+        'Cache-Control': forceRefresh ? BYPASS_CACHE_CONTROL : PUBLIC_CACHE_CONTROL,
+      },
+    });
   } catch (error: any) {
     logger.error('[api/landing/discovery] Failed to build viral feed:', error);
     return NextResponse.json({ error: 'failed_to_build_discovery' }, { status: 500 });

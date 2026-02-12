@@ -445,7 +445,7 @@ export default function LandingPageClient() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/landing/community-stats", { cache: "no-store" });
+        const res = await fetch("/api/landing/community-stats");
         if (!res.ok) throw new Error(`Failed to load stats: ${res.status}`);
         const data = (await res.json()) as LandingCommunityStatsResponse;
         if (!cancelled) setStats(data);

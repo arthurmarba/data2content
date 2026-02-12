@@ -4,6 +4,11 @@ import { fetchCommunityLandingStats } from '@/app/lib/landing/communityStatsServ
 import { logger } from '@/app/lib/logger';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 5;
+
+const PUBLIC_CACHE_CONTROL =
+  'public, max-age=60, s-maxage=600, stale-while-revalidate=3600, stale-if-error=86400';
+const BYPASS_CACHE_CONTROL = 'no-store';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(payload, {
       headers: {
-        'Cache-Control': 'no-store',
+        'Cache-Control': forceRefresh ? BYPASS_CACHE_CONTROL : PUBLIC_CACHE_CONTROL,
       },
     });
   } catch (error: any) {

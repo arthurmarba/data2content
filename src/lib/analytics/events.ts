@@ -82,8 +82,27 @@ export const analyticsEventCatalog = {
     payload: {
       creator_id: '' as StringMaybe,
       proposal_id: '' as StringMaybe,
-      suggestion_type: '' as ('aceitar' | 'ajustar' | 'aceitar_com_extra' | null | undefined),
+      suggestion_type: '' as (
+        | 'aceitar'
+        | 'ajustar'
+        | 'aceitar_com_extra'
+        | 'ajustar_escopo'
+        | 'coletar_orcamento'
+        | null
+        | undefined
+      ),
       suggested_value: 0 as NumberMaybe,
+      confidence: 0 as NumberMaybe,
+      fallback_used: null as boolean | null | undefined,
+    },
+  },
+  ai_analysis_failed: {
+    group: 'ai',
+    description: 'AI proposal analysis failed at some stage.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      proposal_id: '' as StringMaybe,
+      stage: '' as ('context' | 'engine' | 'llm' | 'parse' | null | undefined),
     },
   },
   email_draft_generated: {

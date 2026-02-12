@@ -1,6 +1,8 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import ProposalsClient from './ProposalsClient';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
 import { track } from '@/lib/track';
+
+import ProposalsClient from './ProposalsClient';
 
 const toastMock = jest.fn();
 jest.mock('@/app/components/ui/ToastA11yProvider', () => ({
@@ -13,11 +15,6 @@ jest.mock('@/app/hooks/useBillingStatus', () => ({
   default: () => mockUseBillingStatus(),
 }));
 
-const mockUseSession = jest.fn();
-jest.mock('next-auth/react', () => ({
-  useSession: () => mockUseSession(),
-}));
-
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
@@ -27,38 +24,22 @@ jest.mock('@/lib/track', () => ({
 }));
 
 const originalFetch = global.fetch;
-const originalDispatch = window.dispatchEvent;
 
 beforeEach(() => {
   toastMock.mockClear();
   (track as jest.Mock).mockClear();
   mockUseBillingStatus.mockReset();
-  mockUseSession.mockReset();
-  window.dispatchEvent = jest.fn();
 });
 
 afterEach(() => {
   if (global.fetch) {
     (global.fetch as jest.Mock).mockRestore?.();
   }
-  window.dispatchEvent = originalDispatch;
 });
 
 afterAll(() => {
   global.fetch = originalFetch;
 });
-
-const defaultSession = {
-  data: {
-    user: {
-      id: 'user-1',
-      email: 'creator@example.com',
-      name: 'Creator',
-      planStatus: 'inactive',
-    },
-  },
-  status: 'authenticated',
-} as const;
 
 function mockFetchFreeFlow() {
   const listPayload = {
@@ -87,6 +68,8 @@ function mockFetchFreeFlow() {
     originIp: null,
     userAgent: null,
     mediaKitSlug: 'creator-kit',
+    latestAnalysis: null,
+    analysisHistory: [],
   };
 
   const updatedDetail = {
@@ -99,6 +82,14 @@ function mockFetchFreeFlow() {
     .mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       const method = (init?.method || 'GET').toUpperCase();
+
+      if (url === '/api/users/media-kit-token' && method === 'GET') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ url: 'https://data2content.io/media-kit/creator' }),
+        } as Response);
+      }
 
       if (url.startsWith('/api/proposals') && !url.includes('/prop-1')) {
         return Promise.resolve({
@@ -163,6 +154,8 @@ function mockFetchProFlow() {
     originIp: null,
     userAgent: null,
     mediaKitSlug: 'creator-kit',
+    latestAnalysis: null,
+    analysisHistory: [],
   };
 
   return jest
@@ -170,6 +163,14 @@ function mockFetchProFlow() {
     .mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       const method = (init?.method || 'GET').toUpperCase();
+
+      if (url === '/api/users/media-kit-token' && method === 'GET') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ url: 'https://data2content.io/media-kit/creator' }),
+        } as Response);
+      }
 
       if (url.startsWith('/api/proposals') && !url.includes('/prop-2')) {
         return Promise.resolve({
@@ -193,7 +194,30 @@ function mockFetchProFlow() {
           status: 200,
           json: async () => ({
             analysis: 'Diagnóstico pronto',
-            replyDraft: 'Olá, marca!',
+            replyDraft: 'Olá, marca!\n\nPodemos avançar com a campanha.',
+            suggestionType: 'aceitar',
+            suggestedValue: 1500,
+            analysisV2: {
+              verdict: 'aceitar',
+              confidence: { score: 0.82, label: 'alta' },
+              pricing: {
+                currency: 'BRL',
+                offered: 1500,
+                target: 1500,
+                anchor: 1800,
+                floor: 1400,
+                gapPercent: 0,
+              },
+              rationale: ['Investimento alinhado com o valor recomendado.'],
+              playbook: ['Avance para fechamento com cronograma simples.'],
+              cautions: [],
+            },
+            meta: {
+              model: 'gpt-4o-mini',
+              fallbackUsed: false,
+              latencyMs: 120,
+              contextSignals: ['has_budget'],
+            },
           }),
         } as Response);
       }
@@ -211,7 +235,6 @@ function mockFetchProFlow() {
 }
 
 test('free user sees upgrade banner, tracking, and notify-upgrade flow', async () => {
-  mockUseSession.mockReturnValue(defaultSession);
   mockUseBillingStatus.mockReturnValue({
     hasPremiumAccess: false,
     isLoading: false,
@@ -226,9 +249,7 @@ test('free user sees upgrade banner, tracking, and notify-upgrade flow', async (
   );
 
   await waitFor(() =>
-    expect(
-      screen.getByText('Responda e negocie direto pela plataforma')
-    ).toBeInTheDocument()
+    expect(screen.getByText('Desbloqueie a IA de negociação')).toBeInTheDocument()
   );
 
   expect(track).toHaveBeenCalledWith('pro_feature_locked_viewed', {
@@ -250,14 +271,7 @@ test('free user sees upgrade banner, tracking, and notify-upgrade flow', async (
   );
 });
 
-test('pro user can analyze proposal without seeing upgrade gates', async () => {
-  mockUseSession.mockReturnValue({
-    ...defaultSession,
-    data: {
-      ...defaultSession.data,
-      user: { ...defaultSession.data.user, planStatus: 'active' },
-    },
-  });
+test('pro user can generate analysis in summary mode and update reply draft', async () => {
   mockUseBillingStatus.mockReturnValue({
     hasPremiumAccess: true,
     isLoading: false,
@@ -272,10 +286,10 @@ test('pro user can analyze proposal without seeing upgrade gates', async () => {
   );
 
   const analyzeButton = await screen.findByRole('button', {
-    name: /Analisar Proposta/i,
+    name: /Gerar ajuda para responder/i,
   });
 
-  expect(screen.queryByText('Responda e negocie direto pela plataforma')).toBeNull();
+  expect(screen.queryByText('Desbloqueie a IA de negociação')).toBeNull();
   expect(track).not.toHaveBeenCalledWith('pro_feature_locked_viewed', expect.anything());
 
   fireEvent.click(analyzeButton);
@@ -287,6 +301,17 @@ test('pro user can analyze proposal without seeing upgrade gates', async () => {
     )
   );
 
-  expect(await screen.findByText(/Diagnóstico do Mobi/)).toBeInTheDocument();
-  expect(await screen.findByDisplayValue('Olá, marca!')).toBeInTheDocument();
+  expect(await screen.findByText(/Resumo da IA/i)).toBeInTheDocument();
+  expect(await screen.findByText(/Pode fechar/i)).toBeInTheDocument();
+  expect(await screen.findByText(/Quão confiável está essa sugestão/i)).toBeInTheDocument();
+  expect(await screen.findByText(/Faixa sugerida para negociar/i)).toBeInTheDocument();
+
+  const textarea = await screen.findByPlaceholderText(/Sua resposta vai aparecer aqui/i);
+  expect((textarea as HTMLTextAreaElement).value).toContain('Olá, marca!');
+  expect((textarea as HTMLTextAreaElement).value).toContain('métricas em tempo real');
+
+  fireEvent.click(screen.getByRole('button', { name: /Pedir ajuste de valor/i }));
+  await waitFor(() => {
+    expect((textarea as HTMLTextAreaElement).value).toContain('valor recomendado');
+  });
 });

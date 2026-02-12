@@ -9,6 +9,13 @@ const nextConfig = {
     // Em desenvolvimento, desabilita o otimizador para evitar 403 de CDNs (fbcdn/instagram).
     // Em produção, continua usando o otimizador normalmente.
     unoptimized: process.env.NODE_ENV === 'development',
+    // Reduz custo de transformações no Vercel:
+    // - menos variantes geradas
+    // - apenas WebP como formato otimizado
+    formats: ['image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 31, // 31 dias
+    deviceSizes: [360, 640, 768, 1024, 1280, 1536],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
 
     remotePatterns: [
       // Avatares do Google

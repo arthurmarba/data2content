@@ -5,6 +5,7 @@ import { logger } from '@/app/lib/logger';
 // ATUALIZADO para o novo módulo
 import { triggerDataRefresh } from '@/app/lib/instagram'; 
 import mongoose from 'mongoose'; // Para validar ObjectId
+import { invalidateDashboardHomeSummaryCache } from '@/app/lib/cache/dashboardCache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Garante execução dinâmica
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
     logger.info(`${TAG} triggerDataRefresh concluído para User ID: ${userId}. Sucesso: ${refreshResult.success}`);
 
     if (refreshResult.success) {
+        invalidateDashboardHomeSummaryCache(userId);
         logger.info(`${TAG} Atualização de dados para User ${userId} concluída com sucesso. Mensagem: ${refreshResult.message}`);
         return NextResponse.json({ success: true, message: refreshResult.message, details: refreshResult.details }, { status: 200 });
     } else {

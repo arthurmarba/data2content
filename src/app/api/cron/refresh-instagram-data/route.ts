@@ -4,6 +4,7 @@ import { Client as QStashClient } from "@upstash/qstash"; // Para publicar taref
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User'; // Importa o modelo User padrão
+import { invalidateDashboardPlatformSummaryCaches } from '@/app/lib/cache/dashboardCache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Garante execução dinâmica
@@ -122,6 +123,11 @@ export async function POST(request: NextRequest) {
             logger.error(`${TAG} Falha ao publicar tarefa no QStash para User ${userId}:`, qstashError);
             // Continua para os próximos usuários
         }
+    }
+
+    if (publishedCount > 0) {
+      invalidateDashboardPlatformSummaryCaches();
+      logger.info(`${TAG} Cache de platform summary invalidado após enfileirar refresh de usuários.`);
     }
 
     logger.info(`${TAG} Processamento concluído. Tarefas publicadas: ${publishedCount}. Falhas: ${failedCount}.`);
