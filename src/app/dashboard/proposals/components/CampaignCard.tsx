@@ -39,14 +39,14 @@ const STATUS_TONE: Record<ProposalStatus, { header: string; text: string; ring: 
 };
 
 const STATUS_LABELS: Record<ProposalStatus, string> = {
-    novo: "Nova",
-    visto: "Lida",
-    respondido: "Respondida",
+    novo: "Recebida",
+    visto: "Recebida",
+    respondido: "Negociação",
     aceito: "Fechada",
-    rejeitado: "Recusada",
+    rejeitado: "Perdida",
 };
 
-const STATUS_OPTIONS: ProposalStatus[] = ["novo", "visto", "respondido", "aceito", "rejeitado"];
+const STATUS_OPTIONS: ProposalStatus[] = ["novo", "respondido", "aceito", "rejeitado"];
 
 export default function CampaignCard({ proposal, onClick, onStatusChange, formatMoney, formatDate }: CampaignCardProps) {
     const tone = STATUS_TONE[proposal.status] || STATUS_TONE.visto;
@@ -75,7 +75,7 @@ export default function CampaignCard({ proposal, onClick, onStatusChange, format
                             <select
                                 value={proposal.status}
                                 onChange={handleStatusChange}
-                                className={`appearance-none bg-transparent py-0.5 pl-0 pr-5 text-[11px] font-bold uppercase tracking-wider ${tone.text} outline-none cursor-pointer`}
+                                className={`appearance-none border-0 bg-transparent bg-none py-0.5 pl-0 pr-5 text-[11px] font-bold uppercase tracking-wider ${tone.text} shadow-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 cursor-pointer`}
                             >
                                 {STATUS_OPTIONS.map(s => (
                                     <option key={s} value={s} className="text-slate-700 bg-white">
@@ -91,12 +91,12 @@ export default function CampaignCard({ proposal, onClick, onStatusChange, format
                 </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col p-5">
-                <h3 className="line-clamp-2 text-lg font-bold leading-tight text-slate-900 sm:text-xl group-hover:text-pink-600 transition-colors">
+            <div className="flex min-h-0 flex-1 flex-col p-6">
+                <h3 className="line-clamp-2 text-lg font-bold leading-[1.1] text-slate-900 group-hover:text-pink-600 transition-colors">
                     {proposal.campaignTitle}
                 </h3>
 
-                <p className="mt-1 line-clamp-1 text-sm font-medium text-slate-500">
+                <p className="mt-2 line-clamp-1 text-sm font-medium text-slate-400">
                     {proposal.brandName}
                 </p>
 
