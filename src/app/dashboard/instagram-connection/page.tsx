@@ -21,12 +21,13 @@ export default function InstagramConnectionPage() {
         setConnectError(null);
         try {
             const res = await fetch("/api/auth/iniciar-vinculacao-fb", { method: "POST" });
+            const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
                 throw new Error(data?.message || "Falha ao preparar a vinculação.");
             }
+            const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
             await signIn("facebook", {
-                callbackUrl: "/dashboard/instagram/connecting?instagramLinked=true",
+                callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=instagram-connection${flowIdParam}`,
             });
         } catch (e: any) {
             console.error("Falha ao iniciar fluxo Facebook/Instagram:", e);

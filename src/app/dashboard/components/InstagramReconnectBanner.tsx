@@ -4,17 +4,16 @@ import Link from 'next/link';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import useInstagramStatus from '@/app/hooks/useInstagramStatus';
 import { useMemo } from 'react';
-
-const ACTIONABLE_CODES = new Set(['TOKEN_INVALID', 'PERMISSION_DENIED', 'NOT_CONNECTED']);
+import { IG_RECONNECT_ACTIONABLE_CODES, normalizeInstagramReconnectErrorCode } from '@/app/lib/instagram/reconnectErrors';
 
 export default function InstagramReconnectBanner() {
   const { status, isLoading, error } = useInstagramStatus(true);
 
   const shouldShow = useMemo(() => {
     if (isLoading || error || !status) return false;
-    if (status.isConnected) return false;
-    const code = status.lastErrorCode ?? 'UNKNOWN';
-    return ACTIONABLE_CODES.has(code);
+    const code = normalizeInstagramReconnectErrorCode(status.lastErrorCode);
+    if (!status.isConnected) return IG_RECONNECT_ACTIONABLE_CODES.has(code);
+    return status.reconnectState !== 'connected' && status.reconnectState !== 'idle';
   }, [status, isLoading, error]);
 
   if (!shouldShow || !status) return null;

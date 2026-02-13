@@ -1,30 +1,47 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
+import {
+  mapNextAuthErrorToReconnectCode,
+  reconnectErrorMessageForCode,
+} from "@/app/lib/instagram/reconnectErrors";
+import { track } from "@/lib/track";
 
 export default function InstagramPreConnectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { status } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const oauthErrorCode = mapNextAuthErrorToReconnectCode(searchParams.get("error"));
+  const oauthErrorMessage =
+    oauthErrorCode === "UNKNOWN" ? null : reconnectErrorMessageForCode(oauthErrorCode);
+  const displayError = error ?? oauthErrorMessage;
 
   const startConnect = async () => {
     setLoading(true);
     setError(null);
     try {
+      track("ig_reconnect_started", { source: "instagram_connect_page" });
       const res = await fetch("/api/auth/iniciar-vinculacao-fb", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data?.message || "Falha ao preparar a vinculação.");
       }
       // Pós-callback iremos para a página de conexão em progresso
+      const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
       await signIn("facebook", {
-        callbackUrl: "/dashboard/instagram/connecting?instagramLinked=true",
+        callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=media-kit${flowIdParam}`,
       });
     } catch (e: any) {
       console.error("Falha ao iniciar fluxo Facebook/Instagram:", e);
+      track("ig_reconnect_failed", {
+        source: "instagram_connect_page",
+        error_code: "UNKNOWN",
+      });
       setError(e?.message || "Erro inesperado. Tente novamente.");
       setLoading(false);
     }
@@ -74,8 +91,8 @@ export default function InstagramPreConnectPage() {
         </div>
       </section>
 
-      {error && (
-        <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200 text-sm">{error}</div>
+      {displayError && (
+        <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200 text-sm">{displayError}</div>
       )}
 
       <div className="mt-6 flex gap-3 flex-wrap">

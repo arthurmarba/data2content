@@ -270,6 +270,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     setDisconnectError(null);
     setAccountSelectionError(null);
     track("connect_instagram_clicked", { source: "instagram_connect_card" });
+    track("ig_reconnect_started", { source: "instagram_connect_card" });
 
     try {
       logger.info("Chamando /api/auth/iniciar-vinculacao-fb");
@@ -277,17 +278,17 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({
-          message: "Falha ao preparar vinculação (resposta não-JSON).",
-        }));
-        logger.error("Erro ao chamar /api/auth/iniciar-vinculacao-fb:", errData);
-        throw new Error(errData.message || "Falha ao preparar vinculação com Facebook.");
+        logger.error("Erro ao chamar /api/auth/iniciar-vinculacao-fb:", data);
+        throw new Error(data?.message || "Falha ao preparar vinculação com Facebook.");
       }
       logger.info("OK. Iniciando signIn('facebook').");
-      signIn("facebook", { callbackUrl: "/dashboard/chat?instagramLinked=true" });
+      const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
+      signIn("facebook", { callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=chat${flowIdParam}` });
     } catch (e: any) {
       logger.error("Erro ao iniciar vinculação:", e);
+      track("ig_reconnect_failed", { source: "instagram_connect_card", error_code: "UNKNOWN" });
       setLinkError(e?.message || "Erro inesperado ao tentar conectar com Facebook.");
       setIsLinking(false);
     }

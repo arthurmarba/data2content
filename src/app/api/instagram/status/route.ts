@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
     await connectToDatabase();
     const user = await User.findById(session.user.id)
       .select(
-        'isInstagramConnected instagramSyncErrorMsg instagramSyncErrorCode lastInstagramSyncAttempt lastInstagramSyncSuccess instagramReconnectNotifiedAt instagramDisconnectCount instagramAccountId availableIgAccounts'
+        'isInstagramConnected instagramSyncErrorMsg instagramSyncErrorCode lastInstagramSyncAttempt lastInstagramSyncSuccess instagramReconnectNotifiedAt instagramDisconnectCount instagramAccountId availableIgAccounts instagramReconnectState'
       )
       .lean();
 
@@ -37,6 +37,7 @@ export async function GET(_req: NextRequest) {
       lastSyncAttempt: user.lastInstagramSyncAttempt ? new Date(user.lastInstagramSyncAttempt).toISOString() : null,
       lastSyncSuccess: typeof user.lastInstagramSyncSuccess === 'boolean' ? user.lastInstagramSyncSuccess : null,
       reconnectNotifiedAt: user.instagramReconnectNotifiedAt ? new Date(user.instagramReconnectNotifiedAt).toISOString() : null,
+      reconnectState: user.instagramReconnectState ?? 'idle',
       disconnectCount: typeof user.instagramDisconnectCount === 'number' ? user.instagramDisconnectCount : 0,
       username: connectedAccount?.username ?? null,
       profilePictureUrl: connectedAccount?.profile_picture_url ?? null,

@@ -43,11 +43,18 @@ const DiscoverVideoModal = dynamic(() => import('@/app/discover/components/Disco
 });
 
 type ReviewStatus = 'do' | 'dont' | 'almost';
+type ReviewPeriodFilter = '7d' | '30d' | 'total';
 
 const STATUS_LABELS: Record<ReviewStatus, string> = {
   do: 'Fazer',
   dont: 'Não fazer',
   almost: 'Quase lá',
+};
+
+const REVIEW_PERIOD_LABELS: Record<ReviewPeriodFilter, string> = {
+  '7d': 'Últimos 7 dias',
+  '30d': 'Últimos 30 dias',
+  total: 'Total',
 };
 
 const STATUS_CONFIG: Record<ReviewStatus, { label: string; bg: string; text: string; border: string; icon: any }> = {
@@ -189,6 +196,7 @@ export default function ReviewedPostsPage() {
   const contextIdByLabel = useMemo(() => buildContextLabelToIdMap(contextCategories), []);
 
   const [statusFilter, setStatusFilter] = useState<ReviewStatus | ''>('');
+  const [reviewPeriodFilter, setReviewPeriodFilter] = useState<ReviewPeriodFilter>('total');
   const [creatorContextFilter, setCreatorContextFilter] = useState('');
   const [creatorSearch, setCreatorSearch] = useState('');
   const [items, setItems] = useState<ReviewItem[]>([]);
@@ -219,8 +227,12 @@ export default function ReviewedPostsPage() {
   useEffect(() => {
     const status = searchParams.get('status') as ReviewStatus | null;
     const creatorContext = searchParams.get('creatorContext');
+    const reviewPeriod = searchParams.get('reviewPeriod');
     if (status && STATUS_LABELS[status]) setStatusFilter(status);
     if (creatorContext) setCreatorContextFilter(creatorContext);
+    if (reviewPeriod === '7d' || reviewPeriod === '30d' || reviewPeriod === 'total') {
+      setReviewPeriodFilter(reviewPeriod);
+    }
   }, [searchParams]);
 
   const fetchReviews = useCallback(async () => {
@@ -234,6 +246,7 @@ export default function ReviewedPostsPage() {
         sortOrder: 'desc',
       });
       if (statusFilter) params.append('status', statusFilter);
+      if (reviewPeriodFilter !== 'total') params.append('reviewPeriod', reviewPeriodFilter);
       if (creatorContextFilter) params.append('creatorContext', creatorContextFilter);
 
       const res = await fetch(`/api/admin/dashboard/post-reviews?${params.toString()}`);
@@ -249,7 +262,7 @@ export default function ReviewedPostsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, statusFilter, creatorContextFilter]);
+  }, [page, limit, statusFilter, reviewPeriodFilter, creatorContextFilter]);
 
   useEffect(() => {
     fetchReviews();
@@ -509,7 +522,7 @@ export default function ReviewedPostsPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filtros</p>
             <h2 className="text-sm font-semibold text-slate-900">Refine o recorte da reunião</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label htmlFor="statusFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Status</label>
               <select
@@ -523,6 +536,22 @@ export default function ReviewedPostsPage() {
               >
                 <option value="">Todos</option>
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="reviewPeriodFilter" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Período da revisão</label>
+              <select
+                id="reviewPeriodFilter"
+                value={reviewPeriodFilter}
+                onChange={(e) => {
+                  setReviewPeriodFilter(e.target.value as ReviewPeriodFilter);
+                  setPage(1);
+                }}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm"
+              >
+                {Object.entries(REVIEW_PERIOD_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>

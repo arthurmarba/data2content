@@ -25,6 +25,7 @@ export interface IFetchPostReviewsArgs {
   context?: string | string[];
   proposal?: string | string[];
   creatorContext?: string;
+  reviewPeriodDays?: 7 | 30;
   userId?: string;
   page?: number;
   limit?: number;
@@ -112,6 +113,7 @@ export async function fetchPostReviews(args: IFetchPostReviewsArgs): Promise<{
     context,
     proposal,
     creatorContext,
+    reviewPeriodDays,
     userId,
     page = 1,
     limit = 20,
@@ -124,6 +126,10 @@ export async function fetchPostReviews(args: IFetchPostReviewsArgs): Promise<{
 
     const reviewMatch: PipelineStage.Match['$match'] = {};
     if (status) reviewMatch.status = status;
+    if (reviewPeriodDays) {
+      const periodStart = new Date(Date.now() - reviewPeriodDays * 24 * 60 * 60 * 1000);
+      reviewMatch.createdAt = { $gte: periodStart } as any;
+    }
 
     const postMatchClauses: PipelineStage.Match['$match'][] = [];
 

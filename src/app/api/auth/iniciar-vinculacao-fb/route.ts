@@ -2,16 +2,20 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Ajuste o caminho se necessário
 import { connectToDatabase } from '@/app/lib/mongoose';
-import UserModel, { IUser } from '@/app/models/User'; // Importa o modelo e a interface
+import UserModel from '@/app/models/User';
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { logger } from '@/app/lib/logger'; // Importa o logger
+import {
+  generateInstagramReconnectFlowId,
+  INSTAGRAM_RECONNECT_FLOW_COOKIE_NAME,
+} from '@/app/lib/instagram/reconnectFlow';
 
 // Define o tempo de expiração do token em minutos
 // Aumentado para maior resiliência em fluxos de OAuth (retries, atrasos)
 const LINK_TOKEN_EXPIRY_MINUTES = 60;
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   const TAG = '[API /iniciar-vinculacao-fb]';
   logger.info(`${TAG} Recebida requisição POST.`);
   const start = Date.now();
@@ -30,6 +34,7 @@ export async function POST(request: Request) {
 
     const userId = session.user.id;
     userIdForLog = userId;
+    const reconnectFlowId = generateInstagramReconnectFlowId();
     logger.debug(`${TAG} Sessão válida encontrada para User ID: ${userId}`);
 
     // 2. Gerar token seguro e data de expiração
@@ -49,6 +54,9 @@ export async function POST(request: Request) {
         $set: {
           linkToken: linkToken,
           linkTokenExpiresAt: expiresAt,
+          instagramReconnectState: 'oauth_in_progress',
+          instagramReconnectFlowId: reconnectFlowId,
+          instagramReconnectUpdatedAt: new Date(),
         },
       },
       { new: true } // Retorna o documento atualizado (opcional aqui)
@@ -59,7 +67,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Erro ao encontrar usuário.' }, { status: 404 });
     }
 
-    logger.info(`${TAG} linkToken salvo com sucesso no DB para User ${userId}.`);
+    logger.info(`${TAG} linkToken salvo com sucesso no DB para User ${userId}. flowId=${reconnectFlowId}`);
+    logger.info(`${TAG} telemetry ig_reconnect_started userId=${userId} flowId=${reconnectFlowId}`);
 
     // 5. Definir o cookie temporário 'auth-link-token'
     const cookieStore = cookies();
@@ -70,12 +79,22 @@ export async function POST(request: Request) {
       maxAge: LINK_TOKEN_EXPIRY_MINUTES * 60, // Tempo de vida do cookie em segundos
       path: '/', // Cookie disponível em todo o site
     });
+    cookieStore.set(INSTAGRAM_RECONNECT_FLOW_COOKIE_NAME, reconnectFlowId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: LINK_TOKEN_EXPIRY_MINUTES * 60,
+      path: '/',
+    });
 
-    logger.info(`${TAG} Cookie 'auth-link-token' definido com sucesso.`);
+    logger.info(`${TAG} Cookies de vinculação definidos com sucesso. flowId=${reconnectFlowId}`);
 
     // 6. Retornar sucesso
     logger.info(`${TAG} Fluxo concluído em ${Date.now() - start}ms para User ${userId}.`);
-    return NextResponse.json({ message: 'Iniciação de vinculação bem-sucedida.' }, { status: 200 });
+    return NextResponse.json(
+      { message: 'Iniciação de vinculação bem-sucedida.', flowId: reconnectFlowId },
+      { status: 200 }
+    );
 
   } catch (error) {
     logger.error(

@@ -11,6 +11,7 @@ type RawInstagramStatus = {
   lastSyncSuccess: boolean | null;
   reconnectNotifiedAt: string | null;
   disconnectCount: number;
+  reconnectState: 'idle' | 'oauth_in_progress' | 'awaiting_account_selection' | 'finalizing' | 'connected' | 'failed' | null;
   username: string | null;
   profilePictureUrl: string | null;
   pageName: string | null;
@@ -24,6 +25,7 @@ export type InstagramStatus = {
   lastSyncSuccess: boolean | null;
   reconnectNotifiedAt: Date | null;
   disconnectCount: number;
+  reconnectState: 'idle' | 'oauth_in_progress' | 'awaiting_account_selection' | 'finalizing' | 'connected' | 'failed';
   username: string | null;
   profilePictureUrl: string | null;
   pageName: string | null;
@@ -37,6 +39,7 @@ const parseStatus = (raw: RawInstagramStatus): InstagramStatus => ({
   lastSyncSuccess: raw.lastSyncSuccess,
   reconnectNotifiedAt: raw.reconnectNotifiedAt ? new Date(raw.reconnectNotifiedAt) : null,
   disconnectCount: raw.disconnectCount ?? 0,
+  reconnectState: raw.reconnectState ?? 'idle',
   username: raw.username ?? null,
   profilePictureUrl: raw.profilePictureUrl ?? null,
   pageName: raw.pageName ?? null,

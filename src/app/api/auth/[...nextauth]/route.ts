@@ -35,6 +35,17 @@ import { cookies } from "next/headers";
 import { fetchAvailableInstagramAccounts } from "@/app/lib/instagram";
 import type { AvailableInstagramAccount as ServiceAvailableIgAccount } from "@/app/lib/instagram/types";
 import type { ProTrialState } from "@/types/billing";
+import { isInstagramReconnectV2Enabled } from "@/app/lib/instagram/reconnectConfig";
+import {
+  IG_RECONNECT_ERROR_CODES,
+  inferReconnectErrorCodeFromMessage,
+  type InstagramReconnectErrorCode,
+} from "@/app/lib/instagram/reconnectErrors";
+import {
+  generateInstagramReconnectFlowId,
+  INSTAGRAM_RECONNECT_FLOW_COOKIE_NAME,
+  normalizeInstagramReconnectFlowId,
+} from "@/app/lib/instagram/reconnectFlow";
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
@@ -52,11 +63,12 @@ declare module "next-auth" {
     instagramSyncErrorMsg?: string | null;
     instagramSyncErrorCode?: string | null;
     availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-    instagramAccessToken?: string | null;
     lastInstagramSyncAttempt?: Date | null;
     lastInstagramSyncSuccess?: boolean | null;
     instagramReconnectNotifiedAt?: Date | null;
     instagramDisconnectCount?: number;
+    instagramReconnectState?: "idle" | "oauth_in_progress" | "awaiting_account_selection" | "finalizing" | "connected" | "failed" | null;
+    instagramReconnectFlowId?: string | null;
 
     // Billing
     planStatus?: string | null;
@@ -128,11 +140,12 @@ declare module "next-auth" {
       igConnectionError?: string | null;
       igConnectionErrorCode?: string | null;
       availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-      instagramAccessToken?: string | null;
       lastInstagramSyncAttempt?: string | null;
       lastInstagramSyncSuccess?: boolean | null;
       instagramReconnectNotifiedAt?: string | null;
       instagramDisconnectCount?: number;
+      instagramReconnectState?: "idle" | "oauth_in_progress" | "awaiting_account_selection" | "finalizing" | "connected" | "failed" | null;
+      instagramReconnectFlowId?: string | null;
 
       // Onboarding
       isNewUserForOnboarding?: boolean;
@@ -168,11 +181,12 @@ declare module "next-auth/jwt" {
     igConnectionError?: string | null;
     igConnectionErrorCode?: string | null;
     availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-    instagramAccessToken?: string | null;
     lastInstagramSyncAttempt?: Date | string | null;
     lastInstagramSyncSuccess?: boolean | null;
     instagramReconnectNotifiedAt?: Date | string | null;
     instagramDisconnectCount?: number;
+    instagramReconnectState?: "idle" | "oauth_in_progress" | "awaiting_account_selection" | "finalizing" | "connected" | "failed" | null;
+    instagramReconnectFlowId?: string | null;
 
     // Billing
     planStatus?: string | null;
@@ -241,6 +255,22 @@ function ensureStringId(v: unknown): string | null {
   return s && s !== "undefined" ? s : null;
 }
 
+function resolveReconnectErrorCode(
+  message?: string | null,
+  fallback: InstagramReconnectErrorCode = IG_RECONNECT_ERROR_CODES.UNKNOWN
+): InstagramReconnectErrorCode {
+  const inferred = inferReconnectErrorCodeFromMessage(message ?? undefined);
+  return inferred === IG_RECONNECT_ERROR_CODES.UNKNOWN ? fallback : inferred;
+}
+
+function resolveReconnectFlowId(...candidates: Array<string | null | undefined>): string {
+  for (const candidate of candidates) {
+    const normalized = normalizeInstagramReconnectFlowId(candidate);
+    if (normalized) return normalized;
+  }
+  return generateInstagramReconnectFlowId();
+}
+
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
   const TAG_ENCODE = "[NextAuth customEncode v2.3.0]";
   if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
@@ -284,6 +314,7 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
   if (cleanToken.image && cleanToken.picture) delete cleanToken.picture;
   delete cleanToken.instagramSyncErrorMsg;
   delete cleanToken.instagramSyncErrorCode;
+  delete cleanToken.instagramAccessToken;
 
   if (cleanToken.availableIgAccounts && Array.isArray(cleanToken.availableIgAccounts)) {
     try {
@@ -459,6 +490,7 @@ export const authOptions: NextAuthOptions = {
       const currentEmailFromProvider = authUserFromProvider.email;
       const nameFromProvider = authUserFromProvider.name;
       const imageFromProvider = authUserFromProvider.image;
+      const reconnectV2Enabled = isInstagramReconnectV2Enabled();
 
       if (!providerAccountId) {
         logger.error(`${TAG_SIGNIN} providerAccountId (ID do ${provider}) ausente.`);
@@ -473,6 +505,9 @@ export const authOptions: NextAuthOptions = {
         if (provider === "facebook") {
           const cookieStore = cookies();
           const linkTokenFromCookie = cookieStore.get(FACEBOOK_LINK_COOKIE_NAME)?.value;
+          const reconnectFlowIdFromCookie = normalizeInstagramReconnectFlowId(
+            cookieStore.get(INSTAGRAM_RECONNECT_FLOW_COOKIE_NAME)?.value
+          );
 
           if (linkTokenFromCookie) {
             dbUserRecord = await DbUser.findOne({
@@ -481,14 +516,24 @@ export const authOptions: NextAuthOptions = {
             });
 
             if (dbUserRecord) {
-              logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} (Email DB: ${dbUserRecord.email || "N/A"}) encontrado por linkToken.`);
+              const reconnectFlowId = resolveReconnectFlowId(
+                dbUserRecord.instagramReconnectFlowId,
+                reconnectFlowIdFromCookie
+              );
+              dbUserRecord.instagramReconnectFlowId = reconnectFlowId;
+              logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} (Email DB: ${dbUserRecord.email || "N/A"}) encontrado por linkToken. flowId=${reconnectFlowId}`);
               // Evita vincular uma conta Facebook já usada por outro usuário
               const conflict = await DbUser.findOne({
                 facebookProviderAccountId: providerAccountId,
                 _id: { $ne: dbUserRecord._id },
               }).select('_id email').lean();
               if (conflict) {
-                logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a outro usuário ${conflict._id}. Abortando.`);
+                logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a outro usuário ${conflict._id}. Abortando. flowId=${reconnectFlowId}`);
+                dbUserRecord.instagramReconnectState = "failed";
+                dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                dbUserRecord.instagramSyncErrorCode = IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED;
+                dbUserRecord.instagramSyncErrorMsg = "Esta conta do Facebook já está vinculada a outro usuário.";
+                await dbUserRecord.save();
                 cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
                 return "/dashboard/instagram/connect?error=FacebookAlreadyLinked";
               }
@@ -501,52 +546,74 @@ export const authOptions: NextAuthOptions = {
 
               dbUserRecord.linkToken = undefined;
               dbUserRecord.linkTokenExpiresAt = undefined;
+              dbUserRecord.instagramReconnectState = "oauth_in_progress";
+              dbUserRecord.instagramReconnectUpdatedAt = new Date();
 
               if (account?.access_token) {
-                logger.info(`${TAG_SIGNIN} [Facebook] Obtendo contas IG/LLAT…`);
+                logger.info(`${TAG_SIGNIN} [Facebook] Obtendo contas IG/LLAT… flowId=${reconnectFlowId}`);
                 try {
                   const igAccountsResult = await fetchAvailableInstagramAccounts(account.access_token, dbUserRecord._id.toString());
                   if (igAccountsResult.success) {
-                    logger.info(`${TAG_SIGNIN} [Facebook] ${igAccountsResult.accounts.length} contas IG; LLAT ${igAccountsResult.longLivedAccessToken ? "OK" : "N/A"}.`);
+                    logger.info(`${TAG_SIGNIN} [Facebook] ${igAccountsResult.accounts.length} contas IG; LLAT ${igAccountsResult.longLivedAccessToken ? "OK" : "N/A"}. flowId=${reconnectFlowId}`);
                     dbUserRecord.availableIgAccounts = igAccountsResult.accounts;
                     dbUserRecord.instagramAccessToken = igAccountsResult.longLivedAccessToken ?? undefined;
                     dbUserRecord.instagramAccessTokenExpiresAt = (igAccountsResult as any).longLivedAccessTokenExpiresAt ?? undefined;
-                    dbUserRecord.isInstagramConnected = false;
-                    dbUserRecord.instagramAccountId = null;
-                    dbUserRecord.username = null;
                     dbUserRecord.instagramSyncErrorMsg = null;
                     dbUserRecord.instagramSyncErrorCode = null;
+                    dbUserRecord.instagramReconnectState = "awaiting_account_selection";
+                    dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                    if (!reconnectV2Enabled) {
+                      dbUserRecord.isInstagramConnected = false;
+                      dbUserRecord.instagramAccountId = null;
+                      dbUserRecord.username = null;
+                    }
                   } else {
-                    logger.error(`${TAG_SIGNIN} [Facebook] Falha IG: ${igAccountsResult.error}`);
+                    logger.error(`${TAG_SIGNIN} [Facebook] Falha IG: ${igAccountsResult.error}. flowId=${reconnectFlowId}`);
                     dbUserRecord.instagramSyncErrorMsg = igAccountsResult.error;
-                    dbUserRecord.instagramSyncErrorCode = 'UNKNOWN';
+                    dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCode(
+                      igAccountsResult.error,
+                      IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT
+                    );
                     dbUserRecord.availableIgAccounts = [];
-                    dbUserRecord.instagramAccessToken = undefined;
+                    dbUserRecord.instagramReconnectState = "failed";
+                    dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                    if (!reconnectV2Enabled) {
+                      dbUserRecord.instagramAccessToken = undefined;
+                    }
                   }
                 } catch (fetchError: any) {
-                  logger.error(`${TAG_SIGNIN} [Facebook] Erro crítico IG: ${fetchError.message}`);
+                  logger.error(`${TAG_SIGNIN} [Facebook] Erro crítico IG: ${fetchError.message}. flowId=${reconnectFlowId}`);
                   dbUserRecord.instagramSyncErrorMsg = "Erro interno ao tentar buscar contas do Instagram: " + fetchError.message.substring(0, 150);
-                  dbUserRecord.instagramSyncErrorCode = 'UNKNOWN';
+                  dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCode(fetchError?.message);
                   dbUserRecord.availableIgAccounts = [];
-                  dbUserRecord.instagramAccessToken = undefined;
+                  dbUserRecord.instagramReconnectState = "failed";
+                  dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                  if (!reconnectV2Enabled) {
+                    dbUserRecord.instagramAccessToken = undefined;
+                  }
                 }
               } else {
-                logger.warn(`${TAG_SIGNIN} [Facebook] account.access_token ausente — não dá pra buscar IG.`);
+                logger.warn(`${TAG_SIGNIN} [Facebook] account.access_token ausente — não dá pra buscar IG. flowId=${reconnectFlowId}`);
                 dbUserRecord.instagramSyncErrorMsg = "Token de acesso do Facebook não disponível para buscar contas do Instagram.";
-                dbUserRecord.instagramSyncErrorCode = 'UNKNOWN';
+                dbUserRecord.instagramSyncErrorCode = IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID;
                 dbUserRecord.availableIgAccounts = [];
-                dbUserRecord.instagramAccessToken = undefined;
+                dbUserRecord.instagramReconnectState = "failed";
+                dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                if (!reconnectV2Enabled) {
+                  dbUserRecord.instagramAccessToken = undefined;
+                }
               }
               await dbUserRecord.save();
               cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
-              logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas para ${dbUserRecord._id}.`);
+              logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas para ${dbUserRecord._id}. flowId=${reconnectFlowId}`);
+              logger.info(`${TAG_SIGNIN} telemetry ig_oauth_callback_ok userId=${dbUserRecord._id} flowId=${reconnectFlowId} reconnectState=${dbUserRecord.instagramReconnectState ?? "idle"}`);
             } else {
-              logger.warn(`${TAG_SIGNIN} [Facebook] linkToken '${FACEBOOK_LINK_COOKIE_NAME}' inválido/expirado. Vinculação falhou.`);
+              logger.warn(`${TAG_SIGNIN} [Facebook] linkToken '${FACEBOOK_LINK_COOKIE_NAME}' inválido/expirado. Vinculação falhou. flowId=${reconnectFlowIdFromCookie ?? "none"}`);
               cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
               return "/dashboard/instagram/connect?error=FacebookLinkFailed";
             }
           } else {
-            logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken ('${FACEBOOK_LINK_COOKIE_NAME}'). Tentando fallback pela sessão ativa.`);
+            logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken ('${FACEBOOK_LINK_COOKIE_NAME}'). Tentando fallback pela sessão ativa. flowId=${reconnectFlowIdFromCookie ?? "none"}`);
             // Fallback: usar sessão atual (se existir) para identificar o usuário-alvo da vinculação
             let sessionUserId: string | null = null;
             try {
@@ -565,15 +632,20 @@ export const authOptions: NextAuthOptions = {
             }
 
             if (!sessionUserId) {
-              logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken e sem sessão ativa decodificável. Bloqueando login direto.`);
+              logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken e sem sessão ativa decodificável. Bloqueando login direto. flowId=${reconnectFlowIdFromCookie ?? "none"}`);
               return "/dashboard/instagram/connect?error=FacebookLinkRequired";
             }
 
             dbUserRecord = await DbUser.findById(sessionUserId);
             if (!dbUserRecord) {
-              logger.warn(`${TAG_SIGNIN} [Facebook] Fallback sessão: user ${sessionUserId} não encontrado no DB.`);
+              logger.warn(`${TAG_SIGNIN} [Facebook] Fallback sessão: user ${sessionUserId} não encontrado no DB. flowId=${reconnectFlowIdFromCookie ?? "none"}`);
               return "/dashboard/instagram/connect?error=FacebookLinkRequired";
             }
+            const reconnectFlowId = resolveReconnectFlowId(
+              dbUserRecord.instagramReconnectFlowId,
+              reconnectFlowIdFromCookie
+            );
+            dbUserRecord.instagramReconnectFlowId = reconnectFlowId;
 
             // Checagem de conflito: a conta Facebook já foi vinculada a outro usuário?
             {
@@ -582,7 +654,12 @@ export const authOptions: NextAuthOptions = {
                 _id: { $ne: dbUserRecord._id },
               }).select('_id').lean();
               if (conflict) {
-                logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a ${conflict._id}. Abortando.`);
+                logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a ${conflict._id}. Abortando. flowId=${reconnectFlowId}`);
+                dbUserRecord.instagramReconnectState = "failed";
+                dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                dbUserRecord.instagramSyncErrorCode = IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED;
+                dbUserRecord.instagramSyncErrorMsg = "Esta conta do Facebook já está vinculada a outro usuário.";
+                await dbUserRecord.save();
                 return "/dashboard/instagram/connect?error=FacebookAlreadyLinked";
               }
             }
@@ -594,42 +671,68 @@ export const authOptions: NextAuthOptions = {
             } else if (dbUserRecord.email && currentEmailFromProvider && dbUserRecord.email.toLowerCase() !== currentEmailFromProvider.toLowerCase()) {
               logger.warn(`${TAG_SIGNIN} [Facebook] Email do Facebook ('${currentEmailFromProvider}') difere do DB ('${dbUserRecord.email}') — mantendo DB.`);
             }
+            dbUserRecord.instagramReconnectState = "oauth_in_progress";
+            dbUserRecord.instagramReconnectUpdatedAt = new Date();
 
             if (account?.access_token) {
-              logger.info(`${TAG_SIGNIN} [Facebook] (fallback sessão) Obtendo contas IG/LLAT…`);
+              logger.info(`${TAG_SIGNIN} [Facebook] (fallback sessão) Obtendo contas IG/LLAT… flowId=${reconnectFlowId}`);
               try {
                 const igAccountsResult = await fetchAvailableInstagramAccounts(account.access_token, dbUserRecord._id.toString());
                 if (igAccountsResult.success) {
-                  logger.info(`${TAG_SIGNIN} [Facebook] (fallback sessão) ${igAccountsResult.accounts.length} contas IG; LLAT ${igAccountsResult.longLivedAccessToken ? "OK" : "N/A"}.`);
+                  logger.info(`${TAG_SIGNIN} [Facebook] (fallback sessão) ${igAccountsResult.accounts.length} contas IG; LLAT ${igAccountsResult.longLivedAccessToken ? "OK" : "N/A"}. flowId=${reconnectFlowId}`);
                   dbUserRecord.availableIgAccounts = igAccountsResult.accounts;
                   dbUserRecord.instagramAccessToken = igAccountsResult.longLivedAccessToken ?? undefined;
                   dbUserRecord.instagramAccessTokenExpiresAt = (igAccountsResult as any).longLivedAccessTokenExpiresAt ?? undefined;
-                  dbUserRecord.isInstagramConnected = false;
-                  dbUserRecord.instagramAccountId = null;
-                  dbUserRecord.username = null;
                   dbUserRecord.instagramSyncErrorMsg = null;
+                  dbUserRecord.instagramSyncErrorCode = null;
+                  dbUserRecord.instagramReconnectState = "awaiting_account_selection";
+                  dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                  if (!reconnectV2Enabled) {
+                    dbUserRecord.isInstagramConnected = false;
+                    dbUserRecord.instagramAccountId = null;
+                    dbUserRecord.username = null;
+                  }
                 } else {
-                  logger.error(`${TAG_SIGNIN} [Facebook] (fallback sessão) Falha IG: ${igAccountsResult.error}`);
+                  logger.error(`${TAG_SIGNIN} [Facebook] (fallback sessão) Falha IG: ${igAccountsResult.error}. flowId=${reconnectFlowId}`);
                   dbUserRecord.instagramSyncErrorMsg = igAccountsResult.error;
+                  dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCode(
+                    igAccountsResult.error,
+                    IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT
+                  );
                   dbUserRecord.availableIgAccounts = [];
-                  dbUserRecord.instagramAccessToken = undefined;
+                  dbUserRecord.instagramReconnectState = "failed";
+                  dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                  if (!reconnectV2Enabled) {
+                    dbUserRecord.instagramAccessToken = undefined;
+                  }
                 }
               } catch (fetchError: any) {
-                logger.error(`${TAG_SIGNIN} [Facebook] (fallback sessão) Erro crítico IG: ${fetchError.message}`);
+                logger.error(`${TAG_SIGNIN} [Facebook] (fallback sessão) Erro crítico IG: ${fetchError.message}. flowId=${reconnectFlowId}`);
                 dbUserRecord.instagramSyncErrorMsg = "Erro interno ao tentar buscar contas do Instagram: " + fetchError.message.substring(0, 150);
+                dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCode(fetchError?.message);
                 dbUserRecord.availableIgAccounts = [];
-                dbUserRecord.instagramAccessToken = undefined;
+                dbUserRecord.instagramReconnectState = "failed";
+                dbUserRecord.instagramReconnectUpdatedAt = new Date();
+                if (!reconnectV2Enabled) {
+                  dbUserRecord.instagramAccessToken = undefined;
+                }
               }
             } else {
-              logger.warn(`${TAG_SIGNIN} [Facebook] (fallback sessão) account.access_token ausente — não dá pra buscar IG.`);
+              logger.warn(`${TAG_SIGNIN} [Facebook] (fallback sessão) account.access_token ausente — não dá pra buscar IG. flowId=${reconnectFlowId}`);
               dbUserRecord.instagramSyncErrorMsg = "Token de acesso do Facebook não disponível para buscar contas do Instagram.";
+              dbUserRecord.instagramSyncErrorCode = IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID;
               dbUserRecord.availableIgAccounts = [];
-              dbUserRecord.instagramAccessToken = undefined;
+              dbUserRecord.instagramReconnectState = "failed";
+              dbUserRecord.instagramReconnectUpdatedAt = new Date();
+              if (!reconnectV2Enabled) {
+                dbUserRecord.instagramAccessToken = undefined;
+              }
             }
 
             await dbUserRecord.save();
             cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
-            logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas via sessão ativa para ${dbUserRecord._id}.`);
+            logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas via sessão ativa para ${dbUserRecord._id}. flowId=${reconnectFlowId}`);
+            logger.info(`${TAG_SIGNIN} telemetry ig_oauth_callback_ok userId=${dbUserRecord._id} flowId=${reconnectFlowId} reconnectState=${dbUserRecord.instagramReconnectState ?? "idle"}`);
           }
         } else if (provider === "google") {
           dbUserRecord = await DbUser.findOne({ provider, providerAccountId }).exec();
@@ -718,9 +821,10 @@ export const authOptions: NextAuthOptions = {
           (authUserFromProvider as NextAuthUserArg).instagramSyncErrorCode = dbUserRecord.instagramSyncErrorCode;
           (authUserFromProvider as NextAuthUserArg).availableIgAccounts =
             (dbUserRecord.availableIgAccounts as ServiceAvailableIgAccount[] | null | undefined);
-          (authUserFromProvider as NextAuthUserArg).instagramAccessToken = dbUserRecord.instagramAccessToken;
           (authUserFromProvider as NextAuthUserArg).instagramReconnectNotifiedAt = dbUserRecord.instagramReconnectNotifiedAt;
           (authUserFromProvider as NextAuthUserArg).instagramDisconnectCount = dbUserRecord.instagramDisconnectCount ?? 0;
+          (authUserFromProvider as NextAuthUserArg).instagramReconnectState = dbUserRecord.instagramReconnectState ?? "idle";
+          (authUserFromProvider as NextAuthUserArg).instagramReconnectFlowId = dbUserRecord.instagramReconnectFlowId ?? null;
 
           // Billing
           (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
@@ -747,7 +851,7 @@ export const authOptions: NextAuthOptions = {
           (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency ? dbUserRecord.agency.toString() : undefined;
 
           logger.debug(
-            `${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id: '${authUserFromProvider.id}', provider: '${(authUserFromProvider as NextAuthUserArg).provider}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, igLlatSet: ${!!(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`
+            `${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id: '${authUserFromProvider.id}', provider: '${(authUserFromProvider as NextAuthUserArg).provider}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, reconnectState: ${(authUserFromProvider as NextAuthUserArg).instagramReconnectState ?? "idle"}, flowId: ${(authUserFromProvider as NextAuthUserArg).instagramReconnectFlowId ?? "none"}`
           );
           return true;
         } else {
@@ -795,9 +899,10 @@ export const authOptions: NextAuthOptions = {
         token.igConnectionError = (userFromSignIn as NextAuthUserArg).instagramSyncErrorMsg ?? null;
         token.igConnectionErrorCode = (userFromSignIn as NextAuthUserArg).instagramSyncErrorCode ?? null;
         token.availableIgAccounts = (userFromSignIn as NextAuthUserArg).availableIgAccounts;
-        token.instagramAccessToken = (userFromSignIn as NextAuthUserArg).instagramAccessToken;
         token.instagramReconnectNotifiedAt = (userFromSignIn as NextAuthUserArg).instagramReconnectNotifiedAt ?? null;
         token.instagramDisconnectCount = (userFromSignIn as NextAuthUserArg).instagramDisconnectCount ?? 0;
+        token.instagramReconnectState = (userFromSignIn as NextAuthUserArg).instagramReconnectState ?? "idle";
+        token.instagramReconnectFlowId = (userFromSignIn as NextAuthUserArg).instagramReconnectFlowId ?? null;
 
         // Billing
         const rawStatus = (userFromSignIn as NextAuthUserArg).planStatus;
@@ -845,7 +950,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         logger.info(
-          `${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`
+          `${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, reconnectState: ${token.instagramReconnectState ?? "idle"}, flowId: ${token.instagramReconnectFlowId ?? "none"}`
         );
       }
 
@@ -895,7 +1000,9 @@ export const authOptions: NextAuthOptions = {
           typeof (token as any).cancelAtPeriodEnd === "undefined" ||
           typeof token.stripeAccountStatus === "undefined" ||
           typeof token.stripeAccountDefaultCurrency === "undefined" ||
-          (typeof token.isInstagramConnected === "undefined" && typeof token.availableIgAccounts === "undefined");
+          (typeof token.isInstagramConnected === "undefined" && typeof token.availableIgAccounts === "undefined") ||
+          typeof token.instagramReconnectState === "undefined" ||
+          typeof token.instagramReconnectFlowId === "undefined";
 
         const tokenIssuedAt = token.iat;
         if (!needsDbRefresh && tokenIssuedAt && typeof tokenIssuedAt === "number") {
@@ -915,10 +1022,11 @@ export const authOptions: NextAuthOptions = {
               .select(
                 "name email image role agency provider providerAccountId facebookProviderAccountId " +
                 "isNewUserForOnboarding onboardingCompletedAt " +
-                "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount " +
+                "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount instagramReconnectState " +
+                "instagramReconnectFlowId " +
                 "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd proTrialStatus proTrialActivatedAt proTrialExpiresAt " +
                 "stripeCustomerId stripeSubscriptionId stripePriceId " +
-                "affiliateCode availableIgAccounts instagramAccessToken affiliateBalances " +
+                "affiliateCode availableIgAccounts affiliateBalances " +
                 "paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
               )
               .lean<IUser>();
@@ -952,11 +1060,12 @@ export const authOptions: NextAuthOptions = {
               if (dbUser.isInstagramConnected && !dbUser.instagramSyncErrorCode) token.igConnectionErrorCode = null;
               token.availableIgAccounts =
                 (dbUser.availableIgAccounts as ServiceAvailableIgAccount[] | null | undefined) ?? token.availableIgAccounts ?? null;
-              token.instagramAccessToken = dbUser.instagramAccessToken ?? token.instagramAccessToken ?? null;
               token.instagramReconnectNotifiedAt = dbUser.instagramReconnectNotifiedAt ?? token.instagramReconnectNotifiedAt ?? null;
               token.instagramDisconnectCount = typeof dbUser.instagramDisconnectCount === 'number'
                 ? dbUser.instagramDisconnectCount
                 : token.instagramDisconnectCount ?? 0;
+              token.instagramReconnectState = dbUser.instagramReconnectState ?? token.instagramReconnectState ?? "idle";
+              token.instagramReconnectFlowId = dbUser.instagramReconnectFlowId ?? token.instagramReconnectFlowId ?? null;
 
               // Billing
               token.planStatus =
@@ -1008,7 +1117,7 @@ export const authOptions: NextAuthOptions = {
               }
 
               logger.info(
-                `${TAG_JWT} Token atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${token.igConnectionError ? "Sim (" + String(token.igConnectionError).substring(0, 30) + "...)" : "Não"
+                `${TAG_JWT} Token atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, reconnectState: ${token.instagramReconnectState ?? "idle"}, flowId: ${token.instagramReconnectFlowId ?? "none"}, igErr: ${token.igConnectionError ? "Sim (" + String(token.igConnectionError).substring(0, 30) + "...)" : "Não"
                 }`
               );
             } else {
@@ -1035,7 +1144,7 @@ export const authOptions: NextAuthOptions = {
       if (token.image && (token as any).picture) delete (token as any).picture;
 
       logger.debug(
-        `${TAG_JWT} FINAL jwt. Token id: '${(token as any).id}', provider: '${(token as any).provider}', planStatus: ${(token as any).planStatus}, agencyPlanStatus: ${(token as any).agencyPlanStatus}, affiliateCode: ${(token as any).affiliateCode}, agencyId: ${(token as any).agencyId}`
+        `${TAG_JWT} FINAL jwt. Token id: '${(token as any).id}', provider: '${(token as any).provider}', planStatus: ${(token as any).planStatus}, agencyPlanStatus: ${(token as any).agencyPlanStatus}, affiliateCode: ${(token as any).affiliateCode}, agencyId: ${(token as any).agencyId}, flowId: ${(token as any).instagramReconnectFlowId ?? "none"}`
       );
       return token;
     },
@@ -1072,9 +1181,10 @@ export const authOptions: NextAuthOptions = {
         session.user.igConnectionError = token.igConnectionError;
         (session.user as any).igConnectionErrorCode = token.igConnectionErrorCode ?? null;
         session.user.availableIgAccounts = token.availableIgAccounts;
-        session.user.instagramAccessToken = token.instagramAccessToken;
         session.user.lastInstagramSyncAttempt = token.lastInstagramSyncAttempt ? new Date(token.lastInstagramSyncAttempt).toISOString() : null;
         session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
+        session.user.instagramReconnectState = token.instagramReconnectState ?? "idle";
+        session.user.instagramReconnectFlowId = token.instagramReconnectFlowId ?? null;
         (session.user as any).instagramReconnectNotifiedAt = token.instagramReconnectNotifiedAt
           ? new Date(token.instagramReconnectNotifiedAt).toISOString()
           : null;

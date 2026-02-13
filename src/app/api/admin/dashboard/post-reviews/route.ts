@@ -21,6 +21,7 @@ const querySchema = z.object({
   context: z.string().optional(),
   proposal: z.string().optional(),
   creatorContext: z.string().optional(),
+  reviewPeriod: z.enum(['7d', '30d', 'total']).optional().default('total'),
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   sortBy: z.enum(['updatedAt', 'createdAt', 'postDate', 'total_interactions']).optional().default('updatedAt'),
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: `Parâmetros inválidos: ${errorMessage}` }, { status: 400 });
     }
 
-    const { postId, ...filters } = validation.data;
+    const { postId, reviewPeriod, ...filters } = validation.data;
     if (postId) {
       if (!Types.ObjectId.isValid(postId)) {
         return NextResponse.json({ error: 'PostId inválido.' }, { status: 400 });
@@ -68,7 +69,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ review }, { status: 200 });
     }
 
-    const result = await fetchPostReviews(filters);
+    const reviewPeriodDays = reviewPeriod === '7d' ? 7 : reviewPeriod === '30d' ? 30 : undefined;
+    const result = await fetchPostReviews({ ...filters, reviewPeriodDays });
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
     logger.error(`${TAG} Error:`, error);

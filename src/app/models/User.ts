@@ -155,6 +155,14 @@ export interface IAvailableInstagramAccount {
   profile_picture_url?: string;
 }
 
+export type InstagramReconnectState =
+  | 'idle'
+  | 'oauth_in_progress'
+  | 'awaiting_account_selection'
+  | 'finalizing'
+  | 'connected'
+  | 'failed';
+
 export interface ICommissionEntry {
   _id: Types.ObjectId;
   type: 'commission' | 'adjustment' | 'redeem';
@@ -292,6 +300,9 @@ export interface IUser extends Document {
   instagramSyncErrorMsg?: string | null;
   instagramSyncErrorCode?: string | null;
   instagramReconnectNotifiedAt?: Date | null;
+  instagramReconnectState?: InstagramReconnectState;
+  instagramReconnectFlowId?: string | null;
+  instagramReconnectUpdatedAt?: Date | null;
   instagramAccessTokenExpiresAt?: Date | null;
   instagramDisconnectCount?: number;
   username?: string | null;
@@ -558,6 +569,13 @@ const userSchema = new Schema<IUser>(
     instagramSyncErrorMsg: { type: String, default: null },
     instagramSyncErrorCode: { type: String, default: null },
     instagramReconnectNotifiedAt: { type: Date, default: null },
+    instagramReconnectState: {
+      type: String,
+      enum: ['idle', 'oauth_in_progress', 'awaiting_account_selection', 'finalizing', 'connected', 'failed'],
+      default: 'idle',
+    },
+    instagramReconnectFlowId: { type: String, default: null, index: true },
+    instagramReconnectUpdatedAt: { type: Date, default: null },
     instagramDisconnectCount: { type: Number, default: 0 },
     username: { type: String, sparse: true, default: null },
     biography: { type: String },

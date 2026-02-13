@@ -393,11 +393,15 @@ export default function ChatPanel({
 
   const handleCorrectInstagramLink = async () => {
     try {
+      track("ig_reconnect_started", { source: "chat_panel" });
       const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) return console.error('Falha ao preparar a vinculação da conta.');
-      signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' });
+      const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
+      signIn('facebook', { callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=chat${flowIdParam}` });
     } catch (error) {
       console.error('Erro no processo de vinculação:', error);
+      track("ig_reconnect_failed", { source: "chat_panel", error_code: "UNKNOWN" });
       setInlineAlert('Não foi possível iniciar a conexão com o Instagram. Tente novamente.');
     }
   };

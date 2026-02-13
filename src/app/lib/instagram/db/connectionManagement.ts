@@ -5,6 +5,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser, { IUser } from '@/app/models/User';
 import { Client } from '@upstash/qstash';
 import { sendInstagramReconnectEmail } from '@/app/lib/emailService';
+import { IG_RECONNECT_ERROR_CODES, type InstagramReconnectErrorCode } from '@/app/lib/instagram/reconnectErrors';
 
 // Acessar variáveis de ambiente diretamente
 const qstashToken = process.env.QSTASH_TOKEN;
@@ -39,19 +40,23 @@ export async function connectInstagramAccount(
   userId: string | Types.ObjectId,
   instagramAccountId: string,
   longLivedAccessToken: string | null 
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; errorCode?: InstagramReconnectErrorCode }> {
   const TAG = '[connectInstagramAccount v2.2_env_fix]'; 
   logger.info(`${TAG} Iniciando processo de conexão da conta IG ${instagramAccountId} para User ${userId}.`);
 
   if (!mongoose.isValidObjectId(userId)) {
     const errorMsg = `ID de usuário inválido fornecido: ${userId}`;
     logger.error(`${TAG} ${errorMsg}`);
-    return { success: false, error: errorMsg };
+    return { success: false, error: errorMsg, errorCode: IG_RECONNECT_ERROR_CODES.UNKNOWN };
   }
   if (!instagramAccountId) {
     const errorMsg = `ID da conta Instagram (instagramAccountId) não fornecido.`;
     logger.error(`${TAG} ${errorMsg}`);
-    return { success: false, error: errorMsg };
+    return {
+      success: false,
+      error: errorMsg,
+      errorCode: IG_RECONNECT_ERROR_CODES.INVALID_IG_ACCOUNT_SELECTION
+    };
   }
 
   try {
@@ -62,7 +67,17 @@ export async function connectInstagramAccount(
     if (!existingUser) {
       const errorMsg = `Usuário ${userId} não encontrado no DB para conectar conta IG.`;
       logger.error(`${TAG} ${errorMsg}`);
-      return { success: false, error: errorMsg };
+      return { success: false, error: errorMsg, errorCode: IG_RECONNECT_ERROR_CODES.UNKNOWN };
+    }
+
+    if (!longLivedAccessToken) {
+      const errorMsg = 'Token de longa duração ausente para finalizar a conexão da conta Instagram.';
+      logger.error(`${TAG} ${errorMsg}`);
+      return {
+        success: false,
+        error: errorMsg,
+        errorCode: IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID
+      };
     }
 
     const updateData: Partial<IUser> & { $unset?: any } = {
@@ -73,11 +88,22 @@ export async function connectInstagramAccount(
       instagramSyncErrorMsg: null,
       instagramSyncErrorCode: null,
       instagramReconnectNotifiedAt: null,
+      instagramReconnectState: 'connected',
+      instagramReconnectUpdatedAt: new Date(),
     };
 
     const matchingAccount = Array.isArray(existingUser.availableIgAccounts)
       ? existingUser.availableIgAccounts.find((account) => account?.igAccountId === instagramAccountId)
       : null;
+    if (!matchingAccount) {
+      const errorMsg = `instagramAccountId ${instagramAccountId} não pertence às contas disponíveis do usuário ${userId}.`;
+      logger.warn(`${TAG} ${errorMsg}`);
+      return {
+        success: false,
+        error: errorMsg,
+        errorCode: IG_RECONNECT_ERROR_CODES.INVALID_IG_ACCOUNT_SELECTION
+      };
+    }
     const resolvedProfilePicture =
       typeof matchingAccount?.profile_picture_url === 'string' && matchingAccount.profile_picture_url.trim()
         ? matchingAccount.profile_picture_url.trim()
@@ -87,12 +113,8 @@ export async function connectInstagramAccount(
       updateData.image = resolvedProfilePicture;
     }
 
-    if (longLivedAccessToken) {
-      updateData.instagramAccessToken = longLivedAccessToken;
-      logger.info(`${TAG} Token de longa duração fornecido para User ${userId}. Será salvo.`);
-    } else {
-       logger.warn(`${TAG} Token de longa duração (LLAT) não fornecido para User ${userId}. O campo instagramAccessToken não será atualizado com um novo token.`);
-    }
+    updateData.instagramAccessToken = longLivedAccessToken;
+    logger.info(`${TAG} Token de longa duração fornecido para User ${userId}. Será salvo.`);
 
     logger.debug(`${TAG} Atualizando usuário ${userId} no DB com dados de conexão da conta IG ${instagramAccountId}. Token ${longLivedAccessToken ? 'presente' : 'ausente/não será atualizado'}.`);
     const updateResult = await DbUser.findByIdAndUpdate(userId, { $set: updateData }, { new: true });
@@ -100,7 +122,7 @@ export async function connectInstagramAccount(
     if (!updateResult) {
       const errorMsg = `Falha ao encontrar usuário ${userId} no DB para conectar conta IG.`;
       logger.error(`${TAG} ${errorMsg}`);
-      return { success: false, error: errorMsg };
+      return { success: false, error: errorMsg, errorCode: IG_RECONNECT_ERROR_CODES.UNKNOWN };
     }
 
     logger.info(`${TAG} Usuário ${userId} atualizado no DB. Conexão com IG ${instagramAccountId} marcada como ativa.`);
@@ -131,7 +153,11 @@ export async function connectInstagramAccount(
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error(`${TAG} Erro CRÍTICO GERAL ao conectar conta IG ${instagramAccountId} para User ${userId}:`, error);
-    return { success: false, error: `Erro interno ao conectar conta Instagram: ${errorMsg}` };
+    return {
+      success: false,
+      error: `Erro interno ao conectar conta Instagram: ${errorMsg}`,
+      errorCode: IG_RECONNECT_ERROR_CODES.UNKNOWN
+    };
   }
 }
 
@@ -178,6 +204,8 @@ export async function clearInstagramConnection(
         instagramSyncErrorMsg: finalErrorMessage,
         instagramSyncErrorCode: code,
         availableIgAccounts: [], 
+        instagramReconnectState: code === 'MANUAL_DISCONNECT' ? 'idle' : 'failed',
+        instagramReconnectUpdatedAt: new Date(),
       },
       $unset: {
         instagramAccessToken: "",    

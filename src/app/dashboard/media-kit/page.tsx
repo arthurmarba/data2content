@@ -748,12 +748,14 @@ export default function MediaKitSelfServePage() {
   const handleCorrectInstagramLink = async () => {
     try {
       const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         console.error('Falha ao preparar a vinculação da conta.');
         setError('Falha ao preparar a vinculação com o Facebook. Tente novamente.');
         return;
       }
-      signIn('facebook', { callbackUrl: '/media-kit?instagramLinked=true' });
+      const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
+      signIn('facebook', { callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=media-kit${flowIdParam}` });
     } catch (error) {
       console.error('Erro ao iniciar o signIn com o Facebook:', error);
       setError('Ocorreu um erro inesperado ao tentar conectar. Tente novamente.');

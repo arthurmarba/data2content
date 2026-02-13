@@ -55,6 +55,7 @@ if (receiver && qstashClient && workerUrl.startsWith('http')) {
  */
 export async function POST(request: NextRequest) {
   const TAG = '[Cron RefreshInstagramData]';
+  const cronSecret = process.env.CRON_SECRET;
 
   // Verifica se houve erro na inicialização
   if (!receiver || !qstashClient || !workerUrl.startsWith('http')) {
@@ -67,9 +68,12 @@ export async function POST(request: NextRequest) {
     // Se for chamado por Vercel Cron, você pode querer outra forma de segurança (ex: Bearer token)
     const signature = request.headers.get('upstash-signature');
     if (!signature) {
-        // Se Vercel Cron for usado, este header não existirá. Adicione outra verificação se necessário.
-        logger.warn(`${TAG} Header 'upstash-signature' ausente. Prosseguindo (assumindo chamada válida ou outra verificação).`);
-        // return NextResponse.json({ error: 'Missing signature header' }, { status: 401 }); // Descomente se SÓ QStash pode chamar
+        const cronHeader = request.headers.get('x-cron-key');
+        if (!cronSecret || cronHeader !== cronSecret) {
+          logger.error(`${TAG} Header 'upstash-signature' ausente e x-cron-key inválido.`);
+          return NextResponse.json({ error: 'Unauthorized cron call' }, { status: 401 });
+        }
+        logger.info(`${TAG} Chamada autorizada via x-cron-key.`);
     } else {
         const bodyText = await request.text(); // Corpo pode ser vazio
         const isValid = await receiver.verify({ signature, body: bodyText });
