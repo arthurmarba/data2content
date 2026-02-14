@@ -53,7 +53,11 @@ function mockFetchFreeFlow() {
         campaignDescription: null,
         deliverables: [],
         budget: null,
+        budgetIntent: 'requested',
         currency: 'BRL',
+        creatorProposedBudget: null,
+        creatorProposedCurrency: null,
+        creatorProposedAt: null,
         status: 'novo',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -139,7 +143,11 @@ function mockFetchProFlow() {
         campaignDescription: 'Detalhes da campanha',
         deliverables: ['Reel'],
         budget: 1500,
+        budgetIntent: 'provided',
         currency: 'BRL',
+        creatorProposedBudget: null,
+        creatorProposedCurrency: null,
+        creatorProposedAt: null,
         status: 'visto',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -285,8 +293,11 @@ test('pro user can generate analysis in summary mode and update reply draft', as
     expect(fetchMock).toHaveBeenCalledWith('/api/proposals', expect.anything())
   );
 
+  fireEvent.click(await screen.findByText('Campanha Plano Pro'));
+  fireEvent.click(await screen.findByRole('button', { name: /Ver assistente/i }));
+
   const analyzeButton = await screen.findByRole('button', {
-    name: /Gerar ajuda para responder/i,
+    name: /Gerar análise/i,
   });
 
   expect(screen.queryByText('Desbloqueie a IA de negociação')).toBeNull();
@@ -301,17 +312,10 @@ test('pro user can generate analysis in summary mode and update reply draft', as
     )
   );
 
-  expect(await screen.findByText(/Resumo da IA/i)).toBeInTheDocument();
+  expect(await screen.findByText(/Recomendação/i)).toBeInTheDocument();
   expect(await screen.findByText(/Pode fechar/i)).toBeInTheDocument();
-  expect(await screen.findByText(/Quão confiável está essa sugestão/i)).toBeInTheDocument();
-  expect(await screen.findByText(/Faixa sugerida para negociar/i)).toBeInTheDocument();
 
-  const textarea = await screen.findByPlaceholderText(/Sua resposta vai aparecer aqui/i);
+  const textarea = await screen.findByPlaceholderText(/Escreva sua resposta aqui/i);
   expect((textarea as HTMLTextAreaElement).value).toContain('Olá, marca!');
   expect((textarea as HTMLTextAreaElement).value).toContain('métricas em tempo real');
-
-  fireEvent.click(screen.getByRole('button', { name: /Pedir ajuste de valor/i }));
-  await waitFor(() => {
-    expect((textarea as HTMLTextAreaElement).value).toContain('valor recomendado');
-  });
 });

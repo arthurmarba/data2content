@@ -19,9 +19,10 @@ const limiter = rateLimit({
   keyPrefix: 'proposal_public',
 });
 
-const REQUIRED_FIELDS = ['brandName', 'contactEmail', 'campaignTitle'];
+const REQUIRED_FIELDS = ['brandName', 'contactName', 'contactEmail', 'campaignTitle'];
 
 type DeliverablesInput = string | string[] | null | undefined;
+type BudgetIntent = 'provided' | 'requested';
 
 function normalizeDeliverables(input: DeliverablesInput): string[] | undefined {
   if (!input) return undefined;
@@ -78,6 +79,15 @@ function parseBudget(value: unknown): number | undefined {
 
   const parsed = Number.parseFloat((isNegative ? '-' : '') + numeric);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeBudgetIntent(input: unknown, hasBudgetValue: boolean): BudgetIntent {
+  if (typeof input === 'string') {
+    const normalized = input.trim().toLowerCase();
+    if (normalized === 'provided') return 'provided';
+    if (normalized === 'requested') return 'requested';
+  }
+  return hasBudgetValue ? 'provided' : 'requested';
 }
 
 const sanitizeOptionalString = (value: unknown): string | undefined => {
@@ -148,6 +158,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   }
 
   const brandName = String(payload.brandName).trim();
+  const contactName = String(payload.contactName).trim();
   const contactEmail = String(payload.contactEmail).trim().toLowerCase();
   const contactWhatsapp =
     typeof payload.contactWhatsapp === 'string' ? payload.contactWhatsapp.trim() : undefined;
@@ -155,7 +166,19 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   const campaignDescription =
     typeof payload.campaignDescription === 'string' ? payload.campaignDescription.trim() : undefined;
   const deliverables = normalizeDeliverables(payload.deliverables);
-  const budget = parseBudget(payload.budget);
+  const hasBudgetValue =
+    payload?.budget !== undefined &&
+    payload?.budget !== null &&
+    !(typeof payload.budget === 'string' && payload.budget.trim().length === 0);
+  const parsedBudget = parseBudget(payload.budget);
+  const budgetIntent = normalizeBudgetIntent(payload.budgetIntent, hasBudgetValue);
+  if (budgetIntent === 'provided' && typeof parsedBudget !== 'number') {
+    return NextResponse.json(
+      { error: 'Informe um orçamento válido ou selecione "Solicitar orçamento".' },
+      { status: 422 }
+    );
+  }
+  const budget = budgetIntent === 'requested' ? undefined : parsedBudget;
   const currency = normalizeCurrencyCode(payload.currency) ?? 'BRL';
   const utmSource = sanitizeOptionalString(payload.utmSource ?? payload.utm_source);
   const utmMedium = sanitizeOptionalString(payload.utmMedium ?? payload.utm_medium);
@@ -171,12 +194,14 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       userId: creator._id,
       mediaKitSlug: creator.mediaKitSlug,
       brandName,
+      contactName,
       contactEmail,
       contactWhatsapp,
       campaignTitle,
       campaignDescription,
       deliverables,
       budget,
+      budgetIntent,
       currency,
       originIp: ip,
       userAgent: request.headers.get('user-agent') ?? undefined,
@@ -194,7 +219,9 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       proposalId: proposal._id.toString(),
       userId: creator._id.toString(),
       brandName,
+      contactName,
       budget,
+      budgetIntent,
       currency,
       campaignTitle,
       originIp: ip,
@@ -235,6 +262,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
           creatorName: (creator as any)?.name ?? null,
           creatorHandle,
           brandName,
+          contactName,
           campaignTitle,
           budgetText,
           deliverables: proposal.deliverables ?? [],
@@ -262,6 +290,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
           creatorId: creator._id.toString(),
           mediaKitSlug: creator.mediaKitSlug ?? null,
           budget: typeof proposal.budget === 'number' ? proposal.budget : null,
+          budgetIntent,
           currency: proposal.currency ?? 'BRL',
           deliverablesCount,
           timelineDays: null,

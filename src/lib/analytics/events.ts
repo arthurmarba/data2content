@@ -42,6 +42,7 @@ export const analyticsEventCatalog = {
       creator_id: '' as StringMaybe,
       proposal_id: '' as StringMaybe,
       budget: 0 as NumberMaybe,
+      budget_intent: '' as ('provided' | 'requested' | null | undefined),
       deliverables_count: 0 as NumberMaybe,
       timeline_days: 0 as NumberMaybe,
       utm_source: '' as StringMaybe,

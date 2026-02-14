@@ -41,6 +41,10 @@ interface CampaignDetailViewProps {
     onReplyIntentChange: (intent: ReplyIntent) => void;
     replyRegenerating: boolean;
     onRefreshReply: () => void;
+    budgetInput: string;
+    onBudgetInputChange: (value: string) => void;
+    onSaveBudget: () => void;
+    budgetSaving: boolean;
     replySending: boolean;
     onSendReply: () => void;
     replyTextareaRef: React.RefObject<HTMLTextAreaElement>;
@@ -93,6 +97,10 @@ export default function CampaignDetailView({
     onReplyIntentChange,
     replyRegenerating,
     onRefreshReply,
+    budgetInput,
+    onBudgetInputChange,
+    onSaveBudget,
+    budgetSaving,
     replySending,
     onSendReply,
     replyTextareaRef,
@@ -109,6 +117,14 @@ export default function CampaignDetailView({
     const hasAnalysis = Boolean(analysisMessage || analysisV2);
     const currentIntentLabel = INTENT_CHIPS.find((chip) => chip.key === replyIntent)?.label ?? "Estratégia";
     const selectedFunnelStatus: ProposalStatus = proposal.status === "visto" ? "novo" : proposal.status;
+    const receivedBudgetLabel =
+        proposal.budgetIntent === "requested" && proposal.budget === null
+            ? "Marca solicitou orçamento"
+            : formatMoney(proposal.budget, proposal.currency);
+    const proposedBudgetLabel =
+        typeof proposal.creatorProposedBudget === "number"
+            ? formatMoney(proposal.creatorProposedBudget, proposal.creatorProposedCurrency || proposal.currency)
+            : "Não informado";
     const assistantSummaryChips = analysisV2
         ? [
             `Diagnóstico: ${ASSISTANT_VERDICT_LABELS[analysisV2.verdict]}`,
@@ -165,7 +181,7 @@ export default function CampaignDetailView({
                             <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
                                 <span>{proposal.brandName}</span>
                                 <span className="px-1.5 text-slate-300">•</span>
-                                <span>{formatMoney(proposal.budget, proposal.currency)}</span>
+                                <span>{receivedBudgetLabel}</span>
                                 <span className="px-1.5 text-slate-300">•</span>
                                 <span>{formatDate(proposal.createdAt)}</span>
                             </p>
@@ -234,6 +250,24 @@ export default function CampaignDetailView({
                                         {proposal.campaignDescription || (
                                             <span className="italic text-slate-400">Nenhuma descrição fornecida pela marca.</span>
                                         )}
+                                    </div>
+
+                                    <div>
+                                        <h3 className="mb-2 text-xs font-semibold text-slate-500">Contato da marca</h3>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Responsável</p>
+                                                <p className="mt-1 text-sm text-slate-800">{proposal.contactName || "Não informado"}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</p>
+                                                <p className="mt-1 break-all text-sm text-slate-800">{proposal.contactEmail}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2 sm:col-span-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">WhatsApp</p>
+                                                <p className="mt-1 text-sm text-slate-800">{proposal.contactWhatsapp || "Não informado"}</p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* References */}
@@ -337,6 +371,39 @@ export default function CampaignDetailView({
 
                         {/* Composer Area */}
                         <div className="relative">
+                            <div className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Orçamento</p>
+                                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <p className="text-[11px] text-slate-500">Recebido da marca</p>
+                                        <p className="mt-1 text-sm font-semibold text-slate-900">{receivedBudgetLabel}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] text-slate-500">Último valor proposto por você</p>
+                                        <p className="mt-1 text-sm font-semibold text-slate-900">{proposedBudgetLabel}</p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                                    <input
+                                        value={budgetInput}
+                                        onChange={(e) => onBudgetInputChange(e.target.value)}
+                                        placeholder={`Ex.: ${proposal.currency === 'BRL' ? '5000' : '1000'}`}
+                                        disabled={!canInteract}
+                                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 sm:max-w-xs"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={onSaveBudget}
+                                        disabled={!canInteract || budgetSaving}
+                                        className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {budgetSaving ? "Salvando..." : "Salvar orçamento proposto"}
+                                    </button>
+                                </div>
+                                <p className="mt-2 text-[11px] text-slate-500">
+                                    Este valor fica registrado na campanha para histórico de negociação.
+                                </p>
+                            </div>
 
                             {/* The Editor */}
                             <div className={`group relative rounded-2xl bg-white shadow-sm ring-1 ring-slate-100/70 transition-all focus-within:ring-2 focus-within:ring-slate-200 focus-within:shadow-md ${!canInteract ? 'opacity-50 grayscale-[0.5]' : ''}`}>

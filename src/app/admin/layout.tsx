@@ -15,6 +15,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PencilSquareIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 
 // --- Itens do Menu ---
@@ -51,6 +52,7 @@ const menuItems: MenuItem[] = [
   },
   { label: 'Afiliados', href: '/admin/affiliates', icon: UserGroupIcon },
   { label: 'Parceiros', href: '/admin/agencies', icon: UserGroupIcon },
+  { label: 'Propostas de Marcas', href: '/admin/brand-proposals', icon: MegaphoneIcon },
   { label: 'Resgates', href: '/admin/redemptions', icon: CurrencyDollarIcon },
   { label: 'Billing Debug', href: '/admin/billing-debug', icon: CurrencyDollarIcon },
   {

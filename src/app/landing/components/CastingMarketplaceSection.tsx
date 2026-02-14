@@ -428,7 +428,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                 )}
 
                 {/* CONTENT */}
-                <div className="space-y-10 sm:space-y-12">
+                <div className="space-y-7 sm:space-y-8">
                     {loading && creators.length === 0 ? (
                         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                             {[1, 2, 3, 4].map(i => <div key={i} className="h-96 animate-pulse rounded-[3rem] bg-white border border-slate-100" />)}
@@ -443,7 +443,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                             {fullRails.map((rail) => (
                                 <div
                                     key={rail.key}
-                                    className="space-y-4 sm:space-y-6 pt-12 border-t border-slate-100 sm:pt-16"
+                                    className="space-y-3 sm:space-y-4 pt-8 border-t border-slate-100 sm:pt-10"
                                 >
                                     <div className="flex items-end justify-between px-2">
                                         <div>
@@ -461,7 +461,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                             ))}
 
                             {microRails.length > 0 && (
-                                <div className="space-y-8 pt-12 border-t border-slate-100 sm:space-y-10 sm:pt-16">
+                                <div className="space-y-4 pt-8 border-t border-slate-100 sm:space-y-6 sm:pt-10">
                                     <div className="flex items-end justify-between px-2">
                                         <div>
                                             <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">Varias Narrativas</h3>

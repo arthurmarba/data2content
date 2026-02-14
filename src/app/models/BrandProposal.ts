@@ -1,6 +1,7 @@
 import mongoose, { Schema, Types, Document, model, models } from 'mongoose';
 
 export type BrandProposalStatus = 'novo' | 'visto' | 'respondido' | 'aceito' | 'rejeitado';
+export type BrandProposalBudgetIntent = 'provided' | 'requested';
 export type BrandProposalSuggestionType =
   | 'aceitar'
   | 'ajustar'
@@ -23,13 +24,18 @@ export interface IBrandProposal extends Document {
   userId: Types.ObjectId;
   mediaKitSlug: string;
   brandName: string;
+  contactName: string;
   contactEmail: string;
   contactWhatsapp?: string;
   campaignTitle: string;
   campaignDescription?: string;
   deliverables?: string[];
   budget?: number;
+  budgetIntent?: BrandProposalBudgetIntent;
   currency?: string;
+  creatorProposedBudget?: number | null;
+  creatorProposedCurrency?: string;
+  creatorProposedAt?: Date;
   status: BrandProposalStatus;
   referenceLinks?: string[];
   originIp?: string;
@@ -112,6 +118,11 @@ const BrandProposalSchema = new Schema<IBrandProposal>(
       required: true,
       trim: true,
     },
+    contactName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     contactEmail: {
       type: String,
       required: true,
@@ -142,10 +153,25 @@ const BrandProposalSchema = new Schema<IBrandProposal>(
     budget: {
       type: Number,
     },
+    budgetIntent: {
+      type: String,
+      enum: ['provided', 'requested'],
+      index: true,
+    },
     currency: {
       type: String,
       default: 'BRL',
       trim: true,
+    },
+    creatorProposedBudget: {
+      type: Number,
+    },
+    creatorProposedCurrency: {
+      type: String,
+      trim: true,
+    },
+    creatorProposedAt: {
+      type: Date,
     },
     status: {
       type: String,

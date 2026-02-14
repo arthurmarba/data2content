@@ -14,6 +14,8 @@ interface UseAdminListParams {
   syncWithUrl?: boolean;
 }
 
+const RESERVED_QUERY_KEYS = new Set(['page', 'limit', 'sortBy', 'sortOrder']);
+
 export function useAdminList<T>({
   endpoint,
   initialParams = {},
@@ -38,14 +40,25 @@ export function useAdminList<T>({
   const [page, setPage] = useState<number>(parseInt(getInitialState('page', initialParams.page ?? 1), 10));
   const [limit, setLimit] = useState<number>(parseInt(getInitialState('limit', initialParams.limit ?? 10), 10));
   const [filters, setFilters] = useState<Record<string, any>>(() => {
-      if (!syncWithUrl) return initialParams.filters ?? {};
-      const urlFilters: Record<string, any> = {};
-      // Example for 'status' and 'search'. This should be adapted if more filters are needed
-      if (searchParams.get('status')) urlFilters.status = searchParams.get('status');
-      if (searchParams.get('search')) urlFilters.search = searchParams.get('search');
-      return Object.keys(urlFilters).length > 0 ? urlFilters : (initialParams.filters ?? {});
+    if (!syncWithUrl) return initialParams.filters ?? {};
+
+    const urlFilters: Record<string, any> = {};
+    for (const [key, value] of searchParams.entries()) {
+      if (RESERVED_QUERY_KEYS.has(key)) continue;
+      urlFilters[key] = value;
+    }
+
+    return Object.keys(urlFilters).length > 0 ? urlFilters : (initialParams.filters ?? {});
   });
-  const [sort, setSort] = useState(initialParams.sort ?? { sortBy: 'createdAt', order: 'desc' });
+  const [sort, setSort] = useState(() => {
+    const fallback = initialParams.sort ?? { sortBy: 'createdAt', order: 'desc' as const };
+    if (!syncWithUrl) return fallback;
+
+    const sortBy = searchParams.get('sortBy') ?? fallback.sortBy;
+    const orderParam = searchParams.get('sortOrder');
+    const order: 'asc' | 'desc' = orderParam === 'asc' ? 'asc' : (orderParam === 'desc' ? 'desc' : fallback.order);
+    return { sortBy, order };
+  });
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

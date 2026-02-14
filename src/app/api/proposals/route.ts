@@ -7,9 +7,17 @@ import BrandProposal from '@/app/models/BrandProposal';
 
 export const runtime = 'nodejs';
 
+const resolveBudgetIntent = (proposal: any): 'provided' | 'requested' => {
+  if (proposal?.budgetIntent === 'provided' || proposal?.budgetIntent === 'requested') {
+    return proposal.budgetIntent;
+  }
+  return typeof proposal?.budget === 'number' ? 'provided' : 'requested';
+};
+
 const serializeProposal = (proposal: any) => ({
   id: proposal._id.toString(),
   brandName: proposal.brandName,
+  contactName: proposal.contactName ?? null,
   contactEmail: proposal.contactEmail,
   contactWhatsapp: proposal.contactWhatsapp ?? null,
   campaignTitle: proposal.campaignTitle,
@@ -17,7 +25,12 @@ const serializeProposal = (proposal: any) => ({
   deliverables: proposal.deliverables ?? [],
   referenceLinks: proposal.referenceLinks ?? [],
   budget: typeof proposal.budget === 'number' ? proposal.budget : null,
+  budgetIntent: resolveBudgetIntent(proposal),
   currency: proposal.currency ?? 'BRL',
+  creatorProposedBudget:
+    typeof proposal.creatorProposedBudget === 'number' ? proposal.creatorProposedBudget : null,
+  creatorProposedCurrency: proposal.creatorProposedCurrency ?? null,
+  creatorProposedAt: proposal.creatorProposedAt ? proposal.creatorProposedAt.toISOString() : null,
   status: proposal.status,
   createdAt: proposal.createdAt ? proposal.createdAt.toISOString() : null,
   updatedAt: proposal.updatedAt ? proposal.updatedAt.toISOString() : null,

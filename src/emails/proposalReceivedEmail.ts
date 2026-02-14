@@ -5,6 +5,7 @@ export interface ProposalReceivedEmailParams {
   creatorName?: string | null;
   creatorHandle?: string | null;
   brandName: string;
+  contactName?: string | null;
   campaignTitle?: string | null;
   budgetText?: string | null;
   deliverables?: string[] | null;
@@ -35,6 +36,7 @@ export function proposalReceivedEmail(params: ProposalReceivedEmailParams) {
     creatorName,
     creatorHandle,
     brandName,
+    contactName,
     campaignTitle,
     budgetText,
     deliverables = [],
@@ -61,6 +63,7 @@ export function proposalReceivedEmail(params: ProposalReceivedEmailParams) {
   textLines.push('', 'Resumo da proposta:');
   textLines.push(`- Marca: ${brandName}`);
   if (campaignTitle) textLines.push(`- Campanha: ${campaignTitle}`);
+  if (contactName) textLines.push(`- Responsável: ${contactName}`);
   if (hasBudget) textLines.push(`- Orçamento: ${budgetText}`);
   if (deliverablesList.length) textLines.push(`- Entregáveis: ${deliverablesList.join(', ')}`);
   if (formattedDate) textLines.push(`- Recebida em: ${formattedDate}`);
@@ -74,6 +77,7 @@ export function proposalReceivedEmail(params: ProposalReceivedEmailParams) {
   const summaryHtmlItems: string[] = [];
   summaryHtmlItems.push(`<li><strong>Marca:</strong> ${brandName}</li>`);
   if (campaignTitle) summaryHtmlItems.push(`<li><strong>Campanha:</strong> ${campaignTitle}</li>`);
+  if (contactName) summaryHtmlItems.push(`<li><strong>Responsável:</strong> ${contactName}</li>`);
   if (hasBudget) summaryHtmlItems.push(`<li><strong>Orçamento:</strong> ${budgetText}</li>`);
   if (deliverablesList.length) {
     const listItems = deliverablesList.map((item) => `<li>${item}</li>`).join('');

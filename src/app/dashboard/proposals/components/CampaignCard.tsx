@@ -105,6 +105,8 @@ export default function CampaignCard({ proposal, onClick, onStatusChange, format
                         <p className="text-lg font-bold text-slate-800">
                             {formatMoney(proposal.budget, proposal.currency)}
                         </p>
+                    ) : proposal.budgetIntent === 'requested' ? (
+                        <p className="text-sm font-medium text-slate-500">Marca solicitou orçamento</p>
                     ) : (
                         <p className="text-sm font-medium text-slate-400">Orçamento não informado</p>
                     )}

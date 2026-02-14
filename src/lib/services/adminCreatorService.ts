@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 // Modelos de dados importados de sua fonte única e correta
 import UserModel, { IUser } from '@/app/models/User';
 import RedemptionModel, { IRedemption } from '@/app/models/Redemption';
+import BrandProposal from '@/app/models/BrandProposal';
 
 // Funções e tipos de suporte
 import { connectToDatabase } from '@/app/lib/dataService/connection';
@@ -26,8 +27,25 @@ import {
   AdminRedemptionListParams,
   AdminRedemptionUpdateStatusPayload as AdminRedemptionUpdatePayload,
 } from '@/types/admin/redemptions';
+import {
+  AdminBrandProposalDetail,
+  AdminBrandProposalListItem,
+  AdminBrandProposalListParams,
+} from '@/types/admin/brandProposals';
 
 const SERVICE_TAG = '[adminCreatorService]';
+const BRAND_PROPOSAL_SORT_MAP: Record<
+  NonNullable<AdminBrandProposalListParams['sortBy']>,
+  string
+> = {
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  brandName: 'brandName',
+  campaignTitle: 'campaignTitle',
+  status: 'status',
+  budget: 'budget',
+  creatorName: 'creator.name',
+};
 
 function resolveRegistrationDate(id: any, registrationDate?: Date | null): Date {
   if (registrationDate instanceof Date) return registrationDate;
@@ -46,6 +64,76 @@ function resolveRegistrationDate(id: any, registrationDate?: Date | null): Date 
     }
   }
   return new Date(0);
+}
+
+function toIsoStringOrNull(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resolveProposalBudgetIntent(doc: any): 'provided' | 'requested' {
+  if (doc?.budgetIntent === 'provided' || doc?.budgetIntent === 'requested') {
+    return doc.budgetIntent;
+  }
+  return typeof doc?.budget === 'number' ? 'provided' : 'requested';
+}
+
+function mapBrandProposalListItem(doc: any): AdminBrandProposalListItem {
+  const creatorId = doc?.creator?._id ? String(doc.creator._id) : String(doc?.userId ?? '');
+  return {
+    id: String(doc?._id),
+    status: doc?.status ?? 'novo',
+    brandName: doc?.brandName ?? 'N/A',
+    contactName: doc?.contactName ?? null,
+    contactEmail: doc?.contactEmail ?? 'N/A',
+    contactWhatsapp: doc?.contactWhatsapp ?? null,
+    campaignTitle: doc?.campaignTitle ?? 'Sem título',
+    budget: typeof doc?.budget === 'number' ? doc.budget : null,
+    budgetIntent: resolveProposalBudgetIntent(doc),
+    currency: doc?.currency ?? 'BRL',
+    creatorProposedBudget:
+      typeof doc?.creatorProposedBudget === 'number' ? doc.creatorProposedBudget : null,
+    creatorProposedCurrency: doc?.creatorProposedCurrency ?? null,
+    creatorProposedAt: toIsoStringOrNull(doc?.creatorProposedAt),
+    mediaKitSlug: doc?.mediaKitSlug ?? null,
+    createdAt: toIsoStringOrNull(doc?.createdAt),
+    updatedAt: toIsoStringOrNull(doc?.updatedAt),
+    creator: {
+      id: creatorId,
+      name: doc?.creator?.name ?? 'Criador não encontrado',
+      email: doc?.creator?.email ?? 'N/A',
+      username: doc?.creator?.username ?? null,
+      mediaKitSlug: doc?.creator?.mediaKitSlug ?? null,
+    },
+  };
+}
+
+function mapBrandProposalDetail(doc: any): AdminBrandProposalDetail {
+  const base = mapBrandProposalListItem(doc);
+  return {
+    ...base,
+    campaignDescription: doc?.campaignDescription ?? null,
+    deliverables: Array.isArray(doc?.deliverables) ? doc.deliverables : [],
+    referenceLinks: Array.isArray(doc?.referenceLinks) ? doc.referenceLinks : [],
+    originIp: doc?.originIp ?? null,
+    userAgent: doc?.userAgent ?? null,
+    lastResponseAt: toIsoStringOrNull(doc?.lastResponseAt),
+    lastResponseMessage: doc?.lastResponseMessage ?? null,
+    utmSource: doc?.utmSource ?? null,
+    utmMedium: doc?.utmMedium ?? null,
+    utmCampaign: doc?.utmCampaign ?? null,
+    utmTerm: doc?.utmTerm ?? null,
+    utmContent: doc?.utmContent ?? null,
+    utmReferrer: doc?.utmReferrer ?? null,
+    utmFirstTouchAt: toIsoStringOrNull(doc?.utmFirstTouchAt),
+    utmLastTouchAt: toIsoStringOrNull(doc?.utmLastTouchAt),
+  };
 }
 
 /**
@@ -460,6 +548,214 @@ export async function fetchRedemptions(
   } catch (error: any) {
     logger.error(`${TAG} Error fetching redemptions:`, error);
     throw new Error(`Failed to fetch redemptions: ${error.message}`);
+  }
+}
+
+/**
+ * Fetches a paginated list of brand proposals for admin visibility.
+ */
+export async function fetchBrandProposals(
+  params: AdminBrandProposalListParams
+): Promise<{ proposals: AdminBrandProposalListItem[]; totalProposals: number; totalPages: number }> {
+  const TAG = `${SERVICE_TAG}[fetchBrandProposals]`;
+  await connectToDatabase();
+
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    status,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+    dateFrom,
+    dateTo,
+  } = params;
+
+  const skip = (page - 1) * limit;
+  const sortDirection = sortOrder === 'asc' ? 1 : -1;
+  const match: Record<string, unknown> = {};
+
+  if (status && status !== 'all') {
+    match.status = status;
+  }
+
+  if (dateFrom) {
+    match.createdAt = { ...(match.createdAt as object | undefined), $gte: new Date(dateFrom) };
+  }
+
+  if (dateTo) {
+    const endDate = new Date(dateTo);
+    endDate.setHours(23, 59, 59, 999);
+    match.createdAt = { ...(match.createdAt as object | undefined), $lte: endDate };
+  }
+
+  try {
+    const pipeline: mongoose.PipelineStage[] = [];
+
+    if (Object.keys(match).length > 0) {
+      pipeline.push({ $match: match });
+    }
+
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'creator',
+      },
+    });
+    pipeline.push({ $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } });
+
+    if (search?.trim()) {
+      const regex = new RegExp(escapeRegex(search.trim()), 'i');
+      pipeline.push({
+        $match: {
+          $or: [
+            { brandName: regex },
+            { contactName: regex },
+            { contactEmail: regex },
+            { contactWhatsapp: regex },
+            { campaignTitle: regex },
+            { campaignDescription: regex },
+            { mediaKitSlug: regex },
+            { 'creator.name': regex },
+            { 'creator.email': regex },
+            { 'creator.username': regex },
+            { 'creator.mediaKitSlug': regex },
+          ],
+        },
+      });
+    }
+
+    const countPipeline = [...pipeline, { $count: 'totalCount' }];
+    const sortField = BRAND_PROPOSAL_SORT_MAP[sortBy] ?? 'createdAt';
+
+    pipeline.push({ $sort: { [sortField]: sortDirection, _id: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+    pipeline.push({
+      $project: {
+        _id: 1,
+        status: 1,
+        brandName: 1,
+        contactName: 1,
+        contactEmail: 1,
+        contactWhatsapp: 1,
+        campaignTitle: 1,
+        budget: 1,
+        budgetIntent: 1,
+        currency: 1,
+        creatorProposedBudget: 1,
+        creatorProposedCurrency: 1,
+        creatorProposedAt: 1,
+        mediaKitSlug: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        userId: 1,
+        creator: {
+          _id: '$creator._id',
+          name: '$creator.name',
+          email: '$creator.email',
+          username: '$creator.username',
+          mediaKitSlug: '$creator.mediaKitSlug',
+        },
+      },
+    });
+
+    const [docs, countResult] = await Promise.all([
+      BrandProposal.aggregate(pipeline).exec(),
+      BrandProposal.aggregate(countPipeline).exec(),
+    ]);
+
+    const totalProposals = countResult[0]?.totalCount || 0;
+    const totalPages = Math.ceil(totalProposals / limit);
+
+    const proposals = docs.map((doc: any) => mapBrandProposalListItem(doc));
+    logger.info(`${TAG} Successfully fetched ${proposals.length} proposals. Total: ${totalProposals}.`);
+    return { proposals, totalProposals, totalPages };
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching brand proposals:`, error);
+    throw new Error(`Failed to fetch brand proposals: ${error.message}`);
+  }
+}
+
+/**
+ * Fetches a single brand proposal with complete detail for admin.
+ */
+export async function fetchBrandProposalById(
+  proposalId: string
+): Promise<AdminBrandProposalDetail | null> {
+  const TAG = `${SERVICE_TAG}[fetchBrandProposalById]`;
+  await connectToDatabase();
+
+  if (!Types.ObjectId.isValid(proposalId)) {
+    return null;
+  }
+
+  try {
+    const pipeline: mongoose.PipelineStage[] = [
+      { $match: { _id: new Types.ObjectId(proposalId) } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'creator',
+        },
+      },
+      { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          status: 1,
+          brandName: 1,
+          contactName: 1,
+          contactEmail: 1,
+          contactWhatsapp: 1,
+          campaignTitle: 1,
+          campaignDescription: 1,
+          deliverables: 1,
+          referenceLinks: 1,
+          budget: 1,
+          budgetIntent: 1,
+          currency: 1,
+          creatorProposedBudget: 1,
+          creatorProposedCurrency: 1,
+          creatorProposedAt: 1,
+          mediaKitSlug: 1,
+          originIp: 1,
+          userAgent: 1,
+          lastResponseAt: 1,
+          lastResponseMessage: 1,
+          utmSource: 1,
+          utmMedium: 1,
+          utmCampaign: 1,
+          utmTerm: 1,
+          utmContent: 1,
+          utmReferrer: 1,
+          utmFirstTouchAt: 1,
+          utmLastTouchAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          userId: 1,
+          creator: {
+            _id: '$creator._id',
+            name: '$creator.name',
+            email: '$creator.email',
+            username: '$creator.username',
+            mediaKitSlug: '$creator.mediaKitSlug',
+          },
+        },
+      },
+    ];
+
+    const [doc] = await BrandProposal.aggregate(pipeline).exec();
+    if (!doc) return null;
+
+    return mapBrandProposalDetail(doc);
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching proposal ${proposalId}:`, error);
+    throw new Error(`Failed to fetch brand proposal detail: ${error.message}`);
   }
 }
 

@@ -158,6 +158,38 @@ function formatGapLabel(value: number | null): string {
   return `${abs}% ${value > 0 ? 'acima' : 'abaixo'} do recomendado`;
 }
 
+function parseBudgetInput(value: string): number | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const sanitized = trimmed.replace(/[^\d.,-]/g, '');
+  if (!sanitized) return undefined;
+
+  const isNegative = sanitized.startsWith('-');
+  const unsigned = isNegative ? sanitized.slice(1) : sanitized;
+  const lastComma = unsigned.lastIndexOf(',');
+  const lastDot = unsigned.lastIndexOf('.');
+
+  let decimalSeparatorIndex = -1;
+  if (lastComma !== -1 || lastDot !== -1) {
+    decimalSeparatorIndex =
+      lastComma !== -1 && lastDot !== -1 ? (lastComma > lastDot ? lastComma : lastDot) : Math.max(lastComma, lastDot);
+  }
+
+  let numeric = '';
+  if (decimalSeparatorIndex !== -1) {
+    const integerPart = unsigned.slice(0, decimalSeparatorIndex).replace(/[.,]/g, '');
+    const fractionalPart = unsigned.slice(decimalSeparatorIndex + 1).replace(/[.,]/g, '');
+    numeric = `${integerPart}.${fractionalPart}`;
+  } else {
+    numeric = unsigned.replace(/[.,]/g, '');
+  }
+
+  if (!numeric) return undefined;
+  const parsed = Number.parseFloat((isNegative ? '-' : '') + numeric);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function buildIntentDraft(input: {
   intent: ReplyIntent;
   proposal: ProposalDetail;
@@ -279,6 +311,8 @@ export default function ProposalsClient() {
   const [replyDraft, setReplyDraft] = useState('');
   const [replySending, setReplySending] = useState(false);
   const [replyRegenerating, setReplyRegenerating] = useState(false);
+  const [creatorProposedBudgetInput, setCreatorProposedBudgetInput] = useState('');
+  const [proposedBudgetSaving, setProposedBudgetSaving] = useState(false);
 
   const [mediaKitUrl, setMediaKitUrl] = useState<string | null>(null);
   const [isMediaKitLoading, setIsMediaKitLoading] = useState(true);
@@ -367,6 +401,7 @@ export default function ProposalsClient() {
         setAnalysisMessage(null);
         setAnalysisV2(null);
         setReplyDraft('');
+        setCreatorProposedBudgetInput('');
         return;
       }
 
@@ -432,6 +467,7 @@ export default function ProposalsClient() {
       setAnalysisMessage(null);
       setAnalysisV2(null);
       setReplyDraft('');
+      setCreatorProposedBudgetInput('');
       return;
     }
 
@@ -459,6 +495,12 @@ export default function ProposalsClient() {
         if (snapshot.suggestionType) {
           setReplyIntent(INTENT_FROM_VERDICT[snapshot.suggestionType]);
         }
+
+        setCreatorProposedBudgetInput(
+          typeof payload.creatorProposedBudget === 'number'
+            ? String(payload.creatorProposedBudget)
+            : ''
+        );
 
         if (payload.status === 'novo') {
           await updateProposalStatus(payload.id, 'visto', false);
@@ -732,6 +774,56 @@ export default function ProposalsClient() {
     toast,
   ]);
 
+  const handleSaveCreatorProposedBudget = useCallback(async () => {
+    if (!selectedProposal) return;
+
+    const parsed = parseBudgetInput(creatorProposedBudgetInput);
+    if (parsed === undefined) {
+      toast({ variant: 'error', title: 'Valor de orçamento proposto inválido.' });
+      return;
+    }
+
+    setProposedBudgetSaving(true);
+    try {
+      const response = await fetch(`/api/proposals/${selectedProposal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creatorProposedBudget: parsed,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Não foi possível salvar o orçamento proposto.');
+      }
+
+      const updated = payload as ProposalDetail;
+      setSelectedProposal(updated);
+      setCreatorProposedBudgetInput(
+        typeof updated.creatorProposedBudget === 'number' ? String(updated.creatorProposedBudget) : ''
+      );
+      setProposals((prev) =>
+        prev.map((item) =>
+          item.id === updated.id
+            ? {
+              ...item,
+              creatorProposedBudget: updated.creatorProposedBudget,
+              creatorProposedCurrency: updated.creatorProposedCurrency,
+              creatorProposedAt: updated.creatorProposedAt,
+            }
+            : item
+        )
+      );
+
+      toast({ variant: 'success', title: 'Orçamento proposto salvo.' });
+    } catch (error: any) {
+      toast({ variant: 'error', title: error?.message || 'Falha ao salvar orçamento proposto.' });
+    } finally {
+      setProposedBudgetSaving(false);
+    }
+  }, [creatorProposedBudgetInput, selectedProposal, toast]);
+
   const handleSendReply = useCallback(async () => {
     if (!selectedProposal) return;
 
@@ -751,10 +843,18 @@ export default function ProposalsClient() {
 
     setReplySending(true);
     try {
+      const parsedCreatorBudget = parseBudgetInput(creatorProposedBudgetInput);
+      if (parsedCreatorBudget === undefined) {
+        throw new Error('Valor de orçamento proposto inválido.');
+      }
+
       const response = await fetch(`/api/proposals/${selectedProposal.id}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailText: normalizedDraft }),
+        body: JSON.stringify({
+          emailText: normalizedDraft,
+          creatorProposedBudget: parsedCreatorBudget,
+        }),
       });
 
       if (!response.ok) {
@@ -777,12 +877,21 @@ export default function ProposalsClient() {
               ...item,
               status: updated.status,
               budget: updated.budget,
+              budgetIntent: updated.budgetIntent,
               currency: updated.currency,
+              creatorProposedBudget: updated.creatorProposedBudget,
+              creatorProposedCurrency: updated.creatorProposedCurrency,
+              creatorProposedAt: updated.creatorProposedAt,
               lastResponseAt: updated.lastResponseAt,
               lastResponseMessage: updated.lastResponseMessage,
             }
             : item
         )
+      );
+      setCreatorProposedBudgetInput(
+        typeof updated.creatorProposedBudget === 'number'
+          ? String(updated.creatorProposedBudget)
+          : ''
       );
       setReplyDraft(normalizeEmailParagraphs(updated.lastResponseMessage ?? normalizedDraft));
 
@@ -799,6 +908,7 @@ export default function ProposalsClient() {
   }, [
     canInteract,
     openPaywall,
+    creatorProposedBudgetInput,
     replyDraft,
     resolvePublicMediaKitUrl,
     selectedProposal,
@@ -875,7 +985,7 @@ export default function ProposalsClient() {
 
   const shouldShowUpgradeBanner = !canInteract && !isBillingLoading;
 
-  if (currentStep === 'detail' && selectedProposal) {
+  if (currentStep !== 'inbox' && selectedProposal) {
     return (
       <CampaignDetailView
         proposal={selectedProposal}
@@ -904,6 +1014,10 @@ export default function ProposalsClient() {
         onReplyIntentChange={applyReplyIntent}
         replyRegenerating={replyRegenerating}
         onRefreshReply={handleRefreshReply}
+        budgetInput={creatorProposedBudgetInput}
+        onBudgetInputChange={setCreatorProposedBudgetInput}
+        onSaveBudget={handleSaveCreatorProposedBudget}
+        budgetSaving={proposedBudgetSaving}
         replySending={replySending}
         onSendReply={handleSendReply}
         replyTextareaRef={replyTextareaRef}

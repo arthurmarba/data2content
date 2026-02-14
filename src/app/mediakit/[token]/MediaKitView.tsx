@@ -18,6 +18,8 @@ import {
   Bookmark,
   ArrowUpRight,
   ArrowDownRight,
+  ChevronDown,
+  ChevronUp,
   X,
   Lock,
   Send,
@@ -194,18 +196,20 @@ const highlightCardClass = 'rounded-[28px] border border-white/60 bg-white/95 sh
 const chipHighlightClass = 'landing-chip text-brand-primary border-brand-primary/20 bg-white/80';
 const textSecondaryClass = 'text-[#475569]';
 const textMutedClass = 'text-slate-500';
-const formLabelClass = 'text-xs font-semibold uppercase tracking-[0.2em] text-[#94A3B8]';
-const formHelperTextClass = 'text-[11px] text-[#94A3B8]';
+const formLabelClass = 'text-[11px] font-semibold uppercase tracking-[0.16em] text-[#94A3B8]';
+const formHelperTextClass = 'text-[11px] leading-4 text-[#94A3B8]';
 const formInputClass =
-  'mt-1 w-full rounded-2xl border border-white/60 bg-white/80 px-4 py-2 text-sm text-[#0F172A] shadow-inner focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]/30';
+  'mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-[#0F172A] focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]/30';
 
 interface ProposalFormState {
   brandName: string;
+  contactName: string;
   contactEmail: string;
   contactWhatsapp: string;
   campaignTitle: string;
   campaignDescription: string;
   deliverables: string;
+  budgetIntent: 'provided' | 'requested';
   budget: string;
   currency: string;
 }
@@ -232,11 +236,13 @@ const PublicProposalForm = ({
   const formId = useId();
   const [form, setForm] = useState<ProposalFormState>({
     brandName: '',
+    contactName: '',
     contactEmail: '',
     contactWhatsapp: '',
     campaignTitle: '',
     campaignDescription: '',
     deliverables: '',
+    budgetIntent: 'provided',
     budget: '',
     currency: 'BRL',
   });
@@ -244,6 +250,7 @@ const PublicProposalForm = ({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [utmSnapshot, setUtmSnapshot] = useState<UtmContext | null>(utmContext ?? null);
+  const [isPackagesExpanded, setIsPackagesExpanded] = useState(false);
 
   useEffect(() => {
     setUtmSnapshot(utmContext ?? null);
@@ -254,10 +261,12 @@ const PublicProposalForm = ({
     setForm(prev => ({
       ...prev,
       deliverables: pkg.deliverables.join(', '),
+      budgetIntent: 'provided',
       budget: pkg.price.toString(),
       currency: pkg.currency || 'BRL',
       campaignDescription: prev.campaignDescription ? prev.campaignDescription : `Interesse no pacote: ${pkg.name}`,
     }));
+    setIsPackagesExpanded(false);
   };
 
   const pricingChips = useMemo(() => {
@@ -303,11 +312,13 @@ const PublicProposalForm = ({
   const resetForm = () => {
     setForm({
       brandName: '',
+      contactName: '',
       contactEmail: '',
       contactWhatsapp: '',
       campaignTitle: '',
       campaignDescription: '',
       deliverables: '',
+      budgetIntent: 'provided',
       budget: '',
       currency: 'BRL',
     });
@@ -328,14 +339,16 @@ const PublicProposalForm = ({
 
     const payload: Record<string, unknown> = {
       brandName: form.brandName.trim(),
+      contactName: form.contactName.trim(),
       contactEmail: form.contactEmail.trim(),
       campaignTitle: form.campaignTitle.trim(),
+      budgetIntent: form.budgetIntent,
     };
 
     if (form.contactWhatsapp.trim()) payload.contactWhatsapp = form.contactWhatsapp.trim();
     if (form.campaignDescription.trim()) payload.campaignDescription = form.campaignDescription.trim();
     if (deliverables.length) payload.deliverables = deliverables;
-    if (form.budget.trim()) payload.budget = form.budget.trim();
+    if (form.budgetIntent === 'provided' && form.budget.trim()) payload.budget = form.budget.trim();
     if (form.currency.trim()) payload.currency = form.currency.trim().toUpperCase();
 
     const utmPayload = utmSnapshot;
@@ -378,6 +391,7 @@ const PublicProposalForm = ({
         creator_id: creatorId,
         proposal_id: proposalId,
         budget: typeof responseBudget === 'number' ? Math.round(responseBudget) : null,
+        budget_intent: form.budgetIntent,
         deliverables_count: deliverablesCount,
         timeline_days: result?.timelineDays ?? null,
         utm_source: utmPayload?.utm_source ?? null,
@@ -411,216 +425,294 @@ const PublicProposalForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor={`${formId}-brand`} className={formLabelClass}>
-            Nome da marca*
-          </label>
-          <input
-            id={`${formId}-brand`}
-            required
-            value={form.brandName}
-            onChange={handleChange('brandName')}
-            placeholder="Ex.: Natura"
-            className={formInputClass}
-          />
+    <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+      <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-3 sm:p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#6E1F93]/10 text-[11px] font-bold text-[#6E1F93]">
+            01
+          </span>
+          <p className="text-sm font-semibold text-slate-800">Contato da marca</p>
         </div>
-        <div>
-          <label htmlFor={`${formId}-email`} className={formLabelClass}>
-            E-mail comercial*
-          </label>
-          <input
-            id={`${formId}-email`}
-            type="email"
-            required
-            value={form.contactEmail}
-            onChange={handleChange('contactEmail')}
-            placeholder="nome@empresa.com"
-            className={formInputClass}
-          />
+        <div className="space-y-3">
+          <div>
+            <label htmlFor={`${formId}-brand`} className={formLabelClass}>
+              Nome da marca*
+            </label>
+            <input
+              id={`${formId}-brand`}
+              required
+              value={form.brandName}
+              onChange={handleChange('brandName')}
+              placeholder="Ex.: Natura"
+              className={formInputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${formId}-contact-name`} className={formLabelClass}>
+              Responsável pela proposta*
+            </label>
+            <input
+              id={`${formId}-contact-name`}
+              required
+              value={form.contactName}
+              onChange={handleChange('contactName')}
+              placeholder="Ex.: Maria Silva"
+              className={formInputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${formId}-email`} className={formLabelClass}>
+              E-mail comercial*
+            </label>
+            <input
+              id={`${formId}-email`}
+              type="email"
+              required
+              value={form.contactEmail}
+              onChange={handleChange('contactEmail')}
+              placeholder="nome@empresa.com"
+              className={formInputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${formId}-whatsapp`} className={formLabelClass}>
+              WhatsApp (opcional)
+            </label>
+            <input
+              id={`${formId}-whatsapp`}
+              value={form.contactWhatsapp}
+              onChange={handleChange('contactWhatsapp')}
+              placeholder="+55 11 90000-0000"
+              className={formInputClass}
+            />
+          </div>
         </div>
-        <div>
-          <label htmlFor={`${formId}-whatsapp`} className={formLabelClass}>
-            WhatsApp (opcional)
-          </label>
-          <input
-            id={`${formId}-whatsapp`}
-            value={form.contactWhatsapp}
-            onChange={handleChange('contactWhatsapp')}
-            placeholder="+55 11 90000-0000"
-            className={formInputClass}
-          />
+      </section>
+
+      <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-3 sm:p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#6E1F93]/10 text-[11px] font-bold text-[#6E1F93]">
+            02
+          </span>
+          <p className="text-sm font-semibold text-slate-800">Orçamento</p>
         </div>
 
-        {/* Packages Selection */}
         {packages.length > 0 ? (
-          <div className="sm:col-span-2 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className={formLabelClass}>Investimento Sugerido (Pacotes)</p>
-              {onClearPricing && (
-                <button
-                  type="button"
-                  onClick={onClearPricing}
-                  className="p-1 text-slate-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
-                  title="Remover valores do Mídia Kit"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {packages.map((pkg) => (
-                <button
-                  key={pkg._id || pkg.name}
-                  type="button"
-                  onClick={() => handleSelectPackage(pkg)}
-                  className="group relative flex flex-col items-start gap-2 rounded-xl border border-white/60 bg-white/70 p-4 text-left shadow-sm transition hover:bg-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#6E1F93]/50"
-                >
-                  <div className="flex w-full items-start justify-between gap-2">
-                    <span className="font-semibold text-slate-900 line-clamp-1">{pkg.name}</span>
-                    <div className="opacity-0 transition group-hover:opacity-100">
-                      <span className="inline-flex items-center rounded-full bg-[#6E1F93]/10 px-2 py-0.5 text-[0.65rem] font-bold uppercase text-[#6E1F93]">
-                        Selecionar
-                      </span>
+          <div className="mb-3 rounded-xl border border-slate-200/70 bg-slate-50/70">
+            <button
+              type="button"
+              onClick={() => setIsPackagesExpanded((prev) => !prev)}
+              className="flex w-full items-center justify-between px-3 py-2 text-left"
+            >
+              <div>
+                <p className={formLabelClass}>Investimento sugerido (opcional)</p>
+                <p className={formHelperTextClass}>Selecione um pacote para preencher automaticamente.</p>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
+                {isPackagesExpanded ? 'Ocultar pacotes' : 'Ver pacotes'}
+                {isPackagesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </span>
+            </button>
+            {isPackagesExpanded ? (
+              <div className="space-y-1.5 border-t border-slate-200/70 px-2.5 py-2.5">
+                {packages.map((pkg) => (
+                  <button
+                    key={pkg._id || pkg.name}
+                    type="button"
+                    onClick={() => handleSelectPackage(pkg)}
+                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/60 bg-white px-3 py-2 text-left transition hover:border-[#6E1F93]/40 hover:bg-white"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">{pkg.name}</p>
+                      {pkg.deliverables.length > 0 ? (
+                        <p className="truncate text-xs text-slate-500">{pkg.deliverables.slice(0, 2).join(' · ')}</p>
+                      ) : null}
                     </div>
-                  </div>
-                  <span className="text-sm font-bold text-[#6E1F93]">
-                    {formatCurrencyLabel(pkg.price)}
-                  </span>
-                  {pkg.deliverables.length > 0 && (
-                    <ul className="text-xs text-slate-500 list-disc list-inside">
-                      {pkg.deliverables.slice(0, 2).map((d, i) => (
-                        <li key={i} className="line-clamp-1">{d}</li>
-                      ))}
-                      {pkg.deliverables.length > 2 && <li>...</li>}
-                    </ul>
-                  )}
-                </button>
-              ))}
-            </div>
+                    <span className="shrink-0 text-xs font-bold text-[#6E1F93]">
+                      {formatCurrencyLabel(pkg.price)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : pricingChips.length ? (
-          <div className="sm:col-span-2 rounded-2xl border border-white/60 bg-white/70 p-4 shadow-inner relative group">
+          <div className="mb-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2.5">
             <div className="flex items-center justify-between">
-              <p className={formLabelClass}>Investimento Sugerido</p>
-              {onClearPricing && (
+              <p className={formLabelClass}>Investimento sugerido</p>
+              {onClearPricing ? (
                 <button
                   type="button"
                   onClick={onClearPricing}
-                  className="p-1 text-slate-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
+                  className="rounded-full p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                   title="Remover valores do Mídia Kit"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
-              )}
+              ) : null}
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {pricingChips.map((chip) => (
                 <span
                   key={chip.key}
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${chip.badgeClass}`}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${chip.badgeClass}`}
                 >
                   <span className={`h-2 w-2 rounded-full ${chip.dot}`} aria-hidden />
                   {chip.label}: {chip.value}
                 </span>
               ))}
             </div>
-            {pricing?.reach ? (
-              <p className="mt-2 text-[11px] text-[#94A3B8]">
-                Baseado no alcance médio de {pricing.reach.toLocaleString('pt-BR')} pessoas.
-              </p>
-            ) : null}
           </div>
         ) : null}
-        <div>
-          <label htmlFor={`${formId}-budget`} className={formLabelClass}>
-            Orçamento disponível
-          </label>
-          <div className="mt-1 flex rounded-2xl border border-white/60 bg-white/70 shadow-inner focus-within:border-[#6E1F93] focus-within:ring-1 focus-within:ring-[#6E1F93]/30">
+
+        <div className="space-y-3">
+          <div>
+            <p className={formLabelClass}>Como prefere tratar o orçamento?</p>
+            <div className="mt-1 grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200/70 bg-white text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    budgetIntent: 'provided',
+                  }))
+                }
+                className={`px-3 py-2 transition ${form.budgetIntent === 'provided'
+                  ? 'bg-[#6E1F93] text-white'
+                  : 'text-[#475569] hover:bg-white/80'
+                  }`}
+              >
+                Já tenho orçamento
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    budgetIntent: 'requested',
+                    budget: '',
+                  }))
+                }
+                className={`px-3 py-2 transition ${form.budgetIntent === 'requested'
+                  ? 'bg-[#6E1F93] text-white'
+                  : 'text-[#475569] hover:bg-white/80'
+                  }`}
+              >
+                Solicitar orçamento
+              </button>
+            </div>
+            <p className={`mt-1 ${formHelperTextClass}`}>Ao solicitar orçamento, o criador responde por e-mail.</p>
+          </div>
+
+          <div>
+            <label htmlFor={`${formId}-budget`} className={formLabelClass}>
+              Orçamento disponível
+            </label>
+            {form.budgetIntent === 'provided' ? (
+              <>
+                <div className="mt-1 flex rounded-2xl border border-slate-200 bg-white focus-within:border-[#6E1F93] focus-within:ring-1 focus-within:ring-[#6E1F93]/30">
+                  <input
+                    id={`${formId}-budget`}
+                    value={form.budget}
+                    onChange={handleChange('budget')}
+                    placeholder="Ex.: 5000"
+                    className="w-full rounded-l-2xl border-r border-slate-100 bg-transparent px-4 py-2 text-sm text-[#0F172A] focus:outline-none"
+                  />
+                  <input
+                    value={form.currency}
+                    onChange={handleChange('currency')}
+                    className="w-20 rounded-r-2xl bg-slate-50 px-3 py-2 text-center text-sm font-semibold uppercase text-[#6E1F93] focus:outline-none"
+                  />
+                </div>
+                <p className={`mt-1 ${formHelperTextClass}`}>Números apenas; moeda padrão BRL.</p>
+              </>
+            ) : (
+              <div className="mt-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                A marca está solicitando que o criador envie o orçamento.
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-3 sm:p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#6E1F93]/10 text-[11px] font-bold text-[#6E1F93]">
+            03
+          </span>
+          <p className="text-sm font-semibold text-slate-800">Detalhes da campanha</p>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label htmlFor={`${formId}-title`} className={formLabelClass}>
+              Título da campanha*
+            </label>
             <input
-              id={`${formId}-budget`}
-              value={form.budget}
-              onChange={handleChange('budget')}
-              placeholder="Ex.: 5000"
-              className="w-full rounded-l-2xl border-r border-white/40 bg-transparent px-4 py-2 text-sm text-[#0F172A] focus:outline-none"
-            />
-            <input
-              value={form.currency}
-              onChange={handleChange('currency')}
-              className="w-20 rounded-r-2xl bg-white/70 px-3 py-2 text-center text-sm font-semibold uppercase text-[#6E1F93] focus:outline-none"
+              id={`${formId}-title`}
+              required
+              value={form.campaignTitle}
+              onChange={handleChange('campaignTitle')}
+              placeholder="Ex.: Lançamento coleção verão"
+              className={formInputClass}
             />
           </div>
-          <p className={formHelperTextClass}>Informe números; moeda padrão BRL.</p>
-        </div>
-      </div>
+          <div>
+            <label htmlFor={`${formId}-deliverables`} className={formLabelClass}>
+              Entregáveis desejados
+            </label>
+            <textarea
+              id={`${formId}-deliverables`}
+              value={form.deliverables}
+              onChange={handleChange('deliverables')}
+              placeholder="Stories, Reels, UGC..."
+              rows={2}
+              className={formInputClass}
+            />
+            <p className={formHelperTextClass}>Separe por vírgulas ou quebra de linha.</p>
+          </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor={`${formId}-title`} className={formLabelClass}>
-            Título da campanha*
-          </label>
-          <input
-            id={`${formId}-title`}
-            required
-            value={form.campaignTitle}
-            onChange={handleChange('campaignTitle')}
-            placeholder="Ex.: Lançamento coleção verão"
-            className={formInputClass}
-          />
+          <div>
+            <label htmlFor={`${formId}-description`} className={formLabelClass}>
+              Descrição / briefing
+            </label>
+            <textarea
+              id={`${formId}-description`}
+              value={form.campaignDescription}
+              onChange={handleChange('campaignDescription')}
+              placeholder="Compartilhe objetivos, público e principais mensagens da campanha."
+              rows={3}
+              className={formInputClass}
+            />
+          </div>
         </div>
-        <div>
-          <label htmlFor={`${formId}-deliverables`} className={formLabelClass}>
-            Entregáveis desejados
-          </label>
-          <textarea
-            id={`${formId}-deliverables`}
-            value={form.deliverables}
-            onChange={handleChange('deliverables')}
-            placeholder="Stories, Reels, UGC..."
-            rows={3}
-            className={formInputClass}
-          />
-          <p className={formHelperTextClass}>Separe por vírgulas ou quebra de linha.</p>
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor={`${formId}-description`} className={formLabelClass}>
-          Descrição / briefing
-        </label>
-        <textarea
-          id={`${formId}-description`}
-          value={form.campaignDescription}
-          onChange={handleChange('campaignDescription')}
-          placeholder="Compartilhe objetivos, público e principais mensagens da campanha."
-          rows={4}
-          className={formInputClass}
-        />
-      </div>
+      </section>
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           {error}
         </div>
       ) : null}
       {success ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
           Proposta enviada! O criador vai entrar em contato em breve.
         </div>
       ) : null}
+      </div>
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="inline-flex w-full justify-center rounded-full bg-[#6E1F93] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:bg-[#5b1a7a] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-      >
-        {submitting ? 'Enviando...' : 'Enviar proposta'}
-        <Send className="h-4 w-4" />
-      </button>
-      <p className={formHelperTextClass}>
-        Ao enviar, você concorda em ser contatado pelo criador. Guardamos seu IP para evitar spam.
-      </p>
+      <div className="shrink-0 border-t border-slate-200/70 bg-white pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex w-full justify-center rounded-full bg-[#6E1F93] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5b1a7a] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {submitting ? 'Enviando...' : 'Enviar proposta'}
+          <Send className="h-4 w-4" />
+        </button>
+        <p className={`mt-2 ${formHelperTextClass}`}>
+          Ao enviar, você concorda em ser contatado pelo criador. Guardamos seu IP para evitar spam.
+        </p>
+      </div>
     </form>
   );
 };
@@ -3711,8 +3803,8 @@ export default function MediaKitView({
                   aria-hidden="true"
                 />
                 <div className="relative z-[201] w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
-                  <div className="flex max-h-[calc(100vh-1.5rem)] flex-col sm:max-h-none">
-                    <div className="flex items-start justify-between border-b border-[#F0F0F5] px-6 py-4">
+                  <div className="flex h-[calc(100vh-1.5rem)] max-h-[calc(100vh-1.5rem)] flex-col">
+                    <div className="shrink-0 flex items-start justify-between border-b border-[#F0F0F5] px-6 py-4">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-[#6E1F93]">Propostas</p>
                         <h3 id={proposalDrawerTitleId} className="text-xl font-bold text-[#1C1C1E]">
@@ -3728,7 +3820,7 @@ export default function MediaKitView({
                         <X className="h-5 w-5" />
                       </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto px-6 py-6 sm:flex-none sm:overflow-visible sm:px-8">
+                    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden px-5 py-4 sm:px-6 sm:py-5">
                       <PublicProposalForm
                         mediaKitSlug={mediaKitSlug}
                         onSubmitSuccess={handleProposalSuccess}
