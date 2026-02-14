@@ -240,11 +240,16 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
 
 const shouldHideInMinimal = (hideInMinimal: boolean | undefined, dashboardMinimal: boolean) =>
   Boolean(hideInMinimal && dashboardMinimal);
+const HIDDEN_SIDEBAR_ITEM_KEYS = new Set<string>(["pro", "instagram-connection", "settings"]);
 
 const resolveChild = (
   definition: SidebarChildDefinition,
   options: SidebarBuildOptions
 ): SidebarChildNode | null => {
+  if (HIDDEN_SIDEBAR_ITEM_KEYS.has(definition.key)) {
+    return null;
+  }
+
   if (shouldHideInMinimal(definition.hideInMinimal, options.dashboardMinimal)) {
     return null;
   }

@@ -79,8 +79,8 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       alignClass: "justify-start",
       itemPadding: "px-3 py-2.5",
       itemGap: showLabels ? "gap-3" : "gap-0",
-      itemTextSize: showLabels ? "text-sm" : "text-xs",
-      iconSize: "h-6 w-6",
+      itemTextSize: showLabels ? "text-[15px]" : "text-sm",
+      iconSize: "h-7 w-7",
 
       collapsedIconShift: "",
       focusOffsetClass: "focus-visible:ring-offset-white",

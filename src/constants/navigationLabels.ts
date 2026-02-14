@@ -39,7 +39,7 @@ export const navigationLabels = {
     tooltip: "Desbloquear Plano Pro",
   },
   affiliates: {
-    menu: "Ganhe até R$300",
+    menu: "Afiliado",
     tooltip: "Comissão por novas assinaturas",
   },
   settings: {

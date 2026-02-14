@@ -38,25 +38,6 @@ type SidebarSectionListProps = {
   badges?: Record<string, number>;
 };
 
-const ITEM_GROUP: Record<string, "pinned" | "main" | "footer"> = {
-  dashboard: "pinned",
-  pro: "pinned",
-  "media-kit": "main",
-  "planning.chat": "main",
-  "planning.charts": "main",
-  "planning.calendar": "main",
-  "planning.scripts": "main",
-  "planning.discover": "main",
-  "campaigns.overview": "main",
-  publis: "main",
-  "campaigns.calculator": "main",
-  affiliates: "footer",
-  "instagram-connection": "footer",
-  settings: "footer",
-};
-
-const getItemGroup = (key: string): "pinned" | "main" | "footer" => ITEM_GROUP[key] ?? "main";
-
 const normalizePath = (value: string) => (value.endsWith("/") ? value.slice(0, -1) : value);
 
 const startsWithSegment = (pathname: string, href: string) => {
@@ -96,43 +77,39 @@ export const SidebarSectionList = ({
   userId,
   interaction,
   badges,
-}: SidebarSectionListProps) => (
-  <ul className="flex flex-col gap-1">
-    {(() => {
-      const flatItems = sections.flatMap((section) => section.items);
-      let previousGroup: "pinned" | "main" | "footer" | null = null;
-      return flatItems.map((item) => {
-        const group = getItemGroup(item.key);
-        const insertSeparator = previousGroup !== null && group !== previousGroup;
-        previousGroup = group;
+}: SidebarSectionListProps) => {
+  const flatItems = sections.flatMap((section) => section.items);
+  const middleItems = flatItems;
 
-        return item.type === "group" ? (
-          <SidebarGroupItem
-            key={item.key}
-            group={item}
-            tokens={tokens}
-            pathname={pathname}
-            userId={userId}
-            interaction={interaction}
-            badges={badges}
-            insertSeparator={insertSeparator}
-          />
-        ) : (
-          <SidebarLinkItem
-            key={item.key}
-            item={item}
-            tokens={tokens}
-            pathname={pathname}
-            interaction={interaction}
-            badges={badges}
-            source={`sidebar_item_${item.key}`}
-            insertSeparator={insertSeparator}
-          />
-        );
-      });
-    })()}
-  </ul>
-);
+  const renderNode = (item: SidebarSection["items"][number]) =>
+    item.type === "group" ? (
+      <SidebarGroupItem
+        key={item.key}
+        group={item}
+        tokens={tokens}
+        pathname={pathname}
+        userId={userId}
+        interaction={interaction}
+        badges={badges}
+      />
+    ) : (
+      <SidebarLinkItem
+        key={item.key}
+        item={item}
+        tokens={tokens}
+        pathname={pathname}
+        interaction={interaction}
+        badges={badges}
+        source={`sidebar_item_${item.key}`}
+      />
+    );
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <ul className="flex flex-1 -translate-y-12 flex-col justify-center gap-3">{middleItems.map((item) => renderNode(item))}</ul>
+    </div>
+  );
+};
 
 const SidebarGroupItem = ({
   group,
@@ -236,7 +213,7 @@ const SidebarGroupItem = ({
       >
         <span
           aria-hidden="true"
-          className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${tokens.collapsedIconShift}`}
+          className={`relative flex h-7 w-7 shrink-0 items-center justify-center ${tokens.collapsedIconShift}`}
         >
           {renderIcon(group.icon, active, `${tokens.iconSize} ${iconColor}`)}
           {locked && !tokens.showLabels && (
@@ -351,7 +328,7 @@ const SidebarLinkItem = ({
       >
         <span
           aria-hidden="true"
-          className={`relative flex h-6 w-6 shrink-0 items-center justify-center ${tokens.collapsedIconShift}`}
+          className={`relative flex h-7 w-7 shrink-0 items-center justify-center ${tokens.collapsedIconShift}`}
         >
           {renderIcon(item.icon, active, `${tokens.iconSize} ${iconColor}`)}
           {showBadge && !tokens.showLabels && (
@@ -429,15 +406,15 @@ const SidebarChildLink = ({
         href={item.href}
         prefetch={false}
         onClick={handleClick}
-        className={`group relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors duration-150 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 ${focusOffsetClass}`}
+        className={`group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] font-medium transition-colors duration-150 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 ${focusOffsetClass}`}
         aria-current={active ? "page" : undefined}
         title={item.tooltip || item.label}
       >
         <span
           aria-hidden="true"
-          className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center"
+          className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center"
         >
-          {renderIcon(item.icon, active, `h-5 w-5 ${iconColor}`)}
+          {renderIcon(item.icon, active, `h-6 w-6 ${iconColor}`)}
           {locked && !hideLockBadge && (
             <Lock className="absolute -right-1 -top-1 h-3 w-3 text-brand-magenta/80" aria-hidden="true" />
           )}

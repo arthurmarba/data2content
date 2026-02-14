@@ -8,14 +8,15 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   FaBars,
+  FaCreditCard,
   FaEnvelope,
   FaFileContract,
   FaHandshake,
+  FaLink,
   FaShieldAlt,
   FaSignOutAlt,
   FaTrashAlt,
   FaUserCircle,
-  FaWhatsapp,
 } from "react-icons/fa";
 import { useSidebar } from "../dashboard/context/SidebarContext";
 import {
@@ -185,79 +186,107 @@ function buildShellClasses(
 }
 
 function UserMenu({ user, onClose }: { user?: SessionUser; onClose: () => void }) {
+  const itemBaseClass =
+    "mx-2 my-0.5 flex w-[calc(100%-1rem)] items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100/90 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/25";
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95, y: -10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: -10 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
-      className="origin-top-right absolute right-2 mt-2 w-64 max-w-[92vw] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+      className="origin-top-right absolute right-2 mt-2 z-50 w-72 max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 py-2 shadow-[0_24px_50px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/5 backdrop-blur-xl focus:outline-none"
       onMouseLeave={onClose}
       role="menu"
     >
-      <div className="px-4 py-3 border-b border-gray-100">
-        <p className="text-base font-semibold text-brand-dark truncate">
-          {user?.name ?? "Usuário"}
-        </p>
-        <p className="text-sm text-gray-500 truncate">{user?.email || "Sem email"}</p>
+      <div className="border-b border-slate-100 px-4 pb-3 pt-2">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+            <FaUserCircle className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-900">
+              {user?.name ?? "Usuário"}
+            </p>
+            <p className="truncate text-xs text-slate-500">{user?.email || "Sem email"}</p>
+          </div>
+        </div>
       </div>
-      <div className="py-1 border-t border-gray-100">
+      <div className="border-t border-slate-100 py-1">
+        <Link
+          href="/dashboard/instagram-connection"
+          className={itemBaseClass}
+          onClick={onClose}
+          role="menuitem"
+        >
+          <FaLink className="h-4 w-4 text-slate-400" /> Conexão
+        </Link>
+        <Link
+          href="/settings"
+          className={itemBaseClass}
+          onClick={onClose}
+          role="menuitem"
+        >
+          <FaCreditCard className="h-4 w-4 text-slate-400" /> Gerir assinatura
+        </Link>
+      </div>
+      <div className="border-t border-slate-100 py-1">
         <Link
           href="/termos-e-condicoes"
-          className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+          className={itemBaseClass}
           onClick={onClose}
           target="_blank"
           rel="noopener noreferrer"
           role="menuitem"
         >
-          <FaFileContract className="w-4 h-4 text-gray-400" /> Termos e Condições
+          <FaFileContract className="h-4 w-4 text-slate-400" /> Termos e Condições
         </Link>
         <Link
           href="/politica-de-privacidade"
-          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+          className={itemBaseClass}
           onClick={onClose}
           target="_blank"
           rel="noopener noreferrer"
           role="menuitem"
         >
-          <FaShieldAlt className="w-4 h-4 text-gray-400" /> Política de Privacidade
+          <FaShieldAlt className="h-4 w-4 text-slate-400" /> Política de Privacidade
         </Link>
       </div>
-      <div className="py-1 border-t border-gray-100">
+      <div className="border-t border-slate-100 py-1">
         <a
           href="mailto:arthur@data2content.ai"
-          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+          className={itemBaseClass}
           onClick={onClose}
           role="menuitem"
         >
-          <FaEnvelope className="w-4 h-4 text-gray-400" /> Suporte por Email
+          <FaEnvelope className="h-4 w-4 text-slate-400" /> Suporte por Email
         </a>
         <Link
           href="/afiliados"
-          className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+          className={itemBaseClass}
           onClick={onClose}
           role="menuitem"
         >
-          <FaHandshake className="w-4 h-4 text-gray-400" /> Programa de Afiliados
+          <FaHandshake className="h-4 w-4 text-slate-400" /> Programa de Afiliados
         </Link>
       </div>
-      <div className="py-1 border-t border-gray-100">
+      <div className="border-t border-slate-100 py-1">
         <Link
           href="/dashboard/settings#delete-account"
-          className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
+          className={`${itemBaseClass} text-red-600 hover:bg-red-50 hover:text-red-700`}
           onClick={onClose}
           role="menuitem"
         >
           <FaTrashAlt className="w-4 h-4" /> Excluir Conta
         </Link>
       </div>
-      <div className="py-1 border-t border-gray-100">
+      <div className="border-t border-slate-100 py-1">
         <button
           onClick={() => {
             onClose();
             signOut({ callbackUrl: "/" });
           }}
-          className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+          className={itemBaseClass}
           role="menuitem"
         >
           <FaSignOutAlt className="w-4 h-4" /> Sair

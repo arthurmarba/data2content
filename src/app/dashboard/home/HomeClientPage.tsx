@@ -1797,6 +1797,7 @@ export default function HomeClientPage() {
   const affiliateFootnote = hasMediaKit
     ? "Seu mídia kit já leva seu link de afiliado. Novos cadastros vindos dele geram comissão pra você."
     : null;
+  const showCreatorToolsSection = false;
 
   React.useEffect(() => {
     if (dashboardMinimal) return;
@@ -1919,14 +1920,16 @@ export default function HomeClientPage() {
           </div>
         </section>
 
-        <div className="pt-4">
-          <CreatorToolsGrid
-            tools={creatorTools}
-            loading={toolsLoading}
-            disabledReason={toolsLockedReason}
-            footnote={affiliateFootnote}
-          />
-        </div>
+        {showCreatorToolsSection ? (
+          <div className="pt-4">
+            <CreatorToolsGrid
+              tools={creatorTools}
+              loading={toolsLoading}
+              disabledReason={toolsLockedReason}
+              footnote={affiliateFootnote}
+            />
+          </div>
+        ) : null}
         {connectBanner}
         <SurveyModal
           open={showSurveyModal}
@@ -2259,46 +2262,48 @@ export default function HomeClientPage() {
         </section>
 
 
-        <section className="mt-6 space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ferramentas do criador</h2>
-            <p className="text-sm text-slate-500">
-              Aja quando quiser: planner, kit de mídia e comunidade em um só lugar.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {toolCards.map((card) => (
-              <button
-                key={card.key}
-                type="button"
-                onClick={card.onAction}
-                className="group relative flex flex-col items-start justify-between gap-4 rounded-3xl border border-slate-100 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2"
-              >
-                <div className="w-full space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-xl text-[#F6007B] transition-colors group-hover:bg-[#F6007B]/10">
-                      {card.icon}
-                    </span>
-                    <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      {card.status}
-                    </span>
+        {showCreatorToolsSection ? (
+          <section className="mt-6 space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ferramentas do criador</h2>
+              <p className="text-sm text-slate-500">
+                Aja quando quiser: planner, kit de mídia e comunidade em um só lugar.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {toolCards.map((card) => (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={card.onAction}
+                  className="group relative flex flex-col items-start justify-between gap-4 rounded-3xl border border-slate-100 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2"
+                >
+                  <div className="w-full space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-xl text-[#F6007B] transition-colors group-hover:bg-[#F6007B]/10">
+                        {card.icon}
+                      </span>
+                      <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        {card.status}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-slate-900">{card.title}</h3>
+                      <p className="text-sm text-slate-600 leading-relaxed">{card.description}</p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-slate-900">{card.title}</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">{card.description}</p>
-                  </div>
-                </div>
 
-                <div className="mt-2 w-full">
-                  <span className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors group-hover:bg-slate-100 group-hover:text-slate-900">
-                    {card.actionLabel}
-                    <FaChevronRight className="h-3 w-3 text-slate-400 transition-colors group-hover:text-slate-600" />
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
+                  <div className="mt-2 w-full">
+                    <span className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors group-hover:bg-slate-100 group-hover:text-slate-900">
+                      {card.actionLabel}
+                      <FaChevronRight className="h-3 w-3 text-slate-400 transition-colors group-hover:text-slate-600" />
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
         {microInsightCard ? (
           <section className="mt-8">
             <div className="">
