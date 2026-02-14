@@ -43,7 +43,7 @@ type CastingRail = {
     description?: string;
     creators: LandingCreatorHighlight[];
     isFallback?: boolean;
-    avgEngagement?: number;
+    avgContextInteractions?: number;
 };
 
 type MarketplaceMetric = {
@@ -111,6 +111,16 @@ function computeEngagementRate(creator: LandingCreatorHighlight): number | null 
     return Number.isFinite(rate) ? rate : null;
 }
 
+function getContextAverageInteractions(creator: LandingCreatorHighlight): number {
+    if (
+        typeof creator.topPerformingContextAvgInteractions === "number" &&
+        Number.isFinite(creator.topPerformingContextAvgInteractions)
+    ) {
+        return creator.topPerformingContextAvgInteractions;
+    }
+    return creator.avgInteractionsPerPost ?? 0;
+}
+
 function pickPrimaryNiche(creator: LandingCreatorHighlight) {
     const topContext = canonicalizeTag(creator.topPerformingContext);
     if (topContext) return topContext;
@@ -127,10 +137,10 @@ function pickPrimaryNiche(creator: LandingCreatorHighlight) {
     return firstNonEmpty(creator.niches) || firstNonEmpty(creator.brandTerritories) || firstNonEmpty(creator.contexts);
 }
 
-function buildNicheRails(sortedByEngagement: LandingCreatorHighlight[]): CastingRail[] {
+function buildNicheRails(sortedByContextAvg: LandingCreatorHighlight[]): CastingRail[] {
     const buckets = new Map<string, { label: string; creators: LandingCreatorHighlight[]; isFallback: boolean }>();
 
-    sortedByEngagement.forEach((creator) => {
+    sortedByContextAvg.forEach((creator) => {
         const primary = pickPrimaryNiche(creator);
         const value = primary?.value ?? "sem_nicho_contexto";
         const label = primary?.label ?? "Contexto diverso";
@@ -142,40 +152,50 @@ function buildNicheRails(sortedByEngagement: LandingCreatorHighlight[]): Casting
 
     return Array.from(buckets.entries())
         .map(([value, bucket]) => {
-            // Ordenação final dos trilhos baseada no engajamento médio da categoria ou volume
-            const avgER = bucket.creators.reduce((acc, c) => acc + (computeEngagementRate(c) ?? 0), 0) / bucket.creators.length;
+            const sortedCreators = [...bucket.creators].sort((a, b) => {
+                const contextAvgDiff = getContextAverageInteractions(b) - getContextAverageInteractions(a);
+                if (contextAvgDiff !== 0) return contextAvgDiff;
+                const avgDiff = (b.avgInteractionsPerPost ?? 0) - (a.avgInteractionsPerPost ?? 0);
+                if (avgDiff !== 0) return avgDiff;
+                return (b.followers ?? 0) - (a.followers ?? 0);
+            });
+
+            const avgContextInteractions =
+                sortedCreators.reduce((acc, creator) => acc + getContextAverageInteractions(creator), 0) /
+                Math.max(sortedCreators.length, 1);
+
             return {
                 key: `niche_${value}`,
                 title: bucket.isFallback ? "Contexto diverso" : bucket.label,
                 description: bucket.isFallback ? "Criadores com narrativas diversificadas." : `Criadores com foco em ${bucket.label}.`,
-                creators: bucket.creators,
+                creators: sortedCreators,
                 isFallback: bucket.isFallback,
-                avgEngagement: avgER,
+                avgContextInteractions,
             };
         })
         .sort((a, b) => {
-            // Ordenação de TRILHOS: prioriza trilhos com maior engajamento médio e volume
-            const scoreA = (a.avgEngagement ?? 0) * (a.creators.length > 2 ? 1.5 : 1);
-            const scoreB = (b.avgEngagement ?? 0) * (b.creators.length > 2 ? 1.5 : 1);
-            return scoreB - scoreA;
+            const contextAvgDiff = (b.avgContextInteractions ?? 0) - (a.avgContextInteractions ?? 0);
+            if (contextAvgDiff !== 0) return contextAvgDiff;
+            const volumeDiff = b.creators.length - a.creators.length;
+            if (volumeDiff !== 0) return volumeDiff;
+            return a.title.localeCompare(b.title);
         });
 }
 
 function buildCuratedRails(creators: LandingCreatorHighlight[]): CastingRail[] {
     if (!creators?.length) return [];
 
-    // ORDENAÇÃO DE CRIADORES: Engajamento > Interações > Seguidores
-    const sortedByEngagement = [...creators].sort((a, b) => {
-        const erA = computeEngagementRate(a) ?? 0;
-        const erB = computeEngagementRate(b) ?? 0;
-        if (erB !== erA) return erB - erA;
+    // ORDENAÇÃO DE CRIADORES: Interações médias do contexto > Interações médias globais > Seguidores
+    const sortedByContextAvg = [...creators].sort((a, b) => {
+        const contextAvgDiff = getContextAverageInteractions(b) - getContextAverageInteractions(a);
+        if (contextAvgDiff !== 0) return contextAvgDiff;
         const avgA = a.avgInteractionsPerPost ?? 0;
         const avgB = b.avgInteractionsPerPost ?? 0;
         if (avgB !== avgA) return avgB - avgA;
         return (b.followers ?? 0) - (a.followers ?? 0);
     });
 
-    return buildNicheRails(sortedByEngagement);
+    return buildNicheRails(sortedByContextAvg);
 }
 
 function partitionRails(rails: CastingRail[]) {

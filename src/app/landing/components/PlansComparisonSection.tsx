@@ -133,23 +133,7 @@ export default function PlansComparisonSection({ onCreateAccount }: PlansCompari
           </h2>
         </header>
 
-        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:gap-12">
-          <PlanCard
-            title="Plano Gratuito"
-            price="R$ 0"
-            description="Torne-se um afiliado D2C e comece sua jornada com ferramentas básicas de visibilidade."
-            features={[
-              "Programa de Afiliados Ativo",
-              "Mídia Kit (Versão Limitada)",
-              "Acesso à Comunidade D2C",
-              "Sua vitrine no Marketplace",
-              "Dashboard de Métricas Básicas"
-            ]}
-            ctaText="Criar conta gratuita"
-            onCta={onCreateAccount}
-            note="Sem cartão • Sem compromisso"
-          />
-
+        <div className="mx-auto grid w-full max-w-3xl gap-8">
           <PlanCard
             title="Plano Pro ⭐"
             price="R$ 49,90"

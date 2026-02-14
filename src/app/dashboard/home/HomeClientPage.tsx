@@ -442,7 +442,7 @@ export default function HomeClientPage() {
   const iaEngaged = whatsappLinked || whatsappTrialActive || whatsappTrialStarted || planIsPro;
   const hasPremiumAccessPlan = summary?.plan?.hasPremiumAccess ?? false;
   const canAccessVipCommunity =
-    (hasPremiumAccessPlan || planIsPro) && Boolean(communityVipInviteUrl);
+    communityVipHasAccess && Boolean(communityVipInviteUrl);
   const planTrialActive = summary?.plan?.trial?.active ?? false;
   const planTrialEligible = summary?.plan?.trial?.eligible ?? false;
   const planTrialStarted = summary?.plan?.trial?.started ?? false;
@@ -564,7 +564,7 @@ export default function HomeClientPage() {
     [communityFreeInviteUrl, communityVipInviteUrl, handleNavigate, summary?.mentorship, trackCardAction]
   );
 
-  const isSubscriberPlan = hasPremiumAccessPlan || planIsPro || communityVipHasAccess;
+  const isSubscriberPlan = planIsPro || communityVipHasAccess;
 
   const handleJoinFreeCommunity = React.useCallback(
     (origin?: unknown) => {
@@ -976,36 +976,9 @@ export default function HomeClientPage() {
     const iaStatus: StepStatus = iaActive ? "done" : "todo";
     const proStatus: StepStatus = planIsPro ? "done" : trialExpired ? "todo" : whatsappTrialActive ? "in-progress" : "todo";
     const mentorshipStatus: StepStatus = communityVipMember ? "done" : "todo";
-    const communityFreeStatus: StepStatus = communityFreeMember ? "done" : "todo";
     const surveyStatus: StepStatus = surveyCompleted ? "done" : "todo";
 
     return [
-      {
-        id: "progress-instagram",
-        title: "Vincular Instagram",
-        description: isInstagramConnected
-          ? "Relatório gratuito renovado toda semana com horários e tendências personalizadas."
-          : "Conecte em poucos cliques para liberar diagnóstico com horários e formatos vencedores.",
-        icon: <FaInstagram />,
-        status: instagramStatus,
-        actionLabel: isInstagramConnected ? "Conectado" : "Vincular Instagram",
-        action: handleHeaderConnectInstagram,
-        variant: "secondary",
-        disabled: isInstagramConnected,
-      },
-      {
-        id: "progress-community-free",
-        title: "Acessar comunidade gratuita",
-        description: communityFreeMember
-          ? "Você já faz parte da comunidade gratuita."
-          : "Entre para destravar desafios guiados e feedback de outros criadores.",
-        icon: <FaGlobe />,
-        status: communityFreeStatus,
-        actionLabel: communityFreeMember ? "Acessar comunidade" : "Entrar na comunidade",
-        action: () => handleJoinFreeCommunity("progress"),
-        variant: "secondary",
-        disabled: false,
-      },
       {
         id: "progress-pro",
         title: "Assinar Plano Pro",
@@ -1018,6 +991,19 @@ export default function HomeClientPage() {
         action: planIsPro ? () => handleNavigate("/dashboard") : handleHeaderSubscribe,
         variant: "pro",
         disabled: planIsPro,
+      },
+      {
+        id: "progress-instagram",
+        title: "Vincular Instagram",
+        description: isInstagramConnected
+          ? "Relatório gratuito renovado toda semana com horários e tendências personalizadas."
+          : "Conecte em poucos cliques para liberar diagnóstico com horários e formatos vencedores.",
+        icon: <FaInstagram />,
+        status: instagramStatus,
+        actionLabel: isInstagramConnected ? "Conectado" : "Vincular Instagram",
+        action: handleHeaderConnectInstagram,
+        variant: "secondary",
+        disabled: isInstagramConnected,
       },
       {
         id: "progress-community-vip",
@@ -1061,12 +1047,10 @@ export default function HomeClientPage() {
       },
     ];
   }, [
-    communityFreeMember,
     communityVipHasAccess,
     communityVipMember,
     handleHeaderConnectInstagram,
     handleHeaderSubscribe,
-    handleJoinFreeCommunity,
     handleNavigate,
     handleJoinVip,
     handleMentorshipAction,
@@ -1087,7 +1071,7 @@ export default function HomeClientPage() {
     if (focusIntent) {
       const intentMap: Record<string, string> = {
         instagram: "progress-instagram",
-        community: "progress-community-free",
+        community: "progress-community-vip",
         whatsapp: "progress-ai",
         ia: "progress-ai",
         plan: "progress-pro",

@@ -424,6 +424,7 @@ const VIP_COMMUNITY_URL =
 const WHATSAPP_TRIAL_URL =
   process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_URL || "/planning/whatsapp";
 const WHATSAPP_TRIAL_ENABLED = isWhatsappTrialEnabled();
+const PAID_PRO_STATUSES = new Set(["active", "non_renewing"] as const);
 
 type UserSnapshot = Pick<
   IUser,
@@ -1388,8 +1389,8 @@ export async function GET(request: Request) {
       (!validTrialExpires || validTrialExpires.getTime() > nowMs);
     const trialActive = trialActiveFromPlan || trialActiveFromWhatsapp;
 
-    const hasPremiumPlan = accessMeta.hasPremiumAccess;
-    const hasPremiumAccess = hasPremiumPlan || trialActive;
+    const hasPaidProPlan = PAID_PRO_STATUSES.has(normalizedStatus as "active" | "non_renewing");
+    const hasPremiumAccess = hasPaidProPlan || trialActive;
 
     const trialEligibleRecord = userSnapshot?.whatsappTrialEligible;
     const trialStartedRecord = Boolean(userSnapshot?.whatsappTrialStartedAt);
@@ -1399,7 +1400,7 @@ export async function GET(request: Request) {
       WHATSAPP_TRIAL_ENABLED &&
       (typeof trialEligibleRecord === "boolean"
         ? trialEligibleRecord
-        : !trialActive && !hasPremiumPlan && !hasEverHadPlan);
+        : !trialActive && !hasPaidProPlan && !hasEverHadPlan);
 
     if (trialActiveFromWhatsapp || trialStartedRecord) {
       trialEligible = false;
@@ -1424,7 +1425,7 @@ export async function GET(request: Request) {
       expiresAt: validPlanExpiresAt ? validPlanExpiresAt.toISOString() : null,
       priceId: userSnapshot?.stripePriceId ?? null,
       hasPremiumAccess,
-      isPro: hasPremiumPlan,
+      isPro: hasPaidProPlan,
       trial: {
         active: trialActive,
         eligible: trialEligible,
@@ -1499,7 +1500,7 @@ export async function GET(request: Request) {
           viewsLast7Days: mediaKitCard?.viewsLast7Days ?? 0,
           proposalsViaMediaKit: mediaKitCard?.proposalsViaMediaKit ?? 0,
         },
-        hasProAccess: hasPremiumAccess,
+        hasProAccess: hasPaidProPlan,
         surveyCompleted: Boolean(
           userSnapshot?.creatorProfileExtended?.updatedAt ||
             userSnapshot?.creatorProfileExtended?.stage ||
@@ -1523,7 +1524,7 @@ export async function GET(request: Request) {
     }
 
     const freeCommunityMember = Boolean(userSnapshot?.communityInspirationOptIn);
-    const vipHasAccess = hasPremiumAccess;
+    const vipHasAccess = hasPaidProPlan;
     const vipMember = vipHasAccess && whatsappLinked;
     const mentorshipIsMember = vipMember;
 
@@ -1623,6 +1624,7 @@ export async function GET(request: Request) {
     const cancelAtPeriodEnd = Boolean(userSnapshot?.cancelAtPeriodEnd);
     const accessMeta = getPlanAccessMeta(planStatus, cancelAtPeriodEnd);
     const hasPremiumAccess = accessMeta.hasPremiumAccess;
+    const hasPaidProPlan = PAID_PRO_STATUSES.has(accessMeta.normalizedStatus as "active" | "non_renewing");
     const surveyCompleted = Boolean(
       userSnapshot?.creatorProfileExtended?.updatedAt ||
         userSnapshot?.creatorProfileExtended?.stage ||
@@ -1650,7 +1652,7 @@ export async function GET(request: Request) {
           viewsLast7Days: mediaKitCard?.viewsLast7Days ?? 0,
           proposalsViaMediaKit: mediaKitCard?.proposalsViaMediaKit ?? 0,
         },
-        hasProAccess: hasPremiumAccess,
+        hasProAccess: hasPaidProPlan,
         surveyCompleted,
       });
     } catch (error) {

@@ -44,6 +44,7 @@ type CastingRail = {
   description?: string;
   creators: LandingCreatorHighlight[];
   isFallback?: boolean;
+  avgContextInteractions?: number;
 };
 
 const MIN_RAIL_CREATORS = 1;
@@ -242,10 +243,20 @@ function guessTagFromText(creator: LandingCreatorHighlight) {
   return null;
 }
 
-function buildNicheRails(sortedByEngagement: LandingCreatorHighlight[]): CastingRail[] {
+function getContextAverageInteractions(creator: LandingCreatorHighlight): number {
+  if (
+    typeof creator.topPerformingContextAvgInteractions === "number" &&
+    Number.isFinite(creator.topPerformingContextAvgInteractions)
+  ) {
+    return creator.topPerformingContextAvgInteractions;
+  }
+  return creator.avgInteractionsPerPost ?? 0;
+}
+
+function buildNicheRails(sortedByContextAvg: LandingCreatorHighlight[]): CastingRail[] {
   const buckets = new Map<string, { label: string; creators: LandingCreatorHighlight[]; isFallback: boolean }>();
 
-  sortedByEngagement.forEach((creator) => {
+  sortedByContextAvg.forEach((creator) => {
     const primary = pickPrimaryNiche(creator);
     const inferred = primary ?? inferAnyTag(creator) ?? guessTagFromText(creator);
     const value = inferred?.value ?? "sem_nicho_contexto";
@@ -258,12 +269,18 @@ function buildNicheRails(sortedByEngagement: LandingCreatorHighlight[]): Casting
   });
 
   return Array.from(buckets.entries())
-    .sort((a, b) => {
-      const diff = b[1].creators.length - a[1].creators.length;
-      if (diff !== 0) return diff;
-      return a[1].label.localeCompare(b[1].label);
-    })
     .map(([value, bucket]) => {
+      const sortedCreators = [...bucket.creators].sort((a, b) => {
+        const contextAvgDiff = getContextAverageInteractions(b) - getContextAverageInteractions(a);
+        if (contextAvgDiff !== 0) return contextAvgDiff;
+        const avgDiff = (b.avgInteractionsPerPost ?? 0) - (a.avgInteractionsPerPost ?? 0);
+        if (avgDiff !== 0) return avgDiff;
+        return (b.followers ?? 0) - (a.followers ?? 0);
+      });
+      const avgContextInteractions =
+        sortedCreators.reduce((acc, creator) => acc + getContextAverageInteractions(creator), 0) /
+        Math.max(sortedCreators.length, 1);
+
       const description = bucket.isFallback
         ? "Criadores sem tag definida ou com dados incompletos."
         : `Criadores com foco em ${bucket.label}.`;
@@ -271,19 +288,26 @@ function buildNicheRails(sortedByEngagement: LandingCreatorHighlight[]): Casting
         key: `niche_${value}`,
         title: bucket.isFallback ? "Contexto diverso" : bucket.label,
         description,
-        creators: bucket.creators,
+        creators: sortedCreators,
         isFallback: bucket.isFallback,
+        avgContextInteractions,
       };
+    })
+    .sort((a, b) => {
+      const contextAvgDiff = (b.avgContextInteractions ?? 0) - (a.avgContextInteractions ?? 0);
+      if (contextAvgDiff !== 0) return contextAvgDiff;
+      const volumeDiff = b.creators.length - a.creators.length;
+      if (volumeDiff !== 0) return volumeDiff;
+      return a.title.localeCompare(b.title);
     });
 }
 
 function buildCuratedRails(creators: LandingCreatorHighlight[]): CastingRail[] {
   if (!creators?.length) return [];
 
-  const sortedByEngagement = [...creators].sort((a, b) => {
-    const erA = computeEngagementRate(a) ?? 0;
-    const erB = computeEngagementRate(b) ?? 0;
-    if (erB !== erA) return erB - erA;
+  const sortedByContextAvg = [...creators].sort((a, b) => {
+    const contextAvgDiff = getContextAverageInteractions(b) - getContextAverageInteractions(a);
+    if (contextAvgDiff !== 0) return contextAvgDiff;
     const avgA = a.avgInteractionsPerPost ?? 0;
     const avgB = b.avgInteractionsPerPost ?? 0;
     if (avgB !== avgA) return avgB - avgA;
@@ -320,7 +344,7 @@ function buildCuratedRails(creators: LandingCreatorHighlight[]): CastingRail[] {
     rails.push({ ...rail, creators: available });
   };
 
-  buildNicheRails(sortedByEngagement).forEach((rail) => addWithDedup(rail));
+  buildNicheRails(sortedByContextAvg).forEach((rail) => addWithDedup(rail));
 
   return rails;
 }

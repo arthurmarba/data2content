@@ -30,6 +30,7 @@ export interface LandingCreatorHighlight {
   contexts?: string[] | null;
   formatsStrong?: string[] | null;
   topPerformingContext?: string | null;
+  topPerformingContextAvgInteractions?: number | null;
   country?: string | null;
   city?: string | null;
   stage?: CreatorStage | null;

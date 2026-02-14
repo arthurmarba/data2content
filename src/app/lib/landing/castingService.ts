@@ -410,12 +410,17 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     },
   ]).exec();
 
-  const topContextByUser = new Map<string, string>();
+  const topContextByUser = new Map<string, { name: string; avgInteractions: number | null }>();
   topContextAgg.forEach((doc) => {
     const userId = doc._id?.toString();
-    const ctx = doc.topContext?.name;
-    if (!userId || !ctx) return;
-    topContextByUser.set(userId, String(ctx));
+    const contextName = doc.topContext?.name;
+    if (!userId || !contextName) return;
+    const avgInteractionsRaw = doc.topContext?.avg;
+    const avgInteractions =
+      typeof avgInteractionsRaw === "number" && Number.isFinite(avgInteractionsRaw)
+        ? Number(avgInteractionsRaw)
+        : null;
+    topContextByUser.set(userId, { name: String(contextName), avgInteractions });
   });
 
   let avatarByUserId: Record<string, string> = {};
@@ -457,7 +462,8 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     const stage = (creator.creatorProfileExtended?.stage ?? [])[0] ?? null;
     const surveyCompleted = Boolean(creator.creatorProfileExtended?.updatedAt);
     const formatsStrong = pickTopFormats(formatByUser.get(userId));
-    const resolvedTopContext = resolveContextLabel(topContextByUser.get(userId) ?? null)?.label ?? null;
+    const topContextInfo = topContextByUser.get(userId);
+    const resolvedTopContext = resolveContextLabel(topContextInfo?.name ?? null)?.label ?? null;
 
     return {
       id: userId,
@@ -470,6 +476,7 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
       contexts: contexts.length ? contexts : null,
       formatsStrong: formatsStrong.length ? formatsStrong : null,
       topPerformingContext: resolvedTopContext,
+      topPerformingContextAvgInteractions: topContextInfo?.avgInteractions ?? null,
       country: creator.location?.country ?? null,
       city: creator.location?.city ?? null,
       stage: (stage as CreatorStage | null) ?? null,
