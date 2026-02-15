@@ -3,11 +3,20 @@ import type { ProposalSuggestionType, ProposalConfidenceLabel } from '@/types/pr
 
 import type { DeterministicAnalysisResult, ProposalAnalysisContext } from './types';
 
-const TARGET_WEIGHTS = {
-  calcTarget: 0.5,
-  dealTarget: 0.3,
+const HISTORICAL_ONLY_WEIGHTS = {
+  calcTarget: 0.45,
+  dealTarget: 0.35,
   similarProposalTarget: 0.2,
 } as const;
+
+const NEGOTIATION_RANGE_FACTORS: Record<
+  ProposalConfidenceLabel,
+  { anchor: number; counter: number; floor: number }
+> = {
+  alta: { anchor: 1.4, counter: 1.05, floor: 0.75 },
+  media: { anchor: 1.5, counter: 1.03, floor: 0.7 },
+  baixa: { anchor: 1.6, counter: 1, floor: 0.65 },
+};
 
 const roundToHundreds = (value: number | null): number | null => {
   if (typeof value !== 'number' || Number.isNaN(value)) return null;
@@ -22,12 +31,34 @@ const roundToTwo = (value: number | null): number | null => {
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function computeTargetValue(context: ProposalAnalysisContext): number | null {
+  const calcConfidence = typeof context.pricingCore.confidence === 'number' ? context.pricingCore.confidence : 0.5;
+  const calcBaselineWeight =
+    context.proposal.currency !== 'BRL'
+      ? 0
+      : context.pricingCore.source === 'calculator_core_v1'
+        ? calcConfidence >= 0.7
+          ? 0.72
+          : calcConfidence >= 0.45
+            ? 0.64
+            : 0.56
+        : HISTORICAL_ONLY_WEIGHTS.calcTarget;
+
+  const historicalRemaining = Math.max(0, 1 - calcBaselineWeight);
+  const dealWeight =
+    context.pricingCore.source === 'calculator_core_v1'
+      ? historicalRemaining * 0.6
+      : HISTORICAL_ONLY_WEIGHTS.dealTarget;
+  const similarWeight =
+    context.pricingCore.source === 'calculator_core_v1'
+      ? historicalRemaining * 0.4
+      : HISTORICAL_ONLY_WEIGHTS.similarProposalTarget;
+
   const weightedEntries = [
-    { key: 'calcTarget', weight: TARGET_WEIGHTS.calcTarget, value: context.benchmarks.calcTarget },
-    { key: 'dealTarget', weight: TARGET_WEIGHTS.dealTarget, value: context.benchmarks.dealTarget },
+    { key: 'calcTarget', weight: calcBaselineWeight, value: context.benchmarks.calcTarget },
+    { key: 'dealTarget', weight: dealWeight, value: context.benchmarks.dealTarget },
     {
       key: 'similarProposalTarget',
-      weight: TARGET_WEIGHTS.similarProposalTarget,
+      weight: similarWeight,
       value: context.benchmarks.similarProposalTarget,
     },
   ] as const;
@@ -36,7 +67,12 @@ function computeTargetValue(context: ProposalAnalysisContext): number | null {
   let denominator = 0;
 
   for (const item of weightedEntries) {
-    if (typeof item.value === 'number' && Number.isFinite(item.value) && item.value > 0) {
+    if (
+      item.weight > 0 &&
+      typeof item.value === 'number' &&
+      Number.isFinite(item.value) &&
+      item.value > 0
+    ) {
       numerator += item.value * item.weight;
       denominator += item.weight;
     }
@@ -86,8 +122,22 @@ function buildConfidence(context: ProposalAnalysisContext): { score: number; lab
   const closeRateScore = context.benchmarks.closeRate !== null ? 0.15 : 0;
   const deliverablesScore = context.proposal.deliverables.length > 0 ? 0.1 : 0;
   const budgetScore = context.proposal.offeredBudget !== null ? 0.05 : 0;
+  const historicalScore = clamp(signalScore + closeRateScore + deliverablesScore + budgetScore, 0, 1);
 
-  const score = clamp(signalScore + closeRateScore + deliverablesScore + budgetScore, 0, 1);
+  const coreScore =
+    context.pricingCore.source === 'calculator_core_v1' && typeof context.pricingCore.confidence === 'number'
+      ? clamp(context.pricingCore.confidence, 0, 1)
+      : signalCount > 0
+        ? 0.45
+        : 0.25;
+  const defaultsPenalty = Math.min(context.pricingCore.resolvedDefaults.length * 0.025, 0.2);
+  const limitationsPenalty = Math.min(context.pricingCore.limitations.length * 0.08, 0.24);
+
+  let score = clamp(historicalScore * 0.45 + coreScore * 0.55 - defaultsPenalty - limitationsPenalty, 0, 1);
+
+  if (context.proposal.currency !== 'BRL') {
+    score = Math.min(score, 0.39);
+  }
 
   if (score >= 0.75) {
     return { score, label: 'alta' };
@@ -132,6 +182,16 @@ function buildRationale(
         `No seu histórico, cerca de ${percent}% das propostas parecidas viram parceria fechada.`
       );
     }
+  }
+
+  if (context.pricingCore.source === 'calculator_core_v1') {
+    rationale.push('Base de preço ancorada no motor da Calculadora para manter consistência.');
+  }
+
+  if (context.pricingCore.resolvedDefaults.length > 0) {
+    rationale.push(
+      `Aplicamos ${context.pricingCore.resolvedDefaults.length} premissas conservadoras por falta de dados estruturados.`
+    );
   }
 
   if (verdict === 'ajustar_escopo') {
@@ -205,12 +265,24 @@ function buildCautions(
     cautions.push('Temos pouca segurança nos dados: confirme informações antes de bater o martelo.');
   }
 
+  if (confidence !== 'alta') {
+    cautions.push('Faixa de negociação ampliada por confiança limitada nesta recomendação.');
+  }
+
+  if (context.proposal.currency !== 'BRL') {
+    cautions.push('Moeda não BRL: não aplicamos câmbio automático nesta recomendação.');
+  }
+
   if (context.benchmarks.similarProposalCount < 3) {
     cautions.push('Ainda temos poucas propostas parecidas para comparar no histórico.');
   }
 
   if (verdict === 'coletar_orcamento') {
     cautions.push('Evite passar preço final sem confirmar escopo, prazo e orçamento da marca.');
+  }
+
+  for (const limitation of context.pricingCore.limitations) {
+    if (!cautions.includes(limitation)) cautions.push(limitation);
   }
 
   return cautions;
@@ -329,11 +401,11 @@ export function runDeterministicProposalAnalysis(
   const { verdict, gapPercent } = classifyVerdict(offeredBudget, targetValue);
 
   const roundedTarget = roundToHundreds(targetValue);
-  const anchor = roundedTarget !== null ? roundToHundreds(roundedTarget * 1.18) : null;
-  const counter = roundedTarget !== null ? roundToHundreds(roundedTarget * 1.05) : null;
-  const floor = roundedTarget !== null ? roundToHundreds(roundedTarget * 0.97) : null;
-
   const confidence = buildConfidence(context);
+  const rangeFactors = NEGOTIATION_RANGE_FACTORS[confidence.label];
+  const anchor = roundedTarget !== null ? roundToHundreds(roundedTarget * rangeFactors.anchor) : null;
+  const counter = roundedTarget !== null ? roundToHundreds(roundedTarget * rangeFactors.counter) : null;
+  const floor = roundedTarget !== null ? roundToHundreds(roundedTarget * rangeFactors.floor) : null;
   const rationale = buildRationale(context, roundedTarget, gapPercent, verdict);
   const playbook = buildPlaybook(verdict, roundedTarget, anchor, floor, context.proposal.currency);
   const cautions = buildCautions(context, verdict, confidence.label);

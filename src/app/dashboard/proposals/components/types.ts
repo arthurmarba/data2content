@@ -1,4 +1,9 @@
-import type { ProposalAnalysisStoredSnapshot, ProposalAnalysisV2 } from '@/types/proposals';
+import type {
+  ProposalAnalysisStoredSnapshot,
+  ProposalAnalysisV2,
+  ProposalPricingConsistency,
+  ProposalPricingSource,
+} from '@/types/proposals';
 
 export type ProposalStatus = 'novo' | 'visto' | 'respondido' | 'aceito' | 'rejeitado';
 export type ProposalBudgetIntent = 'provided' | 'requested';
@@ -45,4 +50,9 @@ export interface ProposalDetail extends ProposalListItem {
 export interface ProposalAnalysisViewModel {
   analysisMessage: string | null;
   analysisV2: ProposalAnalysisV2 | null;
+  analysisPricingMeta?: {
+    pricingConsistency: ProposalPricingConsistency | null;
+    pricingSource: ProposalPricingSource | null;
+    limitations: string[];
+  };
 }

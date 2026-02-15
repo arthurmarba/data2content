@@ -17,16 +17,46 @@ const EXCLUSIVITY_LABELS: Record<string, string> = {
     '7d': '7 dias',
     '15d': '15 dias',
     '30d': '30 dias',
+    '90d': '90 dias',
+    '180d': '180 dias',
+    '365d': '365 dias',
 };
 const USAGE_LABELS: Record<string, string> = {
     organico: 'Uso orgânico',
     midiapaga: 'Mídia paga',
     global: 'Uso global/perpétuo',
 };
+const PAID_MEDIA_DURATION_LABELS: Record<string, string> = {
+    '7d': '7 dias',
+    '15d': '15 dias',
+    '30d': '30 dias',
+    '90d': '90 dias',
+    '180d': '180 dias',
+    '365d': '365 dias',
+};
 const COMPLEXITY_LABELS: Record<string, string> = {
     simples: 'Produção simples',
     roteiro: 'Com roteiro aprovado',
     profissional: 'Produção profissional',
+};
+const BRAND_SIZE_LABELS: Record<string, string> = {
+    pequena: 'Marca pequena',
+    media: 'Marca média',
+    grande: 'Marca grande',
+};
+const IMAGE_RISK_LABELS: Record<string, string> = {
+    baixo: 'Risco baixo',
+    medio: 'Risco médio',
+    alto: 'Risco alto',
+};
+const STRATEGIC_GAIN_LABELS: Record<string, string> = {
+    baixo: 'Ganho estratégico baixo',
+    medio: 'Ganho estratégico médio',
+    alto: 'Ganho estratégico alto',
+};
+const CONTENT_MODEL_LABELS: Record<string, string> = {
+    publicidade_perfil: 'Publicidade no perfil',
+    ugc_whitelabel: 'UGC (whitelabel)',
 };
 
 const MOBI_PRICING_PROMPT =
@@ -79,6 +109,7 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                 breakdown: base.breakdown ?? null,
                 avgTicket: base.avgTicket ?? null,
                 totalDeals: base.totalDeals ?? null,
+                calibration: base.calibration ?? null,
                 explanation: base.explanation ?? null,
                 createdAt: base.createdAt ?? null,
             };
@@ -99,6 +130,7 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                             breakdown: (payload as any)?.breakdown ?? calcData.breakdown,
                             avgTicket: typeof payload?.avgTicket === 'number' ? payload.avgTicket : calcData.avgTicket,
                             totalDeals: typeof payload?.totalDeals === 'number' ? payload.totalDeals : calcData.totalDeals,
+                            calibration: (payload as any)?.calibration ?? calcData.calibration,
                             explanation: payload?.explanation ?? calcData.explanation,
                             createdAt: payload?.createdAt ?? calcData.createdAt,
                         };
@@ -199,6 +231,35 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                 const label = USAGE_LABELS[calcData.params.usageRights] ?? calcData.params.usageRights;
                 summaryParts.push(`Uso de imagem: ${label}`);
             }
+            if (calcData.params?.paidMediaDuration) {
+                const label = PAID_MEDIA_DURATION_LABELS[calcData.params.paidMediaDuration] ?? calcData.params.paidMediaDuration;
+                summaryParts.push(`Prazo mídia paga: ${label}`);
+            }
+            if (typeof calcData.params?.repostTikTok === 'boolean') {
+                summaryParts.push(`Repost TikTok: ${calcData.params.repostTikTok ? 'Sim' : 'Não'}`);
+            }
+            if (typeof calcData.params?.instagramCollab === 'boolean') {
+                summaryParts.push(`Collab Instagram: ${calcData.params.instagramCollab ? 'Sim' : 'Não'}`);
+            }
+            if (calcData.params?.brandSize) {
+                const label = BRAND_SIZE_LABELS[calcData.params.brandSize] ?? calcData.params.brandSize;
+                summaryParts.push(`Porte da marca: ${label}`);
+            }
+            if (calcData.params?.imageRisk) {
+                const label = IMAGE_RISK_LABELS[calcData.params.imageRisk] ?? calcData.params.imageRisk;
+                summaryParts.push(`Risco de imagem: ${label}`);
+            }
+            if (calcData.params?.strategicGain) {
+                const label = STRATEGIC_GAIN_LABELS[calcData.params.strategicGain] ?? calcData.params.strategicGain;
+                summaryParts.push(`Ganho estratégico: ${label}`);
+            }
+            if (calcData.params?.contentModel) {
+                const label = CONTENT_MODEL_LABELS[calcData.params.contentModel] ?? calcData.params.contentModel;
+                summaryParts.push(`Modelo: ${label}`);
+            }
+            if (typeof calcData.params?.allowStrategicWaiver === 'boolean') {
+                summaryParts.push(`Exceção estratégica: ${calcData.params.allowStrategicWaiver ? 'Permitida' : 'Desligada'}`);
+            }
             if (calcData.params?.complexity) {
                 const label = COMPLEXITY_LABELS[calcData.params.complexity] ?? calcData.params.complexity;
                 summaryParts.push(`Complexidade: ${label}`);
@@ -208,6 +269,18 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
             }
             if (typeof calcData.totalDeals === 'number' && calcData.totalDeals > 0) {
                 summaryParts.push(`Publis analisadas: ${calcData.totalDeals}`);
+            }
+            if (calcData.calibration?.enabled) {
+                const confidence = typeof calcData.calibration?.confidence === 'number'
+                    ? percentFormatter.format(calcData.calibration.confidence * 100)
+                    : '0';
+                const band = calcData.calibration?.confidenceBand ?? 'baixa';
+                summaryParts.push(`Calibração: ${confidence}% (${band})`);
+                if (typeof calcData.calibration?.factorApplied === 'number' && Number.isFinite(calcData.calibration.factorApplied)) {
+                    const delta = (calcData.calibration.factorApplied - 1) * 100;
+                    const signedDelta = `${delta >= 0 ? '+' : ''}${percentFormatter.format(delta)}%`;
+                    summaryParts.push(`Ajuste aplicado: ${signedDelta}`);
+                }
             }
             if (typeof calcData.breakdown?.logisticsSuggested === 'number' && calcData.breakdown.logisticsSuggested > 0) {
                 summaryParts.push(`Logística sugerida (extra): ${currencyFormatter.format(calcData.breakdown.logisticsSuggested)}`);
@@ -270,6 +343,7 @@ export function usePricingAnalysis(calculationContext?: ChatCalculationContext |
                 breakdown: calcData.breakdown,
                 avgTicket: calcData.avgTicket,
                 totalDeals: calcData.totalDeals,
+                calibration: calcData.calibration,
                 explanation: calcData.explanation,
                 createdAt: calcData.createdAt,
                 recentDeal,

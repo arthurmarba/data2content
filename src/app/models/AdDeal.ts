@@ -18,6 +18,12 @@ export interface IAdDeal extends Document {
   productValue?: number; // Opcional - Valor estimado dos produtos em permuta
   notes?: string; // Opcional - Notas adicionais
   relatedPostId?: Types.ObjectId; // Opcional - Ligação ao post específico (Metric)
+  sourceCalculationId?: Types.ObjectId; // Opcional - Cálculo da calculadora usado como origem do deal
+  pricingLinkMethod?: 'manual' | 'auto' | 'none';
+  pricingLinkConfidence?: number;
+  linkedCalculationJusto?: number;
+  linkedCalculationReach?: number;
+  linkedCalculationSegment?: string;
   createdAt?: Date; // Gerido por timestamps
   updatedAt?: Date; // Gerido por timestamps
 }
@@ -95,6 +101,35 @@ const AdDealSchema = new Schema<IAdDeal>(
       ref: 'Metric', // Referencia o modelo Metric (onde estão os detalhes do post)
       required: false, // Opcional
       index: true, // Index se for fazer buscas por posts relacionados
+    },
+    sourceCalculationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'PubliCalculation',
+      required: false,
+      index: true,
+    },
+    pricingLinkMethod: {
+      type: String,
+      enum: ['manual', 'auto', 'none'],
+      default: 'none',
+    },
+    pricingLinkConfidence: {
+      type: Number,
+      min: [0, 'A confiança de vínculo não pode ser negativa.'],
+      max: [1, 'A confiança de vínculo não pode ser maior que 1.'],
+      default: 0,
+    },
+    linkedCalculationJusto: {
+      type: Number,
+      min: [0, 'O valor justo vinculado não pode ser negativo.'],
+    },
+    linkedCalculationReach: {
+      type: Number,
+      min: [0, 'O alcance vinculado não pode ser negativo.'],
+    },
+    linkedCalculationSegment: {
+      type: String,
+      trim: true,
     },
   },
   {

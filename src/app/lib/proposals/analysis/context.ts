@@ -1,11 +1,12 @@
 import mongoose from 'mongoose';
-import { subDays } from 'date-fns';
+import { subDays } from 'date-fns/subDays';
 
 import BrandProposal from '@/app/models/BrandProposal';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import AdDeal from '@/app/models/AdDeal';
 import User from '@/app/models/User';
 import { normalizeCurrencyCode } from '@/utils/currency';
+import { resolveProposalPricingCore } from '@/app/lib/proposals/analysis/pricingCore';
 
 import type { ProposalAnalysisContext } from './types';
 
@@ -14,6 +15,9 @@ interface BuildProposalAnalysisContextInput {
   creatorName?: string;
   creatorHandle?: string;
   proposal: any;
+  pricingCoreEnabled?: boolean;
+  brandRiskEnabled?: boolean;
+  calibrationEnabled?: boolean;
 }
 
 const ANALYSIS_PERIOD_DAYS = 180;
@@ -117,7 +121,7 @@ export async function buildProposalAnalysisContext(
         .exec(),
       BrandProposal.countDocuments({ userId }).exec(),
       BrandProposal.countDocuments({ userId, status: 'aceito' }).exec(),
-      User.findById(userId).select({ mediaKitSlug: 1 }).lean().exec(),
+      User.findById(userId).lean().exec(),
     ]);
 
   const calcJusto =
@@ -130,11 +134,29 @@ export async function buildProposalAnalysisContext(
       ? latestCalculation.metrics.reach
       : null;
 
-  const calcTarget =
+  const legacyCalcTarget =
     currency === 'BRL' && calcJusto !== null
       ? calcReach && calcReach > 0
         ? (calcJusto * calcReach) / 1000
         : calcJusto
+      : null;
+
+  const pricingCore = await resolveProposalPricingCore({
+    user: creatorProfile,
+    proposal: {
+      currency,
+      deliverables: currentDeliverables,
+    },
+    latestCalculation,
+    pricingCoreEnabled: input.pricingCoreEnabled ?? true,
+    brandRiskEnabled: input.brandRiskEnabled ?? true,
+    calibrationEnabled: input.calibrationEnabled ?? true,
+  });
+
+  const calcTarget =
+    currency === 'BRL'
+      ? pricingCore.calculatorJusto ??
+        (calcJusto !== null ? calcJusto : null)
       : null;
 
   const dealValues = deals
@@ -165,6 +187,8 @@ export async function buildProposalAnalysisContext(
   if (dealTarget !== null) contextSignals.push('has_deal_benchmark');
   if (similarProposalTarget !== null) contextSignals.push('has_similar_proposals');
   if (closeRate !== null) contextSignals.push('has_close_rate');
+  if (pricingCore.source === 'calculator_core_v1') contextSignals.push('pricing_core_v1');
+  if (pricingCore.limitations.length > 0) contextSignals.push('pricing_core_limited');
 
   return {
     creator: {
@@ -206,12 +230,22 @@ export async function buildProposalAnalysisContext(
       : null,
     benchmarks: {
       calcTarget: toRounded(calcTarget),
+      legacyCalcTarget: toRounded(legacyCalcTarget),
       dealTarget: toRounded(dealTarget),
       similarProposalTarget: toRounded(similarProposalTarget),
       closeRate: closeRate !== null ? Math.round(closeRate * 10000) / 10000 : null,
       dealCountLast180d: dealValues.length,
       similarProposalCount: scoredProposals.length,
       totalProposalCount,
+    },
+    pricingCore: {
+      source: pricingCore.source,
+      calculatorJusto: toRounded(pricingCore.calculatorJusto),
+      calculatorEstrategico: toRounded(pricingCore.calculatorEstrategico),
+      calculatorPremium: toRounded(pricingCore.calculatorPremium),
+      confidence: toRounded(pricingCore.confidence),
+      resolvedDefaults: pricingCore.resolvedDefaults,
+      limitations: pricingCore.limitations,
     },
     contextSignals,
   };

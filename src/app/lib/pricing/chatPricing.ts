@@ -5,7 +5,15 @@ import {
   type PubliCalculatorResult,
 } from '@/app/lib/pricing/publiCalculator';
 
-type MissingPricingField = 'format' | 'exclusivity' | 'usageRights';
+type MissingPricingField =
+  | 'format'
+  | 'exclusivity'
+  | 'usageRights'
+  | 'paidMediaDuration'
+  | 'brandSize'
+  | 'imageRisk'
+  | 'strategicGain'
+  | 'contentModel';
 
 export type ChatPricingParse = {
   params: Partial<CalculatorParams>;
@@ -23,6 +31,10 @@ export type ChatPricingParse = {
     hasCommercialTerms: boolean;
     hasPriceIntent: boolean;
   };
+};
+
+type ChatPricingParseOptions = {
+  brandRiskEnabled?: boolean;
 };
 
 const PRICE_KEYWORDS = ['preco', 'valor', 'cobrar', 'precificar', 'contraproposta', 'quanto cobrar', 'quanto vale'];
@@ -53,11 +65,22 @@ const EXCLUSIVITY_LABELS: Record<CalculatorParams['exclusivity'], string> = {
   '7d': 'Exclusividade 7 dias',
   '15d': 'Exclusividade 15 dias',
   '30d': 'Exclusividade 30 dias',
+  '90d': 'Exclusividade 90 dias',
+  '180d': 'Exclusividade 180 dias',
+  '365d': 'Exclusividade 365 dias',
 };
 const USAGE_LABELS: Record<CalculatorParams['usageRights'], string> = {
   organico: 'Uso organico',
   midiapaga: 'Midia paga/impulsionamento',
   global: 'Uso global/perpetuo',
+};
+const PAID_MEDIA_DURATION_LABELS: Record<Exclude<CalculatorParams['paidMediaDuration'], null>, string> = {
+  '7d': 'Midia paga 7 dias',
+  '15d': 'Midia paga 15 dias',
+  '30d': 'Midia paga 30 dias',
+  '90d': 'Midia paga 90 dias',
+  '180d': 'Midia paga 180 dias',
+  '365d': 'Midia paga 365 dias',
 };
 const COMPLEXITY_LABELS: Record<CalculatorParams['complexity'], string> = {
   simples: 'Producao simples',
@@ -74,6 +97,25 @@ const SEASONALITY_LABELS: Record<CalculatorParams['seasonality'], string> = {
   normal: 'Sazonalidade normal',
   alta: 'Alta demanda',
   baixa: 'Baixa demanda',
+};
+const BRAND_SIZE_LABELS: Record<CalculatorParams['brandSize'], string> = {
+  pequena: 'Marca pequena',
+  media: 'Marca media',
+  grande: 'Marca grande',
+};
+const IMAGE_RISK_LABELS: Record<CalculatorParams['imageRisk'], string> = {
+  baixo: 'Risco baixo',
+  medio: 'Risco medio',
+  alto: 'Risco alto',
+};
+const STRATEGIC_GAIN_LABELS: Record<CalculatorParams['strategicGain'], string> = {
+  baixo: 'Ganho estrategico baixo',
+  medio: 'Ganho estrategico medio',
+  alto: 'Ganho estrategico alto',
+};
+const CONTENT_MODEL_LABELS: Record<CalculatorParams['contentModel'], string> = {
+  publicidade_perfil: 'Publicidade no perfil',
+  ugc_whitelabel: 'UGC (whitelabel)',
 };
 const FORMAT_UNIT_LABELS: Record<CalculatorParams['format'], string> = {
   reels: 'Reel',
@@ -116,7 +158,19 @@ const joinLabels = (items: string[]) => {
   return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 };
 
-export function parseChatPricingInput(text: string): ChatPricingParse {
+const parseDurationDays = (normalized: string): Exclude<CalculatorParams['paidMediaDuration'], null> | null => {
+  const durationMatch =
+    normalized.match(/(?:midia paga|midiapaga|impulsionamento|uso de imagem|global)[^0-9]{0,15}(\d{1,3})\s*d/) ||
+    normalized.match(/(\d{1,3})\s*d[^a-z]{0,12}(?:midia paga|midiapaga|impulsionamento|uso de imagem|global)/);
+  const durationDays = durationMatch ? Number(durationMatch[1]) : null;
+  if (durationDays === 7 || durationDays === 15 || durationDays === 30 || durationDays === 90 || durationDays === 180 || durationDays === 365) {
+    return `${durationDays}d` as Exclude<CalculatorParams['paidMediaDuration'], null>;
+  }
+  return null;
+};
+
+export function parseChatPricingInput(text: string, options?: ChatPricingParseOptions): ChatPricingParse {
+  const brandRiskEnabled = options?.brandRiskEnabled ?? true;
   const normalized = normalizeText(text || '');
   const reels = countMentions(normalized, ['reel', 'reels']);
   const stories = countMentions(normalized, ['story', 'stories', 'storie', 'storys']);
@@ -152,10 +206,10 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
     exclusivityExplicit = true;
   } else if (normalized.includes('exclusiv')) {
     const dayMatch =
-      normalized.match(/exclusiv[^0-9]{0,10}(\d{1,2})\s*d/) ||
-      normalized.match(/(\d{1,2})\s*d[^a-z]{0,10}exclusiv/);
+      normalized.match(/exclusiv[^0-9]{0,10}(\d{1,3})\s*d/) ||
+      normalized.match(/(\d{1,3})\s*d[^a-z]{0,10}exclusiv/);
     const dayValue = dayMatch ? Number(dayMatch[1]) : null;
-    if (dayValue === 7 || dayValue === 15 || dayValue === 30) {
+    if (dayValue === 7 || dayValue === 15 || dayValue === 30 || dayValue === 90 || dayValue === 180 || dayValue === 365) {
       exclusivity = `${dayValue}d` as CalculatorParams['exclusivity'];
       exclusivityExplicit = true;
     }
@@ -163,6 +217,9 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
 
   let usageRights: CalculatorParams['usageRights'] | undefined;
   let usageExplicit = false;
+  let paidMediaDuration: CalculatorParams['paidMediaDuration'] | undefined;
+  let paidMediaDurationExplicit = false;
+  const durationFromText = parseDurationDays(normalized);
   if (
     normalized.includes('midiapaga') ||
     normalized.includes('midia paga') ||
@@ -173,6 +230,8 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
   ) {
     usageRights = 'midiapaga';
     usageExplicit = true;
+    paidMediaDuration = durationFromText;
+    paidMediaDurationExplicit = Boolean(durationFromText);
   } else if (
     normalized.includes('uso global') ||
     normalized.includes('global') ||
@@ -182,6 +241,8 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
   ) {
     usageRights = 'global';
     usageExplicit = true;
+    paidMediaDuration = durationFromText;
+    paidMediaDurationExplicit = Boolean(durationFromText);
   } else if (
     normalized.includes('organico') ||
     normalized.includes('somente no meu perfil') ||
@@ -189,9 +250,114 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
   ) {
     usageRights = 'organico';
     usageExplicit = true;
+    paidMediaDuration = null;
+    paidMediaDurationExplicit = true;
   } else if (normalized.includes('uso de imagem') || normalized.includes('direitos de uso')) {
     usageRights = 'midiapaga';
+    paidMediaDuration = durationFromText;
+    paidMediaDurationExplicit = Boolean(durationFromText);
   }
+
+  const repostTikTok =
+    normalized.includes('sem repost no tiktok') || normalized.includes('nao repostar no tiktok')
+      ? false
+      : normalized.includes('repost') && normalized.includes('tiktok')
+        ? true
+        : undefined;
+
+  const instagramCollab =
+    normalized.includes('collab') && normalized.includes('instagram')
+      ? !(normalized.includes('sem collab') || normalized.includes('nao collab'))
+      : undefined;
+
+  let brandSize: CalculatorParams['brandSize'] | undefined;
+  let brandSizeExplicit = false;
+  if (
+    normalized.includes('marca pequena') ||
+    normalized.includes('empresa pequena') ||
+    normalized.includes('mercado da esquina')
+  ) {
+    brandSize = 'pequena';
+    brandSizeExplicit = true;
+  } else if (
+    normalized.includes('marca grande') ||
+    normalized.includes('empresa grande') ||
+    normalized.includes('big brand') ||
+    normalized.includes('ferrari')
+  ) {
+    brandSize = 'grande';
+    brandSizeExplicit = true;
+  } else if (normalized.includes('marca media') || normalized.includes('empresa media')) {
+    brandSize = 'media';
+    brandSizeExplicit = true;
+  }
+
+  let imageRisk: CalculatorParams['imageRisk'] | undefined;
+  let imageRiskExplicit = false;
+  if (normalized.includes('risco alto') || normalized.includes('alto risco')) {
+    imageRisk = 'alto';
+    imageRiskExplicit = true;
+  } else if (normalized.includes('risco baixo') || normalized.includes('baixo risco')) {
+    imageRisk = 'baixo';
+    imageRiskExplicit = true;
+  } else if (normalized.includes('risco medio') || normalized.includes('risco moderado')) {
+    imageRisk = 'medio';
+    imageRiskExplicit = true;
+  }
+
+  let strategicGain: CalculatorParams['strategicGain'] | undefined;
+  let strategicGainExplicit = false;
+  if (
+    normalized.includes('estrategico alto') ||
+    normalized.includes('alto ganho estrategico') ||
+    normalized.includes('ganho estrategico alto')
+  ) {
+    strategicGain = 'alto';
+    strategicGainExplicit = true;
+  } else if (
+    normalized.includes('estrategico medio') ||
+    normalized.includes('ganho estrategico medio')
+  ) {
+    strategicGain = 'medio';
+    strategicGainExplicit = true;
+  } else if (
+    normalized.includes('estrategico baixo') ||
+    normalized.includes('ganho estrategico baixo') ||
+    normalized.includes('pouco estrategico')
+  ) {
+    strategicGain = 'baixo';
+    strategicGainExplicit = true;
+  }
+
+  let contentModel: CalculatorParams['contentModel'] | undefined;
+  let contentModelExplicit = false;
+  if (
+    normalized.includes('ugc') ||
+    normalized.includes('whitelabel') ||
+    normalized.includes('white label')
+  ) {
+    contentModel = 'ugc_whitelabel';
+    contentModelExplicit = true;
+  } else if (
+    normalized.includes('publicidade no perfil') ||
+    normalized.includes('publicidade perfil') ||
+    normalized.includes('postado no instagram')
+  ) {
+    contentModel = 'publicidade_perfil';
+    contentModelExplicit = true;
+  }
+
+  const allowStrategicWaiver =
+    normalized.includes('sem excecao estrategica') ||
+    normalized.includes('nao fazer de graca') ||
+    normalized.includes('waiver desligado')
+      ? false
+      : normalized.includes('fazer de graca') ||
+          normalized.includes('de graca') ||
+          normalized.includes('valor zero') ||
+          normalized.includes('waiver')
+        ? true
+        : undefined;
 
   let complexity: CalculatorParams['complexity'] = 'simples';
   let complexityExplicit = false;
@@ -244,6 +410,24 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
   const assumptions: string[] = [];
   if (format && !formatExplicit) assumptions.push('formato pacote (por multiplas entregas)');
   if (usageRights && !usageExplicit) assumptions.push('uso de imagem como midia paga');
+  if (usageRights !== 'organico' && usageRights && !paidMediaDurationExplicit) assumptions.push('prazo de midia paga de 30 dias');
+  if (typeof repostTikTok === 'boolean') assumptions.push(`repost no tiktok: ${repostTikTok ? 'sim' : 'nao'}`);
+  if (typeof instagramCollab === 'boolean') assumptions.push(`collab no instagram: ${instagramCollab ? 'sim' : 'nao'}`);
+  const hasBrandSignals =
+    normalized.includes('marca') ||
+    normalized.includes('risco') ||
+    normalized.includes('estrategic') ||
+    normalized.includes('ugc') ||
+    normalized.includes('whitelabel') ||
+    normalized.includes('ferrari') ||
+    normalized.includes('de graca');
+  if (brandRiskEnabled && hasBrandSignals) {
+    if (!brandSizeExplicit) assumptions.push(`porte da marca: ${BRAND_SIZE_LABELS[brandSize ?? 'media'].toLowerCase()}`);
+    if (!imageRiskExplicit) assumptions.push(`risco de imagem: ${IMAGE_RISK_LABELS[imageRisk ?? 'medio'].toLowerCase()}`);
+    if (!strategicGainExplicit) assumptions.push(`ganho estrategico: ${STRATEGIC_GAIN_LABELS[strategicGain ?? 'baixo'].toLowerCase()}`);
+    if (!contentModelExplicit) assumptions.push(`modelo: ${CONTENT_MODEL_LABELS[contentModel ?? 'publicidade_perfil'].toLowerCase()}`);
+    if (typeof allowStrategicWaiver !== 'boolean') assumptions.push('excecao estrategica: desligada');
+  }
   if (!complexityExplicit) assumptions.push(COMPLEXITY_LABELS[complexity].toLowerCase());
   if (!authorityExplicit) assumptions.push(AUTHORITY_LABELS[authority].toLowerCase());
   if (!seasonalityExplicit) assumptions.push(SEASONALITY_LABELS[seasonality].toLowerCase());
@@ -258,6 +442,13 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
   if (!format) missing.push('format');
   if (!exclusivity) missing.push('exclusivity');
   if (!usageRights) missing.push('usageRights');
+  if ((usageRights === 'midiapaga' || usageRights === 'global') && !paidMediaDuration) missing.push('paidMediaDuration');
+  if (brandRiskEnabled && hasBrandSignals) {
+    if (!brandSize) missing.push('brandSize');
+    if (!imageRisk) missing.push('imageRisk');
+    if (!strategicGain) missing.push('strategicGain');
+    if (!contentModel) missing.push('contentModel');
+  }
 
   const hasDeliverables = Boolean(format || deliverablesSummary || packageMentioned);
   const hasCommercialTerms =
@@ -270,6 +461,14 @@ export function parseChatPricingInput(text: string): ChatPricingParse {
       format,
       exclusivity,
       usageRights,
+      paidMediaDuration: usageRights === 'organico' ? null : (paidMediaDuration ?? undefined),
+      repostTikTok,
+      instagramCollab,
+      brandSize: brandRiskEnabled ? (brandSize ?? (hasBrandSignals ? undefined : 'media')) : 'media',
+      imageRisk: brandRiskEnabled ? (imageRisk ?? (hasBrandSignals ? undefined : 'medio')) : 'medio',
+      strategicGain: brandRiskEnabled ? (strategicGain ?? (hasBrandSignals ? undefined : 'baixo')) : 'baixo',
+      contentModel: brandRiskEnabled ? (contentModel ?? (hasBrandSignals ? undefined : 'publicidade_perfil')) : 'publicidade_perfil',
+      allowStrategicWaiver: brandRiskEnabled ? (allowStrategicWaiver ?? false) : false,
       complexity,
       authority,
       seasonality,
@@ -302,8 +501,13 @@ export function shouldHandleChatPricing(parse: ChatPricingParse, previousTopic?:
 export function buildChatPricingClarification(missing: MissingPricingField[]) {
   const parts: string[] = [];
   if (missing.includes('format')) parts.push('a entrega exata (Reels, Stories, Post ou pacote)');
-  if (missing.includes('exclusivity')) parts.push('a exclusividade (nenhuma/7d/15d/30d)');
+  if (missing.includes('exclusivity')) parts.push('a exclusividade (nenhuma/7d/15d/30d/90d/180d/365d)');
   if (missing.includes('usageRights')) parts.push('o uso de imagem/impulsionamento (organico, midia paga ou global)');
+  if (missing.includes('paidMediaDuration')) parts.push('o prazo da midia paga (7/15/30/90/180/365 dias)');
+  if (missing.includes('brandSize')) parts.push('o porte da marca (pequena/media/grande)');
+  if (missing.includes('imageRisk')) parts.push('o risco de imagem (baixo/medio/alto)');
+  if (missing.includes('strategicGain')) parts.push('o ganho estrategico (baixo/medio/alto)');
+  if (missing.includes('contentModel')) parts.push('o modelo de conteudo (publicidade no perfil ou UGC)');
 
   const message = parts.length
     ? `Faltam ${joinLabels(parts)} para eu calcular a precificacao.`
@@ -313,11 +517,20 @@ export function buildChatPricingClarification(missing: MissingPricingField[]) {
   if (missing.includes('format')) questionParts.push('Qual a entrega exata?');
   if (missing.includes('exclusivity')) questionParts.push('Tem exclusividade?');
   if (missing.includes('usageRights')) questionParts.push('Uso de imagem/impulsionamento?');
+  if (missing.includes('paidMediaDuration')) questionParts.push('Por quantos dias de midia paga?');
+  if (missing.includes('brandSize')) questionParts.push('Qual o porte da marca?');
+  if (missing.includes('imageRisk')) questionParts.push('Qual o risco de imagem da parceria?');
+  if (missing.includes('strategicGain')) questionParts.push('Qual o ganho estrategico para posicionamento?');
+  if (missing.includes('contentModel')) questionParts.push('E o modelo de conteudo: publicidade no perfil ou UGC?');
 
   const buttons: string[] = [];
   if (missing.includes('format')) buttons.push('Reels', 'Stories');
-  if (missing.includes('exclusivity')) buttons.push('Sem exclusividade', '30 dias');
+  if (missing.includes('exclusivity')) buttons.push('Sem exclusividade', '365 dias');
   if (missing.includes('usageRights')) buttons.push('Uso organico', 'Midia paga');
+  if (missing.includes('paidMediaDuration')) buttons.push('30 dias', '90 dias');
+  if (missing.includes('brandSize')) buttons.push('Marca pequena', 'Marca grande');
+  if (missing.includes('imageRisk')) buttons.push('Risco alto', 'Risco baixo');
+  if (missing.includes('contentModel')) buttons.push('Publicidade no perfil', 'UGC');
 
   return [
     '### Diagnostico',
@@ -351,11 +564,43 @@ export function buildChatPricingResponse(options: {
       : null;
   const packageLine =
     calculation.params.format === 'pacote' ? 'Usei o modo pacote da calculadora para esse combo.' : null;
+  const strategicWaiverLine =
+    calculation.params.allowStrategicWaiver && calculation.result.estrategico === 0
+      ? 'Excecao estrategica aplicada: o valor estrategico foi para R$ 0, mantendo justo e premium como referencia comercial.'
+      : null;
+  const calibration = calculation.calibration ?? {
+    enabled: false,
+    factorApplied: 1,
+    confidence: 0,
+    confidenceBand: 'baixa',
+    guardrailApplied: false,
+    lowConfidenceRangeExpanded: false,
+  };
+  const calibrationAdjustment = (calibration.factorApplied - 1) * 100;
+  const calibrationLine = calibration.enabled
+    ? `Calibracao ativa: confianca ${Math.round(calibration.confidence * 100)}% (${calibration.confidenceBand}), ajuste ${calibrationAdjustment >= 0 ? '+' : ''}${calibrationAdjustment.toFixed(1)}%.`
+    : 'Calibracao desativada para esta simulacao.';
+  const calibrationGuardrailLine =
+    calibration.enabled && calibration.guardrailApplied
+      ? 'Guardrail de seguranca aplicado: ajuste limitado em ±25%.'
+      : null;
+  const calibrationRangeLine =
+    calibration.enabled && calibration.lowConfidenceRangeExpanded
+      ? 'Faixa estrategico/premium ampliada por baixa confianca.'
+      : null;
 
   const paramsSummary = [
     FORMAT_LABELS[calculation.params.format],
     EXCLUSIVITY_LABELS[calculation.params.exclusivity],
     USAGE_LABELS[calculation.params.usageRights],
+    calculation.params.paidMediaDuration ? PAID_MEDIA_DURATION_LABELS[calculation.params.paidMediaDuration] : null,
+    calculation.params.repostTikTok ? 'Repost TikTok: sim' : 'Repost TikTok: nao',
+    calculation.params.instagramCollab ? 'Collab Instagram: sim' : 'Collab Instagram: nao',
+    BRAND_SIZE_LABELS[calculation.params.brandSize],
+    IMAGE_RISK_LABELS[calculation.params.imageRisk],
+    STRATEGIC_GAIN_LABELS[calculation.params.strategicGain],
+    CONTENT_MODEL_LABELS[calculation.params.contentModel],
+    calculation.params.allowStrategicWaiver ? 'Excecao estrategica: permitida' : 'Excecao estrategica: desligada',
     COMPLEXITY_LABELS[calculation.params.complexity],
     AUTHORITY_LABELS[calculation.params.authority],
     SEASONALITY_LABELS[calculation.params.seasonality],
@@ -410,10 +655,14 @@ export function buildChatPricingResponse(options: {
     `- Estrategico: ${currency.format(calculation.result.estrategico)}`,
     `- Justo: ${currency.format(calculation.result.justo)}`,
     `- Premium: ${currency.format(calculation.result.premium)}`,
+    strategicWaiverLine,
     '',
     '### Plano Estrategico',
     calculation.explanation || '',
     paramsSummary ? `Parametros: ${paramsSummary}.` : '',
+    calibrationLine,
+    calibrationGuardrailLine,
+    calibrationRangeLine,
     assumptionsLine,
     seedWarning,
     '',

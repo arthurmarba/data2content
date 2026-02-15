@@ -45,6 +45,7 @@ import {
   shouldHandleChatPricing,
 } from "@/app/lib/pricing/chatPricing";
 import { runPubliCalculator, type CalculatorParams } from "@/app/lib/pricing/publiCalculator";
+import { isPricingBrandRiskV1Enabled, isPricingCalibrationV1Enabled } from "@/app/lib/pricing/featureFlag";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -2744,7 +2745,17 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       experimentId,
     });
 
-    const pricingParse = parseChatPricingInput(truncatedQuery);
+    let brandRiskV1Enabled = true;
+    let calibrationV1Enabled = true;
+    try {
+      [brandRiskV1Enabled, calibrationV1Enabled] = await Promise.all([
+        isPricingBrandRiskV1Enabled(),
+        isPricingCalibrationV1Enabled(),
+      ]);
+    } catch (error) {
+      logger.warn("[ai/chat] feature flag fallback for pricing calculator", error);
+    }
+    const pricingParse = parseChatPricingInput(truncatedQuery, { brandRiskEnabled: brandRiskV1Enabled });
     let pricingResponse: string | null = null;
     let skipLLM = false;
 
@@ -2757,6 +2768,8 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           const calculation = await runPubliCalculator({
             user: targetUser,
             params: pricingParse.params as CalculatorParams,
+            brandRiskEnabled: brandRiskV1Enabled,
+            calibrationEnabled: calibrationV1Enabled,
           });
           pricingResponse = buildChatPricingResponse({ calculation, parse: pricingParse });
           skipLLM = true;

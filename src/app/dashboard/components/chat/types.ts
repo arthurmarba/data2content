@@ -49,6 +49,14 @@ export interface ChatCalculationContext {
         } | null;
         exclusivity?: string | null;
         usageRights?: string | null;
+        paidMediaDuration?: string | null;
+        repostTikTok?: boolean;
+        instagramCollab?: boolean;
+        brandSize?: 'pequena' | 'media' | 'grande' | string | null;
+        imageRisk?: 'baixo' | 'medio' | 'alto' | string | null;
+        strategicGain?: 'baixo' | 'medio' | 'alto' | string | null;
+        contentModel?: 'publicidade_perfil' | 'ugc_whitelabel' | string | null;
+        allowStrategicWaiver?: boolean;
         complexity?: string | null;
         authority?: string | null;
         seasonality?: string | null;
@@ -71,6 +79,21 @@ export interface ChatCalculationContext {
     } | null;
     avgTicket?: number | null;
     totalDeals?: number | null;
+    calibration?: {
+        enabled?: boolean;
+        baseJusto?: number;
+        factorRaw?: number;
+        factorApplied?: number;
+        guardrailApplied?: boolean;
+        confidence?: number;
+        confidenceBand?: 'alta' | 'media' | 'baixa' | string;
+        segmentSampleSize?: number;
+        creatorSampleSize?: number;
+        windowDaysSegment?: number;
+        windowDaysCreator?: number;
+        lowConfidenceRangeExpanded?: boolean;
+        linkQuality?: 'high' | 'mixed' | 'low' | string;
+    } | null;
     explanation?: string | null;
     createdAt?: string | null;
 }
@@ -88,6 +111,7 @@ export type PricingAnalysisContext = {
     breakdown?: ChatCalculationContext['breakdown'];
     avgTicket?: number | null;
     totalDeals?: number | null;
+    calibration?: ChatCalculationContext['calibration'];
     explanation?: string | null;
     createdAt?: string | null;
     recentDeal?: {

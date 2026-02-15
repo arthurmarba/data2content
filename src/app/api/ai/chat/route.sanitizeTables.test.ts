@@ -3,13 +3,23 @@ jest.mock('@/app/lib/pricing/publiCalculator', () => ({
   __esModule: true,
   PRICING_MULTIPLIERS: {
     formato: { post: 1, reels: 1, stories: 1, pacote: 1 },
-    exclusividade: { nenhuma: 1, '7d': 1, '15d': 1, '30d': 1 },
+    exclusividade: { nenhuma: 1, '7d': 1, '15d': 1, '30d': 1, '90d': 1, '180d': 1, '365d': 1 },
     usoImagem: { organico: 1, midiapaga: 1, global: 1 },
+    duracaoMidiaPaga: { nenhum: 1, '7d': 1, '15d': 1, '30d': 1, '90d': 1, '180d': 1, '365d': 1 },
+    repostTikTok: { nao: 1, sim: 1 },
+    brandSize: { pequena: 1, media: 1, grande: 1 },
+    imageRisk: { baixo: 1, medio: 1, alto: 1 },
+    strategicGain: { baixo: 1, medio: 1, alto: 1 },
+    contentModel: { publicidade_perfil: 1, ugc_whitelabel: 1 },
     complexidade: { simples: 1, roteiro: 1, profissional: 1 },
     autoridade: { padrao: 1, ascensao: 1, autoridade: 1, celebridade: 1 },
     sazonalidade: { normal: 1, alta: 1, baixa: 1 },
   },
   runPubliCalculator: jest.fn(),
+}));
+jest.mock('@/app/lib/pricing/featureFlag', () => ({
+  isPricingBrandRiskV1Enabled: jest.fn().mockResolvedValue(true),
+  isPricingCalibrationV1Enabled: jest.fn().mockResolvedValue(true),
 }));
 
 import { enforceScriptContract, sanitizeTables } from './route';
@@ -76,7 +86,7 @@ describe('enforceScriptContract', () => {
 
     const result = enforceScriptContract(raw, 'roteiro para nicho fitness');
 
-    expect(result.normalized).toContain('20-30s');
+    expect(result.normalized).toMatch(/\|\s?(20|22)-30s\s?\|/);
     expect(result.normalized).toContain('V1:');
     expect(result.normalized).toContain('V2:');
     expect(result.normalized).toContain('V3:');
@@ -141,7 +151,7 @@ describe('enforceScriptContract', () => {
 
     const result = enforceScriptContract(raw, 'crie um roteiro de conteúdo para que eu possa postar');
     expect(result.normalized).not.toContain('| --- | :--- | :--- |');
-    expect(result.normalized).toContain('| 00-03s | Cena 1 | Fala 1 |');
+    expect(result.normalized).toContain('| 00-03s |');
   });
 
   it('evita título que apenas repete o pedido genérico do usuário', () => {

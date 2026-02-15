@@ -14,10 +14,67 @@ import { normalizeCurrencyCode } from '@/utils/currency';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { buildProposalAnalysisContext } from '@/app/lib/proposals/analysis/context';
 import { runDeterministicProposalAnalysis } from '@/app/lib/proposals/analysis/engine';
+import { isCampaignsPricingCoreV1Enabled } from '@/app/lib/proposals/analysis/featureFlag';
+import { isPricingBrandRiskV1Enabled, isPricingCalibrationV1Enabled } from '@/app/lib/pricing/featureFlag';
 import { generateLlmEnhancedAnalysis } from '@/app/lib/proposals/analysis/llm';
-import type { ProposalAnalysisApiResponse } from '@/types/proposals';
+import type {
+  ProposalAnalysisApiResponse,
+  ProposalPricingConsistency,
+  ProposalPricingSource,
+} from '@/types/proposals';
 
 export const runtime = 'nodejs';
+
+function resolvePricingConsistency(input: {
+  pricingSource: ProposalPricingSource;
+  confidenceScore: number;
+  defaultsCount: number;
+  limitationsCount: number;
+}): ProposalPricingConsistency {
+  if (input.pricingSource === 'historical_only') {
+    return input.confidenceScore >= 0.55 ? 'media' : 'baixa';
+  }
+
+  if (input.confidenceScore >= 0.7 && input.defaultsCount <= 2 && input.limitationsCount === 0) {
+    return 'alta';
+  }
+
+  if (input.confidenceScore >= 0.45) {
+    return 'media';
+  }
+
+  return 'baixa';
+}
+
+function dedupeLimitations(...groups: Array<string[] | undefined>): string[] {
+  const set = new Set<string>();
+  for (const group of groups) {
+    for (const item of group || []) {
+      const normalized = typeof item === 'string' ? item.trim() : '';
+      if (normalized) set.add(normalized);
+    }
+  }
+  return Array.from(set);
+}
+
+function computeLegacyShadowTarget(context: Awaited<ReturnType<typeof buildProposalAnalysisContext>>): number | null {
+  const weightedEntries = [
+    { value: context.benchmarks.legacyCalcTarget, weight: 0.5 },
+    { value: context.benchmarks.dealTarget, weight: 0.3 },
+    { value: context.benchmarks.similarProposalTarget, weight: 0.2 },
+  ] as const;
+
+  let numerator = 0;
+  let denominator = 0;
+  for (const entry of weightedEntries) {
+    if (typeof entry.value === 'number' && Number.isFinite(entry.value) && entry.value > 0) {
+      numerator += entry.value * entry.weight;
+      denominator += entry.weight;
+    }
+  }
+  if (denominator <= 0) return null;
+  return numerator / denominator;
+}
 
 async function runLegacyAnalysis(session: any, proposal: any): Promise<ProposalAnalysisApiResponse> {
   const offerCurrency = normalizeCurrencyCode(proposal.currency) ?? 'BRL';
@@ -129,15 +186,39 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   let stage: 'context' | 'engine' | 'llm' = 'context';
 
   try {
+    const [pricingCoreEnabled, brandRiskEnabled, calibrationEnabled] = await Promise.all([
+      isCampaignsPricingCoreV1Enabled(),
+      isPricingBrandRiskV1Enabled(),
+      isPricingCalibrationV1Enabled(),
+    ]);
+
     const context = await buildProposalAnalysisContext({
       userId: session.user.id,
       creatorName: session.user.name ?? undefined,
       creatorHandle: session.user.instagramUsername ?? undefined,
       proposal,
+      pricingCoreEnabled,
+      brandRiskEnabled,
+      calibrationEnabled,
     });
 
     stage = 'engine';
     const deterministic = runDeterministicProposalAnalysis(context);
+    const pricingSource: ProposalPricingSource =
+      context.pricingCore.source === 'calculator_core_v1' ? 'calculator_core_v1' : 'historical_only';
+    const confidenceScore = deterministic.analysisV2.confidence.score;
+    const pricingConsistency = resolvePricingConsistency({
+      pricingSource,
+      confidenceScore,
+      defaultsCount: context.pricingCore.resolvedDefaults.length,
+      limitationsCount: context.pricingCore.limitations.length,
+    });
+    const limitations = dedupeLimitations(
+      context.pricingCore.limitations,
+      deterministic.analysisV2.confidence.label === 'baixa'
+        ? ['Confiança baixa: valide escopo e orçamento antes de bater o martelo.']
+        : undefined
+    );
 
     stage = 'llm';
     const llmEnhanced = await generateLlmEnhancedAnalysis({ context, deterministic });
@@ -147,6 +228,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       replyDraft: llmEnhanced.payload.replyDraft,
       suggestionType: deterministic.suggestionType,
       suggestedValue: deterministic.suggestedValue,
+      pricingConsistency,
+      pricingSource,
+      limitations,
       analysisV2: {
         ...deterministic.analysisV2,
         rationale: llmEnhanced.payload.rationale,
@@ -161,12 +245,42 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       },
     };
 
+    logger.info('campaigns_pricing_core_used', {
+      proposalId: proposal._id.toString(),
+      userId: session.user.id,
+      source: context.pricingCore.source,
+      confidence: context.pricingCore.confidence,
+      defaultsCount: context.pricingCore.resolvedDefaults.length,
+      currency: context.proposal.currency,
+    });
+
+    const legacyShadowTarget = computeLegacyShadowTarget(context);
+    if (
+      typeof legacyShadowTarget === 'number' &&
+      Number.isFinite(legacyShadowTarget) &&
+      typeof deterministic.analysisV2.pricing.target === 'number' &&
+      Number.isFinite(deterministic.analysisV2.pricing.target) &&
+      legacyShadowTarget > 0
+    ) {
+      const deltaPercent =
+        ((deterministic.analysisV2.pricing.target - legacyShadowTarget) / legacyShadowTarget) * 100;
+      logger.info('campaigns_pricing_consistency_score', {
+        proposalId: proposal._id.toString(),
+        userId: session.user.id,
+        oldTarget: Math.round(legacyShadowTarget * 100) / 100,
+        newTarget: deterministic.analysisV2.pricing.target,
+        deltaPercent: Math.round(deltaPercent * 100) / 100,
+      });
+    }
+
     logger.info('[PROPOSAL_ANALYSIS] completed', {
       proposalId: proposal._id.toString(),
       userId: session.user.id,
       model: result.meta?.model,
       fallbackUsed: result.meta?.fallbackUsed,
       latencyMs: result.meta?.latencyMs,
+      pricingSource: result.pricingSource,
+      pricingConsistency: result.pricingConsistency,
     });
     Sentry.captureMessage(`[PROPOSAL_ANALYSIS] ${session.user.id}`, 'info');
 
@@ -177,6 +291,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       replyDraft: result.replyDraft,
       suggestionType: result.suggestionType,
       suggestedValue: result.suggestedValue,
+      pricingConsistency: result.pricingConsistency,
+      pricingSource: result.pricingSource,
+      limitations: result.limitations ?? [],
       analysisV2: result.analysisV2,
       meta: result.meta,
     };

@@ -18,7 +18,13 @@ interface AdDealFormData {
   productValue: string;
   notes: string;
   relatedPostId: string;
+  sourceCalculationId: string;
 }
+
+type CalculationOption = {
+  id: string;
+  label: string;
+};
 
 interface AdDealFormProps {
     userId: string;
@@ -53,16 +59,62 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
       productValue: initialData?.productValue ?? '',
       notes: initialData?.notes ?? '',
       relatedPostId: initialData?.relatedPostId ?? '',
+      sourceCalculationId: initialData?.sourceCalculationId ?? '',
     };
   }, [initialData]);
 
   const [formData, setFormData] = useState<AdDealFormData>(baseState);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [calculationOptions, setCalculationOptions] = useState<CalculationOption[]>([]);
 
   useEffect(() => {
     setFormData(baseState);
   }, [baseState]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!canAccessFeatures) {
+      setCalculationOptions([]);
+      return;
+    }
+
+    fetch('/api/calculator?limit=20', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return [];
+        const payload = await response.json();
+        return Array.isArray(payload?.calculations) ? payload.calculations : [];
+      })
+      .then((calculations: any[]) => {
+        if (cancelled) return;
+        const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+        const options = calculations
+          .filter((item) => typeof item?.calculationId === 'string' && item.calculationId)
+          .map((item) => {
+            const createdAt = item?.createdAt ? new Date(item.createdAt) : null;
+            const dateLabel =
+              createdAt && !Number.isNaN(createdAt.getTime())
+                ? createdAt.toLocaleDateString('pt-BR')
+                : 'sem data';
+            const valueLabel =
+              typeof item?.justo === 'number'
+                ? formatter.format(item.justo)
+                : 'valor n/d';
+            return {
+              id: item.calculationId as string,
+              label: `${dateLabel} • ${valueLabel}`,
+            } satisfies CalculationOption;
+          });
+        setCalculationOptions(options);
+      })
+      .catch(() => {
+        if (!cancelled) setCalculationOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canAccessFeatures]);
 
   const handleBlockedInteraction = (event?: React.SyntheticEvent): boolean => {
     if (!canAccessFeatures) {
@@ -116,6 +168,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
         campaignStartDate: formData.campaignStartDate || undefined,
         campaignEndDate: formData.campaignEndDate || undefined,
         relatedPostId: formData.relatedPostId || undefined,
+        sourceCalculationId: formData.sourceCalculationId || undefined,
     };
 
     try {
@@ -336,7 +389,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
             />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 pt-4">
+        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3 pt-4">
             <div>
                 <label htmlFor="adFormNotes" className={labelClasses}>
                     Notas Adicionais (Opcional)
@@ -363,6 +416,30 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                     disabled={canAccessFeatures && isLoading}
                 />
                  <p className="mt-1 text-xs text-gray-500">Se esta publi corresponde a um post específico já registado.</p>
+            </div>
+            <div>
+                <label htmlFor="adFormSourceCalculationId" className={labelClasses}>
+                    Cálculo de origem (Opcional)
+                </label>
+                <select
+                    id="adFormSourceCalculationId"
+                    name="sourceCalculationId"
+                    value={formData.sourceCalculationId}
+                    {...fieldEventHandlers}
+                    onChange={handleChange}
+                    className={inputClasses}
+                    disabled={canAccessFeatures && isLoading}
+                >
+                    <option value="">Não vincular (auto-link)</option>
+                    {calculationOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                            {option.label}
+                        </option>
+                    ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                    Opcional. Se não selecionar, vinculamos automaticamente pelo cálculo mais próximo.
+                </p>
             </div>
         </div>
       </div>

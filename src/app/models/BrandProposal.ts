@@ -16,6 +16,9 @@ export interface IBrandProposalAnalysisSnapshot {
   replyDraft: string;
   suggestionType: BrandProposalSuggestionType;
   suggestedValue?: number | null;
+  pricingConsistency?: 'alta' | 'media' | 'baixa';
+  pricingSource?: 'calculator_core_v1' | 'historical_only';
+  limitations?: string[];
   analysisV2?: Record<string, unknown>;
   meta?: Record<string, unknown>;
 }
@@ -86,6 +89,20 @@ const ProposalAnalysisSnapshotSchema = new Schema<IBrandProposalAnalysisSnapshot
     },
     suggestedValue: {
       type: Number,
+    },
+    pricingConsistency: {
+      type: String,
+      enum: ['alta', 'media', 'baixa'],
+      trim: true,
+    },
+    pricingSource: {
+      type: String,
+      enum: ['calculator_core_v1', 'historical_only'],
+      trim: true,
+    },
+    limitations: {
+      type: [String],
+      default: [],
     },
     analysisV2: {
       type: Schema.Types.Mixed,

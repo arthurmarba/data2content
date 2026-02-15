@@ -28,6 +28,14 @@ export interface IPubliCalculationParams {
   eventCoverageQuantities?: IPubliCalculationFormatQuantities;
   exclusivity: string;
   usageRights: string;
+  paidMediaDuration?: string | null;
+  repostTikTok?: boolean;
+  instagramCollab?: boolean;
+  brandSize?: 'pequena' | 'media' | 'grande' | string;
+  imageRisk?: 'baixo' | 'medio' | 'alto' | string;
+  strategicGain?: 'baixo' | 'medio' | 'alto' | string;
+  contentModel?: 'publicidade_perfil' | 'ugc_whitelabel' | string;
+  allowStrategicWaiver?: boolean;
   complexity: string;
   authority: string;
   seasonality?: string;
@@ -51,6 +59,22 @@ export interface IPubliCalculationBreakdown {
   logisticsIncludedInCache?: boolean;
 }
 
+export interface IPubliCalculationCalibration {
+  enabled?: boolean;
+  baseJusto?: number;
+  factorRaw?: number;
+  factorApplied?: number;
+  guardrailApplied?: boolean;
+  confidence?: number;
+  confidenceBand?: 'alta' | 'media' | 'baixa' | string;
+  segmentSampleSize?: number;
+  creatorSampleSize?: number;
+  windowDaysSegment?: number;
+  windowDaysCreator?: number;
+  lowConfidenceRangeExpanded?: boolean;
+  linkQuality?: 'high' | 'mixed' | 'low' | string;
+}
+
 export interface IPubliCalculation extends Document {
   userId: Types.ObjectId;
   createdAt: Date;
@@ -58,6 +82,7 @@ export interface IPubliCalculation extends Document {
   params: IPubliCalculationParams;
   result: IPubliCalculationResult;
   breakdown?: IPubliCalculationBreakdown;
+  calibration?: IPubliCalculationCalibration;
   cpmApplied: number;
   cpmSource?: 'seed' | 'dynamic';
   explanation?: string;
@@ -98,6 +123,25 @@ const breakdownSchema = new Schema<IPubliCalculationBreakdown>(
   { _id: false }
 );
 
+const calibrationSchema = new Schema<IPubliCalculationCalibration>(
+  {
+    enabled: { type: Boolean, default: false },
+    baseJusto: { type: Number },
+    factorRaw: { type: Number },
+    factorApplied: { type: Number },
+    guardrailApplied: { type: Boolean, default: false },
+    confidence: { type: Number },
+    confidenceBand: { type: String, trim: true },
+    segmentSampleSize: { type: Number },
+    creatorSampleSize: { type: Number },
+    windowDaysSegment: { type: Number },
+    windowDaysCreator: { type: Number },
+    lowConfidenceRangeExpanded: { type: Boolean, default: false },
+    linkQuality: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
 const PubliCalculationSchema = new Schema<IPubliCalculation>(
   {
     userId: {
@@ -119,6 +163,14 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
       eventCoverageQuantities: { type: quantitySchema },
       exclusivity: { type: String, required: true, trim: true },
       usageRights: { type: String, required: true, trim: true },
+      paidMediaDuration: { type: String, trim: true, default: null },
+      repostTikTok: { type: Boolean, default: false },
+      instagramCollab: { type: Boolean, default: false },
+      brandSize: { type: String, trim: true, default: 'media' },
+      imageRisk: { type: String, trim: true, default: 'medio' },
+      strategicGain: { type: String, trim: true, default: 'baixo' },
+      contentModel: { type: String, trim: true, default: 'publicidade_perfil' },
+      allowStrategicWaiver: { type: Boolean, default: false },
       complexity: { type: String, required: true, trim: true },
       authority: { type: String, required: true, trim: true },
       seasonality: { type: String, trim: true },
@@ -130,6 +182,9 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
     },
     breakdown: {
       type: breakdownSchema,
+    },
+    calibration: {
+      type: calibrationSchema,
     },
     cpmApplied: {
       type: Number,

@@ -42,12 +42,22 @@ function makeContext(): ProposalAnalysisContext {
     },
     benchmarks: {
       calcTarget: 1000,
+      legacyCalcTarget: 950,
       dealTarget: 1050,
       similarProposalTarget: 980,
       closeRate: 0.3,
       dealCountLast180d: 10,
       similarProposalCount: 6,
       totalProposalCount: 30,
+    },
+    pricingCore: {
+      source: 'calculator_core_v1',
+      calculatorJusto: 1000,
+      calculatorEstrategico: 750,
+      calculatorPremium: 1400,
+      confidence: 0.81,
+      resolvedDefaults: [],
+      limitations: [],
     },
     contextSignals: ['has_budget', 'has_latest_calculation'],
   };

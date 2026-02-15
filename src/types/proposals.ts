@@ -6,6 +6,8 @@ export type ProposalSuggestionType =
   | 'coletar_orcamento';
 
 export type ProposalConfidenceLabel = 'alta' | 'media' | 'baixa';
+export type ProposalPricingConsistency = 'alta' | 'media' | 'baixa';
+export type ProposalPricingSource = 'calculator_core_v1' | 'historical_only';
 
 export interface ProposalAnalysisPricing {
   currency: string;
@@ -40,6 +42,9 @@ export interface ProposalAnalysisApiResponse {
   replyDraft: string;
   suggestionType: ProposalSuggestionType;
   suggestedValue: number | null;
+  pricingConsistency?: ProposalPricingConsistency;
+  pricingSource?: ProposalPricingSource;
+  limitations?: string[];
   analysisV2?: ProposalAnalysisV2;
   meta?: ProposalAnalysisMeta;
 }
@@ -51,6 +56,9 @@ export interface ProposalAnalysisStoredSnapshot {
   replyDraft: string | null;
   suggestionType: ProposalSuggestionType | null;
   suggestedValue: number | null;
+  pricingConsistency: ProposalPricingConsistency | null;
+  pricingSource: ProposalPricingSource | null;
+  limitations: string[];
   analysisV2: ProposalAnalysisV2 | null;
   meta: ProposalAnalysisMeta | null;
 }

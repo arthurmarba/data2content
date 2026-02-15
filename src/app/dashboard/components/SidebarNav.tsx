@@ -206,7 +206,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
             className="mb-4 -mt-6 flex items-center rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             aria-label="Data2Content"
           >
-            <div className="relative h-16 w-16 shrink-0 flex items-center justify-center -translate-x-5">
+            <div className="relative h-[72px] w-[72px] shrink-0 flex items-center justify-center -translate-x-5">
               <Image
                 src="/images/Colorido-Simbolo.png"
                 alt="Data2Content"

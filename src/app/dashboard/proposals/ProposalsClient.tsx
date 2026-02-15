@@ -14,6 +14,8 @@ import type {
   ProposalAnalysisApiResponse,
   ProposalAnalysisStoredSnapshot,
   ProposalAnalysisV2,
+  ProposalPricingConsistency,
+  ProposalPricingSource,
   ProposalSuggestionType,
 } from '@/types/proposals';
 
@@ -87,6 +89,38 @@ function normalizeAnalysisV2ForDisplay(value: ProposalAnalysisV2 | null | undefi
     rationale: value.rationale.map(simplifyAnalysisText),
     playbook: value.playbook.map(simplifyAnalysisText),
     cautions: value.cautions.map(simplifyAnalysisText),
+  };
+}
+
+type AnalysisPricingMeta = {
+  pricingConsistency: ProposalPricingConsistency | null;
+  pricingSource: ProposalPricingSource | null;
+  limitations: string[];
+};
+
+function normalizeAnalysisPricingMeta(value: {
+  pricingConsistency?: ProposalPricingConsistency | null;
+  pricingSource?: ProposalPricingSource | null;
+  limitations?: string[] | null;
+} | null | undefined): AnalysisPricingMeta {
+  const consistency =
+    value?.pricingConsistency === 'alta' ||
+    value?.pricingConsistency === 'media' ||
+    value?.pricingConsistency === 'baixa'
+      ? value.pricingConsistency
+      : null;
+  const source =
+    value?.pricingSource === 'calculator_core_v1' || value?.pricingSource === 'historical_only'
+      ? value.pricingSource
+      : null;
+  const limitations = Array.isArray(value?.limitations)
+    ? value.limitations.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+
+  return {
+    pricingConsistency: consistency,
+    pricingSource: source,
+    limitations,
   };
 }
 
@@ -269,6 +303,7 @@ function statusToTab(status: ProposalStatus): InboxTab {
 function summaryFromSnapshot(snapshot: ProposalAnalysisStoredSnapshot | null | undefined): {
   analysisMessage: string | null;
   analysisV2: ProposalAnalysisV2 | null;
+  analysisPricingMeta: AnalysisPricingMeta;
   replyDraft: string;
   suggestionType: ProposalSuggestionType | null;
 } {
@@ -276,6 +311,11 @@ function summaryFromSnapshot(snapshot: ProposalAnalysisStoredSnapshot | null | u
     return {
       analysisMessage: null,
       analysisV2: null,
+      analysisPricingMeta: {
+        pricingConsistency: null,
+        pricingSource: null,
+        limitations: [],
+      },
       replyDraft: '',
       suggestionType: null,
     };
@@ -284,6 +324,11 @@ function summaryFromSnapshot(snapshot: ProposalAnalysisStoredSnapshot | null | u
   return {
     analysisMessage: normalizeAnalysisMessageForDisplay(snapshot.analysis),
     analysisV2: normalizeAnalysisV2ForDisplay(snapshot.analysisV2),
+    analysisPricingMeta: normalizeAnalysisPricingMeta({
+      pricingConsistency: snapshot.pricingConsistency,
+      pricingSource: snapshot.pricingSource,
+      limitations: snapshot.limitations,
+    }),
     replyDraft: snapshot.replyDraft ?? '',
     suggestionType: snapshot.suggestionType,
   };
@@ -307,6 +352,11 @@ export default function ProposalsClient() {
 
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [analysisV2, setAnalysisV2] = useState<ProposalAnalysisV2 | null>(null);
+  const [analysisPricingMeta, setAnalysisPricingMeta] = useState<AnalysisPricingMeta>({
+    pricingConsistency: null,
+    pricingSource: null,
+    limitations: [],
+  });
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [replyDraft, setReplyDraft] = useState('');
   const [replySending, setReplySending] = useState(false);
@@ -400,6 +450,7 @@ export default function ProposalsClient() {
         setSelectedProposal(null);
         setAnalysisMessage(null);
         setAnalysisV2(null);
+        setAnalysisPricingMeta({ pricingConsistency: null, pricingSource: null, limitations: [] });
         setReplyDraft('');
         setCreatorProposedBudgetInput('');
         return;
@@ -466,6 +517,7 @@ export default function ProposalsClient() {
       setSelectedProposal(null);
       setAnalysisMessage(null);
       setAnalysisV2(null);
+      setAnalysisPricingMeta({ pricingConsistency: null, pricingSource: null, limitations: [] });
       setReplyDraft('');
       setCreatorProposedBudgetInput('');
       return;
@@ -490,6 +542,7 @@ export default function ProposalsClient() {
         const snapshot = summaryFromSnapshot(payload.latestAnalysis);
         setAnalysisMessage(snapshot.analysisMessage);
         setAnalysisV2(snapshot.analysisV2);
+        setAnalysisPricingMeta(snapshot.analysisPricingMeta);
         setReplyDraft(snapshot.replyDraft || payload.lastResponseMessage || '');
 
         if (snapshot.suggestionType) {
@@ -658,10 +711,12 @@ export default function ProposalsClient() {
       const payload = await requestAnalysis();
       const normalizedAnalysis = normalizeAnalysisMessageForDisplay(payload?.analysis ?? null);
       const normalizedAnalysisV2 = normalizeAnalysisV2ForDisplay(payload?.analysisV2 ?? null);
+      const normalizedPricingMeta = normalizeAnalysisPricingMeta(payload);
       const mediaKitPublicUrl = resolvePublicMediaKitUrl();
 
       setAnalysisMessage(normalizedAnalysis);
       setAnalysisV2(normalizedAnalysisV2);
+      setAnalysisPricingMeta(normalizedPricingMeta);
       setAnalysisViewMode('summary');
 
       const suggestedIntent = payload?.suggestionType
@@ -728,6 +783,7 @@ export default function ProposalsClient() {
       const payload = await requestAnalysis();
       const normalizedAnalysis = normalizeAnalysisMessageForDisplay(payload?.analysis ?? null);
       const normalizedAnalysisV2 = normalizeAnalysisV2ForDisplay(payload?.analysisV2 ?? null);
+      const normalizedPricingMeta = normalizeAnalysisPricingMeta(payload);
       const suggestedIntent = payload?.suggestionType
         ? INTENT_FROM_VERDICT[payload.suggestionType]
         : replyIntent;
@@ -739,6 +795,7 @@ export default function ProposalsClient() {
 
       setAnalysisMessage(normalizedAnalysis);
       setAnalysisV2(normalizedAnalysisV2);
+      setAnalysisPricingMeta(normalizedPricingMeta);
       setAnalysisViewMode('summary');
       applyReplyIntent(suggestedIntent, safeDraft);
 
@@ -1003,6 +1060,7 @@ export default function ProposalsClient() {
         analysisLoading={analysisLoading}
         analysisMessage={analysisMessage}
         analysisV2={analysisV2}
+        analysisPricingMeta={analysisPricingMeta}
         viewMode={analysisViewMode}
         onToggleViewMode={() =>
           setAnalysisViewMode((prev) => (prev === 'summary' ? 'expanded' : 'summary'))

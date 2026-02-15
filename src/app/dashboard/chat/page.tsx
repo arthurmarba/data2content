@@ -43,6 +43,14 @@ type ChatCalcContext = {
     } | null;
     exclusivity?: string | null;
     usageRights?: string | null;
+    paidMediaDuration?: string | null;
+    repostTikTok?: boolean;
+    instagramCollab?: boolean;
+    brandSize?: 'pequena' | 'media' | 'grande' | string | null;
+    imageRisk?: 'baixo' | 'medio' | 'alto' | string | null;
+    strategicGain?: 'baixo' | 'medio' | 'alto' | string | null;
+    contentModel?: 'publicidade_perfil' | 'ugc_whitelabel' | string | null;
+    allowStrategicWaiver?: boolean;
     complexity?: string | null;
     authority?: string | null;
     seasonality?: string | null;
@@ -65,6 +73,21 @@ type ChatCalcContext = {
   } | null;
   avgTicket?: number | null;
   totalDeals?: number | null;
+  calibration?: {
+    enabled?: boolean;
+    baseJusto?: number;
+    factorRaw?: number;
+    factorApplied?: number;
+    guardrailApplied?: boolean;
+    confidence?: number;
+    confidenceBand?: 'alta' | 'media' | 'baixa' | string;
+    segmentSampleSize?: number;
+    creatorSampleSize?: number;
+    windowDaysSegment?: number;
+    windowDaysCreator?: number;
+    lowConfidenceRangeExpanded?: boolean;
+    linkQuality?: 'high' | 'mixed' | 'low' | string;
+  } | null;
   explanation: string | null;
   createdAt: string | null;
 };
@@ -126,6 +149,7 @@ export default function ChatHomePage() {
         const paramsPayload = (payload as any)?.params ?? {};
         const avgTicket = (payload as any)?.avgTicket;
         const totalDeals = (payload as any)?.totalDeals;
+        const calibrationPayload = (payload as any)?.calibration ?? null;
 
         setCalcContext({
           calcId,
@@ -143,6 +167,17 @@ export default function ChatHomePage() {
             eventCoverageQuantities: paramsPayload?.eventCoverageQuantities ?? null,
             exclusivity: paramsPayload?.exclusivity ?? null,
             usageRights: paramsPayload?.usageRights ?? null,
+            paidMediaDuration: paramsPayload?.paidMediaDuration ?? null,
+            repostTikTok: typeof paramsPayload?.repostTikTok === "boolean" ? paramsPayload.repostTikTok : false,
+            instagramCollab: typeof paramsPayload?.instagramCollab === "boolean" ? paramsPayload.instagramCollab : false,
+            brandSize: paramsPayload?.brandSize ?? "media",
+            imageRisk: paramsPayload?.imageRisk ?? "medio",
+            strategicGain: paramsPayload?.strategicGain ?? "baixo",
+            contentModel: paramsPayload?.contentModel ?? "publicidade_perfil",
+            allowStrategicWaiver:
+              typeof paramsPayload?.allowStrategicWaiver === "boolean"
+                ? paramsPayload.allowStrategicWaiver
+                : false,
             complexity: paramsPayload?.complexity ?? null,
             authority: paramsPayload?.authority ?? null,
             seasonality: paramsPayload?.seasonality ?? null,
@@ -155,6 +190,7 @@ export default function ChatHomePage() {
           breakdown: (payload as any)?.breakdown ?? null,
           avgTicket: typeof avgTicket === "number" ? avgTicket : null,
           totalDeals: typeof totalDeals === "number" ? totalDeals : null,
+          calibration: calibrationPayload,
           explanation: (payload as any)?.explanation ?? null,
           createdAt: (payload as any)?.createdAt ?? null,
         });

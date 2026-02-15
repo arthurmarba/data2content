@@ -2,13 +2,129 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Ajuste o caminho se necessário
 import { connectToDatabase } from '@/app/lib/mongoose';
 import AdDeal, { IAdDeal } from '@/app/models/AdDeal'; // Importa o modelo e a interface AdDeal
+import PubliCalculation from '@/app/models/PubliCalculation';
 import { logger } from '@/app/lib/logger';
 import mongoose from 'mongoose';
 
 export const runtime = 'nodejs';
+
+type PricingLinkMethod = 'manual' | 'auto' | 'none';
+
+type PricingLinkSnapshot = {
+  sourceCalculationId?: mongoose.Types.ObjectId;
+  pricingLinkMethod: PricingLinkMethod;
+  pricingLinkConfidence: number;
+  linkedCalculationJusto?: number;
+  linkedCalculationReach?: number;
+  linkedCalculationSegment?: string;
+};
+
+const DELIVERY_INFERENCE_WINDOW_DAYS = 21;
+
+async function resolveAuthOptions() {
+  if (process.env.NODE_ENV === 'test') return {};
+  const mod = await import('@/app/api/auth/[...nextauth]/route');
+  return (mod as any)?.authOptions ?? {};
+}
+
+function inferDeliveryTypeFromDeliverables(deliverables: string[]): 'conteudo' | 'evento' {
+  const normalized = deliverables.join(' ').toLowerCase();
+  if (
+    normalized.includes('evento') ||
+    normalized.includes('presença') ||
+    normalized.includes('presenca') ||
+    normalized.includes('palestra') ||
+    normalized.includes('host')
+  ) {
+    return 'evento';
+  }
+  return 'conteudo';
+}
+
+function buildPricingLinkFromCalculation(
+  calculation: any,
+  method: PricingLinkMethod,
+  confidence: number
+): PricingLinkSnapshot {
+  return {
+    sourceCalculationId: calculation?._id ? new mongoose.Types.ObjectId(calculation._id) : undefined,
+    pricingLinkMethod: method,
+    pricingLinkConfidence: confidence,
+    linkedCalculationJusto:
+      typeof calculation?.result?.justo === 'number' && Number.isFinite(calculation.result.justo)
+        ? calculation.result.justo
+        : undefined,
+    linkedCalculationReach:
+      typeof calculation?.metrics?.reach === 'number' && Number.isFinite(calculation.metrics.reach)
+        ? calculation.metrics.reach
+        : undefined,
+    linkedCalculationSegment:
+      typeof calculation?.metrics?.profileSegment === 'string' && calculation.metrics.profileSegment.trim()
+        ? calculation.metrics.profileSegment.trim().toLowerCase()
+        : undefined,
+  };
+}
+
+async function resolvePricingLinkSnapshot(input: {
+  userId: string;
+  sourceCalculationId?: string;
+  deliverables: string[];
+}): Promise<PricingLinkSnapshot> {
+  const fallback: PricingLinkSnapshot = {
+    pricingLinkMethod: 'none',
+    pricingLinkConfidence: 0,
+  };
+
+  const normalizedUserId =
+    mongoose.isValidObjectId(input.userId) ? new mongoose.Types.ObjectId(input.userId) : null;
+  if (!normalizedUserId) return fallback;
+
+  if (input.sourceCalculationId) {
+    if (!mongoose.isValidObjectId(input.sourceCalculationId)) {
+      const invalidError = new Error('Cálculo de origem inválido.');
+      (invalidError as any).status = 400;
+      throw invalidError;
+    }
+
+    const manualCalculation = await PubliCalculation.findOne({
+      _id: input.sourceCalculationId,
+      userId: normalizedUserId,
+    })
+      .select({ _id: 1, params: 1, result: 1, metrics: 1, createdAt: 1 })
+      .lean()
+      .exec();
+
+    if (!manualCalculation) {
+      const notFoundError = new Error('Cálculo de origem não encontrado para este usuário.');
+      (notFoundError as any).status = 400;
+      throw notFoundError;
+    }
+
+    return buildPricingLinkFromCalculation(manualCalculation, 'manual', 1.0);
+  }
+
+  const inferredDeliveryType = inferDeliveryTypeFromDeliverables(input.deliverables);
+  const since = new Date();
+  since.setDate(since.getDate() - DELIVERY_INFERENCE_WINDOW_DAYS);
+
+  const autoCalculation = await PubliCalculation.findOne({
+    userId: normalizedUserId,
+    createdAt: { $gte: since },
+    $or:
+      inferredDeliveryType === 'evento'
+        ? [{ 'params.deliveryType': 'evento' }, { 'params.format': 'evento' }]
+        : [{ 'params.deliveryType': 'conteudo' }, { 'params.deliveryType': { $exists: false } }, { 'params.format': { $ne: 'evento' } }],
+  })
+    .sort({ createdAt: -1 })
+    .select({ _id: 1, params: 1, result: 1, metrics: 1, createdAt: 1 })
+    .lean()
+    .exec();
+
+  if (!autoCalculation) return fallback;
+  return buildPricingLinkFromCalculation(autoCalculation, 'auto', 0.7);
+}
 
 /**
  * POST /api/ads
@@ -20,6 +136,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Autenticação e Obtenção do ID do Utilizador
     logger.debug(`${TAG} Verificando sessão...`);
+    const authOptions = await resolveAuthOptions();
     const session = (await getServerSession({ req: request, ...authOptions })) as any;
     if (!session?.user?.id) {
       logger.warn(`${TAG} Tentativa de acesso não autenticada.`);
@@ -68,6 +185,17 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     logger.debug(`${TAG} Conectado ao banco de dados.`);
 
+    const normalizedSourceCalculationId =
+      typeof (adData as any).sourceCalculationId === 'string' && (adData as any).sourceCalculationId.trim()
+        ? (adData as any).sourceCalculationId.trim()
+        : undefined;
+
+    const pricingLink = await resolvePricingLinkSnapshot({
+      userId,
+      sourceCalculationId: normalizedSourceCalculationId,
+      deliverables: adData.deliverables as string[],
+    });
+
     // 4. Criar e Salvar o Novo Documento AdDeal
     logger.debug(`${TAG} Criando novo documento AdDeal para User ${userId}...`);
     const newAdDeal = new AdDeal({
@@ -81,17 +209,34 @@ export async function POST(request: NextRequest) {
       productValue: adData.productValue ?? undefined,
       notes: adData.notes || undefined,
       relatedPostId: adData.relatedPostId || undefined, // Permite relacionar post se ID for enviado
+      sourceCalculationId: pricingLink.sourceCalculationId ?? undefined,
+      pricingLinkMethod: pricingLink.pricingLinkMethod,
+      pricingLinkConfidence: pricingLink.pricingLinkConfidence,
+      linkedCalculationJusto: pricingLink.linkedCalculationJusto,
+      linkedCalculationReach: pricingLink.linkedCalculationReach,
+      linkedCalculationSegment: pricingLink.linkedCalculationSegment,
     });
 
     // Tenta salvar e trata erros de validação do Mongoose
     const savedAdDeal = await newAdDeal.save();
     logger.info(`${TAG} Novo AdDeal salvo com sucesso para User ${userId}. ID: ${savedAdDeal._id}`);
+    logger.info(`${TAG} ad_deal_pricing_linked`, {
+      linkMethod: pricingLink.pricingLinkMethod,
+      linkConfidence: pricingLink.pricingLinkConfidence,
+      hasSourceCalculation: Boolean(normalizedSourceCalculationId),
+    });
 
     // 5. Retornar Sucesso
     return NextResponse.json(savedAdDeal, { status: 201 }); // 201 Created
 
   } catch (error: unknown) {
     logger.error(`${TAG} Erro GERAL no processamento:`, error);
+
+    const status = (error as any)?.status;
+    if (status === 400) {
+      const message = error instanceof Error ? error.message : 'Dados inválidos.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
 
     // Trata erros de validação do Mongoose especificamente
     if (error instanceof mongoose.Error.ValidationError) {
@@ -117,6 +262,7 @@ export async function GET(request: NextRequest) {
      try {
         // 1. Autenticação
         logger.debug(`${TAG} Verificando sessão...`);
+        const authOptions = await resolveAuthOptions();
         const session = (await getServerSession({ req: request, ...authOptions })) as any;
         if (!session?.user?.id) {
             logger.warn(`${TAG} Tentativa de acesso não autenticada.`);

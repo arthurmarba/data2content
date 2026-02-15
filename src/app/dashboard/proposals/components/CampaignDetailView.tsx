@@ -12,7 +12,7 @@ import {
     MoreHorizontal,
 } from "lucide-react";
 import { ProposalDetail, ProposalStatus, ReplyIntent, AnalysisViewMode } from "./types";
-import { ProposalAnalysisV2 } from "@/types/proposals";
+import { ProposalAnalysisV2, ProposalPricingConsistency, ProposalPricingSource } from "@/types/proposals";
 import AnalysisSummaryCard from "./AnalysisSummaryCard";
 
 interface CampaignDetailViewProps {
@@ -31,6 +31,11 @@ interface CampaignDetailViewProps {
     analysisLoading: boolean;
     analysisMessage: string | null;
     analysisV2: ProposalAnalysisV2 | null;
+    analysisPricingMeta: {
+        pricingConsistency: ProposalPricingConsistency | null;
+        pricingSource: ProposalPricingSource | null;
+        limitations: string[];
+    };
     viewMode: AnalysisViewMode;
     onToggleViewMode: () => void;
     onAnalyze: () => void;
@@ -88,6 +93,7 @@ export default function CampaignDetailView({
     analysisLoading,
     analysisMessage,
     analysisV2,
+    analysisPricingMeta,
     viewMode,
     onToggleViewMode,
     onAnalyze,
@@ -129,9 +135,15 @@ export default function CampaignDetailView({
         ? [
             `Diagnóstico: ${ASSISTANT_VERDICT_LABELS[analysisV2.verdict]}`,
             `Confiança: ${analysisV2.confidence.label} (${(analysisV2.confidence.score * 100).toFixed(0)}%)`,
+            analysisPricingMeta.pricingSource === 'calculator_core_v1'
+                ? 'Origem: motor da Calculadora'
+                : 'Origem: histórico local',
+            analysisPricingMeta.pricingConsistency
+                ? `Consistência: ${analysisPricingMeta.pricingConsistency}`
+                : null,
             `Faixa: ${formatMoney(analysisV2.pricing.floor, analysisV2.pricing.currency)} - ${formatMoney(analysisV2.pricing.anchor, analysisV2.pricing.currency)}`,
             `Diferença: ${formatGapLabel(analysisV2.pricing.gapPercent)}`,
-        ]
+        ].filter((chip): chip is string => Boolean(chip))
         : analysisMessage
             ? ["Resumo da IA disponível"]
             : [];
@@ -360,6 +372,7 @@ export default function CampaignDetailView({
                                             <AnalysisSummaryCard
                                                 analysisMessage={analysisMessage}
                                                 analysisV2={analysisV2}
+                                                analysisPricingMeta={analysisPricingMeta}
                                                 viewMode={viewMode}
                                                 onToggleViewMode={onToggleViewMode}
                                             />

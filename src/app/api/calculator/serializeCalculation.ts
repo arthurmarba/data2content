@@ -85,6 +85,67 @@ const sanitizeBreakdown = (value: any): PubliCalculatorBreakdown => ({
   logisticsIncludedInCache: false,
 });
 
+const VALID_PAID_MEDIA_DURATION_VALUES = new Set(['7d', '15d', '30d', '90d', '180d', '365d']);
+const VALID_BRAND_SIZE_VALUES = new Set(['pequena', 'media', 'grande']);
+const VALID_IMAGE_RISK_VALUES = new Set(['baixo', 'medio', 'alto']);
+const VALID_STRATEGIC_GAIN_VALUES = new Set(['baixo', 'medio', 'alto']);
+const VALID_CONTENT_MODEL_VALUES = new Set(['publicidade_perfil', 'ugc_whitelabel']);
+
+const sanitizeUsageRights = (value: unknown): 'organico' | 'midiapaga' | 'global' | null => {
+  if (value === 'organico' || value === 'midiapaga' || value === 'global') return value;
+  return null;
+};
+
+const sanitizePaidMediaDuration = (usageRights: 'organico' | 'midiapaga' | 'global' | null, value: unknown) => {
+  if (usageRights === 'organico') return null;
+  if (typeof value === 'string' && VALID_PAID_MEDIA_DURATION_VALUES.has(value)) return value;
+  if (usageRights === 'midiapaga' || usageRights === 'global') return '30d';
+  return null;
+};
+
+const sanitizeBrandSize = (value: unknown): 'pequena' | 'media' | 'grande' =>
+  typeof value === 'string' && VALID_BRAND_SIZE_VALUES.has(value)
+    ? (value as 'pequena' | 'media' | 'grande')
+    : 'media';
+
+const sanitizeImageRisk = (value: unknown): 'baixo' | 'medio' | 'alto' =>
+  typeof value === 'string' && VALID_IMAGE_RISK_VALUES.has(value)
+    ? (value as 'baixo' | 'medio' | 'alto')
+    : 'medio';
+
+const sanitizeStrategicGain = (value: unknown): 'baixo' | 'medio' | 'alto' =>
+  typeof value === 'string' && VALID_STRATEGIC_GAIN_VALUES.has(value)
+    ? (value as 'baixo' | 'medio' | 'alto')
+    : 'baixo';
+
+const sanitizeContentModel = (value: unknown): 'publicidade_perfil' | 'ugc_whitelabel' =>
+  typeof value === 'string' && VALID_CONTENT_MODEL_VALUES.has(value)
+    ? (value as 'publicidade_perfil' | 'ugc_whitelabel')
+    : 'publicidade_perfil';
+
+const sanitizeConfidenceBand = (value: unknown): 'alta' | 'media' | 'baixa' =>
+  value === 'alta' || value === 'media' || value === 'baixa' ? value : 'baixa';
+
+const sanitizeLinkQuality = (value: unknown): 'high' | 'mixed' | 'low' =>
+  value === 'high' || value === 'mixed' || value === 'low' ? value : 'low';
+
+const sanitizeCalibration = (value: any) => ({
+  enabled: typeof value?.enabled === 'boolean' ? value.enabled : false,
+  baseJusto: serializeNumber(value?.baseJusto) ?? 0,
+  factorRaw: serializeNumber(value?.factorRaw) ?? 1,
+  factorApplied: serializeNumber(value?.factorApplied) ?? 1,
+  guardrailApplied: typeof value?.guardrailApplied === 'boolean' ? value.guardrailApplied : false,
+  confidence: serializeNumber(value?.confidence) ?? 0,
+  confidenceBand: sanitizeConfidenceBand(value?.confidenceBand),
+  segmentSampleSize: serializeNumber(value?.segmentSampleSize) ?? 0,
+  creatorSampleSize: serializeNumber(value?.creatorSampleSize) ?? 0,
+  windowDaysSegment: serializeNumber(value?.windowDaysSegment) ?? 180,
+  windowDaysCreator: serializeNumber(value?.windowDaysCreator) ?? 365,
+  lowConfidenceRangeExpanded:
+    typeof value?.lowConfidenceRangeExpanded === 'boolean' ? value.lowConfidenceRangeExpanded : false,
+  linkQuality: sanitizeLinkQuality(value?.linkQuality),
+});
+
 export function serializeCalculation(calculation: any) {
   const deliveryType = sanitizeDeliveryType(calculation?.params?.deliveryType, calculation?.params?.format);
   const formatQuantities = sanitizeFormatQuantities(
@@ -98,6 +159,8 @@ export function serializeCalculation(calculation: any) {
     stories: 0,
   });
   const eventDetails = sanitizeEventDetails(calculation?.params?.eventDetails);
+  const usageRights = sanitizeUsageRights(calculation?.params?.usageRights) ?? calculation?.params?.usageRights ?? null;
+  const paidMediaDuration = sanitizePaidMediaDuration(sanitizeUsageRights(calculation?.params?.usageRights), calculation?.params?.paidMediaDuration);
 
   return {
     estrategico: serializeNumber(calculation?.result?.estrategico) ?? 0,
@@ -106,6 +169,7 @@ export function serializeCalculation(calculation: any) {
     breakdown: sanitizeBreakdown(calculation?.breakdown),
     cpm: serializeNumber(calculation?.cpmApplied) ?? 0,
     cpmSource: calculation?.cpmSource ?? 'dynamic',
+    calibration: sanitizeCalibration(calculation?.calibration),
     params: {
       format,
       deliveryType,
@@ -113,7 +177,18 @@ export function serializeCalculation(calculation: any) {
       eventDetails,
       eventCoverageQuantities,
       exclusivity: calculation?.params?.exclusivity ?? null,
-      usageRights: calculation?.params?.usageRights ?? null,
+      usageRights,
+      paidMediaDuration,
+      repostTikTok: typeof calculation?.params?.repostTikTok === 'boolean' ? calculation.params.repostTikTok : false,
+      instagramCollab: typeof calculation?.params?.instagramCollab === 'boolean' ? calculation.params.instagramCollab : false,
+      brandSize: sanitizeBrandSize(calculation?.params?.brandSize),
+      imageRisk: sanitizeImageRisk(calculation?.params?.imageRisk),
+      strategicGain: sanitizeStrategicGain(calculation?.params?.strategicGain),
+      contentModel: sanitizeContentModel(calculation?.params?.contentModel),
+      allowStrategicWaiver:
+        typeof calculation?.params?.allowStrategicWaiver === 'boolean'
+          ? calculation.params.allowStrategicWaiver
+          : false,
       complexity: calculation?.params?.complexity ?? null,
       authority: calculation?.params?.authority ?? null,
       seasonality: calculation?.params?.seasonality ?? null,

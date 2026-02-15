@@ -19,6 +19,8 @@ const mockGetThemesForSlot = jest.fn();
 const mockGetBlockSampleCaptions = jest.fn();
 const mockFetchTopCategories = jest.fn();
 const mockGetTopPostsByMetric = jest.fn();
+const mockIsPricingBrandRiskV1Enabled = jest.fn();
+const mockIsPricingCalibrationV1Enabled = jest.fn();
 import { determineIntent } from '@/app/lib/intentService';
 import { callOpenAIForQuestion, generateConversationSummary } from '@/app/lib/aiService';
 
@@ -38,13 +40,23 @@ jest.mock('@/app/lib/pricing/publiCalculator', () => ({
   __esModule: true,
   PRICING_MULTIPLIERS: {
     formato: { post: 1, reels: 1, stories: 1, pacote: 1 },
-    exclusividade: { nenhuma: 1, '7d': 1, '15d': 1, '30d': 1 },
+    exclusividade: { nenhuma: 1, '7d': 1, '15d': 1, '30d': 1, '90d': 1, '180d': 1, '365d': 1 },
     usoImagem: { organico: 1, midiapaga: 1, global: 1 },
+    duracaoMidiaPaga: { nenhum: 1, '7d': 1, '15d': 1, '30d': 1, '90d': 1, '180d': 1, '365d': 1 },
+    repostTikTok: { nao: 1, sim: 1 },
+    brandSize: { pequena: 1, media: 1, grande: 1 },
+    imageRisk: { baixo: 1, medio: 1, alto: 1 },
+    strategicGain: { baixo: 1, medio: 1, alto: 1 },
+    contentModel: { publicidade_perfil: 1, ugc_whitelabel: 1 },
     complexidade: { simples: 1, roteiro: 1, profissional: 1 },
     autoridade: { padrao: 1, ascensao: 1, autoridade: 1, celebridade: 1 },
     sazonalidade: { normal: 1, alta: 1, baixa: 1 },
   },
   runPubliCalculator: (...args: any[]) => mockRunPubliCalculator(...args),
+}));
+jest.mock('@/app/lib/pricing/featureFlag', () => ({
+  isPricingBrandRiskV1Enabled: (...args: any[]) => mockIsPricingBrandRiskV1Enabled(...args),
+  isPricingCalibrationV1Enabled: (...args: any[]) => mockIsPricingCalibrationV1Enabled(...args),
 }));
 jest.mock('@/utils/rateLimit', () => ({
   checkRateLimit: jest.fn().mockResolvedValue({ allowed: true }),
@@ -144,12 +156,22 @@ beforeEach(() => {
   mockRecommendWeeklySlots.mockResolvedValue([]);
   mockGetThemesForSlot.mockResolvedValue({ keyword: 'tema', themes: [] });
   mockGetBlockSampleCaptions.mockResolvedValue([]);
+  mockIsPricingBrandRiskV1Enabled.mockResolvedValue(true);
+  mockIsPricingCalibrationV1Enabled.mockResolvedValue(true);
   mockRunPubliCalculator.mockResolvedValue({
     metrics: { reach: 1000, engagement: 0.05, profileSegment: 'default' },
     params: {
       format: 'reels',
       exclusivity: 'nenhuma',
       usageRights: 'organico',
+      paidMediaDuration: null,
+      repostTikTok: false,
+      instagramCollab: false,
+      brandSize: 'media',
+      imageRisk: 'medio',
+      strategicGain: 'baixo',
+      contentModel: 'publicidade_perfil',
+      allowStrategicWaiver: false,
       complexity: 'simples',
       authority: 'padrao',
       seasonality: 'normal',
@@ -216,6 +238,22 @@ it('retorna mensagem amigável quando LLM falha', async () => {
   const json = await res.json();
   expect(res.status).toBe(200);
   expect(String(json.answer)).toMatch(/problema técnico|tentar novamente/i);
+});
+
+it('aplica feature flag de calibracao ao executar precificacao no chat', async () => {
+  mockIsPricingCalibrationV1Enabled.mockResolvedValue(false);
+
+  const res = await chat(makeRequest({ query: 'quanto cobrar por 1 reels sem exclusividade com midia paga 30d' }));
+  const json = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(mockRunPubliCalculator).toHaveBeenCalledWith(
+    expect.objectContaining({
+      brandRiskEnabled: true,
+      calibrationEnabled: false,
+    })
+  );
+  expect(String(json.answer)).toContain('Faixa sugerida pela calculadora');
 });
 
 it('mantém tabelas, mesmo que esparsas', () => {

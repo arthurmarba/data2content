@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
-import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, FaVideo, FaImage, FaLayerGroup, FaCalendarCheck, FaCalendarAlt, FaCalendarTimes, FaGlobeAmericas, FaBullhorn, FaUser, FaUserCheck, FaUserTie, FaStar, FaSnowflake, FaSun, FaCloudSun, FaPlus, FaTrash, FaEdit, FaSave } from "react-icons/fa";
+import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, FaVideo, FaImage, FaLayerGroup, FaCalendarCheck, FaCalendarAlt, FaCalendarTimes, FaGlobeAmericas, FaBullhorn, FaUser, FaUserCheck, FaUserTie, FaStar, FaSnowflake, FaSun, FaCloudSun, FaPlus, FaTrash, FaChevronDown } from "react-icons/fa";
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
@@ -28,8 +28,16 @@ type CalculatorParams = {
   formatQuantities: FormatQuantities;
   eventDetails: EventDetails;
   eventCoverageQuantities: FormatQuantities;
-  exclusivity: "nenhuma" | "7d" | "15d" | "30d";
+  exclusivity: "nenhuma" | "7d" | "15d" | "30d" | "90d" | "180d" | "365d";
   usageRights: "organico" | "midiapaga" | "global";
+  paidMediaDuration: "7d" | "15d" | "30d" | "90d" | "180d" | "365d" | null;
+  repostTikTok: boolean;
+  instagramCollab: boolean;
+  brandSize: "pequena" | "media" | "grande";
+  imageRisk: "baixo" | "medio" | "alto";
+  strategicGain: "baixo" | "medio" | "alto";
+  contentModel: "publicidade_perfil" | "ugc_whitelabel";
+  allowStrategicWaiver: boolean;
   complexity: "simples" | "roteiro" | "profissional";
   authority: "padrao" | "ascensao" | "autoridade" | "celebridade";
   seasonality: "normal" | "alta" | "baixa";
@@ -47,12 +55,29 @@ type CalculationBreakdown = {
   logisticsIncludedInCache: false;
 };
 
+type CalculationCalibration = {
+  enabled: boolean;
+  baseJusto: number;
+  factorRaw: number;
+  factorApplied: number;
+  guardrailApplied: boolean;
+  confidence: number;
+  confidenceBand: "alta" | "media" | "baixa";
+  segmentSampleSize: number;
+  creatorSampleSize: number;
+  windowDaysSegment: number;
+  windowDaysCreator: number;
+  lowConfidenceRangeExpanded: boolean;
+  linkQuality: "high" | "mixed" | "low";
+};
+
 type CalculationResult = {
   estrategico: number;
   justo: number;
   premium: number;
   cpm: number;
   breakdown: CalculationBreakdown;
+  calibration: CalculationCalibration;
   params: CalculatorParams;
   metrics: {
     reach: number;
@@ -76,10 +101,23 @@ type MediaKitPackage = {
   id?: string; // For internal UI keying
 };
 
+type PackageInsertSource = "manual" | "suggested_card";
+type SubmitSource = "form_submit";
+type SaveSource = "result_cta";
+type PackageResponseItem = Omit<MediaKitPackage, "id"> & { _id?: string };
+
+let localPackageIdCounter = 0;
+type CollapsibleSectionKey = "delivery" | "rights" | "brand" | "packages" | "insights";
+
 const FORMAT_VALUES: CalculatorFormat[] = ["reels", "post", "stories", "pacote", "evento"];
 const DELIVERY_TYPE_VALUES: DeliveryType[] = ["conteudo", "evento"];
-const EXCLUSIVITY_VALUES: CalculatorParams["exclusivity"][] = ["nenhuma", "7d", "15d", "30d"];
+const EXCLUSIVITY_VALUES: CalculatorParams["exclusivity"][] = ["nenhuma", "7d", "15d", "30d", "90d", "180d", "365d"];
 const USAGE_VALUES: CalculatorParams["usageRights"][] = ["organico", "midiapaga", "global"];
+const PAID_MEDIA_DURATION_VALUES: Exclude<CalculatorParams["paidMediaDuration"], null>[] = ["7d", "15d", "30d", "90d", "180d", "365d"];
+const BRAND_SIZE_VALUES: CalculatorParams["brandSize"][] = ["pequena", "media", "grande"];
+const IMAGE_RISK_VALUES: CalculatorParams["imageRisk"][] = ["baixo", "medio", "alto"];
+const STRATEGIC_GAIN_VALUES: CalculatorParams["strategicGain"][] = ["baixo", "medio", "alto"];
+const CONTENT_MODEL_VALUES: CalculatorParams["contentModel"][] = ["publicidade_perfil", "ugc_whitelabel"];
 const COMPLEXITY_VALUES: CalculatorParams["complexity"][] = ["simples", "roteiro", "profissional"];
 const AUTHORITY_VALUES: CalculatorParams["authority"][] = ["padrao", "ascensao", "autoridade", "celebridade"];
 const SEASONALITY_VALUES: CalculatorParams["seasonality"][] = ["normal", "alta", "baixa"];
@@ -97,12 +135,43 @@ const EXCLUSIVITY_OPTIONS = [
   { value: "7d", label: "7 Dias", icon: FaCalendarCheck },
   { value: "15d", label: "15 Dias", icon: FaCalendarCheck },
   { value: "30d", label: "30 Dias", icon: FaCalendarAlt },
+  { value: "90d", label: "90 Dias", icon: FaCalendarAlt },
+  { value: "180d", label: "180 Dias", icon: FaCalendarAlt },
+  { value: "365d", label: "365 Dias", icon: FaCalendarAlt },
 ];
 
 const USAGE_OPTIONS = [
   { value: "organico", label: "Orgânico", icon: FaUser, helper: "Apenas no seu perfil" },
-  { value: "midiapaga", label: "Mídia Paga", icon: FaBullhorn, helper: "Impulsionamento (Ads)" },
-  { value: "global", label: "Global", icon: FaGlobeAmericas, helper: "Uso irrestrito/TV" },
+  { value: "midiapaga", label: "Mídia Paga", icon: FaBullhorn, helper: "Impulsionamento em todas as plataformas envolvidas" },
+  { value: "global", label: "Global", icon: FaGlobeAmericas, helper: "Uso amplo + impulsionamento cross-plataforma" },
+];
+
+const PAID_MEDIA_DURATION_OPTIONS = [
+  { value: "7d", label: "7 Dias", icon: FaCalendarCheck },
+  { value: "15d", label: "15 Dias", icon: FaCalendarCheck },
+  { value: "30d", label: "30 Dias", icon: FaCalendarAlt },
+  { value: "90d", label: "90 Dias", icon: FaCalendarAlt },
+  { value: "180d", label: "180 Dias", icon: FaCalendarAlt },
+  { value: "365d", label: "365 Dias", icon: FaCalendarAlt },
+];
+const BRAND_SIZE_OPTIONS = [
+  { value: "pequena", label: "Pequena", icon: FaUser, helper: "Menor caixa e risco comercial maior" },
+  { value: "media", label: "Média", icon: FaUserCheck, helper: "Cenário intermediário" },
+  { value: "grande", label: "Grande", icon: FaUserTie, helper: "Mais previsível e potencial estratégico" },
+];
+const IMAGE_RISK_OPTIONS = [
+  { value: "baixo", label: "Baixo", icon: FaCloudSun, helper: "Baixo risco reputacional" },
+  { value: "medio", label: "Médio", icon: FaCalendarAlt, helper: "Risco moderado para imagem" },
+  { value: "alto", label: "Alto", icon: FaSun, helper: "Risco alto, exige prêmio" },
+];
+const STRATEGIC_GAIN_OPTIONS = [
+  { value: "baixo", label: "Baixo", icon: FaCalendarTimes, helper: "Pouco ganho de posicionamento" },
+  { value: "medio", label: "Médio", icon: FaChartLine, helper: "Ajuda parcialmente no posicionamento" },
+  { value: "alto", label: "Alto", icon: FaStar, helper: "Parceria muito estratégica para imagem" },
+];
+const CONTENT_MODEL_OPTIONS = [
+  { value: "publicidade_perfil", label: "Publicidade no perfil", icon: FaInstagram, helper: "Publicado no perfil do creator" },
+  { value: "ugc_whitelabel", label: "UGC (whitelabel)", icon: FaVideo, helper: "Conteúdo de uso da marca, mais barato" },
 ];
 
 const COMPLEXITY_OPTIONS = [
@@ -124,6 +193,64 @@ const SEASONALITY_OPTIONS = [
   { value: "baixa", label: "Baixa", icon: FaSnowflake, helper: "Pós-datas festivas" },
 ];
 
+const EXCLUSIVITY_LABELS: Record<CalculatorParams["exclusivity"], string> = {
+  nenhuma: "Sem Exclusividade",
+  "7d": "7 Dias",
+  "15d": "15 Dias",
+  "30d": "30 Dias",
+  "90d": "90 Dias",
+  "180d": "180 Dias",
+  "365d": "365 Dias",
+};
+const USAGE_LABELS: Record<CalculatorParams["usageRights"], string> = {
+  organico: "Orgânico",
+  midiapaga: "Mídia Paga",
+  global: "Global",
+};
+const PAID_MEDIA_DURATION_LABELS: Record<Exclude<CalculatorParams["paidMediaDuration"], null>, string> = {
+  "7d": "7 Dias",
+  "15d": "15 Dias",
+  "30d": "30 Dias",
+  "90d": "90 Dias",
+  "180d": "180 Dias",
+  "365d": "365 Dias",
+};
+const BRAND_SIZE_LABELS: Record<CalculatorParams["brandSize"], string> = {
+  pequena: "Pequena",
+  media: "Média",
+  grande: "Grande",
+};
+const IMAGE_RISK_LABELS: Record<CalculatorParams["imageRisk"], string> = {
+  baixo: "Baixo",
+  medio: "Médio",
+  alto: "Alto",
+};
+const STRATEGIC_GAIN_LABELS: Record<CalculatorParams["strategicGain"], string> = {
+  baixo: "Baixo",
+  medio: "Médio",
+  alto: "Alto",
+};
+const CONTENT_MODEL_LABELS: Record<CalculatorParams["contentModel"], string> = {
+  publicidade_perfil: "Publicidade no perfil",
+  ugc_whitelabel: "UGC (whitelabel)",
+};
+const COMPLEXITY_LABELS: Record<CalculatorParams["complexity"], string> = {
+  simples: "Simples",
+  roteiro: "Com Roteiro",
+  profissional: "Pro",
+};
+const AUTHORITY_LABELS: Record<CalculatorParams["authority"], string> = {
+  padrao: "Padrão",
+  ascensao: "Em Ascensão",
+  autoridade: "Autoridade",
+  celebridade: "Celebridade",
+};
+const CALIBRATION_BAND_LABELS: Record<CalculationCalibration["confidenceBand"], string> = {
+  alta: "Alta",
+  media: "Média",
+  baixa: "Baixa",
+};
+
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -135,11 +262,24 @@ const percentFormatter = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 
-function formatSegmentLabel(segment?: string): string {
-  if (!segment) return "default";
-  return segment
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+function buildLocalPackageId(): string {
+  localPackageIdCounter += 1;
+  return `local-package-${Date.now()}-${localPackageIdCounter}`;
+}
+
+function sanitizePackagePrice(value: unknown): number {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0) return 0;
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().replace(",", ".");
+    if (!normalized) return 0;
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+  }
+  return 0;
 }
 
 export default function CalculatorClient() {
@@ -147,6 +287,7 @@ export default function CalculatorClient() {
   const { toast } = useToast();
   const { data: session } = useSession();
   const billingStatus = useBillingStatus();
+  const brandRiskV1Enabled = true;
 
   const planStatusSession = (session?.user as any)?.planStatus;
   const resolvedPlanAccess = Boolean(
@@ -160,8 +301,6 @@ export default function CalculatorClient() {
   const resumeHandledRef = useRef(false);
   const submitButtonRef = useRef<HTMLButtonElement | null>(null);
   const upgradeMessage = "Descubra seu preço ideal com base nas suas métricas reais.";
-  const upgradeSubtitle =
-    "Tenha o Mobi como seu consultor pessoal e receba análises e precificações automáticas.";
 
   const [calcParams, setCalcParams] = useState<CalculatorParams>({
     format: "reels",
@@ -171,6 +310,14 @@ export default function CalculatorClient() {
     eventCoverageQuantities: { reels: 0, post: 0, stories: 0 },
     exclusivity: "nenhuma",
     usageRights: "organico",
+    paidMediaDuration: null,
+    repostTikTok: false,
+    instagramCollab: false,
+    brandSize: "media",
+    imageRisk: "medio",
+    strategicGain: "baixo",
+    contentModel: "publicidade_perfil",
+    allowStrategicWaiver: false,
     complexity: "simples",
     authority: "padrao",
     seasonality: "normal",
@@ -179,6 +326,13 @@ export default function CalculatorClient() {
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Record<CollapsibleSectionKey, boolean>>({
+    delivery: false,
+    rights: false,
+    brand: false,
+    packages: false,
+    insights: false,
+  });
 
   // Package Management State
   const [packages, setPackages] = useState<MediaKitPackage[]>([]);
@@ -188,13 +342,20 @@ export default function CalculatorClient() {
     // Fetch existing packages on mount or when access is confirmed
     if (canAccessFeatures) {
       fetch('/api/mediakit/self/packages')
-        .then(res => res.json())
-        .then(data => {
-          if (data.packages) {
-            setPackages(data.packages.map((p: any) => ({ ...p, id: p._id || Math.random().toString(36).substr(2, 9) })));
+        .then((res) => res.json())
+        .then((data: { packages?: PackageResponseItem[] }) => {
+          if (Array.isArray(data.packages)) {
+            setPackages(
+              data.packages.map((pkg) => ({
+                ...pkg,
+                id: pkg._id || buildLocalPackageId(),
+                price: sanitizePackagePrice(pkg.price),
+                deliverables: Array.isArray(pkg.deliverables) ? pkg.deliverables : [],
+              })),
+            );
           }
         })
-        .catch(err => console.error('Failed to load packages', err));
+        .catch((err) => console.error('Failed to load packages', err));
     }
   }, [canAccessFeatures]);
 
@@ -266,9 +427,50 @@ export default function CalculatorClient() {
     setError(null);
   };
 
+  const setContentModel = (nextModel: CalculatorParams["contentModel"]) => {
+    const shouldAutoSimplify =
+      nextModel === "ugc_whitelabel" &&
+      calcParams.contentModel !== "ugc_whitelabel" &&
+      calcParams.complexity !== "simples";
+
+    setCalcParams((prev) => {
+      return {
+        ...prev,
+        contentModel: nextModel,
+        complexity: shouldAutoSimplify ? "simples" : prev.complexity,
+      };
+    });
+
+    if (shouldAutoSimplify) {
+      toast({
+        variant: "info",
+        title: "Complexidade ajustada para UGC",
+        description: "Aplicamos 'Simples' como padrão de UGC. Você pode alterar manualmente se quiser.",
+      });
+    }
+
+    setError(null);
+  };
+
+  const toggleSectionCollapse = (section: CollapsibleSectionKey) => {
+    setCollapsedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
   const clampQuantity = (value: number) => Math.min(20, Math.max(0, Math.trunc(value)));
   const quantityTotal = (quantities: FormatQuantities) => quantities.reels + quantities.post + quantities.stories;
   const hasAnyQuantity = (quantities: FormatQuantities) => quantityTotal(quantities) > 0;
+  const buildCalculatorTelemetry = (params: CalculatorParams, source: SubmitSource | PackageInsertSource | SaveSource) => ({
+    deliveryType: params.deliveryType,
+    format: params.format,
+    hasCoverage: hasAnyQuantity(params.eventCoverageQuantities),
+    brandRiskV1Enabled,
+    brandSize: params.brandSize,
+    imageRisk: params.imageRisk,
+    strategicGain: params.strategicGain,
+    contentModel: params.contentModel,
+    allowStrategicWaiver: params.allowStrategicWaiver,
+    source,
+  });
 
   const deriveLegacyFormat = (params: CalculatorParams): CalculatorFormat => {
     if (params.deliveryType === "evento") return "evento";
@@ -308,12 +510,44 @@ export default function CalculatorClient() {
       hotelNights: clampQuantity(params.eventDetails.hotelNights),
     };
 
+    const usageRights: CalculatorParams["usageRights"] = USAGE_VALUES.includes(params.usageRights)
+      ? params.usageRights
+      : "organico";
+
+    const rawPaidMediaDuration =
+      params.paidMediaDuration && PAID_MEDIA_DURATION_VALUES.includes(params.paidMediaDuration)
+        ? params.paidMediaDuration
+        : null;
+
+    const paidMediaDuration: CalculatorParams["paidMediaDuration"] =
+      usageRights === "organico" ? null : (rawPaidMediaDuration ?? "30d");
+    const brandSize: CalculatorParams["brandSize"] =
+      brandRiskV1Enabled && BRAND_SIZE_VALUES.includes(params.brandSize) ? params.brandSize : "media";
+    const imageRisk: CalculatorParams["imageRisk"] =
+      brandRiskV1Enabled && IMAGE_RISK_VALUES.includes(params.imageRisk) ? params.imageRisk : "medio";
+    const strategicGain: CalculatorParams["strategicGain"] =
+      brandRiskV1Enabled && STRATEGIC_GAIN_VALUES.includes(params.strategicGain) ? params.strategicGain : "baixo";
+    const contentModel: CalculatorParams["contentModel"] =
+      brandRiskV1Enabled && CONTENT_MODEL_VALUES.includes(params.contentModel)
+        ? params.contentModel
+        : "publicidade_perfil";
+    const allowStrategicWaiver = brandRiskV1Enabled ? Boolean(params.allowStrategicWaiver) : false;
+
     const normalized: CalculatorParams = {
       ...params,
       deliveryType: DELIVERY_TYPE_VALUES.includes(params.deliveryType) ? params.deliveryType : "conteudo",
       formatQuantities,
       eventCoverageQuantities,
       eventDetails,
+      usageRights,
+      paidMediaDuration,
+      repostTikTok: Boolean(params.repostTikTok),
+      instagramCollab: Boolean(params.instagramCollab),
+      brandSize,
+      imageRisk,
+      strategicGain,
+      contentModel,
+      allowStrategicWaiver,
       format: params.format,
     };
 
@@ -364,6 +598,28 @@ export default function CalculatorClient() {
       usageRights: USAGE_VALUES.includes(raw?.usageRights as CalculatorParams["usageRights"])
         ? (raw?.usageRights as CalculatorParams["usageRights"])
         : fallback.usageRights,
+      paidMediaDuration:
+        raw?.paidMediaDuration && PAID_MEDIA_DURATION_VALUES.includes(raw.paidMediaDuration as Exclude<CalculatorParams["paidMediaDuration"], null>)
+          ? (raw.paidMediaDuration as Exclude<CalculatorParams["paidMediaDuration"], null>)
+          : fallback.paidMediaDuration,
+      repostTikTok: typeof raw?.repostTikTok === "boolean" ? raw.repostTikTok : fallback.repostTikTok,
+      instagramCollab: typeof raw?.instagramCollab === "boolean" ? raw.instagramCollab : fallback.instagramCollab,
+      brandSize: BRAND_SIZE_VALUES.includes(raw?.brandSize as CalculatorParams["brandSize"])
+        ? (raw?.brandSize as CalculatorParams["brandSize"])
+        : fallback.brandSize,
+      imageRisk: IMAGE_RISK_VALUES.includes(raw?.imageRisk as CalculatorParams["imageRisk"])
+        ? (raw?.imageRisk as CalculatorParams["imageRisk"])
+        : fallback.imageRisk,
+      strategicGain: STRATEGIC_GAIN_VALUES.includes(raw?.strategicGain as CalculatorParams["strategicGain"])
+        ? (raw?.strategicGain as CalculatorParams["strategicGain"])
+        : fallback.strategicGain,
+      contentModel: CONTENT_MODEL_VALUES.includes(raw?.contentModel as CalculatorParams["contentModel"])
+        ? (raw?.contentModel as CalculatorParams["contentModel"])
+        : fallback.contentModel,
+      allowStrategicWaiver:
+        typeof raw?.allowStrategicWaiver === "boolean"
+          ? raw.allowStrategicWaiver
+          : fallback.allowStrategicWaiver,
       complexity: COMPLEXITY_VALUES.includes(raw?.complexity as CalculatorParams["complexity"])
         ? (raw?.complexity as CalculatorParams["complexity"])
         : fallback.complexity,
@@ -375,9 +631,27 @@ export default function CalculatorClient() {
         : fallback.seasonality,
     };
 
-    return {
+    const usageRights = candidate.usageRights;
+    const paidMediaDuration =
+      usageRights === "organico"
+        ? null
+        : candidate.paidMediaDuration && PAID_MEDIA_DURATION_VALUES.includes(candidate.paidMediaDuration)
+          ? candidate.paidMediaDuration
+          : "30d";
+
+    const normalizedCandidate: CalculatorParams = {
       ...candidate,
-      format: deriveLegacyFormat(candidate),
+      paidMediaDuration,
+      brandSize: brandRiskV1Enabled ? candidate.brandSize : "media",
+      imageRisk: brandRiskV1Enabled ? candidate.imageRisk : "medio",
+      strategicGain: brandRiskV1Enabled ? candidate.strategicGain : "baixo",
+      contentModel: brandRiskV1Enabled ? candidate.contentModel : "publicidade_perfil",
+      allowStrategicWaiver: brandRiskV1Enabled ? candidate.allowStrategicWaiver : false,
+    };
+
+    return {
+      ...normalizedCandidate,
+      format: deriveLegacyFormat(normalizedCandidate),
     };
   };
 
@@ -395,12 +669,32 @@ export default function CalculatorClient() {
     setError(null);
     try {
       const normalizedParams = normalizeParamsForSubmit(calcParams);
+      track("calculator_submit_started", buildCalculatorTelemetry(normalizedParams, "form_submit"));
       if (normalizedParams.deliveryType === "conteudo" && !hasAnyQuantity(normalizedParams.formatQuantities)) {
         const message = "Selecione pelo menos uma entrega (Reels, Post ou Stories) para calcular.";
+        track("calculator_submit_failed", {
+          ...buildCalculatorTelemetry(normalizedParams, "form_submit"),
+          errorCode: "missing_deliverables",
+        });
         setError(message);
         toast({
           variant: "error",
           title: "Entregas obrigatórias",
+          description: message,
+        });
+        return;
+      }
+
+      if (normalizedParams.usageRights !== "organico" && !normalizedParams.paidMediaDuration) {
+        const message = "Informe o prazo de uso em mídia paga para continuar.";
+        track("calculator_submit_failed", {
+          ...buildCalculatorTelemetry(normalizedParams, "form_submit"),
+          errorCode: "missing_paid_media_duration",
+        });
+        setError(message);
+        toast({
+          variant: "error",
+          title: "Prazo obrigatório",
           description: message,
         });
         return;
@@ -416,9 +710,18 @@ export default function CalculatorClient() {
 
       if (!response.ok) {
         if (response.status === 402) {
+          track("calculator_submit_failed", {
+            ...buildCalculatorTelemetry(normalizedParams, "form_submit"),
+            errorCode: String(response.status),
+          });
           handleLockedAccess("api_call");
           return;
         }
+        const errorCode = (payload as { code?: string } | null)?.code || String(response.status);
+        track("calculator_submit_failed", {
+          ...buildCalculatorTelemetry(normalizedParams, "form_submit"),
+          errorCode,
+        });
         const message = (payload as any)?.error || "Não foi possível calcular no momento.";
         setError(message);
         toast({
@@ -431,7 +734,9 @@ export default function CalculatorClient() {
 
       const parsed = payload as Partial<CalculationResult>;
       if (typeof parsed?.justo !== "number" || typeof parsed?.estrategico !== "number" || typeof parsed?.premium !== "number") {
-        throw new Error("Resposta inválida do servidor.");
+        const invalidResponseError = new Error("Resposta inválida do servidor.");
+        (invalidResponseError as Error & { code?: string }).code = "invalid_response_shape";
+        throw invalidResponseError;
       }
 
       const sanitizedParams = sanitizeCalculationParams(parsed.params as Partial<CalculatorParams> | undefined, normalizedParams);
@@ -452,6 +757,55 @@ export default function CalculatorClient() {
           logisticsIncludedInCache: false,
         },
         cpm: typeof parsed.cpm === "number" ? parsed.cpm : 0,
+        calibration: {
+          enabled: typeof (parsed as any)?.calibration?.enabled === "boolean" ? (parsed as any).calibration.enabled : false,
+          baseJusto: typeof (parsed as any)?.calibration?.baseJusto === "number" ? (parsed as any).calibration.baseJusto : parsed.justo,
+          factorRaw: typeof (parsed as any)?.calibration?.factorRaw === "number" ? (parsed as any).calibration.factorRaw : 1,
+          factorApplied:
+            typeof (parsed as any)?.calibration?.factorApplied === "number"
+              ? (parsed as any).calibration.factorApplied
+              : 1,
+          guardrailApplied:
+            typeof (parsed as any)?.calibration?.guardrailApplied === "boolean"
+              ? (parsed as any).calibration.guardrailApplied
+              : false,
+          confidence:
+            typeof (parsed as any)?.calibration?.confidence === "number"
+              ? (parsed as any).calibration.confidence
+              : 0,
+          confidenceBand:
+            (parsed as any)?.calibration?.confidenceBand === "alta" ||
+            (parsed as any)?.calibration?.confidenceBand === "media" ||
+            (parsed as any)?.calibration?.confidenceBand === "baixa"
+              ? (parsed as any).calibration.confidenceBand
+              : "baixa",
+          segmentSampleSize:
+            typeof (parsed as any)?.calibration?.segmentSampleSize === "number"
+              ? (parsed as any).calibration.segmentSampleSize
+              : 0,
+          creatorSampleSize:
+            typeof (parsed as any)?.calibration?.creatorSampleSize === "number"
+              ? (parsed as any).calibration.creatorSampleSize
+              : 0,
+          windowDaysSegment:
+            typeof (parsed as any)?.calibration?.windowDaysSegment === "number"
+              ? (parsed as any).calibration.windowDaysSegment
+              : 180,
+          windowDaysCreator:
+            typeof (parsed as any)?.calibration?.windowDaysCreator === "number"
+              ? (parsed as any).calibration.windowDaysCreator
+              : 365,
+          lowConfidenceRangeExpanded:
+            typeof (parsed as any)?.calibration?.lowConfidenceRangeExpanded === "boolean"
+              ? (parsed as any).calibration.lowConfidenceRangeExpanded
+              : false,
+          linkQuality:
+            (parsed as any)?.calibration?.linkQuality === "high" ||
+            (parsed as any)?.calibration?.linkQuality === "mixed" ||
+            (parsed as any)?.calibration?.linkQuality === "low"
+              ? (parsed as any).calibration.linkQuality
+              : "low",
+        },
         params: sanitizedParams,
         metrics: {
           reach: parsed.metrics?.reach ?? 0,
@@ -466,8 +820,24 @@ export default function CalculatorClient() {
       };
       setCalcParams(sanitizedParams);
       setCalculation(sanitized);
+      if (sanitized.calibration.enabled) {
+        track("calculator_calibration_applied", {
+          ...buildCalculatorTelemetry(sanitizedParams, "form_submit"),
+          factorRaw: sanitized.calibration.factorRaw,
+          factorApplied: sanitized.calibration.factorApplied,
+          confidence: sanitized.calibration.confidence,
+          band: sanitized.calibration.confidenceBand,
+          guardrailApplied: sanitized.calibration.guardrailApplied,
+        });
+      }
+      track("calculator_submit_succeeded", buildCalculatorTelemetry(sanitizedParams, "form_submit"));
     } catch (err: any) {
       const message = err?.message || "Erro inesperado ao calcular.";
+      const normalizedParams = normalizeParamsForSubmit(calcParams);
+      track("calculator_submit_failed", {
+        ...buildCalculatorTelemetry(normalizedParams, "form_submit"),
+        errorCode: err?.code || "unexpected_error",
+      });
       setError(message);
       toast({
         variant: "error",
@@ -488,17 +858,19 @@ export default function CalculatorClient() {
     await callCalculator();
   };
 
-  const handleAddPackage = (pkg?: Partial<MediaKitPackage>) => {
+  const handleAddPackage = (pkg?: Partial<MediaKitPackage>, source: PackageInsertSource = "manual") => {
+    const paramsForTelemetry = calculation?.params ?? calcParams;
     const newPackage: MediaKitPackage = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: buildLocalPackageId(),
       name: pkg?.name || "Novo Pacote",
-      price: pkg?.price || 0,
+      price: sanitizePackagePrice(pkg?.price),
       currency: "BRL",
       deliverables: pkg?.deliverables || ["1x Reels"],
       description: pkg?.description || "",
       type: "manual",
     };
     setPackages((prev) => [...prev, newPackage]);
+    track("calculator_package_added", buildCalculatorTelemetry(paramsForTelemetry, source));
     toast({
       variant: "success",
       title: "Pacote adicionado",
@@ -507,7 +879,25 @@ export default function CalculatorClient() {
   };
 
   const handleUpdatePackage = (id: string, updates: Partial<MediaKitPackage>) => {
-    setPackages((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    setPackages((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const nextPrice =
+          Object.prototype.hasOwnProperty.call(updates, "price")
+            ? sanitizePackagePrice(updates.price)
+            : p.price;
+        const nextDeliverables =
+          Object.prototype.hasOwnProperty.call(updates, "deliverables") && Array.isArray(updates.deliverables)
+            ? updates.deliverables
+            : p.deliverables;
+        return {
+          ...p,
+          ...updates,
+          price: nextPrice,
+          deliverables: nextDeliverables,
+        };
+      })
+    );
   };
 
   const handleDeletePackage = (id: string) => {
@@ -521,11 +911,11 @@ export default function CalculatorClient() {
     setIsSavingPackages(true);
 
     try {
-      // 1. Save packages
-      // Sanitize deliverables before saving
-      const sanitizedPackages = packages.map(p => ({
+      const sanitizedPackages = packages.map((p) => ({
         ...p,
-        deliverables: p.deliverables.map(d => d.trim()).filter(Boolean)
+        name: (p.name || "").trim() || "Pacote sem nome",
+        price: sanitizePackagePrice(p.price),
+        deliverables: p.deliverables.map((d) => d.trim()).filter(Boolean),
       }));
 
       const res = await fetch('/api/mediakit/self/packages', {
@@ -533,12 +923,18 @@ export default function CalculatorClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packages: sanitizedPackages }),
       });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        const errorCode = (payload as { code?: string } | null)?.code || `HTTP_${res.status}`;
+        track("calculator_mediakit_save_failed", {
+          ...buildCalculatorTelemetry(calculation?.params ?? calcParams, "result_cta"),
+          errorCode,
+        });
+        throw new Error((payload as { error?: string } | null)?.error || 'Falha ao salvar pacotes');
+      }
 
-      if (!res.ok) throw new Error('Falha ao salvar pacotes');
-
-      // 2. Redirect
+      track("calculator_mediakit_save_succeeded", buildCalculatorTelemetry(calculation?.params ?? calcParams, "result_cta"));
       if (calculation) {
-        // Still track the calculation ID for legacy/fallback purposes if needed
         router.push(`/media-kit?fromCalc=${encodeURIComponent(calculation.calculationId)}`);
       } else {
         router.push('/media-kit');
@@ -551,6 +947,12 @@ export default function CalculatorClient() {
       });
 
     } catch (err) {
+      if (!(err instanceof Error)) {
+        track("calculator_mediakit_save_failed", {
+          ...buildCalculatorTelemetry(calculation?.params ?? calcParams, "result_cta"),
+          errorCode: "unknown_error",
+        });
+      }
       toast({
         variant: "error",
         title: "Erro ao salvar",
@@ -559,11 +961,6 @@ export default function CalculatorClient() {
     } finally {
       setIsSavingPackages(false);
     }
-  };
-
-  const handleOpenChat = () => {
-    if (!calculation) return;
-    router.push(`/dashboard/chat?context=publi-calculator&calcId=${encodeURIComponent(calculation.calculationId)}`);
   };
 
   const disableInputs = isCalculating || !canAccessFeatures;
@@ -577,35 +974,72 @@ export default function CalculatorClient() {
     ? [
       {
         label: "Estratégico (Mínimo)",
+        amount: calculation.estrategico,
         value: formatCurrency(calculation.estrategico),
         cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
         description: "Para abrir portas e fechar pacotes.",
-        badgeClass: "bg-blue-50 text-blue-700",
-        accentDot: "bg-blue-500",
+        headerClass: "bg-slate-50 text-slate-700",
       },
       {
         label: "Valor Justo (Sugerido)",
+        amount: calculation.justo,
         value: formatCurrency(calculation.justo),
         cpm: formatCurrency(calculateEffectiveCpm(calculation.justo, calculation.metrics.reach)),
         description: "Equilíbrio ideal entre esforço e retorno.",
-        badgeClass: "bg-emerald-50 text-emerald-700",
-        accentDot: "bg-emerald-500",
+        headerClass: "bg-slate-50 text-slate-700",
       },
       {
         label: "Premium (Alto Valor)",
+        amount: calculation.premium,
         value: formatCurrency(calculation.premium),
         cpm: formatCurrency(calculateEffectiveCpm(calculation.premium, calculation.metrics.reach)),
         description: "Para alta demanda e entregas complexas.",
-        badgeClass: "bg-amber-50 text-amber-700",
-        accentDot: "bg-amber-500",
+        headerClass: "bg-slate-50 text-slate-700",
       },
     ]
     : null;
+  const strategicWaiverApplied = Boolean(
+    calculation?.params.allowStrategicWaiver &&
+    calculation?.estrategico === 0
+  );
+  const hasContentInResult = Boolean(calculation && calculation.breakdown.contentUnits > 0);
+  const calibrationAdjustmentPercent =
+    calculation && calculation.calibration
+      ? (calculation.calibration.factorApplied - 1) * 100
+      : 0;
+  const calibrationBandLabel = calculation
+    ? CALIBRATION_BAND_LABELS[calculation.calibration.confidenceBand]
+    : "Baixa";
+  const activeMultiplierTags = calculation
+    ? [
+      EXCLUSIVITY_LABELS[calculation.params.exclusivity],
+      USAGE_LABELS[calculation.params.usageRights],
+      calculation.params.paidMediaDuration
+        ? `Mídia paga ${PAID_MEDIA_DURATION_LABELS[calculation.params.paidMediaDuration]}`
+        : "Sem mídia paga",
+      calculation.params.repostTikTok ? "Repost TikTok" : "Sem repost TikTok",
+      calculation.params.instagramCollab ? "Collab IG" : "Sem Collab IG",
+      brandRiskV1Enabled ? `Porte ${BRAND_SIZE_LABELS[calculation.params.brandSize]}` : null,
+      brandRiskV1Enabled ? `Risco ${IMAGE_RISK_LABELS[calculation.params.imageRisk]}` : null,
+      brandRiskV1Enabled ? `Estratégico ${STRATEGIC_GAIN_LABELS[calculation.params.strategicGain]}` : null,
+      brandRiskV1Enabled ? CONTENT_MODEL_LABELS[calculation.params.contentModel] : null,
+      COMPLEXITY_LABELS[calculation.params.complexity],
+      AUTHORITY_LABELS[calculation.params.authority],
+      calculation.params.seasonality === "normal"
+        ? "Sazonalidade normal"
+        : `Sazonalidade ${calculation.params.seasonality}`,
+      calculation.calibration.enabled
+        ? `Calibração ${calibrationBandLabel} (${calibrationAdjustmentPercent >= 0 ? "+" : ""}${formatPercent(calibrationAdjustmentPercent)})`
+        : "Calibração desativada",
+    ].filter(Boolean) as string[]
+    : [];
+  const visibleMultiplierTags = activeMultiplierTags.slice(0, 6);
+  const hiddenMultiplierCount = Math.max(0, activeMultiplierTags.length - visibleMultiplierTags.length);
 
   const SelectionGroup = ({ label, options, value, onChange, disabled }: any) => (
-    <div className="space-y-3">
-      <label className="text-sm font-semibold text-slate-800">{label}</label>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <fieldset className="space-y-2.5">
+      <legend className="text-sm font-semibold text-slate-800">{label}</legend>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {options.map((option: any) => {
           const Icon = option.icon;
           const isSelected = value === option.value;
@@ -615,28 +1049,24 @@ export default function CalculatorClient() {
               type="button"
               onClick={() => onChange(option.value)}
               disabled={disabled}
-              className={`group relative flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all sm:p-5 ${isSelected
-                ? "border-[#F6007B]/50 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] ring-2 ring-[#F6007B]/25"
-                : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
-                } ${disabled ? "cursor-not-allowed opacity-60 hover:translate-y-0 hover:shadow-none" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/25 focus-visible:ring-offset-1"}`}
+              aria-pressed={isSelected}
+              className={`flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${isSelected
+                ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)]"
+                : "border-transparent bg-slate-50 hover:bg-slate-100"
+                } ${disabled ? "cursor-not-allowed opacity-60" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-1"}`}
             >
-              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg transition-colors ${isSelected ? "bg-[#F6007B]/10 text-[#F6007B]" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"}`}>
-                <Icon className="h-5 w-5" aria-hidden />
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[var(--brand-accent)] text-white" : "bg-slate-100 text-slate-500"}`}>
+                <Icon className="h-3.5 w-3.5" aria-hidden />
               </span>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <p className="text-sm font-semibold text-slate-900">{option.label}</p>
-                {option.helper && <p className="text-xs text-slate-500">{option.helper}</p>}
+                {option.helper && <p className="text-xs leading-snug text-slate-500">{option.helper}</p>}
               </div>
-              {isSelected ? (
-                <span className="absolute right-3 top-3 rounded-full bg-[#F6007B]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#F6007B]">
-                  Selecionado
-                </span>
-              ) : null}
             </button>
           );
         })}
       </div>
-    </div>
+    </fieldset>
   );
 
   const QuantitySelectionGroup = ({
@@ -650,9 +1080,9 @@ export default function CalculatorClient() {
     onChange: (key: keyof FormatQuantities, nextValue: number) => void;
     disabled?: boolean;
   }) => (
-    <div className="space-y-3">
-      <label className="text-sm font-semibold text-slate-800">{label}</label>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <fieldset className="space-y-2.5">
+      <legend className="text-sm font-semibold text-slate-800">{label}</legend>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {FORMAT_OPTIONS.map((option) => {
           const Icon = option.icon;
           const currentValue = quantities[option.value as keyof FormatQuantities] ?? 0;
@@ -661,44 +1091,48 @@ export default function CalculatorClient() {
           return (
             <div
               key={option.value}
-              className={`rounded-2xl border p-4 transition-all sm:p-5 ${isSelected
-                ? "border-[#F6007B]/50 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] ring-2 ring-[#F6007B]/25"
-                : "border-gray-200 bg-white"
+              className={`rounded-xl border p-2.5 transition ${isSelected
+                ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)]"
+                : "border-transparent bg-slate-50"
                 } ${disabled ? "opacity-70" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
-                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg transition-colors ${isSelected ? "bg-[#F6007B]/10 text-[#F6007B]" : "bg-slate-100 text-slate-500"}`}>
-                  <Icon className="h-5 w-5" aria-hidden />
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[var(--brand-accent)] text-white" : "bg-slate-100 text-slate-500"}`}>
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
                 </span>
                 <button
                   type="button"
                   disabled={disabled}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${isSelected ? "bg-[#F6007B]/10 text-[#F6007B]" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
+                  aria-pressed={isSelected}
+                  aria-label={`${isSelected ? "Desativar" : "Ativar"} ${option.label}`}
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${isSelected ? "bg-[var(--brand-accent)] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                   onClick={() => onChange(optionKey, isSelected ? 0 : 1)}
                 >
                   {isSelected ? "Ativo" : "Ativar"}
                 </button>
               </div>
-              <div className="mt-3 space-y-1">
+              <div className="mt-2 space-y-0.5">
                 <p className="text-sm font-semibold text-slate-900">{option.label}</p>
                 {option.helper && <p className="text-xs text-slate-500">{option.helper}</p>}
               </div>
-              <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-2 py-1.5">
                 <button
                   type="button"
                   onClick={() => onChange(optionKey, clampQuantity(currentValue - 1))}
                   disabled={disabled || currentValue <= 0}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label={`Diminuir ${option.label}`}
                 >
                   -
                 </button>
-                <span className="text-sm font-semibold text-slate-900">{currentValue}</span>
+                <span className="text-sm font-semibold text-slate-900" aria-live="polite">
+                  {currentValue}
+                </span>
                 <button
                   type="button"
                   onClick={() => onChange(optionKey, clampQuantity(currentValue + 1))}
                   disabled={disabled || currentValue >= 20}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label={`Aumentar ${option.label}`}
                 >
                   +
@@ -708,7 +1142,7 @@ export default function CalculatorClient() {
           );
         })}
       </div>
-    </div>
+    </fieldset>
   );
 
   const updateFormatQuantity = (key: keyof FormatQuantities, nextValue: number) => {
@@ -755,99 +1189,127 @@ export default function CalculatorClient() {
     setError(null);
   };
 
+  const setUsageRights = (nextUsageRights: CalculatorParams["usageRights"]) => {
+    setCalcParams((prev) => ({
+      ...prev,
+      usageRights: nextUsageRights,
+      paidMediaDuration: nextUsageRights === "organico" ? null : (prev.paidMediaDuration ?? "30d"),
+    }));
+    setError(null);
+  };
+
+  const setPaidMediaDuration = (nextDuration: Exclude<CalculatorParams["paidMediaDuration"], null>) => {
+    setCalcParams((prev) => ({
+      ...prev,
+      paidMediaDuration: prev.usageRights === "organico" ? null : nextDuration,
+    }));
+    setError(null);
+  };
+
+  const toggleFlag = (field: "repostTikTok" | "instagramCollab" | "allowStrategicWaiver") => {
+    setCalcParams((prev) => ({ ...prev, [field]: !prev[field] }));
+    setError(null);
+  };
+
   return (
-    <div className="dashboard-page-shell py-10 space-y-10">
-      <header className="space-y-4 text-center sm:text-left">
-        <div className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-600">
-          <FaChartLine className="h-3.5 w-3.5 text-[#F6007B]" />
-          Calculadora inteligente · Pro
-        </div>
-        <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-          Quanto cobrar pela sua publi?
-        </h1>
-        <p className="max-w-2xl text-base text-slate-600 sm:text-lg">
-          Nossa IA analisa seu engajamento, nicho e histórico para sugerir o preço ideal.
-          Personalize os detalhes abaixo para um cálculo preciso.
-        </p>
-      </header>
+    <div className="dashboard-page-shell py-4 sm:py-6">
+      <div className="mx-auto w-full max-w-[900px] space-y-4 sm:space-y-5">
+        <header className="space-y-1.5">
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            Quanto cobrar pela sua publi?
+          </h1>
+          <p className="text-sm text-slate-500 sm:text-base">
+            Defina as premissas da entrega e gere uma faixa de preço prática para negociação.
+          </p>
+        </header>
 
-      {billingStatus.isLoading && (
-        <div className="flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white p-6 text-slate-600 shadow-sm sm:p-8">
-          <FaSpinner className="h-5 w-5 animate-spin text-[#F6007B]" />
-          <span className="font-medium">Carregando seus dados...</span>
-        </div>
-      )}
-
-      {showLockedMessage && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col items-center gap-6 text-center md:flex-row md:text-left">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6007B]/10 text-[#F6007B]">
-              <FaLock className="h-5 w-5" />
-            </div>
-            <div className="flex-1 space-y-2">
-              <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
-                Desbloqueie o poder da precificação inteligente
-              </h2>
-              <p className="text-slate-600">
-                Assinantes do Plano Pro têm acesso ilimitado à calculadora, com sugestões baseadas em dados reais de mercado.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleLockedAccess("banner")}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-            >
-              Quero acesso agora
-              <FaArrowRight className="h-3.5 w-3.5" />
-            </button>
+        {billingStatus.isLoading && (
+          <div className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-slate-600 sm:p-8">
+            <FaSpinner className="h-5 w-5 animate-spin text-slate-700" />
+            <span className="font-medium">Carregando seus dados...</span>
           </div>
-        </div>
-      )}
+        )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-          <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">1</span>
-            Detalhes da Entrega
-          </h3>
-          <div className="space-y-8">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDeliveryType("conteudo")}
-                  disabled={disableInputs}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${calcParams.deliveryType === "conteudo"
-                    ? "bg-white text-[#F6007B] shadow-sm ring-1 ring-[#F6007B]/20"
-                    : "text-slate-600 hover:bg-white/70"
-                    }`}
-                >
-                  Conteúdo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryType("evento")}
-                  disabled={disableInputs}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${calcParams.deliveryType === "evento"
-                    ? "bg-white text-[#F6007B] shadow-sm ring-1 ring-[#F6007B]/20"
-                    : "text-slate-600 hover:bg-white/70"
-                    }`}
-                >
-                  Presença em Evento
-                </button>
+        {showLockedMessage && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
+            <div className="flex flex-col items-center gap-5 text-center md:flex-row md:text-left">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                <FaLock className="h-4 w-4" />
               </div>
+              <div className="flex-1 space-y-1.5">
+                <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+                  Desbloqueie o poder da precificação inteligente
+                </h2>
+                <p className="text-slate-600">
+                  Assinantes Pro têm acesso completo à calculadora com sugestões baseadas em dados reais.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleLockedAccess("banner")}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+              >
+                Quero acesso agora
+                <FaArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+          <button
+            type="button"
+            onClick={() => toggleSectionCollapse("delivery")}
+            aria-expanded={!collapsedSections.delivery}
+            aria-controls="calculator-section-delivery"
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-xs font-semibold text-[var(--brand-accent-ink)]">1</span>
+                Detalhes da Entrega
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-500">Escolha entregas e marque evento só quando necessário.</p>
+            </div>
+            <FaChevronDown
+              className={`h-4 w-4 text-slate-500 transition-transform ${collapsedSections.delivery ? "" : "rotate-180"}`}
+              aria-hidden
+            />
+          </button>
+          {!collapsedSections.delivery ? (
+          <div id="calculator-section-delivery" className="mt-4 space-y-4">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Presença em Evento</p>
+                <p className="text-xs text-slate-500">Ative apenas quando houver presença física.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeliveryType(calcParams.deliveryType === "evento" ? "conteudo" : "evento")}
+                disabled={disableInputs}
+                aria-pressed={calcParams.deliveryType === "evento"}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  calcParams.deliveryType === "evento"
+                    ? "bg-[var(--brand-accent)] text-white"
+                    : "bg-white text-slate-700 ring-1 ring-slate-200"
+                }`}
+                aria-label="Presença em Evento"
+              >
+                {calcParams.deliveryType === "evento" ? "Incluída" : "Não incluída"}
+              </button>
             </div>
 
-            {calcParams.deliveryType === "conteudo" ? (
-              <QuantitySelectionGroup
-                label="Quais entregas entram no cálculo?"
-                quantities={calcParams.formatQuantities}
-                onChange={updateFormatQuantity}
-                disabled={disableInputs}
-              />
-            ) : (
-              <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
-                <div className="grid gap-4 sm:grid-cols-3">
+            <QuantitySelectionGroup
+              label="Quais entregas de conteúdo entram no cálculo?"
+              quantities={calcParams.formatQuantities}
+              onChange={updateFormatQuantity}
+              disabled={disableInputs}
+            />
+
+            {calcParams.deliveryType === "evento" ? (
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <label className="space-y-1 text-sm">
                     <span className="font-semibold text-slate-800">Duração do evento</span>
                     <select
@@ -860,7 +1322,7 @@ export default function CalculatorClient() {
                           format: "evento",
                         }))
                       }
-                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-[#F6007B] focus:ring-[#F6007B]"
+                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
                     >
                       <option value={2}>2 horas</option>
                       <option value={4}>4 horas</option>
@@ -879,7 +1341,7 @@ export default function CalculatorClient() {
                           format: "evento",
                         }))
                       }
-                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-[#F6007B] focus:ring-[#F6007B]"
+                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
                     >
                       <option value="local">Local</option>
                       <option value="nacional">Nacional</option>
@@ -901,7 +1363,7 @@ export default function CalculatorClient() {
                           format: "evento",
                         }))
                       }
-                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-[#F6007B] focus:ring-[#F6007B]"
+                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
                     />
                   </label>
                 </div>
@@ -913,7 +1375,7 @@ export default function CalculatorClient() {
                   disabled={disableInputs}
                 />
               </div>
-            )}
+            ) : null}
             <SelectionGroup
               label="Qual a complexidade da produção?"
               options={COMPLEXITY_OPTIONS}
@@ -921,6 +1383,24 @@ export default function CalculatorClient() {
               onChange={(v: any) => handleChange("complexity", v)}
               disabled={disableInputs}
             />
+            {calcParams.contentModel === "ugc_whitelabel" ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-xs text-amber-800">
+                <p>
+                  UGC é um modelo de entrega separado da complexidade. Recomendação prática: usar{" "}
+                  <span className="font-semibold">Simples</span> como padrão.
+                </p>
+                {calcParams.complexity !== "simples" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleChange("complexity", "simples")}
+                    disabled={disableInputs}
+                    className="mt-2 inline-flex rounded-md bg-amber-100 px-2.5 py-1 font-semibold text-amber-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    Aplicar recomendado
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <SelectionGroup
               label="Qual o momento (Sazonalidade)?"
               options={SEASONALITY_OPTIONS}
@@ -929,14 +1409,31 @@ export default function CalculatorClient() {
               disabled={disableInputs}
             />
           </div>
+          ) : null}
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-          <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">2</span>
-            Direitos e Prazos
-          </h3>
-          <div className="space-y-8">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+          <button
+            type="button"
+            onClick={() => toggleSectionCollapse("rights")}
+            aria-expanded={!collapsedSections.rights}
+            aria-controls="calculator-section-rights"
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-xs font-semibold text-[var(--brand-accent-ink)]">2</span>
+                Direitos e Prazos
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-500">Defina uso de imagem, prazos e adicionais.</p>
+            </div>
+            <FaChevronDown
+              className={`h-4 w-4 text-slate-500 transition-transform ${collapsedSections.rights ? "" : "rotate-180"}`}
+              aria-hidden
+            />
+          </button>
+          {!collapsedSections.rights ? (
+          <div id="calculator-section-rights" className="mt-4 space-y-4">
             <SelectionGroup
               label="Exclusividade exigida"
               options={EXCLUSIVITY_OPTIONS}
@@ -948,9 +1445,60 @@ export default function CalculatorClient() {
               label="Direitos de uso de imagem"
               options={USAGE_OPTIONS}
               value={calcParams.usageRights}
-              onChange={(v: any) => handleChange("usageRights", v)}
+              onChange={(v: any) => setUsageRights(v)}
               disabled={disableInputs}
             />
+            <p className="text-xs text-slate-500">
+              Quando houver mídia paga (ou global), o direito de impulsionamento vale para todas as plataformas envolvidas durante o prazo contratado.
+            </p>
+            {calcParams.usageRights !== "organico" ? (
+              <SelectionGroup
+                label="Prazo de uso de imagem em mídia paga"
+                options={PAID_MEDIA_DURATION_OPTIONS}
+                value={calcParams.paidMediaDuration}
+                onChange={(v: any) => setPaidMediaDuration(v)}
+                disabled={disableInputs}
+              />
+            ) : null}
+            <div className="space-y-2.5">
+              <p id="commercial-addons-label" className="text-sm font-semibold text-slate-800">Condições comerciais adicionais</p>
+              <div className="grid gap-2 sm:grid-cols-2" role="group" aria-labelledby="commercial-addons-label">
+                <button
+                  type="button"
+                  onClick={() => toggleFlag("repostTikTok")}
+                  disabled={disableInputs}
+                  aria-pressed={calcParams.repostTikTok}
+                  className={`rounded-xl border p-3 text-left transition ${calcParams.repostTikTok
+                    ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)] ring-1 ring-[var(--brand-accent-ring-soft)]"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                    } ${disableInputs ? "opacity-70" : ""}`}
+                >
+                  <p className="text-sm font-semibold text-slate-900">Repost no TikTok</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {calcParams.repostTikTok
+                      ? "Sim. Inclui direito de repost e impulsionamento no TikTok."
+                      : "Não. Sem repost adicional no TikTok."}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleFlag("instagramCollab")}
+                  disabled={disableInputs}
+                  aria-pressed={calcParams.instagramCollab}
+                  className={`rounded-xl border p-3 text-left transition ${calcParams.instagramCollab
+                    ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)] ring-1 ring-[var(--brand-accent-ring-soft)]"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                    } ${disableInputs ? "opacity-70" : ""}`}
+                >
+                  <p className="text-sm font-semibold text-slate-900">Collab com marca no Instagram</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {calcParams.instagramCollab
+                      ? "Sim. Registro contratual sem impacto no cálculo."
+                      : "Não. Sem collab com marca no Instagram."}
+                  </p>
+                </button>
+              </div>
+            </div>
             <SelectionGroup
               label="Seu nível de autoridade atual"
               options={AUTHORITY_OPTIONS}
@@ -959,6 +1507,92 @@ export default function CalculatorClient() {
               disabled={disableInputs}
             />
           </div>
+          ) : null}
+        </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+          <button
+            type="button"
+            onClick={() => toggleSectionCollapse("brand")}
+            aria-expanded={!collapsedSections.brand}
+            aria-controls="calculator-section-brand"
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-xs font-semibold text-[var(--brand-accent-ink)]">3</span>
+                Marca e Estratégia
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-500">Classifique risco, porte e potencial estratégico.</p>
+            </div>
+            <FaChevronDown
+              className={`h-4 w-4 text-slate-500 transition-transform ${collapsedSections.brand ? "" : "rotate-180"}`}
+              aria-hidden
+            />
+          </button>
+          {!collapsedSections.brand ? (
+          <div id="calculator-section-brand" className="mt-4 space-y-4">
+            <SelectionGroup
+              label="Porte da marca"
+              options={BRAND_SIZE_OPTIONS}
+              value={calcParams.brandSize}
+              onChange={(v: CalculatorParams["brandSize"]) => handleChange("brandSize", v)}
+              disabled={disableInputs}
+            />
+            <SelectionGroup
+              label="Risco de imagem da parceria"
+              options={IMAGE_RISK_OPTIONS}
+              value={calcParams.imageRisk}
+              onChange={(v: CalculatorParams["imageRisk"]) => handleChange("imageRisk", v)}
+              disabled={disableInputs}
+            />
+            <SelectionGroup
+              label="Ganho estratégico para posicionamento"
+              options={STRATEGIC_GAIN_OPTIONS}
+              value={calcParams.strategicGain}
+              onChange={(v: CalculatorParams["strategicGain"]) => handleChange("strategicGain", v)}
+              disabled={disableInputs}
+            />
+            <SelectionGroup
+              label="Modelo de conteúdo"
+              options={CONTENT_MODEL_OPTIONS}
+              value={calcParams.contentModel}
+              onChange={(v: CalculatorParams["contentModel"]) => setContentModel(v)}
+              disabled={disableInputs}
+            />
+            <div className="space-y-2.5">
+              <label className="text-sm font-semibold text-slate-800">Exceção estratégica</label>
+              <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Permitir R$ 0 no preço estratégico</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Use somente em parcerias de alto ganho estratégico e baixo risco.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleFlag("allowStrategicWaiver")}
+                    disabled={disableInputs}
+                    aria-pressed={calcParams.allowStrategicWaiver}
+                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
+                      calcParams.allowStrategicWaiver
+                        ? "bg-[var(--brand-accent)] text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    } ${disableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+                  >
+                    {calcParams.allowStrategicWaiver ? "Ligada" : "Desligada"}
+                  </button>
+                </div>
+                <p className="mt-2.5 text-xs text-slate-600">
+                  {calcParams.allowStrategicWaiver
+                    ? "Com a opção ligada, o estratégico pode ir para R$ 0 quando todos os critérios forem atendidos."
+                    : "Com a opção desligada, o estratégico sempre segue o cálculo normal."}
+                </p>
+              </div>
+            </div>
+          </div>
+          ) : null}
         </div>
 
         {error && (
@@ -967,10 +1601,10 @@ export default function CalculatorClient() {
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="sticky bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-1.5 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F6007B] px-8 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white disabled:shadow-none"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white sm:ml-auto sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
             disabled={disableInputs}
             ref={submitButtonRef}
           >
@@ -987,148 +1621,262 @@ export default function CalculatorClient() {
             )}
           </button>
         </div>
-      </form>
+        </form>
 
       {calculation && statsCards && (
         <section
           ref={resultsSectionRef}
-          className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-8"
+          className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-700"
         >
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
             {statsCards.map((card) => (
               <div
                 key={card.label}
-                className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md"
+                className="group flex min-h-[230px] flex-col overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg hover:ring-slate-200 sm:min-h-[250px] sm:rounded-[1.5rem]"
               >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
-                      <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
-                      {card.label}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500">
-                      CPM aprox. {card.cpm}
-                    </span>
-                  </div>
-                  <div className="mt-4 space-y-1">
+                <div className={`flex items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5 ${card.headerClass}`}>
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {card.label}
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    CPM {card.cpm}
+                  </span>
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col p-3.5 sm:p-4">
+                  <div className="space-y-1">
                     <p className="text-3xl font-semibold text-slate-900">{card.value}</p>
                   </div>
-                  <p className="mt-3 text-sm text-slate-600 leading-relaxed">{card.description}</p>
+                  <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-slate-600">{card.description}</p>
+                  <button
+                    onClick={() => {
+                      const labelText = typeof card?.label === 'string' ? card.label : '';
+                      const baseLabel = (labelText.split('(')[0] ?? '').trim() || 'Pacote';
+                      handleAddPackage({
+                        name: baseLabel || 'Pacote',
+                        price: card.amount,
+                        description: card?.description ?? '',
+                      }, "suggested_card");
+                    }}
+                    className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    <FaPlus className="h-3 w-3" />
+                    Usar como pacote
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    const labelText = typeof card?.label === 'string' ? card.label : '';
-                    const baseLabel = (labelText.split('(')[0] ?? '').trim() || 'Pacote';
-                    const priceLabel = typeof card?.value === 'string' ? card.value : '0';
-                    const parsedPrice = Number.parseFloat(priceLabel.replace(/[^0-9,]/g, '').replace(',', '.')) || 0;
-                    handleAddPackage({
-                      name: baseLabel || 'Pacote',
-                      price: parsedPrice,
-                      description: card?.description ?? '',
-                    });
-                  }}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                >
-                  <FaPlus className="h-3 w-3" />
-                  Usar como pacote
-                </button>
               </div>
             ))}
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="mb-6 flex items-center justify-between">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-purple-100 p-2 text-purple-600">
+                <div className="rounded-full bg-[var(--brand-accent-soft)] p-2 text-[var(--brand-accent-ink)]">
                   <FaLayerGroup className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Seus Pacotes</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Seus Pacotes</h3>
                   <p className="text-sm text-slate-500">Estes pacotes aparecerão no seu Mídia Kit.</p>
                 </div>
               </div>
-              <button
-                onClick={() => handleAddPackage()}
-                className="group flex items-center gap-2 rounded-lg bg-purple-50 px-4 py-2 text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
-              >
-                <FaPlus className="h-3 w-3" />
-                Novo Pacote
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleSectionCollapse("packages")}
+                  aria-expanded={!collapsedSections.packages}
+                  aria-controls="calculator-section-packages"
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+                >
+                  <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSections.packages ? "" : "rotate-180"}`} aria-hidden />
+                </button>
+                <button
+                  onClick={() => handleAddPackage()}
+                  className="group flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  <FaPlus className="h-3 w-3" />
+                  Novo Pacote
+                </button>
+              </div>
             </div>
-
-            {packages.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-                <p className="text-slate-500">Nenhum pacote definido.</p>
-                <p className="text-sm text-slate-400">Adicione manualmente ou use as sugestões da IA acima.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {packages.map((pkg, idx) => (
-                  <div key={pkg.id} className="relative flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:flex-row sm:items-start">
-                    <div className="flex-1 space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-500">Nome do Pacote</label>
-                          <input
-                            type="text"
-                            value={pkg.name}
-                            onChange={(e) => handleUpdatePackage(pkg.id!, { name: e.target.value })}
-                            className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:ring-purple-500"
-                            placeholder="Ex: Combo Reels"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-slate-500">Valor (R$)</label>
-                          <input
-                            type="number"
-                            value={pkg.price}
-                            onChange={(e) => handleUpdatePackage(pkg.id!, { price: parseFloat(e.target.value) })}
-                            className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:ring-purple-500"
-                            placeholder="0,00"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-500">Entregáveis (separados por vírgula)</label>
-                        <input
-                          type="text"
-                          value={pkg.deliverables.join(",")}
-                          onChange={(e) => handleUpdatePackage(pkg.id!, { deliverables: e.target.value.split(",") })}
-                          className="w-full rounded-lg border-slate-200 text-sm text-slate-600 placeholder:text-slate-400 focus:border-purple-500 focus:ring-purple-500"
-                          placeholder="Ex: 1 Reels, 3 Stories"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeletePackage(pkg.id!)}
-                      className="absolute right-2 top-2 rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 sm:static sm:mt-1"
-                      title="Remover pacote"
-                    >
-                      <FaTrash className="h-4 w-4" />
-                    </button>
+            {!collapsedSections.packages ? (
+              <div id="calculator-section-packages">
+                {packages.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                    <p className="text-slate-500">Nenhum pacote definido.</p>
+                    <p className="text-sm text-slate-400">Adicione manualmente ou use as sugestões acima.</p>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-3">
+                    {packages.map((pkg) => (
+                      <div key={pkg.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+                        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                          <div className="space-y-3">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-slate-500">Nome do Pacote</label>
+                                <input
+                                  type="text"
+                                  value={pkg.name}
+                                  onChange={(e) => handleUpdatePackage(pkg.id!, { name: e.target.value })}
+                                  className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                  placeholder="Ex: Combo Reels"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-slate-500">Valor (R$)</label>
+                                <input
+                                  type="number"
+                                  value={pkg.price}
+                                  onChange={(e) => handleUpdatePackage(pkg.id!, { price: sanitizePackagePrice(e.target.value) })}
+                                  className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                  placeholder="0,00"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-slate-500">Entregáveis (separados por vírgula)</label>
+                              <input
+                                type="text"
+                                value={pkg.deliverables.join(",")}
+                                onChange={(e) => handleUpdatePackage(pkg.id!, { deliverables: e.target.value.split(",") })}
+                                className="w-full rounded-lg border-slate-200 text-sm text-slate-600 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                placeholder="Ex: 1 Reels, 3 Stories"
+                              />
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeletePackage(pkg.id!)}
+                            className="inline-flex min-h-10 min-w-10 items-center justify-center self-start rounded-lg border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                            title="Remover pacote"
+                            aria-label={`Remover pacote ${pkg.name || ""}`.trim()}
+                          >
+                            <FaTrash className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 border-t border-slate-200 pt-3.5">
+                  <button
+                    type="button"
+                    onClick={handleAddToMediaKit}
+                    disabled={isSavingPackages}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSavingPackages ? (
+                      <>
+                        <FaSpinner className="h-4 w-4 animate-spin" />
+                        Salvando no Media Kit...
+                      </>
+                    ) : (
+                      <>
+                        <FaBullhorn className="h-4 w-4" />
+                        Salvar pacotes no Media Kit
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="rounded-full bg-pink-100 p-2 text-pink-600">
-                <FaChartPie className="h-5 w-5" />
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-[var(--brand-accent-soft)] p-2 text-[var(--brand-accent-ink)]">
+                  <FaChartPie className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900">Entenda o cálculo</h3>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 sm:text-xl">Entenda o cálculo</h3>
+              <button
+                type="button"
+                onClick={() => toggleSectionCollapse("insights")}
+                aria-expanded={!collapsedSections.insights}
+                aria-controls="calculator-section-insights"
+                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+              >
+                <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSections.insights ? "" : "rotate-180"}`} aria-hidden />
+              </button>
             </div>
-
-            <div className="grid gap-8 lg:grid-cols-2">
-              <div className="space-y-4">
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-                  <h4 className="mb-3 text-sm font-semibold text-slate-900">Fatores de impacto</h4>
-                  <ul className="space-y-2 text-sm text-slate-600">
+            {!collapsedSections.insights ? (
+            <div id="calculator-section-insights" className="space-y-3.5">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm text-slate-700">
+                  <h4 className="mb-2 font-semibold text-slate-900">Resumo do que entra no preço</h4>
+                  <p>Alcance considerado: <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span></p>
+                  <p>CPM aplicado: <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span></p>
+                  <div className="mt-1.5 space-y-1">
+                    <p>Multiplicadores ativos:</p>
+                    <ul className="flex flex-wrap gap-1">
+                      {visibleMultiplierTags.map((tag) => (
+                        <li key={tag} className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                          {tag}
+                        </li>
+                      ))}
+                      {hiddenMultiplierCount > 0 ? (
+                        <li className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                          +{hiddenMultiplierCount} fatores
+                        </li>
+                      ) : null}
+                    </ul>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {calculation.params.usageRights === "organico"
+                      ? "Sem mídia paga, o uso fica restrito ao orgânico."
+                      : "Impulsionamento cobre todas as plataformas envolvidas durante o prazo contratado."}
+                  </p>
+                  {calculation.calibration.enabled ? (
+                    <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Confiança</span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            calculation.calibration.confidenceBand === "alta"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : calculation.calibration.confidenceBand === "media"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {calibrationBandLabel}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Ajuste de calibração aplicado:{" "}
+                        <span className="font-semibold text-slate-900">
+                          {calibrationAdjustmentPercent >= 0 ? "+" : ""}
+                          {formatPercent(calibrationAdjustmentPercent)}
+                        </span>
+                        {" "}sobre o valor base justo.
+                      </p>
+                      {calculation.calibration.guardrailApplied ? (
+                        <p className="text-xs text-amber-700">
+                          Guardrail ativado: limite de ajuste em ±25% aplicado para segurança.
+                        </p>
+                      ) : null}
+                      {calculation.calibration.lowConfidenceRangeExpanded ? (
+                        <p className="text-xs text-amber-700">
+                          Faixa estratégico/premium ampliada por baixa confiança para reduzir risco de subprecificação.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {brandRiskV1Enabled && strategicWaiverApplied ? (
+                    <p className="mt-2 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                      Exceção estratégica aplicada: Estratégico em R$ 0, com Justo/Premium mantidos para referência comercial.
+                    </p>
+                  ) : null}
+                </div>
+                <details className="rounded-xl border border-slate-200 bg-white p-3.5">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-900">Fatores de impacto</summary>
+                  <ul className="mt-2.5 space-y-1.5 text-sm text-slate-600">
                     <li className="flex justify-between">
                       <span>Modo</span>
                       <span className="font-medium text-slate-900">
-                        {calculation.params.deliveryType === "evento" ? "Evento" : "Conteúdo"}
+                        {calculation.params.deliveryType === "evento"
+                          ? hasContentInResult
+                            ? "Conteúdo + Evento"
+                            : "Evento"
+                          : "Conteúdo"}
                       </span>
                     </li>
                     <li className="flex justify-between">
@@ -1143,14 +1891,64 @@ export default function CalculatorClient() {
                       <span>Sazonalidade</span>
                       <span className="font-medium text-slate-900 capitalize">{calculation.params.seasonality || "Normal"}</span>
                     </li>
-                    {calculation.params.deliveryType === "conteudo" ? (
+                    <li className="flex justify-between">
+                      <span>Prazo de mídia paga</span>
+                      <span className="font-medium text-slate-900">
+                        {calculation.params.paidMediaDuration ? PAID_MEDIA_DURATION_LABELS[calculation.params.paidMediaDuration] : "Não se aplica"}
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Repost no TikTok</span>
+                      <span className="font-medium text-slate-900">{calculation.params.repostTikTok ? "Sim" : "Não"}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Confiança da calibração</span>
+                      <span className="font-medium text-slate-900">{calibrationBandLabel}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Ajuste da calibração</span>
+                      <span className="font-medium text-slate-900">
+                        {calibrationAdjustmentPercent >= 0 ? "+" : ""}
+                        {formatPercent(calibrationAdjustmentPercent)}
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Collab no Instagram</span>
+                      <span className="font-medium text-slate-900">{calculation.params.instagramCollab ? "Sim" : "Não"}</span>
+                    </li>
+                    {brandRiskV1Enabled ? (
+                      <>
+                        <li className="flex justify-between">
+                          <span>Porte da marca</span>
+                          <span className="font-medium text-slate-900">{BRAND_SIZE_LABELS[calculation.params.brandSize]}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Risco de imagem</span>
+                          <span className="font-medium text-slate-900">{IMAGE_RISK_LABELS[calculation.params.imageRisk]}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Ganho estratégico</span>
+                          <span className="font-medium text-slate-900">{STRATEGIC_GAIN_LABELS[calculation.params.strategicGain]}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Modelo de conteúdo</span>
+                          <span className="font-medium text-slate-900">{CONTENT_MODEL_LABELS[calculation.params.contentModel]}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Exceção estratégica</span>
+                          <span className="font-medium text-slate-900">{calculation.params.allowStrategicWaiver ? "Permitida" : "Desligada"}</span>
+                        </li>
+                      </>
+                    ) : null}
+                    {hasContentInResult ? (
                       <li className="flex justify-between">
                         <span>Unidades de conteúdo</span>
                         <span className="font-medium text-slate-900">
                           {calculation.breakdown.contentUnits.toFixed(2)}
                         </span>
                       </li>
-                    ) : (
+                    ) : null}
+                    {calculation.params.deliveryType === "evento" ? (
                       <>
                         <li className="flex justify-between">
                           <span>Presença no evento</span>
@@ -1173,44 +1971,31 @@ export default function CalculatorClient() {
                           </span>
                         </li>
                       </>
-                    )}
+                    ) : null}
                     <li className="flex justify-between">
                       <span>CPM do Nicho</span>
                       <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span>
                     </li>
                   </ul>
-                  <div className="mt-3 border-t border-gray-200 pt-3 text-xs text-slate-500">
+                  <div className="mt-2.5 border-t border-gray-200 pt-2.5 text-xs text-slate-500">
                     {calculation.params.deliveryType === "conteudo" ? (
-                      <p>Fórmula: (Alcance / 1.000) x CPM x multiplicadores x unidades de conteúdo.</p>
+                      <p>Fórmula: (Alcance / 1.000) x CPM x multiplicadores (direitos, risco/estratégia, complexidade etc.) x unidades de conteúdo.</p>
+                    ) : hasContentInResult ? (
+                      <p>Fórmula: conteúdo + presença em evento + cobertura opcional, aplicando os mesmos multiplicadores.</p>
                     ) : (
-                      <p>Fórmula: presença em evento + cobertura opcional (logística exibida separadamente).</p>
+                      <p>Fórmula: presença em evento + cobertura opcional, aplicando os mesmos multiplicadores (logística exibida separadamente).</p>
                     )}
+                    <p className="mt-1">Logística é sugerida como extra e não entra no valor em cache da calculadora.</p>
                   </div>
-                </div>
-                <p className="text-sm leading-relaxed text-slate-500">
-                  {calculation.explanation}
-                </p>
-              </div>
-
-              <div className="flex flex-col justify-center gap-4 border-t pt-6 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
-                <button
-                  type="button"
-                  onClick={handleAddToMediaKit}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-pink-100 bg-white px-6 py-4 text-sm font-bold text-pink-600 transition hover:border-pink-200 hover:bg-pink-50"
-                >
-                  <FaBullhorn className="h-4 w-4" />
-                  Adicionar ao Media Kit
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenChat}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 py-4 text-sm font-bold text-white transition hover:bg-gray-800"
-                >
-                  <FaArrowRight className="h-4 w-4" />
-                  Pedir Ajuda à IA para Negociar
-                </button>
-              </div>
+                </details>
+                {calculation.explanation ? (
+                  <details className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                    <summary className="cursor-pointer font-medium text-slate-700">Ver explicação detalhada</summary>
+                    <p className="mt-2 leading-relaxed text-slate-500">{calculation.explanation}</p>
+                  </details>
+                ) : null}
             </div>
+            ) : null}
           </div>
 
           <div className="text-center text-xs text-slate-400">
@@ -1218,6 +2003,7 @@ export default function CalculatorClient() {
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 }

@@ -89,6 +89,19 @@ const serializeAnalysisSnapshot = (snapshot: any) => {
     replyDraft: typeof snapshot.replyDraft === 'string' ? snapshot.replyDraft : null,
     suggestionType: typeof snapshot.suggestionType === 'string' ? snapshot.suggestionType : null,
     suggestedValue: typeof snapshot.suggestedValue === 'number' ? snapshot.suggestedValue : null,
+    pricingConsistency:
+      snapshot.pricingConsistency === 'alta' ||
+      snapshot.pricingConsistency === 'media' ||
+      snapshot.pricingConsistency === 'baixa'
+        ? snapshot.pricingConsistency
+        : null,
+    pricingSource:
+      snapshot.pricingSource === 'calculator_core_v1' || snapshot.pricingSource === 'historical_only'
+        ? snapshot.pricingSource
+        : null,
+    limitations: Array.isArray(snapshot.limitations)
+      ? snapshot.limitations.filter((item: unknown): item is string => typeof item === 'string')
+      : [],
     analysisV2:
       snapshot.analysisV2 && typeof snapshot.analysisV2 === 'object' ? snapshot.analysisV2 : null,
     meta: snapshot.meta && typeof snapshot.meta === 'object' ? snapshot.meta : null,

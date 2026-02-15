@@ -243,6 +243,12 @@ function buildUserPrompt(context: ProposalAnalysisContext, deterministic: Determ
       dealCountLast180d: context.benchmarks.dealCountLast180d,
       similarProposalCount: context.benchmarks.similarProposalCount,
       contextSignals: context.contextSignals,
+      pricingCore: {
+        source: context.pricingCore.source,
+        confidence: context.pricingCore.confidence,
+        resolvedDefaults: context.pricingCore.resolvedDefaults,
+        limitations: context.pricingCore.limitations,
+      },
     },
     tacticalFocus: verdictTactics[deterministic.verdict] ?? [],
     constraints: [

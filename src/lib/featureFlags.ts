@@ -6,6 +6,9 @@ export const FEATURE_FLAG_KEYS = [
   'paywall.modal_enabled',
   'home.tutorial_minimal',
   'scripts_intelligence_v2',
+  'pricing.brand_risk_v1',
+  'pricing.calibration_v1',
+  'campaigns.pricing_core_v1',
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -21,6 +24,12 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   'home.tutorial_minimal': true,
   // O rollout da inteligência do roteirista é controlado por ambiente.
   'scripts_intelligence_v2': false,
+  // Camada de risco/estratégia da calculadora de publi.
+  'pricing.brand_risk_v1': false,
+  // Camada de calibração assertiva da calculadora de publi.
+  'pricing.calibration_v1': true,
+  // Unifica a base de precificação das campanhas com o motor da calculadora.
+  'campaigns.pricing_core_v1': true,
 };
 
 export const parseFeatureFlags = <T extends string>(

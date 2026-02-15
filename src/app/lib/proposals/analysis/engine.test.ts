@@ -26,12 +26,22 @@ function makeContext(overrides?: Partial<ProposalAnalysisContext>): ProposalAnal
     },
     benchmarks: {
       calcTarget: 1000,
+      legacyCalcTarget: 1000,
       dealTarget: 1000,
       similarProposalTarget: 1000,
       closeRate: 0.25,
       dealCountLast180d: 8,
       similarProposalCount: 5,
       totalProposalCount: 12,
+    },
+    pricingCore: {
+      source: 'calculator_core_v1',
+      calculatorJusto: 1000,
+      calculatorEstrategico: 750,
+      calculatorPremium: 1400,
+      confidence: 0.82,
+      resolvedDefaults: [],
+      limitations: [],
     },
     contextSignals: [
       'has_budget',
@@ -126,6 +136,7 @@ describe('runDeterministicProposalAnalysis', () => {
         benchmarks: {
           ...makeContext().benchmarks,
           calcTarget: null,
+          legacyCalcTarget: null,
           dealTarget: null,
           similarProposalTarget: null,
         },
@@ -150,10 +161,20 @@ describe('runDeterministicProposalAnalysis', () => {
         benchmarks: {
           ...makeContext().benchmarks,
           calcTarget: null,
+          legacyCalcTarget: null,
           dealTarget: null,
           similarProposalTarget: null,
           closeRate: null,
           similarProposalCount: 0,
+        },
+        pricingCore: {
+          source: 'fallback',
+          calculatorJusto: null,
+          calculatorEstrategico: null,
+          calculatorPremium: null,
+          confidence: 0.25,
+          resolvedDefaults: ['complexity_default_roteiro'],
+          limitations: ['Fallback histórico ativo.'],
         },
       })
     );
@@ -165,5 +186,34 @@ describe('runDeterministicProposalAnalysis', () => {
     const result = runDeterministicProposalAnalysis(makeContext());
     expect(result.replyDraft).toContain('https://app.data2content.ai/mediakit/creator-x');
     expect(result.replyDraft).toContain('métricas em tempo real');
+  });
+
+  it('amplia faixa de negociação quando confiança fica baixa', () => {
+    const result = runDeterministicProposalAnalysis(
+      makeContext({
+        pricingCore: {
+          source: 'fallback',
+          calculatorJusto: 1000,
+          calculatorEstrategico: null,
+          calculatorPremium: null,
+          confidence: 0.2,
+          resolvedDefaults: ['usageRights_default_organico', 'complexity_default_roteiro'],
+          limitations: ['Moeda não BRL para calibração.'],
+        },
+        benchmarks: {
+          ...makeContext().benchmarks,
+          calcTarget: 1000,
+          legacyCalcTarget: 1000,
+          dealTarget: null,
+          similarProposalTarget: null,
+          closeRate: null,
+          similarProposalCount: 0,
+        },
+      })
+    );
+
+    expect(result.analysisV2.confidence.label).toBe('baixa');
+    expect(result.analysisV2.pricing.anchor).toBe(1600);
+    expect(result.analysisV2.pricing.floor).toBe(700);
   });
 });

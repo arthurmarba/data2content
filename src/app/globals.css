@@ -47,6 +47,14 @@
   --landing-chip-text: rgba(15, 23, 42, 0.75);
   --landing-chip-border: rgba(15, 23, 42, 0.15);
   --landing-btn-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+
+  /* Brand accent (logo) - dashboard/shared UI */
+  --brand-accent: #f52b6a;
+  --brand-accent-ink: #c91a56;
+  --brand-accent-soft: rgba(245, 43, 106, 0.1);
+  --brand-accent-soft-strong: rgba(245, 43, 106, 0.05);
+  --brand-accent-ring: rgba(245, 43, 106, 0.4);
+  --brand-accent-ring-soft: rgba(245, 43, 106, 0.2);
 }
 
 .landing-section {

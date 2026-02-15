@@ -1,4 +1,20 @@
-import type { ProposalAnalysisMeta, ProposalAnalysisV2, ProposalSuggestionType } from '@/types/proposals';
+import type {
+  ProposalAnalysisMeta,
+  ProposalAnalysisV2,
+  ProposalPricingConsistency,
+  ProposalPricingSource,
+  ProposalSuggestionType,
+} from '@/types/proposals';
+
+export interface ProposalPricingCoreContext {
+  source: 'calculator_core_v1' | 'fallback';
+  calculatorJusto: number | null;
+  calculatorEstrategico: number | null;
+  calculatorPremium: number | null;
+  confidence: number | null;
+  resolvedDefaults: string[];
+  limitations: string[];
+}
 
 export interface ProposalAnalysisContext {
   creator: {
@@ -26,6 +42,7 @@ export interface ProposalAnalysisContext {
   } | null;
   benchmarks: {
     calcTarget: number | null;
+    legacyCalcTarget: number | null;
     dealTarget: number | null;
     similarProposalTarget: number | null;
     closeRate: number | null;
@@ -33,6 +50,7 @@ export interface ProposalAnalysisContext {
     similarProposalCount: number;
     totalProposalCount: number;
   };
+  pricingCore: ProposalPricingCoreContext;
   contextSignals: string[];
 }
 
@@ -59,6 +77,9 @@ export interface ProposalAnalysisV2Response {
   replyDraft: string;
   suggestionType: ProposalSuggestionType;
   suggestedValue: number | null;
+  pricingConsistency: ProposalPricingConsistency;
+  pricingSource: ProposalPricingSource;
+  limitations: string[];
   analysisV2: ProposalAnalysisV2;
   meta: ProposalAnalysisMeta;
 }

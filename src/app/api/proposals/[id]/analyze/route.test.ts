@@ -33,6 +33,11 @@ jest.mock('@/app/models/AdDeal', () => ({
 jest.mock('@/app/lib/planGuard', () => ({ ensurePlannerAccess: jest.fn() }));
 jest.mock('@/app/lib/proposals/analysis/context', () => ({ buildProposalAnalysisContext: jest.fn() }));
 jest.mock('@/app/lib/proposals/analysis/engine', () => ({ runDeterministicProposalAnalysis: jest.fn() }));
+jest.mock('@/app/lib/proposals/analysis/featureFlag', () => ({ isCampaignsPricingCoreV1Enabled: jest.fn() }));
+jest.mock('@/app/lib/pricing/featureFlag', () => ({
+  isPricingBrandRiskV1Enabled: jest.fn(),
+  isPricingCalibrationV1Enabled: jest.fn(),
+}));
 jest.mock('@/app/lib/proposals/analysis/llm', () => ({ generateLlmEnhancedAnalysis: jest.fn() }));
 jest.mock('@/app/lib/aiOrchestrator', () => ({ generateProposalAnalysisMessage: jest.fn() }));
 jest.mock('@/app/lib/logger', () => ({ logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() } }));
@@ -48,6 +53,12 @@ const adDealModel = AdDeal as any;
 const buildContextMock = buildProposalAnalysisContext as jest.Mock;
 const deterministicMock = runDeterministicProposalAnalysis as jest.Mock;
 const llmMock = generateLlmEnhancedAnalysis as jest.Mock;
+const pricingCoreFlagMock = require('@/app/lib/proposals/analysis/featureFlag')
+  .isCampaignsPricingCoreV1Enabled as jest.Mock;
+const pricingBrandRiskFlagMock = require('@/app/lib/pricing/featureFlag')
+  .isPricingBrandRiskV1Enabled as jest.Mock;
+const pricingCalibrationFlagMock = require('@/app/lib/pricing/featureFlag')
+  .isPricingCalibrationV1Enabled as jest.Mock;
 
 const PROPOSAL_ID = new mongoose.Types.ObjectId().toString();
 const USER_ID = new mongoose.Types.ObjectId().toString();
@@ -77,6 +88,9 @@ describe('POST /api/proposals/[id]/analyze', () => {
 
     ensureAccessMock.mockResolvedValue({ ok: true, normalizedStatus: 'active', source: 'session' });
     connectDbMock.mockResolvedValue(undefined);
+    pricingCoreFlagMock.mockResolvedValue(true);
+    pricingBrandRiskFlagMock.mockResolvedValue(true);
+    pricingCalibrationFlagMock.mockResolvedValue(true);
 
     brandProposalModel.findById.mockReturnValue(
       mockFindByIdOnce({
@@ -117,12 +131,22 @@ describe('POST /api/proposals/[id]/analyze', () => {
       latestCalculation: null,
       benchmarks: {
         calcTarget: 1000,
+        legacyCalcTarget: 950,
         dealTarget: 1000,
         similarProposalTarget: 1000,
         closeRate: 0.2,
         dealCountLast180d: 4,
         similarProposalCount: 3,
         totalProposalCount: 10,
+      },
+      pricingCore: {
+        source: 'calculator_core_v1',
+        calculatorJusto: 1000,
+        calculatorEstrategico: 750,
+        calculatorPremium: 1400,
+        confidence: 0.8,
+        resolvedDefaults: [],
+        limitations: [],
       },
       contextSignals: ['has_budget'],
     });
@@ -204,6 +228,9 @@ describe('POST /api/proposals/[id]/analyze', () => {
     expect(body.analysisV2.rationale).toEqual(['r1 llm']);
     expect(body.meta.model).toBe('gpt-4o-mini');
     expect(body.meta.fallbackUsed).toBe(false);
+    expect(body.pricingSource).toBe('calculator_core_v1');
+    expect(body.pricingConsistency).toBe('alta');
+    expect(body.limitations).toEqual([]);
     expect(brandProposalModel.updateOne).toHaveBeenCalledTimes(1);
     expect(brandProposalModel.updateOne).toHaveBeenCalledWith(
       { _id: expect.any(mongoose.Types.ObjectId) },
@@ -214,6 +241,8 @@ describe('POST /api/proposals/[id]/analyze', () => {
             replyDraft: 'reply llm',
             suggestionType: 'aceitar',
             suggestedValue: 1000,
+            pricingSource: 'calculator_core_v1',
+            pricingConsistency: 'alta',
             version: '2.0.0',
           }),
         }),

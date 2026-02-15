@@ -10,6 +10,11 @@ import {
   VALID_FORMATS,
   VALID_EXCLUSIVITIES,
   VALID_USAGE_RIGHTS,
+  VALID_PAID_MEDIA_DURATIONS,
+  VALID_BRAND_SIZES,
+  VALID_IMAGE_RISKS,
+  VALID_STRATEGIC_GAINS,
+  VALID_CONTENT_MODELS,
   VALID_COMPLEXITIES,
   VALID_AUTHORITIES,
   VALID_SEASONALITIES,
@@ -21,10 +26,13 @@ import {
 } from '@/app/lib/pricing/publiCalculator';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
+import { isPricingCalibrationV1Enabled } from '@/app/lib/pricing/featureFlag';
+import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
 
 export const runtime = 'nodejs';
 
 const ROUTE_TAG = '[POST /api/calculator]';
+const LIST_ROUTE_TAG = '[GET /api/calculator]';
 
 type QuantityInput = Partial<Record<keyof FormatQuantities, unknown>>;
 
@@ -40,6 +48,14 @@ interface CalculatorPayload {
   };
   exclusivity?: string;
   usageRights?: string;
+  paidMediaDuration?: string | null;
+  repostTikTok?: boolean;
+  instagramCollab?: boolean;
+  brandSize?: string;
+  imageRisk?: string;
+  strategicGain?: string;
+  contentModel?: string;
+  allowStrategicWaiver?: boolean;
   complexity?: string;
   authority?: string;
   seasonality?: string;
@@ -102,10 +118,20 @@ export async function POST(request: NextRequest) {
     eventDetails,
     exclusivity,
     usageRights,
+    paidMediaDuration,
+    repostTikTok,
+    instagramCollab,
+    brandSize,
+    imageRisk,
+    strategicGain,
+    contentModel,
+    allowStrategicWaiver,
     complexity,
     authority,
     seasonality = 'normal',
   } = payload;
+
+  const brandRiskV1Enabled = true;
 
   if (
     !exclusivity ||
@@ -119,6 +145,54 @@ export async function POST(request: NextRequest) {
     !VALID_SEASONALITIES.has(seasonality)
   ) {
     return NextResponse.json({ error: 'Parâmetros inválidos para cálculo.' }, { status: 400 });
+  }
+
+  const normalizedPaidMediaDuration =
+    typeof paidMediaDuration === 'string' && paidMediaDuration.trim()
+      ? paidMediaDuration.trim()
+      : null;
+
+  if (usageRights === 'organico' && normalizedPaidMediaDuration !== null) {
+    return NextResponse.json({ error: 'Quando o uso e organico, o prazo de midia paga deve ser nulo.' }, { status: 400 });
+  }
+
+  if (
+    (usageRights === 'midiapaga' || usageRights === 'global') &&
+    (!normalizedPaidMediaDuration || !VALID_PAID_MEDIA_DURATIONS.has(normalizedPaidMediaDuration))
+  ) {
+    return NextResponse.json({ error: 'Prazo de midia paga obrigatorio e invalido para o tipo de uso selecionado.' }, { status: 400 });
+  }
+
+  const normalizedRepostTikTok = typeof repostTikTok === 'boolean' ? repostTikTok : false;
+  const normalizedInstagramCollab = typeof instagramCollab === 'boolean' ? instagramCollab : false;
+  const normalizedBrandSize =
+    brandRiskV1Enabled && typeof brandSize === 'string' && VALID_BRAND_SIZES.has(brandSize)
+      ? brandSize
+      : 'media';
+  const normalizedImageRisk =
+    brandRiskV1Enabled && typeof imageRisk === 'string' && VALID_IMAGE_RISKS.has(imageRisk)
+      ? imageRisk
+      : 'medio';
+  const normalizedStrategicGain =
+    brandRiskV1Enabled && typeof strategicGain === 'string' && VALID_STRATEGIC_GAINS.has(strategicGain)
+      ? strategicGain
+      : 'baixo';
+  const normalizedContentModel =
+    brandRiskV1Enabled && typeof contentModel === 'string' && VALID_CONTENT_MODELS.has(contentModel)
+      ? contentModel
+      : 'publicidade_perfil';
+  const normalizedAllowStrategicWaiver =
+    brandRiskV1Enabled && typeof allowStrategicWaiver === 'boolean' ? allowStrategicWaiver : false;
+
+  if (
+    brandRiskV1Enabled &&
+    ((brandSize !== undefined && !VALID_BRAND_SIZES.has(brandSize)) ||
+      (imageRisk !== undefined && !VALID_IMAGE_RISKS.has(imageRisk)) ||
+      (strategicGain !== undefined && !VALID_STRATEGIC_GAINS.has(strategicGain)) ||
+      (contentModel !== undefined && !VALID_CONTENT_MODELS.has(contentModel)) ||
+      (allowStrategicWaiver !== undefined && typeof allowStrategicWaiver !== 'boolean'))
+  ) {
+    return NextResponse.json({ error: 'Parâmetros de marca/risco inválidos.' }, { status: 400 });
   }
 
   if (format && !VALID_FORMATS.has(format)) {
@@ -167,6 +241,14 @@ export async function POST(request: NextRequest) {
     },
     exclusivity: exclusivity as CalculatorParamsInput['exclusivity'],
     usageRights: usageRights as CalculatorParamsInput['usageRights'],
+    paidMediaDuration: normalizedPaidMediaDuration as CalculatorParamsInput['paidMediaDuration'],
+    repostTikTok: normalizedRepostTikTok,
+    instagramCollab: normalizedInstagramCollab,
+    brandSize: normalizedBrandSize as CalculatorParamsInput['brandSize'],
+    imageRisk: normalizedImageRisk as CalculatorParamsInput['imageRisk'],
+    strategicGain: normalizedStrategicGain as CalculatorParamsInput['strategicGain'],
+    contentModel: normalizedContentModel as CalculatorParamsInput['contentModel'],
+    allowStrategicWaiver: normalizedAllowStrategicWaiver,
     complexity: complexity as CalculatorParamsInput['complexity'],
     authority: authority as CalculatorParamsInput['authority'],
     seasonality: seasonality as CalculatorParamsInput['seasonality'],
@@ -176,6 +258,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectToDatabase();
+    const calibrationV1Enabled = await isPricingCalibrationV1Enabled();
 
     const userId = session.user.id;
     const user = (await UserModel.findById(userId).lean()) as IUser | null;
@@ -188,6 +271,8 @@ export async function POST(request: NextRequest) {
       params: calcParamsInput,
       periodDays,
       explanationPrefix: payload.explanation,
+      brandRiskEnabled: brandRiskV1Enabled,
+      calibrationEnabled: calibrationV1Enabled,
     });
 
     const calculation = await PubliCalculation.create({
@@ -196,6 +281,7 @@ export async function POST(request: NextRequest) {
       params: calculationPayload.params,
       result: calculationPayload.result,
       breakdown: calculationPayload.breakdown,
+      calibration: calculationPayload.calibration,
       cpmApplied: calculationPayload.cpmApplied,
       cpmSource: calculationPayload.cpmSource,
       explanation: calculationPayload.explanation || undefined,
@@ -211,6 +297,7 @@ export async function POST(request: NextRequest) {
         breakdown: calculationPayload.breakdown,
         cpm: calculationPayload.cpmApplied,
         cpmSource: calculationPayload.cpmSource,
+        calibration: calculationPayload.calibration,
         params: {
           format: calculation.params?.format,
           deliveryType: calculation.params?.deliveryType,
@@ -219,6 +306,14 @@ export async function POST(request: NextRequest) {
           eventCoverageQuantities: calculation.params?.eventCoverageQuantities,
           exclusivity: calculation.params?.exclusivity,
           usageRights: calculation.params?.usageRights,
+          paidMediaDuration: calculation.params?.paidMediaDuration ?? null,
+          repostTikTok: calculation.params?.repostTikTok ?? false,
+          instagramCollab: calculation.params?.instagramCollab ?? false,
+          brandSize: calculation.params?.brandSize ?? 'media',
+          imageRisk: calculation.params?.imageRisk ?? 'medio',
+          strategicGain: calculation.params?.strategicGain ?? 'baixo',
+          contentModel: calculation.params?.contentModel ?? 'publicidade_perfil',
+          allowStrategicWaiver: calculation.params?.allowStrategicWaiver ?? false,
           complexity: calculation.params?.complexity,
           authority: calculation.params?.authority,
           seasonality: calculation.params?.seasonality,
@@ -244,5 +339,41 @@ export async function POST(request: NextRequest) {
         : 'Erro interno ao calcular o valor sugerido.';
     logger.error(`${ROUTE_TAG} Erro inesperado`, error);
     return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const session = (await getServerSession({ req: request, ...authOptions })) as any;
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  }
+
+  const routePath = new URL(request.url).pathname;
+  const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
+  if (!access.ok) {
+    return NextResponse.json({ error: access.message, reason: access.reason }, { status: access.status });
+  }
+  if (!access.normalizedStatus) {
+    return NextResponse.json({ error: 'Recurso disponível apenas para planos premium. Faça upgrade para continuar.' }, { status: 402 });
+  }
+
+  const limitParam = Number(new URL(request.url).searchParams.get('limit') || '20');
+  const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.trunc(limitParam), 1), 50) : 20;
+
+  try {
+    await connectToDatabase();
+    const calculations = await PubliCalculation.find({ userId: session.user.id })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
+
+    return NextResponse.json(
+      { calculations: calculations.map((item) => serializeCalculation(item)) },
+      { status: 200 }
+    );
+  } catch (error) {
+    logger.error(`${LIST_ROUTE_TAG} Erro inesperado`, error);
+    return NextResponse.json({ error: 'Erro interno ao listar cálculos.' }, { status: 500 });
   }
 }
