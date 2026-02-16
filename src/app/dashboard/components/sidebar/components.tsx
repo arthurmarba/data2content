@@ -106,7 +106,15 @@ export const SidebarSectionList = ({
 
   return (
     <div className="flex min-h-full flex-col">
-      <ul className="flex flex-1 -translate-y-12 flex-col justify-center gap-3">{middleItems.map((item) => renderNode(item))}</ul>
+      <ul
+        className={
+          interaction.isMobile
+            ? "flex flex-col gap-2 pb-2"
+            : "flex flex-1 -translate-y-12 flex-col justify-center gap-3"
+        }
+      >
+        {middleItems.map((item) => renderNode(item))}
+      </ul>
     </div>
   );
 };

@@ -167,7 +167,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   }, [clearCollapseTimer]);
 
   const asideBase =
-    "fixed left-0 top-0 h-screen z-40 flex flex-col bg-white text-slate-900 border-r border-gray-200/50 transition-[width] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]";
+    "fixed left-0 top-0 z-40 flex h-[100dvh] min-h-svh flex-col bg-white text-slate-900 border-r border-gray-200/50 transition-[width] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]";
 
   const mobileVisibility = isMobile
     ? isOpen
@@ -176,7 +176,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     : "";
 
   const mobileClasses = isMobile
-    ? `fixed inset-y-0 left-0 z-[60] w-72 transform transition-opacity ${mobileVisibility} shadow-xl`
+    ? `fixed left-0 top-0 bottom-0 z-[60] w-72 transform transition-opacity ${mobileVisibility} shadow-xl`
     : "";
 
   const desktopClasses = !isMobile
@@ -185,6 +185,12 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
 
 
   const navPaddingX = "px-3";
+  const navStyle = isMobile
+    ? {
+      paddingTop: "calc(var(--sat, 0px) + 1rem)",
+      paddingBottom: "calc(var(--sab, 0px) + 1rem)",
+    }
+    : undefined;
   const labelTransition = showLabels ? "max-w-full opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1";
   const labelBase = "overflow-hidden whitespace-nowrap leading-tight transition-[max-width,opacity,transform] duration-200";
 
@@ -200,13 +206,15 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
         onFocusCapture={handleFocusCapture}
         onBlurCapture={handleBlurCapture}
       >
-        <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} pb-6 pt-6`}>
+        <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} ${isMobile ? "" : "pb-6 pt-6"}`} style={navStyle}>
           <Link
             href="/dashboard"
-            className="mb-4 -mt-6 flex items-center rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className={`${isMobile ? "mb-3 mt-0" : "mb-4 -mt-6"} flex items-center rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
             aria-label="Data2Content"
           >
-            <div className="relative h-[72px] w-[72px] shrink-0 flex items-center justify-center -translate-x-5">
+            <div
+              className={`${isMobile ? "h-12 w-12 translate-x-0" : "h-[72px] w-[72px] -translate-x-5"} relative shrink-0 flex items-center justify-center`}
+            >
               <Image
                 src="/images/Colorido-Simbolo.png"
                 alt="Data2Content"

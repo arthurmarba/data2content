@@ -41,7 +41,6 @@ export const useSidebarViewport = () => {
 
 export const useBodyScrollLock = (enabled: boolean) => {
   const previousOverflow = useRef<string | null>(null);
-  const previousTouchAction = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -50,24 +49,17 @@ export const useBodyScrollLock = (enabled: boolean) => {
     if (previousOverflow.current === null) {
       previousOverflow.current = body.style.overflow;
     }
-    if (previousTouchAction.current === null) {
-      previousTouchAction.current = body.style.touchAction;
-    }
 
     if (enabled) {
       body.style.overflow = "hidden";
-      body.style.touchAction = "none";
       return () => {
         body.style.overflow = previousOverflow.current || "";
-        body.style.touchAction = previousTouchAction.current || "";
       };
     }
 
     body.style.overflow = previousOverflow.current || "";
-    body.style.touchAction = previousTouchAction.current || "";
     return () => {
       body.style.overflow = previousOverflow.current || "";
-      body.style.touchAction = previousTouchAction.current || "";
     };
   }, [enabled]);
 };
