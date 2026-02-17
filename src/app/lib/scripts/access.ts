@@ -39,7 +39,7 @@ export async function validateScriptsAccess(params: {
   return { ok: true };
 }
 
-function hasAdminRole(user: any): boolean {
+export function hasAdminRole(user: any): boolean {
   if (!user) return false;
   const normalizedRole =
     typeof user?.role === "string" ? user.role.trim().toLowerCase() : "";

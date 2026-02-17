@@ -23,10 +23,24 @@ function normalizeBody(body: any) {
   const title = typeof body?.title === "string" ? body.title.trim() : "";
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   const targetUserId = typeof body?.targetUserId === "string" ? body.targetUserId.trim() : "";
-  return { title, content, targetUserId };
+  const adminAnnotation =
+    typeof body?.adminAnnotation === "string" || body?.adminAnnotation === null
+      ? body.adminAnnotation
+      : undefined;
+  return { title, content, targetUserId, adminAnnotation };
 }
 
-function serializeScriptItem(item: any) {
+function normalizeAdminAnnotation(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  return normalized.slice(0, 5000);
+}
+
+function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boolean }) {
+  const includeAdminAnnotation = Boolean(options?.includeAdminAnnotation);
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
   return {
     id: String(item._id),
@@ -41,6 +55,13 @@ function serializeScriptItem(item: any) {
           isRecommended: true,
           recommendedByAdminName: item.recommendedByAdminName || null,
           recommendedAt: item.recommendedAt || null,
+        }
+      : null,
+    adminAnnotation: includeAdminAnnotation
+      ? {
+          notes: item.adminAnnotation || null,
+          updatedByName: item.adminAnnotationUpdatedByName || null,
+          updatedAt: item.adminAnnotationUpdatedAt || null,
         }
       : null,
     createdAt: item.createdAt,
@@ -72,12 +93,17 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
   }
 
-  const { title, content, targetUserId } = normalizeBody(body);
+  const { title, content, targetUserId, adminAnnotation } = normalizeBody(body);
   const targetResolution = resolveTargetScriptsUser({ session: session as any, targetUserId });
   if (!targetResolution.ok) {
     return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
   }
   const effectiveUserId = targetResolution.userId;
+  const includeAdminAnnotation = true;
+  const canWriteAdminAnnotation = targetResolution.isAdminActor;
+  const normalizedAdminAnnotation = canWriteAdminAnnotation
+    ? normalizeAdminAnnotation(adminAnnotation)
+    : undefined;
   const finalTitle = (title || "Roteiro sem título").slice(0, 180);
   if (!content) {
     return NextResponse.json({ ok: false, error: "O conteúdo do roteiro não pode ficar vazio." }, { status: 400 });
@@ -94,6 +120,12 @@ export async function PATCH(request: Request, { params }: Params) {
 
   doc.title = finalTitle;
   doc.content = content;
+  if (normalizedAdminAnnotation !== undefined) {
+    doc.adminAnnotation = normalizedAdminAnnotation;
+    doc.adminAnnotationUpdatedById = normalizedAdminAnnotation ? new Types.ObjectId(session.user.id as string) : null;
+    doc.adminAnnotationUpdatedByName = normalizedAdminAnnotation ? ((session.user as any)?.name || "Admin") : null;
+    doc.adminAnnotationUpdatedAt = normalizedAdminAnnotation ? new Date() : null;
+  }
   await doc.save();
 
   const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
@@ -122,7 +154,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
   return NextResponse.json({
     ok: true,
-    item: serializeScriptItem(doc),
+    item: serializeScriptItem(doc, { includeAdminAnnotation }),
   });
 }
 

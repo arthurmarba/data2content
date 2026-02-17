@@ -22,6 +22,10 @@ export interface IScriptEntry extends Document {
   recommendedByAdminId?: Types.ObjectId | null;
   recommendedByAdminName?: string | null;
   recommendedAt?: Date | null;
+  adminAnnotation?: string | null;
+  adminAnnotationUpdatedById?: Types.ObjectId | null;
+  adminAnnotationUpdatedByName?: string | null;
+  adminAnnotationUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +65,10 @@ const ScriptEntrySchema = new Schema<IScriptEntry>(
     recommendedByAdminId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     recommendedByAdminName: { type: String, trim: true, maxlength: 120, default: null },
     recommendedAt: { type: Date, default: null },
+    adminAnnotation: { type: String, trim: true, maxlength: 5000, default: null },
+    adminAnnotationUpdatedById: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    adminAnnotationUpdatedByName: { type: String, trim: true, maxlength: 120, default: null },
+    adminAnnotationUpdatedAt: { type: Date, default: null },
   },
   {
     timestamps: true,

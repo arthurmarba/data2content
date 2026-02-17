@@ -30,7 +30,8 @@ type Params = {
   };
 };
 
-function serializeScriptItem(item: any) {
+function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boolean }) {
+  const includeAdminAnnotation = Boolean(options?.includeAdminAnnotation);
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
   return {
     id: String(item._id),
@@ -45,6 +46,13 @@ function serializeScriptItem(item: any) {
           isRecommended: true,
           recommendedByAdminName: item.recommendedByAdminName || null,
           recommendedAt: item.recommendedAt || null,
+        }
+      : null,
+    adminAnnotation: includeAdminAnnotation
+      ? {
+          notes: item.adminAnnotation || null,
+          updatedByName: item.adminAnnotationUpdatedByName || null,
+          updatedAt: item.adminAnnotationUpdatedAt || null,
         }
       : null,
     createdAt: item.createdAt,
@@ -84,6 +92,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!targetResolution.ok) {
     return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
   }
+  const includeAdminAnnotation = true;
   const effectiveUserId = targetResolution.userId;
   const isRecommendation = targetResolution.isActingOnBehalf;
   const recommendedByAdminName = isRecommendation
@@ -211,6 +220,6 @@ export async function POST(request: Request, { params }: Params) {
 
   return NextResponse.json({
     ok: true,
-    item: serializeScriptItem(doc),
+    item: serializeScriptItem(doc, { includeAdminAnnotation }),
   });
 }

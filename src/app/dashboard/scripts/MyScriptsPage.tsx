@@ -3,8 +3,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2 } from "lucide-react";
 import CreatorQuickSearch from "@/app/admin/creator-dashboard/components/CreatorQuickSearch";
+import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY } from "@/app/dashboard/hooks/useScriptRecommendationsNotifications";
+import {
+  LAST_VIEWED_SCRIPTS_ADMIN_FEEDBACK_AT_KEY,
+  LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY,
+} from "@/app/dashboard/hooks/useScriptRecommendationsNotifications";
 
 type ScriptOrigin = "manual" | "ai" | "planner";
 type ScriptLinkType = "standalone" | "planner_slot";
@@ -29,6 +33,11 @@ type ScriptItem = {
     recommendedByAdminName?: string | null;
     recommendedAt?: string | null;
   } | null;
+  adminAnnotation?: {
+    notes?: string | null;
+    updatedByName?: string | null;
+    updatedAt?: string | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -45,6 +54,8 @@ type EditorState = {
   content: string;
   slotId: string;
   recommendation: ScriptItem["recommendation"];
+  adminAnnotation: ScriptItem["adminAnnotation"];
+  adminAnnotationDraft: string;
   aiPrompt: string;
   saving: boolean;
   saved: boolean;
@@ -153,6 +164,8 @@ function createInitialEditorState(): EditorState {
     content: "",
     slotId: "",
     recommendation: null,
+    adminAnnotation: null,
+    adminAnnotationDraft: "",
     aiPrompt: "",
     saving: false,
     saved: false,
@@ -176,8 +189,13 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editor, setEditor] = useState<EditorState>(createInitialEditorState());
   const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
+  const { toast } = useToast();
   const [, setLastViewedScriptsRecommendationsAt] = useLocalStorage<string>(
     LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY,
+    ""
+  );
+  const [lastViewedScriptsFeedbackAt, setLastViewedScriptsFeedbackAt] = useLocalStorage<string>(
+    LAST_VIEWED_SCRIPTS_ADMIN_FEEDBACK_AT_KEY,
     ""
   );
   const [history, setHistory] = useState<DraftHistoryState>({
@@ -192,6 +210,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   });
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSnapshotRef = useRef<DraftSnapshot | null>(null);
+  const latestFeedbackToastRef = useRef<string>("");
 
   const isAdminViewer = viewer?.role === "admin";
   const isActingOnBehalf = Boolean(
@@ -207,6 +226,29 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       .filter((slot) => Boolean(slot.slotId))
       .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.blockStartHour - b.blockStartHour);
   }, [plannerSlots]);
+
+  const unreadFeedbackScriptIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!scripts.length) return ids;
+
+    const lastViewedTs = lastViewedScriptsFeedbackAt
+      ? new Date(lastViewedScriptsFeedbackAt).getTime()
+      : null;
+    const hasValidLastViewed = Number.isFinite(lastViewedTs);
+
+    scripts.forEach((script) => {
+      const notes = script.adminAnnotation?.notes?.trim();
+      if (!notes) return;
+      const sourceTime = script.adminAnnotation?.updatedAt || script.updatedAt;
+      const ts = new Date(sourceTime).getTime();
+      if (!Number.isFinite(ts)) return;
+      if (!hasValidLastViewed || !lastViewedTs || ts > lastViewedTs) {
+        ids.add(script.id);
+      }
+    });
+
+    return ids;
+  }, [lastViewedScriptsFeedbackAt, scripts]);
 
   const fetchScripts = useCallback(
     async (opts?: { reset?: boolean }) => {
@@ -286,6 +328,45 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
     setLastViewedScriptsRecommendationsAt(new Date().toISOString());
   }, [isActingOnBehalf, loadingList, scripts, setLastViewedScriptsRecommendationsAt]);
+
+  useEffect(() => {
+    if (loadingList) return;
+    if (isActingOnBehalf) return;
+    if (isAdminViewer) return;
+    if (!scripts.length) return;
+
+    const unreadFeedbackScripts = scripts.filter((script) => unreadFeedbackScriptIds.has(script.id));
+    if (!unreadFeedbackScripts.length) return;
+
+    const newestFeedbackAt = unreadFeedbackScripts.reduce((latest, script) => {
+      const sourceTime = script.adminAnnotation?.updatedAt || script.updatedAt;
+      const ts = new Date(sourceTime).getTime();
+      if (!Number.isFinite(ts)) return latest;
+      return Math.max(latest, ts);
+    }, 0);
+
+    const feedbackSignature = `${unreadFeedbackScripts.length}-${newestFeedbackAt}`;
+    if (latestFeedbackToastRef.current !== feedbackSignature) {
+      toast({
+        variant: "info",
+        title:
+          unreadFeedbackScripts.length === 1
+            ? "Você recebeu um novo feedback em roteiro."
+            : `Você recebeu ${unreadFeedbackScripts.length} novos feedbacks em roteiros.`,
+      });
+      latestFeedbackToastRef.current = feedbackSignature;
+    }
+
+    setLastViewedScriptsFeedbackAt(new Date().toISOString());
+  }, [
+    isActingOnBehalf,
+    isAdminViewer,
+    loadingList,
+    scripts,
+    setLastViewedScriptsFeedbackAt,
+    toast,
+    unreadFeedbackScriptIds,
+  ]);
 
   useEffect(() => {
     fetchPlannerSlots();
@@ -458,6 +539,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       content: initialContent,
       slotId: script.plannerRef?.slotId || "",
       recommendation: script.recommendation || null,
+      adminAnnotation: script.adminAnnotation || null,
+      adminAnnotationDraft: script.adminAnnotation?.notes || "",
       aiPrompt: "",
       saving: false,
       saved: false,
@@ -492,14 +575,19 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
     try {
       if (editor.id) {
+        const patchBody: Record<string, unknown> = {
+          title: title || "Roteiro sem título",
+          content,
+          targetUserId: targetUserId || undefined,
+        };
+        if (isAdminViewer) {
+          patchBody.adminAnnotation = editor.adminAnnotationDraft;
+        }
+
         const res = await fetch(`/api/scripts/${editor.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: title || "Roteiro sem título",
-            content,
-            targetUserId: targetUserId || undefined,
-          }),
+          body: JSON.stringify(patchBody),
         });
         const data = await res.json();
         if (!res.ok || !data?.ok) {
@@ -512,6 +600,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           title: updated.title,
           content: updated.content,
           recommendation: updated.recommendation || null,
+          adminAnnotation: updated.adminAnnotation || null,
+          adminAnnotationDraft: updated.adminAnnotation?.notes || "",
           saving: false,
           saved: true,
           error: null,
@@ -523,6 +613,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           content,
           targetUserId: targetUserId || undefined,
         };
+        if (isAdminViewer) {
+          body.adminAnnotation = editor.adminAnnotationDraft;
+        }
 
         if (editor.slotId && plannerWeekStart) {
           const slot = slotOptions.find((option) => option.slotId === editor.slotId);
@@ -553,6 +646,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           title: created.title,
           content: created.content,
           recommendation: created.recommendation || null,
+          adminAnnotation: created.adminAnnotation || null,
+          adminAnnotationDraft: created.adminAnnotation?.notes || "",
           saving: false,
           saved: true,
           error: null,
@@ -565,7 +660,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         error: err?.message || "Erro ao salvar roteiro.",
       });
     }
-  }, [editor, flushPendingDraftSnapshot, patchEditor, patchScriptList, plannerWeekStart, slotOptions, targetUserId]);
+  }, [editor, flushPendingDraftSnapshot, isAdminViewer, patchEditor, patchScriptList, plannerWeekStart, slotOptions, targetUserId]);
 
   const handleDelete = useCallback(async () => {
     if (!editor.id) {
@@ -623,6 +718,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           title: updated.title,
           content: updated.content,
           recommendation: updated.recommendation || null,
+          adminAnnotation: updated.adminAnnotation || null,
+          adminAnnotationDraft: updated.adminAnnotation?.notes || editor.adminAnnotationDraft,
           aiPrompt: "",
           adjusting: false,
           error: null,
@@ -651,6 +748,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           title: created.title,
           content: created.content,
           recommendation: created.recommendation || null,
+          adminAnnotation: created.adminAnnotation || null,
+          adminAnnotationDraft: created.adminAnnotation?.notes || editor.adminAnnotationDraft,
           aiPrompt: "",
           adjusting: false,
           error: null,
@@ -665,6 +764,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     }
   }, [
     commitDraftSnapshot,
+    editor.adminAnnotationDraft,
     editor.aiPrompt,
     editor.id,
     editor.title,
@@ -779,6 +879,17 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                   : ""}.
               </div>
             ) : null}
+            {editor.adminAnnotation?.notes?.trim() ? (
+              <div className="mt-3 rounded-xl border border-[#FFDEE9] bg-[#FFF6F9] px-3 py-2 text-xs text-slate-700 sm:text-sm">
+                <p className="font-semibold text-slate-800">Feedback do admin</p>
+                <p className="mt-1 whitespace-pre-wrap text-slate-700">{editor.adminAnnotation.notes}</p>
+                {editor.adminAnnotation.updatedAt ? (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex-1 min-h-[62vh]">
               <textarea
                 value={editor.content}
@@ -788,6 +899,30 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                 className="h-full min-h-[62vh] w-full resize-none overflow-y-auto border-0 bg-transparent py-7 text-[17px] leading-9 text-slate-800 outline-none ring-0 ring-transparent placeholder:text-slate-300 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0"
               />
             </div>
+
+            {isAdminViewer ? (
+              <div className="shrink-0 border-t border-slate-100 py-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-slate-500">Feedback para creator (admin)</p>
+                  {editor.adminAnnotation?.updatedAt ? (
+                    <p className="text-[11px] text-slate-400">
+                      {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
+                    </p>
+                  ) : null}
+                </div>
+                <textarea
+                  value={editor.adminAnnotationDraft}
+                  onChange={(e) =>
+                    patchEditor({
+                      adminAnnotationDraft: e.target.value,
+                      saved: false,
+                    })
+                  }
+                  placeholder="Esse feedback aparece para o dono do roteiro."
+                  className="h-24 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-300 focus:bg-white"
+                />
+              </div>
+            ) : null}
 
             <div className="shrink-0 border-t border-slate-100 py-4">
               <p className="mb-2 text-xs font-medium text-slate-500">Assistente IA</p>
@@ -906,6 +1041,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
               {scripts.map((script) => {
                 const tone = getSourceCardTone(script.source);
+                const hasAdminAnnotation = Boolean(script.adminAnnotation?.notes?.trim());
+                const hasUnreadFeedback = unreadFeedbackScriptIds.has(script.id);
                 return (
                   <button
                     type="button"
@@ -920,6 +1057,11 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                       {script.recommendation?.isRecommended ? (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                           Recomendação
+                        </span>
+                      ) : null}
+                      {hasAdminAnnotation ? (
+                        <span className="rounded-full bg-[#FFE7EF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#C3265C]">
+                          {hasUnreadFeedback ? "Novo feedback" : isAdminViewer ? "Feedback ativo" : "Feedback"}
                         </span>
                       ) : null}
                     </div>
@@ -942,6 +1084,11 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                         <p className="pt-1 text-[11px] font-medium text-amber-700">
                           Recomendado por{" "}
                           {script.recommendation.recommendedByAdminName || "Admin"}
+                        </p>
+                      ) : null}
+                      {hasAdminAnnotation ? (
+                        <p className="line-clamp-1 pt-1 text-[11px] font-medium text-slate-600">
+                          {hasUnreadFeedback ? "Novo: " : ""}Feedback: {script.adminAnnotation?.notes}
                         </p>
                       ) : null}
                     </div>

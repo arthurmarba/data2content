@@ -79,7 +79,20 @@ function normalizeCreateBody(body: any) {
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
   const linkToSlot = body?.linkToSlot && typeof body.linkToSlot === "object" ? body.linkToSlot : null;
   const targetUserId = typeof body?.targetUserId === "string" ? body.targetUserId.trim() : "";
-  return { mode, title, content, prompt, linkToSlot, targetUserId };
+  const adminAnnotation =
+    typeof body?.adminAnnotation === "string" || body?.adminAnnotation === null
+      ? body.adminAnnotation
+      : undefined;
+  return { mode, title, content, prompt, linkToSlot, targetUserId, adminAnnotation };
+}
+
+function normalizeAdminAnnotation(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  return normalized.slice(0, 5000);
 }
 
 function normalizeLinkToSlot(linkToSlot: any) {
@@ -96,7 +109,8 @@ function normalizeLinkToSlot(linkToSlot: any) {
   };
 }
 
-function serializeScriptItem(item: any) {
+function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boolean }) {
+  const includeAdminAnnotation = Boolean(options?.includeAdminAnnotation);
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
   return {
     id: String(item._id),
@@ -111,6 +125,13 @@ function serializeScriptItem(item: any) {
           isRecommended: true,
           recommendedByAdminName: item.recommendedByAdminName || null,
           recommendedAt: item.recommendedAt || null,
+        }
+      : null,
+    adminAnnotation: includeAdminAnnotation
+      ? {
+          notes: item.adminAnnotation || null,
+          updatedByName: item.adminAnnotationUpdatedByName || null,
+          updatedAt: item.adminAnnotationUpdatedAt || null,
         }
       : null,
     createdAt: item.createdAt,
@@ -142,6 +163,7 @@ export async function GET(request: Request) {
   }
 
   const effectiveUserId = targetResolution.userId;
+  const includeAdminAnnotation = true;
   const limit = parseLimit(url.searchParams.get("limit"));
   const cursor = decodeCursor(url.searchParams.get("cursor"));
   const q = (url.searchParams.get("q") || "").trim();
@@ -204,7 +226,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    items: pageItems.map((item: any) => serializeScriptItem(item)),
+    items: pageItems.map((item: any) => serializeScriptItem(item, { includeAdminAnnotation })),
     pagination: {
       nextCursor,
       hasMore,
@@ -234,13 +256,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
   }
 
-  const { mode, title, content, prompt, linkToSlot, targetUserId } = normalizeCreateBody(body);
+  const { mode, title, content, prompt, linkToSlot, targetUserId, adminAnnotation } = normalizeCreateBody(body);
   const targetResolution = resolveTargetScriptsUser({ session: session as any, targetUserId });
   if (!targetResolution.ok) {
     return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
   }
 
   const effectiveUserId = targetResolution.userId;
+  const includeAdminAnnotation = true;
+  const canWriteAdminAnnotation = targetResolution.isAdminActor;
+  const normalizedAdminAnnotation = canWriteAdminAnnotation
+    ? normalizeAdminAnnotation(adminAnnotation)
+    : undefined;
   const isRecommendation = targetResolution.isActingOnBehalf;
   const recommendedByAdminName = isRecommendation
     ? ((session.user as any)?.name || "Recomendação do time")
@@ -376,6 +403,14 @@ export async function POST(request: Request) {
     recommendedByAdminId: isRecommendation ? new Types.ObjectId(session.user.id as string) : null,
     recommendedByAdminName: isRecommendation ? recommendedByAdminName : null,
     recommendedAt: isRecommendation ? new Date() : null,
+    ...(normalizedAdminAnnotation !== undefined
+      ? {
+          adminAnnotation: normalizedAdminAnnotation,
+          adminAnnotationUpdatedById: normalizedAdminAnnotation ? new Types.ObjectId(session.user.id as string) : null,
+          adminAnnotationUpdatedByName: normalizedAdminAnnotation ? ((session.user as any)?.name || "Admin") : null,
+          adminAnnotationUpdatedAt: normalizedAdminAnnotation ? new Date() : null,
+        }
+      : {}),
   };
 
   const saved = query
@@ -397,6 +432,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    item: serializeScriptItem(asLean),
+    item: serializeScriptItem(asLean, { includeAdminAnnotation }),
   });
 }
