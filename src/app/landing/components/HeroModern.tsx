@@ -174,7 +174,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
   return (
     <section
       id="inicio"
-      className="landing-section relative overflow-visible bg-white pb-6 pt-5 sm:min-h-[88vh] sm:pb-12 sm:pt-6 md:min-h-[90vh] md:pb-16 md:pt-0"
+      className="landing-section relative overflow-x-clip overflow-y-visible bg-white pb-6 pt-5 sm:min-h-[88vh] sm:pb-12 sm:pt-6 md:min-h-[90vh] md:pb-16 md:pt-0"
       style={{
         paddingTop: `calc(var(--space-fluid-4, 5.5rem) + var(--sat, 0px) + var(--landing-header-h, 4.5rem))`,
       }}

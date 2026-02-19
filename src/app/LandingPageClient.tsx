@@ -524,7 +524,7 @@ export default function LandingPageClient() {
 
   return (
     <div
-      className="bg-white font-sans"
+      className="w-full overflow-x-clip bg-white font-sans"
       style={{ "--landing-header-extra": "0rem" } as React.CSSProperties}
     >
       <div ref={headerWrapRef}>
@@ -532,7 +532,7 @@ export default function LandingPageClient() {
       </div>
 
       <main
-        className="md:[--landing-header-extra:0px]"
+        className="w-full overflow-x-clip md:[--landing-header-extra:0px]"
         style={{
           scrollPaddingTop:
             "calc(var(--landing-header-h, 4.5rem) + var(--landing-header-extra, 0px))",
