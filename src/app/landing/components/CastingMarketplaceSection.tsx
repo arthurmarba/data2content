@@ -544,7 +544,7 @@ function CastingRankCard({
                 <div className="pt-2 sm:pt-3">
                     {mediaKitHref ? (
                         <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#141C2F] py-2 sm:py-2.5 text-[11px] leading-none sm:text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
-                            <span className="whitespace-nowrap sm:hidden">Enviar Proposta</span>
+                            <span className="whitespace-nowrap sm:hidden">Conhecer</span>
                             <span className="hidden sm:inline">Ver Mídia Kit →</span>
                         </a>
                     ) : (

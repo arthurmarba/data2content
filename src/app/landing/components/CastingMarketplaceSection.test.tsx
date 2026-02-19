@@ -230,7 +230,7 @@ describe("CastingMarketplaceSection", () => {
     expect(railScroller).toBeTruthy();
     expect(railScroller?.getAttribute("style")).toContain("clamp(100px, calc((100% - 1.875rem) / 3.25), 112px)");
 
-    const mobileCtas = screen.getAllByText("Enviar Proposta");
+    const mobileCtas = screen.getAllByText("Conhecer");
     expect(mobileCtas.length).toBeGreaterThan(0);
     expect(mobileCtas[0]?.className).toContain("whitespace-nowrap");
 
