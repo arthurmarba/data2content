@@ -268,7 +268,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
     const curatedRails = React.useMemo(() => buildCuratedRails(creators), [creators]);
     const { fullRails, microRails } = React.useMemo(() => partitionRails(curatedRails), [curatedRails]);
     const railScrollerStyle = {
-        "--market-card-width": "clamp(92px, calc((100% - 2.25rem) / 3.5), 122px)",
+        "--market-card-width": "clamp(100px, calc((100% - 1.875rem) / 3.25), 112px)",
     } as React.CSSProperties;
 
     void metrics;
@@ -429,7 +429,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                                         </div>
                                     </div>
                                     <div
-                                        className="flex gap-3 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-4 sm:pr-8"
+                                        className="flex gap-2.5 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-3 sm:pr-8"
                                         style={railScrollerStyle}
                                     >
                                         {rail.creators.map(c => (
@@ -447,7 +447,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                                         </div>
                                     </div>
                                     <div
-                                        className="flex gap-3 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-4 sm:pr-8"
+                                        className="flex gap-2.5 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-3 sm:pr-8"
                                         style={railScrollerStyle}
                                     >
                                         {microRails.flatMap(r => r.creators).map(c => (
@@ -516,16 +516,22 @@ function CastingRankCard({
                     </div>
 
                     <div className="mt-2.5 sm:mt-3.5">
-                        <p className="text-[12px] sm:text-sm font-black text-[#141C2F] leading-tight truncate">{creator.name}</p>
+                        <p className="line-clamp-1 text-[12px] sm:text-sm font-black text-[#141C2F] leading-tight">{creator.name}</p>
                     </div>
 
-                    <div className="mt-2.5 sm:mt-3.5 space-y-1.5 sm:space-y-2 border-t border-slate-100/70 pt-2 sm:pt-3 pb-0.5 sm:pb-1 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.08em] sm:tracking-[0.16em] text-[#A3A9B6]">
+                    <div className="mt-2.5 sm:mt-3.5 space-y-1.5 sm:space-y-2 border-t border-slate-100/70 pt-2 sm:pt-3 pb-0.5 sm:pb-1 text-[8px] sm:text-[9px] font-black text-[#A3A9B6] tracking-[0.02em] sm:tracking-[0.16em] sm:uppercase">
                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
-                            <span className="truncate pr-1">Seguidores</span>
+                            <span className="pr-1">
+                                <span className="sm:hidden">Seg.</span>
+                                <span className="hidden sm:inline">Seguidores</span>
+                            </span>
                             <span className="text-right text-[#141C2F] whitespace-nowrap tabular-nums">{followersText}</span>
                         </div>
                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
-                            <span className="truncate pr-1 text-[#FF4080]">Engajamento</span>
+                            <span className="pr-1 text-[#FF4080]">
+                                <span className="sm:hidden">Eng.</span>
+                                <span className="hidden sm:inline">Engajamento</span>
+                            </span>
                             <span className="text-right text-[#FF4080] whitespace-nowrap tabular-nums">{engagementRate ? `${engagementRate.toFixed(1)}%` : "–"}</span>
                         </div>
                         <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
@@ -537,13 +543,13 @@ function CastingRankCard({
 
                 <div className="pt-2 sm:pt-3">
                     {mediaKitHref ? (
-                        <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#141C2F] py-2 sm:py-2.5 text-[10px] sm:text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
-                            <span className="sm:hidden">Enviar Proposta</span>
+                        <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#141C2F] py-2 sm:py-2.5 text-[11px] leading-none sm:text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                            <span className="whitespace-nowrap sm:hidden">Enviar Proposta</span>
                             <span className="hidden sm:inline">Ver Mídia Kit →</span>
                         </a>
                     ) : (
-                        <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl border-2 border-[#141C2F] py-1.5 text-[10px] sm:text-[11px] font-black text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white">
-                            <span className="sm:hidden">Solicitar</span>
+                        <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl border-2 border-[#141C2F] py-1.5 text-[11px] leading-none sm:text-[11px] font-black text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white">
+                            <span className="whitespace-nowrap sm:hidden">Solicitar</span>
                             <span className="hidden sm:inline">Solicitar Acesso</span>
                         </button>
                     )}

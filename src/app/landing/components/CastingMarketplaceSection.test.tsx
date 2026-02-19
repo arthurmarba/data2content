@@ -223,6 +223,16 @@ describe("CastingMarketplaceSection", () => {
     expect(firstCard).toBeTruthy();
     expect(firstCard?.className).toContain("w-[var(--market-card-width)]");
     expect(firstCard?.className).toContain("min-w-[var(--market-card-width)]");
+    expect(screen.getAllByText("Seg.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Eng.").length).toBeGreaterThan(0);
+
+    const railScroller = firstCard?.parentElement;
+    expect(railScroller).toBeTruthy();
+    expect(railScroller?.getAttribute("style")).toContain("clamp(100px, calc((100% - 1.875rem) / 3.25), 112px)");
+
+    const mobileCtas = screen.getAllByText("Enviar Proposta");
+    expect(mobileCtas.length).toBeGreaterThan(0);
+    expect(mobileCtas[0]?.className).toContain("whitespace-nowrap");
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
