@@ -9,9 +9,27 @@ let connectionPromise: Promise<typeof mongoose> | null = null;
 let connectionTimeout: NodeJS.Timeout | null = null;
 
 const MONGODB_CONNECTION_TIMEOUT_MS = 10000;
+const DEFAULT_MAX_POOL_SIZE = 10;
+const DEFAULT_MAX_IDLE_TIME_MS = 30_000;
+const DEFAULT_WAIT_QUEUE_TIMEOUT_MS = 10_000;
 // Certifique-se de que a variável de ambiente MONGODB_DB_NAME está configurada
 // ou defina um valor padrão apropriado para o seu projeto.
 const EXPECTED_DB_NAME = process.env.MONGODB_DB_NAME || 'data2content';
+const parsedMaxPoolSize = Number(process.env.MONGODB_MAX_POOL_SIZE);
+const parsedMaxIdleTimeMs = Number(process.env.MONGODB_MAX_IDLE_TIME_MS);
+const parsedWaitQueueTimeoutMs = Number(process.env.MONGODB_WAIT_QUEUE_TIMEOUT_MS);
+const MAX_POOL_SIZE =
+  Number.isFinite(parsedMaxPoolSize) && parsedMaxPoolSize > 0
+    ? Math.floor(parsedMaxPoolSize)
+    : DEFAULT_MAX_POOL_SIZE;
+const MAX_IDLE_TIME_MS =
+  Number.isFinite(parsedMaxIdleTimeMs) && parsedMaxIdleTimeMs >= 0
+    ? Math.floor(parsedMaxIdleTimeMs)
+    : DEFAULT_MAX_IDLE_TIME_MS;
+const WAIT_QUEUE_TIMEOUT_MS =
+  Number.isFinite(parsedWaitQueueTimeoutMs) && parsedWaitQueueTimeoutMs >= 0
+    ? Math.floor(parsedWaitQueueTimeoutMs)
+    : DEFAULT_WAIT_QUEUE_TIMEOUT_MS;
 
 /**
  * Estabelece ou reutiliza uma conexão com o banco de dados MongoDB.
@@ -64,7 +82,9 @@ export const connectToDatabase = async (): Promise<typeof mongoose> => {
     const uriParts = process.env.MONGODB_URI.split('@');
     const uriDisplay = uriParts.length > 1 ? `mongodb+srv://****@${uriParts[1]}` : process.env.MONGODB_URI.substring(0,30) + "...";
     logger.info(`${TAG} MONGODB_URI (segura): ${uriDisplay}`);
-    logger.info(`${TAG} Criando NOVA promessa de conexão com MongoDB para o DB: ${EXPECTED_DB_NAME}.`);
+    logger.info(
+      `${TAG} Criando NOVA promessa de conexão com MongoDB para o DB: ${EXPECTED_DB_NAME}. maxPoolSize=${MAX_POOL_SIZE}, maxIdleTimeMS=${MAX_IDLE_TIME_MS}, waitQueueTimeoutMS=${WAIT_QUEUE_TIMEOUT_MS}.`
+    );
 
     // Remove todos os listeners antigos para evitar duplicações ou comportamento inesperado
     // de listeners de conexões anteriores.
@@ -118,6 +138,10 @@ export const connectToDatabase = async (): Promise<typeof mongoose> => {
         serverSelectionTimeoutMS: MONGODB_CONNECTION_TIMEOUT_MS, // Tempo para selecionar um servidor
         socketTimeoutMS: 45000, // Tempo de inatividade do socket
         dbName: EXPECTED_DB_NAME, // Especifica o banco de dados aqui!
+        maxPoolSize: MAX_POOL_SIZE,
+        minPoolSize: 0,
+        maxIdleTimeMS: MAX_IDLE_TIME_MS,
+        waitQueueTimeoutMS: WAIT_QUEUE_TIMEOUT_MS,
         // useNewUrlParser: true, // Não é mais necessário no Mongoose 6+
         // useUnifiedTopology: true, // Não é mais necessário no Mongoose 6+
     }).then(mongooseInstance => {
