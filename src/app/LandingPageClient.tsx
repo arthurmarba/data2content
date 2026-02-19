@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { track } from "@/lib/track";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
 import type { UtmContext } from "@/lib/analytics/utm";
@@ -247,8 +247,8 @@ const FALLBACK_RANKING = [
   },
 ];
 
-const CREATOR_GALLERY_LIMIT_MOBILE = 15;
-const CREATOR_GALLERY_LIMIT_DESKTOP = 16;
+const CREATOR_GALLERY_LIMIT_MOBILE = 12;
+const CREATOR_GALLERY_LIMIT_DESKTOP = 12;
 const CREATOR_GALLERY_MAX_LIMIT = Math.max(
   CREATOR_GALLERY_LIMIT_MOBILE,
   CREATOR_GALLERY_LIMIT_DESKTOP,
@@ -416,6 +416,7 @@ function buildFallbackStats(): LandingCommunityStatsResponse {
 
 export default function LandingPageClient() {
   const headerWrapRef = React.useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
   const [stats, setStats] = React.useState<LandingCommunityStatsResponse | null>(null);
   const [loadingStats, setLoadingStats] = React.useState(true);
   const fallbackStats = React.useMemo(buildFallbackStats, []);
@@ -425,6 +426,11 @@ export default function LandingPageClient() {
     try {
       track("landing_creator_cta_click");
     } catch { }
+
+    if (session?.user) {
+      window.location.assign(MAIN_DASHBOARD_ROUTE);
+      return;
+    }
 
     const fallbackToLogin = () => window.location.assign("/login");
 
@@ -437,9 +443,7 @@ export default function LandingPageClient() {
         }
       })
       .catch(fallbackToLogin);
-  }, []);
-
-
+  }, [session?.user]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -536,7 +540,7 @@ export default function LandingPageClient() {
       >
         <HeroModern
           onCreatorCta={handleCreatorCta}
-          onBrandCta={handleCreatorCta} // Redirect brand CTA to creator signup/auth as well or remove it
+          isAuthenticated={Boolean(session?.user)}
           metrics={metrics}
         />
 
@@ -606,10 +610,11 @@ export default function LandingPageClient() {
       </footer>
 
       <MobileStickyCta
-        label="Criar conta gratuita"
-        description="Conecte o Instagram e receba alertas."
+        label={session?.user ? "Acessar minha conta" : "Quero entrar na D2C"}
         onClick={handleCreatorCta}
         showAfterTargetId="galeria"
+        scrollOffset={320}
+        intersectionThreshold={0.45}
       />
     </div>
   );

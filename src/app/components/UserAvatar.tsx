@@ -11,6 +11,8 @@ interface UserAvatarProps {
   fallbackSrc?: string | null;
   size?: number;
   className?: string;
+  fit?: 'cover' | 'contain';
+  fillContainer?: boolean;
 }
 
 function getInitials(name?: string) {
@@ -25,6 +27,8 @@ export function UserAvatar({
   fallbackSrc,
   size = 40,
   className = '',
+  fit = 'cover',
+  fillContainer = false,
 }: UserAvatarProps) {
   const [errored, setErrored] = React.useState(false);
   const [hasTriedFallback, setHasTriedFallback] = React.useState(false);
@@ -34,7 +38,8 @@ export function UserAvatar({
   const initials = getInitials(name);
   const isCircular = !className.includes('rounded-');
   const borderRadiusClass = isCircular ? 'rounded-full' : '';
-  const baseClasses = `${borderRadiusClass} object-cover ${className}`;
+  const baseClasses = `${borderRadiusClass} ${fit === 'contain' ? 'object-contain' : 'object-cover'} ${className}`;
+  const sharedStyle = fillContainer ? undefined : { width: size, height: size };
 
   React.useEffect(() => {
     setActiveSrc(src ?? null);
@@ -46,7 +51,10 @@ export function UserAvatar({
     return (
       <div
         className={`flex items-center justify-center ${borderRadiusClass} bg-gradient-to-br from-pink-500 to-pink-600 text-white font-semibold select-none ${className}`}
-        style={{ width: size, height: size, fontSize: Math.max(12, Math.floor(size / 3)) }}
+        style={{
+          ...(fillContainer ? { width: '100%', height: '100%' } : { width: size, height: size }),
+          fontSize: Math.max(12, Math.floor(size / 3)),
+        }}
         aria-label={name}
         title={name}
       >
@@ -83,7 +91,7 @@ export function UserAvatar({
         width={size}
         height={size}
         className={baseClasses}
-        style={{ width: size, height: size }}
+        style={sharedStyle}
         loading="lazy"
         draggable={false}
         onError={handleFailure}
@@ -105,7 +113,7 @@ export function UserAvatar({
       width={size}
       height={size}
       className={baseClasses}
-      style={{ width: size, height: size }}
+      style={sharedStyle}
       loading="lazy"
       draggable={false}
       referrerPolicy={referrerPolicy}

@@ -55,6 +55,13 @@ const CRONS = [
     method: 'POST',
     body: '[WHATSAPP_TIPS] Enviar dicas semanais (Seg, Qua, Sex, Dom)',
   },
+  {
+    id: 'instagram-refresh-data-2x-day',
+    destination: 'https://data2content.ai/api/cron/refresh-instagram-data',
+    cron: '0 */12 * * *',
+    method: 'POST',
+    body: '[INSTAGRAM_REFRESH] Atualizar dados e renovar tokens próximos do vencimento',
+  },
 ] as const;
 
 async function createCrons() {
@@ -80,7 +87,7 @@ async function createCrons() {
     });
   }
 
-  console.log('✅ All CPM-related crons scheduled successfully.');
+  console.log('✅ All scheduled jobs created successfully.');
 }
 
 createCrons().catch((error) => {

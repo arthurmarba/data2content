@@ -12,20 +12,21 @@ type MobileStickyCtaProps = {
   intersectionThreshold?: number;
 };
 
-const DEFAULT_SCROLL_OFFSET = 180;
+const DEFAULT_SCROLL_OFFSET = 280;
 
 const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
   label,
   onClick,
-  description = "Conecte o Instagram e receba alertas em minutos.",
+  description,
   hideUntilScroll = true,
   scrollOffset = DEFAULT_SCROLL_OFFSET,
   showAfterTargetId,
-  intersectionThreshold = 0.2,
+  intersectionThreshold = 0.4,
 }) => {
-  const [isVisible, setIsVisible] = React.useState(!hideUntilScroll);
+  const [isVisible, setIsVisible] = React.useState(false);
   const [keyboardOffset, setKeyboardOffset] = React.useState(0);
   const [hasReachedTarget, setHasReachedTarget] = React.useState(false);
+  const [hasScrolledEnough, setHasScrolledEnough] = React.useState(!hideUntilScroll);
 
   React.useEffect(() => {
     if (!showAfterTargetId) return;
@@ -48,22 +49,26 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
   }, [showAfterTargetId, intersectionThreshold]);
 
   React.useEffect(() => {
-    if (showAfterTargetId) return;
-    if (!hideUntilScroll) return;
+    if (typeof window === "undefined") return;
+
     const handleScroll = () => {
-      if (typeof window === "undefined") return;
-      setIsVisible(window.scrollY > scrollOffset);
+      if (!hideUntilScroll) {
+        setHasScrolledEnough(true);
+        return;
+      }
+      setHasScrolledEnough(window.scrollY > scrollOffset);
     };
 
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [hideUntilScroll, scrollOffset, showAfterTargetId]);
+  }, [hideUntilScroll, scrollOffset]);
 
   React.useEffect(() => {
-    if (!showAfterTargetId) return;
-    setIsVisible(hasReachedTarget);
-  }, [hasReachedTarget, showAfterTargetId]);
+    const shouldShowByScroll = hideUntilScroll ? hasScrolledEnough : true;
+    const shouldShowByTarget = showAfterTargetId ? hasReachedTarget : true;
+    setIsVisible(shouldShowByScroll && shouldShowByTarget);
+  }, [hasReachedTarget, hasScrolledEnough, hideUntilScroll, showAfterTargetId]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -99,20 +104,20 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
       aria-hidden={!isVisible}
     >
       <div
-        className="pointer-events-auto bg-gradient-to-t from-white via-white/95 to-transparent px-4 pb-0 pt-4"
+        className="pointer-events-auto bg-gradient-to-t from-white via-white/95 to-transparent px-3 pb-0 pt-2"
         style={{ paddingBottom }}
       >
-        <div className="mx-auto flex max-w-content-sm flex-col gap-3 rounded-2xl border border-brand-glass bg-white/95 px-4 py-4 text-center text-brand-dark backdrop-blur-lg">
+        <div className="mx-auto flex max-w-content-sm flex-col gap-1.5 rounded-xl border border-brand-glass bg-white/95 px-2.5 py-2.5 text-center text-brand-dark shadow-[0_12px_28px_rgba(15,23,42,0.14)] backdrop-blur-lg">
           <button
             type="button"
             onClick={onClick}
             aria-label={label}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-3 text-base font-semibold text-white transition-transform duration-200 hover:bg-brand-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary active:scale-[0.99]"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-bold text-white transition-transform duration-200 hover:bg-brand-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary active:scale-[0.99]"
           >
             {label}
           </button>
           {description ? (
-            <p className="text-xs font-medium text-brand-text-secondary/80">
+            <p className="line-clamp-1 text-[11px] font-medium leading-tight text-brand-text-secondary/80">
               {description}
             </p>
           ) : null}

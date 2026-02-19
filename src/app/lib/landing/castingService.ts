@@ -1,5 +1,5 @@
 import { PipelineStage, Types } from "mongoose";
-import { subDays } from "date-fns";
+import { subDays } from "date-fns/subDays";
 
 import { connectToDatabase } from "@/app/lib/dataService/connection";
 import MetricModel from "@/app/models/Metric";
@@ -10,16 +10,34 @@ import type { CreatorStage, LandingCreatorHighlight } from "@/types/landing";
 import { resolveContextLabel } from "@/app/lib/classification";
 
 const SERVICE_TAG = "[landing][castingService]";
-const CACHE_TTL_MS = Math.max(60_000, Number(process.env.LANDING_CASTING_TTL_MS ?? 240_000));
+const FULL_BASE_CACHE_TTL_MS = Math.max(60_000, Number(process.env.LANDING_CASTING_TTL_MS ?? 240_000));
+const FEATURED_BASE_CACHE_TTL_MS = Math.max(
+  60_000,
+  Math.min(15 * 60_000, Number(process.env.LANDING_CASTING_FEATURED_TTL_MS ?? 600_000)),
+);
+const QUERY_CACHE_TTL_MS = Math.max(
+  60_000,
+  Math.min(15 * 60_000, Number(process.env.LANDING_CASTING_QUERY_TTL_MS ?? 600_000)),
+);
 const RANK_WINDOW_DAYS = 30;
 const ACTIVE_PLAN_STATUSES = ["active", "trial", "trialing", "non_renewing"] as const;
 const MAX_LIMIT = 2000;
+const DEFAULT_FEATURED_LIMIT = 12;
+const FEATURED_SOURCE_LIMIT = Math.max(
+  DEFAULT_FEATURED_LIMIT,
+  Math.min(MAX_LIMIT, Number(process.env.LANDING_CASTING_FEATURED_SOURCE_LIMIT ?? 240)),
+);
 const FORMAT_DISALLOWED = ["story", "stories"];
 const TOP_CONTEXT_METRIC = "$stats.total_interactions";
 
 type CacheEntry = {
   expires: number;
   creators: LandingCreatorHighlight[];
+};
+
+type QueryCacheEntry = {
+  expires: number;
+  payload: CastingPayload;
 };
 
 type SubscriberUser = {
@@ -48,18 +66,44 @@ type SubscriberUser = {
 
 export type CastingFilters = {
   forceRefresh?: boolean;
+  mode?: "featured" | "full";
   search?: string | null;
   minFollowers?: number | null;
   minAvgInteractions?: number | null;
   sort?: "interactions" | "followers" | "rank";
+  offset?: number | null;
   limit?: number | null;
 };
 
-let cacheEntry: CacheEntry | null = null;
+export type CastingPayload = {
+  creators: LandingCreatorHighlight[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  mode: "featured" | "full";
+};
 
-export async function fetchCastingCreators(options: CastingFilters = {}) {
-  const base = await loadBaseList(options.forceRefresh === true);
+let cacheEntry: CacheEntry | null = null;
+let featuredCacheEntry: CacheEntry | null = null;
+const queryCache = new Map<string, QueryCacheEntry>();
+
+export async function fetchCastingCreators(options: CastingFilters = {}): Promise<CastingPayload> {
   const filters = normalizeFilters(options);
+  const forceRefresh = filters.forceRefresh === true;
+  const queryKey = buildQueryKey(filters);
+  const now = Date.now();
+
+  if (!forceRefresh) {
+    const cached = queryCache.get(queryKey);
+    if (cached && cached.expires > now) {
+      return clonePayload(cached.payload);
+    }
+  }
+
+  const base = filters.mode === "featured"
+    ? await loadFeaturedList(forceRefresh)
+    : await loadBaseList(forceRefresh);
 
   let filtered = [...base];
 
@@ -78,11 +122,23 @@ export async function fetchCastingCreators(options: CastingFilters = {}) {
     );
   }
 
-  const total = filtered.length;
   const sorted = sortCreators(filtered, filters.sort);
-  const limited = filters.limit != null ? sorted.slice(0, filters.limit) : sorted;
+  const payload = paginateCreators(sorted, filters.offset, filters.limit, filters.mode);
 
-  return { creators: limited, total };
+  if (!forceRefresh) {
+    queryCache.set(queryKey, {
+      expires: now + QUERY_CACHE_TTL_MS,
+      payload: clonePayload(payload),
+    });
+  }
+
+  return payload;
+}
+
+export function resetCastingServiceCacheForTests() {
+  cacheEntry = null;
+  featuredCacheEntry = null;
+  queryCache.clear();
 }
 
 async function loadBaseList(forceRefresh: boolean): Promise<LandingCreatorHighlight[]> {
@@ -92,11 +148,26 @@ async function loadBaseList(forceRefresh: boolean): Promise<LandingCreatorHighli
   }
 
   const creators = await buildCastingCreators();
-  cacheEntry = { creators, expires: now + CACHE_TTL_MS };
+  cacheEntry = { creators, expires: now + FULL_BASE_CACHE_TTL_MS };
+  if (forceRefresh) queryCache.clear();
+  return creators;
+}
+
+async function loadFeaturedList(forceRefresh: boolean): Promise<LandingCreatorHighlight[]> {
+  const now = Date.now();
+  if (!forceRefresh && featuredCacheEntry && featuredCacheEntry.expires > now) {
+    return featuredCacheEntry.creators;
+  }
+
+  const creators = await buildFeaturedCastingCreators();
+  featuredCacheEntry = { creators, expires: now + FEATURED_BASE_CACHE_TTL_MS };
+  if (forceRefresh) queryCache.clear();
   return creators;
 }
 
 function normalizeFilters(options: CastingFilters) {
+  const mode: "featured" | "full" = options.mode === "featured" ? "featured" : "full";
+  const forceRefresh = options.forceRefresh === true;
   const searchRaw = options.search?.trim() || null;
   const search = searchRaw?.startsWith("@") ? searchRaw.slice(1) : searchRaw;
   const minFollowers =
@@ -111,12 +182,61 @@ function normalizeFilters(options: CastingFilters) {
       : null;
   const sort: CastingFilters["sort"] =
     options.sort === "followers" || options.sort === "rank" ? options.sort : "interactions";
+  const offset =
+    options.offset != null && Number.isFinite(options.offset) && options.offset >= 0
+      ? Math.floor(options.offset)
+      : 0;
   const limit =
     options.limit != null && Number.isFinite(options.limit)
       ? Math.max(1, Math.min(MAX_LIMIT, Math.floor(options.limit)))
-      : null;
+      : mode === "featured"
+        ? DEFAULT_FEATURED_LIMIT
+        : null;
 
-  return { search, minFollowers, minAvgInteractions, sort, limit };
+  return { forceRefresh, mode, search, minFollowers, minAvgInteractions, sort, offset, limit };
+}
+
+function buildQueryKey(filters: ReturnType<typeof normalizeFilters>) {
+  return JSON.stringify({
+    mode: filters.mode,
+    search: filters.search ?? null,
+    minFollowers: filters.minFollowers ?? null,
+    minAvgInteractions: filters.minAvgInteractions ?? null,
+    sort: filters.sort,
+    offset: filters.offset,
+    limit: filters.limit,
+  });
+}
+
+function paginateCreators(
+  creators: LandingCreatorHighlight[],
+  offset: number,
+  limit: number | null,
+  mode: "featured" | "full",
+): CastingPayload {
+  const total = creators.length;
+  const safeOffset = Math.min(Math.max(offset, 0), total);
+  const page = limit != null
+    ? creators.slice(safeOffset, safeOffset + limit)
+    : creators.slice(safeOffset);
+  const effectiveLimit = limit ?? page.length;
+  const hasMore = safeOffset + page.length < total;
+
+  return {
+    creators: page,
+    total,
+    offset: safeOffset,
+    limit: effectiveLimit,
+    hasMore,
+    mode,
+  };
+}
+
+function clonePayload(payload: CastingPayload): CastingPayload {
+  return {
+    ...payload,
+    creators: [...payload.creators],
+  };
 }
 
 function normalizeText(value: string) {
@@ -508,6 +628,182 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     ...creator,
     rank: index + 1,
   }));
+}
+
+async function buildFeaturedCastingCreators(): Promise<LandingCreatorHighlight[]> {
+  const TAG = `${SERVICE_TAG}[buildFeaturedCastingCreators]`;
+  logger.info(`${TAG} Building featured casting creators list.`);
+
+  await connectToDatabase();
+
+  const since = subDays(new Date(), RANK_WINDOW_DAYS);
+  const subscribers = (await UserModel.find(
+    {
+      planStatus: { $in: ACTIVE_PLAN_STATUSES },
+      mediaKitSlug: { $exists: true, $nin: [null, ""] },
+    },
+    {
+      _id: 1,
+      name: 1,
+      username: 1,
+      followers_count: 1,
+      profile_picture_url: 1,
+      image: 1,
+      mediaKitSlug: 1,
+      "availableIgAccounts.profile_picture_url": 1,
+      "creatorProfileExtended.niches": 1,
+      "creatorProfileExtended.brandTerritories": 1,
+      "creatorProfileExtended.stage": 1,
+      "creatorProfileExtended.updatedAt": 1,
+      "creatorContext.id": 1,
+      "location.country": 1,
+      "location.city": 1,
+    },
+  )
+    .lean<SubscriberUser[]>()
+    .exec()) as SubscriberUser[];
+
+  if (!subscribers.length) {
+    logger.warn(`${TAG} No active subscribers found for featured payload.`);
+    return [];
+  }
+
+  const subscriberById = new Map(subscribers.map((creator) => [creator._id.toString(), creator]));
+  const subscriberIds = subscribers
+    .map((creator) => creator._id)
+    .filter((id): id is Types.ObjectId => Boolean(id));
+
+  const metricsResults = (await MetricModel.aggregate<{
+    userId: Types.ObjectId;
+    postCount: number;
+    totalInteractions: number;
+    totalReach: number;
+    avgInteractionsPerPost: number;
+    avgReachPerPost: number;
+  }>([
+    {
+      $match: {
+        user: { $in: subscriberIds },
+        postDate: { $gte: since },
+      },
+    },
+    {
+      $group: {
+        _id: "$user",
+        postCount: { $sum: 1 },
+        totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } },
+        totalReach: { $sum: { $ifNull: ["$stats.reach", 0] } },
+      },
+    },
+    { $match: { postCount: { $gt: 0 } } },
+    { $sort: { totalInteractions: -1, postCount: -1, totalReach: -1 } },
+    { $limit: FEATURED_SOURCE_LIMIT },
+    {
+      $project: {
+        _id: 0,
+        userId: "$_id",
+        postCount: 1,
+        totalInteractions: 1,
+        totalReach: 1,
+        avgInteractionsPerPost: {
+          $cond: [{ $gt: ["$postCount", 0] }, { $divide: ["$totalInteractions", "$postCount"] }, 0],
+        },
+        avgReachPerPost: {
+          $cond: [{ $gt: ["$postCount", 0] }, { $divide: ["$totalReach", "$postCount"] }, 0],
+        },
+      },
+    },
+  ]).exec()) as Array<{
+    userId: Types.ObjectId;
+    postCount: number;
+    totalInteractions: number;
+    totalReach: number;
+    avgInteractionsPerPost: number;
+    avgReachPerPost: number;
+  }>;
+
+  if (!metricsResults.length) return [];
+
+  const missingAvatarIds = metricsResults
+    .map((entry) => entry.userId)
+    .filter((id): id is Types.ObjectId => {
+      const creator = subscriberById.get(id.toString());
+      return Boolean(creator && !pickUserAvatar(creator));
+    });
+
+  let avatarByUserId: Record<string, string> = {};
+  if (missingAvatarIds.length) {
+    const insightAvatars = await AccountInsightModel.aggregate<{
+      _id: Types.ObjectId;
+      profilePicture?: string | null;
+    }>([
+      {
+        $match: {
+          user: { $in: missingAvatarIds },
+          "accountDetails.profile_picture_url": { $exists: true, $nin: [null, ""] },
+        },
+      },
+      { $sort: { recordedAt: -1 } },
+      {
+        $group: {
+          _id: "$user",
+          profilePicture: { $first: "$accountDetails.profile_picture_url" },
+        },
+      },
+    ]).exec();
+
+    avatarByUserId = Object.fromEntries(
+      insightAvatars
+        .map((doc) => [doc._id.toString(), normalizeAvatarCandidate(doc.profilePicture ?? null)] as const)
+        .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+    );
+  }
+
+  const featured: LandingCreatorHighlight[] = [];
+
+  metricsResults.forEach((entry, index) => {
+    const userId = entry.userId.toString();
+    const creator = subscriberById.get(userId);
+    if (!creator) return;
+
+    const avatar = pickUserAvatar(creator) ?? normalizeAvatarCandidate(avatarByUserId[userId] ?? null);
+    const niches = sanitizeTags(creator.creatorProfileExtended?.niches);
+    const brandTerritories = sanitizeTags(creator.creatorProfileExtended?.brandTerritories);
+    const contextId = creator.creatorContext?.id ?? null;
+    const contexts = mapContextsToLabels(buildContexts(brandTerritories, contextId));
+    const stage = (creator.creatorProfileExtended?.stage ?? [])[0] ?? null;
+    const totalReach = Number(entry.totalReach ?? 0);
+    const totalInteractions = Number(entry.totalInteractions ?? 0);
+
+    featured.push({
+      id: userId,
+      name: creator.name || creator.username || "Criador",
+      username: creator.username ?? null,
+      followers: creator.followers_count ?? null,
+      avatarUrl: toProxyAvatar(avatar),
+      niches: niches.length ? niches : null,
+      brandTerritories: brandTerritories.length ? brandTerritories : null,
+      contexts: contexts.length ? contexts : null,
+      formatsStrong: null,
+      topPerformingContext: null,
+      topPerformingContextAvgInteractions: null,
+      country: creator.location?.country ?? null,
+      city: creator.location?.city ?? null,
+      stage: (stage as CreatorStage | null) ?? null,
+      surveyCompleted: Boolean(creator.creatorProfileExtended?.updatedAt),
+      totalInteractions,
+      totalReach,
+      postCount: Number(entry.postCount ?? 0),
+      avgInteractionsPerPost: Number(entry.avgInteractionsPerPost ?? 0),
+      avgReachPerPost: Number(entry.avgReachPerPost ?? 0),
+      engagementRate: totalReach > 0 ? (totalInteractions / totalReach) * 100 : null,
+      rank: index + 1,
+      consistencyScore: null,
+      mediaKitSlug: creator.mediaKitSlug ?? null,
+    });
+  });
+
+  return featured;
 }
 
 function toProxyAvatar(raw?: string | null): string | null {

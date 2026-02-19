@@ -7,7 +7,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 
 type HeroModernProps = {
   onCreatorCta: () => void;
-  onBrandCta: () => void;
+  isAuthenticated?: boolean;
   metrics?: LandingCommunityMetrics | null;
 };
 
@@ -139,11 +139,12 @@ const HighlightCard: React.FC<HighlightCardProps> = ({
   );
 };
 
-const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metrics }) => {
+const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated = false, metrics }) => {
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 100]);
   const y2 = useTransform(scrollY, [0, 500], [0, -150]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+  const [isInfoExpanded, setIsInfoExpanded] = React.useState(false);
 
   const highlights = React.useMemo(
     () => [
@@ -168,17 +169,24 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
     ],
     [metrics],
   );
+  const heroCtaLabel = isAuthenticated ? "Acessar minha conta" : "Quero entrar na D2C";
 
   return (
     <section
       id="inicio"
-      className="landing-section relative min-h-[100dvh] overflow-visible bg-white pt-4 sm:min-h-[88vh] sm:pt-6 md:min-h-[90vh] md:pt-0"
+      className="landing-section relative overflow-visible bg-white pb-6 pt-5 sm:min-h-[88vh] sm:pb-12 sm:pt-6 md:min-h-[90vh] md:pb-16 md:pt-0"
       style={{
         paddingTop: `calc(var(--space-fluid-4, 5.5rem) + var(--sat, 0px) + var(--landing-header-h, 4.5rem))`,
       }}
     >
       {/* Premium Mesh Background */}
-      <div className="absolute inset-0 pointer-events-none opacity-40">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40"
+        style={{
+          WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 52%, transparent 100%)",
+          maskImage: "linear-gradient(180deg, #000 0%, #000 52%, transparent 100%)",
+        }}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,#FF2C7E22_0%,transparent_50%),radial-gradient(circle_at_80%_20%,#246BFD22_0%,transparent_50%),radial-gradient(circle_at_50%_80%,#FFB34722_0%,transparent_60%)]" />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
       </div>
@@ -186,78 +194,102 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, onBrandCta, metri
       <motion.div style={{ y: y1, opacity }} className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-brand-primary/5 rounded-full blur-[140px]" />
       <motion.div style={{ y: y2, opacity }} className="absolute top-40 -right-20 w-[500px] h-[500px] bg-brand-accent/5 rounded-full blur-[120px]" />
 
-      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-4 sm:gap-14 md:gap-24">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 text-center sm:gap-8 md:gap-10">
+      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-7 sm:gap-14 md:gap-24">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:gap-8 md:gap-10">
 
-          <div className="relative z-10 mb-3 group flex items-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-1.5 transition-all hover:bg-brand-primary/15 sm:mb-0 sm:gap-2 sm:px-5 sm:py-2.5">
+          <div className="relative z-10 mb-3 mx-auto group flex items-center justify-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-2 text-center transition-all hover:bg-brand-primary/15 sm:mb-0 sm:gap-2 sm:px-5 sm:py-2.5">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
             </span>
             <span className="text-[10px] font-black uppercase tracking-[0.16em] text-brand-primary sm:text-xs sm:tracking-[0.25em]">
-              IA Viva na Creator Economy
+              IA na Creator Economy
             </span>
           </div>
 
-          <div className="flex flex-col items-center gap-5 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
-            <h1 className="max-w-[13ch] text-[3.9rem] font-black leading-[0.92] tracking-[-0.04em] text-brand-dark text-balance sm:max-w-[14ch] sm:text-[3rem] sm:leading-[1.02] md:max-w-[15ch] md:text-[5.5rem] md:leading-[0.9] lg:text-[6.5rem]">
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
-                Agência consultiva
+          <div className="flex flex-col items-center gap-6 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
+            <h1 className="font-black tracking-[-0.04em] text-brand-dark">
+              <span className="mx-auto flex max-w-[13ch] flex-col items-center text-[3.85rem] leading-[1.03] sm:hidden">
+                <span className="block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
+                  Agência
+                </span>
+                <span className="mt-0.5 block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
+                  estratégica
+                </span>
+                <span className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]">
+                  para creators
+                </span>
+                <span className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]">
+                  via IA.
+                </span>
               </span>
-              <span className="mt-1 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] sm:mt-3 md:mt-4 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
-                para creators via IA.
+
+              <span className="hidden max-w-[14ch] text-balance text-[3rem] leading-[1.03] sm:block md:max-w-[15.5ch] md:text-[5.4rem] md:leading-[0.96] lg:text-[6.3rem]">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
+                  Agência estratégica
+                </span>
+                <span className="mt-2.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] md:mt-3 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
+                  para creators via IA.
+                </span>
               </span>
             </h1>
 
-            <p className="max-w-[34ch] px-1 text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-3xl md:px-0 md:text-2xl md:leading-[1.4]">
-              Revisão pessoal de posts e análise via IA em reuniões semanais. Sua estratégia narrativa desenhada por especialistas para atrair marcas e gerar resultados.
+            <p className="mt-2 max-w-[34ch] px-1 text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:mt-0 sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-3xl md:px-0 md:text-2xl md:leading-[1.4]">
+              Revisão de posts em reuniões semanais. Plataforma para gestão de conteúdo e publicidade para <span className="font-bold text-slate-700">negociar com marcas.</span>
             </p>
           </div>
 
-          <div className="mt-4 flex w-full flex-row items-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0">
+          <div className="mt-4 flex w-full flex-row items-center justify-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0">
             <ButtonPrimary
               onClick={onCreatorCta}
               size="lg"
               variant="brand"
-              className="group relative w-[48%] overflow-hidden rounded-2xl px-4 py-3.5 text-[0.95rem] shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98] sm:w-auto sm:min-w-[260px] sm:px-8 sm:py-5 sm:text-lg"
+              className="group relative w-auto min-w-[220px] overflow-hidden rounded-2xl px-4 py-3.5 text-[0.95rem] shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98] sm:min-w-[260px] sm:px-8 sm:py-5 sm:text-lg"
             >
               <span className="relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.95rem] font-black sm:gap-2 sm:text-lg">
-                Sou Criador <span className="transition-transform group-hover:translate-x-1">→</span>
+                {heroCtaLabel} <span className="transition-transform group-hover:translate-x-1">→</span>
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
             </ButtonPrimary>
-
-            <button
-              onClick={onBrandCta}
-              className="w-[48%] rounded-2xl border-2 border-slate-200 bg-white/50 px-4 py-3.5 text-[0.95rem] font-black text-brand-dark shadow-lg shadow-slate-200/50 backdrop-blur-sm transition-all hover:border-brand-dark hover:bg-white hover:shadow-xl hover:shadow-slate-300/50 sm:w-auto sm:min-w-[200px] sm:px-8 sm:py-5 sm:text-lg"
-            >
-              Sou Marca
-            </button>
           </div>
 
           {/* New Integrated Media Kit Info Card */}
-          <div className="relative mt-6 w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-8 sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]">
+          <div className="relative mt-4 hidden w-full max-w-3xl overflow-hidden rounded-[1.75rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-8 sm:block sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]">
             <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/40 to-transparent" />
-            <div className="relative bg-white/40 p-4 transition-all group-hover:bg-white/50 sm:p-6 md:p-10">
-              <div className="mb-3 inline-flex rounded-2xl bg-[#141C2F] px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-white sm:mb-6 sm:px-4 sm:py-2 sm:text-[9px] md:text-[10px] md:tracking-[0.3em]">
+            <div className="relative bg-white/40 p-3.5 transition-all group-hover:bg-white/50 sm:p-6 md:p-10">
+              <div className="mb-2 inline-flex rounded-2xl bg-[#141C2F] px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-white sm:mb-6 sm:px-4 sm:py-2 sm:text-[9px] md:text-[10px] md:tracking-[0.3em]">
                 Networking & Curadoria
               </div>
-              <h3 className="text-[1.25rem] font-black tracking-tight text-brand-dark sm:text-[1.45rem] md:text-3xl">
+              <h3 className="text-[1.15rem] font-black tracking-tight text-brand-dark sm:text-[1.45rem] md:text-3xl">
                 Seu portal direto para o mercado.
               </h3>
-              <p className="mt-3 text-sm font-bold leading-[1.55] text-slate-500/80 sm:mt-4 sm:text-[0.98rem] md:mt-6 md:text-lg md:leading-relaxed">
-                Crie seu mídia kit auditado para fechar publis melhores. Se bater insegurança na hora de <span className="text-brand-dark">precificar</span> ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA.
+              <p className="mt-2 text-[13px] font-bold leading-[1.45] text-slate-500/80 sm:mt-4 sm:text-[0.98rem] md:mt-6 md:text-lg md:leading-relaxed">
+                <span className="sm:hidden">
+                  {isInfoExpanded
+                    ? "Crie seu mídia kit auditado para fechar publis melhores. Se bater insegurança na hora de precificar ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA."
+                    : "Crie seu mídia kit auditado e receba suporte para fechar publis melhores."}
+                </span>
+                <span className="hidden sm:inline">
+                  Crie seu mídia kit auditado para fechar publis melhores. Se bater insegurança na hora de <span className="text-brand-dark">precificar</span> ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA.
+                </span>
               </p>
+              <button
+                type="button"
+                onClick={() => setIsInfoExpanded((value) => !value)}
+                className="mt-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-brand-primary sm:hidden"
+              >
+                {isInfoExpanded ? "Ver menos" : "Saiba mais"}
+              </button>
 
-              <div className="mt-5 grid grid-cols-3 gap-3 border-t border-brand-dark/5 pt-5 sm:mt-8 sm:gap-4 sm:pt-8 md:mt-12 md:flex md:flex-wrap md:justify-center md:gap-10 md:pt-12">
+              <div className="mt-3.5 grid grid-cols-3 gap-2.5 border-t border-brand-dark/5 pt-3.5 sm:mt-8 sm:gap-4 sm:pt-8 md:mt-12 md:flex md:flex-wrap md:justify-center md:gap-10 md:pt-12">
                 {[
                   { label: "Mídia Kit Vivo", icon: "💎" },
                   { label: "Suporte 1:1", icon: "🤝" },
                   { label: "Jobs Auditados", icon: "🛡️" }
                 ].map(item => (
                   <div key={item.label} className="group/item flex flex-col items-center gap-1.5 md:flex-row md:gap-3">
-                    <span className="text-lg transition-transform duration-300 group-hover/item:scale-125 sm:text-xl md:text-2xl">{item.icon}</span>
-                    <span className="text-center text-[9px] font-black uppercase tracking-[0.12em] text-brand-dark sm:text-[10px] sm:tracking-[0.15em] md:text-left md:text-xs md:tracking-[0.2em]">{item.label}</span>
+                    <span className="text-base transition-transform duration-300 group-hover/item:scale-125 sm:text-xl md:text-2xl">{item.icon}</span>
+                    <span className="text-center text-[8px] font-black uppercase tracking-[0.1em] text-brand-dark sm:text-[10px] sm:tracking-[0.15em] md:text-left md:text-xs md:tracking-[0.2em]">{item.label}</span>
                   </div>
                 ))}
               </div>

@@ -3,7 +3,6 @@
 import React from "react";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 import { UserAvatar } from "../../components/UserAvatar";
-import ButtonPrimary from "./ButtonPrimary";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
 import { track } from "@/lib/track";
 import type { UtmContext } from "@/lib/analytics/utm";
@@ -11,6 +10,14 @@ import type { LandingCommunityMetrics, LandingCreatorHighlight } from "@/types/l
 import { BRAND_CAMPAIGN_ROUTE } from "@/constants/routes";
 
 const CASTING_API_ROUTE = "/api/landing/casting";
+
+type CastingApiPayload = {
+    creators?: LandingCreatorHighlight[];
+    total?: number;
+    offset?: number;
+    limit?: number;
+    hasMore?: boolean;
+};
 
 const interactionOptions = [
     { value: "", label: "Todas interações/post" },
@@ -46,34 +53,6 @@ type CastingRail = {
     avgContextInteractions?: number;
 };
 
-type MarketplaceMetric = {
-    key: string;
-    label: string;
-    value?: number | null;
-    accent: "primary" | "accent" | "sun";
-};
-
-const marketplaceMetricStyles: Record<MarketplaceMetric["accent"], { border: string; tag: string; divider: string; iconBg: string }> = {
-    primary: {
-        border: "border-brand-primary/20",
-        tag: "text-brand-primary",
-        divider: "bg-brand-primary/20",
-        iconBg: "bg-brand-primary/10",
-    },
-    accent: {
-        border: "border-brand-accent/20",
-        tag: "text-brand-accent",
-        divider: "bg-brand-accent/20",
-        iconBg: "bg-brand-accent/10",
-    },
-    sun: {
-        border: "border-brand-sun/20",
-        tag: "text-brand-sun-dark",
-        divider: "bg-brand-sun/25",
-        iconBg: "bg-brand-sun/10",
-    },
-};
-
 /**
  * HELPERS (Cloned from CastingPageClient for exact matching)
  */
@@ -85,11 +64,6 @@ function canonicalizeTag(raw?: string | null): { value: string; label: string } 
     const normalized = normalizeTag(raw);
     if (!normalized) return null;
     return { value: normalized, label: raw?.trim() || normalized };
-}
-
-function formatMetricValue(value?: number | null) {
-    if (value === null || value === undefined) return "—";
-    return compactNumber.format(value);
 }
 
 function computeEngagementRate(creator: LandingCreatorHighlight): number | null {
@@ -213,24 +187,32 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
         () => initialCreators.length > 0 && initialCreators.every((creator) => creator.id.startsWith("fallback-")),
         [initialCreators],
     );
-    const shouldSkipInitialFetchRef = React.useRef(initialCreators.length > 0 && !initialCreatorsAreFallback);
-    const [creators, setCreators] = React.useState(initialCreators);
+    const [creators, setCreators] = React.useState<LandingCreatorHighlight[]>(initialCreators);
     const [loading, setLoading] = React.useState(false);
     const [search, setSearch] = React.useState("");
     const [debouncedSearch, setDebouncedSearch] = React.useState("");
     const [minFollowers, setMinFollowers] = React.useState("");
     const [minAvgInteractions, setMinAvgInteractions] = React.useState("");
     const [isFilterOpen, setIsFilterOpen] = React.useState(false);
-    const { appendUtm, utm } = useUtmAttribution();
+    const { appendUtm } = useUtmAttribution();
+    const hasActiveFilters = Boolean(debouncedSearch || minFollowers || minAvgInteractions);
 
     React.useEffect(() => {
         const handle = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
         return () => window.clearTimeout(handle);
     }, [search]);
 
-    const fetchCreators = React.useCallback(async (signal?: AbortSignal) => {
+    const fetchCreators = React.useCallback(async ({
+        signal,
+        mode = "full",
+    }: {
+        signal?: AbortSignal;
+        mode?: "featured" | "full";
+    }) => {
         setLoading(true);
         const params = new URLSearchParams();
+        params.set("mode", mode);
+        params.set("offset", "0");
         if (debouncedSearch) params.set("search", debouncedSearch);
         if (minFollowers) params.set("minFollowers", minFollowers);
         if (minAvgInteractions) params.set("minAvgInteractions", minAvgInteractions);
@@ -238,27 +220,43 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
         try {
             const res = await fetch(`${CASTING_API_ROUTE}?${params.toString()}`, { signal });
             if (res.ok) {
-                const data = await res.json();
+                const data = (await res.json()) as CastingApiPayload;
                 setCreators(data.creators ?? []);
             }
         } catch (err) {
             if (!signal?.aborted) console.error("Marketplace sort fetch error", err);
         } finally {
-            if (!signal?.aborted) setLoading(false);
+            if (!signal?.aborted) {
+                setLoading(false);
+            }
         }
     }, [debouncedSearch, minFollowers, minAvgInteractions]);
 
     React.useEffect(() => {
-        const hasActiveFilters = Boolean(debouncedSearch || minFollowers || minAvgInteractions);
-        if (shouldSkipInitialFetchRef.current && !hasActiveFilters) {
-            shouldSkipInitialFetchRef.current = false;
-            return;
+        if (hasActiveFilters) return;
+
+        if (!initialCreatorsAreFallback && initialCreators.length > 0) {
+            setCreators(initialCreators);
+            setLoading(false);
         }
-        shouldSkipInitialFetchRef.current = false;
+
         const controller = new AbortController();
-        fetchCreators(controller.signal);
+        fetchCreators({
+            signal: controller.signal,
+            mode: "full",
+        });
         return () => controller.abort();
-    }, [fetchCreators, debouncedSearch, minFollowers, minAvgInteractions]);
+    }, [fetchCreators, hasActiveFilters, initialCreators, initialCreatorsAreFallback]);
+
+    React.useEffect(() => {
+        if (!hasActiveFilters) return;
+        const controller = new AbortController();
+        fetchCreators({
+            signal: controller.signal,
+            mode: "full",
+        });
+        return () => controller.abort();
+    }, [fetchCreators, hasActiveFilters]);
 
     const handleBrandForm = React.useCallback(() => {
         track("marketplace_ranking_cta_click");
@@ -267,76 +265,32 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
         window.location.assign(destination);
     }, [appendUtm]);
 
-    const marketplaceMetrics = React.useMemo<MarketplaceMetric[]>(() => {
-        if (!metrics) return [];
-        return [
-            {
-                key: "active",
-                label: "Ativos",
-                value: metrics.activeCreators,
-                accent: "primary",
-            },
-            {
-                key: "reach",
-                label: "Alcance",
-                value: metrics.reachLast30Days,
-                accent: "accent",
-            },
-            {
-                key: "followers",
-                label: "Seguidores",
-                value: metrics.combinedFollowers,
-                accent: "sun",
-            },
-        ];
-    }, [metrics]);
-
     const curatedRails = React.useMemo(() => buildCuratedRails(creators), [creators]);
     const { fullRails, microRails } = React.useMemo(() => partitionRails(curatedRails), [curatedRails]);
-    const microCreatorCount = microRails.reduce((acc, r) => acc + r.creators.length, 0);
+    const railScrollerStyle = {
+        "--market-card-width": "clamp(92px, calc((100% - 2.25rem) / 3.5), 122px)",
+    } as React.CSSProperties;
+
+    void metrics;
 
     return (
-        <section id="galeria" className="landing-section relative overflow-hidden bg-white">
-            <div className="pointer-events-none absolute inset-0 opacity-20">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,#0000000A,transparent_70%)]" />
-            </div>
+        <section id="galeria" className="landing-section landing-section--compact-top relative overflow-hidden bg-white pt-0.5 sm:pt-6 scroll-mt-[calc(var(--landing-header-h,4.5rem)+10px)]">
             <div className="landing-section__inner landing-section__inner--wide">
-                <div className="relative mb-6 sm:mb-12">
-                    <div className="relative overflow-hidden rounded-[2.5rem] border border-white/70 bg-white/70 p-5 shadow-[0_24px_60px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:p-8">
+                <div className="relative mb-3 hidden sm:mb-12 sm:block">
+                    <div className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/70 p-3.5 shadow-[0_20px_44px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:rounded-[2.5rem] sm:p-8">
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#FF2C7E22,transparent_45%),radial-gradient(circle_at_80%_10%,#246BFD18,transparent_50%)]" />
-                        <div className="relative space-y-5 sm:space-y-6">
-                            <header className="flex flex-col items-center gap-3 text-center">
-                                <h2 className="text-4xl font-black text-brand-dark sm:text-5xl lg:text-6xl tracking-tight text-balance">
+                        <div className="relative space-y-2 sm:space-y-6">
+                            <header className="flex flex-col items-center gap-1.5 text-center sm:gap-3">
+                                <h2 className="text-[1.9rem] font-black tracking-tight text-brand-dark text-balance sm:text-5xl lg:text-6xl">
                                     Marketplace de Criadores
                                 </h2>
                             </header>
-
-                            {marketplaceMetrics.length > 0 && (
-                                <div className="mx-auto w-full max-w-3xl sm:mx-0 sm:hidden">
-                                    <div className="rounded-[1.75rem] border border-white/80 bg-white/80 px-4 py-4 shadow-[0_16px_36px_rgba(20,33,61,0.08)] backdrop-blur-xl">
-                                        <div className="grid grid-cols-3">
-                                            {marketplaceMetrics.map((metric) => {
-                                                const isLast = metric.key === "followers";
-                                                return (
-                                                    <div
-                                                        key={metric.key}
-                                                        className={`flex flex-col items-center gap-2 px-3 text-center ${isLast ? "" : "border-r border-slate-200/60"}`}
-                                                    >
-                                                        <span className="text-[16px] font-black text-brand-dark">{formatMetricValue(metric.value)}</span>
-                                                        <span className="text-[10px] font-semibold text-slate-500">{metric.label}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* FILTERS */}
-                <div className="sticky top-[calc(var(--landing-header-h,4.5rem)+8px)] z-30 mb-4 rounded-[1.75rem] border border-slate-100 bg-white p-2 shadow-[0_18px_40px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:mb-6 sm:p-3">
+                <div className="sticky top-[calc(var(--landing-header-h,4.5rem)+8px)] z-30 mb-2.5 hidden rounded-[1.25rem] border border-slate-100 bg-white p-1.5 shadow-[0_18px_40px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:mb-6 sm:block sm:rounded-[1.75rem] sm:p-3">
                     <div className="hidden md:grid gap-2 md:grid-cols-3">
                         <input
                             type="search"
@@ -369,16 +323,16 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Buscar"
-                            className="w-full rounded-[1.25rem] border border-slate-200/70 bg-slate-50/80 pl-9 pr-14 py-3 text-[12px] font-semibold text-slate-700 shadow-inner outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15 placeholder:text-slate-400"
+                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 py-2.5 pl-9 pr-12 text-[11px] font-semibold text-slate-700 shadow-inner outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15 placeholder:text-slate-400"
                         />
-                        <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 h-4 w-px bg-slate-200/70" />
+                        <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 h-3.5 w-px bg-slate-200/70" />
                         <button
                             type="button"
                             aria-label="Filtros"
                             onClick={() => setIsFilterOpen(true)}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl border border-slate-200/70 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-lg border border-slate-200/70 bg-white p-1.5 text-slate-600 shadow-sm transition hover:bg-slate-50"
                         >
-                            <AdjustmentsHorizontalIcon className="h-4 w-4" />
+                            <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
                         </button>
                     </div>
                 </div>
@@ -447,8 +401,10 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                     </div>
                 )}
 
+                <div className="-mt-10 mb-1 border-t border-slate-200/80 sm:mt-0 sm:mb-4" />
+
                 {/* CONTENT */}
-                <div className="space-y-7 sm:space-y-8">
+                <div className="space-y-2 sm:space-y-8">
                     {loading && creators.length === 0 ? (
                         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                             {[1, 2, 3, 4].map(i => <div key={i} className="h-96 animate-pulse rounded-[3rem] bg-white border border-slate-100" />)}
@@ -460,21 +416,24 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                         </div>
                     ) : (
                         <>
-                            {fullRails.map((rail) => (
+                            {fullRails.map((rail, railIndex) => (
                                 <div
                                     key={rail.key}
-                                    className="space-y-3 sm:space-y-4 pt-8 border-t border-slate-100 sm:pt-10"
+                                    className={railIndex === 0
+                                        ? "space-y-3 pt-5 sm:space-y-4 sm:pt-10"
+                                        : "space-y-3 border-t border-slate-100 pt-7 sm:space-y-4 sm:pt-10"}
                                 >
-                                    <div className="flex items-end justify-between px-2">
+                                    <div className="flex items-end px-2">
                                         <div>
                                             <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">{rail.title}</h3>
-                                            <p className="text-xs font-semibold text-slate-500 sm:text-sm">{rail.description}</p>
                                         </div>
-                                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-brand-primary bg-brand-primary/10 px-2.5 py-1 rounded-full">Top {rail.creators.length}</span>
                                     </div>
-                                    <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-proximity sm:snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-8">
+                                    <div
+                                        className="flex gap-3 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-4 sm:pr-8"
+                                        style={railScrollerStyle}
+                                    >
                                         {rail.creators.map(c => (
-                                            <CastingRankCard key={c.id} creator={c} onRequestMediaKit={handleBrandForm} />
+                                            <CastingRankCard key={c.id} creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
                                         ))}
                                     </div>
                                 </div>
@@ -485,16 +444,19 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                                     <div className="flex items-end justify-between px-2">
                                         <div>
                                             <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">Varias Narrativas</h3>
-                                            <p className="text-xs font-semibold text-slate-500 sm:text-sm">Criadores com alto potencial de engajamento crescendo na rede.</p>
                                         </div>
                                     </div>
-                                    <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-proximity sm:snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-8">
+                                    <div
+                                        className="flex gap-3 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-4 sm:pr-8"
+                                        style={railScrollerStyle}
+                                    >
                                         {microRails.flatMap(r => r.creators).map(c => (
-                                            <CastingRankCard key={c.id} creator={c} onRequestMediaKit={handleBrandForm} />
+                                            <CastingRankCard key={c.id} creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
                                         ))}
                                     </div>
                                 </div>
                             )}
+
                         </>
                     )}
                 </div>
@@ -510,55 +472,79 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
 /**
  * CREATOR CARD (Strategic Optimization)
  */
-function CastingRankCard({ creator, variant = "rail", onRequestMediaKit }: { creator: LandingCreatorHighlight; variant?: "rail" | "grid"; onRequestMediaKit?: () => void }) {
+function CastingRankCard({
+    creator,
+    variant = "rail",
+    onRequestMediaKit
+}: {
+    creator: LandingCreatorHighlight;
+    variant?: "rail" | "railCompact" | "grid";
+    onRequestMediaKit?: () => void
+}) {
     const followersText = compactNumber.format(creator.followers ?? 0);
     const avgReachText = creator.avgReachPerPost ? compactNumber.format(creator.avgReachPerPost) : "–";
     const engagementRate = computeEngagementRate(creator);
     const mediaKitHref = creator.mediaKitSlug ? `/mediakit/${creator.mediaKitSlug}` : null;
+    const cardWidthClass =
+        variant === "railCompact"
+            ? "w-[var(--market-card-width)] min-w-[var(--market-card-width)] sm:w-[185px] sm:min-w-[185px] snap-start"
+            : variant === "rail"
+                ? "w-[160px] sm:w-[185px] snap-start"
+                : "w-full";
 
     return (
         <article
-            className={`relative flex-shrink-0 overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white shadow-[0_14px_30px_rgba(20,33,61,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(20,33,61,0.12)] ${variant === "rail" ? "w-[160px] sm:w-[185px] snap-start" : "w-full"}`}
+            className={`relative flex-shrink-0 overflow-hidden rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 bg-white shadow-[0_14px_30px_rgba(20,33,61,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(20,33,61,0.12)] ${cardWidthClass}`}
         >
-            <div className="relative p-3">
+            <div className="relative p-2 sm:p-3">
                 <div className="flex items-center justify-between">
-                    <p className="truncate text-[11px] font-semibold text-[#727C8F]">@{creator.username || creator.name || "Criador"}</p>
+                    <p className="truncate text-[10px] sm:text-[11px] font-semibold text-[#727C8F]">@{creator.username || creator.name || "Criador"}</p>
                 </div>
 
                 <div>
-                    <div className="mt-3 overflow-hidden rounded-[1.15rem] bg-[#F7F8FB] ring-1 ring-slate-100/80">
+                    <div className="mt-2.5 sm:mt-3 overflow-hidden rounded-[0.95rem] sm:rounded-[1.15rem] bg-[#F7F8FB] ring-1 ring-slate-100/80">
                         <div className="relative w-full pb-[100%]">
                             <UserAvatar
                                 name={creator.name || creator.username || "Criador"}
                                 src={creator.avatarUrl}
-                                size={240}
-                                className="absolute inset-0 h-full w-full rounded-none object-cover grayscale-[0.1] hover:grayscale-0 transition-all duration-500"
+                                size={96}
+                                fit="contain"
+                                fillContainer
+                                className="absolute inset-0 h-full w-full rounded-[0.95rem] sm:rounded-[1.15rem] grayscale-[0.1] hover:grayscale-0 transition-all duration-500"
                             />
                         </div>
                     </div>
 
-                    <div className="mt-3.5">
-                        <p className="text-sm font-black text-[#141C2F] leading-tight truncate">{creator.name}</p>
+                    <div className="mt-2.5 sm:mt-3.5">
+                        <p className="text-[12px] sm:text-sm font-black text-[#141C2F] leading-tight truncate">{creator.name}</p>
                     </div>
 
-                    <div className="mt-3.5 grid grid-cols-2 gap-y-2 border-t border-slate-100/70 pt-3 pb-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#A3A9B6]">
-                        <span>Seguidores</span>
-                        <span className="text-right text-[#141C2F]">{followersText}</span>
-                        <span className="text-[#FF4080]">Engajamento</span>
-                        <span className="text-right text-[#FF4080]">{engagementRate ? `${engagementRate.toFixed(1)}%` : "–"}</span>
-                        <span>Alcance M</span>
-                        <span className="text-right text-[#141C2F]">{avgReachText}</span>
+                    <div className="mt-2.5 sm:mt-3.5 space-y-1.5 sm:space-y-2 border-t border-slate-100/70 pt-2 sm:pt-3 pb-0.5 sm:pb-1 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.08em] sm:tracking-[0.16em] text-[#A3A9B6]">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
+                            <span className="truncate pr-1">Seguidores</span>
+                            <span className="text-right text-[#141C2F] whitespace-nowrap tabular-nums">{followersText}</span>
+                        </div>
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
+                            <span className="truncate pr-1 text-[#FF4080]">Engajamento</span>
+                            <span className="text-right text-[#FF4080] whitespace-nowrap tabular-nums">{engagementRate ? `${engagementRate.toFixed(1)}%` : "–"}</span>
+                        </div>
+                        <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
+                            <span className="truncate pr-1">Alcance M</span>
+                            <span className="text-right text-[#141C2F] whitespace-nowrap tabular-nums">{avgReachText}</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="pt-3">
+                <div className="pt-2 sm:pt-3">
                     {mediaKitHref ? (
-                        <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#141C2F] py-2.5 text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
-                            Ver Mídia Kit →
+                        <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#141C2F] py-2 sm:py-2.5 text-[10px] sm:text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                            <span className="sm:hidden">Enviar Proposta</span>
+                            <span className="hidden sm:inline">Ver Mídia Kit →</span>
                         </a>
                     ) : (
-                        <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#141C2F] py-1.5 text-[11px] font-black text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white">
-                            Solicitar Acesso
+                        <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl border-2 border-[#141C2F] py-1.5 text-[10px] sm:text-[11px] font-black text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white">
+                            <span className="sm:hidden">Solicitar</span>
+                            <span className="hidden sm:inline">Solicitar Acesso</span>
                         </button>
                     )}
                 </div>
