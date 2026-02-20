@@ -5,6 +5,7 @@ import { getScriptsPerformanceSnapshot } from "./performanceTelemetry";
 import { SCRIPT_CATEGORY_DIMENSIONS, type ScriptCategoryDimension } from "./promptParser";
 import { computeStyleSimilarityScore } from "./styleContext";
 import type { ScriptAdjustMeta } from "./ai";
+import { evaluateTechnicalScriptQuality } from "./ai";
 
 type ScriptOperation = "create" | "adjust";
 
@@ -36,6 +37,16 @@ export type ScriptOutputDiagnostics = {
   usedFallbackRules?: boolean;
   contentLengthDelta?: number;
   contentLengthDeltaPct?: number;
+  sceneCount?: number;
+  hasTechnicalColumns?: boolean;
+  hasPerformanceDirection?: boolean;
+  hasOnScreenText?: boolean;
+  perceivedQualityScore?: number;
+  hookStrength?: number;
+  specificityScore?: number;
+  speakabilityScore?: number;
+  ctaStrength?: number;
+  diversityScore?: number;
 };
 
 type BuildScriptOutputDiagnosticsInput = {
@@ -57,6 +68,56 @@ function countParagraphs(content: string): number {
 
 function hasCta(content: string): boolean {
   return /(cta|comente|coment[aá]rio|salve|salvar|compartilhe|compartilha|me conta|link na bio|clique no link)/i.test(
+    content
+  );
+}
+
+function detectTechnicalRows(content: string): Array<{
+  tempo: string;
+  enquadramento: string;
+  acao: string;
+  textoTela: string;
+  fala: string;
+  direcao: string;
+}> {
+  const rows: Array<{
+    tempo: string;
+    enquadramento: string;
+    acao: string;
+    textoTela: string;
+    fala: string;
+    direcao: string;
+  }> = [];
+  const lines = (content || "").split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|")) continue;
+    if (/^\|\s*tempo\s*\|/i.test(trimmed)) continue;
+    const cols = trimmed
+      .split("|")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!cols.length) continue;
+    if (cols.every((part) => /^:?-{2,}:?$/.test(part))) continue;
+    if (cols.length < 6) continue;
+    rows.push({
+      tempo: cols[0] || "",
+      enquadramento: cols[1] || "",
+      acao: cols[2] || "",
+      textoTela: cols[3] || "",
+      fala: cols[4] || "",
+      direcao: cols.slice(5).join(" | "),
+    });
+  }
+  return rows;
+}
+
+function countScenes(content: string): number {
+  return (content.match(/^\s*\[(?:CENA|SCENE)\s*(?:#\s*)?\d{1,3}\s*:[^\]]+\]\s*$/gim) || []).length;
+}
+
+function hasTechnicalColumns(content: string): boolean {
+  return /^\|\s*tempo\s*\|\s*enquadramento\s*\|\s*a[çc][aã]o\/movimento\s*\|\s*texto na tela\s*\|\s*fala \(literal\)\s*\|\s*dire[cç][aã]o de performance\s*\|?$/im.test(
     content
   );
 }
@@ -109,7 +170,21 @@ export function buildScriptOutputDiagnostics(
     hasCta: hasCta(normalizedContent),
     explicitCategoryCount: compliance.explicitCount,
     explicitCategoryComplianceRate: compliance.complianceRate,
+    sceneCount: countScenes(normalizedContent),
+    hasTechnicalColumns: hasTechnicalColumns(normalizedContent),
   };
+  const technicalRows = detectTechnicalRows(normalizedContent);
+  diagnostics.hasPerformanceDirection = technicalRows.length > 0 && technicalRows.every((row) => Boolean(row.direcao.trim()));
+  diagnostics.hasOnScreenText = technicalRows.some((row) => Boolean(row.textoTela.trim() && row.textoTela.trim() !== "..."));
+  if ((diagnostics.sceneCount || 0) > 0) {
+    const quality = evaluateTechnicalScriptQuality(normalizedContent, normalizedPrompt);
+    diagnostics.perceivedQualityScore = quality.perceivedQuality;
+    diagnostics.hookStrength = quality.hookStrength;
+    diagnostics.specificityScore = quality.specificityScore;
+    diagnostics.speakabilityScore = quality.speakabilityScore;
+    diagnostics.ctaStrength = quality.ctaStrength;
+    diagnostics.diversityScore = quality.diversityScore;
+  }
 
   if (input.intelligenceContext) {
     diagnostics.promptMode = input.intelligenceContext.promptMode;

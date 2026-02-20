@@ -18,7 +18,7 @@ const NEW_SCRIPT_REGEX =
   /(?:crie|gere|fa[cç]a|quero|preciso).{0,28}(?:novo|outro).{0,18}roteiro|(?:novo|outro)\s+roteiro/i;
 const FULL_REWRITE_REGEX =
   /(?:reescrev|refa[cç]a|recrie|mude|reformule).{0,26}(?:tudo|todo|inteiro|completo)|(?:do zero)|(?:reestruture).{0,14}(?:inteiro|completo)/i;
-const SCENE_REGEX = /(?:cena|scene)\s*(\d{1,3})/i;
+const SCENE_REGEX = /(?:cena|scene)\s*(?:#\s*)?(\d{1,3})/i;
 const PARAGRAPH_REGEX = /(?:par[aá]grafo)\s*(\d{1,3})/i;
 const FIRST_PARAGRAPH_REGEX =
   /(primeir[oa].{0,24}par[aá]grafo|par[aá]grafo inicial|abertura|introdu[cç][aã]o|intro)/i;

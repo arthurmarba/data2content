@@ -102,4 +102,45 @@ describe("scripts/observability", () => {
     expect(typeof diagnostics.contentLengthDelta).toBe("number");
     expect(typeof diagnostics.contentLengthDeltaPct).toBe("number");
   });
+
+  it("captures technical script diagnostics", () => {
+    const technicalContent = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 00-03s | Close | Abertura | Gancho forte | Se você quer destravar isso, presta atenção agora. | Ritmo alto e olhar na lente |",
+      "[CENA 2: CONTEXTO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 03-10s | Médio | Contexto | Erro comum | Quando você ignora esse ponto, seu resultado cai. | Tom didático com pausa curta |",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 10-20s | Médio | Demonstração | Ajuste em 2 passos | Eu resolvo assim: primeiro base, depois consistência. | Cadência progressiva e gesto de contagem |",
+      "[CENA 4: CTA]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 20-30s | Close | Final | Salve e compartilhe | Se isso te ajudou, salve e compartilhe com alguém do seu nicho. | Entonação conclusiva e sorriso curto |",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const diagnostics = buildScriptOutputDiagnostics({
+      operation: "create",
+      prompt: "roteiro técnico",
+      title: "Roteiro técnico",
+      content: technicalContent,
+    });
+
+    expect(diagnostics.sceneCount).toBeGreaterThanOrEqual(4);
+    expect(diagnostics.hasTechnicalColumns).toBe(true);
+    expect(diagnostics.hasPerformanceDirection).toBe(true);
+    expect(diagnostics.hasOnScreenText).toBe(true);
+    expect(typeof diagnostics.perceivedQualityScore).toBe("number");
+    expect(typeof diagnostics.hookStrength).toBe("number");
+    expect(typeof diagnostics.specificityScore).toBe("number");
+    expect(typeof diagnostics.speakabilityScore).toBe("number");
+    expect(typeof diagnostics.ctaStrength).toBe("number");
+    expect(typeof diagnostics.diversityScore).toBe("number");
+  });
 });

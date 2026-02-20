@@ -1,5 +1,8 @@
 import {
   buildIntelligencePromptBlock,
+  convertLegacyScriptToTechnical,
+  evaluateTechnicalScriptQuality,
+  enforceTechnicalScriptContract,
   sanitizeScriptIdentityLeakage,
   selectScriptModelForPrompt,
 } from "./ai";
@@ -183,5 +186,128 @@ describe("scripts/ai model selection", () => {
     expect(selected.model).toBe("gpt-4.1");
     expect(selected.reason).toBe("explicit_intent");
     expect(selected.fallbackModel).toBe("gpt-4o-mini");
+  });
+});
+
+describe("scripts/ai technical contract", () => {
+  it("repairs incomplete generation into technical script format", () => {
+    const repaired = enforceTechnicalScriptContract(
+      {
+        title: "Roteiro curto",
+        content: "Abertura rápida. Desenvolvimento. Fechamento.",
+      },
+      "roteiro sobre produtividade para reels"
+    );
+
+    expect(repaired.content).toContain("[ROTEIRO_TECNICO_V1]");
+    expect(repaired.content).toContain("[/ROTEIRO_TECNICO_V1]");
+    const scenes = repaired.content.match(/\[CENA\s+\d+:/gi) || [];
+    expect(scenes.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("enforces explicit CTA in last scene", () => {
+    const base = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 00-03s | Close | Gesto | Gancho | Eu vou te mostrar um ajuste simples agora | Ritmo alto |",
+      "[CENA 2: CONTEXTO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 03-10s | Plano médio | Corte | Erro | Quando você ignora isso, seu resultado despenca | Tom didático |",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 10-20s | Plano médio | Demonstração | Passos | Eu faço em dois passos para manter consistência | Cadência clara |",
+      "[CENA 4: CTA]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 20-30s | Close | Encerrar | Final | Isso organiza sua execução de conteúdo | Tom conclusivo |",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Roteiro", content: base },
+      "roteiro sobre produtividade"
+    );
+
+    const lastScene = repaired.content
+      .split(/\[CENA 4: CTA\]/i)[1] || "";
+    expect(lastScene).toMatch(/comente|salv[ae]|compartilhe|direct|dm|me chama|segue|link/i);
+  });
+
+  it("rewrites instructional speech into literal camera speech", () => {
+    const base = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 00-03s | Close | Abertura | Gancho | Mostre o erro principal e apresente a solução. | Falar com energia |",
+      "[CENA 2: CONTEXTO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 03-10s | Médio | Contexto | Dor | Explique em uma frase curta. | Tom didático |",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 10-20s | Médio | Demonstração | Passos | Faça o passo um e depois passo dois. | Cadência firme |",
+      "[CENA 4: CTA]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 20-30s | Close | Final | CTA | Finalize com CTA. | Tom final |",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Teste", content: base },
+      "roteiro sobre vendas no instagram"
+    );
+
+    expect(repaired.content).not.toMatch(/\b(mostre|explique|fa[cç]a|finalize)\b/i);
+  });
+
+  it("converts legacy script text to technical format", () => {
+    const converted = convertLegacyScriptToTechnical(
+      "Gancho: pare de perder vendas.\nDesenvolvimento: ajuste a mensagem em 2 passos.\nCTA: comente quero.",
+      "roteiro para vender mentoria"
+    );
+
+    expect(converted).toContain("[ROTEIRO_TECNICO_V1]");
+    expect(converted).toContain("[CENA 1: GANCHO]");
+    expect(converted).toContain("[CENA 4: CTA]");
+  });
+
+  it("computes higher perceived quality for polished technical script than weak script", () => {
+    const weak = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 00-03s | ... | ... | ... | Mostre isso. | ... |",
+      "[CENA 2: CONTEXTO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 03-10s | ... | ... | ... | Explique melhor. | ... |",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 10-20s | ... | ... | ... | Faça em dois passos. | ... |",
+      "[CENA 4: CTA]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 20-30s | ... | ... | ... | Finalize com CTA. | ... |",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+    const polished = enforceTechnicalScriptContract(
+      { title: "Roteiro", content: weak },
+      "roteiro sobre produtividade para reels"
+    );
+
+    const weakScore = evaluateTechnicalScriptQuality(weak, "roteiro sobre produtividade para reels");
+    const polishedScore = evaluateTechnicalScriptQuality(polished.content, "roteiro sobre produtividade para reels");
+
+    expect(polishedScore.perceivedQuality).toBeGreaterThan(weakScore.perceivedQuality);
+    expect(polishedScore.ctaStrength).toBeGreaterThan(0.7);
   });
 });

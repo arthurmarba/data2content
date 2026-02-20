@@ -91,12 +91,59 @@ const HUMOR_MARKERS = [
   "🤣",
 ];
 
+const TECHNICAL_SCRIPT_TAG_REGEX = /^\s*\[\/?ROTEIRO_TECNICO_V1\]\s*$/i;
+const TECHNICAL_SCENE_HEADING_REGEX = /^\s*\[(?:CENA|SCENE)\s*(?:#\s*)?\d{1,3}\s*:[^\]]+\]\s*$/i;
+const TECHNICAL_HEADER_DETECT_REGEX =
+  /^\|\s*tempo\s*\|\s*enquadramento\s*\|\s*a[çc][aã]o\/movimento\s*\|\s*texto na tela\s*\|\s*fala \(literal\)\s*\|\s*dire[cç][aã]o de performance\s*\|?$/i;
+
+function isTableSeparatorLine(line: string): boolean {
+  const cols = line
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!cols.length) return false;
+  return cols.every((part) => /^:?-{2,}:?$/.test(part));
+}
+
+function extractTechnicalSpeechSignals(content: string): string | null {
+  const normalized = String(content || "").replace(/\r/g, "");
+  if (!normalized) return null;
+  const lines = normalized.split("\n");
+  const hasTechnicalSignals = lines.some((line) =>
+    TECHNICAL_SCRIPT_TAG_REGEX.test(line.trim()) ||
+    TECHNICAL_SCENE_HEADING_REGEX.test(line.trim()) ||
+    TECHNICAL_HEADER_DETECT_REGEX.test(line.trim())
+  );
+  if (!hasTechnicalSignals) return null;
+
+  const speechLines: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|")) continue;
+    if (TECHNICAL_HEADER_DETECT_REGEX.test(trimmed)) continue;
+    if (isTableSeparatorLine(trimmed)) continue;
+    const cols = trimmed
+      .split("|")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (cols.length < 6) continue;
+    const speech = cols[4] || "";
+    const cleanSpeech = speech.replace(/\s+/g, " ").trim();
+    if (cleanSpeech) speechLines.push(cleanSpeech);
+  }
+
+  if (!speechLines.length) return null;
+  return speechLines.join("\n\n");
+}
+
 function normalizeSpaces(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
 function normalizeContent(value: string): string {
-  return (value || "")
+  const technicalSpeech = extractTechnicalSpeechSignals(value || "");
+  const base = technicalSpeech || value || "";
+  return base
     .replace(/\r/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")

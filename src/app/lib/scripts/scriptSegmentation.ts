@@ -17,7 +17,8 @@ type ScopedResolution = {
   normalizedTargetIndex: number | null;
 };
 
-const SCENE_HEADING_LINE_REGEX = /^\s*(?:\[\s*)?(?:cena|scene)\s*(\d{1,3})\b.*$/i;
+const SCENE_HEADING_LINE_REGEX =
+  /^\s*(?:\[\s*)?(?:cena|scene)\s*(?:#\s*)?(\d{1,3})\b(?:[^\]]*)?(?:\]\s*)?$/i;
 
 function normalizeContent(value: string): string {
   return (value || "")

@@ -77,6 +77,44 @@ const PREMIUM_MODEL_INTENT_REGEX =
 const CONSTRAINT_TOKEN_REGEX =
   /(sem|com|evite|obrigat[oó]ri|inclua|não|nao|tom|estrutura|objetivo|p[úu]blico|persona|cta|gancho|par[aá]grafo|hook|copy)/gi;
 const BULLET_ITEM_REGEX = /(?:^|\n)\s*(?:[-*]|\d+[.)])/gm;
+const TECHNICAL_SCRIPT_START = "[ROTEIRO_TECNICO_V1]";
+const TECHNICAL_SCRIPT_END = "[/ROTEIRO_TECNICO_V1]";
+const TECHNICAL_SCENE_HEADING_REGEX = /^\s*\[(?:CENA|SCENE)\s*(?:#\s*)?(\d{1,2})\s*:\s*([^\]]+)\]\s*$/i;
+const TECHNICAL_HEADER_LINE =
+  "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |";
+const TECHNICAL_HEADER_SEPARATOR = "| :--- | :--- | :--- | :--- | :--- | :--- |";
+const TECHNICAL_HEADER_DETECT_REGEX =
+  /^\|\s*tempo\s*\|\s*enquadramento\s*\|\s*a[çc][aã]o\/movimento\s*\|\s*texto na tela\s*\|\s*fala \(literal\)\s*\|\s*dire[cç][aã]o de performance\s*\|?$/i;
+const CTA_LITERAL_REGEX = /\b(comente|coment[aá]rio|salve|salvar|compartilhe|compartilha|direct|dm|me chama|segue|seguir|link)\b/i;
+const INSTRUCTIONAL_LITERAL_REGEX =
+  /^\s*(mostre|mostra|explique|explica|apresente|apresenta|grave|abra|feche|finalize|encerre|fa[cç]a|diga|fale)\b/i;
+
+type TechnicalSceneRow = {
+  tempo: string;
+  enquadramento: string;
+  acao: string;
+  textoTela: string;
+  fala: string;
+  direcao: string;
+};
+
+type TechnicalSceneBlock = {
+  index: number;
+  heading: string;
+  row: TechnicalSceneRow;
+};
+
+export type TechnicalScriptQualityScore = {
+  perceivedQuality: number;
+  hookStrength: number;
+  specificityScore: number;
+  speakabilityScore: number;
+  ctaStrength: number;
+  diversityScore: number;
+  sceneCount: number;
+};
+
+const QUALITY_PASS_MIN_SCORE = 0.78;
 
 export class ScriptAdjustScopeError extends Error {
   readonly status: number;
@@ -297,38 +335,538 @@ export function sanitizeScriptIdentityLeakage(draft: ScriptDraft, allowedTexts: 
   };
 }
 
+function stripMarkdownMarkers(value: string): string {
+  return (value || "")
+    .replace(/\*\*/g, "")
+    .replace(/^[-*]\s+/, "")
+    .replace(/^"+|"+$/g, "")
+    .trim();
+}
+
+function inferScriptObjective(text: string): "converter" | "engajar" | "autoridade" | "educar" {
+  const normalized = (text || "").toLowerCase();
+  if (/(vender|convers[aã]o|converter|lead|oferta|cliente|mentoria|fechar)/i.test(normalized)) {
+    return "converter";
+  }
+  if (/(autoridade|posicionamento|credibilidade|especialista)/i.test(normalized)) {
+    return "autoridade";
+  }
+  if (/(viral|alcance|engajar|engajamento|compartilhamento|salvamento)/i.test(normalized)) {
+    return "engajar";
+  }
+  return "educar";
+}
+
+function extractTopicHint(value: string): string {
+  const normalized = compactWhitespace(value || "");
+  if (!normalized) return "seu tema principal";
+  const patterns = [
+    /(?:sobre|tema|assunto)\s+(.+)$/i,
+    /(?:para)\s+(.+)$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (!match?.[1]) continue;
+    const candidate = stripMarkdownMarkers(match[1]).replace(/[?.!,:;]+$/g, "").trim();
+    if (candidate.length >= 4) return clampText(candidate, "seu tema principal", 80);
+  }
+  const cleaned = normalized
+    .replace(/\b(crie|gere|fa[cç]a|ajuste|reescreva|roteiro|script|novo|uma|um|para|pra)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clampText(cleaned || normalized, "seu tema principal", 80);
+}
+
+function defaultHeadingForScene(index: number): string {
+  if (index === 1) return "GANCHO";
+  if (index === 2) return "CONTEXTO";
+  if (index === 3) return "DEMONSTRAÇÃO";
+  if (index === 4) return "CTA";
+  if (index === 5) return "PROVA";
+  return "REFORÇO CTA";
+}
+
+function normalizeSceneHeadingLabel(value: string, index: number): string {
+  const normalized = stripMarkdownMarkers(value || "")
+    .replace(/[^\p{L}\p{N}\s/_-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+  if (!normalized) return defaultHeadingForScene(index);
+  if (index >= 4) return normalized.includes("CTA") ? normalized : "CTA";
+  return normalized;
+}
+
+function sanitizeTableCell(value: string, fallback = "..."): string {
+  const sanitized = stripMarkdownMarkers(value || "")
+    .replace(/\|/g, "/")
+    .replace(/\s+/g, " ")
+    .trim();
+  return sanitized || fallback;
+}
+
+function isTableSeparatorLine(line: string): boolean {
+  const cols = line
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!cols.length) return false;
+  return cols.every((part) => /^:?-{2,}:?$/.test(part));
+}
+
+function parseTechnicalRowFromLine(line: string): TechnicalSceneRow | null {
+  const trimmedLine = line.trim();
+  if (TECHNICAL_HEADER_DETECT_REGEX.test(trimmedLine)) return null;
+  if (isTableSeparatorLine(trimmedLine)) return null;
+  const cols = trimmedLine
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!cols.length) return null;
+  while (cols.length < 6) cols.push("");
+  if (cols.length > 6) {
+    cols[5] = cols.slice(5).join(" / ");
+  }
+  return {
+    tempo: sanitizeTableCell(cols[0] || "", "00-03s"),
+    enquadramento: sanitizeTableCell(cols[1] || ""),
+    acao: sanitizeTableCell(cols[2] || ""),
+    textoTela: sanitizeTableCell(cols[3] || ""),
+    fala: sanitizeTableCell(cols[4] || ""),
+    direcao: sanitizeTableCell(cols[5] || ""),
+  };
+}
+
+function isTechnicalScript(content: string): boolean {
+  const normalized = (content || "").trim();
+  if (!normalized) return false;
+  if (normalized.includes(TECHNICAL_SCRIPT_START)) return true;
+  let hasSceneHeading = false;
+  let hasTechnicalHeader = false;
+  for (const line of normalized.split("\n")) {
+    const trimmed = line.trim();
+    if (!hasSceneHeading && TECHNICAL_SCENE_HEADING_REGEX.test(trimmed)) {
+      hasSceneHeading = true;
+    }
+    if (!hasTechnicalHeader && TECHNICAL_HEADER_DETECT_REGEX.test(trimmed)) {
+      hasTechnicalHeader = true;
+    }
+    if (hasSceneHeading && hasTechnicalHeader) return true;
+  }
+  return false;
+}
+
+function parseTechnicalScenes(content: string): TechnicalSceneBlock[] {
+  const normalized = (content || "").replace(/\r/g, "");
+  if (!normalized) return [];
+  const lines = normalized.split("\n");
+  const sceneMarkers: Array<{ lineIndex: number; sceneIndex: number; heading: string }> = [];
+  lines.forEach((line, lineIndex) => {
+    const match = line.match(TECHNICAL_SCENE_HEADING_REGEX);
+    if (!match?.[1]) return;
+    sceneMarkers.push({
+      lineIndex,
+      sceneIndex: Number(match[1]),
+      heading: normalizeSceneHeadingLabel(match[2] || "", Number(match[1])),
+    });
+  });
+  if (!sceneMarkers.length) return [];
+
+  const parsed: TechnicalSceneBlock[] = [];
+  sceneMarkers.forEach((marker, idx) => {
+    const nextLine = sceneMarkers[idx + 1]?.lineIndex ?? lines.length;
+    const blockLines = lines.slice(marker.lineIndex + 1, nextLine);
+    let row: TechnicalSceneRow | null = null;
+    for (const line of blockLines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("|")) continue;
+      const parsedRow = parseTechnicalRowFromLine(trimmed);
+      if (!parsedRow) continue;
+      row = parsedRow;
+      break;
+    }
+    parsed.push({
+      index: marker.sceneIndex,
+      heading: marker.heading,
+      row: row || {
+        tempo: "00-03s",
+        enquadramento: "...",
+        acao: "...",
+        textoTela: "...",
+        fala: "...",
+        direcao: "...",
+      },
+    });
+  });
+
+  return parsed.sort((a, b) => a.index - b.index);
+}
+
+function buildDefaultTechnicalRow(
+  sceneIndex: number,
+  topic: string,
+  objective: ReturnType<typeof inferScriptObjective>
+): TechnicalSceneRow {
+  const safeTopic = sanitizeTableCell(topic, "seu tema principal");
+  if (sceneIndex === 1) {
+    return {
+      tempo: "00-03s",
+      enquadramento: "Close no rosto (lente 1x), câmera na altura dos olhos.",
+      acao: "Entrada rápida com gesto de mão e micro-pausa antes da frase principal.",
+      textoTela: `PARE DE ERRAR: ${safeTopic.toUpperCase()}`,
+      fala: `Se você quer destravar ${safeTopic}, presta atenção nesses próximos segundos.`,
+      direcao: "Ritmo alto, olhar direto na lente e entonação firme na primeira frase.",
+    };
+  }
+  if (sceneIndex === 2) {
+    return {
+      tempo: "03-10s",
+      enquadramento: "Plano médio com corte para detalhe da ação.",
+      acao: "Mostrar o cenário real do problema com movimento curto de câmera.",
+      textoTela: "ERRO QUE MAIS DERRUBA RESULTADO",
+      fala: `Quando você ignora esse ponto em ${safeTopic}, o resultado cai antes de ganhar tração.`,
+      direcao: "Tom didático, frase objetiva e pausa curta após o problema central.",
+    };
+  }
+  if (sceneIndex === 3) {
+    return {
+      tempo: "10-20s",
+      enquadramento: "Plano médio + insert de apoio (antes/depois).",
+      acao: "Demonstrar a correção em dois movimentos visuais simples.",
+      textoTela: "AJUSTE PRÁTICO EM 2 PASSOS",
+      fala: `Eu resolvo assim: primeiro corrijo a base, depois repito a execução com consistência.`,
+      direcao: "Cadência progressiva, reforçar 'primeiro' e 'depois' com gesto de contagem.",
+    };
+  }
+  if (objective === "converter") {
+    return {
+      tempo: sceneIndex === 4 ? "20-30s" : "30-35s",
+      enquadramento: "Close final com gesto apontando para a legenda.",
+      acao: "Encerrar com benefício claro e chamada direta para ação.",
+      textoTela: "COMENTE “QUERO”",
+      fala: "Se você quer aplicar isso no seu caso, comenta “quero” e me chama no direct.",
+      direcao: "Tom confiante, sorriso curto no fechamento e pausa antes do CTA.",
+    };
+  }
+  return {
+    tempo: sceneIndex === 4 ? "20-30s" : "30-35s",
+    enquadramento: "Close final com texto de reforço no centro da tela.",
+    acao: "Fechar com benefício final e CTA explícito.",
+    textoTela: "SALVE E COMPARTILHE",
+    fala: "Se isso te ajudou, salva este roteiro e compartilha com alguém do seu nicho.",
+    direcao: "Entonação conclusiva, fala curta e clara com gesto de confirmação.",
+  };
+}
+
+function isActionableDirection(text: string): boolean {
+  return /\b(ritmo|olhar|entona[cç][aã]o|cad[êe]ncia|dic[cç][aã]o|pausa|gesto|postura|sorriso|energia|tom)\b/i.test(text);
+}
+
+function ensureLiteralSpeech(
+  speech: string,
+  fallback: string
+): string {
+  const cleaned = sanitizeTableCell(speech, fallback);
+  if (INSTRUCTIONAL_LITERAL_REGEX.test(cleaned)) return fallback;
+  if (cleaned.split(/\s+/).filter(Boolean).length < 6) return fallback;
+  return cleaned;
+}
+
+function ensureCtaSpeech(speech: string, fallback: string): string {
+  if (CTA_LITERAL_REGEX.test(speech)) return speech;
+  return fallback;
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
+function roundScore(value: number): number {
+  return Math.round(clamp01(value) * 1000) / 1000;
+}
+
+function countWords(text: string): number {
+  return (text || "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasMeaningfulOverlay(value: string): boolean {
+  const normalized = sanitizeTableCell(value, "").toLowerCase();
+  if (!normalized || normalized === "...") return false;
+  return normalized.length >= 6;
+}
+
+function scoreHookStrength(row?: TechnicalSceneRow): number {
+  if (!row) return 0;
+  let score = 0;
+  const speech = sanitizeTableCell(row.fala, "");
+  const words = countWords(speech);
+  if (words >= 8 && words <= 26) score += 0.3;
+  if (/\b(voc[eê]|se voc[eê]|hoje|agora)\b/i.test(speech)) score += 0.2;
+  if (/\b(erro|perde|cai|destrava|corrig|resultado|ganha)\b/i.test(speech)) score += 0.3;
+  if (hasMeaningfulOverlay(row.textoTela)) score += 0.2;
+  return roundScore(score);
+}
+
+function scoreSceneSpecificity(row: TechnicalSceneRow): number {
+  let score = 0;
+  const combined = `${row.enquadramento} ${row.acao} ${row.textoTela} ${row.fala}`.toLowerCase();
+  if (/\b(\d+|passo|antes|depois|close|plano|insert|corte|lente|1x|2x|3x)\b/.test(combined)) score += 0.35;
+  if (sanitizeTableCell(row.acao, "").length >= 24) score += 0.25;
+  if (hasMeaningfulOverlay(row.textoTela)) score += 0.2;
+  if (countWords(row.fala) >= 10 && /\b(eu|voc[eê]|quando|se)\b/i.test(row.fala)) score += 0.2;
+  return roundScore(score);
+}
+
+function scoreSpeakability(row: TechnicalSceneRow): number {
+  const speech = sanitizeTableCell(row.fala, "");
+  if (!speech) return 0;
+  if (INSTRUCTIONAL_LITERAL_REGEX.test(speech)) return 0;
+  let score = 0;
+  const words = countWords(speech);
+  if (words >= 8 && words <= 34) score += 0.5;
+  else if (words >= 6 && words <= 40) score += 0.25;
+  if (/\b(eu|voc[eê]|se voc[eê]|quando voc[eê])\b/i.test(speech)) score += 0.25;
+  if (/\b(corrig|melhor|ganha|destrava|resultado|salv|comenta|compartilha)\b/i.test(speech)) score += 0.25;
+  return roundScore(score);
+}
+
+function scoreCtaStrength(lastScene?: TechnicalSceneRow): number {
+  if (!lastScene) return 0;
+  let score = 0;
+  const speech = sanitizeTableCell(lastScene.fala, "");
+  const overlay = sanitizeTableCell(lastScene.textoTela, "");
+  if (CTA_LITERAL_REGEX.test(speech)) score += 0.65;
+  if (/\b(comenta|salva|compartilha|direct|dm|link|segue)\b/i.test(speech)) score += 0.2;
+  if (/\b(agora|hoje|neste|nesse)\b/i.test(speech)) score += 0.05;
+  if (/\b(comente|salve|compartilhe|cta|link|direct|dm)\b/i.test(overlay)) score += 0.1;
+  return roundScore(score);
+}
+
+function scoreDiversity(scenes: TechnicalSceneBlock[]): number {
+  const speeches = scenes.map((scene) => sanitizeTableCell(scene.row.fala, "").toLowerCase()).filter(Boolean);
+  if (!speeches.length) return 0;
+  const allTokens = speeches
+    .flatMap((text) => text.split(/\s+/))
+    .map((token) => token.replace(/[^\p{L}\p{N}]/gu, "").trim())
+    .filter((token) => token.length > 3);
+  if (!allTokens.length) return 0.35;
+  const uniqueTokens = new Set(allTokens);
+  const ratio = uniqueTokens.size / allTokens.length;
+  const duplicateLines = speeches.length - new Set(speeches).size;
+  const duplicatePenalty = duplicateLines > 0 ? 0.15 : 0;
+  return roundScore(clamp01(ratio * 1.25 - duplicatePenalty));
+}
+
+function evaluateTechnicalScriptQualityFromScenes(
+  scenes: TechnicalSceneBlock[],
+): TechnicalScriptQualityScore {
+  if (!scenes.length) {
+    return {
+      perceivedQuality: 0,
+      hookStrength: 0,
+      specificityScore: 0,
+      speakabilityScore: 0,
+      ctaStrength: 0,
+      diversityScore: 0,
+      sceneCount: 0,
+    };
+  }
+  const hookStrength = scoreHookStrength(scenes[0]?.row);
+  const specificityScore = roundScore(
+    scenes.reduce((sum, scene) => sum + scoreSceneSpecificity(scene.row), 0) / scenes.length
+  );
+  const speakabilityScore = roundScore(
+    scenes.reduce((sum, scene) => sum + scoreSpeakability(scene.row), 0) / scenes.length
+  );
+  const ctaStrength = scoreCtaStrength(scenes[scenes.length - 1]?.row);
+  const diversityScore = scoreDiversity(scenes);
+  const perceivedQuality = roundScore(
+    hookStrength * 0.25 +
+    specificityScore * 0.25 +
+    speakabilityScore * 0.2 +
+    ctaStrength * 0.2 +
+    diversityScore * 0.1
+  );
+  return {
+    perceivedQuality,
+    hookStrength,
+    specificityScore,
+    speakabilityScore,
+    ctaStrength,
+    diversityScore,
+    sceneCount: scenes.length,
+  };
+}
+
+function shouldRunQualityPass(score: TechnicalScriptQualityScore): boolean {
+  return (
+    score.sceneCount < 4 ||
+    score.perceivedQuality < QUALITY_PASS_MIN_SCORE ||
+    score.hookStrength < 0.62 ||
+    score.specificityScore < 0.62 ||
+    score.speakabilityScore < 0.75 ||
+    score.ctaStrength < 0.8
+  );
+}
+
+function polishScenesForQuality(
+  scenes: TechnicalSceneBlock[],
+  fallbackPrompt: string
+): TechnicalSceneBlock[] {
+  const topic = extractTopicHint(fallbackPrompt);
+  const objective = inferScriptObjective(fallbackPrompt);
+  const total = scenes.length;
+
+  return scenes.map((scene, idx) => {
+    const sceneIndex = idx + 1;
+    const fallbackRow = buildDefaultTechnicalRow(sceneIndex, topic, objective);
+    const isLast = idx === total - 1;
+    const nextRow: TechnicalSceneRow = {
+      tempo: sanitizeTableCell(scene.row.tempo, fallbackRow.tempo),
+      enquadramento: sanitizeTableCell(scene.row.enquadramento, fallbackRow.enquadramento),
+      acao: sanitizeTableCell(scene.row.acao, fallbackRow.acao),
+      textoTela: sanitizeTableCell(scene.row.textoTela, fallbackRow.textoTela),
+      fala: ensureLiteralSpeech(scene.row.fala, fallbackRow.fala),
+      direcao: isActionableDirection(scene.row.direcao)
+        ? sanitizeTableCell(scene.row.direcao, fallbackRow.direcao)
+        : fallbackRow.direcao,
+    };
+
+    if (sanitizeTableCell(nextRow.acao, "").length < 20) {
+      nextRow.acao = fallbackRow.acao;
+    }
+    if (!hasMeaningfulOverlay(nextRow.textoTela)) {
+      nextRow.textoTela = fallbackRow.textoTela;
+    }
+    if (scoreSceneSpecificity(nextRow) < 0.55) {
+      nextRow.acao = fallbackRow.acao;
+      nextRow.textoTela = fallbackRow.textoTela;
+    }
+    if (sceneIndex === 1 && scoreHookStrength(nextRow) < 0.6) {
+      nextRow.fala = fallbackRow.fala;
+      nextRow.textoTela = fallbackRow.textoTela;
+    }
+    if (isLast) {
+      nextRow.fala = ensureCtaSpeech(nextRow.fala, fallbackRow.fala);
+      nextRow.textoTela = /\b(comente|salve|compartilhe|cta|link|direct|dm)\b/i.test(nextRow.textoTela)
+        ? nextRow.textoTela
+        : fallbackRow.textoTela;
+    }
+    return {
+      index: sceneIndex,
+      heading: isLast ? "CTA" : normalizeSceneHeadingLabel(scene.heading, sceneIndex),
+      row: nextRow,
+    };
+  });
+}
+
+export function evaluateTechnicalScriptQuality(content: string, userPrompt = ""): TechnicalScriptQualityScore {
+  const parsed = parseTechnicalScenes(content || "");
+  const scenes = parsed.length ? parsed : buildTechnicalScenesFromLegacyContent(content || "", userPrompt || "roteiro");
+  return evaluateTechnicalScriptQualityFromScenes(scenes);
+}
+
+function serializeSceneBlock(scene: TechnicalSceneBlock): string {
+  const heading = normalizeSceneHeadingLabel(scene.heading, scene.index);
+  const row = scene.row;
+  return [
+    `[CENA ${scene.index}: ${heading}]`,
+    TECHNICAL_HEADER_LINE,
+    TECHNICAL_HEADER_SEPARATOR,
+    `| ${sanitizeTableCell(row.tempo, "00-03s")} | ${sanitizeTableCell(row.enquadramento)} | ${sanitizeTableCell(row.acao)} | ${sanitizeTableCell(row.textoTela)} | ${sanitizeTableCell(row.fala)} | ${sanitizeTableCell(row.direcao)} |`,
+  ].join("\n");
+}
+
+function serializeTechnicalScript(scenes: TechnicalSceneBlock[]): string {
+  const blocks = scenes
+    .sort((a, b) => a.index - b.index)
+    .map((scene) => serializeSceneBlock(scene));
+  return [TECHNICAL_SCRIPT_START, ...blocks, TECHNICAL_SCRIPT_END].join("\n\n").trim();
+}
+
+function extractLegacySignals(content: string): { hook?: string; development?: string; cta?: string; paragraphs: string[] } {
+  const lines = (content || "")
+    .split("\n")
+    .map((line) => stripMarkdownMarkers(line).trim())
+    .filter(Boolean);
+  const result: { hook?: string; development?: string; cta?: string; paragraphs: string[] } = {
+    paragraphs: splitParagraphs(content || "").map((part) => stripMarkdownMarkers(part)),
+  };
+  lines.forEach((line) => {
+    if (!result.hook && /^gancho\s*:/i.test(line)) {
+      result.hook = line.split(":").slice(1).join(":").trim();
+      return;
+    }
+    if (!result.development && /^(desenvolvimento|corpo|passos?)\s*:/i.test(line)) {
+      result.development = line.split(":").slice(1).join(":").trim();
+      return;
+    }
+    if (!result.cta && /^(cta|chamada|call to action)\s*:/i.test(line)) {
+      result.cta = line.split(":").slice(1).join(":").trim();
+    }
+  });
+  return result;
+}
+
+function buildTechnicalScenesFromLegacyContent(content: string, fallbackPrompt: string): TechnicalSceneBlock[] {
+  const normalized = (content || "").trim();
+  const topic = extractTopicHint(`${fallbackPrompt} ${normalized}`);
+  const objective = inferScriptObjective(`${fallbackPrompt}\n${normalized}`);
+  const legacySignals = extractLegacySignals(normalized);
+  const scenes: TechnicalSceneBlock[] = [1, 2, 3, 4].map((sceneIndex) => ({
+    index: sceneIndex,
+    heading: defaultHeadingForScene(sceneIndex),
+    row: buildDefaultTechnicalRow(sceneIndex, topic, objective),
+  }));
+
+  if (legacySignals.hook) {
+    scenes[0]!.row.fala = ensureLiteralSpeech(legacySignals.hook, scenes[0]!.row.fala);
+  }
+  if (legacySignals.development) {
+    scenes[2]!.row.fala = ensureLiteralSpeech(legacySignals.development, scenes[2]!.row.fala);
+  } else if (legacySignals.paragraphs[1]) {
+    scenes[2]!.row.fala = ensureLiteralSpeech(legacySignals.paragraphs[1], scenes[2]!.row.fala);
+  }
+  if (legacySignals.cta) {
+    scenes[3]!.row.fala = ensureCtaSpeech(
+      ensureLiteralSpeech(legacySignals.cta, scenes[3]!.row.fala),
+      scenes[3]!.row.fala
+    );
+  }
+  if (!legacySignals.hook && legacySignals.paragraphs[0]) {
+    scenes[1]!.row.fala = ensureLiteralSpeech(legacySignals.paragraphs[0], scenes[1]!.row.fala);
+  }
+
+  return scenes;
+}
+
+export function convertLegacyScriptToTechnical(content: string, fallbackPrompt: string): string {
+  const normalized = (content || "").trim();
+  if (isTechnicalScript(normalized)) return normalized;
+  return serializeTechnicalScript(buildTechnicalScenesFromLegacyContent(normalized, fallbackPrompt));
+}
+
 function fallbackGenerate(prompt: string): ScriptDraft {
   const normalized = prompt.trim();
-  const titleBase = normalized ? normalized.split(/\s+/).slice(0, 7).join(" ") : "Novo roteiro";
-  const title = clampText(titleBase, "Novo roteiro", 80);
-  const content = clampText(
-    `Gancho: ${normalized || "comece com uma frase que prenda atenção"}.\nDesenvolvimento: explique em 2-3 passos objetivos.\nCTA: finalize com uma ação clara para o público.`,
-    "Estruture o roteiro em gancho, desenvolvimento e CTA.",
-    12000
-  );
+  const titleBase = normalized ? normalized.split(/\s+/).slice(0, 7).join(" ") : "Roteiro técnico";
+  const title = clampText(titleBase, "Roteiro técnico", 80);
+  const content = convertLegacyScriptToTechnical("", normalized || "reels de 30s");
   return { title, content };
 }
 
 function fallbackAdjust(input: AdjustInput): ScriptDraft {
-  const appendix = input.prompt.trim()
-    ? `\n\n[Ajuste solicitado]\n${input.prompt.trim()}`
-    : "";
   return {
-    title: clampText(input.title, "Roteiro ajustado", 80),
-    content: clampText(`${input.content}${appendix}`, input.content, 12000),
+    title: clampText(input.title, "Roteiro técnico ajustado", 80),
+    content: convertLegacyScriptToTechnical(input.content, input.prompt),
   };
 }
 
 function fallbackAdjustScoped(segmentText: string, prompt: string): string {
   const normalizedSegment = String(segmentText || "").trim();
-  const normalizedPrompt = String(prompt || "").trim();
-  if (!normalizedSegment) return "";
-  if (!normalizedPrompt) return normalizedSegment;
-  return clampText(
-    `${normalizedSegment}\n\n[Ajuste solicitado]\n${normalizedPrompt}`,
-    normalizedSegment,
-    6000
-  );
+  if (!normalizedSegment) return convertLegacyScriptToTechnical("", prompt);
+  if (isTechnicalScript(normalizedSegment)) return normalizedSegment;
+  return convertLegacyScriptToTechnical(normalizedSegment, prompt);
 }
 
 function resolveCategoryLabel(dimension: keyof NonNullable<ScriptIntelligenceContext["resolvedCategories"]>, id: string): string {
@@ -498,30 +1036,94 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
   }
 }
 
-function enforceGeneratedScriptContract(draft: ScriptDraft, fallbackPrompt: string): ScriptDraft {
-  let title = clampText(draft.title, "Novo roteiro", 80);
-  let content = clampText(draft.content, "", 12000);
+function buildNormalizedTechnicalScenes(
+  content: string,
+  fallbackPrompt: string
+): TechnicalSceneBlock[] {
+  const topic = extractTopicHint(fallbackPrompt);
+  const objective = inferScriptObjective(fallbackPrompt);
+  const parsed = parseTechnicalScenes(content);
+  const normalized = parsed.length ? parsed : buildTechnicalScenesFromLegacyContent(content, fallbackPrompt);
 
-  if (!content || content.length < 120) {
-    const fallback = fallbackGenerate(fallbackPrompt);
-    title = title || fallback.title;
-    content = fallback.content;
+  const scenes: TechnicalSceneBlock[] = normalized.length
+    ? normalized
+    : [1, 2, 3, 4].map((sceneIndex) => ({
+        index: sceneIndex,
+        heading: defaultHeadingForScene(sceneIndex),
+        row: buildDefaultTechnicalRow(sceneIndex, topic, objective),
+      }));
+
+  scenes.sort((a, b) => a.index - b.index);
+  while (scenes.length < 4) {
+    const nextIndex = scenes.length + 1;
+    scenes.push({
+      index: nextIndex,
+      heading: defaultHeadingForScene(nextIndex),
+      row: buildDefaultTechnicalRow(nextIndex, topic, objective),
+    });
   }
+  if (scenes.length > 6) scenes.length = 6;
 
-  const paragraphs = splitParagraphs(content);
-  if (paragraphs.length < 2 && content.length < 200) {
-    const fallback = fallbackGenerate(fallbackPrompt);
-    content = fallback.content;
+  return scenes.map((scene, idx, all) => {
+    const sceneIndex = idx + 1;
+    const fallbackRow = buildDefaultTechnicalRow(sceneIndex, topic, objective);
+    const isLast = idx === all.length - 1;
+    const heading = isLast
+      ? "CTA"
+      : normalizeSceneHeadingLabel(scene.heading, sceneIndex);
+    const falaBase = ensureLiteralSpeech(scene.row.fala, fallbackRow.fala);
+    const fala = isLast ? ensureCtaSpeech(falaBase, fallbackRow.fala) : falaBase;
+    const direcaoRaw = sanitizeTableCell(scene.row.direcao, fallbackRow.direcao);
+    return {
+      index: sceneIndex,
+      heading,
+      row: {
+        tempo: sanitizeTableCell(scene.row.tempo, fallbackRow.tempo),
+        enquadramento: sanitizeTableCell(scene.row.enquadramento, fallbackRow.enquadramento),
+        acao: sanitizeTableCell(scene.row.acao, fallbackRow.acao),
+        textoTela: sanitizeTableCell(scene.row.textoTela, fallbackRow.textoTela),
+        fala,
+        direcao: isActionableDirection(direcaoRaw) ? direcaoRaw : fallbackRow.direcao,
+      },
+    };
+  });
+}
+
+export function enforceTechnicalScriptContract(draft: ScriptDraft, fallbackPrompt: string): ScriptDraft {
+  const fallback = fallbackGenerate(fallbackPrompt);
+  const title = clampText(draft.title, fallback.title, 80);
+  const rawContent = clampText(draft.content, "", 12000) || fallback.content;
+  let scenes = buildNormalizedTechnicalScenes(rawContent, fallbackPrompt);
+  const scoreBefore = evaluateTechnicalScriptQualityFromScenes(scenes);
+  if (shouldRunQualityPass(scoreBefore)) {
+    const polished = polishScenesForQuality(scenes, fallbackPrompt);
+    const polishedScore = evaluateTechnicalScriptQualityFromScenes(polished);
+    const shouldAdoptPolished =
+      polishedScore.perceivedQuality >= scoreBefore.perceivedQuality ||
+      polishedScore.perceivedQuality >= QUALITY_PASS_MIN_SCORE;
+    if (shouldAdoptPolished) {
+      scenes = polished;
+    } else if (scoreBefore.perceivedQuality < 0.62) {
+      scenes = buildNormalizedTechnicalScenes("", fallbackPrompt);
+    }
   }
-
-  if (!HAS_CTA_REGEX.test(content)) {
-    content = clampText(`${content}\n\nCTA: me conta nos comentarios se você quer mais roteiros assim.`, content, 12000);
-  }
-
+  const normalizedContent = serializeTechnicalScript(scenes);
   return {
-    title: clampText(title, "Novo roteiro", 80),
-    content: clampText(content, "Roteiro gerado.", 12000),
+    title: clampText(title, fallback.title, 80),
+    content: clampText(normalizedContent, fallback.content, 12000),
   };
+}
+
+function extractScopedSceneContent(rawContent: string, targetSceneIndex: number): string {
+  const scenes = parseTechnicalScenes(rawContent);
+  if (!scenes.length) return rawContent;
+  const target = scenes.find((scene) => scene.index === targetSceneIndex) || scenes[0];
+  if (!target) return rawContent;
+  return serializeSceneBlock({
+    index: targetSceneIndex,
+    heading: target.heading,
+    row: target.row,
+  });
 }
 
 function sanitizeAdjustedScript(input: AdjustInput, draft: ScriptDraft): ScriptDraft {
@@ -548,6 +1150,10 @@ function sanitizeAdjustedScript(input: AdjustInput, draft: ScriptDraft): ScriptD
     };
   }
 
+  if (isTechnicalScript(nextContent)) {
+    return { title: nextTitle, content: nextContent };
+  }
+
   const likelyLossOfContent =
     originalContent.length >= 500 &&
     nextContent.length < originalContent.length * 0.55 &&
@@ -572,18 +1178,40 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
   const intelligenceBlock = buildIntelligencePromptBlock(input.intelligenceContext);
 
   const llmPrompt =
-    `Crie um roteiro completo em português do Brasil para creator.\n` +
+    `Crie um roteiro técnico profissional em português do Brasil para creator.\n` +
     `Pedido do usuário: ${userPrompt}\n` +
     `${intelligenceBlock}\n\n` +
     `Regras obrigatórias:\n` +
     `- Retornar APENAS JSON válido com os campos title e content\n` +
-    `- Entregar roteiro pronto para uso, sem explicar raciocínio\n` +
-    `- Estrutura mínima: abertura forte, desenvolvimento e fechamento com CTA\n` +
+    `- Entregar roteiro pronto para gravação, sem explicar raciocínio\n` +
+    `- content deve seguir EXATAMENTE o formato técnico abaixo:\n` +
+    `${TECHNICAL_SCRIPT_START}\n` +
+    `[CENA 1: GANCHO]\n` +
+    `${TECHNICAL_HEADER_LINE}\n` +
+    `${TECHNICAL_HEADER_SEPARATOR}\n` +
+    `| ... |\n` +
+    `[CENA 2: CONTEXTO]\n` +
+    `${TECHNICAL_HEADER_LINE}\n` +
+    `${TECHNICAL_HEADER_SEPARATOR}\n` +
+    `| ... |\n` +
+    `[CENA 3: DEMONSTRAÇÃO]\n` +
+    `${TECHNICAL_HEADER_LINE}\n` +
+    `${TECHNICAL_HEADER_SEPARATOR}\n` +
+    `| ... |\n` +
+    `[CENA 4: CTA]\n` +
+    `${TECHNICAL_HEADER_LINE}\n` +
+    `${TECHNICAL_HEADER_SEPARATOR}\n` +
+    `| ... |\n` +
+    `${TECHNICAL_SCRIPT_END}\n` +
+    `- Cada cena deve ter 1 linha de tabela com 6 colunas obrigatórias\n` +
+    `- Mínimo 4 e máximo 6 cenas\n` +
+    `- Fala (literal): frase pronta para câmera, proibido texto instrucional\n` +
+    `- Direção de Performance: orientação objetiva de tom/ritmo/entonação/gesto\n` +
+    `- Última cena obrigatoriamente com CTA explícito\n` +
     `- Imitar o estilo do criador sem copiar frases literalmente\n` +
     `- Linguagem natural, objetiva e adequada ao criador\n` +
     `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
-    `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
-    `- Não usar markdown pesado nem listas longas`;
+    `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente`;
 
   try {
     const result = await callModel(llmPrompt, {
@@ -592,14 +1220,14 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     });
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, [userPrompt]);
-      return enforceGeneratedScriptContract(sanitized, userPrompt);
+      return enforceTechnicalScriptContract(sanitized, userPrompt);
     }
   } catch {
     // Fallback local.
   }
 
   const fallback = sanitizeScriptIdentityLeakage(fallbackGenerate(userPrompt), [userPrompt]);
-  return enforceGeneratedScriptContract(fallback, userPrompt);
+  return enforceTechnicalScriptContract(fallback, userPrompt);
 }
 
 export async function adjustScriptFromPrompt(input: AdjustInput): Promise<AdjustResult> {
@@ -608,10 +1236,18 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     throw new Error("Descreva o ajuste que você quer aplicar.");
   }
 
+  const baseContent = isTechnicalScript(input.content)
+    ? input.content.trim()
+    : convertLegacyScriptToTechnical(input.content, userPrompt);
+  const inputForAdjust: AdjustInput = {
+    ...input,
+    content: baseContent,
+  };
+
   const scope = detectScriptAdjustScope(userPrompt);
   const shouldEnforceScopedPatch = scope.mode === "patch" && scope.target.type !== "none";
   const scopedResolution = shouldEnforceScopedPatch
-    ? resolveScopedSegment(input.content, scope.target)
+    ? resolveScopedSegment(baseContent, scope.target)
     : null;
 
   if (shouldEnforceScopedPatch && !scopedResolution) {
@@ -621,37 +1257,51 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
   }
 
   const intelligenceBlock = buildIntelligencePromptBlock(input.intelligenceContext);
+  const technicalFormatRules =
+    `Formato técnico obrigatório:\n` +
+    `- Manter bloco ${TECHNICAL_SCRIPT_START} ... ${TECHNICAL_SCRIPT_END}\n` +
+    `- Cada cena com heading [CENA N: ...] + tabela de 6 colunas (${TECHNICAL_HEADER_LINE})\n` +
+    `- Fala sempre literal (frase pronta para câmera)\n` +
+    `- Direção de Performance sempre acionável\n` +
+    `- Última cena com CTA explícito\n` +
+    `- Mínimo 4 e máximo 6 cenas`;
+
   const llmPrompt = shouldEnforceScopedPatch
-    ? `Ajuste apenas o trecho alvo do roteiro com base no pedido do usuário.\n` +
-      `Título atual: ${input.title}\n` +
-      `Roteiro atual:\n${input.content}\n\n` +
+    ? `Ajuste apenas a cena alvo do roteiro técnico com base no pedido do usuário.\n` +
+      `Título atual: ${inputForAdjust.title}\n` +
+      `Roteiro atual:\n${inputForAdjust.content}\n\n` +
       `${intelligenceBlock}\n\n` +
       `Trecho alvo: ${describeScriptAdjustTarget(scope.target)}\n` +
       `Conteúdo atual do trecho alvo:\n${scopedResolution?.segment.text || ""}\n\n` +
       `Ajuste solicitado: ${userPrompt}\n\n` +
       `Regras obrigatórias:\n` +
-      `- Edite somente o trecho alvo informado\n` +
-      `- Não reescreva cenas/parágrafos fora do alvo\n` +
+      `- Edite somente a cena alvo\n` +
+      `- Não reescreva outras cenas\n` +
+      `- Retorne APENAS o bloco completo da cena alvo ([CENA ...] + tabela)\n` +
+      `- Preserve a mesma numeração da cena alvo\n` +
       `- Retorne JSON válido com {"title","content"}\n` +
       `- "title": mantenha o título atual, salvo pedido explícito para alterá-lo\n` +
-      `- "content": retorne APENAS o texto do trecho alvo revisado\n` +
-      `- Não inclua explicações fora do JSON`
-    : `Ajuste o roteiro existente com base no pedido do usuário.\n` +
-      `Título atual: ${input.title}\n` +
-      `Roteiro atual:\n${input.content}\n\n` +
+      `- "content": retorne APENAS o bloco da cena alvo revisado\n` +
+      `- Não inclua explicações fora do JSON\n` +
+      `${technicalFormatRules}`
+    : `Ajuste o roteiro técnico existente com base no pedido do usuário.\n` +
+      `Título atual: ${inputForAdjust.title}\n` +
+      `Roteiro atual:\n${inputForAdjust.content}\n\n` +
       `${intelligenceBlock}\n\n` +
       `Ajuste solicitado: ${userPrompt}\n\n` +
       `Regras obrigatórias:\n` +
       `- Preserve integralmente o que não foi pedido para mudar\n` +
       `- Se o pedido for pontual (ex.: primeiro parágrafo), altere só esse trecho\n` +
-      `- Retorne sempre o roteiro completo atualizado (nunca apenas um trecho)\n` +
+      `- Retorne sempre o roteiro técnico completo atualizado (nunca apenas um trecho)\n` +
+      `- Use o formato técnico canônico em todas as cenas\n` +
       `- Imitar o estilo do criador sem copiar frases literalmente\n` +
       `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
       `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
       `- Resposta em JSON válido com {"title","content"}\n` +
-      `- Não inclua explicações fora do JSON`;
+      `- Não inclua explicações fora do JSON\n` +
+      `${technicalFormatRules}`;
 
-  const allowedIdentitySources = [userPrompt, input.title, input.content];
+  const allowedIdentitySources = [userPrompt, inputForAdjust.title, inputForAdjust.content];
 
   try {
     const result = await callModel(llmPrompt, {
@@ -661,17 +1311,22 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, allowedIdentitySources);
       if (shouldEnforceScopedPatch && scopedResolution) {
-        const mergedContent = mergeScopedSegment(
-          input.content,
-          scopedResolution,
-          clampText(sanitized.content, scopedResolution.segment.text, 6000)
+        const scopedRaw = extractScopedSceneContent(
+          clampText(sanitized.content, scopedResolution.segment.text, 6000),
+          scopedResolution.normalizedTargetIndex || 1
         );
-        const mergedDraft = sanitizeAdjustedScript(input, {
+        const mergedContent = mergeScopedSegment(
+          baseContent,
+          scopedResolution,
+          scopedRaw
+        );
+        const mergedDraft = sanitizeAdjustedScript(inputForAdjust, {
           title: sanitized.title,
           content: mergedContent,
         });
+        const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt);
         return {
-          ...mergedDraft,
+          ...technicalDraft,
           adjustMeta: {
             adjustMode: scope.mode,
             targetScope: scopedResolution.normalizedTargetType,
@@ -683,9 +1338,10 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
         };
       }
 
-      const adjusted = sanitizeAdjustedScript(input, sanitized);
+      const adjusted = sanitizeAdjustedScript(inputForAdjust, sanitized);
+      const technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt);
       return {
-        ...adjusted,
+        ...technicalDraft,
         adjustMeta: {
           adjustMode: scope.mode,
           targetScope: scope.target.type,
@@ -705,13 +1361,14 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
 
   if (shouldEnforceScopedPatch && scopedResolution) {
     const fallbackSnippet = fallbackAdjustScoped(scopedResolution.segment.text, userPrompt);
-    const mergedContent = mergeScopedSegment(input.content, scopedResolution, fallbackSnippet);
-    const mergedDraft = sanitizeAdjustedScript(input, {
-      title: input.title,
+    const mergedContent = mergeScopedSegment(baseContent, scopedResolution, fallbackSnippet);
+    const mergedDraft = sanitizeAdjustedScript(inputForAdjust, {
+      title: inputForAdjust.title,
       content: mergedContent,
     });
+    const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt);
     return {
-      ...mergedDraft,
+      ...technicalDraft,
       adjustMeta: {
         adjustMode: scope.mode,
         targetScope: scopedResolution.normalizedTargetType,
@@ -723,10 +1380,11 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     };
   }
 
-  const fallback = sanitizeScriptIdentityLeakage(fallbackAdjust(input), allowedIdentitySources);
-  const adjusted = sanitizeAdjustedScript(input, fallback);
+  const fallback = sanitizeScriptIdentityLeakage(fallbackAdjust(inputForAdjust), allowedIdentitySources);
+  const adjusted = sanitizeAdjustedScript(inputForAdjust, fallback);
+  const technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt);
   return {
-    ...adjusted,
+    ...technicalDraft,
     adjustMeta: {
       adjustMode: scope.mode,
       targetScope: scope.target.type,
