@@ -9,6 +9,46 @@ type FetchState = {
 };
 
 const DEFAULT_LIMIT = 20;
+const ALERT_UNREAD_SHARED_TTL_MS = (() => {
+    const parsed = Number(process.env.NEXT_PUBLIC_ALERT_UNREAD_CLIENT_TTL_MS ?? 15_000);
+    return Number.isFinite(parsed) && parsed >= 2_000 ? Math.floor(parsed) : 15_000;
+})();
+
+let sharedUnreadCountCache: { value: number; expiresAt: number } | null = null;
+let sharedUnreadCountInFlight: Promise<number> | null = null;
+
+function setSharedUnreadCount(value: number) {
+    sharedUnreadCountCache = {
+        value,
+        expiresAt: Date.now() + ALERT_UNREAD_SHARED_TTL_MS,
+    };
+}
+
+async function getSharedUnreadCount(force = false): Promise<number> {
+    const nowTs = Date.now();
+    if (!force && sharedUnreadCountCache && sharedUnreadCountCache.expiresAt > nowTs) {
+        return sharedUnreadCountCache.value;
+    }
+
+    if (sharedUnreadCountInFlight) {
+        return sharedUnreadCountInFlight;
+    }
+
+    sharedUnreadCountInFlight = (async () => {
+        const res = await fetch('/api/alerts/unread-count', { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Falha ao carregar contagem.');
+        const value = typeof data?.unreadCount === 'number' ? data.unreadCount : 0;
+        setSharedUnreadCount(value);
+        return value;
+    })();
+
+    try {
+        return await sharedUnreadCountInFlight;
+    } finally {
+        sharedUnreadCountInFlight = null;
+    }
+}
 
 export function useAlerts() {
     const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -48,6 +88,7 @@ export function useAlerts() {
                 setNextCursor(data?.pageInfo?.nextCursor ?? null);
                 if (typeof data?.pageInfo?.unreadCount === 'number') {
                     setUnreadCount(data.pageInfo.unreadCount);
+                    setSharedUnreadCount(data.pageInfo.unreadCount);
                 }
                 hasLoadedOnceRef.current = true;
             } catch (error: any) {
@@ -86,12 +127,14 @@ export function useAlerts() {
         const nowIso = new Date().toISOString();
         const target = alerts.find((alert) => alert.id === id);
         const wasUnread = !target?.readAt;
+        const optimisticUnreadCount = wasUnread ? Math.max(unreadCount - 1, 0) : unreadCount;
 
         setAlerts((prev) =>
             prev.map((alert) => (alert.id === id ? { ...alert, readAt: alert.readAt ?? nowIso } : alert))
         );
         if (wasUnread) {
             setUnreadCount((prev) => (prev > 0 ? prev - 1 : 0));
+            setSharedUnreadCount(optimisticUnreadCount);
         }
 
         try {
@@ -115,21 +158,18 @@ export function useAlerts() {
             );
             if (wasUnread) {
                 setUnreadCount((prev) => prev + 1);
+                setSharedUnreadCount(optimisticUnreadCount + 1);
             }
             setFetchState((state) => ({ ...state, error: error instanceof Error ? error.message : 'Erro ao atualizar alerta.' }));
         }
 
         return !reverted;
-    }, [alerts]);
+    }, [alerts, unreadCount]);
 
     const refreshUnreadCount = useCallback(async () => {
         try {
-            const res = await fetch('/api/alerts/unread-count', { credentials: 'include' });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data?.error || 'Falha ao carregar contagem.');
-            if (typeof data?.unreadCount === 'number') {
-                setUnreadCount(data.unreadCount);
-            }
+            const count = await getSharedUnreadCount();
+            setUnreadCount(count);
         } catch (error) {
             // Mantém contagem atual; não interrompe fluxo.
         }

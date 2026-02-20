@@ -2,26 +2,30 @@ import useSWR from 'swr';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useEffect } from 'react';
 
-interface LatestReviewResponse {
-    items: Array<{
-        updatedAt: string;
-    }>;
+interface UnreadReviewCountResponse {
+    unreadCount: number;
 }
 
 export function usePostReviewNotifications() {
     const [lastViewedAt] = useLocalStorage<string>('d2c_last_viewed_reviews_at', '');
 
-    const { data, mutate } = useSWR<LatestReviewResponse>(
-        '/api/dashboard/post-reviews?limit=50&sortBy=updatedAt&sortOrder=desc',
+    const params = new URLSearchParams({ limit: '50' });
+    if (lastViewedAt) {
+        params.set('since', lastViewedAt);
+    }
+    const endpoint = `/api/dashboard/post-reviews/unread-count?${params.toString()}`;
 
+    const { data, mutate } = useSWR<UnreadReviewCountResponse>(
+        endpoint,
         async (url: string) => {
             const res = await fetch(url);
-            if (!res.ok) return { items: [] };
+            if (!res.ok) return { unreadCount: 0 };
             return res.json();
         },
         {
             refreshInterval: 60000,
-            revalidateOnFocus: true,
+            revalidateOnFocus: false,
+            dedupingInterval: 30000,
         }
     );
 
@@ -42,12 +46,5 @@ export function usePostReviewNotifications() {
         };
     }, [mutate]);
 
-    if (!data?.items?.length) return 0;
-    if (!lastViewedAt) return data.items.length;
-
-    const lastViewedTime = new Date(lastViewedAt).getTime();
-    const unreadCount = data.items.filter(item => new Date(item.updatedAt).getTime() > lastViewedTime).length;
-
-    return unreadCount;
+    return typeof data?.unreadCount === 'number' ? data.unreadCount : 0;
 }
-

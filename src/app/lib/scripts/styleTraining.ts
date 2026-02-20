@@ -14,6 +14,18 @@ import { extractScriptStyleFeatures, normalizeForStyleComparison, tokenizeText }
 
 export const STYLE_PROFILE_MIN_CONTENT_LENGTH = 160;
 export const STYLE_PROFILE_MAX_SCRIPTS = 240;
+const STYLE_PROFILE_REFRESH_COOLDOWN_MS = (() => {
+  const parsed = Number(process.env.SCRIPTS_STYLE_PROFILE_REFRESH_COOLDOWN_MS ?? 120_000);
+  return Number.isFinite(parsed) && parsed >= 15_000 ? Math.floor(parsed) : 120_000;
+})();
+const STYLE_PROFILE_READ_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.SCRIPTS_STYLE_PROFILE_CACHE_TTL_MS ?? 90_000);
+  return Number.isFinite(parsed) && parsed >= 15_000 ? Math.floor(parsed) : 90_000;
+})();
+const STYLE_PROFILE_READ_CACHE_MAX_ENTRIES = (() => {
+  const parsed = Number(process.env.SCRIPTS_STYLE_PROFILE_CACHE_MAX_ENTRIES ?? 500);
+  return Number.isFinite(parsed) && parsed >= 50 ? Math.floor(parsed) : 500;
+})();
 
 type ScriptSource = "manual" | "ai" | "planner";
 
@@ -40,12 +52,38 @@ type TrainingBuildResult = {
   profile: ScriptStyleProfileSnapshot;
 };
 
+type GetScriptStyleProfileOptions = {
+  rebuildIfMissing?: boolean;
+  rebuildIfCorrupted?: boolean;
+};
+
+type RefreshScriptStyleProfileOptions = {
+  force?: boolean;
+  awaitCompletion?: boolean;
+};
+
 type WeightedSample = {
   source: ScriptSource;
   weight: number;
   updatedAtMs: number;
   features: ReturnType<typeof extractScriptStyleFeatures>;
 };
+
+const styleProfileRefreshState = new Map<
+  string,
+  {
+    lastCompletedAt: number;
+    inFlight: Promise<ScriptStyleProfileSnapshot | null> | null;
+  }
+>();
+const styleProfileReadCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    value: ScriptStyleProfileSnapshot | null;
+  }
+>();
+const styleProfileReadInFlight = new Map<string, Promise<ScriptStyleProfileSnapshot | null>>();
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -397,9 +435,53 @@ function normalizeStoredProfile(doc: any): ScriptStyleProfileSnapshot {
   };
 }
 
+function pruneStyleProfileReadCache() {
+  const now = Date.now();
+  for (const [key, entry] of styleProfileReadCache.entries()) {
+    if (entry.expiresAt <= now) {
+      styleProfileReadCache.delete(key);
+    }
+  }
+
+  if (styleProfileReadCache.size <= STYLE_PROFILE_READ_CACHE_MAX_ENTRIES) return;
+
+  const sorted = Array.from(styleProfileReadCache.entries()).sort(
+    (a, b) => a[1].expiresAt - b[1].expiresAt
+  );
+  const extra = styleProfileReadCache.size - STYLE_PROFILE_READ_CACHE_MAX_ENTRIES;
+  for (let index = 0; index < extra; index += 1) {
+    const item = sorted[index];
+    if (!item) break;
+    styleProfileReadCache.delete(item[0]);
+  }
+}
+
+function setStyleProfileReadCache(userObjectIdKey: string, value: ScriptStyleProfileSnapshot | null) {
+  styleProfileReadCache.set(userObjectIdKey, {
+    value,
+    expiresAt: Date.now() + STYLE_PROFILE_READ_CACHE_TTL_MS,
+  });
+  pruneStyleProfileReadCache();
+}
+
+function getStyleProfileReadCache(userObjectIdKey: string): ScriptStyleProfileSnapshot | null | undefined {
+  const cached = styleProfileReadCache.get(userObjectIdKey);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    styleProfileReadCache.delete(userObjectIdKey);
+    return undefined;
+  }
+  return cached.value;
+}
+
+function shouldUseReadCache(options: GetScriptStyleProfileOptions): boolean {
+  return options.rebuildIfMissing === false && options.rebuildIfCorrupted === false;
+}
+
 export async function rebuildScriptStyleProfile(userId: string): Promise<ScriptStyleProfileSnapshot | null> {
   const userObjectId = ensureObjectId(userId);
   if (!userObjectId) return null;
+  const key = String(userObjectId);
 
   const entries = await fetchRecentTrainingEntries(userId);
   const aiGeneratedScripts = await fetchAiGeneratedBaseScripts(entries);
@@ -424,16 +506,23 @@ export async function rebuildScriptStyleProfile(userId: string): Promise<ScriptS
     .lean()
     .exec();
 
-  return normalizeStoredProfile(saved);
+  const normalized = normalizeStoredProfile(saved);
+  setStyleProfileReadCache(key, normalized);
+  return normalized;
 }
 
-export async function getScriptStyleProfile(userId: string): Promise<ScriptStyleProfileSnapshot | null> {
-  const userObjectId = ensureObjectId(userId);
+async function getScriptStyleProfileFromStore(
+  userObjectIdKey: string,
+  options: GetScriptStyleProfileOptions
+): Promise<ScriptStyleProfileSnapshot | null> {
+  const { rebuildIfMissing = true, rebuildIfCorrupted = true } = options;
+  const userObjectId = ensureObjectId(userObjectIdKey);
   if (!userObjectId) return null;
 
   const existing = await ScriptStyleProfile.findOne({ userId: userObjectId }).lean().exec();
   if (!existing) {
-    return rebuildScriptStyleProfile(userId);
+    if (!rebuildIfMissing) return null;
+    return rebuildScriptStyleProfile(userObjectIdKey);
   }
 
   const normalized = normalizeStoredProfile(existing);
@@ -444,12 +533,98 @@ export async function getScriptStyleProfile(userId: string): Promise<ScriptStyle
     normalized.sampleSize < 0;
 
   if (isCorrupted) {
-    return rebuildScriptStyleProfile(userId);
+    if (!rebuildIfCorrupted) return null;
+    return rebuildScriptStyleProfile(userObjectIdKey);
   }
 
   return normalized;
 }
 
-export async function refreshScriptStyleProfile(userId: string): Promise<ScriptStyleProfileSnapshot | null> {
-  return rebuildScriptStyleProfile(userId);
+export async function getScriptStyleProfile(
+  userId: string,
+  options: GetScriptStyleProfileOptions = {}
+): Promise<ScriptStyleProfileSnapshot | null> {
+  const { rebuildIfMissing = true, rebuildIfCorrupted = true } = options;
+  const userObjectId = ensureObjectId(userId);
+  if (!userObjectId) return null;
+  const key = String(userObjectId);
+  const normalizedOptions: GetScriptStyleProfileOptions = {
+    rebuildIfMissing,
+    rebuildIfCorrupted,
+  };
+
+  if (shouldUseReadCache(normalizedOptions)) {
+    const cached = getStyleProfileReadCache(key);
+    if (cached !== undefined) return cached;
+
+    const inFlight = styleProfileReadInFlight.get(key);
+    if (inFlight) return inFlight;
+
+    const task = getScriptStyleProfileFromStore(key, normalizedOptions)
+      .then((profile) => {
+        setStyleProfileReadCache(key, profile);
+        return profile;
+      })
+      .finally(() => {
+        styleProfileReadInFlight.delete(key);
+      });
+
+    styleProfileReadInFlight.set(key, task);
+    return task;
+  }
+
+  const profile = await getScriptStyleProfileFromStore(key, normalizedOptions);
+  setStyleProfileReadCache(key, profile);
+  return profile;
+}
+
+export async function refreshScriptStyleProfile(
+  userId: string,
+  options: RefreshScriptStyleProfileOptions = {}
+): Promise<ScriptStyleProfileSnapshot | null> {
+  const { force = false, awaitCompletion = true } = options;
+  const userObjectId = ensureObjectId(userId);
+  if (!userObjectId) return null;
+
+  const key = String(userObjectId);
+  const nowTs = Date.now();
+  const state = styleProfileRefreshState.get(key) || { lastCompletedAt: 0, inFlight: null };
+
+  if (state.inFlight) {
+    return awaitCompletion ? state.inFlight : null;
+  }
+
+  if (!force && state.lastCompletedAt > 0 && nowTs - state.lastCompletedAt < STYLE_PROFILE_REFRESH_COOLDOWN_MS) {
+    return null;
+  }
+
+  const task = rebuildScriptStyleProfile(key)
+    .then((profile) => {
+      setStyleProfileReadCache(key, profile);
+      return profile;
+    })
+    .catch(() => {
+      setStyleProfileReadCache(key, null);
+      return null;
+    })
+    .finally(() => {
+      const current = styleProfileRefreshState.get(key) || { lastCompletedAt: 0, inFlight: null };
+      current.lastCompletedAt = Date.now();
+      current.inFlight = null;
+      styleProfileRefreshState.set(key, current);
+    });
+
+  styleProfileRefreshState.set(key, {
+    lastCompletedAt: state.lastCompletedAt,
+    inFlight: task,
+  });
+
+  if (!awaitCompletion) return null;
+  return task;
+}
+
+export function clearScriptStyleProfileRuntimeCache() {
+  styleProfileRefreshState.clear();
+  styleProfileReadCache.clear();
+  styleProfileReadInFlight.clear();
 }

@@ -18,6 +18,32 @@ import type {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const PLAN_STATUS_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.PLAN_STATUS_CACHE_TTL_MS ?? 12_000);
+  return Number.isFinite(parsed) && parsed >= 2_000 ? Math.floor(parsed) : 12_000;
+})();
+const PLAN_STATUS_CACHE_MAX_ENTRIES = (() => {
+  const parsed = Number(process.env.PLAN_STATUS_CACHE_MAX_ENTRIES ?? 10_000);
+  return Number.isFinite(parsed) && parsed >= 1_000 ? Math.floor(parsed) : 10_000;
+})();
+const planStatusCache = new Map<string, { expiresAt: number; payload: PlanStatusResponse }>();
+
+function prunePlanStatusCache(nowTs: number) {
+  for (const [key, entry] of planStatusCache.entries()) {
+    if (entry.expiresAt <= nowTs) {
+      planStatusCache.delete(key);
+    }
+  }
+  if (planStatusCache.size <= PLAN_STATUS_CACHE_MAX_ENTRIES) return;
+  const overflow = planStatusCache.size - PLAN_STATUS_CACHE_MAX_ENTRIES;
+  const keys = Array.from(planStatusCache.keys());
+  for (let i = 0; i < overflow; i += 1) {
+    const key = keys[i];
+    if (!key) break;
+    planStatusCache.delete(key);
+  }
+}
+
 // UI PlanStatus aceito no front:
 // ---------- Helpers de UI ----------
 function mapStripeToUiStatus(
@@ -348,6 +374,14 @@ async function respondWithPayload(user: any, options: BuildOptions = {}) {
       // ignora falha de persistência de atualização de trial
     }
   }
+  const cacheKey = String((user as any)?._id ?? "");
+  if (cacheKey) {
+    prunePlanStatusCache(Date.now());
+    planStatusCache.set(cacheKey, {
+      payload,
+      expiresAt: Date.now() + PLAN_STATUS_CACHE_TTL_MS,
+    });
+  }
   return NextResponse.json(payload);
 }
 
@@ -364,6 +398,15 @@ export async function GET(req: Request) {
   const session = (await getServerSession(authOptions)) as any;
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+  const cacheKey = String(session.user.id);
+  const nowTs = Date.now();
+  prunePlanStatusCache(nowTs);
+  if (!force) {
+    const cached = planStatusCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowTs) {
+      return NextResponse.json(cached.payload);
+    }
   }
 
   await connectToDatabase();

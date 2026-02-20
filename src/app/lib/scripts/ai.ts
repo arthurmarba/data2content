@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
 import { getCategoryById } from "@/app/lib/classification";
+import { recordScriptsStageDuration } from "./performanceTelemetry";
 import type { ScriptIntelligenceContext } from "./intelligenceContext";
 import {
   describeScriptAdjustTarget,
@@ -40,6 +41,29 @@ type AdjustResult = ScriptDraft & {
   adjustMeta: ScriptAdjustMeta;
 };
 
+type ScriptModelTier = "base" | "premium";
+type ScriptModelOperation = "generate" | "adjust";
+type CallModelOptions = {
+  userPrompt: string;
+  operation: ScriptModelOperation;
+};
+
+export type ScriptModelSelection = {
+  model: string;
+  tier: ScriptModelTier;
+  reason:
+    | "hybrid_disabled"
+    | "operation_generate_default"
+    | "operation_adjust_default"
+    | "explicit_intent"
+    | "complexity"
+    | "default_base";
+  fallbackModel: string | null;
+};
+
+let openAIClientCache: OpenAI | null = null;
+let openAIClientCacheKey: string | null = null;
+
 const SHORTEN_INTENT_REGEX =
   /(resum|encurt|reduz|compact|mais curto|diminu|simplifi|sintetiz|vers[aã]o curta|menos palavras)/i;
 const FIRST_PARAGRAPH_INTENT_REGEX =
@@ -48,6 +72,11 @@ const HAS_CTA_REGEX =
   /(cta|comente|coment[aá]rio|salve|salvar|compartilhe|compartilha|me conta|me diga|link na bio)/i;
 const MENTION_REGEX = /@([A-Za-z0-9._]{2,30})/g;
 const HASHTAG_REGEX = /#([\p{L}0-9_]{2,40})/gu;
+const PREMIUM_MODEL_INTENT_REGEX =
+  /(premium|refin[ao]|mais criativ|mais elaborad|mais detalhad|storytelling|copywriter|brand voice|tom de voz|cinematogr[aá]f)/i;
+const CONSTRAINT_TOKEN_REGEX =
+  /(sem|com|evite|obrigat[oó]ri|inclua|não|nao|tom|estrutura|objetivo|p[úu]blico|persona|cta|gancho|par[aá]grafo|hook|copy)/gi;
+const BULLET_ITEM_REGEX = /(?:^|\n)\s*(?:[-*]|\d+[.)])/gm;
 
 export class ScriptAdjustScopeError extends Error {
   readonly status: number;
@@ -65,6 +94,130 @@ function clampText(value: unknown, fallback: string, max: number) {
   const normalized = typeof value === "string" ? value.trim() : "";
   if (!normalized) return fallback;
   return normalized.slice(0, max);
+}
+
+function parseBoolean(value: string | undefined | null, defaultValue: boolean): boolean {
+  if (typeof value !== "string") return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return defaultValue;
+  if (["1", "true", "yes", "on", "enabled"].includes(normalized)) return true;
+  if (["0", "false", "no", "off", "disabled"].includes(normalized)) return false;
+  return defaultValue;
+}
+
+function parseIntWithDefault(value: string | undefined | null, defaultValue: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return defaultValue;
+  return Math.floor(parsed);
+}
+
+function countRegexMatches(input: string, regex: RegExp): number {
+  const matches = input.match(regex);
+  return matches ? matches.length : 0;
+}
+
+function computePromptComplexityScore(prompt: string, operation: ScriptModelOperation): number {
+  const normalized = prompt.trim();
+  if (!normalized) return 0;
+
+  const lengthThreshold = Math.max(140, parseIntWithDefault(process.env.OPENAI_MODEL_HYBRID_LENGTH_THRESHOLD, 280));
+  const constraintThreshold = Math.max(
+    2,
+    parseIntWithDefault(process.env.OPENAI_MODEL_HYBRID_CONSTRAINT_THRESHOLD, 5)
+  );
+
+  const sentenceCount = normalized
+    .split(/[.!?]+\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean).length;
+  const bulletCount = countRegexMatches(normalized, BULLET_ITEM_REGEX);
+  const constraintCount = countRegexMatches(normalized, CONSTRAINT_TOKEN_REGEX);
+  const lineCount = normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean).length;
+
+  let score = 0;
+  if (normalized.length >= lengthThreshold) score += 1;
+  if (constraintCount >= constraintThreshold) score += 1;
+  if (sentenceCount >= 4) score += 1;
+  if (lineCount >= 5 || bulletCount >= 3) score += 1;
+  if (operation === "adjust" && normalized.length >= Math.floor(lengthThreshold * 0.75)) score += 1;
+
+  return score;
+}
+
+export function selectScriptModelForPrompt(params: {
+  userPrompt: string;
+  operation: ScriptModelOperation;
+}): ScriptModelSelection {
+  const baseModel = (process.env.OPENAI_MODEL || "gpt-4o-mini").trim() || "gpt-4o-mini";
+  const advancedModel = (
+    process.env.OPENAI_MODEL_ADVANCED ||
+    process.env.OPENAI_MODEL_PREMIUM ||
+    "gpt-4.1"
+  ).trim();
+  const hybridEnabled = parseBoolean(process.env.OPENAI_MODEL_HYBRID_ENABLED, true);
+  const operationRoutingEnabled = parseBoolean(
+    process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED,
+    true
+  );
+  if (!hybridEnabled || !advancedModel || advancedModel === baseModel) {
+    return {
+      model: baseModel,
+      tier: "base",
+      reason: "hybrid_disabled",
+      fallbackModel: null,
+    };
+  }
+
+  if (operationRoutingEnabled) {
+    if (params.operation === "generate") {
+      return {
+        model: advancedModel,
+        tier: "premium",
+        reason: "operation_generate_default",
+        fallbackModel: baseModel,
+      };
+    }
+
+    if (params.operation === "adjust") {
+      return {
+        model: baseModel,
+        tier: "base",
+        reason: "operation_adjust_default",
+        fallbackModel: null,
+      };
+    }
+  }
+
+  const normalizedPrompt = params.userPrompt.trim();
+  if (PREMIUM_MODEL_INTENT_REGEX.test(normalizedPrompt)) {
+    return {
+      model: advancedModel,
+      tier: "premium",
+      reason: "explicit_intent",
+      fallbackModel: baseModel,
+    };
+  }
+
+  const complexityScore = computePromptComplexityScore(normalizedPrompt, params.operation);
+  const scoreThreshold = Math.max(2, parseIntWithDefault(process.env.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD, 2));
+  if (complexityScore >= scoreThreshold) {
+    return {
+      model: advancedModel,
+      tier: "premium",
+      reason: "complexity",
+      fallbackModel: baseModel,
+    };
+  }
+
+  return {
+    model: baseModel,
+    tier: "base",
+    reason: "default_base",
+    fallbackModel: null,
+  };
 }
 
 function splitParagraphs(value: string) {
@@ -283,13 +436,13 @@ function parseDraftFromResponse(raw: string): ScriptDraft {
   return { title, content };
 }
 
-async function callModel(prompt: string): Promise<ScriptDraft | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const openai = new OpenAI({ apiKey });
-  const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+async function requestScriptDraftFromModel(params: {
+  client: OpenAI;
+  prompt: string;
+  model: string;
+}): Promise<ScriptDraft> {
+  const completion = await params.client.chat.completions.create({
+    model: params.model,
     temperature: Number(process.env.OPENAI_TEMP || 0.4),
     response_format: { type: "json_object" } as any,
     messages: [
@@ -298,12 +451,51 @@ async function callModel(prompt: string): Promise<ScriptDraft | null> {
         content:
           "Você é especialista em roteiros para creators no Brasil. Responda estritamente JSON com {\"title\": string, \"content\": string}. Não inclua explicações, comentários, markdown ou campos extras.",
       },
-      { role: "user", content: prompt },
+      { role: "user", content: params.prompt },
     ],
   } as any);
 
   const raw = completion.choices?.[0]?.message?.content || "{}";
   return parseDraftFromResponse(raw);
+}
+
+async function callModel(prompt: string, options: CallModelOptions): Promise<ScriptDraft | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  if (!openAIClientCache || openAIClientCacheKey !== apiKey) {
+    openAIClientCache = new OpenAI({ apiKey });
+    openAIClientCacheKey = apiKey;
+  }
+  const modelSelection = selectScriptModelForPrompt({
+    userPrompt: options.userPrompt,
+    operation: options.operation,
+  });
+
+  const llmStartMs = Date.now();
+  try {
+    try {
+      return await requestScriptDraftFromModel({
+        client: openAIClientCache,
+        prompt,
+        model: modelSelection.model,
+      });
+    } catch (primaryError) {
+      if (
+        modelSelection.tier === "premium" &&
+        modelSelection.fallbackModel &&
+        modelSelection.fallbackModel !== modelSelection.model
+      ) {
+        return requestScriptDraftFromModel({
+          client: openAIClientCache,
+          prompt,
+          model: modelSelection.fallbackModel,
+        });
+      }
+      throw primaryError;
+    }
+  } finally {
+    recordScriptsStageDuration("llm.call", Date.now() - llmStartMs);
+  }
 }
 
 function enforceGeneratedScriptContract(draft: ScriptDraft, fallbackPrompt: string): ScriptDraft {
@@ -394,7 +586,10 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     `- Não usar markdown pesado nem listas longas`;
 
   try {
-    const result = await callModel(llmPrompt);
+    const result = await callModel(llmPrompt, {
+      userPrompt,
+      operation: "generate",
+    });
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, [userPrompt]);
       return enforceGeneratedScriptContract(sanitized, userPrompt);
@@ -459,7 +654,10 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
   const allowedIdentitySources = [userPrompt, input.title, input.content];
 
   try {
-    const result = await callModel(llmPrompt);
+    const result = await callModel(llmPrompt, {
+      userPrompt,
+      operation: "adjust",
+    });
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, allowedIdentitySources);
       if (shouldEnforceScopedPatch && scopedResolution) {

@@ -39,6 +39,48 @@ const buildAccentInsensitiveRegex = (value: string) => {
 };
 
 export const runtime = 'nodejs';
+const PUBLI_ROUTE_CACHE_TTL_MS = (() => {
+    const parsed = Number(process.env.PUBLIS_ROUTE_CACHE_TTL_MS ?? 20_000);
+    return Number.isFinite(parsed) && parsed >= 5_000 ? Math.floor(parsed) : 20_000;
+})();
+const PUBLI_ROUTE_CACHE_MAX_ENTRIES = (() => {
+    const parsed = Number(process.env.PUBLIS_ROUTE_CACHE_MAX_ENTRIES ?? 200);
+    return Number.isFinite(parsed) && parsed >= 50 ? Math.floor(parsed) : 200;
+})();
+
+const publisResponseCache = new Map<string, { expiresAt: number; payload: any }>();
+
+const PUBLI_SELECT_FIELDS =
+    '_id description postDate coverUrl theme classificationStatus stats isPubli instagramMediaId postLink';
+
+const PUBLI_PROJECT_STAGE: PipelineStage.Project = {
+    $project: {
+        _id: 1,
+        description: 1,
+        postDate: 1,
+        coverUrl: 1,
+        theme: 1,
+        classificationStatus: 1,
+        stats: 1,
+        isPubli: 1,
+        instagramMediaId: 1,
+        postLink: 1,
+    },
+};
+
+function prunePublisResponseCache(nowTs: number) {
+    for (const [key, value] of publisResponseCache.entries()) {
+        if (value.expiresAt <= nowTs) publisResponseCache.delete(key);
+    }
+    if (publisResponseCache.size <= PUBLI_ROUTE_CACHE_MAX_ENTRIES) return;
+    const overflow = publisResponseCache.size - PUBLI_ROUTE_CACHE_MAX_ENTRIES;
+    const keys = Array.from(publisResponseCache.keys());
+    for (let i = 0; i < overflow; i += 1) {
+        const key = keys[i];
+        if (!key) break;
+        publisResponseCache.delete(key);
+    }
+}
 
 const formatDateParam = (date: Date) => date.toISOString().split('T')[0];
 
@@ -101,8 +143,27 @@ export async function GET(request: NextRequest) {
     const { startDate: rangeStart, endDate: rangeEnd } = resolveRangeDates(range);
     const parsedStart = parseDateParam(rangeStart ?? searchParams.get('startDate'));
     const parsedEnd = parseDateParam(rangeEnd ?? searchParams.get('endDate'));
+    const trimmedSearch = search?.trim();
 
     const userId = new Types.ObjectId(session.user.id);
+    const cacheKey = [
+        session.user.id,
+        page,
+        limit,
+        category ?? '',
+        status ?? '',
+        trimmedSearch ?? '',
+        sort,
+        range ?? '',
+        parsedStart?.date?.toISOString() ?? '',
+        parsedEnd?.date?.toISOString() ?? '',
+    ].join('|');
+    const nowTs = Date.now();
+    prunePublisResponseCache(nowTs);
+    const cached = publisResponseCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowTs) {
+        return NextResponse.json(cached.payload);
+    }
 
     const query: FilterQuery<IMetric> = {
         user: userId,
@@ -137,8 +198,6 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    const trimmedSearch = search?.trim();
-
     if (trimmedSearch) {
         const variants = normalizeValue(trimmedSearch);
         const searchFilters = variants.map(value => ({
@@ -167,12 +226,14 @@ export async function GET(request: NextRequest) {
         { $sort: { sortEngagement: performanceSortDirection, _id: 1 } },
         { $skip: skip },
         { $limit: limit },
+        PUBLI_PROJECT_STAGE,
     ];
 
     const [items, total] = await Promise.all([
         isPerformanceSort
             ? Metric.aggregate(performancePipeline).exec()
             : Metric.find(query)
+                .select(PUBLI_SELECT_FIELDS)
                 .sort(sortOptions)
                 .skip(skip)
                 .limit(limit)
@@ -181,7 +242,7 @@ export async function GET(request: NextRequest) {
         Metric.countDocuments(query),
     ]);
 
-    return NextResponse.json({
+    const payload = {
         items: items.map(item => ({
             id: item._id.toString(),
             description: item.description,
@@ -200,5 +261,12 @@ export async function GET(request: NextRequest) {
             total,
             pages: Math.ceil(total / limit),
         }
+    };
+
+    publisResponseCache.set(cacheKey, {
+        payload,
+        expiresAt: nowTs + PUBLI_ROUTE_CACHE_TTL_MS,
     });
+
+    return NextResponse.json(payload);
 }

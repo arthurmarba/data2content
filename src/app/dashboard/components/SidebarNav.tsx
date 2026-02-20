@@ -9,10 +9,73 @@ import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 import { buildSidebarSections } from "./sidebar/config";
 import { SidebarSectionList, type SidebarPresentationTokens } from "./sidebar/components";
-import { useSidebarViewport, useBodyScrollLock, useMobileAutoClose, usePaywallOpener } from "./sidebar/hooks";
-import { useAlerts } from "../hooks/useAlerts";
-import { usePostReviewNotifications } from "../hooks/usePostReviewNotifications";
-import { useScriptRecommendationsNotifications } from "../hooks/useScriptRecommendationsNotifications";
+import type { SidebarSection, SidebarChildNode } from "./sidebar/types";
+import {
+  useSidebarViewport,
+  useBodyScrollLock,
+  useMobileAutoClose,
+  usePaywallOpener,
+  useSidebarIntentPrefetch,
+} from "./sidebar/hooks";
+import { useDashboardNotificationBadges } from "../hooks/useDashboardNotificationBadges";
+
+const normalizePath = (value: string) => (value.endsWith("/") ? value.slice(0, -1) : value);
+const startsWithSegment = (pathname: string, href: string) => {
+  const path = normalizePath(pathname);
+  const target = normalizePath(href);
+  return path === target || path.startsWith(`${target}/`);
+};
+
+const collectPrefetchTargets = (
+  sections: SidebarSection[],
+  pathname: string,
+  badgesByKey: Record<string, number>,
+  maxTargets = 4
+) => {
+  const current = normalizePath(pathname);
+  const targets = new Map<string, number>();
+
+  const currentSection = sections.find((section) =>
+    section.items.some((item) =>
+      item.type === "group"
+        ? item.children.some((child) => startsWithSegment(pathname, child.href))
+        : startsWithSegment(pathname, item.href)
+    )
+  )?.key;
+
+  const pushTarget = (node: SidebarChildNode, sectionKey: SidebarSection["key"]) => {
+    if (!node?.href || node.paywallContext) return;
+    const href = normalizePath(node.href);
+    if (!href || href === current) return;
+    let score = 1;
+    const badgeCount = badgesByKey[node.key] ?? 0;
+    if (badgeCount > 0) {
+      score += 200 + Math.min(badgeCount, 99);
+    }
+    if (currentSection && sectionKey === currentSection) {
+      score += 40;
+    }
+    const existing = targets.get(href) ?? 0;
+    if (score > existing) targets.set(href, score);
+  };
+
+  for (const section of sections) {
+    for (const item of section.items) {
+      if (item.type === "group") {
+        for (const child of item.children) {
+          pushTarget(child, section.key);
+        }
+        continue;
+      }
+      pushTarget(item, section.key);
+    }
+  }
+
+  return Array.from(targets.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxTargets)
+    .map(([href]) => href);
+};
 
 interface SidebarNavProps {
   isCollapsed: boolean; // true = fechado; false = aberto
@@ -41,20 +104,18 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   useMobileAutoClose({ isMobile, isOpen, pathname, onToggle });
 
   const {
-    unreadCount: alertsUnreadCount,
-    refreshUnreadCount: refreshAlertsBadge,
-  } = useAlerts();
-
-  const reviewsUnreadCount = usePostReviewNotifications();
-  const scriptsRecommendationsUnreadCount = useScriptRecommendationsNotifications();
-
-  React.useEffect(() => {
-    refreshAlertsBadge();
-    const id = window.setInterval(() => {
-      refreshAlertsBadge();
-    }, 60000);
-    return () => window.clearInterval(id);
-  }, [refreshAlertsBadge]);
+    alertsUnreadCount,
+    reviewsUnreadCount,
+    scriptsUnreadCount: scriptsRecommendationsUnreadCount,
+  } = useDashboardNotificationBadges();
+  const sidebarBadges = useMemo(
+    () => ({
+      "planning.chat": alertsUnreadCount,
+      "reviews": reviewsUnreadCount,
+      "planning.scripts": scriptsRecommendationsUnreadCount,
+    }),
+    [alertsUnreadCount, reviewsUnreadCount, scriptsRecommendationsUnreadCount]
+  );
 
   const sections = useMemo(
     () =>
@@ -65,6 +126,10 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       }),
     [dashboardMinimal, hasPremiumAccess, planningLocked]
   );
+  const idlePrefetchTargets = useMemo(
+    () => collectPrefetchTargets(sections, pathname, sidebarBadges, isMobile ? 2 : 4),
+    [isMobile, pathname, sections, sidebarBadges]
+  );
 
   const [isHovering, setIsHovering] = useState(false);
   const collapseTimer = useRef<number | null>(null);
@@ -72,6 +137,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   const effectiveCollapsed = isMobile ? isCollapsed : !isHovering;
   const showLabels = isMobile ? true : !effectiveCollapsed;
   const openPaywall = usePaywallOpener();
+  const prefetchSidebarLink = useSidebarIntentPrefetch();
 
   const layoutTokens = useMemo<SidebarPresentationTokens>(
     () => ({
@@ -166,6 +232,42 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     };
   }, [clearCollapseTimer]);
 
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+    if (isMobile) return;
+    if (!idlePrefetchTargets.length) return;
+    const navConnection = (navigator as any)?.connection as
+      | { saveData?: boolean; effectiveType?: string }
+      | undefined;
+    if (navConnection?.saveData) return;
+    const effectiveType = String(navConnection?.effectiveType || "").toLowerCase();
+    if (effectiveType === "slow-2g" || effectiveType === "2g" || effectiveType === "3g") return;
+
+    const deviceMemory = Number((navigator as any)?.deviceMemory);
+    if (Number.isFinite(deviceMemory) && deviceMemory > 0 && deviceMemory <= 2) return;
+
+    let timeoutId: number | null = null;
+    let idleId: number | null = null;
+
+    const runPrefetch = () => {
+      idlePrefetchTargets.forEach((href) => prefetchSidebarLink(href));
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(runPrefetch, { timeout: 1200 });
+      return () => {
+        if (idleId !== null && typeof window.cancelIdleCallback === "function") {
+          window.cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    timeoutId = window.setTimeout(runPrefetch, 900);
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, [idlePrefetchTargets, isMobile, mounted, prefetchSidebarLink]);
+
   const asideBase =
     "fixed left-0 top-0 z-40 flex h-[100dvh] min-h-svh flex-col bg-white text-slate-900 border-r border-gray-200/50 transition-[width] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]";
 
@@ -235,11 +337,8 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
               pathname={pathname}
               userId={userId}
               interaction={interaction}
-              badges={{
-                "planning.chat": alertsUnreadCount,
-                "reviews": reviewsUnreadCount,
-                "planning.scripts": scriptsRecommendationsUnreadCount,
-              }}
+              onLinkIntent={prefetchSidebarLink}
+              badges={sidebarBadges}
             />
           </div>
         </nav>

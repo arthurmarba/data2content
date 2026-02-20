@@ -1,20 +1,22 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ContentPlannerCalendar,
-  PlannerSlotCard,
 } from '@/app/mediakit/components/ContentPlannerCalendar';
-import PlannerSlotModal, { PlannerSlotData as PlannerSlotDataModal } from '@/app/mediakit/components/PlannerSlotModal';
-import SimplifiedInsights from '@/app/dashboard/discover/SimplifiedInsights';
+import type { PlannerSlotData as PlannerSlotDataModal } from '@/app/mediakit/components/PlannerSlotModal';
 import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
 import { useBillingStatus } from '@/app/hooks/useBillingStatus';
 import { track } from '@/lib/track';
 import { openPaywallModal } from '@/utils/paywallModal';
 
-const MAX_POST_AGE_DAYS = 30;
+const PlannerSlotModal = dynamic(() => import('@/app/mediakit/components/PlannerSlotModal'), {
+  ssr: false,
+  loading: () => null,
+});
 
 function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | null {
   if (!slot) return null;
@@ -263,27 +265,6 @@ export default function PlannerClientPage() {
     track('planner_subscribe_clicked');
   }, []);
 
-  // Calculate Insights
-  const topHourLabel = useMemo(() => {
-    if (!heatmap || heatmap.length === 0) return null;
-    const best = heatmap.reduce((prev, current) => (prev.score > current.score ? prev : current));
-    return `${best.blockStartHour}h`;
-  }, [heatmap]);
-
-  const tips: string[] = useMemo(() => {
-    const t: string[] = [];
-    if (topHourLabel) {
-      t.push(`Seus dados históricos mostram um pico de engajamento às ${topHourLabel}. Agende seus conteúdos mais importantes (como lançamentos ou virais) para esta janela de ouro.`);
-    }
-    // Add generic tips if needed, or derived from slots
-    if (slots && slots.length < 3) {
-      t.push("O algoritmo prioriza constância. Aumentar sua frequência para 3 posts semanais pode elevar sua entrega em até 2x. Foque em criar hábito.");
-    } else if (slots && slots.length >= 3) {
-      t.push("Domine a narrativa completa: use Reels para atrair novos olhos (topo de funil) e Carrosséis para educar e converter sua base fiel (fundo de funil).");
-    }
-    return t;
-  }, [topHourLabel, slots]);
-
   if (status === 'loading') return null;
 
   return (
@@ -324,21 +305,22 @@ export default function PlannerClientPage() {
         </div>
       </div>
 
-      {/* Modal de Slot */}
-      <PlannerSlotModal
-        open={isModalOpen}
-        onClose={handleCloseSlot}
-        userId={session?.user?.id || ''}
-        weekStartISO={weekStartISO}
-        slot={toPlannerSlotData(selectedSlot)}
-        onSave={handleSave}
-        onDuplicateSlot={handleDuplicate}
-        onDeleteSlot={handleDelete}
-        readOnly={!canEdit}
-        canGenerate={canEdit}
-        onUpgradeRequest={handleRequestSubscribe}
-        upgradeMessage="Finalize a configuração necessária para gerar roteiros com IA."
-      />
+      {isModalOpen ? (
+        <PlannerSlotModal
+          open={isModalOpen}
+          onClose={handleCloseSlot}
+          userId={session?.user?.id || ''}
+          weekStartISO={weekStartISO}
+          slot={toPlannerSlotData(selectedSlot)}
+          onSave={handleSave}
+          onDuplicateSlot={handleDuplicate}
+          onDeleteSlot={handleDelete}
+          readOnly={!canEdit}
+          canGenerate={canEdit}
+          onUpgradeRequest={handleRequestSubscribe}
+          upgradeMessage="Finalize a configuração necessária para gerar roteiros com IA."
+        />
+      ) : null}
     </div>
   );
 }

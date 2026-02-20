@@ -19,6 +19,10 @@ const QUERY_CACHE_TTL_MS = Math.max(
   60_000,
   Math.min(15 * 60_000, Number(process.env.LANDING_CASTING_QUERY_TTL_MS ?? 600_000)),
 );
+const QUERY_CACHE_MAX_ENTRIES = Math.max(
+  100,
+  Math.min(10_000, Number(process.env.LANDING_CASTING_QUERY_CACHE_MAX_ENTRIES ?? 1500)),
+);
 const RANK_WINDOW_DAYS = 30;
 const ACTIVE_PLAN_STATUSES = ["active", "trial", "trialing", "non_renewing"] as const;
 const MAX_LIMIT = 2000;
@@ -88,16 +92,38 @@ let cacheEntry: CacheEntry | null = null;
 let featuredCacheEntry: CacheEntry | null = null;
 const queryCache = new Map<string, QueryCacheEntry>();
 
+function pruneQueryCache(now: number) {
+  for (const [key, entry] of queryCache.entries()) {
+    if (entry.expires <= now) {
+      queryCache.delete(key);
+    }
+  }
+
+  const overflow = queryCache.size - QUERY_CACHE_MAX_ENTRIES;
+  if (overflow <= 0) return;
+
+  let removed = 0;
+  for (const key of queryCache.keys()) {
+    queryCache.delete(key);
+    removed += 1;
+    if (removed >= overflow) break;
+  }
+}
+
 export async function fetchCastingCreators(options: CastingFilters = {}): Promise<CastingPayload> {
   const filters = normalizeFilters(options);
   const forceRefresh = filters.forceRefresh === true;
   const queryKey = buildQueryKey(filters);
   const now = Date.now();
+  pruneQueryCache(now);
 
   if (!forceRefresh) {
     const cached = queryCache.get(queryKey);
     if (cached && cached.expires > now) {
       return clonePayload(cached.payload);
+    }
+    if (cached) {
+      queryCache.delete(queryKey);
     }
   }
 
@@ -130,6 +156,9 @@ export async function fetchCastingCreators(options: CastingFilters = {}): Promis
       expires: now + QUERY_CACHE_TTL_MS,
       payload: clonePayload(payload),
     });
+    if (queryCache.size > QUERY_CACHE_MAX_ENTRIES) {
+      pruneQueryCache(now);
+    }
   }
 
   return payload;

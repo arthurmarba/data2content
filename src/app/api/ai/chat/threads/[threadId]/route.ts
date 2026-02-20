@@ -6,6 +6,8 @@ import ChatMessageLogModel from "@/app/models/ChatMessageLog";
 import MessageModel from '@/app/models/Message';
 import { connectToDatabase } from "@/app/lib/mongoose";
 
+const THREAD_HISTORY_LIMIT = 100;
+
 export async function GET(
     request: NextRequest,
     { params }: { params: { threadId: string } }
@@ -24,11 +26,13 @@ export async function GET(
 
         await connectToDatabase();
         const messages = await MessageModel.find({ threadId })
+            .select({ _id: 1, role: 1, content: 1, createdAt: 1 })
             .sort({ createdAt: 1 })
-            .limit(100) // Reasonable limit for history loading
+            .limit(THREAD_HISTORY_LIMIT)
             .lean();
 
         const messageIds = messages
+            .filter((msg: any) => msg?.role === 'assistant')
             .map((msg: any) => msg?._id?.toString?.())
             .filter(Boolean);
         const sessionByMessageId = new Map<string, string>();

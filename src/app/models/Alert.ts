@@ -33,6 +33,7 @@ const AlertSchema = new Schema<IAlert>(
 );
 
 AlertSchema.index({ user: 1, createdAt: -1 });
+AlertSchema.index({ user: 1, readAt: 1, createdAt: -1 });
 
 const Alert =
   (models.Alert as mongoose.Model<IAlert>) ||

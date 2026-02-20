@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import UserModel from '@/app/models/User';
-import MetricModel, { IMetric } from '@/app/models/Metric';
+import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
-import { getNestedValue } from '@/utils/dataAccessHelpers';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import {
   ALLOWED_TIME_PERIODS,
@@ -60,56 +59,75 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const activeUsers = await UserModel.find({ planStatus: 'active', agency: session.user.agencyId }).select('_id').lean();
-    const activeIds = activeUsers.map(u => u._id);
+    const activeIds = await UserModel.distinct('_id', { planStatus: 'active', agency: session.user.agencyId });
+    if (!activeIds.length) {
+      return NextResponse.json({ chartData: [], metricUsed: engagementMetric, groupBy }, { status: 200 });
+    }
 
     const today = new Date();
     const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const startDate = getStartDateFromTimePeriod(today, timePeriod);
 
     const query: any = {};
-    if (activeIds.length > 0) {
-      query.user = { $in: activeIds };
-    }
+    query.user = { $in: activeIds };
     if (timePeriod !== 'all_time') {
       query.postDate = { $gte: startDate, $lte: endDate };
     }
 
-    const posts: IMetric[] = await MetricModel.find(query).lean();
+    const groupFieldPath =
+      groupBy === 'format' ? '$format' : groupBy === 'context' ? '$context' : '$proposal';
+    const metricFieldPath = `$${engagementMetric}`;
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : null;
 
-    const performanceByGroup: Record<string, { sumPerformance: number; count: number }> = {};
-    for (const post of posts) {
-      const groupKey = groupBy === 'format' ? post.format : groupBy === 'context' ? post.context : post.proposal;
-      const metricValue = getNestedValue(post, engagementMetric);
-      if (groupKey && metricValue !== null) {
-        // Corrigido para lidar com arrays e strings
-        const keys = Array.isArray(groupKey) ? groupKey : [groupKey];
-        for (const key of keys) {
-            if (!performanceByGroup[key]) {
-                performanceByGroup[key] = { sumPerformance: 0, count: 0 };
-            }
-            performanceByGroup[key].sumPerformance += metricValue;
-            performanceByGroup[key].count += 1;
-        }
-      }
+    const pipeline: any[] = [
+      { $match: query },
+      {
+        $project: {
+          metricValue: metricFieldPath,
+          groupValues: {
+            $let: {
+              vars: { raw: groupFieldPath },
+              in: {
+                $cond: [
+                  { $isArray: '$$raw' },
+                  '$$raw',
+                  {
+                    $cond: [
+                      { $and: [{ $ne: ['$$raw', null] }, { $ne: ['$$raw', ''] }] },
+                      ['$$raw'],
+                      [],
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      { $unwind: '$groupValues' },
+      {
+        $match: {
+          groupValues: { $nin: [null, ''] },
+          $expr: { $isNumber: '$metricValue' },
+        },
+      },
+      {
+        $group: {
+          _id: '$groupValues',
+          value: { $avg: '$metricValue' },
+          postsCount: { $sum: 1 },
+        },
+      },
+      { $sort: { value: -1 } },
+    ];
+
+    if (parsedLimit && parsedLimit > 0) {
+      pipeline.push({ $limit: parsedLimit });
     }
 
-    // ✅ Usamos 'let' para que a variável possa ser modificada
-    let results = Object.entries(performanceByGroup).map(([key, data]) => ({
-      name: key,
-      value: data.sumPerformance / data.count,
-      postsCount: data.count,
-    })).sort((a, b) => b.value - a.value);
+    pipeline.push({ $project: { _id: 0, name: '$_id', value: 1, postsCount: 1 } });
 
-    // ✅ PASSO 2: APLICAR O LIMITE SE ELE FOI FORNECIDO
-    if (limitParam) {
-      const limit = parseInt(limitParam, 10);
-      // Garante que o limite é um número válido e positivo
-      if (!isNaN(limit) && limit > 0) {
-        // Usa slice() para pegar apenas os N primeiros itens do array já ordenado
-        results = results.slice(0, limit);
-      }
-    }
+    const results = await MetricModel.aggregate(pipeline).exec();
 
     // Retorna dados
     return NextResponse.json({ chartData: results, metricUsed: engagementMetric, groupBy }, { status: 200 });

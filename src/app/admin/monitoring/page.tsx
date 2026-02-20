@@ -11,15 +11,18 @@ import {
 } from 'recharts';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
+const SWR_POLLING_OPTIONS = {
+  refreshInterval: 30000,
+  revalidateOnFocus: false,
+  dedupingInterval: 15000,
+};
 
 export default function MonitoringPage() {
-  const { data } = useSWR('/api/admin/monitoring/summary', fetcher, {
-    refreshInterval: 30000,
-  });
+  const { data } = useSWR('/api/admin/monitoring/summary', fetcher, SWR_POLLING_OPTIONS);
   const { data: planGuard } = useSWR(
     '/api/admin/plan-guard/metrics',
     fetcher,
-    { refreshInterval: 30000 }
+    SWR_POLLING_OPTIONS
   );
 
   if (!data || !planGuard) {

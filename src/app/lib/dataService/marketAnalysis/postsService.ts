@@ -21,6 +21,35 @@ import UserModel from '@/app/models/User';
 import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 
 const SERVICE_TAG = '[dataService][postsService]';
+const THUMBNAIL_FETCH_PER_REQUEST = (() => {
+  const parsed = Number(process.env.POSTS_THUMBNAIL_FETCH_PER_REQUEST ?? 3);
+  if (!Number.isFinite(parsed)) return 3;
+  return Math.max(0, Math.min(10, Math.floor(parsed)));
+})();
+const THUMBNAIL_FETCH_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.POSTS_THUMBNAIL_FETCH_CACHE_TTL_MS ?? 6 * 60 * 60 * 1000);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 6 * 60 * 60 * 1000;
+})();
+const THUMBNAIL_FETCH_CACHE_MAX_ENTRIES = (() => {
+  const parsed = Number(process.env.POSTS_THUMBNAIL_FETCH_CACHE_MAX_ENTRIES ?? 5000);
+  return Number.isFinite(parsed) && parsed >= 500 ? Math.floor(parsed) : 5000;
+})();
+
+const instagramThumbnailCache = new Map<string, { url: string; expiresAt: number }>();
+
+function pruneInstagramThumbnailCache(nowTs: number) {
+  for (const [key, value] of instagramThumbnailCache.entries()) {
+    if (value.expiresAt <= nowTs) instagramThumbnailCache.delete(key);
+  }
+  if (instagramThumbnailCache.size <= THUMBNAIL_FETCH_CACHE_MAX_ENTRIES) return;
+  const overflow = instagramThumbnailCache.size - THUMBNAIL_FETCH_CACHE_MAX_ENTRIES;
+  const keys = Array.from(instagramThumbnailCache.keys());
+  for (let i = 0; i < overflow; i += 1) {
+    const key = keys[i];
+    if (!key) break;
+    instagramThumbnailCache.delete(key);
+  }
+}
 
 // ----------------------------------------------
 // Utils
@@ -523,19 +552,31 @@ export async function findUserPosts({ // ALTERADO
     const connectionDetails = await getInstagramConnectionDetails(userObjectId);
     const accessToken = connectionDetails?.accessToken;
 
-    if (accessToken) {
+    if (accessToken && page === 1 && THUMBNAIL_FETCH_PER_REQUEST > 0) {
+      const nowTs = Date.now();
+      pruneInstagramThumbnailCache(nowTs);
       const needFetchIdx: number[] = [];
       const fetchPromises: Promise<string | null>[] = [];
 
       posts.forEach((p, i) => { // ALTERADO
-        if (!p.thumbnailUrl && p.instagramMediaId) {
+        if (p.thumbnailUrl || !p.instagramMediaId) return;
+
+        const cachedThumb = instagramThumbnailCache.get(p.instagramMediaId);
+        if (cachedThumb && cachedThumb.expiresAt > nowTs) {
+          p.thumbnailUrl = toProxyUrl(cachedThumb.url);
+          return;
+        }
+
+        if (needFetchIdx.length < THUMBNAIL_FETCH_PER_REQUEST) {
           needFetchIdx.push(i);
           fetchPromises.push(fetchMediaThumbnail(p.instagramMediaId, accessToken));
         }
       });
 
       if (fetchPromises.length > 0) {
-        logger.info(`${TAG} Fetching thumbnails from IG for ${fetchPromises.length} posts...`); // ALTERADO
+        logger.info(
+          `${TAG} Fetching thumbnails from IG for ${fetchPromises.length} posts (cap ${THUMBNAIL_FETCH_PER_REQUEST})...`
+        ); // ALTERADO
         const results = await Promise.allSettled(fetchPromises);
 
         results.forEach((res, k) => {
@@ -544,6 +585,12 @@ export async function findUserPosts({ // ALTERADO
 
           const p = posts[idx]; // ALTERADO
           if (p && res.status === 'fulfilled' && res.value) { // ALTERADO
+            if (p.instagramMediaId) {
+              instagramThumbnailCache.set(p.instagramMediaId, {
+                url: res.value,
+                expiresAt: nowTs + THUMBNAIL_FETCH_CACHE_TTL_MS,
+              });
+            }
             p.thumbnailUrl = toProxyUrl(res.value);
           }
         });

@@ -36,6 +36,7 @@ type SidebarSectionListProps = {
   userId: string | null;
   interaction: SidebarInteractionState;
   badges?: Record<string, number>;
+  onLinkIntent?: (href: string) => void;
 };
 
 const normalizePath = (value: string) => (value.endsWith("/") ? value.slice(0, -1) : value);
@@ -77,6 +78,7 @@ export const SidebarSectionList = ({
   userId,
   interaction,
   badges,
+  onLinkIntent,
 }: SidebarSectionListProps) => {
   const flatItems = sections.flatMap((section) => section.items);
   const middleItems = flatItems;
@@ -91,6 +93,7 @@ export const SidebarSectionList = ({
         userId={userId}
         interaction={interaction}
         badges={badges}
+        onLinkIntent={onLinkIntent}
       />
     ) : (
       <SidebarLinkItem
@@ -99,7 +102,8 @@ export const SidebarSectionList = ({
         tokens={tokens}
         pathname={pathname}
         interaction={interaction}
-        badges={badges}
+        badgeCount={badges?.[item.key] ?? 0}
+        onLinkIntent={onLinkIntent}
         source={`sidebar_item_${item.key}`}
       />
     );
@@ -126,6 +130,7 @@ const SidebarGroupItem = ({
   userId,
   interaction,
   badges,
+  onLinkIntent,
   insertSeparator,
 }: {
   group: SidebarGroupNode;
@@ -134,6 +139,7 @@ const SidebarGroupItem = ({
   userId: string | null;
   interaction: SidebarInteractionState;
   badges?: Record<string, number>;
+  onLinkIntent?: (href: string) => void;
   insertSeparator?: boolean;
 }) => {
   const persistenceKey = group.statePersistence?.key ?? `nav:${group.key}:collapsed`;
@@ -272,7 +278,8 @@ const SidebarGroupItem = ({
                 pathname={pathname}
                 interaction={interaction}
                 focusOffsetClass={tokens.focusOffsetClass}
-                badges={badges}
+                badgeCount={badges?.[child.key] ?? 0}
+                onLinkIntent={onLinkIntent}
               />
             ))}
           </ul>
@@ -282,12 +289,13 @@ const SidebarGroupItem = ({
   );
 };
 
-const SidebarLinkItem = ({
+const SidebarLinkItem = React.memo(function SidebarLinkItem({
   item,
   tokens,
   pathname,
   interaction,
-  badges,
+  badgeCount = 0,
+  onLinkIntent,
   source,
   insertSeparator,
 }: {
@@ -295,14 +303,14 @@ const SidebarLinkItem = ({
   tokens: SidebarPresentationTokens;
   pathname: string;
   interaction: SidebarInteractionState;
-  badges?: Record<string, number>;
+  badgeCount?: number;
+  onLinkIntent?: (href: string) => void;
   source: string;
   insertSeparator?: boolean;
-}) => {
+}) {
   const active = isRouteActive(pathname, item.href, item.exact);
   const locked = Boolean(item.paywallContext);
   const hideLockBadge = Boolean(item.hideLockBadge);
-  const badgeCount = badges?.[item.key] ?? 0;
   const showBadge = badgeCount > 0;
   const iconColor = active ? "text-gray-900" : "text-gray-500 group-hover:text-gray-900";
   const labelTransition = tokens.showLabels
@@ -322,6 +330,10 @@ const SidebarLinkItem = ({
     }
     interaction.onItemNavigate();
   };
+  const handleIntent = () => {
+    if (locked) return;
+    onLinkIntent?.(item.href);
+  };
 
   return (
     <li className={insertSeparator ? "mt-4 pt-2 border-t border-gray-100/80" : ""}>
@@ -329,6 +341,9 @@ const SidebarLinkItem = ({
         href={item.href}
         prefetch={false}
         onClick={handleClick}
+        onMouseEnter={handleIntent}
+        onFocus={handleIntent}
+        onTouchStart={handleIntent}
         className={`group relative flex items-center ${tokens.itemGap} ${tokens.itemPadding} ${tokens.itemTextSize} ${tokens.alignClass} rounded-lg transition-colors duration-150 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 ${tokens.focusOffsetClass}`}
         aria-current={active ? "page" : undefined}
         aria-label={!tokens.showLabels ? item.label : undefined}
@@ -374,25 +389,26 @@ const SidebarLinkItem = ({
       </Link>
     </li>
   );
-};
+});
 
-const SidebarChildLink = ({
+const SidebarChildLink = React.memo(function SidebarChildLink({
   item,
   pathname,
   interaction,
   focusOffsetClass,
-  badges,
+  badgeCount = 0,
+  onLinkIntent,
 }: {
   item: SidebarChildNode;
   pathname: string;
   interaction: SidebarInteractionState;
   focusOffsetClass: string;
-  badges?: Record<string, number>;
-}) => {
+  badgeCount?: number;
+  onLinkIntent?: (href: string) => void;
+}) {
   const active = isRouteActive(pathname, item.href, item.exact);
   const locked = Boolean(item.paywallContext);
   const hideLockBadge = Boolean(item.hideLockBadge);
-  const badgeCount = badges?.[item.key] ?? 0;
   const showBadge = badgeCount > 0;
   const iconColor = active ? "text-gray-900" : "text-gray-500 group-hover:text-gray-900";
 
@@ -407,6 +423,10 @@ const SidebarChildLink = ({
     }
     interaction.onItemNavigate();
   };
+  const handleIntent = () => {
+    if (locked) return;
+    onLinkIntent?.(item.href);
+  };
 
   return (
     <li>
@@ -414,6 +434,9 @@ const SidebarChildLink = ({
         href={item.href}
         prefetch={false}
         onClick={handleClick}
+        onMouseEnter={handleIntent}
+        onFocus={handleIntent}
+        onTouchStart={handleIntent}
         className={`group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] font-medium transition-colors duration-150 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 ${focusOffsetClass}`}
         aria-current={active ? "page" : undefined}
         title={item.tooltip || item.label}
@@ -443,4 +466,4 @@ const SidebarChildLink = ({
       </Link>
     </li>
   );
-};
+});

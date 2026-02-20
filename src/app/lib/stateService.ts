@@ -416,10 +416,13 @@ export async function createThread(userId: string, title?: string): Promise<IThr
 
 export async function getUserThreads(userId: string, limit = 20, offset = 0): Promise<IThread[]> {
   await connectToDatabase();
+  const safeLimit = Math.min(Math.max(Math.floor(limit || 0), 1), 100);
+  const safeOffset = Math.max(Math.floor(offset || 0), 0);
   return ThreadModel.find({ userId })
+    .select({ _id: 1, title: 1, lastActivityAt: 1, isFavorite: 1 })
     .sort({ lastActivityAt: -1 })
-    .skip(offset)
-    .limit(limit)
+    .skip(safeOffset)
+    .limit(safeLimit)
     .lean();
 }
 

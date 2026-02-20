@@ -2,9 +2,14 @@
 'use client';
 
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/track';
-import DiscoverVideoModal from './DiscoverVideoModal';
+
+const DiscoverVideoModal = dynamic(() => import('./DiscoverVideoModal'), {
+  ssr: false,
+  loading: () => null,
+});
 
 type PostCard = {
   id: string;
@@ -209,25 +214,27 @@ export default function DiscoverCard({
         </div>
       )}
 
-      <DiscoverVideoModal
-        open={videoOpen}
-        onClose={() => setVideoOpen(false)}
-        postLink={item.postLink || undefined}
-        videoUrl={item.videoUrl}
-        posterUrl={item.coverUrl || undefined}
-        nextItem={
-          nextItem
-            ? {
-                id: nextItem.id,
-                videoUrl: nextItem.videoUrl,
-                postLink: nextItem.postLink,
-                posterUrl: nextItem.coverUrl || undefined,
-                caption: nextItem.caption,
-                creatorName: nextItem.creatorName,
-              }
-            : undefined
-        }
-      />
+      {videoOpen ? (
+        <DiscoverVideoModal
+          open={videoOpen}
+          onClose={() => setVideoOpen(false)}
+          postLink={item.postLink || undefined}
+          videoUrl={item.videoUrl}
+          posterUrl={item.coverUrl || undefined}
+          nextItem={
+            nextItem
+              ? {
+                  id: nextItem.id,
+                  videoUrl: nextItem.videoUrl,
+                  postLink: nextItem.postLink,
+                  posterUrl: nextItem.coverUrl || undefined,
+                  caption: nextItem.caption,
+                  creatorName: nextItem.creatorName,
+                }
+              : undefined
+          }
+        />
+      ) : null}
 
     </article>
   );

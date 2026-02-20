@@ -1,6 +1,7 @@
 import { logger } from "@/app/lib/logger";
 
 import type { ScriptIntelligenceContext } from "./intelligenceContext";
+import { getScriptsPerformanceSnapshot } from "./performanceTelemetry";
 import { SCRIPT_CATEGORY_DIMENSIONS, type ScriptCategoryDimension } from "./promptParser";
 import { computeStyleSimilarityScore } from "./styleContext";
 import type { ScriptAdjustMeta } from "./ai";
@@ -164,5 +165,6 @@ export function logScriptsGenerationObservability(params: {
     scriptId: params.scriptId || null,
     aiVersionId: params.aiVersionId || null,
     diagnostics: params.diagnostics,
+    performance: getScriptsPerformanceSnapshot(),
   });
 }

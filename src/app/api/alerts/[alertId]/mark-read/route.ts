@@ -6,6 +6,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Alert from "@/app/models/Alert";
 import { logger } from "@/app/lib/logger";
+import { invalidateCachedUnreadCount } from "@/app/lib/cache/alertsRuntimeCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,14 +30,32 @@ export async function PATCH(
   try {
     await connectToDatabase();
     const updated = await Alert.findOneAndUpdate(
-      { _id: alertId, user: userId },
+      {
+        _id: alertId,
+        user: userId,
+        $or: [{ readAt: null }, { readAt: { $exists: false } }],
+      },
       { $set: { readAt: new Date() } },
       { new: true }
     ).lean();
 
     if (!updated) {
-      return NextResponse.json({ error: "Alerta não encontrado." }, { status: 404 });
+      const existing = await Alert.findOne({ _id: alertId, user: userId })
+        .select("_id readAt")
+        .lean();
+      if (!existing) {
+        return NextResponse.json({ error: "Alerta não encontrado." }, { status: 404 });
+      }
+      invalidateCachedUnreadCount(userId);
+      return NextResponse.json({
+        data: {
+          id: existing._id.toString(),
+          readAt: existing.readAt ? existing.readAt.toISOString() : null,
+        },
+      });
     }
+
+    invalidateCachedUnreadCount(userId);
 
     return NextResponse.json({
       data: {

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
-import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { Loader2, AlertCircle, Play, CheckCircle2, MessageSquare, ExternalLink, Heart, Share2, Bookmark, BarChart2 } from 'lucide-react';
 import Image from 'next/image';
@@ -56,8 +55,7 @@ const STATUS_CONFIG: Record<ReviewStatus, { label: string; bg: string; text: str
 };
 
 export default function PostAnalysisPage() {
-    const { data: session } = useSession();
-    const [lastViewedAt, setLastViewedAt] = useLocalStorage<string>('d2c_last_viewed_reviews_at', '');
+    const [, setLastViewedAt] = useLocalStorage<string>('d2c_last_viewed_reviews_at', '');
 
     // Video Modal State
     const [videoOpen, setVideoOpen] = useState(false);
@@ -80,8 +78,9 @@ export default function PostAnalysisPage() {
             return res.json();
         },
         {
-            revalidateOnFocus: true,
+            revalidateOnFocus: false,
             revalidateOnMount: true,
+            dedupingInterval: 30000,
         }
     );
 
@@ -264,13 +263,15 @@ export default function PostAnalysisPage() {
                 )}
             </div>
 
-            <DiscoverVideoModal
-                open={videoOpen}
-                onClose={() => setVideoOpen(false)}
-                videoUrl={activeVideo?.url}
-                postLink={activeVideo?.link}
-                posterUrl={activeVideo?.poster}
-            />
+            {videoOpen ? (
+                <DiscoverVideoModal
+                    open={videoOpen}
+                    onClose={() => setVideoOpen(false)}
+                    videoUrl={activeVideo?.url}
+                    postLink={activeVideo?.link}
+                    posterUrl={activeVideo?.poster}
+                />
+            ) : null}
         </div>
     );
 }

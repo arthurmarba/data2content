@@ -9,6 +9,97 @@ interface UseChatProps {
     onThreadCreated?: (newThreadId: string) => void;
 }
 
+const THREAD_HISTORY_CACHE_TTL_MS = (() => {
+    const parsed = Number(process.env.NEXT_PUBLIC_CHAT_THREAD_HISTORY_CACHE_TTL_MS ?? 45_000);
+    return Number.isFinite(parsed) && parsed >= 5_000 ? Math.floor(parsed) : 45_000;
+})();
+const THREAD_HISTORY_CACHE_MAX_ENTRIES = (() => {
+    const parsed = Number(process.env.NEXT_PUBLIC_CHAT_THREAD_HISTORY_CACHE_MAX_ENTRIES ?? 80);
+    return Number.isFinite(parsed) && parsed >= 20 ? Math.floor(parsed) : 80;
+})();
+
+type ThreadHistoryCacheEntry = {
+    messages: Message[];
+    expiresAt: number;
+};
+
+const threadHistoryCache = new Map<string, ThreadHistoryCacheEntry>();
+const threadHistoryInFlight = new Map<string, Promise<Message[]>>();
+
+function pruneThreadHistoryCache(nowTs: number) {
+    for (const [key, value] of threadHistoryCache.entries()) {
+        if (value.expiresAt <= nowTs) threadHistoryCache.delete(key);
+    }
+    if (threadHistoryCache.size <= THREAD_HISTORY_CACHE_MAX_ENTRIES) return;
+    const overflow = threadHistoryCache.size - THREAD_HISTORY_CACHE_MAX_ENTRIES;
+    const keys = Array.from(threadHistoryCache.keys());
+    for (let i = 0; i < overflow; i += 1) {
+        const key = keys[i];
+        if (!key) break;
+        threadHistoryCache.delete(key);
+    }
+}
+
+function getCachedThreadHistory(threadId: string): Message[] | null {
+    const nowTs = Date.now();
+    pruneThreadHistoryCache(nowTs);
+    const cached = threadHistoryCache.get(threadId);
+    if (!cached || cached.expiresAt <= nowTs) {
+        if (cached) threadHistoryCache.delete(threadId);
+        return null;
+    }
+    return cached.messages;
+}
+
+function setCachedThreadHistory(threadId: string, messages: Message[]) {
+    const nowTs = Date.now();
+    pruneThreadHistoryCache(nowTs);
+    threadHistoryCache.set(threadId, {
+        messages,
+        expiresAt: nowTs + THREAD_HISTORY_CACHE_TTL_MS,
+    });
+}
+
+function toChatMessages(raw: any): Message[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((m: any) => {
+        const rawMessageId = m?.messageId ?? m?._id ?? null;
+        const rawSessionId = m?.sessionId ?? null;
+        return {
+            sender: m.role === 'user' ? 'user' : 'consultant',
+            text: m.content,
+            messageId: rawMessageId ? String(rawMessageId) : null,
+            sessionId: rawSessionId ? String(rawSessionId) : null,
+        } as Message;
+    });
+}
+
+async function fetchThreadHistory(threadId: string): Promise<Message[]> {
+    const existing = threadHistoryInFlight.get(threadId);
+    if (existing) return existing;
+
+    const request = (async () => {
+        const res = await fetch(`/api/ai/chat/threads/${threadId}`, { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            const error = new Error(typeof data?.error === 'string' ? data.error : 'Não foi possível carregar o histórico agora.');
+            (error as any).status = res.status;
+            throw error;
+        }
+
+        const mapped = toChatMessages(data?.messages);
+        setCachedThreadHistory(threadId, mapped);
+        return mapped;
+    })();
+
+    threadHistoryInFlight.set(threadId, request);
+    try {
+        return await request;
+    } finally {
+        threadHistoryInFlight.delete(threadId);
+    }
+}
 
 export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadCreated }: UseChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -22,6 +113,7 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
 
     const autoScrollOnNext = useRef(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const historyRequestIdRef = useRef(0);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,39 +127,40 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
     }, [messages, scrollToBottom]);
 
     const loadThreadHistory = useCallback(async (tId: string) => {
+        const requestId = historyRequestIdRef.current + 1;
+        historyRequestIdRef.current = requestId;
+
+        const cached = getCachedThreadHistory(tId);
+        if (cached) {
+            setInlineAlert(null);
+            setMessages(cached);
+            setTimeout(scrollToBottom, 0);
+            return;
+        }
+
         try {
             setMessages([]); // Clear previous
-            const res = await fetch(`/api/ai/chat/threads/${tId}`);
-            if (!res.ok) {
-                if (res.status === 401 || res.status === 403) {
-                    setInlineAlert('Faça login para ver seu histórico.');
-                } else if (res.status === 404) {
-                    setInlineAlert('Conversa não encontrada ou removida.');
-                } else {
-                    setInlineAlert('Não foi possível carregar o histórico agora.');
-                }
-                return;
-            }
-            const data = await res.json();
-            if (data.messages) {
-                const mapped: Message[] = data.messages.map((m: any) => {
-                    const rawMessageId = m?.messageId ?? m?._id ?? null;
-                    const rawSessionId = m?.sessionId ?? null;
-                    return {
-                        sender: m.role === 'user' ? 'user' : 'consultant',
-                        text: m.content,
-                        messageId: rawMessageId ? String(rawMessageId) : null,
-                        sessionId: rawSessionId ? String(rawSessionId) : null,
-                    };
-                });
+            const mapped = await fetchThreadHistory(tId);
+            if (requestId !== historyRequestIdRef.current) return;
+
+            if (mapped.length > 0) {
                 setMessages(mapped);
                 setTimeout(scrollToBottom, 50);
             } else {
+                setMessages([]);
                 setInlineAlert('Nenhuma mensagem encontrada para esta conversa.');
             }
-        } catch (e) {
+        } catch (e: any) {
+            if (requestId !== historyRequestIdRef.current) return;
             console.error("Failed to load history", e);
-            setInlineAlert('Não foi possível carregar o histórico agora.');
+            const status = typeof e?.status === 'number' ? e.status : 0;
+            if (status === 401 || status === 403) {
+                setInlineAlert('Faça login para ver seu histórico.');
+            } else if (status === 404) {
+                setInlineAlert('Conversa não encontrada ou removida.');
+            } else {
+                setInlineAlert('Não foi possível carregar o histórico agora.');
+            }
         }
     }, [scrollToBottom, setInlineAlert, setMessages]);
 
@@ -75,9 +168,15 @@ export function useChat({ userWithId, isAdmin, targetUserId, threadId, onThreadC
         if (threadId) {
             loadThreadHistory(threadId);
         } else {
+            historyRequestIdRef.current += 1;
             setMessages([]);
         }
     }, [threadId, loadThreadHistory]);
+
+    useEffect(() => {
+        if (!threadId) return;
+        setCachedThreadHistory(threadId, messages);
+    }, [threadId, messages]);
 
     const sendPrompt = async (promptRaw: string, opts?: { skipInputReset?: boolean }) => {
         setInlineAlert(null);

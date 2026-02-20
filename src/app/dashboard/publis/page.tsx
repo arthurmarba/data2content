@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { ExclamationTriangleIcon, FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import useSWR from 'swr';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
@@ -9,11 +11,16 @@ import { LockClosedIcon } from '@heroicons/react/24/outline';
 import { useDebounce } from 'use-debounce';
 
 import PubliCard from '@/components/publis/PubliCard';
-import ShareModal from '@/components/publis/ShareModal';
+
+const ShareModal = dynamic(() => import('@/components/publis/ShareModal'), {
+    ssr: false,
+    loading: () => null,
+});
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function PublisPage() {
+    const router = useRouter();
     const billingStatus = useBillingStatus();
     const billingError = billingStatus.error;
     const hasBillingResolved = Boolean(billingStatus.hasResolvedOnce);
@@ -71,7 +78,7 @@ export default function PublisPage() {
     };
 
     const handleAnalyze = (id: string) => {
-        window.location.href = `/dashboard/publis/${id}`;
+        router.push(`/dashboard/publis/${id}`);
     };
 
     useEffect(() => {
@@ -316,11 +323,13 @@ export default function PublisPage() {
             )}
 
             {/* Modals */}
-            <ShareModal
-                isOpen={shareModalOpen}
-                onClose={() => setShareModalOpen(false)}
-                publiId={selectedPubliId}
-            />
+            {shareModalOpen ? (
+                <ShareModal
+                    isOpen={shareModalOpen}
+                    onClose={() => setShareModalOpen(false)}
+                    publiId={selectedPubliId}
+                />
+            ) : null}
         </div>
     );
 }

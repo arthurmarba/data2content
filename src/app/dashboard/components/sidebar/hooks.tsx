@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
 
@@ -105,3 +106,36 @@ export const usePaywallOpener = () =>
     },
     []
   );
+
+export const useSidebarIntentPrefetch = () => {
+  const router = useRouter();
+  const prefetchedRef = useRef<Set<string>>(new Set());
+
+  const canPrefetch = useCallback(() => {
+    if (typeof navigator === "undefined") return true;
+    if (navigator.onLine === false) return false;
+    const navConnection = (navigator as any).connection as
+      | { saveData?: boolean; effectiveType?: string }
+      | undefined;
+    if (navConnection?.saveData) return false;
+    const effectiveType = String(navConnection?.effectiveType || "").toLowerCase();
+    if (effectiveType === "slow-2g" || effectiveType === "2g") return false;
+    const deviceMemory = Number((navigator as any).deviceMemory);
+    if (Number.isFinite(deviceMemory) && deviceMemory > 0 && deviceMemory <= 1) return false;
+    return true;
+  }, []);
+
+  return useCallback(
+    (href: string) => {
+      if (!href || !href.startsWith("/") || !canPrefetch()) return;
+      if (prefetchedRef.current.has(href)) return;
+      prefetchedRef.current.add(href);
+      try {
+        void router.prefetch(href);
+      } catch {
+        prefetchedRef.current.delete(href);
+      }
+    },
+    [canPrefetch, router]
+  );
+};

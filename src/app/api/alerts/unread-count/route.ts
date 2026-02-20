@@ -5,6 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Alert from "@/app/models/Alert";
 import { logger } from "@/app/lib/logger";
+import { getCachedUnreadCount, setCachedUnreadCount } from "@/app/lib/cache/alertsRuntimeCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,10 @@ export async function GET(_request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const cachedUnreadCount = getCachedUnreadCount(userId);
+  if (typeof cachedUnreadCount === "number") {
+    return NextResponse.json({ unreadCount: cachedUnreadCount });
+  }
 
   try {
     await connectToDatabase();
@@ -23,6 +28,8 @@ export async function GET(_request: NextRequest) {
       user: userId,
       $or: [{ readAt: null }, { readAt: { $exists: false } }],
     });
+
+    setCachedUnreadCount(userId, unreadCount);
 
     return NextResponse.json({ unreadCount });
   } catch (error) {

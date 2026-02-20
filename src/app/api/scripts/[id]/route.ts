@@ -130,11 +130,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
   if (styleTrainingEnabled) {
-    try {
-      await refreshScriptStyleProfile(effectiveUserId);
-    } catch {
-      // Não bloqueia edição manual.
-    }
+    void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
   }
 
   if (doc.linkType === "planner_slot" && doc.plannerRef?.weekStart && doc.plannerRef?.slotId) {

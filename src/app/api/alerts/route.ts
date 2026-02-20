@@ -7,6 +7,12 @@ import Alert, { IAlert } from "@/app/models/Alert";
 import type { FilterQuery } from "mongoose";
 import { logger } from "@/app/lib/logger";
 import User from "@/app/models/User";
+import {
+  getCachedUnreadCount,
+  hasRecentLegacyBackfillCheck,
+  markLegacyBackfillChecked,
+  setCachedUnreadCount,
+} from "@/app/lib/cache/alertsRuntimeCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,12 +28,20 @@ const unreadFilter: FilterQuery<IAlert> = {
 
 async function backfillFromLegacyHistory(userId: string) {
   try {
+    if (hasRecentLegacyBackfillCheck(userId)) return;
+
     const existingCount = await Alert.countDocuments({ user: userId });
-    if (existingCount > 0) return;
+    if (existingCount > 0) {
+      markLegacyBackfillChecked(userId);
+      return;
+    }
 
     const user = await User.findById(userId, { alertHistory: 1 }).lean();
     const history = (user as any)?.alertHistory;
-    if (!Array.isArray(history) || history.length === 0) return;
+    if (!Array.isArray(history) || history.length === 0) {
+      markLegacyBackfillChecked(userId);
+      return;
+    }
 
     const docs = history
       .slice(-100)
@@ -65,6 +79,7 @@ async function backfillFromLegacyHistory(userId: string) {
     if (docs.length > 0) {
       await Alert.insertMany(docs, { ordered: false });
     }
+    markLegacyBackfillChecked(userId);
   } catch (error) {
     logger.warn("[api/alerts] Falha no backfill de alertHistory legado", error);
   }
@@ -127,6 +142,7 @@ export async function GET(request: NextRequest) {
     }
 
     const results = await Alert.find(query)
+      .select("title body channel severity metadata sourceMessageId readAt createdAt")
       .sort({ createdAt: -1 })
       .limit(limit + 1)
       .lean();
@@ -136,10 +152,23 @@ export async function GET(request: NextRequest) {
     const nextCursor =
       hasNext && items.length ? items[items.length - 1]?.createdAt : null;
 
-    const unreadCount = await Alert.countDocuments({
-      user: userId,
-      ...unreadFilter,
-    });
+    let unreadCount: number | null = null;
+    const cachedUnreadCount = getCachedUnreadCount(userId);
+
+    if (cursor) {
+      unreadCount = cachedUnreadCount;
+    } else if (typeof cachedUnreadCount === "number") {
+      unreadCount = cachedUnreadCount;
+    } else if (status === "unread" && !hasNext) {
+      unreadCount = items.length;
+      setCachedUnreadCount(userId, unreadCount);
+    } else {
+      unreadCount = await Alert.countDocuments({
+        user: userId,
+        ...unreadFilter,
+      });
+      setCachedUnreadCount(userId, unreadCount);
+    }
 
     return NextResponse.json({
       data: items,

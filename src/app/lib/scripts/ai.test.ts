@@ -1,4 +1,8 @@
-import { buildIntelligencePromptBlock, sanitizeScriptIdentityLeakage } from "./ai";
+import {
+  buildIntelligencePromptBlock,
+  sanitizeScriptIdentityLeakage,
+  selectScriptModelForPrompt,
+} from "./ai";
 
 describe("scripts/ai identity leakage sanitization", () => {
   it("removes unauthorized mentions and hashtags", () => {
@@ -101,5 +105,83 @@ describe("scripts/ai identity leakage sanitization", () => {
     expect(block).toContain("Perfil de estilo do usuario");
     expect(block).toContain("Amostra de roteiros: 12");
     expect(block).toContain("Imite o estilo do criador sem copiar frases literalmente.");
+  });
+});
+
+describe("scripts/ai model selection", () => {
+  const envBackup = {
+    OPENAI_MODEL: process.env.OPENAI_MODEL,
+    OPENAI_MODEL_ADVANCED: process.env.OPENAI_MODEL_ADVANCED,
+    OPENAI_MODEL_HYBRID_ENABLED: process.env.OPENAI_MODEL_HYBRID_ENABLED,
+    OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED:
+      process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED,
+    OPENAI_MODEL_HYBRID_SCORE_THRESHOLD: process.env.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD,
+  };
+
+  beforeEach(() => {
+    process.env.OPENAI_MODEL = "gpt-4o-mini";
+    process.env.OPENAI_MODEL_ADVANCED = "gpt-4.1";
+    process.env.OPENAI_MODEL_HYBRID_ENABLED = "true";
+    process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED = "true";
+    process.env.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD = "2";
+  });
+
+  afterAll(() => {
+    process.env.OPENAI_MODEL = envBackup.OPENAI_MODEL;
+    process.env.OPENAI_MODEL_ADVANCED = envBackup.OPENAI_MODEL_ADVANCED;
+    process.env.OPENAI_MODEL_HYBRID_ENABLED = envBackup.OPENAI_MODEL_HYBRID_ENABLED;
+    process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED =
+      envBackup.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED;
+    process.env.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD = envBackup.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD;
+  });
+
+  it("selects premium model by default for generate operation", () => {
+    const selected = selectScriptModelForPrompt({
+      userPrompt: "quero uma versão premium com storytelling cinematográfico e tom de voz forte",
+      operation: "generate",
+    });
+
+    expect(selected.tier).toBe("premium");
+    expect(selected.model).toBe("gpt-4.1");
+    expect(selected.reason).toBe("operation_generate_default");
+    expect(selected.fallbackModel).toBe("gpt-4o-mini");
+  });
+
+  it("uses base model by default for adjust operation", () => {
+    const selected = selectScriptModelForPrompt({
+      userPrompt: "roteiro curto sobre produtividade",
+      operation: "adjust",
+    });
+
+    expect(selected.tier).toBe("base");
+    expect(selected.model).toBe("gpt-4o-mini");
+    expect(selected.reason).toBe("operation_adjust_default");
+  });
+
+  it("keeps base model when hybrid mode is disabled", () => {
+    process.env.OPENAI_MODEL_HYBRID_ENABLED = "false";
+
+    const selected = selectScriptModelForPrompt({
+      userPrompt: "quero uma versão premium e detalhada",
+      operation: "adjust",
+    });
+
+    expect(selected.tier).toBe("base");
+    expect(selected.model).toBe("gpt-4o-mini");
+    expect(selected.reason).toBe("hybrid_disabled");
+  });
+
+  it("keeps legacy heuristic when operation routing is disabled", () => {
+    process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED = "false";
+
+    const selected = selectScriptModelForPrompt({
+      userPrompt: "quero uma versão premium com storytelling cinematográfico",
+      operation: "generate",
+    });
+
+    expect(selected.tier).toBe("premium");
+    expect(selected.model).toBe("gpt-4.1");
+    expect(selected.reason).toBe("explicit_intent");
+    expect(selected.fallbackModel).toBe("gpt-4o-mini");
   });
 });

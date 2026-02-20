@@ -5,6 +5,94 @@ import { PlannerCategories } from '@/types/planner';
 import { getCategoryById } from '@/app/lib/classification';
 import { generateThemes as generateThemesAI } from '@/app/lib/planner/ai';
 
+type SlotThemesResult = { keyword: string; themes: string[] };
+
+type SlotThemesCacheEntry = {
+  value: SlotThemesResult;
+  expiresAt: number;
+  updatedAt: number;
+};
+
+const THEMES_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.PLANNER_THEMES_CACHE_TTL_MS ?? 15 * 60 * 1000);
+  if (!Number.isFinite(parsed)) return 15 * 60 * 1000;
+  return Math.max(0, Math.floor(parsed));
+})();
+
+const THEMES_CACHE_MAX_ENTRIES = (() => {
+  const parsed = Number(process.env.PLANNER_THEMES_CACHE_MAX_ENTRIES ?? 2000);
+  if (!Number.isFinite(parsed)) return 2000;
+  return Math.max(100, Math.floor(parsed));
+})();
+
+const THEMES_CACHE_VERSION = process.env.PLANNER_THEMES_CACHE_VERSION || 'v1';
+
+const slotThemesCache = new Map<string, SlotThemesCacheEntry>();
+const slotThemesInflight = new Map<string, Promise<SlotThemesResult>>();
+
+function stableIdList(values?: string[]): string {
+  if (!Array.isArray(values) || values.length === 0) return '';
+  return Array.from(new Set(values.map((v) => String(v || '').trim()).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b))
+    .join(',');
+}
+
+function categoriesCacheSignature(categories: PlannerCategories): string {
+  const context = stableIdList(categories.context);
+  const proposal = stableIdList(categories.proposal);
+  const reference = stableIdList(categories.reference);
+  const tone = String(categories.tone || '').trim();
+  return `ctx=${context}|prop=${proposal}|ref=${reference}|tone=${tone}`;
+}
+
+function buildSlotThemesCacheKey(params: {
+  userId: string | Types.ObjectId;
+  periodDays: number;
+  dayOfWeek: number;
+  blockStartHour: number;
+  categories: PlannerCategories;
+}) {
+  const user = typeof params.userId === 'string' ? params.userId : params.userId.toString();
+  const mode = String(process.env.PLANNER_THEMES_MODE || 'flex').toLowerCase();
+  const model = String(process.env.OPENAI_MODEL || 'gpt-4o-mini');
+  const temp = String(process.env.OPENAI_TEMP || '0.4');
+  const categories = categoriesCacheSignature(params.categories);
+  return [
+    THEMES_CACHE_VERSION,
+    user,
+    String(params.periodDays),
+    String(params.dayOfWeek),
+    String(params.blockStartHour),
+    mode,
+    model,
+    temp,
+    categories,
+  ].join('|');
+}
+
+function cloneSlotThemesResult(result: SlotThemesResult): SlotThemesResult {
+  return {
+    keyword: result.keyword,
+    themes: Array.isArray(result.themes) ? [...result.themes] : [],
+  };
+}
+
+function pruneSlotThemesCache(nowTs: number) {
+  for (const [key, entry] of slotThemesCache.entries()) {
+    if (entry.expiresAt <= nowTs) slotThemesCache.delete(key);
+  }
+
+  if (slotThemesCache.size <= THEMES_CACHE_MAX_ENTRIES) return;
+
+  const overflow = slotThemesCache.size - THEMES_CACHE_MAX_ENTRIES;
+  const sorted = Array.from(slotThemesCache.entries()).sort((a, b) => a[1].updatedAt - b[1].updatedAt);
+  for (let i = 0; i < overflow; i += 1) {
+    const key = sorted[i]?.[0];
+    if (!key) break;
+    slotThemesCache.delete(key);
+  }
+}
+
 // ---------- Tokenização / normalização ----------
 function stripDiacritics(s: string) {
   return s.normalize('NFD').replace(/\p{Diacritic}+/gu, '');
@@ -239,13 +327,13 @@ Forbidden: ${(params.forbidden || []).join(', ')}`;
 }
 
 // ---------- API principal ----------
-export async function getThemesForSlot(
+async function computeThemesForSlot(
   userId: string | Types.ObjectId,
   periodDays: number,
   dayOfWeek: number,
   blockStartHour: number,
   categories: PlannerCategories,
-): Promise<{ keyword: string; themes: string[] }> {
+): Promise<SlotThemesResult> {
   const selected = {
     formatId: undefined,
     contextId: categories.context?.[0],
@@ -301,6 +389,61 @@ export async function getThemesForSlot(
   } catch { /* fallback abaixo */ }
 
   return { keyword, themes: composeThemes(keyword, categories) };
+}
+
+export async function getThemesForSlot(
+  userId: string | Types.ObjectId,
+  periodDays: number,
+  dayOfWeek: number,
+  blockStartHour: number,
+  categories: PlannerCategories,
+): Promise<SlotThemesResult> {
+  if (THEMES_CACHE_TTL_MS <= 0) {
+    return computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories);
+  }
+
+  const nowTs = Date.now();
+  const cacheKey = buildSlotThemesCacheKey({
+    userId,
+    periodDays,
+    dayOfWeek,
+    blockStartHour,
+    categories,
+  });
+
+  const cached = slotThemesCache.get(cacheKey);
+  if (cached && cached.expiresAt > nowTs) {
+    cached.updatedAt = nowTs;
+    return cloneSlotThemesResult(cached.value);
+  }
+  if (cached && cached.expiresAt <= nowTs) {
+    slotThemesCache.delete(cacheKey);
+  }
+
+  const inflight = slotThemesInflight.get(cacheKey);
+  if (inflight) {
+    const value = await inflight;
+    return cloneSlotThemesResult(value);
+  }
+
+  const promise = computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories)
+    .then((value) => {
+      const stored = cloneSlotThemesResult(value);
+      slotThemesCache.set(cacheKey, {
+        value: stored,
+        expiresAt: Date.now() + THEMES_CACHE_TTL_MS,
+        updatedAt: Date.now(),
+      });
+      pruneSlotThemesCache(Date.now());
+      return stored;
+    })
+    .finally(() => {
+      slotThemesInflight.delete(cacheKey);
+    });
+
+  slotThemesInflight.set(cacheKey, promise);
+  const value = await promise;
+  return cloneSlotThemesResult(value);
 }
 
 export default getThemesForSlot;

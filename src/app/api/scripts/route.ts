@@ -27,6 +27,30 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
+const SCRIPTS_NOTIFICATIONS_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.SCRIPTS_NOTIFICATIONS_CACHE_TTL_MS ?? 20_000);
+  return Number.isFinite(parsed) && parsed >= 2_000 ? Math.floor(parsed) : 20_000;
+})();
+const SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES = (() => {
+  const parsed = Number(process.env.SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES ?? 10_000);
+  return Number.isFinite(parsed) && parsed >= 500 ? Math.floor(parsed) : 10_000;
+})();
+
+const scriptsNotificationsCache = new Map<string, { expiresAt: number; payload: any }>();
+
+function pruneScriptsNotificationsCache(nowTs: number) {
+  for (const [key, value] of scriptsNotificationsCache.entries()) {
+    if (value.expiresAt <= nowTs) scriptsNotificationsCache.delete(key);
+  }
+  if (scriptsNotificationsCache.size <= SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES) return;
+  const overflow = scriptsNotificationsCache.size - SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES;
+  const keys = Array.from(scriptsNotificationsCache.keys());
+  for (let i = 0; i < overflow; i += 1) {
+    const key = keys[i];
+    if (!key) break;
+    scriptsNotificationsCache.delete(key);
+  }
+}
 
 type CursorToken = {
   updatedAt: string;
@@ -70,6 +94,10 @@ function decodeCursor(raw: string | null): CursorToken | null {
 function normalizeOrigin(value: string | null): ScriptOriginFilter {
   if (value === "manual" || value === "ai" || value === "planner") return value;
   return "all";
+}
+
+function isNotificationsView(value: string | null): boolean {
+  return value === "notifications";
 }
 
 function normalizeCreateBody(body: any) {
@@ -139,6 +167,24 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
   };
 }
 
+function serializeScriptNotificationItem(item: any) {
+  const hasRecommendation = Boolean(item?.isAdminRecommendation);
+  return {
+    id: String(item._id),
+    updatedAt: item.updatedAt,
+    recommendation: hasRecommendation
+      ? {
+          isRecommended: true,
+          recommendedAt: item.recommendedAt || null,
+        }
+      : null,
+    adminAnnotation: {
+      notes: item.adminAnnotation || null,
+      updatedAt: item.adminAnnotationUpdatedAt || null,
+    },
+  };
+}
+
 export async function GET(request: Request) {
   const session = (await getServerSession(authOptions as any)) as any;
   if (!session?.user?.id) {
@@ -168,6 +214,7 @@ export async function GET(request: Request) {
   const cursor = decodeCursor(url.searchParams.get("cursor"));
   const q = (url.searchParams.get("q") || "").trim();
   const origin = normalizeOrigin(url.searchParams.get("origin"));
+  const notificationsView = isNotificationsView(url.searchParams.get("view"));
 
   const query: Record<string, any> = {
     userId: new Types.ObjectId(effectiveUserId),
@@ -206,11 +253,32 @@ export async function GET(request: Request) {
 
   await connectToDatabase();
 
-  const docs = await ScriptEntry.find(query)
-    .sort({ updatedAt: -1, _id: -1 })
-    .limit(limit + 1)
-    .lean()
-    .exec();
+  const cacheKey = notificationsView
+    ? [
+        effectiveUserId,
+        limit,
+        cursor?.updatedAt ?? "",
+        cursor?.id ?? "",
+        q,
+        origin,
+      ].join("|")
+    : null;
+  const nowTs = Date.now();
+  if (cacheKey) {
+    pruneScriptsNotificationsCache(nowTs);
+    const cached = scriptsNotificationsCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowTs) {
+      return NextResponse.json(cached.payload);
+    }
+  }
+
+  let docsQuery = ScriptEntry.find(query);
+  if (notificationsView) {
+    docsQuery = docsQuery.select(
+      "_id updatedAt isAdminRecommendation recommendedAt adminAnnotation adminAnnotationUpdatedAt"
+    );
+  }
+  const docs = await docsQuery.sort({ updatedAt: -1, _id: -1 }).limit(limit + 1).lean().exec();
 
   const hasMore = docs.length > limit;
   const pageItems = hasMore ? docs.slice(0, limit) : docs;
@@ -224,15 +292,26 @@ export async function GET(request: Request) {
         })
       : null;
 
-  return NextResponse.json({
+  const payload = {
     ok: true,
-    items: pageItems.map((item: any) => serializeScriptItem(item, { includeAdminAnnotation })),
+    items: notificationsView
+      ? pageItems.map((item: any) => serializeScriptNotificationItem(item))
+      : pageItems.map((item: any) => serializeScriptItem(item, { includeAdminAnnotation })),
     pagination: {
       nextCursor,
       hasMore,
       limit,
     },
-  });
+  };
+
+  if (cacheKey) {
+    scriptsNotificationsCache.set(cacheKey, {
+      payload,
+      expiresAt: nowTs + SCRIPTS_NOTIFICATIONS_CACHE_TTL_MS,
+    });
+  }
+
+  return NextResponse.json(payload);
 }
 
 export async function POST(request: Request) {
@@ -423,11 +502,7 @@ export async function POST(request: Request) {
 
   const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
   if (styleTrainingEnabled) {
-    try {
-      await refreshScriptStyleProfile(effectiveUserId);
-    } catch {
-      // Não bloqueia o fluxo de salvar roteiro.
-    }
+    void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
   }
 
   return NextResponse.json({

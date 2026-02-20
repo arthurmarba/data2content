@@ -136,6 +136,14 @@ export function usePlannerData(params: {
     setLocked(false);
     setLockedReason(null);
 
+    if (!userId) {
+      if (fetchIdRef.current !== myId) return;
+      safeSetSlots(null);
+      safeSetHeatmap(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       if (publicMode) {
         const qs = new URLSearchParams({
@@ -219,24 +227,22 @@ export function usePlannerData(params: {
           safeSetHeatmap(hm);
         }
       } else {
-        // Dono (autenticado) — busca plan e rec em paralelo (rec traz heatmap)
-        const qsPlan = new URLSearchParams({ weekStart: normalizedWeekStart.toISOString() });
-        const qsRec = new URLSearchParams({
+        // Dono (autenticado) — usa endpoint batch para reduzir round-trips
+        const qs = new URLSearchParams({
           weekStart: normalizedWeekStart.toISOString(),
           targetSlotsPerWeek: String(targetSlotsPerWeek ?? TARGET_SUGGESTIONS),
           periodDays: String(PERIOD_DAYS),
         });
 
-        const [planRes, recRes] = await Promise.all([
-          fetch(`/api/planner/plan?${qsPlan.toString()}`, { cache: 'no-store', signal: controller.signal }),
-          fetch(`/api/planner/recommendations?${qsRec.toString()}`, { cache: 'no-store', signal: controller.signal }),
-        ]);
+        const batchRes = await fetch(`/api/planner/batch?${qs.toString()}`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
 
-        if (planRes.status === 403 || recRes.status === 403) {
-          const blockedRes = planRes.status === 403 ? planRes : recRes;
+        if (batchRes.status === 403) {
           let message = 'Plano inativo. Assine para acessar o planner.';
           try {
-            const data = await blockedRes.json();
+            const data = await batchRes.json();
             message = data?.error || message;
           } catch (_) {
             // noop
@@ -249,20 +255,16 @@ export function usePlannerData(params: {
           return;
         }
 
-        if (planRes.status === 401 || recRes.status === 401) {
+        if (batchRes.status === 401) {
           throw new Error('Você precisa estar autenticado para acessar o planner.');
         }
 
-        if (!planRes.ok && !recRes.ok) throw new Error('Falha ao buscar dados do planner');
+        if (!batchRes.ok) throw new Error('Falha ao buscar dados do planner');
 
-        const [planData, recData] = await Promise.all([
-          planRes.ok ? planRes.json() : Promise.resolve(null),
-          recRes.ok ? recRes.json() : Promise.resolve(null),
-        ]);
-
+        const batchData = await batchRes.json();
         if (fetchIdRef.current !== myId) return; // resposta obsoleta
 
-        const planSlots: PlannerUISlot[] = (planData?.plan?.slots || []).map((s: any) => ({
+        const planSlots: PlannerUISlot[] = (batchData?.plan?.slots || []).map((s: any) => ({
           slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
           dayOfWeek: s.dayOfWeek,
           blockStartHour: s.blockStartHour,
@@ -281,7 +283,7 @@ export function usePlannerData(params: {
           isSaved: true,
         }));
 
-        const recSlots: PlannerUISlot[] = (recData?.recommendations || []).map((r: any) => ({
+        const recSlots: PlannerUISlot[] = (batchData?.recommendations || []).map((r: any) => ({
           slotId: typeof r.slotId === 'string' ? r.slotId : undefined,
           dayOfWeek: r.dayOfWeek,
           blockStartHour: r.blockStartHour,
@@ -304,14 +306,12 @@ export function usePlannerData(params: {
         const mergedSlots = mergePlanAndRecommendations(planSlots, recSlots);
         safeSetSlots(mergedSlots);
 
-        if (recData?.heatmap) {
-          const hm: TimeBlockScoreUI[] = (recData.heatmap || []).map((h: any) => ({
-            dayOfWeek: h.dayOfWeek,
-            blockStartHour: h.blockStartHour,
-            score: typeof h.score === 'number' ? h.score : 0,
-          }));
-          safeSetHeatmap(hm);
-        }
+        const hm: TimeBlockScoreUI[] = (batchData?.heatmap || []).map((h: any) => ({
+          dayOfWeek: h.dayOfWeek,
+          blockStartHour: h.blockStartHour,
+          score: typeof h.score === 'number' ? h.score : 0,
+        }));
+        safeSetHeatmap(hm);
       }
     } catch (err: any) {
       if (err?.name === 'AbortError') return; // requisição cancelada, ignora

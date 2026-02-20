@@ -25,6 +25,11 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }) => 
   <div className={`bg-gray-200 animate-pulse rounded ${width} ${height} ${className}`}></div>
 );
 
+const DASHBOARD_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  dedupingInterval: 60 * 1000,
+};
+
 type TimePeriod = 'last_7_days' | 'last_30_days' | 'last_90_days';
 const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date => {
   const startDate = new Date(endDate);
@@ -41,8 +46,8 @@ const AgencyDashboardContent: React.FC = () => {
   const apiPrefix = '/api/agency';
   const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then(res => res.json());
 
-  const { data: summary, mutate: mutateSummary } = useSWR('/api/agency/summary', fetcher);
-  const { data: guestsData, mutate: mutateGuests } = useSWR('/api/agency/guests', fetcher);
+  const { data: summary, mutate: mutateSummary } = useSWR('/api/agency/summary', fetcher, DASHBOARD_SWR_OPTIONS);
+  const { data: guestsData, mutate: mutateGuests } = useSWR('/api/agency/guests', fetcher, DASHBOARD_SWR_OPTIONS);
 
   const inviteCode = summary?.inviteCode ?? '';
   const agencyName = summary?.name ?? '';

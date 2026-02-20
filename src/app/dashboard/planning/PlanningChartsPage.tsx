@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
-import Image from "next/image";
 import {
   Area,
   AreaChart,
@@ -21,9 +21,15 @@ import {
 } from "recharts";
 import { Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
 import { TopDiscoveryTable } from "./components/TopDiscoveryTable";
-import PostsBySliceModal from "./components/PostsBySliceModal";
-import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
 
+const PostsBySliceModal = dynamic(() => import("./components/PostsBySliceModal"), {
+  ssr: false,
+  loading: () => null,
+});
+const DiscoverVideoModal = dynamic(() => import("@/app/discover/components/DiscoverVideoModal"), {
+  ssr: false,
+  loading: () => null,
+});
 
 const cardBase = "rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
@@ -257,6 +263,13 @@ const aggregateAverageInteractionsByCategory = (posts: any[], field: CategoryFie
 export default function PlanningChartsPage() {
   const { data: session } = useSession();
   const userId = session?.user?.id;
+  const swrOptions = useMemo(
+    () => ({
+      revalidateOnFocus: false,
+      dedupingInterval: 60 * 1000,
+    }),
+    []
+  );
   const [timePeriod, setTimePeriod] = useState<string>(DEFAULT_TIME_PERIOD);
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
@@ -268,50 +281,37 @@ export default function PlanningChartsPage() {
     setTimePeriod(value);
     setPage(1);
     setPostsCache([]);
+    setAutoPaginating(false);
   };
 
-  const { data: trendData, isLoading: loadingTrend } = useSWR(
-    userId ? `/api/v1/users/${userId}/trends/reach-engagement?granularity=weekly&timePeriod=${timePeriod}` : null,
-    fetcher
-  );
-  const { data: timeData, isLoading: loadingTime } = useSWR(
-    userId ? `/api/v1/users/${userId}/performance/time-distribution?metric=stats.total_interactions&timePeriod=${timePeriod}` : null,
-    fetcher
-  );
-  const { data: formatData, isLoading: loadingFormat } = useSWR(
+  const { data: chartsBatchData, isLoading: loadingBatch } = useSWR(
     userId
-      ? `/api/v1/users/${userId}/performance/engagement-distribution-format?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions`
+      ? `/api/v1/users/${userId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&metric=stats.total_interactions&engagementMetricField=stats.total_interactions&limit=${PAGE_LIMIT}`
       : null,
-    fetcher
+    fetcher,
+    swrOptions
   );
-  const { data: proposalData, isLoading: loadingProposal } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions&groupBy=proposal`
-      : null,
-    fetcher
-  );
-  const { data: toneData, isLoading: loadingTone } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions&groupBy=tone`
-      : null,
-    fetcher
-  );
-  const { data: referenceData, isLoading: loadingReference } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=stats.total_interactions&groupBy=references`
-      : null,
-    fetcher
-  );
-  const { data: postsData, isLoading: loadingPosts } = useSWR(
-    userId
+
+  const { data: pagedPostsData } = useSWR(
+    userId && page > 1
       ? `/api/v1/users/${userId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
       : null,
-    fetcher
+    fetcher,
+    swrOptions
   );
-  const { data: videoMetrics } = useSWR(
-    userId ? `/api/v1/users/${userId}/performance/video-metrics?timePeriod=${timePeriod}` : null,
-    fetcher
-  );
+  const trendData = chartsBatchData?.trendData;
+  const timeData = chartsBatchData?.timeData;
+  const formatData = chartsBatchData?.formatData;
+  const proposalData = chartsBatchData?.proposalData;
+  const toneData = chartsBatchData?.toneData;
+  const referenceData = chartsBatchData?.referenceData;
+  const loadingTrend = loadingBatch;
+  const loadingTime = loadingBatch;
+  const loadingFormat = loadingBatch;
+  const loadingProposal = loadingBatch;
+  const loadingTone = loadingBatch;
+  const loadingReference = loadingBatch;
+  const loadingPosts = loadingBatch && postsCache.length === 0;
 
   const trendSeries = useMemo(() => {
     const rows = (trendData?.chartData || []).map((point: any) => ({
@@ -473,30 +473,50 @@ export default function PlanningChartsPage() {
     return Array.from(map.values());
   };
 
-  // acumula posts paginados automaticamente até MAX_PAGES ou até vir menos que PAGE_LIMIT
+  // carrega a primeira página junto do batch para reduzir round-trips no primeiro paint
   useEffect(() => {
-    const list = Array.isArray(postsData?.posts)
-      ? postsData.posts
-      : Array.isArray(postsData?.videos)
-        ? postsData.videos
-        : [];
+    const list = Array.isArray(chartsBatchData?.postsData?.posts) ? chartsBatchData.postsData.posts : [];
+    if (!chartsBatchData) return;
+
     if (!list.length) {
-      // se não houver posts na página 1, mantém cache vazio
-      if (page === 1) setPostsCache([]);
+      setPostsCache([]);
+      setPage(1);
+      setAutoPaginating(false);
       return;
     }
+
+    setPostsCache(list);
+    setPage(list.length === PAGE_LIMIT && MAX_PAGES > 1 ? 2 : 1);
+    setAutoPaginating(false);
+  }, [chartsBatchData]);
+
+  // acumula páginas adicionais em baixa prioridade para não competir com interação inicial
+  useEffect(() => {
+    if (page <= 1) return;
+
+    const list = Array.isArray(pagedPostsData?.posts)
+      ? pagedPostsData.posts
+      : Array.isArray(pagedPostsData?.videos)
+        ? pagedPostsData.videos
+        : [];
+    if (!list.length) return;
 
     setPostsCache((prev) => mergePosts(prev, list));
 
     const shouldLoadMore = list.length === PAGE_LIMIT && page < MAX_PAGES;
     if (shouldLoadMore && !autoPaginating) {
       setAutoPaginating(true);
-      setTimeout(() => {
+      const queueNextPage = () => {
         setPage((p) => Math.min(p + 1, MAX_PAGES));
         setAutoPaginating(false);
-      }, 0);
+      };
+      if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(queueNextPage, { timeout: 1200 });
+      } else {
+        window.setTimeout(queueNextPage, 180);
+      }
     }
-  }, [postsData, page, autoPaginating]);
+  }, [pagedPostsData, page, autoPaginating]);
 
   const hourBars = useMemo(() => {
     const buckets: Array<{ hour: number; average: number; count?: number }> = timeData?.buckets || [];
@@ -1835,23 +1855,27 @@ export default function PlanningChartsPage() {
           </section>
         </div>
       </main>
-      <PostsBySliceModal
-        isOpen={sliceModal.open}
-        title={sliceModal.title}
-        subtitle={sliceModal.subtitle}
-        posts={sliceModal.posts}
-        enableMetricSort
-        onClose={closeSliceModal}
-        onPlayClick={handlePlayVideo}
-      />
+      {sliceModal.open ? (
+        <PostsBySliceModal
+          isOpen={sliceModal.open}
+          title={sliceModal.title}
+          subtitle={sliceModal.subtitle}
+          posts={sliceModal.posts}
+          enableMetricSort
+          onClose={closeSliceModal}
+          onPlayClick={handlePlayVideo}
+        />
+      ) : null}
 
-      <DiscoverVideoModal
-        open={isVideoPlayerOpen}
-        onClose={() => setIsVideoPlayerOpen(false)}
-        videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
-        posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
-        postLink={selectedVideoForPlayer?.permalink || undefined}
-      />
+      {isVideoPlayerOpen ? (
+        <DiscoverVideoModal
+          open={isVideoPlayerOpen}
+          onClose={() => setIsVideoPlayerOpen(false)}
+          videoUrl={selectedVideoForPlayer?.mediaUrl || selectedVideoForPlayer?.media_url || undefined}
+          posterUrl={selectedVideoForPlayer?.thumbnailUrl || selectedVideoForPlayer?.coverUrl || undefined}
+          postLink={selectedVideoForPlayer?.permalink || undefined}
+        />
+      ) : null}
     </>
 
   );

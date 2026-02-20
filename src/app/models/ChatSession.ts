@@ -52,6 +52,7 @@ chatSessionSchema.index({ userId: 1, startedAt: -1 });
 chatSessionSchema.index({ threadId: 1 });
 chatSessionSchema.index({ endedAt: 1 });
 chatSessionSchema.index({ lastActivityAt: -1 });
+chatSessionSchema.index({ startedAt: -1, ragEnabled: 1, promptVariant: 1, experimentId: 1, modelVersion: 1 });
 // Retenção simples: 180 dias
 chatSessionSchema.index({ startedAt: 1 }, { expireAfterSeconds: 180 * 24 * 60 * 60 });
 

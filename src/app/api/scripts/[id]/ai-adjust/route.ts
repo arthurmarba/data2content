@@ -7,6 +7,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import ScriptEntry from "@/app/models/ScriptEntry";
 import AIGeneratedPost from "@/app/models/AIGeneratedPost";
 import { adjustScriptFromPrompt, ScriptAdjustScopeError } from "@/app/lib/scripts/ai";
+import { detectScriptAdjustScope } from "@/app/lib/scripts/adjustScope";
 import { applyScriptToPlannerSlot } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
 import { isScriptsIntelligenceV2Enabled, isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
@@ -23,6 +24,15 @@ import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function shouldSkipIntelligenceForPartialAdjust(scope: ReturnType<typeof detectScriptAdjustScope>): boolean {
+  const envValue = String(process.env.SCRIPTS_INTELLIGENCE_SKIP_PARTIAL_ADJUST ?? "true")
+    .trim()
+    .toLowerCase();
+  const enabled = !["0", "false", "off", "disabled", "no"].includes(envValue);
+  if (!enabled) return false;
+  return scope.mode === "patch" && scope.isPartialEdit;
+}
 
 type Params = {
   params: {
@@ -110,7 +120,9 @@ export async function POST(request: Request, { params }: Params) {
 
   let intelligenceContext: ScriptIntelligenceContext | null = null;
   const useIntelligence = await isScriptsIntelligenceV2Enabled();
-  if (useIntelligence) {
+  const adjustScope = detectScriptAdjustScope(prompt);
+  const skipIntelligence = shouldSkipIntelligenceForPartialAdjust(adjustScope);
+  if (useIntelligence && !skipIntelligence) {
     try {
       intelligenceContext = await buildScriptIntelligenceContext({
         userId: effectiveUserId,
@@ -169,6 +181,7 @@ export async function POST(request: Request, { params }: Params) {
           }
         : null,
       intelligence: buildIntelligencePromptSnapshot(intelligenceContext),
+      intelligenceSkippedForPartialAdjust: skipIntelligence,
       diagnostics,
     },
     strategy: "my_scripts_adjust",
@@ -188,11 +201,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
   if (styleTrainingEnabled) {
-    try {
-      await refreshScriptStyleProfile(effectiveUserId);
-    } catch {
-      // Não bloqueia ajuste de roteiro.
-    }
+    void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
   }
 
   logScriptsGenerationObservability({

@@ -85,6 +85,9 @@ const chatMessageLogSchema = new Schema<IChatMessageLog>(
 chatMessageLogSchema.index({ sessionId: 1, createdAt: -1 });
 chatMessageLogSchema.index({ role: 1, createdAt: -1 });
 chatMessageLogSchema.index({ messageId: 1 });
+chatMessageLogSchema.index({ createdAt: -1, promptVariant: 1, experimentId: 1, modelVersion: 1, ragEnabled: 1 });
+chatMessageLogSchema.index({ createdAt: -1, hadFallback: 1 });
+chatMessageLogSchema.index({ createdAt: -1, role: 1, intent: 1 });
 // Retenção: 180 dias
 chatMessageLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 180 * 24 * 60 * 60 });
 

@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
     CalendarDaysIcon,
@@ -19,17 +20,12 @@ import {
     ChartBarIcon,
     ArrowLeftIcon
 } from '@heroicons/react/24/outline';
-import {
-    ResponsiveContainer,
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend
-} from 'recharts';
 import { idsToLabels } from '@/app/lib/classification';
+
+const PubliDailyPerformanceChart = dynamic(
+    () => import('./components/PubliDailyPerformanceChart'),
+    { ssr: false, loading: () => null }
+);
 
 // --- Helpers & Constants (Copied from Public Page for consistency) ---
 const glassClass = "backdrop-blur-xl bg-white/70 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-2xl";
@@ -87,7 +83,14 @@ const fetcher = (url: string) => fetch(url).then(async (res) => {
 
 export default function InternalPubliPage({ params }: { params: { id: string } }) {
     const router = useRouter();
-    const { data: metric, error, isLoading } = useSWR(`/api/publis/${params.id}`, fetcher);
+    const { data: metric, error, isLoading } = useSWR(
+        `/api/publis/${params.id}`,
+        fetcher,
+        {
+            revalidateOnFocus: false,
+            dedupingInterval: 60 * 1000,
+        }
+    );
 
     const stats = metric?.stats || {};
 
@@ -299,50 +302,7 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
 
                             {hasHistoricalSeries ? (
                                 <div className="flex-1 w-full min-h-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                            <XAxis
-                                                dataKey="date"
-                                                tickFormatter={(str) => new Date(str).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                                fontSize={12}
-                                                tickLine={false}
-                                                axisLine={false}
-                                                stroke="#94A3B8"
-                                                dy={10}
-                                            />
-                                            <YAxis
-                                                fontSize={12}
-                                                tickLine={false}
-                                                axisLine={false}
-                                                stroke="#94A3B8"
-                                                tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}
-                                            />
-                                            <Tooltip
-                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                                                labelFormatter={(label) => new Date(label).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                            />
-                                            <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="dailyViews"
-                                                name="Visualizações"
-                                                stroke="#6366f1"
-                                                strokeWidth={3}
-                                                dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
-                                                activeDot={{ r: 6, strokeWidth: 0 }}
-                                            />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="dailyLikes"
-                                                name="Curtidas"
-                                                stroke="#ec4899"
-                                                strokeWidth={3}
-                                                dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }}
-                                                activeDot={{ r: 6, strokeWidth: 0 }}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
+                                    <PubliDailyPerformanceChart data={chartData} />
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col items-center justify-center text-gray-500 bg-gray-50/50 rounded-xl border border-dashed border-gray-200 text-center px-6">

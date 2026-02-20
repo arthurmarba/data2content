@@ -1,5 +1,6 @@
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { createClient } from 'redis';
+import mongoose from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import UserUsageSnapshot from '@/app/models/UserUsageSnapshot';
 import User from '@/app/models/User';
@@ -14,32 +15,80 @@ export async function persistUsageCounters() {
   if (!redis.isReady) {
     await redis.connect();
   }
-  const keys = await redis.keys('usage:*');
-  logger.info(`${TAG} ${keys.length} usage keys found`);
+
+  const SCAN_COUNT = 500;
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  for (const key of keys) {
-    const userId = key.split(':')[1];
+  let scannedKeys = 0;
+  let persistedUsers = 0;
+  let totalMessages = 0;
+  let batchCount = 0;
+
+  for await (const chunk of redis.scanIterator({ MATCH: 'usage:*', COUNT: SCAN_COUNT })) {
+    const keys = Array.isArray(chunk) ? chunk : [chunk];
+    if (!keys.length) {
+      continue;
+    }
+
+    batchCount += 1;
+    scannedKeys += keys.length;
+
     try {
-      const countStr = await redis.get(key);
-      const count = parseInt(countStr || '0', 10);
-      if (!count || isNaN(count)) {
-        await redis.del(key);
-        continue;
+      const values = await redis.mGet(keys);
+      const incrementsByUser = new Map<string, number>();
+
+      keys.forEach((key, idx) => {
+        const userId = key.split(':')[1];
+        if (!userId || !mongoose.isValidObjectId(userId)) {
+          return;
+        }
+
+        const count = parseInt(values[idx] || '0', 10);
+        if (!Number.isFinite(count) || count <= 0) {
+          return;
+        }
+
+        incrementsByUser.set(userId, (incrementsByUser.get(userId) || 0) + count);
+      });
+
+      if (incrementsByUser.size > 0) {
+        const snapshotOps = Array.from(incrementsByUser.entries()).map(([userId, count]) => ({
+          updateOne: {
+            filter: { user: userId, date: today },
+            update: { $inc: { messageCount: count } },
+            upsert: true,
+          },
+        }));
+        const userOps = Array.from(incrementsByUser.entries()).map(([userId, count]) => ({
+          updateOne: {
+            filter: { _id: userId },
+            update: { $inc: { totalMessages: count } },
+          },
+        }));
+
+        await Promise.all([
+          UserUsageSnapshot.bulkWrite(snapshotOps, { ordered: false }),
+          User.bulkWrite(userOps, { ordered: false }),
+        ]);
+
+        persistedUsers += incrementsByUser.size;
+        totalMessages += Array.from(incrementsByUser.values()).reduce((sum, count) => sum + count, 0);
       }
-      await UserUsageSnapshot.updateOne(
-        { user: userId, date: today },
-        { $inc: { messageCount: count } },
-        { upsert: true }
-      );
-      await User.updateOne({ _id: userId }, { $inc: { totalMessages: count } });
-      await redis.del(key);
-      logger.info(`${TAG} Persisted ${count} messages for user ${userId}`);
+
+      const deletePipeline = redis.multi();
+      keys.forEach((key) => {
+        deletePipeline.del(key);
+      });
+      await deletePipeline.exec();
     } catch (e) {
-      logger.error(`${TAG} Error processing key ${key}`, e);
+      logger.error(`${TAG} Error processing usage keys batch ${batchCount}`, e);
     }
   }
+
+  logger.info(
+    `${TAG} Processed ${scannedKeys} usage keys in ${batchCount} batches. Persisted ${totalMessages} messages for ${persistedUsers} users.`
+  );
 }
 
 export default persistUsageCounters;

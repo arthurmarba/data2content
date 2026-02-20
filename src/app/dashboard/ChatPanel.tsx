@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useSession, signIn } from "next-auth/react";
 import {
   FaArrowDown
@@ -17,13 +18,17 @@ import { useChat } from "./hooks/useChat";
 import { FEEDBACK_REASONS, FeedbackReasonCode } from "./components/chat/feedbackReasons";
 import { usePricingAnalysis } from "./hooks/usePricingAnalysis";
 import { useAlerts } from "./hooks/useAlerts";
-import { AlertsDrawer } from "./components/chat/AlertsDrawer";
 import { useChatThreads } from "./components/chat/useChatThreads";
 import { useThreadSelection } from "./components/chat/useThreadSelection";
 import useCreatorProfileExtended from "@/hooks/useCreatorProfileExtended";
 import { track } from "@/lib/track";
 import type { RenderDensity } from "./components/chat/chatUtils";
 import { ThinkingIndicator } from "./components/chat/ThinkingIndicator";
+
+const AlertsDrawer = dynamic(
+  () => import("./components/chat/AlertsDrawer").then((mod) => mod.AlertsDrawer),
+  { ssr: false, loading: () => null }
+);
 
 interface SessionUserWithId {
   id?: string;
@@ -332,7 +337,6 @@ export default function ChatPanel({
     unreadCount: alertsUnreadCount,
     hasNext: alertsHasNext,
     fetchState: alertsFetchState,
-    ensureLoaded: ensureAlertsLoaded,
     refresh: refreshAlerts,
     loadMore: loadMoreAlerts,
     markAsRead: markAlertAsRead,
@@ -636,10 +640,6 @@ export default function ChatPanel({
     };
   }, [tapDebugEnabled]);
 
-  useEffect(() => {
-    ensureAlertsLoaded();
-  }, [ensureAlertsLoaded]);
-
   // Seleciona automaticamente a thread mais recente caso nada esteja selecionado ao carregar a lista
   useEffect(() => {
     if (skipAutoSelect) return;
@@ -651,11 +651,41 @@ export default function ChatPanel({
   }, [effectiveThreadId, threads, selectThread, skipAutoSelect]);
 
   useEffect(() => {
-    refreshAlertsUnreadCount();
-    const id = window.setInterval(() => {
-      refreshAlertsUnreadCount();
-    }, 60000);
-    return () => window.clearInterval(id);
+    if (typeof document === "undefined") return;
+    let id: number | null = null;
+
+    const stop = () => {
+      if (id !== null) {
+        window.clearInterval(id);
+        id = null;
+      }
+    };
+
+    const start = () => {
+      stop();
+      if (document.hidden) return;
+      void refreshAlertsUnreadCount();
+      id = window.setInterval(() => {
+        if (!document.hidden) {
+          void refreshAlertsUnreadCount();
+        }
+      }, 60000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stop();
+        return;
+      }
+      start();
+    };
+
+    start();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [refreshAlertsUnreadCount]);
 
   // Auto-refresh alerts + threads ao abrir o sino (uma vez por abertura)
@@ -1463,7 +1493,6 @@ export default function ChatPanel({
           onOpenAlerts={() => {
             setIsToolsOpen(false);
             setAlertsOpen(true);
-            ensureAlertsLoaded();
           }}
           isAlertsOpen={isAlertsOpen}
           onCloseAlerts={() => setAlertsOpen(false)}
@@ -1481,47 +1510,49 @@ export default function ChatPanel({
         />
       </div>
 
-      <AlertsDrawer
-        isOpen={isAlertsOpen}
-        onClose={() => setAlertsOpen(false)}
-        alerts={alerts}
-        status={alertsStatus}
-        onStatusChange={(status) => {
-          setAlertsStatus(status);
-          refreshAlerts(status);
-        }}
-        loading={alertsFetchState.loading}
-        error={alertsFetchState.error}
-        unreadCount={alertsUnreadCount}
-        hasNext={alertsHasNext}
-        onRefresh={() => refreshAlerts()}
-        onLoadMore={loadMoreAlerts}
-        onSelectAlert={handleAlertSelect}
-        threads={threads}
-        threadsLoading={threadsLoading}
-        threadsLoadingMore={threadsLoadingMore}
-        threadsError={threadsError}
-        threadsHasMore={hasMore}
-        onRefreshThreads={refreshThreads}
-        onLoadMoreThreads={loadMoreThreads}
-        onSelectThread={(id) => {
-          selectThread(id);
-          setAlertsOpen(false);
-        }}
-        onNewChat={() => {
-          handleNewChat();
-          setAlertsOpen(false);
-        }}
-        onToggleFavorite={(threadId, nextFavorite) => toggleFavorite(threadId, nextFavorite)}
-        onDeleteThread={(threadId) => {
-          deleteThread(threadId);
-          if (effectiveThreadId === threadId) {
+      {isAlertsOpen ? (
+        <AlertsDrawer
+          isOpen={isAlertsOpen}
+          onClose={() => setAlertsOpen(false)}
+          alerts={alerts}
+          status={alertsStatus}
+          onStatusChange={(status) => {
+            setAlertsStatus(status);
+            refreshAlerts(status);
+          }}
+          loading={alertsFetchState.loading}
+          error={alertsFetchState.error}
+          unreadCount={alertsUnreadCount}
+          hasNext={alertsHasNext}
+          onRefresh={() => refreshAlerts()}
+          onLoadMore={loadMoreAlerts}
+          onSelectAlert={handleAlertSelect}
+          threads={threads}
+          threadsLoading={threadsLoading}
+          threadsLoadingMore={threadsLoadingMore}
+          threadsError={threadsError}
+          threadsHasMore={hasMore}
+          onRefreshThreads={refreshThreads}
+          onLoadMoreThreads={loadMoreThreads}
+          onSelectThread={(id) => {
+            selectThread(id);
+            setAlertsOpen(false);
+          }}
+          onNewChat={() => {
             handleNewChat();
-          }
-        }}
-        onRenameThread={(threadId, title) => renameThread(threadId, title)}
-        selectedThreadId={effectiveThreadId}
-      />
+            setAlertsOpen(false);
+          }}
+          onToggleFavorite={(threadId, nextFavorite) => toggleFavorite(threadId, nextFavorite)}
+          onDeleteThread={(threadId) => {
+            deleteThread(threadId);
+            if (effectiveThreadId === threadId) {
+              handleNewChat();
+            }
+          }}
+          onRenameThread={(threadId, title) => renameThread(threadId, title)}
+          selectedThreadId={effectiveThreadId}
+        />
+      ) : null}
 
       {/* Voltar ao fim */}
       <AnimatePresence>

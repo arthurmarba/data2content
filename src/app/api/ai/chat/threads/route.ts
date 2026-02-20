@@ -4,6 +4,20 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import * as stateService from '@/app/lib/stateService';
 
 export const dynamic = 'force-dynamic';
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+function parseLimit(rawValue: string | null): number {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_LIMIT;
+    return Math.min(Math.floor(parsed), MAX_LIMIT);
+}
+
+function parseOffset(rawValue: string | null): number {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+    return Math.floor(parsed);
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -14,8 +28,8 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const limit = parseInt(searchParams.get('limit') || '20', 10);
-        const offset = parseInt(searchParams.get('offset') || '0', 10);
+        const limit = parseLimit(searchParams.get('limit'));
+        const offset = parseOffset(searchParams.get('offset'));
 
         const threads = await stateService.getUserThreads(userId, limit, offset);
         return NextResponse.json({ threads });

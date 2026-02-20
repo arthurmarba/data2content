@@ -92,6 +92,51 @@ const EMPTY_PERKS: BillingPerks = {
   weeklyRaffleEligible: false,
 };
 
+const DEFAULT_POLL_ON: PlanStatus[] = ["pending", "incomplete", "past_due"];
+const BILLING_STATUS_CLIENT_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.NEXT_PUBLIC_BILLING_STATUS_CLIENT_CACHE_TTL_MS ?? 12_000);
+  return Number.isFinite(parsed) && parsed >= 2_000 ? Math.floor(parsed) : 12_000;
+})();
+
+let billingStatusResponseCache: { payload: PlanStatusResponse; expiresAt: number } | null = null;
+let billingStatusResponseInFlight: Promise<PlanStatusResponse> | null = null;
+
+async function fetchPlanStatusPayload(force = false): Promise<PlanStatusResponse> {
+  const nowTs = Date.now();
+  if (!force && billingStatusResponseCache && billingStatusResponseCache.expiresAt > nowTs) {
+    return billingStatusResponseCache.payload;
+  }
+
+  if (billingStatusResponseInFlight) {
+    return billingStatusResponseInFlight;
+  }
+
+  billingStatusResponseInFlight = (async () => {
+    const suffix = force ? "?force=true" : "";
+    const res = await fetch(`/api/plan/status${suffix}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
+    const payload = (await res.json()) as PlanStatusResponse & { error?: string };
+
+    if (!res.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Falha ao obter status");
+    }
+
+    billingStatusResponseCache = {
+      payload,
+      expiresAt: Date.now() + BILLING_STATUS_CLIENT_CACHE_TTL_MS,
+    };
+    return payload;
+  })();
+
+  try {
+    return await billingStatusResponseInFlight;
+  } finally {
+    billingStatusResponseInFlight = null;
+  }
+}
+
 function toDate(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
@@ -138,13 +183,15 @@ function parseInstagramInfo(info?: InstagramAccessInfo | null): InstagramSnapsho
 }
 
 export function useBillingStatus(opts: Options = {}) {
-  const {
-    auto = true,
-    // Poll em estados que tendem a mudar logo após uma ação do usuário:
-    // /api/plan/status já mapeia 'past_due' e 'incomplete' -> 'pending'
-    pollOn = ["pending", "incomplete", "past_due"],
-    intervalMs = 4000,
-  } = opts;
+  const auto = opts.auto ?? true;
+  const intervalMs = opts.intervalMs ?? 7000;
+  const pollOn = useMemo(
+    () =>
+      Array.from(
+        new Set((opts.pollOn && opts.pollOn.length > 0 ? opts.pollOn : DEFAULT_POLL_ON) as PlanStatus[])
+      ),
+    [opts.pollOn]
+  );
 
   const [data, setData] = useState<BillingStatus>({
     planStatus: null,
@@ -163,7 +210,6 @@ export function useBillingStatus(opts: Options = {}) {
   const [hasResolvedOnce, setHasResolvedOnce] = useState(false);
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,27 +222,20 @@ export function useBillingStatus(opts: Options = {}) {
     }
   }, []);
 
-  const fetchOnce = useCallback(async () => {
+  const isDocumentVisible = useCallback(
+    () => typeof document === "undefined" || !document.hidden,
+    []
+  );
+
+  const fetchOnce = useCallback(async (force = false) => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
 
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
     let keepLoading = false;
 
     try {
-      const res = await fetch(`/api/plan/status`, {
-        cache: "no-store",
-        credentials: "include",
-        signal: controller.signal,
-      });
-      const j: PlanStatusResponse = await res.json();
-
-      if (!res.ok || !j?.ok) {
-        throw new Error((j as any)?.error || "Falha ao obter status");
-      }
+      const j = await fetchPlanStatusPayload(force);
 
       const planStatus = (j.status ?? null) as PlanStatus | null;
       const trial = parseTrialInfo(j.trial ?? null);
@@ -225,7 +264,6 @@ export function useBillingStatus(opts: Options = {}) {
       });
     } catch (e: any) {
       if (requestId !== requestIdRef.current) return;
-      if (e?.name === "AbortError") return;
 
       const maxRetries = 2;
       if (!hasLoadedOnceRef.current && retryCountRef.current < maxRetries) {
@@ -234,7 +272,7 @@ export function useBillingStatus(opts: Options = {}) {
         clearRetryTimer();
         retryTimerRef.current = setTimeout(() => {
           retryTimerRef.current = null;
-          fetchOnce();
+          fetchOnce(true);
         }, delayMs);
         keepLoading = true;
         return;
@@ -249,12 +287,15 @@ export function useBillingStatus(opts: Options = {}) {
     }
   }, [clearRetryTimer]);
 
-  const refetch = useCallback(() => fetchOnce(), [fetchOnce]);
+  const refetch = useCallback(() => fetchOnce(true), [fetchOnce]);
 
   const startPolling = useCallback(() => {
-    if (pollingRef.current) return;
-    pollingRef.current = setInterval(fetchOnce, intervalMs);
-  }, [fetchOnce, intervalMs]);
+    if (pollingRef.current || !isDocumentVisible()) return;
+    pollingRef.current = setInterval(() => {
+      if (!isDocumentVisible()) return;
+      void fetchOnce();
+    }, intervalMs);
+  }, [fetchOnce, intervalMs, isDocumentVisible]);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -264,10 +305,11 @@ export function useBillingStatus(opts: Options = {}) {
   }, []);
 
   useEffect(() => {
-    if (auto) fetchOnce();
+    if (auto) {
+      void fetchOnce();
+    }
     return () => {
       stopPolling();
-      abortRef.current?.abort();
       clearRetryTimer();
     };
   }, [auto, fetchOnce, stopPolling, clearRetryTimer]);
@@ -288,6 +330,24 @@ export function useBillingStatus(opts: Options = {}) {
     if (pollOn.includes(data.planStatus)) startPolling();
     else stopPolling();
   }, [data.planStatus, pollOn, startPolling, stopPolling]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+        return;
+      }
+      if (data.planStatus && pollOn.includes(data.planStatus)) {
+        void fetchOnce();
+        startPolling();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [data.planStatus, pollOn, fetchOnce, startPolling, stopPolling]);
 
   const flags = useMemo(() => {
     const baseMeta = getPlanAccessMeta(data.planStatus, data.cancelAtPeriodEnd);

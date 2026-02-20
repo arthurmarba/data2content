@@ -475,6 +475,119 @@ function respondError(message: string, status = 500) {
   return NextResponse.json({ ok: false, error: message }, { status });
 }
 
+function buildPlanAndCommunityState(userSnapshot: UserSnapshot | null) {
+  const planStatus = userSnapshot?.planStatus ?? null;
+  const cancelAtPeriodEnd = Boolean(userSnapshot?.cancelAtPeriodEnd);
+  const accessMeta = getPlanAccessMeta(planStatus, cancelAtPeriodEnd);
+  const normalizedStatus = accessMeta.normalizedStatus;
+  const planIntervalRaw = userSnapshot?.planInterval ?? null;
+  const planInterval =
+    planIntervalRaw === "month" || planIntervalRaw === "year" ? planIntervalRaw : null;
+  const planExpiresAtRaw = userSnapshot?.planExpiresAt ?? null;
+  const planExpiresAt =
+    planExpiresAtRaw instanceof Date
+      ? planExpiresAtRaw
+      : planExpiresAtRaw
+      ? new Date(planExpiresAtRaw)
+      : null;
+  const validPlanExpiresAt =
+    planExpiresAt && !Number.isNaN(planExpiresAt.getTime()) ? planExpiresAt : null;
+  const nowMs = Date.now();
+  const trialExpiresFromRecordRaw = userSnapshot?.whatsappTrialExpiresAt ?? null;
+  const trialExpiresFromRecord =
+    trialExpiresFromRecordRaw instanceof Date
+      ? trialExpiresFromRecordRaw
+      : trialExpiresFromRecordRaw
+      ? new Date(trialExpiresFromRecordRaw)
+      : null;
+  const validTrialExpires =
+    trialExpiresFromRecord && !Number.isNaN(trialExpiresFromRecord.getTime())
+      ? trialExpiresFromRecord
+      : null;
+
+  const trialActiveFromPlan = normalizedStatus === "trial" || normalizedStatus === "trialing";
+  const trialActiveFromWhatsapp =
+    WHATSAPP_TRIAL_ENABLED &&
+    Boolean(userSnapshot?.whatsappTrialActive) &&
+    (!validTrialExpires || validTrialExpires.getTime() > nowMs);
+  const trialActive = trialActiveFromPlan || trialActiveFromWhatsapp;
+
+  const hasPaidProPlan = PAID_PRO_STATUSES.has(normalizedStatus as "active" | "non_renewing");
+  const hasPremiumAccess = hasPaidProPlan || trialActive;
+
+  const trialEligibleRecord = userSnapshot?.whatsappTrialEligible;
+  const trialStartedRecord = Boolean(userSnapshot?.whatsappTrialStartedAt);
+  const hasEverHadPlan = Boolean(validPlanExpiresAt) || trialStartedRecord;
+
+  let trialEligible =
+    WHATSAPP_TRIAL_ENABLED &&
+    (typeof trialEligibleRecord === "boolean"
+      ? trialEligibleRecord
+      : !trialActive && !hasPaidProPlan && !hasEverHadPlan);
+
+  if (trialActiveFromWhatsapp || trialStartedRecord) {
+    trialEligible = false;
+  }
+
+  trialEligible = Boolean(trialEligible);
+
+  const trialStarted = trialStartedRecord || trialActive;
+  const trialExpiresIso = trialActiveFromWhatsapp
+    ? validTrialExpires
+      ? validTrialExpires.toISOString()
+      : null
+    : trialActiveFromPlan && validPlanExpiresAt
+    ? validPlanExpiresAt.toISOString()
+    : null;
+
+  const whatsappLinked = Boolean(userSnapshot?.whatsappVerified || userSnapshot?.whatsappPhone);
+  const vipHasAccess = hasPaidProPlan;
+  const vipMember = vipHasAccess && whatsappLinked;
+
+  return {
+    hasPaidProPlan,
+    whatsappLinked,
+    plan: {
+      status: planStatus ?? null,
+      normalizedStatus,
+      interval: planInterval,
+      cancelAtPeriodEnd,
+      expiresAt: validPlanExpiresAt ? validPlanExpiresAt.toISOString() : null,
+      priceId: userSnapshot?.stripePriceId ?? null,
+      hasPremiumAccess,
+      isPro: hasPaidProPlan,
+      trial: {
+        active: trialActive,
+        eligible: trialEligible,
+        started: trialStarted,
+        expiresAt: trialExpiresIso,
+      },
+    },
+    whatsapp: {
+      linked: whatsappLinked,
+      phone: userSnapshot?.whatsappPhone ?? null,
+      trial: {
+        active: trialActive,
+        eligible: trialEligible,
+        started: trialStarted,
+        expiresAt: trialExpiresIso,
+      },
+      startUrl: WHATSAPP_TRIAL_URL,
+    },
+    community: {
+      free: {
+        isMember: Boolean(userSnapshot?.communityInspirationOptIn),
+        inviteUrl: FREE_COMMUNITY_URL,
+      },
+      vip: {
+        hasAccess: vipHasAccess,
+        isMember: vipMember,
+        inviteUrl: vipHasAccess ? VIP_COMMUNITY_URL : null,
+      },
+    },
+  };
+}
+
 function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -1262,7 +1375,9 @@ export async function GET(request: Request) {
 
   const userId = session.user.id as string;
   const searchParams = new URL(request.url).searchParams;
-  const scope = searchParams.get("scope") ?? "all";
+  const scopeParam = searchParams.get("scope") ?? "all";
+  const allowedScopes = new Set(["all", "core", "performance", "proposals", "community"]);
+  const scope = allowedScopes.has(scopeParam) ? scopeParam : "all";
   const periodParam = (searchParams.get("period") as PeriodKey | null) ?? "30d";
   const period = PERIOD_TO_DAYS[periodParam] ? periodParam : "30d";
   const cacheKey = buildDashboardHomeSummaryCacheKey({ userId, scope, period });
@@ -1287,7 +1402,7 @@ export async function GET(request: Request) {
   const responsePayload: Record<string, unknown> = {};
   let userSnapshot: UserSnapshot | null = null;
 
-  if (scope === "all" || scope === "proposals") {
+  if (scope !== "community") {
     try {
       userSnapshot = (await UserModel.findById(userId)
         .select({
@@ -1318,6 +1433,120 @@ export async function GET(request: Request) {
     } catch (error) {
       logger.error("[home.summary] Failed to load user snapshot", error);
     }
+  }
+
+  if (scope === "core") {
+    const coreState = buildPlanAndCommunityState(userSnapshot);
+    responsePayload.plan = coreState.plan;
+    responsePayload.whatsapp = coreState.whatsapp;
+    responsePayload.community = coreState.community;
+
+    const payload = {
+      ok: true,
+      data: responsePayload,
+    } as const;
+    dashboardCache.set(cacheKey, payload, SHORT_DASHBOARD_TTL_MS);
+    return NextResponse.json(payload);
+  }
+
+  if (scope === "performance") {
+    const instagramConnected = Boolean(
+      (session.user as any)?.instagramConnected ?? userSnapshot?.instagramAccountId
+    );
+    try {
+      responsePayload.nextPost = instagramConnected ? await computeNextPostCard(userId) : { isInstagramConnected: false };
+    } catch (error) {
+      logger.error("[home.summary] Failed to compute next post card (scope=performance)", error);
+      responsePayload.nextPost = { isInstagramConnected: instagramConnected };
+    }
+
+    try {
+      const consistency = await computeConsistencyCard(userId);
+      responsePayload.consistency = consistency;
+      responsePayload.goals = consistency
+        ? {
+            weeklyPostsTarget:
+              typeof consistency.weeklyGoal === "number" ? consistency.weeklyGoal : null,
+            currentStreak: typeof consistency.streakDays === "number" ? consistency.streakDays : null,
+          }
+        : {
+            weeklyPostsTarget: null,
+            currentStreak: null,
+          };
+    } catch (error) {
+      logger.error("[home.summary] Failed to compute consistency card (scope=performance)", error);
+      responsePayload.consistency = null;
+      responsePayload.goals = {
+        weeklyPostsTarget: null,
+        currentStreak: null,
+      };
+    }
+
+    if (instagramConnected) {
+      try {
+        responsePayload.microInsight = await computeMicroInsight(userId);
+      } catch (error) {
+        logger.error("[home.summary] Failed to compute micro insight (scope=performance)", error);
+        responsePayload.microInsight = null;
+      }
+    } else {
+      responsePayload.microInsight = null;
+    }
+
+    const coreState = buildPlanAndCommunityState(userSnapshot);
+    try {
+      const mentorshipEvent = await getUpcomingMentorshipEvent().catch(() => null);
+      const fallbackSlot = computeNextMentorshipSlot(new Date());
+
+      const selectedStart =
+        mentorshipEvent && !mentorshipEvent.isFallback
+          ? mentorshipEvent.startAt
+          : new Date(fallbackSlot.isoDate);
+      const selectedTimezone =
+        mentorshipEvent?.timezone && mentorshipEvent.timezone.length
+          ? mentorshipEvent.timezone
+          : "America/Sao_Paulo";
+      const label = formatMentorshipLabel(selectedStart, selectedTimezone);
+
+      const calendarUrl = buildMentorshipCalendarLink({
+        title: mentorshipEvent?.title ?? "Mentoria semanal Data2Content",
+        description:
+          mentorshipEvent?.description ??
+          "Traga dúvidas recentes e receba orientações ao vivo com o time Data2Content.",
+        startAt: selectedStart,
+        endAt: mentorshipEvent?.endAt ?? null,
+        timezone: selectedTimezone,
+        location: mentorshipEvent?.location ?? null,
+        joinUrl: mentorshipEvent?.joinUrl ?? null,
+      });
+
+      const joinCommunityUrl = coreState.hasPaidProPlan
+        ? mentorshipEvent?.joinUrl ?? VIP_COMMUNITY_URL
+        : FREE_COMMUNITY_URL;
+      const reminderUrl = coreState.hasPaidProPlan
+        ? mentorshipEvent?.reminderUrl ?? VIP_COMMUNITY_URL
+        : null;
+
+      responsePayload.mentorship = {
+        nextSessionLabel: label,
+        topic: mentorshipEvent?.title ?? "Mentoria semanal Data2Content",
+        description: mentorshipEvent?.description ?? undefined,
+        joinCommunityUrl,
+        calendarUrl,
+        whatsappReminderUrl: reminderUrl,
+        isMember: coreState.hasPaidProPlan && coreState.whatsappLinked,
+      };
+    } catch (error) {
+      logger.error("[home.summary] Failed to compute mentorship card (scope=performance)", error);
+      responsePayload.mentorship = null;
+    }
+
+    const payload = {
+      ok: true,
+      data: responsePayload,
+    } as const;
+    dashboardCache.set(cacheKey, payload, SHORT_DASHBOARD_TTL_MS);
+    return NextResponse.json(payload);
   }
 
   if (scope === "all") {

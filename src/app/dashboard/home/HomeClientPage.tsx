@@ -4,6 +4,7 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
@@ -46,9 +47,14 @@ import { useHeaderSetup } from "../context/HeaderContext";
 import TutorialProgress, { type TutorialProgressStep } from "./tutorial/TutorialProgress";
 import CreatorToolsGrid from "./tutorial/CreatorToolsGrid";
 import type { CreatorToolCardProps } from "./tutorial/CreatorToolCard";
-import SurveyModal from "./minimal/SurveyModal";
+
+const SurveyModal = dynamic(() => import("./minimal/SurveyModal"), {
+  ssr: false,
+  loading: () => null,
+});
 
 type Period = CommunityMetricsCardData["period"];
+type SummaryScope = "all" | "core" | "performance" | "proposals" | "community";
 const DEFAULT_PERIOD: Period = "30d";
 const TRIAL_CTA_LABEL = "⚡ Ativar alertas no WhatsApp";
 const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
@@ -192,6 +198,10 @@ export default function HomeClientPage() {
 
   const [summary, setSummary] = React.useState<HomeSummaryResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [loadingSections, setLoadingSections] = React.useState({
+    proposals: false,
+    performance: false,
+  });
   const [initialFetch, setInitialFetch] = React.useState(false);
   const [showWhatsAppConnect, setShowWhatsAppConnect] = React.useState(false);
   const communityFlag = useFeatureFlag("modules.community_on_home", true);
@@ -216,9 +226,11 @@ export default function HomeClientPage() {
   }, []);
 
   const fetchSummary = React.useCallback(
-    async (period: Period, scope: "all" | "community" | "proposals" = "all") => {
+    async (period: Period, scope: SummaryScope = "all") => {
       const params = new URLSearchParams();
       params.set("period", period);
+      if (scope === "core") params.set("scope", "core");
+      if (scope === "performance") params.set("scope", "performance");
       if (scope === "community") params.set("scope", "community");
       if (scope === "proposals") params.set("scope", "proposals");
 
@@ -240,8 +252,19 @@ export default function HomeClientPage() {
     []
   );
 
+  const setSectionLoading = React.useCallback(
+    (section: "proposals" | "performance", value: boolean) => {
+      setLoadingSections((prev) => {
+        if (prev[section] === value) return prev;
+        return { ...prev, [section]: value };
+      });
+    },
+    []
+  );
+
   const refreshProposalsSummary = React.useCallback(
     async (options?: { silent?: boolean }) => {
+      setSectionLoading("proposals", true);
       try {
         const data = await fetchSummary(DEFAULT_PERIOD, "proposals");
         setSummary((prev) => ({
@@ -254,9 +277,11 @@ export default function HomeClientPage() {
           toast.error(message);
         }
         throw error;
+      } finally {
+        setSectionLoading("proposals", false);
       }
     },
-    [fetchSummary]
+    [fetchSummary, setSectionLoading]
   );
 
   const trackMinimalCta = React.useCallback(
@@ -289,29 +314,67 @@ export default function HomeClientPage() {
   React.useEffect(() => {
     if (status !== "authenticated" || initialFetch) return;
     let cancelled = false;
+    const mergeSummary = (data: Partial<HomeSummaryResponse>) => {
+      if (cancelled) return;
+      setSummary((prev) => ({
+        ...(prev ?? ({} as HomeSummaryResponse)),
+        ...data,
+      }));
+    };
 
-    setLoading(true);
-    fetchSummary(DEFAULT_PERIOD, "all")
-      .then((data) => {
+    const loadBackgroundScope = async (scope: "proposals" | "performance") => {
+      setSectionLoading(scope, true);
+      try {
+        const data = await fetchSummary(DEFAULT_PERIOD, scope);
+        mergeSummary(data);
+      } catch {
+        // Carregamento em segundo plano não deve bloquear a Home.
+      } finally {
+        if (!cancelled) {
+          setSectionLoading(scope, false);
+        }
+      }
+    };
+
+    const loadInitial = async () => {
+      setLoading(true);
+      setLoadingSections({ proposals: false, performance: false });
+
+      try {
+        const coreData = await fetchSummary(DEFAULT_PERIOD, "core");
         if (cancelled) return;
-        setSummary((prev) => ({
-          ...(prev ?? ({} as HomeSummaryResponse)),
-          ...data,
-        }));
+        mergeSummary(coreData);
         setInitialFetch(true);
-      })
-      .catch((err) => {
+      } catch (coreError: any) {
         if (cancelled) return;
-        toast.error(err.message);
-      })
-      .finally(() => {
+        try {
+          const fallbackData = await fetchSummary(DEFAULT_PERIOD, "all");
+          if (cancelled) return;
+          mergeSummary(fallbackData);
+          setInitialFetch(true);
+        } catch (fallbackError: any) {
+          if (!cancelled) {
+            toast.error(fallbackError?.message || coreError?.message || "Não foi possível carregar a Home.");
+          }
+          return;
+        }
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+
+      if (cancelled) return;
+      void Promise.allSettled([
+        loadBackgroundScope("proposals"),
+        loadBackgroundScope("performance"),
+      ]);
+    };
+
+    void loadInitial();
 
     return () => {
       cancelled = true;
     };
-  }, [status, initialFetch, fetchSummary]);
+  }, [status, initialFetch, fetchSummary, setSectionLoading]);
 
   const handleNavigate = React.useCallback(
     (href: string | null | undefined) => {
@@ -404,6 +467,8 @@ export default function HomeClientPage() {
 
   const hasHydratedSummary = initialFetch && Boolean(summary);
   const isInitialLoading = loading && !initialFetch;
+  const isSummaryHydrating = loadingSections.proposals || loadingSections.performance;
+  const summaryLoading = loading || isSummaryHydrating;
   const firstName = React.useMemo(() => {
     const fullName = session?.user?.name;
     if (!fullName) return "Criador(a)";
@@ -1679,8 +1744,8 @@ export default function HomeClientPage() {
     whatsappLinked,
   ]);
 
-  const tutorialLoading = loading && !journeyProgress;
-  const toolsLoading = loading && !summary;
+  const tutorialLoading = (loading || loadingSections.proposals) && !journeyProgress;
+  const toolsLoading = summaryLoading && !summary;
 
   const mediaKitShareIntentUrl = React.useMemo(() => appendQueryParam("/dashboard/media-kit", "intent", "share"), [appendQueryParam]);
 
@@ -1931,14 +1996,16 @@ export default function HomeClientPage() {
           </div>
         ) : null}
         {connectBanner}
-        <SurveyModal
-          open={showSurveyModal}
-          onClose={() => setShowSurveyModal(false)}
-          onSaved={() => {
-            setShowSurveyModal(false);
-            void refreshProposalsSummary();
-          }}
-        />
+        {showSurveyModal ? (
+          <SurveyModal
+            open={showSurveyModal}
+            onClose={() => setShowSurveyModal(false)}
+            onSaved={() => {
+              setShowSurveyModal(false);
+              void refreshProposalsSummary();
+            }}
+          />
+        ) : null}
       </div>
     );
   }
@@ -1948,7 +2015,7 @@ export default function HomeClientPage() {
       <div className="dashboard-page-shell pt-4 pb-8">
         <MinimalDashboard
           summary={summary}
-          loading={loading}
+          loading={summaryLoading}
           onRefresh={refreshProposalsSummary}
           onNavigate={handleNavigate}
           onTriggerPaywall={handleTriggerPaywall}

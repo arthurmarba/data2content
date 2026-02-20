@@ -1,14 +1,19 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2 } from "lucide-react";
-import CreatorQuickSearch from "@/app/admin/creator-dashboard/components/CreatorQuickSearch";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
   LAST_VIEWED_SCRIPTS_ADMIN_FEEDBACK_AT_KEY,
   LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY,
 } from "@/app/dashboard/hooks/useScriptRecommendationsNotifications";
+
+const CreatorQuickSearch = dynamic(
+  () => import("@/app/admin/creator-dashboard/components/CreatorQuickSearch"),
+  { ssr: false, loading: () => null }
+);
 
 type ScriptOrigin = "manual" | "ai" | "planner";
 type ScriptLinkType = "standalone" | "planner_slot";
@@ -211,6 +216,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSnapshotRef = useRef<DraftSnapshot | null>(null);
   const latestFeedbackToastRef = useRef<string>("");
+  const nextCursorRef = useRef<string | null>(null);
 
   const isAdminViewer = viewer?.role === "admin";
   const isActingOnBehalf = Boolean(
@@ -226,6 +232,10 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       .filter((slot) => Boolean(slot.slotId))
       .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.blockStartHour - b.blockStartHour);
   }, [plannerSlots]);
+
+  useEffect(() => {
+    nextCursorRef.current = nextCursor;
+  }, [nextCursor]);
 
   const unreadFeedbackScriptIds = useMemo(() => {
     const ids = new Set<string>();
@@ -251,7 +261,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [lastViewedScriptsFeedbackAt, scripts]);
 
   const fetchScripts = useCallback(
-    async (opts?: { reset?: boolean }) => {
+    async (opts?: { reset?: boolean; cursor?: string | null }) => {
       const reset = Boolean(opts?.reset);
       setGlobalError(null);
 
@@ -260,7 +270,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
       const params = new URLSearchParams();
       params.set("limit", String(PAGE_LIMIT));
-      if (!reset && nextCursor) params.set("cursor", nextCursor);
+      const cursor = opts?.cursor ?? nextCursorRef.current;
+      if (!reset && cursor) params.set("cursor", cursor);
       if (targetUserId) params.set("targetUserId", targetUserId);
 
       try {
@@ -289,7 +300,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         else setLoadingMore(false);
       }
     },
-    [nextCursor, targetUserId]
+    [targetUserId]
   );
 
   const fetchPlannerSlots = useCallback(async () => {
@@ -367,10 +378,6 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     toast,
     unreadFeedbackScriptIds,
   ]);
-
-  useEffect(() => {
-    fetchPlannerSlots();
-  }, [fetchPlannerSlots]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -525,12 +532,18 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [clearHistoryTimer]);
 
   const openCreateEditor = useCallback(() => {
+    if (!isActingOnBehalf && !plannerWeekStart && plannerSlots.length === 0) {
+      void fetchPlannerSlots();
+    }
     setEditor(createInitialEditorState());
     resetDraftHistory({ title: "", content: "" });
     setEditorOpen(true);
-  }, [resetDraftHistory]);
+  }, [fetchPlannerSlots, isActingOnBehalf, plannerSlots.length, plannerWeekStart, resetDraftHistory]);
 
   const openExistingEditor = useCallback((script: ScriptItem) => {
+    if (!isActingOnBehalf && !plannerWeekStart && plannerSlots.length === 0) {
+      void fetchPlannerSlots();
+    }
     const initialTitle = script.title || "";
     const initialContent = script.content || "";
     setEditor({
@@ -550,7 +563,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     });
     resetDraftHistory({ title: initialTitle, content: initialContent });
     setEditorOpen(true);
-  }, [resetDraftHistory]);
+  }, [fetchPlannerSlots, isActingOnBehalf, plannerSlots.length, plannerWeekStart, resetDraftHistory]);
 
   const patchScriptList = useCallback((updated: ScriptItem) => {
     setScripts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
@@ -1102,7 +1115,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                 <button
                   type="button"
                   disabled={loadingMore}
-                  onClick={() => fetchScripts()}
+                  onClick={() => fetchScripts({ cursor: nextCursor })}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                 >
                   {loadingMore ? "Carregando..." : "Carregar mais"}

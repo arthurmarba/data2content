@@ -21,6 +21,8 @@ const messageSchema = new Schema<IMessage>(
     { timestamps: { createdAt: true, updatedAt: false } }
 );
 
+messageSchema.index({ threadId: 1, createdAt: 1 });
+
 const MessageModel: Model<IMessage> = mongoose.models.Message || mongoose.model<IMessage>("Message", messageSchema);
 
 export default MessageModel;

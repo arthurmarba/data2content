@@ -79,6 +79,14 @@ const ScriptEntrySchema = new Schema<IScriptEntry>(
 ScriptEntrySchema.index({ userId: 1, updatedAt: -1 }, { name: "script_entries_user_updated_at" });
 ScriptEntrySchema.index({ userId: 1, linkType: 1 }, { name: "script_entries_user_link_type" });
 ScriptEntrySchema.index(
+  { userId: 1, isAdminRecommendation: 1, recommendedAt: -1, updatedAt: -1 },
+  { name: "script_entries_user_recommendation_time" }
+);
+ScriptEntrySchema.index(
+  { userId: 1, adminAnnotationUpdatedAt: -1, updatedAt: -1 },
+  { name: "script_entries_user_admin_annotation_time" }
+);
+ScriptEntrySchema.index(
   { userId: 1, "plannerRef.weekStart": 1, "plannerRef.slotId": 1 },
   {
     name: "script_entries_user_planner_slot_unique",

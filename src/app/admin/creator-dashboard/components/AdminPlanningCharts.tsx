@@ -272,6 +272,13 @@ export default function AdminPlanningCharts({
   hideHeatmap = false,
   hideTopDiscovery = false
 }: AdminPlanningChartsProps) {
+  const swrOptions = useMemo(
+    () => ({
+      revalidateOnFocus: false,
+      dedupingInterval: 60 * 1000,
+    }),
+    []
+  );
 
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
@@ -325,7 +332,8 @@ export default function AdminPlanningCharts({
 
   const { data: planningBatch, isLoading: loadingMetrics } = useSWR<PlanningBatchResponse>(
     planningBatchUrl,
-    fetcher
+    fetcher,
+    swrOptions
   );
 
   const trendData = planningBatch?.trendData;
@@ -345,7 +353,8 @@ export default function AdminPlanningCharts({
     userId
       ? `/api/v1/users/${userId}/videos/list?timePeriod=${TIME_PERIOD}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
       : null,
-    fetcher
+    fetcher,
+    swrOptions
   );
 
   const trendSeries = useMemo(() => {
