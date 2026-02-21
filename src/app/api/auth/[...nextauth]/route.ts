@@ -39,6 +39,7 @@ import { isInstagramReconnectV2Enabled } from "@/app/lib/instagram/reconnectConf
 import {
   IG_RECONNECT_ERROR_CODES,
   inferReconnectErrorCodeFromMessage,
+  normalizeInstagramReconnectErrorCode,
   type InstagramReconnectErrorCode,
 } from "@/app/lib/instagram/reconnectErrors";
 import {
@@ -261,6 +262,23 @@ function resolveReconnectErrorCode(
 ): InstagramReconnectErrorCode {
   const inferred = inferReconnectErrorCodeFromMessage(message ?? undefined);
   return inferred === IG_RECONNECT_ERROR_CODES.UNKNOWN ? fallback : inferred;
+}
+
+function resolveReconnectErrorCodeFromFetchFailure(params: {
+  message?: string | null;
+  fetchReconnectErrorCode?: string | null;
+  fallback?: InstagramReconnectErrorCode;
+}): InstagramReconnectErrorCode {
+  const normalizedFromFetch = normalizeInstagramReconnectErrorCode(
+    params.fetchReconnectErrorCode ?? null
+  );
+  if (normalizedFromFetch !== IG_RECONNECT_ERROR_CODES.UNKNOWN) {
+    return normalizedFromFetch;
+  }
+  return resolveReconnectErrorCode(
+    params.message,
+    params.fallback ?? IG_RECONNECT_ERROR_CODES.UNKNOWN
+  );
 }
 
 function resolveReconnectFlowId(...candidates: Array<string | null | undefined>): string {
@@ -570,10 +588,11 @@ export const authOptions: NextAuthOptions = {
                   } else {
                     logger.error(`${TAG_SIGNIN} [Facebook] Falha IG: ${igAccountsResult.error}. flowId=${reconnectFlowId}`);
                     dbUserRecord.instagramSyncErrorMsg = igAccountsResult.error;
-                    dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCode(
-                      igAccountsResult.error,
-                      IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT
-                    );
+                    dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCodeFromFetchFailure({
+                      message: igAccountsResult.error,
+                      fetchReconnectErrorCode: igAccountsResult.reconnectErrorCode ?? null,
+                      fallback: IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT,
+                    });
                     dbUserRecord.availableIgAccounts = [];
                     dbUserRecord.instagramReconnectState = "failed";
                     dbUserRecord.instagramReconnectUpdatedAt = new Date();
@@ -695,10 +714,11 @@ export const authOptions: NextAuthOptions = {
                 } else {
                   logger.error(`${TAG_SIGNIN} [Facebook] (fallback sessão) Falha IG: ${igAccountsResult.error}. flowId=${reconnectFlowId}`);
                   dbUserRecord.instagramSyncErrorMsg = igAccountsResult.error;
-                  dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCode(
-                    igAccountsResult.error,
-                    IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT
-                  );
+                  dbUserRecord.instagramSyncErrorCode = resolveReconnectErrorCodeFromFetchFailure({
+                    message: igAccountsResult.error,
+                    fetchReconnectErrorCode: igAccountsResult.reconnectErrorCode ?? null,
+                    fallback: IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT,
+                  });
                   dbUserRecord.availableIgAccounts = [];
                   dbUserRecord.instagramReconnectState = "failed";
                   dbUserRecord.instagramReconnectUpdatedAt = new Date();

@@ -20,6 +20,10 @@ import {
 } from '../types';
 import { isTokenInvalidError } from '../utils/tokenUtils';
 import { clearInstagramConnection } from '@/app/lib/instagram';
+import {
+  IG_RECONNECT_ERROR_CODES,
+  inferReconnectErrorCodeFromMessage,
+} from '@/app/lib/instagram/reconnectErrors';
 
 // Tipo local para dados de página (reutilizado)
 type PageAccountData = {
@@ -58,21 +62,40 @@ export async function fetchAvailableInstagramAccounts(
   // durante o fluxo de OAuth para que a busca via Business Manager funcione.
   const TAG = '[fetchAvailableInstagramAccounts v3.0_user_token_and_biz_api]';
   logger.info(`${TAG} Iniciando busca de contas IG e LLAT para User ID: ${userId}.`);
+  const resolveReconnectErrorCode = (
+    message?: string | null,
+    fallback: string = IG_RECONNECT_ERROR_CODES.UNKNOWN
+  ): string => {
+    const inferred = inferReconnectErrorCodeFromMessage(message);
+    return inferred === IG_RECONNECT_ERROR_CODES.UNKNOWN ? fallback : inferred;
+  };
 
   if (!process.env.FACEBOOK_CLIENT_ID || !process.env.FACEBOOK_CLIENT_SECRET) {
     const errorMsg = "FACEBOOK_CLIENT_ID ou FACEBOOK_CLIENT_SECRET não definidos nas variáveis de ambiente.";
     logger.error(`${TAG} ${errorMsg}`);
-    return { success: false, error: errorMsg };
+    return {
+      success: false,
+      error: errorMsg,
+      reconnectErrorCode: IG_RECONNECT_ERROR_CODES.UNKNOWN,
+    };
   }
   if (!mongoose.isValidObjectId(userId)) {
     const errorMsg = `ID de usuário inválido fornecido: ${userId}`;
     logger.error(`${TAG} ${errorMsg}`);
-    return { success: false, error: errorMsg };
+    return {
+      success: false,
+      error: errorMsg,
+      reconnectErrorCode: IG_RECONNECT_ERROR_CODES.UNKNOWN,
+    };
   }
   if (!shortLivedUserAccessToken) {
     const errorMsg = `Token de curta duração do usuário (shortLivedUserAccessToken) não fornecido.`;
     logger.error(`${TAG} ${errorMsg}`);
-    return { success: false, error: errorMsg };
+    return {
+      success: false,
+      error: errorMsg,
+      reconnectErrorCode: IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID,
+    };
   }
 
   let userLongLivedAccessToken: string | null = null;
@@ -124,7 +147,15 @@ export async function fetchAvailableInstagramAccounts(
       const userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
       await clearInstagramConnection(userObjectId, 'Token de usuário inválido ao obter LLAT.', 'TOKEN_INVALID');
     }
-    return { success: false, error: `Falha ao obter token de acesso de longa duração necessário: ${llatError.message}` };
+    const message = `Falha ao obter token de acesso de longa duração necessário: ${llatError.message}`;
+    return {
+      success: false,
+      error: message,
+      reconnectErrorCode: resolveReconnectErrorCode(
+        message,
+        IG_RECONNECT_ERROR_CODES.TOKEN_INVALID
+      ),
+    };
   }
 
   // Etapa 2: Listar Páginas e Contas IG
@@ -137,7 +168,11 @@ export async function fetchAvailableInstagramAccounts(
     logger.info(`${fetchLogContextMeAccounts} Utilizando User LLAT e /me/accounts para listar contas para o usuário ${userId}.`);
     if (!userLongLivedAccessToken) {
       logger.error(`${fetchLogContextMeAccounts} LLAT do usuário não disponível.`);
-      return { success: false, error: "Token de longa duração do usuário indisponível para listar contas." };
+      return {
+        success: false,
+        error: "Token de longa duração do usuário indisponível para listar contas.",
+        reconnectErrorCode: IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID,
+      };
     }
 
     let currentPageUrlMe: string | null = `${BASE_URL}/${API_VERSION}/me/accounts?fields=id,name,instagram_business_account{id,username,profile_picture_url}&limit=50&access_token=${userLongLivedAccessToken}`;
@@ -293,7 +328,15 @@ export async function fetchAvailableInstagramAccounts(
     if (fetchError && allPagesData.length === 0) { // Se houve erro e NENHUMA página foi encontrada por nenhum método
       // Se o erro for de token, a limpeza da conexão já foi tratada no bloco catch do LLAT ou nos fluxos de fetch
       // Aqui, apenas retornamos o erro.
-      return { success: false, error: `Erro ao buscar páginas: ${fetchError.message}` };
+      const message = `Erro ao buscar páginas: ${fetchError.message}`;
+      return {
+        success: false,
+        error: message,
+        reconnectErrorCode: resolveReconnectErrorCode(
+          message,
+          IG_RECONNECT_ERROR_CODES.UNKNOWN
+        ),
+      };
     }
 
     // Caso sem erro explícito, mas nenhum resultado de páginas encontrado em nenhum fluxo
@@ -301,7 +344,12 @@ export async function fetchAvailableInstagramAccounts(
       const errorMsgNoPages =
         'Nenhuma Página do Facebook foi encontrada para esta conta. Crie uma Página e torne-se administrador, depois vincule seu Instagram profissional a ela.';
       logger.warn(`${TAG} ${errorMsgNoPages} User: ${userId}.`);
-      return { success: false, error: errorMsgNoPages, errorCode: 404 };
+      return {
+        success: false,
+        error: errorMsgNoPages,
+        errorCode: 404,
+        reconnectErrorCode: IG_RECONNECT_ERROR_CODES.NO_FACEBOOK_PAGE,
+      };
     }
 
     logger.info(`${TAG} Processamento final de contas para User ${userId}. Total de ${allPagesData.length} Páginas FB encontradas globalmente.`);
@@ -328,7 +376,12 @@ export async function fetchAvailableInstagramAccounts(
       logger.warn(
         `${TAG} ${errorMsg} User: ${userId}. Total de Páginas FB processadas: ${allPagesData.length}`
       );
-      return { success: false, error: errorMsg, errorCode: 404 };
+      return {
+        success: false,
+        error: errorMsg,
+        errorCode: 404,
+        reconnectErrorCode: IG_RECONNECT_ERROR_CODES.NO_LINKED_IG_ACCOUNT,
+      };
     }
 
     logger.info(`${TAG} Encontradas ${availableIgAccounts.length} contas IG ÚNICAS vinculadas para User ${userId}.`);
@@ -353,8 +406,17 @@ export async function fetchAvailableInstagramAccounts(
     logger.error(`${TAG} Erro GERAL CRÍTICO durante busca de contas IG para User ${userId}:`, generalError);
     // Tenta ser um pouco mais específico se o erro for conhecido
     if (errorMsg.toLowerCase().includes('token') || errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('falha')) {
-      return { success: false, error: errorMsg };
+      return {
+        success: false,
+        error: errorMsg,
+        reconnectErrorCode: resolveReconnectErrorCode(errorMsg),
+      };
     }
-    return { success: false, error: `Erro interno inesperado ao buscar contas: ${errorMsg}` };
+    const genericMessage = `Erro interno inesperado ao buscar contas: ${errorMsg}`;
+    return {
+      success: false,
+      error: genericMessage,
+      reconnectErrorCode: resolveReconnectErrorCode(genericMessage),
+    };
   }
 }

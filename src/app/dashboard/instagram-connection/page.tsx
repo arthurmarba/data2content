@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { signIn } from "next-auth/react";
 import { FaInstagram, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
 import useInstagramStatus from "@/app/hooks/useInstagramStatus";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useRouter } from "next/navigation";
+import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 
 export default function InstagramConnectionPage() {
     const { status, isLoading, error, refetch } = useInstagramStatus(true);
@@ -20,14 +20,9 @@ export default function InstagramConnectionPage() {
         setIsConnecting(true);
         setConnectError(null);
         try {
-            const res = await fetch("/api/auth/iniciar-vinculacao-fb", { method: "POST" });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(data?.message || "Falha ao preparar a vinculação.");
-            }
-            const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
-            await signIn("facebook", {
-                callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=instagram-connection${flowIdParam}`,
+            await startInstagramReconnect({
+                nextTarget: "instagram-connection",
+                source: "instagram_connection_page",
             });
         } catch (e: any) {
             console.error("Falha ao iniciar fluxo Facebook/Instagram:", e);

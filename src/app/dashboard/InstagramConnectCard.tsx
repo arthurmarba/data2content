@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { track } from "@/lib/track";
 import {
   FaFacebook,
@@ -24,6 +24,12 @@ import type { AvailableInstagramAccount } from "@/app/lib/instagram/types";
 import type { Session } from "next-auth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
+import {
+  IG_RECONNECT_ERROR_CODES,
+  normalizeInstagramReconnectErrorCode,
+  type InstagramReconnectErrorCode,
+} from "@/app/lib/instagram/reconnectErrors";
 
 interface InstagramConnectCardProps {
   canAccessFeatures: boolean;
@@ -43,6 +49,7 @@ type SessionUserWithInstagram = BaseUserType & {
   instagramConnected?: boolean;
   availableIgAccounts?: AvailableInstagramAccount[] | null;
   igConnectionError?: string | null;
+  igConnectionErrorCode?: string | null;
   instagramAccountId?: string | null;
   instagramUsername?: string | null;
   lastInstagramSyncAttempt?: string | null;
@@ -64,6 +71,76 @@ interface DisplayError {
   type: ErrorType;
   icon: React.ElementType;
   colorClasses: string;
+}
+
+function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError | null {
+  switch (code) {
+    case IG_RECONNECT_ERROR_CODES.NO_FACEBOOK_PAGE:
+      return {
+        message:
+          "Nenhuma Página do Facebook foi encontrada para esta conta. Crie/assuma uma Página e tente novamente.",
+        type: "no_ig_account",
+        icon: FaExclamationTriangle,
+        colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
+      };
+    case IG_RECONNECT_ERROR_CODES.NO_BUSINESS_ACCESS:
+      return {
+        message:
+          "A Meta não retornou acesso ao Business. Reconecte e aprove as permissões para Página e Portfólio.",
+        type: "permission",
+        icon: FaLock,
+        colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
+      };
+    case IG_RECONNECT_ERROR_CODES.NO_LINKED_IG_ACCOUNT:
+      return {
+        message:
+          "Sua Página foi encontrada, mas não há Instagram profissional vinculado a ela. Faça o vínculo e reconecte.",
+        type: "no_ig_account",
+        icon: FaExclamationTriangle,
+        colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
+      };
+    case IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT:
+      return {
+        message:
+          "Nenhuma conta Instagram profissional (Comercial ou Criador de Conteúdo) foi encontrada vinculada à sua conta do Facebook.",
+        type: "no_ig_account",
+        icon: FaExclamationTriangle,
+        colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
+      };
+    case IG_RECONNECT_ERROR_CODES.PERMISSION_DENIED:
+      return {
+        message:
+          "Permissão necessária não concedida pelo Facebook. Por favor, reconecte e aprove todas as permissões solicitadas.",
+        type: "permission",
+        icon: FaLock,
+        colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
+      };
+    case IG_RECONNECT_ERROR_CODES.TOKEN_INVALID:
+    case IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID:
+      return {
+        message:
+          "Sua sessão com o Facebook/Instagram expirou ou é inválida. Por favor, conecte novamente.",
+        type: "token",
+        icon: FaKey,
+        colorClasses: "text-orange-600 bg-orange-50 border-orange-300",
+      };
+    case IG_RECONNECT_ERROR_CODES.INVALID_IG_ACCOUNT_SELECTION:
+      return {
+        message: "A conta escolhida não está entre as contas autorizadas. Refaça a conexão e selecione novamente.",
+        type: "account_selection",
+        icon: FaExclamationCircle,
+        colorClasses: "text-red-600 bg-red-50 border-red-200",
+      };
+    case IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED:
+      return {
+        message: "Esta conta do Facebook já está vinculada a outro usuário da plataforma.",
+        type: "general_backend",
+        icon: FaExclamationTriangle,
+        colorClasses: "text-red-600 bg-red-50 border-red-200",
+      };
+    default:
+      return null;
+  }
 }
 
 const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
@@ -192,6 +269,14 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
         colorClasses: "text-red-600 bg-red-50 border-red-200",
       };
 
+    const codeFromSession = normalizeInstagramReconnectErrorCode(user?.igConnectionErrorCode);
+    if (codeFromSession !== IG_RECONNECT_ERROR_CODES.UNKNOWN) {
+      const displayErrorByCode = getDisplayErrorForCode(codeFromSession);
+      if (displayErrorByCode) {
+        return displayErrorByCode;
+      }
+    }
+
     if (user?.igConnectionError) {
       const errorMsg = user.igConnectionError;
 
@@ -253,7 +338,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
       };
     }
     return null;
-  }, [disconnectError, accountSelectionError, linkError, user?.igConnectionError, canAccessFeatures]);
+  }, [disconnectError, accountSelectionError, linkError, user?.igConnectionError, user?.igConnectionErrorCode, canAccessFeatures]);
 
   const handleInitiateFacebookLink = async (
     event: React.MouseEvent<HTMLButtonElement>
@@ -270,25 +355,15 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     setDisconnectError(null);
     setAccountSelectionError(null);
     track("connect_instagram_clicked", { source: "instagram_connect_card" });
-    track("ig_reconnect_started", { source: "instagram_connect_card" });
 
     try {
-      logger.info("Chamando /api/auth/iniciar-vinculacao-fb");
-      const res = await fetch("/api/auth/iniciar-vinculacao-fb", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      logger.info("Iniciando fluxo de reconexão Instagram/Facebook");
+      await startInstagramReconnect({
+        nextTarget: "chat",
+        source: "instagram_connect_card",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        logger.error("Erro ao chamar /api/auth/iniciar-vinculacao-fb:", data);
-        throw new Error(data?.message || "Falha ao preparar vinculação com Facebook.");
-      }
-      logger.info("OK. Iniciando signIn('facebook').");
-      const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
-      signIn("facebook", { callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=chat${flowIdParam}` });
     } catch (e: any) {
       logger.error("Erro ao iniciar vinculação:", e);
-      track("ig_reconnect_failed", { source: "instagram_connect_card", error_code: "UNKNOWN" });
       setLinkError(e?.message || "Erro inesperado ao tentar conectar com Facebook.");
       setIsLinking(false);
     }

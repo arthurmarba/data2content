@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import {
   FaArrowDown
 } from 'react-icons/fa';
@@ -22,6 +22,7 @@ import { useChatThreads } from "./components/chat/useChatThreads";
 import { useThreadSelection } from "./components/chat/useThreadSelection";
 import useCreatorProfileExtended from "@/hooks/useCreatorProfileExtended";
 import { track } from "@/lib/track";
+import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 import type { RenderDensity } from "./components/chat/chatUtils";
 import { ThinkingIndicator } from "./components/chat/ThinkingIndicator";
 
@@ -397,15 +398,12 @@ export default function ChatPanel({
 
   const handleCorrectInstagramLink = async () => {
     try {
-      track("ig_reconnect_started", { source: "chat_panel" });
-      const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) return console.error('Falha ao preparar a vinculação da conta.');
-      const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
-      signIn('facebook', { callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=chat${flowIdParam}` });
+      await startInstagramReconnect({
+        nextTarget: "chat",
+        source: "chat_panel",
+      });
     } catch (error) {
       console.error('Erro no processo de vinculação:', error);
-      track("ig_reconnect_failed", { source: "chat_panel", error_code: "UNKNOWN" });
       setInlineAlert('Não foi possível iniciar a conexão com o Instagram. Tente novamente.');
     }
   };

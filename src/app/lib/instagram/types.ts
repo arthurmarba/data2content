@@ -99,6 +99,7 @@ export interface FetchInstagramAccountsError {
   success: false;
   error: string;
   errorCode?: number;
+  reconnectErrorCode?: string;
 }
 
 

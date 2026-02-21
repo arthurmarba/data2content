@@ -3,7 +3,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaWhatsapp, FaTimes } from 'react-icons/fa';
@@ -19,6 +19,7 @@ import type {
 import { notFound } from 'next/navigation';
 import { openPaywallModal } from '@/utils/paywallModal';
 import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
+import { startInstagramReconnect } from '@/app/lib/instagram/client/startInstagramReconnect';
 
 type Summary = any;
 type VideoListItem = any;
@@ -620,7 +621,7 @@ function SelfMediaKitContent({
 }
 
 export default function MediaKitSelfServePage() {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const sp = useSearchParams();
   const [url, setUrl] = useState<string | null>(null);
@@ -635,7 +636,6 @@ export default function MediaKitSelfServePage() {
   // Lógica do Modal de Pagamento
   const communityModalShownRef = useRef(false);
   const showIgConnectSuccess = sp.get("instagramLinked") === "true";
-  const processingIgLinkRef = useRef(false);
 
   const billingStatus = useBillingStatus();
   const sessionPlanStatusRaw = (session?.user as any)?.planStatus;
@@ -702,42 +702,6 @@ export default function MediaKitSelfServePage() {
     }
   }, [sp, router]);
 
-  // Após retorno do OAuth: atualiza sessão e finaliza conexão se houver apenas 1 conta IG
-  useEffect(() => {
-    const run = async () => {
-      if (!showIgConnectSuccess) return;
-      if (processingIgLinkRef.current) return;
-      processingIgLinkRef.current = true;
-      try {
-        const updated = await update();
-        const u = updated?.user as any;
-        if (!u) return;
-        if (u.instagramConnected) return; // já conectado
-
-        const accounts = Array.isArray(u.availableIgAccounts) ? u.availableIgAccounts : [];
-        if (accounts.length === 1 && accounts[0]?.igAccountId) {
-          const res = await fetch('/api/instagram/connect-selected-account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ instagramAccountId: accounts[0].igAccountId }),
-          });
-          if (res.ok) {
-            await update(); // refletir instagramConnected=true na sessão
-          } else {
-            const err = await res.json().catch(() => ({}));
-            setError(err?.error || 'Falha ao finalizar a conexão do Instagram.');
-          }
-        } else if (accounts.length > 1) {
-          // Redireciona para o Chat, que possui o seletor de contas IG
-          router.push('/dashboard/chat?instagramLinked=true');
-        }
-      } catch (e: any) {
-        console.error('Erro ao finalizar conexão do Instagram:', e);
-      }
-    };
-    run();
-  }, [showIgConnectSuccess, update, router]);
-
   useEffect(() => {
     if (showIgConnectSuccess && instagramConnected && !hasPremiumAccess && !communityModalShownRef.current) {
       communityModalShownRef.current = true;
@@ -747,15 +711,10 @@ export default function MediaKitSelfServePage() {
 
   const handleCorrectInstagramLink = async () => {
     try {
-      const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        console.error('Falha ao preparar a vinculação da conta.');
-        setError('Falha ao preparar a vinculação com o Facebook. Tente novamente.');
-        return;
-      }
-      const flowIdParam = typeof data?.flowId === "string" ? `&flowId=${encodeURIComponent(data.flowId)}` : "";
-      signIn('facebook', { callbackUrl: `/dashboard/instagram/connecting?instagramLinked=true&next=media-kit${flowIdParam}` });
+      await startInstagramReconnect({
+        nextTarget: 'media-kit',
+        source: 'media_kit_page',
+      });
     } catch (error) {
       console.error('Erro ao iniciar o signIn com o Facebook:', error);
       setError('Ocorreu um erro inesperado ao tentar conectar. Tente novamente.');
