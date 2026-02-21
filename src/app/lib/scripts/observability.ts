@@ -80,6 +80,80 @@ function detectTechnicalRows(content: string): Array<{
   fala: string;
   direcao: string;
 }> {
+  const parseFlowRows = (rawContent: string) => {
+    const rows: Array<{
+      tempo: string;
+      enquadramento: string;
+      acao: string;
+      textoTela: string;
+      fala: string;
+      direcao: string;
+    }> = [];
+    const lines = (rawContent || "").replace(/\r/g, "").split("\n");
+    const sceneHeaders: Array<{ start: number; tempo: string }> = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = (lines[i] || "").trim();
+      const sceneMatch = line.match(/^\s*(?:\[\s*)?(?:CENA|SCENE)\s*(?:#\s*)?\d{1,3}\s*:\s*([^\]\n]+?)(?:\]\s*)?$/i);
+      if (!sceneMatch) continue;
+      const headingPayload = sceneMatch[1] || "";
+      const tempoMatch = headingPayload.match(/\(([^)]+)\)\s*$/);
+      sceneHeaders.push({
+        start: i,
+        tempo: tempoMatch?.[1] ? tempoMatch[1].trim() : "",
+      });
+    }
+
+    for (let idx = 0; idx < sceneHeaders.length; idx += 1) {
+      const current = sceneHeaders[idx];
+      if (!current) continue;
+      const next = sceneHeaders[idx + 1];
+      const block = lines.slice(current.start + 1, next ? next.start : lines.length);
+      let enquadramento = "";
+      let acao = "";
+      let textoTela = "";
+      let fala = "";
+      let direcao = "";
+      for (const line of block) {
+        const trimmed = line.trim();
+        let match = trimmed.match(/^enquadramento\s*:\s*(.+)$/i);
+        if (match?.[1]) {
+          enquadramento = match[1].trim();
+          continue;
+        }
+        match = trimmed.match(/^(?:a[cç][aã]o|a[cç][aã]o\/movimento)\s*:\s*(.+)$/i);
+        if (match?.[1]) {
+          acao = match[1].trim();
+          continue;
+        }
+        match = trimmed.match(/^texto na tela\s*:\s*(.+)$/i);
+        if (match?.[1]) {
+          textoTela = match[1].trim();
+          continue;
+        }
+        match = trimmed.match(/^fala\s*:\s*(.+)$/i);
+        if (match?.[1]) {
+          fala = match[1].replace(/^"+|"+$/g, "").trim();
+          continue;
+        }
+        match = trimmed.match(/^(?:performance|dire[cç][aã]o de performance)\s*:\s*(.+)$/i);
+        if (match?.[1]) {
+          direcao = match[1].trim();
+        }
+      }
+      if (enquadramento || acao || textoTela || fala || direcao) {
+        rows.push({
+          tempo: current.tempo || "",
+          enquadramento,
+          acao,
+          textoTela,
+          fala,
+          direcao,
+        });
+      }
+    }
+    return rows;
+  };
+
   const rows: Array<{
     tempo: string;
     enquadramento: string;
@@ -109,16 +183,30 @@ function detectTechnicalRows(content: string): Array<{
       direcao: cols.slice(5).join(" | "),
     });
   }
-  return rows;
+  if (rows.length > 0) return rows;
+  return parseFlowRows(content || "");
 }
 
 function countScenes(content: string): number {
-  return (content.match(/^\s*\[(?:CENA|SCENE)\s*(?:#\s*)?\d{1,3}\s*:[^\]]+\]\s*$/gim) || []).length;
+  return (content.match(/^\s*(?:\[\s*)?(?:CENA|SCENE)\s*(?:#\s*)?\d{1,3}\s*:[^\]\n]+(?:\]\s*)?$/gim) || []).length;
 }
 
 function hasTechnicalColumns(content: string): boolean {
-  return /^\|\s*tempo\s*\|\s*enquadramento\s*\|\s*a[çc][aã]o\/movimento\s*\|\s*texto na tela\s*\|\s*fala \(literal\)\s*\|\s*dire[cç][aã]o de performance\s*\|?$/im.test(
-    content
+  if (
+    /^\|\s*tempo\s*\|\s*enquadramento\s*\|\s*a[çc][aã]o\/movimento\s*\|\s*texto na tela\s*\|\s*fala \(literal\)\s*\|\s*dire[cç][aã]o de performance\s*\|?$/im.test(
+      content
+    )
+  ) {
+    return true;
+  }
+  const hasScenes = countScenes(content) > 0;
+  if (!hasScenes) return false;
+  return (
+    /enquadramento\s*:/i.test(content) &&
+    /(?:a[cç][aã]o|a[cç][aã]o\/movimento)\s*:/i.test(content) &&
+    /(?:performance|dire[cç][aã]o de performance)\s*:/i.test(content) &&
+    /texto na tela\s*:/i.test(content) &&
+    /fala\s*:/i.test(content)
   );
 }
 

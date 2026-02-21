@@ -91,10 +91,15 @@ const HUMOR_MARKERS = [
   "🤣",
 ];
 
-const TECHNICAL_SCRIPT_TAG_REGEX = /^\s*\[\/?ROTEIRO_TECNICO_V1\]\s*$/i;
-const TECHNICAL_SCENE_HEADING_REGEX = /^\s*\[(?:CENA|SCENE)\s*(?:#\s*)?\d{1,3}\s*:[^\]]+\]\s*$/i;
+const TECHNICAL_SCRIPT_TAG_REGEX =
+  /^\s*\[\/?(?:ROTEIRO_TECNICO_V1|ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO)\]\s*$/i;
+const TECHNICAL_SCENE_HEADING_REGEX =
+  /^\s*(?:\[\s*)?(?:CENA|SCENE)\s*(?:#\s*)?\d{1,3}\s*:[^\]\n]+(?:\]\s*)?$/i;
 const TECHNICAL_HEADER_DETECT_REGEX =
   /^\|\s*tempo\s*\|\s*enquadramento\s*\|\s*a[çc][aã]o\/movimento\s*\|\s*texto na tela\s*\|\s*fala \(literal\)\s*\|\s*dire[cç][aã]o de performance\s*\|?$/i;
+const FLOW_FALA_REGEX = /^fala\s*:\s*(.+)$/i;
+const FLOW_STRUCTURE_REGEX =
+  /^(?:enquadramento|a[cç][aã]o|a[cç][aã]o\/movimento|performance|dire[cç][aã]o de performance|texto na tela|fala)\s*:/i;
 
 function isTableSeparatorLine(line: string): boolean {
   const cols = line
@@ -112,7 +117,8 @@ function extractTechnicalSpeechSignals(content: string): string | null {
   const hasTechnicalSignals = lines.some((line) =>
     TECHNICAL_SCRIPT_TAG_REGEX.test(line.trim()) ||
     TECHNICAL_SCENE_HEADING_REGEX.test(line.trim()) ||
-    TECHNICAL_HEADER_DETECT_REGEX.test(line.trim())
+    TECHNICAL_HEADER_DETECT_REGEX.test(line.trim()) ||
+    FLOW_STRUCTURE_REGEX.test(line.trim())
   );
   if (!hasTechnicalSignals) return null;
 
@@ -130,6 +136,16 @@ function extractTechnicalSpeechSignals(content: string): string | null {
     const speech = cols[4] || "";
     const cleanSpeech = speech.replace(/\s+/g, " ").trim();
     if (cleanSpeech) speechLines.push(cleanSpeech);
+  }
+
+  if (!speechLines.length) {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const match = trimmed.match(FLOW_FALA_REGEX);
+      if (!match?.[1]) continue;
+      const cleanSpeech = match[1].replace(/^"+|"+$/g, "").replace(/\s+/g, " ").trim();
+      if (cleanSpeech) speechLines.push(cleanSpeech);
+    }
   }
 
   if (!speechLines.length) return null;

@@ -199,9 +199,9 @@ describe("scripts/ai technical contract", () => {
       "roteiro sobre produtividade para reels"
     );
 
-    expect(repaired.content).toContain("[ROTEIRO_TECNICO_V1]");
-    expect(repaired.content).toContain("[/ROTEIRO_TECNICO_V1]");
-    const scenes = repaired.content.match(/\[CENA\s+\d+:/gi) || [];
+    expect(repaired.content).toContain("[ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]");
+    expect(repaired.content).toContain("[/ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]");
+    const scenes = repaired.content.match(/^\s*CENA\s+\d+:/gim) || [];
     expect(scenes.length).toBeGreaterThanOrEqual(4);
   });
 
@@ -232,8 +232,8 @@ describe("scripts/ai technical contract", () => {
       "roteiro sobre produtividade"
     );
 
-    const lastScene = repaired.content
-      .split(/\[CENA 4: CTA\]/i)[1] || "";
+    const lastSceneStart = repaired.content.search(/^CENA 4:/im);
+    const lastScene = lastSceneStart >= 0 ? repaired.content.slice(lastSceneStart) : repaired.content;
     expect(lastScene).toMatch(/comente|salv[ae]|compartilhe|direct|dm|me chama|segue|link/i);
   });
 
@@ -273,9 +273,9 @@ describe("scripts/ai technical contract", () => {
       "roteiro para vender mentoria"
     );
 
-    expect(converted).toContain("[ROTEIRO_TECNICO_V1]");
-    expect(converted).toContain("[CENA 1: GANCHO]");
-    expect(converted).toContain("[CENA 4: CTA]");
+    expect(converted).toContain("[ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]");
+    expect(converted).toContain("CENA 1: O GANCHO");
+    expect(converted).toContain("CENA 4: CHAMADA PARA AÇÃO");
   });
 
   it("computes higher perceived quality for polished technical script than weak script", () => {
@@ -309,5 +309,74 @@ describe("scripts/ai technical contract", () => {
 
     expect(polishedScore.perceivedQuality).toBeGreaterThan(weakScore.perceivedQuality);
     expect(polishedScore.ctaStrength).toBeGreaterThan(0.7);
+  });
+
+  it("prevents duplicate CTA headings when script has 5 scenes", () => {
+    const duplicatedCta = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 00-06s | Close | Abertura | Gancho | Se você quer melhorar seu conteúdo, fica comigo até o fim. | Ritmo alto |",
+      "[CENA 2: CONTEXTO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 07-15s | Médio | Explicação | Contexto | O principal erro é pular a estrutura e começar sem direção clara. | Tom didático |",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 16-25s | Médio | Exemplo | Passos | Eu faço em dois passos simples para manter clareza e ritmo. | Cadência firme |",
+      "[CENA 4: CTA]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 26-32s | Close | Fechamento | Compartilhe | Se você curtiu, já compartilha esse vídeo agora. | Tom conclusivo |",
+      "[CENA 5: CTA]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 33-40s | Médio | Encerrar | Comente | Comenta quero para eu te mandar a próxima parte. | Tom convidativo |",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Roteiro", content: duplicatedCta },
+      "roteiro sobre produtividade para reels"
+    );
+
+    const ctaHeadings = repaired.content.match(/^CENA\s+\d+:\s*CHAMADA PARA AÇÃO\b/gim) || [];
+    expect(ctaHeadings).toHaveLength(1);
+    expect(repaired.content).toContain("CENA 4: A PROVA");
+    expect(repaired.content).toContain("CENA 5: CHAMADA PARA AÇÃO");
+  });
+
+  it("renders readable flow blocks for each scene", () => {
+    const longScript = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 00-06s | Close no rosto | Entrada rápida com gesto de mão e micro-pausa antes da frase principal com transição para a fala central. | PARE DE ERRAR: CONTEÚDOS DA ANITTA E ESTRATÉGIA DE ENGAJAMENTO | Se você quer destravar os conteúdos da Anitta com uma estrutura que realmente aumenta retenção e conexão, fica comigo até o final porque esse ajuste muda tudo. | Energia alta, olhar direto na câmera, sorriso confiante e pausa intencional antes da frase de impacto final. |",
+      "[CENA 2: CONTEXTO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 07-15s | Meio-corpo | Mãos gesticulando, postura aberta com alternância de ponto de foco para manter dinâmica. | Conteúdo, lifestyle e música com posicionamento | Quando ela mistura bastidores, rotina e narrativa de carreira, o público enxerga autenticidade e responde com mais atenção ao conteúdo. | Tom descritivo, ritmo médio, expressividade leve e dicção clara nas palavras-chave. |",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 16-25s | Plano médio | Mostra no celular exemplos reais com cortes rápidos para evidenciar o padrão de narrativa visual. | Gravação, bastidores e autenticidade em prática | Repara como ela alterna conquista, processo e vulnerabilidade no mesmo bloco, gerando identificação sem parecer forçado. | Dinâmico, alternar olhar entre celular e câmera, mantendo tom explicativo e preciso. |",
+      "[CENA 4: CTA]",
+      "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |",
+      "| :--- | :--- | :--- | :--- | :--- | :--- |",
+      "| 26-34s | Close | Fechamento com gesto curto de confirmação. | Comente e compartilhe | Se isso te ajudou, comenta quero e compartilha com alguém que também quer melhorar conteúdo agora. | Tom conclusivo, sorriso leve, pausa antes da chamada para ação. |",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Roteiro", content: longScript },
+      "roteiro sobre conteúdos da Anitta para reels"
+    );
+
+    expect(repaired.content).toContain("\n\nAção: ");
+    expect(repaired.content).toContain("\n\nPerformance: ");
+    expect(repaired.content).toContain('\n\nFala: "');
   });
 });

@@ -143,4 +143,66 @@ describe("scripts/observability", () => {
     expect(typeof diagnostics.ctaStrength).toBe("number");
     expect(typeof diagnostics.diversityScore).toBe("number");
   });
+
+  it("captures technical diagnostics in flow format", () => {
+    const technicalContent = [
+      "[ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]",
+      "CENA 1: O GANCHO (0:00 - 0:06)",
+      "Enquadramento: Close no rosto.",
+      "",
+      "Ação: Entrada rápida com gesto de mão.",
+      "",
+      "Performance: Ritmo alto, olhar direto na câmera.",
+      "",
+      "Texto na Tela: PARE DE ERRAR.",
+      "",
+      'Fala: "Se você quer destravar isso, presta atenção agora."',
+      "",
+      "CENA 2: CONTEXTO (0:07 - 0:15)",
+      "Enquadramento: Plano médio.",
+      "",
+      "Ação: Explicar o erro central.",
+      "",
+      "Performance: Tom didático com pausa curta.",
+      "",
+      "Texto na Tela: ERRO COMUM.",
+      "",
+      'Fala: "Quando você ignora esse ponto, seu resultado cai."',
+      "",
+      "CENA 3: DEMONSTRAÇÃO (0:16 - 0:25)",
+      "Enquadramento: Plano médio com apoio visual.",
+      "",
+      "Ação: Mostrar ajuste em dois passos.",
+      "",
+      "Performance: Cadência progressiva e gesto de contagem.",
+      "",
+      "Texto na Tela: AJUSTE EM 2 PASSOS.",
+      "",
+      'Fala: "Eu resolvo assim: primeiro base, depois consistência."',
+      "",
+      "CENA 4: CHAMADA PARA AÇÃO (0:26 - 0:35)",
+      "Enquadramento: Close final.",
+      "",
+      "Ação: Encerrar com benefício e CTA explícito.",
+      "",
+      "Performance: Entonação conclusiva e sorriso curto.",
+      "",
+      "Texto na Tela: SALVE E COMPARTILHE.",
+      "",
+      'Fala: "Se isso te ajudou, salve e compartilhe com alguém do seu nicho."',
+      "[/ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]",
+    ].join("\n");
+
+    const diagnostics = buildScriptOutputDiagnostics({
+      operation: "create",
+      prompt: "roteiro técnico em fluxo",
+      title: "Roteiro técnico",
+      content: technicalContent,
+    });
+
+    expect(diagnostics.sceneCount).toBeGreaterThanOrEqual(4);
+    expect(diagnostics.hasTechnicalColumns).toBe(true);
+    expect(diagnostics.hasPerformanceDirection).toBe(true);
+    expect(diagnostics.hasOnScreenText).toBe(true);
+  });
 });
