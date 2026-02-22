@@ -58,6 +58,7 @@ type SummaryScope = "all" | "core" | "performance" | "proposals" | "community";
 const DEFAULT_PERIOD: Period = "30d";
 const TRIAL_CTA_LABEL = "⚡ Ativar alertas no WhatsApp";
 const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
+const PROPOSAL_COPY_FEEDBACK_MS = 20_000;
 
 type HeroAction = {
   key: string;
@@ -115,6 +116,7 @@ const TUTORIAL_STEP_ICONS: Record<JourneyStepId, IconType> = {
   create_media_kit: FaMagic,
   publish_media_kit_link: FaLink,
   personalize_support: FaRobot,
+  publish_proposal_form_link: FaBullhorn,
   activate_pro: FaGem,
 };
 
@@ -137,6 +139,10 @@ const JOURNEY_STEP_COPY: Record<
   personalize_support: {
     stepHelper: "Responda a pesquisa de personalização (2 min) para ajustar IA e suporte ao seu momento.",
     ctaLabel: "Personalizar suporte",
+  },
+  publish_proposal_form_link: {
+    stepHelper: "Copie o link do formulário, coloque na bio e acompanhe propostas em Campanhas.",
+    ctaLabel: "Ver como funciona",
   },
   activate_pro: {
     stepHelper:
@@ -192,6 +198,8 @@ export default function HomeClientPage() {
   const [isHydrated, setIsHydrated] = React.useState(false);
   const onboardingCompletionRequested = React.useRef(false);
   const [showSurveyModal, setShowSurveyModal] = React.useState(false);
+  const [proposalCopyFeedbackVisible, setProposalCopyFeedbackVisible] = React.useState(false);
+  const proposalCopyFeedbackTimerRef = React.useRef<number | null>(null);
   const isNewUser = Boolean(session?.user?.isNewUserForOnboarding);
   const focusIntent = searchParams?.get("intent")?.toLowerCase() ?? null;
   const sessionUserId = session?.user?.id ?? null;
@@ -224,6 +232,27 @@ export default function HomeClientPage() {
       return url;
     }
   }, []);
+
+  const showProposalCopyFeedback = React.useCallback(() => {
+    setProposalCopyFeedbackVisible(true);
+    if (typeof window === "undefined") return;
+    if (proposalCopyFeedbackTimerRef.current) {
+      window.clearTimeout(proposalCopyFeedbackTimerRef.current);
+    }
+    proposalCopyFeedbackTimerRef.current = window.setTimeout(() => {
+      setProposalCopyFeedbackVisible(false);
+      proposalCopyFeedbackTimerRef.current = null;
+    }, PROPOSAL_COPY_FEEDBACK_MS);
+  }, []);
+
+  React.useEffect(
+    () => () => {
+      if (proposalCopyFeedbackTimerRef.current && typeof window !== "undefined") {
+        window.clearTimeout(proposalCopyFeedbackTimerRef.current);
+      }
+    },
+    []
+  );
 
   const fetchSummary = React.useCallback(
     async (period: Period, scope: SummaryScope = "all") => {
@@ -484,6 +513,7 @@ export default function HomeClientPage() {
     summary?.nextPost?.isInstagramConnected ?? Boolean(session?.user?.instagramConnected);
   const hasMediaKit = summary?.mediaKit?.hasMediaKit ?? false;
   const mediaKitShareUrl = summary?.mediaKit?.shareUrl ?? null;
+  const mediaKitProposalFormUrl = summary?.mediaKit?.proposalFormUrl ?? null;
   const journeyProgress = summary?.journeyProgress ?? null;
   const defaultCommunityFreeUrl =
     process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/planning/discover";
@@ -664,6 +694,75 @@ export default function HomeClientPage() {
     openWhatsAppChat();
   }, [openWhatsAppChat, trackWhatsappEvent, whatsappLinked]);
 
+  const copyTextWithFallback = React.useCallback(async (value: string): Promise<boolean> => {
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard?.writeText &&
+        typeof window !== "undefined" &&
+        window.isSecureContext
+      ) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {
+      // fallback below
+    }
+
+    try {
+      if (typeof document === "undefined") return false;
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return Boolean(success);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const markProposalFormStepDone = React.useCallback(() => {
+    setSummary((prev) => {
+      if (!prev?.flowChecklist?.steps?.length) return prev;
+
+      const steps = prev.flowChecklist.steps.map((step) => {
+        if (step.id !== "share_proposal_form_link") return step;
+        return {
+          ...step,
+          status: "done" as const,
+          completedLabel: "Copiar novamente",
+          completedHref: step.actionHref,
+        };
+      });
+      const firstPendingStepId = steps.find((step) => step.status !== "done")?.id ?? null;
+
+      return {
+        ...prev,
+        flowChecklist: {
+          ...prev.flowChecklist,
+          steps,
+          firstPendingStepId,
+        },
+      };
+    });
+  }, []);
+
+  const markProposalFormLinkCopied = React.useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/dashboard/home/proposal-link-copied", {
+        method: "POST",
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const handleCopyMediaKitLink = React.useCallback(
     async (origin: string) => {
       trackDashboardCta("copy_kit_link", { surface: origin });
@@ -671,19 +770,92 @@ export default function HomeClientPage() {
         toast.error("Crie seu Mídia Kit para gerar um link compartilhável.");
         return;
       }
-      if (typeof navigator === "undefined" || !navigator.clipboard) {
-        toast.error("Copie o link direto pelo painel do Mídia Kit.");
-        return;
-      }
       try {
-        await navigator.clipboard.writeText(mediaKitShareUrl);
+        const copied = await copyTextWithFallback(mediaKitShareUrl);
+        if (!copied) {
+          throw new Error("copy_failed");
+        }
         toast.success("Link do Mídia Kit copiado!");
       } catch (error) {
         void error;
-        toast.error("Não foi possível copiar o link agora.");
+        if (typeof window !== "undefined") {
+          window.prompt("Copie manualmente o link do Mídia Kit:", mediaKitShareUrl);
+        } else {
+          toast.error("Não foi possível copiar o link agora.");
+        }
       }
     },
-    [mediaKitShareUrl, trackDashboardCta]
+    [copyTextWithFallback, mediaKitShareUrl, trackDashboardCta]
+  );
+
+  const handleCopyProposalFormLink = React.useCallback(
+    async (origin: string) => {
+      trackDashboardCta("copy_proposal_form_link", { surface: origin });
+      if (!hasPremiumAccessPlan) {
+        toast.error("Ative sua assinatura para liberar o link do formulário.");
+        return;
+      }
+
+      let proposalUrl = mediaKitProposalFormUrl;
+      if (!proposalUrl) {
+        try {
+          const response = await fetch("/api/users/media-kit-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(body?.error || "Falha ao gerar link do formulário.");
+          }
+          const generatedBaseUrl =
+            typeof body?.url === "string" ? body.url.trim() : "";
+          if (!generatedBaseUrl) {
+            throw new Error("Falha ao gerar link do formulário.");
+          }
+          const url = new URL(
+            generatedBaseUrl,
+            typeof window !== "undefined" ? window.location.origin : undefined
+          );
+          url.searchParams.set("proposal", "only");
+          proposalUrl = url.toString();
+        } catch {
+          toast.error("Não foi possível gerar o link do formulário agora.");
+          return;
+        }
+      }
+
+      const stepMarkedAsDone = await markProposalFormLinkCopied();
+      if (stepMarkedAsDone) {
+        markProposalFormStepDone();
+        void refreshProposalsSummary({ silent: true }).catch(() => undefined);
+      }
+
+      try {
+        const copied = await copyTextWithFallback(proposalUrl);
+        if (!copied) {
+          throw new Error("copy_failed");
+        }
+        showProposalCopyFeedback();
+        toast.success("Link copiado. Agora cole na bio do Instagram.");
+      } catch (error) {
+        void error;
+        if (typeof window !== "undefined") {
+          window.prompt("Copie manualmente o link do formulário:", proposalUrl);
+        } else {
+          toast.error("Não foi possível copiar o link agora.");
+        }
+      }
+    },
+    [
+      copyTextWithFallback,
+      hasPremiumAccessPlan,
+      markProposalFormLinkCopied,
+      markProposalFormStepDone,
+      mediaKitProposalFormUrl,
+      refreshProposalsSummary,
+      showProposalCopyFeedback,
+      trackDashboardCta,
+    ]
   );
 
   const headerCta = React.useMemo(() => null, []);
@@ -1042,6 +1214,18 @@ export default function HomeClientPage() {
     const proStatus: StepStatus = planIsPro ? "done" : trialExpired ? "todo" : whatsappTrialActive ? "in-progress" : "todo";
     const mentorshipStatus: StepStatus = communityVipMember ? "done" : "todo";
     const surveyStatus: StepStatus = surveyCompleted ? "done" : "todo";
+    const proposalsViaMediaKit = Math.max(
+      Number(summary?.proposalsSummary?.proposalsViaMediaKit ?? 0),
+      Number(summary?.mediaKit?.proposalsViaMediaKit ?? 0),
+    );
+    const proposalLinkStepDone = summary?.flowChecklist?.steps?.some(
+      (step) => step.id === "share_proposal_form_link" && step.status === "done"
+    );
+    const proposalBioStatus: StepStatus = !hasPremiumAccessPlan
+      ? "todo"
+      : proposalLinkStepDone || proposalsViaMediaKit > 0
+        ? "done"
+        : "in-progress";
 
     return [
       {
@@ -1110,17 +1294,54 @@ export default function HomeClientPage() {
         variant: "secondary",
         disabled: false,
       },
+      {
+        id: "progress-proposal-link-bio",
+        title: "Conquiste sua primeira publi",
+        description: !hasPremiumAccessPlan
+          ? "Ative sua assinatura para liberar o link público de propostas."
+          : proposalCopyFeedbackVisible
+            ? "Link copiado. Cole na bio do Instagram e acompanhe as propostas em Campanhas."
+          : proposalsViaMediaKit > 0
+            ? "Link ativo na bio. Acompanhe as propostas na página Campanhas."
+            : proposalLinkStepDone
+              ? "Link copiado. Acompanhe propostas em Campanhas e copie novamente quando quiser."
+            : "Copie o link do formulário, coloque na bio e receba propostas em Campanhas.",
+        icon: <FaLink />,
+        status: proposalBioStatus,
+        actionLabel: !hasPremiumAccessPlan
+          ? "Ativar assinatura"
+          : proposalCopyFeedbackVisible
+            ? "Copiado. Cole na bio"
+          : proposalBioStatus === "done"
+            ? "Copiar novamente"
+            : "Ver como funciona",
+        action: () => {
+          if (!hasPremiumAccessPlan) {
+            handleHeaderSubscribe();
+            return;
+          }
+          void handleCopyProposalFormLink("progress_section");
+        },
+        variant: "secondary",
+        disabled: false,
+      },
     ];
   }, [
     communityVipHasAccess,
     communityVipMember,
+    handleCopyProposalFormLink,
     handleHeaderConnectInstagram,
     handleHeaderSubscribe,
     handleNavigate,
     handleJoinVip,
     handleMentorshipAction,
     isInstagramConnected,
+    hasPremiumAccessPlan,
+    proposalCopyFeedbackVisible,
     planIsPro,
+    summary?.mediaKit?.proposalsViaMediaKit,
+    summary?.proposalsSummary?.proposalsViaMediaKit,
+    summary?.flowChecklist?.steps,
     trialExpired,
     surveyCompleted,
     whatsappLinked,
@@ -1142,6 +1363,9 @@ export default function HomeClientPage() {
         plan: "progress-pro",
         subscription: "progress-pro",
         survey: "progress-personalize-support",
+        proposta: "progress-proposal-link-bio",
+        proposal: "progress-proposal-link-bio",
+        bio: "progress-proposal-link-bio",
       };
       const mapped = intentMap[focusIntent];
       if (mapped) return mapped;
@@ -1782,6 +2006,7 @@ export default function HomeClientPage() {
       create_media_kit: "create_media_kit",
       publish_media_kit_link: "edit_kit",
       personalize_support: "open_creator_survey",
+      publish_proposal_form_link: "copy_proposal_form_link",
       activate_pro: "activate_pro",
     };
     const target = targetByStep[stepId] ?? "open_proposals";
@@ -1804,6 +2029,13 @@ export default function HomeClientPage() {
       case "personalize_support":
         handleNavigate("/#etapa-5-pesquisa");
         break;
+      case "publish_proposal_form_link":
+        if (mediaKitProposalFormUrl) {
+          void handleCopyProposalFormLink("tutorial_block");
+        } else {
+          handleNavigate(mediaKitShareIntentUrl);
+        }
+        break;
       case "activate_pro":
         if (hasPremiumAccessPlan) {
           handleNavigate("/dashboard/billing");
@@ -1814,7 +2046,7 @@ export default function HomeClientPage() {
       default:
         break;
     }
-  }, [emitTutorialAction, handleCopyMediaKitLink, handleNavigate, hasPremiumAccessPlan, journeyProgress?.nextStepId, mediaKitShareIntentUrl, mediaKitShareUrl, openSubscribeModal, trackDashboardCta]);
+  }, [emitTutorialAction, handleCopyMediaKitLink, handleCopyProposalFormLink, handleNavigate, hasPremiumAccessPlan, journeyProgress?.nextStepId, mediaKitProposalFormUrl, mediaKitShareIntentUrl, mediaKitShareUrl, openSubscribeModal, trackDashboardCta]);
 
   const mentorshipStrip = showMentorshipStrip ? (
     <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">

@@ -63,22 +63,25 @@ type DashboardProposalsComputation = DashboardProposalsSummary & {
 interface BuildFlowChecklistParams {
   instagramConnected: boolean;
   hasMediaKit: boolean;
+  proposalFormUrl: string | null;
   proposals: DashboardProposalsComputation | null;
   hasProAccess: boolean;
-  surveyCompleted: boolean;
+  proposalLinkCopied: boolean;
 }
 
 function buildFlowChecklist({
   instagramConnected,
   hasMediaKit,
+  proposalFormUrl,
   proposals,
   hasProAccess,
-  surveyCompleted,
+  proposalLinkCopied,
 }: BuildFlowChecklistParams): DashboardFlowChecklist {
   const totalProposals = proposals?.totalCount ?? 0;
   const newProposals = proposals?.newCount ?? 0;
   const pendingProposals = proposals?.pendingCount ?? 0;
   const respondedProposals = proposals?.respondedCount ?? 0;
+  const proposalsViaMediaKit = proposals?.proposalsViaMediaKit ?? 0;
 
   const steps: DashboardChecklistStep[] = [];
 
@@ -130,21 +133,6 @@ function buildFlowChecklist({
     trackEvent: "open_proposals",
   });
 
-  const surveyStatus = surveyCompleted ? "done" : "todo";
-  steps.push({
-    id: "personalize_support",
-    title: "Personalizar IA e suporte",
-    status: surveyStatus,
-    actionLabel: surveyCompleted ? "Revisar respostas" : "Responder pesquisa",
-    actionHref: "/#etapa-5-pesquisa",
-    completedLabel: surveyCompleted ? "Atualizar preferências" : undefined,
-    completedHref: "/#etapa-5-pesquisa",
-    helper: surveyCompleted
-      ? "Preferências salvas. Atualize quando algo mudar."
-      : "Pesquisa de 2 minutos para ajustar IA, UX e notificações ao seu momento.",
-    trackEvent: "open_creator_survey",
-  });
-
   const respondStatus =
     pendingProposals > 0
       ? "in_progress"
@@ -178,6 +166,38 @@ function buildFlowChecklist({
     trackEvent: "analyze_with_ai",
   });
 
+  const proposalFormHref =
+    typeof proposalFormUrl === "string" && proposalFormUrl.trim()
+      ? proposalFormUrl
+      : hasProAccess
+      ? "/dashboard/home?intent=proposal"
+      : "/dashboard/billing";
+  const proposalFormStatus = !hasProAccess
+    ? "todo"
+    : proposalLinkCopied || proposalsViaMediaKit > 0
+    ? "done"
+    : "in_progress";
+  steps.push({
+    id: "share_proposal_form_link",
+    title: "Conquiste sua primeira publi",
+    status: proposalFormStatus,
+    actionLabel: hasProAccess ? "Ver como funciona" : "Ativar assinatura",
+    actionHref: proposalFormHref,
+    completedLabel:
+      proposalFormStatus === "done" && hasProAccess ? "Copiar novamente" : undefined,
+    completedHref: proposalFormStatus === "done" ? proposalFormHref : undefined,
+    helper: !hasProAccess
+      ? "Ative sua assinatura para liberar o link público de propostas."
+      : proposalsViaMediaKit > 0
+      ? "Link ativo na bio. Acompanhe as propostas na página Campanhas."
+      : proposalLinkCopied
+      ? "Link copiado. Acompanhe propostas em Campanhas e copie novamente quando quiser."
+      : "Copie o link do formulário, coloque na bio e receba propostas em Campanhas.",
+    requiresBioPasteConfirmation:
+      hasProAccess && proposalFormStatus === "done" && proposalLinkCopied && proposalsViaMediaKit === 0,
+    trackEvent: hasProAccess ? "copy_proposal_form_link" : "activate_pro",
+  });
+
   const firstPendingStep = steps.find((step) => step.status !== "done")?.id ?? null;
 
   return {
@@ -200,6 +220,7 @@ const JOURNEY_STEPS_ORDER: JourneyStepId[] = [
   "create_media_kit",
   "publish_media_kit_link",
   "personalize_support",
+  "publish_proposal_form_link",
   "activate_pro",
 ];
 
@@ -222,6 +243,11 @@ const JOURNEY_STEP_COPY: Record<JourneyStepId, { title: string; description: str
     description: "Responda a pesquisa de 2 minutos para ajustar IA, UX e alertas.",
     helper: "Grátis. Salva suas preferências para IA e equipe humana.",
   },
+  publish_proposal_form_link: {
+    title: "Conquiste sua primeira publi",
+    description: "Copie o formulário, coloque na bio e receba propostas em Campanhas.",
+    helper: "Conclui no primeiro clique de cópia do link.",
+  },
   activate_pro: {
     title: "Ative o Plano Pro",
     description: "Posicione seus conteúdos para atrair marcas: IA 24/7 e mentorias semanais para fechar campanhas sem exclusividade.",
@@ -237,6 +263,7 @@ interface BuildJourneyProgressParams {
   } | null;
   hasProAccess: boolean;
   surveyCompleted: boolean;
+  proposalLinkCopied: boolean;
 }
 
 function buildJourneyProgress({
@@ -245,14 +272,18 @@ function buildJourneyProgress({
   mediaKitSignals,
   hasProAccess,
   surveyCompleted,
+  proposalLinkCopied,
 }: BuildJourneyProgressParams): HomeJourneyProgress {
   const linkSignal = hasMediaKit && Boolean((mediaKitSignals?.viewsLast7Days ?? 0) > 0 || (mediaKitSignals?.proposalsViaMediaKit ?? 0) > 0);
+  const proposalFormSignal =
+    hasProAccess && Boolean(proposalLinkCopied || (mediaKitSignals?.proposalsViaMediaKit ?? 0) > 0);
 
   const completionMap: Record<JourneyStepId, boolean> = {
     connect_instagram: instagramConnected,
     create_media_kit: hasMediaKit,
     publish_media_kit_link: linkSignal,
     personalize_support: surveyCompleted,
+    publish_proposal_form_link: proposalFormSignal,
     activate_pro: hasProAccess,
   };
 
@@ -449,6 +480,7 @@ type UserSnapshot = Pick<
   | "stripePriceId"
   | "role"
   | "creatorProfileExtended"
+  | "proposalFormLinkCopiedAt"
 >;
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -1128,6 +1160,16 @@ async function computeMediaKitCard(
 
   const sharePath = token ? `/mediakit/${token}` : slug ? `/mediakit/${slug}` : null;
   const shareUrl = sharePath && appBaseUrl ? `${appBaseUrl}${sharePath}` : null;
+  let proposalFormUrl: string | null = null;
+  if (shareUrl) {
+    try {
+      const proposalUrl = new URL(shareUrl);
+      proposalUrl.searchParams.set("proposal", "only");
+      proposalFormUrl = proposalUrl.toString();
+    } catch {
+      proposalFormUrl = null;
+    }
+  }
 
   const now = new Date();
   const start30 = new Date(now);
@@ -1216,6 +1258,7 @@ async function computeMediaKitCard(
 
   return {
     shareUrl,
+    proposalFormUrl,
     highlights,
     lastUpdatedLabel,
     hasMediaKit,
@@ -1427,6 +1470,7 @@ export async function GET(request: Request) {
           stripePriceId: 1,
           role: 1,
           creatorProfileExtended: 1,
+          proposalFormLinkCopiedAt: 1,
         })
         .lean()
         .exec()) as UserSnapshot | null;
@@ -1696,6 +1740,7 @@ export async function GET(request: Request) {
       logger.error("[home.summary] Failed to compute media kit card", error);
       responsePayload.mediaKit = {
         hasMediaKit: false,
+        proposalFormUrl: null,
         highlights: [],
         viewsLast7Days: 0,
         proposalsViaMediaKit: 0,
@@ -1707,14 +1752,16 @@ export async function GET(request: Request) {
         userSnapshot?.creatorProfileExtended?.stage ||
         userSnapshot?.creatorProfileExtended?.mainGoal3m,
     );
+    const proposalLinkCopied = Boolean(userSnapshot?.proposalFormLinkCopiedAt);
 
     try {
       responsePayload.flowChecklist = buildFlowChecklist({
         instagramConnected,
         hasMediaKit: Boolean(mediaKitCard?.hasMediaKit),
+        proposalFormUrl: mediaKitCard?.proposalFormUrl ?? null,
         proposals: proposalsSummary,
         hasProAccess: hasPremiumAccess,
-        surveyCompleted,
+        proposalLinkCopied,
       });
     } catch (error) {
       logger.error("[home.summary] Failed to compose flow checklist", error);
@@ -1735,6 +1782,7 @@ export async function GET(request: Request) {
             userSnapshot?.creatorProfileExtended?.stage ||
             userSnapshot?.creatorProfileExtended?.mainGoal3m,
         ),
+        proposalLinkCopied,
       });
     } catch (error) {
       logger.error("[home.summary] Failed to compose journey progress", error);
@@ -1843,6 +1891,7 @@ export async function GET(request: Request) {
       logger.error("[home.summary] Failed to compute media kit card (scope=proposals)", error);
       responsePayload.mediaKit = {
         hasMediaKit: false,
+        proposalFormUrl: null,
         highlights: [],
         viewsLast7Days: 0,
         proposalsViaMediaKit: 0,
@@ -1859,14 +1908,16 @@ export async function GET(request: Request) {
         userSnapshot?.creatorProfileExtended?.stage ||
         userSnapshot?.creatorProfileExtended?.mainGoal3m,
     );
+    const proposalLinkCopied = Boolean(userSnapshot?.proposalFormLinkCopiedAt);
 
     try {
       responsePayload.flowChecklist = buildFlowChecklist({
         instagramConnected,
         hasMediaKit: Boolean(mediaKitCard?.hasMediaKit),
+        proposalFormUrl: mediaKitCard?.proposalFormUrl ?? null,
         proposals: proposalsSummary,
         hasProAccess: hasPremiumAccess,
-        surveyCompleted,
+        proposalLinkCopied,
       });
     } catch (error) {
       logger.error("[home.summary] Failed to compose flow checklist (scope=proposals)", error);
@@ -1883,6 +1934,7 @@ export async function GET(request: Request) {
         },
         hasProAccess: hasPaidProPlan,
         surveyCompleted,
+        proposalLinkCopied,
       });
     } catch (error) {
       logger.error("[home.summary] Failed to compose journey progress (scope=proposals)", error);

@@ -66,6 +66,7 @@ const INTENT_FROM_VERDICT: Record<ProposalSuggestionType, ReplyIntent> = {
   ajustar_escopo: 'adjust_scope',
   coletar_orcamento: 'collect_budget',
 };
+const PROPOSAL_COPY_FEEDBACK_MS = 20_000;
 
 const currencyFormatter = (currency: string) =>
   new Intl.NumberFormat('pt-BR', {
@@ -412,6 +413,8 @@ export default function ProposalsClient() {
   const [mediaKitUrl, setMediaKitUrl] = useState<string | null>(null);
   const [isMediaKitLoading, setIsMediaKitLoading] = useState(true);
   const [isCopyingMediaKitLink, setIsCopyingMediaKitLink] = useState(false);
+  const [isCopyingProposalFormLink, setIsCopyingProposalFormLink] = useState(false);
+  const [proposalCopyFeedbackVisible, setProposalCopyFeedbackVisible] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -433,6 +436,7 @@ export default function ProposalsClient() {
   const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const sendReplyButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailSectionRef = useRef<HTMLDivElement | null>(null);
+  const proposalCopyFeedbackTimerRef = useRef<number | null>(null);
 
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess);
   const isBillingLoading = Boolean(billingStatus.isLoading);
@@ -488,6 +492,109 @@ export default function ProposalsClient() {
     },
     [billingStatus.normalizedStatus, billingStatus.planStatus, buildReturnTo, selectedProposal]
   );
+
+  const showProposalCopyFeedback = useCallback(() => {
+    setProposalCopyFeedbackVisible(true);
+    if (typeof window === 'undefined') return;
+    if (proposalCopyFeedbackTimerRef.current) {
+      window.clearTimeout(proposalCopyFeedbackTimerRef.current);
+    }
+    proposalCopyFeedbackTimerRef.current = window.setTimeout(() => {
+      setProposalCopyFeedbackVisible(false);
+      proposalCopyFeedbackTimerRef.current = null;
+    }, PROPOSAL_COPY_FEEDBACK_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (proposalCopyFeedbackTimerRef.current && typeof window !== 'undefined') {
+        window.clearTimeout(proposalCopyFeedbackTimerRef.current);
+      }
+    },
+    []
+  );
+
+  const copyTextWithFallback = useCallback(async (value: string): Promise<boolean> => {
+    try {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard?.writeText &&
+        typeof window !== 'undefined' &&
+        window.isSecureContext
+      ) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {
+      // fallback below
+    }
+
+    try {
+      if (typeof document === 'undefined') return false;
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return Boolean(success);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const getOrCreateMediaKitUrl = useCallback(async (): Promise<string | null> => {
+    const getLink = async (method: 'GET' | 'POST') => {
+      const response = await fetch('/api/users/media-kit-token', {
+        method,
+        cache: 'no-store',
+        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) return null;
+      return payload?.url ?? payload?.publicUrl ?? null;
+    };
+
+    let link = mediaKitUrl;
+    if (!link) {
+      link = await getLink('GET');
+    }
+    if (!link) {
+      link = await getLink('POST');
+    }
+    if (link) {
+      setMediaKitUrl(link);
+    }
+    return link;
+  }, [mediaKitUrl]);
+
+  const buildProposalFormUrl = useCallback((mediaKitLink: string) => {
+    try {
+      const url = new URL(
+        mediaKitLink,
+        typeof window !== 'undefined' ? window.location.origin : 'https://app.data2content.ai'
+      );
+      url.searchParams.set('proposal', 'only');
+      return url.toString();
+    } catch {
+      return mediaKitLink.includes('?')
+        ? `${mediaKitLink}&proposal=only`
+        : `${mediaKitLink}?proposal=only`;
+    }
+  }, []);
+
+  const markProposalFormLinkCopied = useCallback(async () => {
+    try {
+      await fetch('/api/dashboard/home/proposal-link-copied', {
+        method: 'POST',
+      });
+    } catch {
+      // falha de marcação não deve bloquear fluxo de cópia
+    }
+  }, []);
 
   const loadProposals = useCallback(async () => {
     setIsLoading(true);
@@ -1279,45 +1386,22 @@ export default function ProposalsClient() {
     [proposals]
   );
 
-  const handleCopyMediaKitLink = useCallback(async () => {
+  const handleCopyMediaKitLink = useCallback(async (context: 'campaigns_header' | 'campaigns_empty_state') => {
     try {
       setIsCopyingMediaKitLink(true);
-      const getLink = async (method: 'GET' | 'POST') => {
-        const response = await fetch('/api/users/media-kit-token', {
-          method,
-          cache: 'no-store',
-          headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) return null;
-        return payload?.url ?? payload?.publicUrl ?? null;
-      };
-
-      let link = await getLink('GET');
-      if (!link) {
-        link = await getLink('POST');
-      }
+      const link = await getOrCreateMediaKitUrl();
 
       if (!link) {
         throw new Error('Não foi possível gerar o link do mídia kit.');
       }
 
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(link);
-      } else {
-        const temp = document.createElement('textarea');
-        temp.value = link;
-        temp.style.position = 'fixed';
-        temp.style.opacity = '0';
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand('copy');
-        document.body.removeChild(temp);
+      const copied = await copyTextWithFallback(link);
+      if (!copied) {
+        throw new Error('Não foi possível copiar o link do mídia kit.');
       }
 
-      setMediaKitUrl(link);
       toast({ variant: 'success', title: 'Link do mídia kit copiado.' });
-      track('media_kit_link_copied', { context: 'campaigns_empty_state' });
+      track('media_kit_link_copied', { context });
     } catch (error: any) {
       toast({
         variant: 'error',
@@ -1326,7 +1410,51 @@ export default function ProposalsClient() {
     } finally {
       setIsCopyingMediaKitLink(false);
     }
-  }, [toast]);
+  }, [copyTextWithFallback, getOrCreateMediaKitUrl, toast]);
+
+  const handleCopyProposalFormLink = useCallback(async (context: 'campaigns_header' | 'campaigns_empty_state') => {
+    if (!hasProAccess) {
+      showUpgradeToast();
+      openPaywall(context, 'reply_email');
+      return;
+    }
+
+    try {
+      setIsCopyingProposalFormLink(true);
+      const mediaKitLink = await getOrCreateMediaKitUrl();
+      if (!mediaKitLink) {
+        throw new Error('Não foi possível gerar o link do formulário.');
+      }
+
+      const proposalFormLink = buildProposalFormUrl(mediaKitLink);
+      const copied = await copyTextWithFallback(proposalFormLink);
+      if (!copied) {
+        throw new Error('Não foi possível copiar o link do formulário.');
+      }
+
+      showProposalCopyFeedback();
+      void markProposalFormLinkCopied();
+      toast({ variant: 'success', title: 'Link copiado. Agora cole na bio do Instagram.' });
+      track('copy_proposal_form_link', { context });
+    } catch (error: any) {
+      toast({
+        variant: 'error',
+        title: error?.message || 'Não foi possível copiar o link do formulário.',
+      });
+    } finally {
+      setIsCopyingProposalFormLink(false);
+    }
+  }, [
+    hasProAccess,
+    showUpgradeToast,
+    openPaywall,
+    getOrCreateMediaKitUrl,
+    buildProposalFormUrl,
+    copyTextWithFallback,
+    showProposalCopyFeedback,
+    markProposalFormLinkCopied,
+    toast,
+  ]);
 
 
 
@@ -1455,13 +1583,37 @@ export default function ProposalsClient() {
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
+  const proposalHeaderCtaLabel = !hasProAccess
+    ? 'Ativar assinatura'
+    : isCopyingProposalFormLink
+      ? 'Copiando...'
+      : proposalCopyFeedbackVisible
+        ? 'Copiado. Cole na bio'
+        : 'Copiar link de proposta';
+  const proposalHeaderCtaDisabled = isBillingLoading || isCopyingProposalFormLink;
 
   return (
     <div className="min-h-screen bg-white pb-20">
       <div className="dashboard-page-shell py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Campanhas</h1>
-          <p className="mt-1 text-slate-500">Gerencie suas propostas e negociações.</p>
+        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Campanhas</h1>
+            <p className="mt-1 text-slate-500">Gerencie propostas e receba novas oportunidades.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              void handleCopyProposalFormLink('campaigns_header');
+            }}
+            disabled={proposalHeaderCtaDisabled}
+            className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${
+              hasProAccess
+                ? 'border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                : 'bg-pink-600 text-white hover:bg-pink-700'
+            } disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            {proposalHeaderCtaLabel}
+          </button>
         </div>
 
         {/* Tabs */}
@@ -1539,15 +1691,41 @@ export default function ProposalsClient() {
         ) : filteredProposals.length === 0 ? (
           <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
             <p className="text-slate-900 font-semibold">Nenhuma campanha nesta etapa.</p>
-            <p className="text-slate-500 text-sm mt-1">Compartilhe seu mídia kit para receber novas propostas.</p>
-            {mediaKitUrl && (
+            <p className="text-slate-500 text-sm mt-1">
+              Copie o formulário de proposta e coloque na bio. As respostas chegam aqui.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <button
-                onClick={handleCopyMediaKitLink}
-                className="mt-4 text-pink-600 font-bold text-sm hover:underline"
+                type="button"
+                onClick={() => {
+                  void handleCopyProposalFormLink('campaigns_empty_state');
+                }}
+                disabled={proposalHeaderCtaDisabled}
+                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${
+                  hasProAccess
+                    ? 'bg-slate-900 text-white hover:bg-slate-800'
+                    : 'bg-pink-600 text-white hover:bg-pink-700'
+                } disabled:cursor-not-allowed disabled:opacity-60`}
               >
-                {isCopyingMediaKitLink ? "Copiando..." : "Copiar link do Mídia Kit"}
+                {!hasProAccess
+                  ? 'Ativar assinatura'
+                  : isCopyingProposalFormLink
+                    ? 'Copiando...'
+                    : proposalCopyFeedbackVisible
+                      ? 'Copiado. Cole na bio'
+                      : 'Copiar link de proposta'}
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => {
+                  void handleCopyMediaKitLink('campaigns_empty_state');
+                }}
+                disabled={isCopyingMediaKitLink || isMediaKitLoading}
+                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCopyingMediaKitLink ? 'Copiando kit...' : 'Copiar link do mídia kit'}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

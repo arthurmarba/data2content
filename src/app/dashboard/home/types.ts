@@ -34,6 +34,7 @@ export interface MentorshipCardData {
 
 export interface MediaKitCardData {
   shareUrl?: string;
+  proposalFormUrl?: string;
   highlights: Array<{
     label: string;
     value: string;
@@ -79,6 +80,7 @@ export type DashboardChecklistStepId =
   | "create_media_kit"
   | "receive_proposals"
   | "respond_with_ai"
+  | "share_proposal_form_link"
   | "personalize_support";
 
 export type DashboardChecklistStepStatus = "done" | "in_progress" | "todo";
@@ -88,6 +90,7 @@ export interface DashboardChecklistStep {
   title: string;
   status: DashboardChecklistStepStatus;
   helper?: string | null;
+  requiresBioPasteConfirmation?: boolean | null;
   badgeCount?: number | null;
   actionLabel: string;
   actionHref: string;
@@ -155,6 +158,7 @@ export type JourneyStepId =
   | "create_media_kit"
   | "publish_media_kit_link"
   | "personalize_support"
+  | "publish_proposal_form_link"
   | "activate_pro";
 
 export type JourneyStepStatus = "done" | "in_progress" | "todo";

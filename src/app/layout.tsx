@@ -15,6 +15,7 @@ import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 import GoogleAnalytics from "./GoogleAnalytics";
 import CookieConsent from "./components/CookieConsent";
+import { Toaster as HotToaster } from "react-hot-toast";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://data2content.ai";
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -87,6 +88,17 @@ export default async function RootLayout({
             <ClientHooksWrapper />
             {children}
             <CookieConsent />
+            <HotToaster
+              position="top-right"
+              toastOptions={{
+                duration: 2800,
+                style: {
+                  borderRadius: "12px",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                },
+              }}
+            />
           </Providers>
         </ToastA11yProvider>
       </body>

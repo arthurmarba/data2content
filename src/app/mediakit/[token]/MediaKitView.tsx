@@ -1381,7 +1381,16 @@ export default function MediaKitView({
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const printParam = searchParams?.get('print');
+  const proposalParam = searchParams?.get('proposal');
   const isPrintMode = printParam === '1' || printParam === 'true';
+  const isProposalOnlyMode =
+    proposalParam === 'only' ||
+    proposalParam === 'form' ||
+    proposalParam === '1' ||
+    proposalParam === 'true' ||
+    proposalParam === 'open';
+  const shouldAutoOpenProposalDrawer =
+    proposalParam === '1' || proposalParam === 'true' || proposalParam === 'open';
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5, ease: 'easeOut' } }),
@@ -2589,6 +2598,7 @@ export default function MediaKitView({
     premiumAccess?.onRequestUpgrade?.();
   }, [premiumAccess]);
   const [isProposalDrawerOpen, setProposalDrawerOpen] = useState(false);
+  const proposalDrawerAutoOpenedRef = useRef(false);
   const proposalDrawerTitleId = useId();
   const openProposalDrawer = useCallback(() => {
     setProposalDrawerOpen(true);
@@ -2606,6 +2616,19 @@ export default function MediaKitView({
   const handleProposalSuccess = useCallback(() => {
     // Mantém o drawer aberto para exibir a mensagem de sucesso na própria UI.
   }, []);
+  useEffect(() => {
+    if (isPrintMode || isProposalOnlyMode || !isPublicView || !mediaKitSlug) return;
+    if (!shouldAutoOpenProposalDrawer || proposalDrawerAutoOpenedRef.current) return;
+    proposalDrawerAutoOpenedRef.current = true;
+    openProposalDrawer();
+  }, [
+    isPrintMode,
+    isProposalOnlyMode,
+    isPublicView,
+    mediaKitSlug,
+    openProposalDrawer,
+    shouldAutoOpenProposalDrawer,
+  ]);
   useEffect(() => {
     if (isPrintMode) return;
     if (!isProposalDrawerOpen) return;
@@ -2686,6 +2709,39 @@ export default function MediaKitView({
     shouldHidePremiumSections,
     shouldLockPremiumSections,
   ]);
+
+  if (isProposalOnlyMode && isPublicView && mediaKitSlug) {
+    return (
+      <GlobalTimePeriodProvider>
+        <div className="min-h-screen bg-white font-sans text-[#0F172A]">
+          <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+            <div className="mb-5 rounded-2xl border border-slate-200 bg-white px-4 py-4 sm:px-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6E1F93]">
+                Proposta Comercial
+              </p>
+              <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
+                Enviar proposta para {affiliateHandleLabel}
+              </h1>
+              <p className="mt-2 text-sm text-slate-600">
+                Preencha o formulário abaixo para iniciar a negociação de publicidade.
+              </p>
+            </div>
+
+            <div className="min-h-[70vh] rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-5 sm:py-5">
+              <PublicProposalForm
+                mediaKitSlug={mediaKitSlug}
+                onSubmitSuccess={handleProposalSuccess}
+                utmContext={utm}
+                pricing={pricing}
+                onClearPricing={showOwnerCtas ? onClearPricing : undefined}
+                packages={packages}
+              />
+            </div>
+          </div>
+        </div>
+      </GlobalTimePeriodProvider>
+    );
+  }
 
   return (
     <GlobalTimePeriodProvider>
