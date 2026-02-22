@@ -15,16 +15,36 @@ interface AnalysisSummaryCardProps {
   onToggleViewMode: () => void;
 };
 
+const RISK_TERM_PATTERN =
+  /(risco|aten[cç][aã]o|cuidado|urgente|prazo|restri[cç][aã]o|limita[cç][aã]o|penalidade|multa|problema|bloqueio|conflito|evite|n[aã]o)\b/i;
+
+function getBulletTone(item: string): { bulletClass: string; textClass: string } {
+  if (RISK_TERM_PATTERN.test(item)) {
+    return {
+      bulletClass: "text-amber-500",
+      textClass: "font-medium text-amber-900",
+    };
+  }
+
+  return {
+    bulletClass: "text-slate-400",
+    textClass: "text-slate-700",
+  };
+}
+
 function renderBulletList(items: string[]): JSX.Element | null {
   if (!items.length) return null;
   return (
     <div className="space-y-1.5 text-sm leading-6 text-slate-700">
-      {items.map((item) => (
-        <p key={item} className="flex gap-2">
-          <span className="text-slate-400 select-none">•</span>
-          <span>{item}</span>
-        </p>
-      ))}
+      {items.map((item) => {
+        const tone = getBulletTone(item);
+        return (
+          <p key={item} className="flex gap-2">
+            <span className={`${tone.bulletClass} select-none`}>•</span>
+            <span className={tone.textClass}>{item}</span>
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -118,9 +138,9 @@ export default function AnalysisSummaryCard({
             )}
 
             {analysisV2.cautions.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-semibold text-slate-600">Atenção</p>
-                <div className="text-slate-700 text-sm">
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">Atenção</p>
+                <div className="text-sm">
                   {renderBulletList(analysisV2.cautions)}
                 </div>
               </div>

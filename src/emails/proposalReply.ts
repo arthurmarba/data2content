@@ -8,6 +8,7 @@ export interface ProposalReplyEmailParams {
   campaignTitle?: string | null;
   emailBody: string;
   budgetText?: string | null;
+  creatorProposedBudgetText?: string | null;
   deliverables?: string[];
   receivedAt?: Date | null;
   mediaKitUrl?: string | null;
@@ -46,6 +47,7 @@ export function proposalReplyEmail(params: ProposalReplyEmailParams) {
     campaignTitle,
     emailBody,
     budgetText,
+    creatorProposedBudgetText,
     deliverables = [],
     receivedAt,
     mediaKitUrl,
@@ -57,6 +59,7 @@ export function proposalReplyEmail(params: ProposalReplyEmailParams) {
     `Marca: ${brandName}`,
     campaignTitle ? `Campanha: ${campaignTitle}` : null,
     budgetText ? `Orçamento: ${budgetText}` : null,
+    creatorProposedBudgetText ? `Valor proposto pelo criador: ${creatorProposedBudgetText}` : null,
     deliverables.length ? `Entregáveis: ${deliverables.join(', ')}` : null,
     formattedDate ? `Proposta recebida em: ${formattedDate}` : null,
     mediaKitUrl ? `Mídia kit: ${mediaKitUrl}` : null,
@@ -73,20 +76,17 @@ export function proposalReplyEmail(params: ProposalReplyEmailParams) {
         ? creatorHandle.trim()
         : `@${creatorHandle.trim()}`
       : null;
-  const bodyHasSignature = /\bvia Data2Content\b/i.test(safeBody);
-  const signatureLines =
-    bodyHasSignature
-      ? null
-      : [
-          creatorName ?? 'Seu nome',
-          normalizedHandle ? `${normalizedHandle} | via Data2Content` : 'via Data2Content',
-          'https://data2content.ai',
-        ].join('\n');
+  const signatureLines = [
+    creatorName ?? 'Seu nome',
+    normalizedHandle ? `${normalizedHandle} | via Data2Content` : 'via Data2Content',
+    mediaKitUrl ? `Mídia kit: ${mediaKitUrl}` : null,
+    'https://data2content.ai',
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const textSegments = [safeBody, '', 'Resumo da proposta:', summaryLines];
-  if (signatureLines) {
-    textSegments.push('', signatureLines);
-  }
+  textSegments.push('', signatureLines);
   const text = textSegments.join('\n');
 
   const html = `
@@ -101,16 +101,12 @@ export function proposalReplyEmail(params: ProposalReplyEmailParams) {
           .join('')}
       </ul>
     </div>
-    ${
-      signatureLines
-        ? `<div style="margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px;color:#475569;font-size:13px;">
+    <div style="margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px;color:#475569;font-size:13px;">
       ${signatureLines
         .split('\n')
         .map((line) => `<div>${line}</div>`)
         .join('')}
-    </div>`
-        : ''
-    }
+    </div>
   </div>
   `;
 

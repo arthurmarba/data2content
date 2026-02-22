@@ -16,7 +16,8 @@ jest.mock('@/app/hooks/useBillingStatus', () => ({
 }));
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 jest.mock('@/lib/track', () => ({
@@ -196,6 +197,25 @@ function mockFetchProFlow() {
         } as Response);
       }
 
+      if (url.startsWith('/api/proposals/prop-2/links') && method === 'GET') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [],
+            linkableScripts: [
+              {
+                id: 'script-1',
+                title: 'Roteiro base',
+                source: 'manual',
+                updatedAt: new Date().toISOString(),
+              },
+            ],
+            linkablePublis: [],
+          }),
+        } as Response);
+      }
+
       if (url === '/api/proposals/prop-2/analyze' && method === 'POST') {
         return Promise.resolve({
           ok: true,
@@ -294,7 +314,7 @@ test('pro user can generate analysis in summary mode and update reply draft', as
   );
 
   fireEvent.click(await screen.findByText('Campanha Plano Pro'));
-  fireEvent.click(await screen.findByRole('button', { name: /Ver assistente/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /Opções/i }));
 
   const analyzeButton = await screen.findByRole('button', {
     name: /Gerar análise/i,
@@ -313,9 +333,9 @@ test('pro user can generate analysis in summary mode and update reply draft', as
   );
 
   expect(await screen.findByText(/Recomendação/i)).toBeInTheDocument();
-  expect(await screen.findByText(/Pode fechar/i)).toBeInTheDocument();
+  expect(await screen.findByText(/Diagnóstico/i)).toBeInTheDocument();
 
-  const textarea = await screen.findByPlaceholderText(/Escreva sua resposta aqui/i);
+  const textarea = await screen.findByPlaceholderText(/Escreva a resposta/i);
   expect((textarea as HTMLTextAreaElement).value).toContain('Olá, marca!');
   expect((textarea as HTMLTextAreaElement).value).toContain('métricas em tempo real');
 });

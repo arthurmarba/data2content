@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     CalendarDaysIcon,
     TagIcon,
@@ -83,6 +83,20 @@ const fetcher = (url: string) => fetch(url).then(async (res) => {
 
 export default function InternalPubliPage({ params }: { params: { id: string } }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const requestedProposalId = useMemo(() => {
+        const value = searchParams?.get('proposalId');
+        if (!value) return null;
+        const normalized = value.trim();
+        return normalized.length > 0 ? normalized : null;
+    }, [searchParams]);
+    const handleBack = () => {
+        if (requestedProposalId) {
+            router.push(`/campaigns?proposalId=${encodeURIComponent(requestedProposalId)}`);
+            return;
+        }
+        router.back();
+    };
     const { data: metric, error, isLoading } = useSWR(
         `/api/publis/${params.id}`,
         fetcher,
@@ -151,10 +165,10 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
                     <h1 className="text-xl font-bold text-gray-900 mb-2">Erro ao carregar</h1>
                     <p className="text-gray-500 mb-4">{error?.message || 'Publi não encontrada.'}</p>
                     <button
-                        onClick={() => router.back()}
+                        onClick={handleBack}
                         className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                     >
-                        Voltar
+                        {requestedProposalId ? 'Voltar para campanha' : 'Voltar'}
                     </button>
                 </div>
             </div>
@@ -167,11 +181,13 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
             {/* Navigation Header */}
             <div className="dashboard-page-shell mb-8 flex items-center justify-between">
                 <button
-                    onClick={() => router.back()}
+                    onClick={handleBack}
                     className="flex items-center text-gray-500 hover:text-gray-900 transition-colors px-4 py-2 bg-white/50 hover:bg-white rounded-lg border border-transparent hover:border-gray-200"
                 >
                     <ArrowLeftIcon className="w-4 h-4 mr-2" />
-                    <span className="text-sm font-medium">Voltar para Minhas Publis</span>
+                    <span className="text-sm font-medium">
+                        {requestedProposalId ? 'Voltar para campanha' : 'Voltar para Minhas Publis'}
+                    </span>
                 </button>
 
                 <div className="flex items-center gap-2">

@@ -58,7 +58,7 @@ function parseBudget(value: unknown): number | undefined {
   if (!numeric) return undefined;
 
   const parsed = Number.parseFloat((isNegative ? '-' : '') + numeric);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function normalizeSegments(input: unknown): string[] {
@@ -145,7 +145,17 @@ export async function POST(request: NextRequest) {
   }
 
   const contactPhone = sanitizeString(payload?.contactPhone);
+  const hasBudgetValue =
+    payload?.budget !== undefined &&
+    payload?.budget !== null &&
+    !(typeof payload.budget === 'string' && payload.budget.trim().length === 0);
   const budget = parseBudget(payload?.budget);
+  if (hasBudgetValue && typeof budget !== 'number') {
+    return NextResponse.json(
+      { error: 'Informe um orçamento válido maior que zero.' },
+      { status: 422 }
+    );
+  }
   const rawCurrency = sanitizeString(payload?.currency);
   const currency = normalizeCurrencyCode(rawCurrency) ?? 'BRL';
   const segments = normalizeSegments(payload?.segments);

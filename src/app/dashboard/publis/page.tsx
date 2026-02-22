@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { ExclamationTriangleIcon, FunnelIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
@@ -9,6 +9,7 @@ import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { openPaywallModal } from '@/utils/paywallModal';
 import { LockClosedIcon } from '@heroicons/react/24/outline';
 import { useDebounce } from 'use-debounce';
+import { useToast } from '@/app/components/ui/ToastA11yProvider';
 
 import PubliCard from '@/components/publis/PubliCard';
 
@@ -19,8 +20,15 @@ const ShareModal = dynamic(() => import('@/components/publis/ShareModal'), {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+type CampaignOption = {
+    id: string;
+    campaignTitle: string;
+    brandName: string;
+};
+
 export default function PublisPage() {
     const router = useRouter();
+    const { toast } = useToast();
     const billingStatus = useBillingStatus();
     const billingError = billingStatus.error;
     const hasBillingResolved = Boolean(billingStatus.hasResolvedOnce);
@@ -36,6 +44,12 @@ export default function PublisPage() {
 
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [selectedPubliId, setSelectedPubliId] = useState<string | null>(null);
+    const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
+    const [campaignsLoading, setCampaignsLoading] = useState(false);
+    const [selectedCampaignId, setSelectedCampaignId] = useState('');
+    const [linkingPubliId, setLinkingPubliId] = useState<string | null>(null);
+    const [linkedPubliIds, setLinkedPubliIds] = useState<string[]>([]);
+    const linkedPubliByCampaignRef = useRef<Record<string, string[]>>({});
 
     const queryString = useMemo(() => {
         const params = new URLSearchParams({
@@ -81,9 +95,171 @@ export default function PublisPage() {
         router.push(`/dashboard/publis/${id}`);
     };
 
+    const openSelectedCampaign = useCallback(() => {
+        if (!selectedCampaignId) return;
+        router.push(`/campaigns?proposalId=${encodeURIComponent(selectedCampaignId)}`);
+    }, [router, selectedCampaignId]);
+
     useEffect(() => {
         setPage(prev => (prev === 1 ? prev : 1));
     }, [debouncedSearch, filterCategory, selectedPeriod, sort]);
+
+    useEffect(() => {
+        if (!hasProAccess) {
+            setCampaignOptions([]);
+            setSelectedCampaignId('');
+            setLinkedPubliIds([]);
+            linkedPubliByCampaignRef.current = {};
+            return;
+        }
+
+        let cancelled = false;
+
+        async function loadCampaignOptions() {
+            try {
+                setCampaignsLoading(true);
+                const response = await fetch('/api/proposals?limit=200', { cache: 'no-store' });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload?.error || 'Não foi possível carregar campanhas.');
+                }
+
+                const items = Array.isArray(payload?.items) ? payload.items : [];
+                const options: CampaignOption[] = items
+                    .map((item: any) => ({
+                        id: String(item?.id ?? ''),
+                        campaignTitle:
+                            typeof item?.campaignTitle === 'string' && item.campaignTitle.trim()
+                                ? item.campaignTitle.trim()
+                                : 'Campanha sem título',
+                        brandName:
+                            typeof item?.brandName === 'string' && item.brandName.trim()
+                                ? item.brandName.trim()
+                                : 'Marca',
+                    }))
+                    .filter((item: CampaignOption) => Boolean(item.id));
+
+                if (cancelled) return;
+
+                setCampaignOptions(options);
+                setSelectedCampaignId((current) => {
+                    if (current && options.some((option) => option.id === current)) {
+                        return current;
+                    }
+                    return options[0]?.id ?? '';
+                });
+            } catch (error: any) {
+                if (cancelled) return;
+                setCampaignOptions([]);
+                setSelectedCampaignId('');
+                setLinkedPubliIds([]);
+                toast({
+                    variant: 'error',
+                    title: error?.message || 'Falha ao carregar campanhas.',
+                });
+            } finally {
+                if (!cancelled) setCampaignsLoading(false);
+            }
+        }
+
+        loadCampaignOptions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [hasProAccess, toast]);
+
+    useEffect(() => {
+        if (!hasProAccess || !selectedCampaignId) {
+            setLinkedPubliIds([]);
+            return;
+        }
+
+        const cached = linkedPubliByCampaignRef.current[selectedCampaignId];
+        if (cached) {
+            setLinkedPubliIds(cached);
+            return;
+        }
+
+        let cancelled = false;
+
+        async function loadLinkedPublis() {
+            try {
+                const response = await fetch(`/api/proposals/${selectedCampaignId}/links`, {
+                    cache: 'no-store',
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload?.error || 'Não foi possível carregar vínculos da campanha.');
+                }
+                if (cancelled) return;
+
+                const items = Array.isArray(payload?.items) ? payload.items : [];
+                const publiIds = items
+                    .filter((item: any) => item?.entityType === 'publi' && typeof item?.entityId === 'string')
+                    .map((item: any) => item.entityId);
+                setLinkedPubliIds(publiIds);
+                linkedPubliByCampaignRef.current[selectedCampaignId] = publiIds;
+            } catch {
+                if (!cancelled) {
+                    setLinkedPubliIds([]);
+                }
+            }
+        }
+
+        loadLinkedPublis();
+        return () => {
+            cancelled = true;
+        };
+    }, [hasProAccess, selectedCampaignId]);
+
+    const handleLinkCampaign = useCallback(
+        async (publiId: string) => {
+            if (!selectedCampaignId) {
+                toast({
+                    variant: 'warning',
+                    title: 'Selecione uma campanha antes de vincular.',
+                });
+                return;
+            }
+
+            try {
+                setLinkingPubliId(publiId);
+                const response = await fetch(`/api/proposals/${selectedCampaignId}/links`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        entityType: 'publi',
+                        entityId: publiId,
+                    }),
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload?.error || 'Não foi possível vincular publi à campanha.');
+                }
+
+                toast({
+                    variant: 'success',
+                    title: payload?.created === false ? 'Publi já estava vinculada.' : 'Publi vinculada à campanha.',
+                });
+                setLinkedPubliIds((prev) => {
+                    const next = prev.includes(publiId) ? prev : [...prev, publiId];
+                    linkedPubliByCampaignRef.current[selectedCampaignId] = next;
+                    return next;
+                });
+            } catch (error: any) {
+                toast({
+                    variant: 'error',
+                    title: error?.message || 'Falha ao vincular publi.',
+                });
+            } finally {
+                setLinkingPubliId(null);
+            }
+        },
+        [selectedCampaignId, toast]
+    );
+
+    const linkedPubliIdSet = useMemo(() => new Set(linkedPubliIds), [linkedPubliIds]);
 
     if (isInitialLoading) {
         return (
@@ -269,6 +445,43 @@ export default function PublisPage() {
                 </div>
             </div>
 
+            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Vincular publis a campanhas
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <select
+                        value={selectedCampaignId}
+                        onChange={(e) => setSelectedCampaignId(e.target.value)}
+                        disabled={campaignsLoading || campaignOptions.length === 0}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 sm:max-w-md"
+                    >
+                        {campaignsLoading ? (
+                            <option value="">Carregando campanhas...</option>
+                        ) : campaignOptions.length === 0 ? (
+                            <option value="">Nenhuma campanha disponível</option>
+                        ) : (
+                            campaignOptions.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.campaignTitle} · {option.brandName}
+                                </option>
+                            ))
+                        )}
+                    </select>
+                    <button
+                        type="button"
+                        onClick={openSelectedCampaign}
+                        disabled={!selectedCampaignId}
+                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Abrir campanha
+                    </button>
+                    <p className="text-xs text-slate-500">
+                        Depois clique em <span className="font-semibold">Vincular à campanha</span> no card da publi.
+                    </p>
+                </div>
+            </div>
+
             {/* Content Grid */}
             {!data && isDataLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -295,6 +508,11 @@ export default function PublisPage() {
                                 publi={publi}
                                 onShare={handleShare}
                                 onAnalyze={handleAnalyze}
+                                onLinkCampaign={handleLinkCampaign}
+                                onOpenCampaign={openSelectedCampaign}
+                                linkDisabled={!selectedCampaignId || campaignsLoading}
+                                isLinking={linkingPubliId === publi.id}
+                                isLinkedToCampaign={linkedPubliIdSet.has(publi.id)}
                             />
                         ))}
                     </div>

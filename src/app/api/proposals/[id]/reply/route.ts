@@ -28,7 +28,7 @@ function parseOptionalMoneyInput(value: unknown): {
   if (value === undefined) return { provided: false, valid: true, value: null };
   if (value === null) return { provided: true, valid: true, value: null };
   if (typeof value === 'number') {
-    return Number.isFinite(value)
+    return Number.isFinite(value) && value > 0
       ? { provided: true, valid: true, value }
       : { provided: true, valid: false, value: null };
   }
@@ -62,7 +62,7 @@ function parseOptionalMoneyInput(value: unknown): {
 
   if (!numeric) return { provided: true, valid: false, value: null };
   const parsed = Number.parseFloat((isNegative ? '-' : '') + numeric);
-  if (!Number.isFinite(parsed)) return { provided: true, valid: false, value: null };
+  if (!Number.isFinite(parsed) || parsed <= 0) return { provided: true, valid: false, value: null };
   return { provided: true, valid: true, value: parsed };
 }
 
@@ -162,10 +162,27 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     typeof proposal.budget === 'number'
       ? formatCurrencySafely(proposal.budget, offerCurrency)
       : null;
+  const creatorProposedCurrency =
+    normalizeCurrencyCode(payload?.creatorProposedCurrency) ??
+    proposal.creatorProposedCurrency ??
+    normalizeCurrencyCode(proposal.currency) ??
+    'BRL';
+  const creatorProposedValue =
+    hasCreatorBudgetField
+      ? parsedCreatorBudget.value
+      : typeof proposal.creatorProposedBudget === 'number'
+        ? proposal.creatorProposedBudget
+        : null;
+  const creatorProposedBudgetText =
+    typeof creatorProposedValue === 'number'
+      ? formatCurrencySafely(creatorProposedValue, creatorProposedCurrency)
+      : null;
 
+  const baseAppUrl =
+    (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://data2content.ai').replace(/\/+$/, '');
   const mediaKitUrl =
     typeof proposal.mediaKitSlug === 'string' && proposal.mediaKitSlug
-      ? `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''}/mediakit/${proposal.mediaKitSlug}`
+      ? `${baseAppUrl}/mediakit/${proposal.mediaKitSlug}`
       : null;
 
   try {
@@ -176,6 +193,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       campaignTitle: proposal.campaignTitle,
       emailBody: emailTextRaw,
       budgetText,
+      creatorProposedBudgetText,
       deliverables: Array.isArray(proposal.deliverables) ? proposal.deliverables : [],
       receivedAt: proposal.createdAt ?? undefined,
       mediaKitUrl,
@@ -201,11 +219,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     } else {
       setPayload.creatorProposedBudget = parsedCreatorBudget.value;
       setPayload.creatorProposedAt = responseAt;
-      setPayload.creatorProposedCurrency =
-        normalizeCurrencyCode(payload?.creatorProposedCurrency) ??
-        proposal.creatorProposedCurrency ??
-        normalizeCurrencyCode(proposal.currency) ??
-        'BRL';
+      setPayload.creatorProposedCurrency = creatorProposedCurrency;
     }
   }
 

@@ -38,4 +38,17 @@ describe('proposalReplyEmail', () => {
     expect(result.text).toContain('via Data2Content');
     expect(result.html).toContain('via Data2Content');
   });
+
+  it('mantém assinatura com mídia kit mesmo quando o corpo já contém assinatura manual', () => {
+    const result = proposalReplyEmail({
+      creatorName: 'Ana',
+      creatorHandle: 'ana.creator',
+      brandName: 'Natura',
+      emailBody: 'Olá!\n\n— Ana\nvia Data2Content',
+      mediaKitUrl: 'https://app.data2content.ai/mediakit/ana',
+    });
+
+    expect(result.text).toContain('Mídia kit: https://app.data2content.ai/mediakit/ana');
+    expect(result.html).toContain('Mídia kit: https://app.data2content.ai/mediakit/ana');
+  });
 });

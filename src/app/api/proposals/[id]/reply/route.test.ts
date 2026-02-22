@@ -105,6 +105,18 @@ describe('POST /api/proposals/[id]/reply', () => {
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
 
+  it('rejeita orçamento proposto menor ou igual a zero', async () => {
+    brandProposalModel.findById.mockReturnValue(mockFindByIdOnce(baseProposal));
+
+    const res = await POST(
+      createRequest({ emailText: 'Oi, podemos seguir', creatorProposedBudget: 0 }),
+      { params: { id: PROPOSAL_ID } }
+    );
+
+    expect(res.status).toBe(422);
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
   it('envia email e retorna proposta atualizada', async () => {
     const now = new Date('2024-06-01T12:00:00Z');
     jest.useFakeTimers().setSystemTime(now);
@@ -160,5 +172,102 @@ describe('POST /api/proposals/[id]/reply', () => {
     expect(payload.proposal.status).toBe('respondido');
     expect(payload.proposal.lastResponseMessage).toBe('Oi, podemos seguir');
     expect(payload.proposal.lastResponseAt).toBe(now.toISOString());
+  });
+
+  it('não limpa orçamento proposto existente quando campo não é enviado', async () => {
+    const now = new Date('2024-07-01T10:00:00Z');
+    const existingProposal = {
+      ...baseProposal,
+      creatorProposedBudget: 2600,
+      creatorProposedCurrency: 'BRL',
+      creatorProposedAt: new Date('2024-06-15T12:00:00Z'),
+    };
+    jest.useFakeTimers().setSystemTime(now);
+
+    brandProposalModel.findById
+      .mockReturnValueOnce(mockFindByIdOnce(existingProposal))
+      .mockReturnValueOnce(
+        mockFindByIdOnce({
+          ...existingProposal,
+          status: 'respondido',
+          lastResponseAt: now,
+          lastResponseMessage: 'Seguimos com o plano',
+        })
+      );
+
+    brandProposalModel.updateOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
+    });
+
+    const res = await POST(createRequest({ emailText: 'Seguimos com o plano' }), {
+      params: { id: PROPOSAL_ID },
+    });
+
+    expect(res.status).toBe(200);
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      'brand@example.com',
+      expect.objectContaining({
+        creatorProposedBudgetText: 'R$ 2.600,00',
+      })
+    );
+    expect(brandProposalModel.updateOne).toHaveBeenCalledWith(
+      { _id: existingProposal._id },
+      {
+        $set: {
+          status: 'respondido',
+          lastResponseAt: now,
+          lastResponseMessage: 'Seguimos com o plano',
+        },
+      }
+    );
+  });
+
+  it('salva orçamento proposto ao enviar resposta e inclui no email', async () => {
+    const now = new Date('2024-08-01T10:00:00Z');
+    jest.useFakeTimers().setSystemTime(now);
+
+    brandProposalModel.findById
+      .mockReturnValueOnce(mockFindByIdOnce(baseProposal))
+      .mockReturnValueOnce(
+        mockFindByIdOnce({
+          ...baseProposal,
+          status: 'respondido',
+          creatorProposedBudget: 3200,
+          creatorProposedCurrency: 'BRL',
+          creatorProposedAt: now,
+          lastResponseAt: now,
+          lastResponseMessage: 'Segue contraproposta',
+        })
+      );
+
+    brandProposalModel.updateOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
+    });
+
+    const res = await POST(
+      createRequest({ emailText: 'Segue contraproposta', creatorProposedBudget: '3200' }),
+      { params: { id: PROPOSAL_ID } }
+    );
+
+    expect(res.status).toBe(200);
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      'brand@example.com',
+      expect.objectContaining({
+        creatorProposedBudgetText: 'R$ 3.200,00',
+      })
+    );
+    expect(brandProposalModel.updateOne).toHaveBeenCalledWith(
+      { _id: baseProposal._id },
+      {
+        $set: {
+          status: 'respondido',
+          lastResponseAt: now,
+          lastResponseMessage: 'Segue contraproposta',
+          creatorProposedBudget: 3200,
+          creatorProposedAt: now,
+          creatorProposedCurrency: 'BRL',
+        },
+      }
+    );
   });
 });

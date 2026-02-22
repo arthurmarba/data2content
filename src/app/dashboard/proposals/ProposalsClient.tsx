@@ -2,7 +2,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock } from 'lucide-react';
 
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
@@ -23,7 +23,12 @@ import CampaignCard from './components/CampaignCard';
 import CampaignDetailView from './components/CampaignDetailView';
 import type {
   AnalysisViewMode,
+  CampaignLinkEntityType,
+  CampaignLinkItem,
+  CampaignLinkScriptApprovalStatus,
   CampaignsStep,
+  LinkablePubliItem,
+  LinkableScriptItem,
   ProposalDetail,
   ProposalListItem,
   ProposalStatus,
@@ -221,7 +226,31 @@ function parseBudgetInput(value: string): number | null | undefined {
 
   if (!numeric) return undefined;
   const parsed = Number.parseFloat((isNegative ? '-' : '') + numeric);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function normalizeLinkableScripts(payload: any): LinkableScriptItem[] {
+  const rawItems = Array.isArray(payload?.items) ? payload.items : [];
+  return rawItems
+    .map((item: any) => ({
+      id: String(item?.id ?? ''),
+      title: typeof item?.title === 'string' && item.title.trim() ? item.title.trim() : 'Roteiro sem título',
+      source: item?.source === 'ai' || item?.source === 'planner' ? item.source : 'manual',
+      updatedAt: typeof item?.updatedAt === 'string' ? item.updatedAt : null,
+    }))
+    .filter((item: LinkableScriptItem) => Boolean(item.id));
+}
+
+function normalizeLinkablePublis(payload: any): LinkablePubliItem[] {
+  const rawItems = Array.isArray(payload?.items) ? payload.items : [];
+  return rawItems
+    .map((item: any) => ({
+      id: String(item?.id ?? ''),
+      description: typeof item?.description === 'string' ? item.description : '',
+      theme: typeof item?.theme === 'string' && item.theme.trim() ? item.theme.trim() : null,
+      postDate: typeof item?.postDate === 'string' ? item.postDate : null,
+    }))
+    .filter((item: LinkablePubliItem) => Boolean(item.id));
 }
 
 function buildIntentDraft(input: {
@@ -336,8 +365,15 @@ function summaryFromSnapshot(snapshot: ProposalAnalysisStoredSnapshot | null | u
 
 export default function ProposalsClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const billingStatus = useBillingStatus();
+  const requestedProposalId = useMemo(() => {
+    const value = searchParams?.get('proposalId');
+    if (!value) return null;
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }, [searchParams]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [proposals, setProposals] = useState<ProposalListItem[]>([]);
@@ -363,6 +399,15 @@ export default function ProposalsClient() {
   const [replyRegenerating, setReplyRegenerating] = useState(false);
   const [creatorProposedBudgetInput, setCreatorProposedBudgetInput] = useState('');
   const [proposedBudgetSaving, setProposedBudgetSaving] = useState(false);
+  const [campaignLinks, setCampaignLinks] = useState<CampaignLinkItem[]>([]);
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [linksError, setLinksError] = useState<string | null>(null);
+  const [linkableScripts, setLinkableScripts] = useState<LinkableScriptItem[]>([]);
+  const [linkablePublis, setLinkablePublis] = useState<LinkablePubliItem[]>([]);
+  const [linkableLoading, setLinkableLoading] = useState(false);
+  const [linkableError, setLinkableError] = useState<string | null>(null);
+  const [linkMutating, setLinkMutating] = useState(false);
+  const [activeLinkMutationId, setActiveLinkMutationId] = useState<string | null>(null);
 
   const [mediaKitUrl, setMediaKitUrl] = useState<string | null>(null);
   const [isMediaKitLoading, setIsMediaKitLoading] = useState(true);
@@ -373,6 +418,16 @@ export default function ProposalsClient() {
   const notifiedProposalsRef = useRef<Set<string>>(new Set());
   const lockViewedRef = useRef(false);
   const pendingScrollToDetailRef = useRef(false);
+  const campaignLinksCacheRef = useRef<Map<string, CampaignLinkItem[]>>(new Map());
+  const linkableAssetsCacheRef = useRef<{
+    isLoaded: boolean;
+    scripts: LinkableScriptItem[];
+    publis: LinkablePubliItem[];
+  }>({
+    isLoaded: false,
+    scripts: [],
+    publis: [],
+  });
 
   const analyzeButtonRef = useRef<HTMLButtonElement | null>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -453,10 +508,18 @@ export default function ProposalsClient() {
         setAnalysisPricingMeta({ pricingConsistency: null, pricingSource: null, limitations: [] });
         setReplyDraft('');
         setCreatorProposedBudgetInput('');
+        setCampaignLinks([]);
+        setLinksError(null);
+        setLinkableScripts([]);
+        setLinkablePublis([]);
+        setLinkableError(null);
         return;
       }
 
       setSelectedId((prev) => {
+        if (requestedProposalId && items.some((item) => item.id === requestedProposalId)) {
+          return requestedProposalId;
+        }
         if (prev && items.some((item) => item.id === prev)) {
           return prev;
         }
@@ -468,7 +531,7 @@ export default function ProposalsClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [requestedProposalId, toast]);
 
   useEffect(() => {
     loadProposals();
@@ -520,6 +583,11 @@ export default function ProposalsClient() {
       setAnalysisPricingMeta({ pricingConsistency: null, pricingSource: null, limitations: [] });
       setReplyDraft('');
       setCreatorProposedBudgetInput('');
+      setCampaignLinks([]);
+      setLinksError(null);
+      setLinkableScripts([]);
+      setLinkablePublis([]);
+      setLinkableError(null);
       return;
     }
 
@@ -615,6 +683,218 @@ export default function ProposalsClient() {
       detailSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }, [selectedProposal]);
+
+  useEffect(() => {
+    if (!requestedProposalId) return;
+    if (selectedProposal?.id !== requestedProposalId) return;
+    setCurrentStep('detail');
+  }, [requestedProposalId, selectedProposal?.id]);
+
+  const loadCampaignWorkspace = useCallback(async (proposalId: string, options?: { force?: boolean }) => {
+    const force = Boolean(options?.force);
+    const cachedLinks = campaignLinksCacheRef.current.get(proposalId);
+    const hasCachedLinkables = linkableAssetsCacheRef.current.isLoaded;
+
+    if (!force && cachedLinks) {
+      setCampaignLinks(cachedLinks);
+      setLinksError(null);
+    }
+
+    if (!force && cachedLinks && hasCachedLinkables) {
+      setLinkableScripts(linkableAssetsCacheRef.current.scripts);
+      setLinkablePublis(linkableAssetsCacheRef.current.publis);
+      setLinkableError(null);
+      return;
+    }
+
+    try {
+      setLinksLoading(true);
+      if (!hasCachedLinkables || force) {
+        setLinkableLoading(true);
+        setLinkableError(null);
+      }
+      setLinksError(null);
+
+      const response = await fetch(`/api/proposals/${proposalId}/links?includeLinkables=1&limit=30`, {
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Não foi possível carregar os vínculos da campanha.');
+      }
+
+      const items = Array.isArray(payload?.items) ? (payload.items as CampaignLinkItem[]) : [];
+      setCampaignLinks(items);
+      campaignLinksCacheRef.current.set(proposalId, items);
+
+      const rawScripts = Array.isArray(payload?.linkableScripts) ? payload.linkableScripts : null;
+      const rawPublis = Array.isArray(payload?.linkablePublis) ? payload.linkablePublis : null;
+      if (rawScripts && rawPublis) {
+        const nextScripts = normalizeLinkableScripts({ items: rawScripts });
+        const nextPublis = normalizeLinkablePublis({ items: rawPublis });
+        setLinkableScripts(nextScripts);
+        setLinkablePublis(nextPublis);
+        setLinkableError(null);
+        linkableAssetsCacheRef.current = {
+          isLoaded: true,
+          scripts: nextScripts,
+          publis: nextPublis,
+        };
+      } else if (linkableAssetsCacheRef.current.isLoaded) {
+        setLinkableScripts(linkableAssetsCacheRef.current.scripts);
+        setLinkablePublis(linkableAssetsCacheRef.current.publis);
+        setLinkableError(null);
+      }
+    } catch (error: any) {
+      if (!cachedLinks) {
+        setCampaignLinks([]);
+      }
+      setLinksError(error?.message || 'Falha ao carregar vínculos.');
+
+      if (!hasCachedLinkables) {
+        setLinkableScripts([]);
+        setLinkablePublis([]);
+        setLinkableError(error?.message || 'Falha ao carregar ativos vinculáveis.');
+      }
+    } finally {
+      setLinksLoading(false);
+      if (!hasCachedLinkables || force) {
+        setLinkableLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentStep === 'inbox') return;
+    if (!selectedProposal?.id) return;
+
+    void loadCampaignWorkspace(selectedProposal.id);
+  }, [currentStep, loadCampaignWorkspace, selectedProposal?.id]);
+
+  const handleLinkEntity = useCallback(
+    async (entityType: CampaignLinkEntityType, entityId: string) => {
+      if (!selectedProposal) return;
+
+      try {
+        setLinkMutating(true);
+        setActiveLinkMutationId(entityId);
+        const response = await fetch(`/api/proposals/${selectedProposal.id}/links`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entityType,
+            entityId,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Não foi possível vincular item à campanha.');
+        }
+
+        const item = payload?.item as CampaignLinkItem | undefined;
+        if (item?.id) {
+          setCampaignLinks((prev) => {
+            const next = [item, ...prev.filter((link) => link.id !== item.id)];
+            campaignLinksCacheRef.current.set(selectedProposal.id, next);
+            return next;
+          });
+        } else {
+          await loadCampaignWorkspace(selectedProposal.id, { force: true });
+        }
+
+        toast({
+          variant: 'success',
+          title: payload?.created === false ? 'Item já estava vinculado.' : 'Item vinculado à campanha.',
+        });
+      } catch (error: any) {
+        toast({ variant: 'error', title: error?.message || 'Falha ao vincular item.' });
+      } finally {
+        setLinkMutating(false);
+        setActiveLinkMutationId(null);
+      }
+    },
+    [loadCampaignWorkspace, selectedProposal, toast]
+  );
+
+  const handleLinkScript = useCallback(
+    async (scriptId: string) => {
+      await handleLinkEntity('script', scriptId);
+    },
+    [handleLinkEntity]
+  );
+
+  const handleLinkPubli = useCallback(
+    async (publiId: string) => {
+      await handleLinkEntity('publi', publiId);
+    },
+    [handleLinkEntity]
+  );
+
+  const handleUnlinkEntity = useCallback(
+    async (linkId: string) => {
+      if (!selectedProposal) return;
+      try {
+        setLinkMutating(true);
+        setActiveLinkMutationId(linkId);
+        const response = await fetch(`/api/proposals/${selectedProposal.id}/links/${linkId}`, {
+          method: 'DELETE',
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Não foi possível remover o vínculo.');
+        }
+
+        setCampaignLinks((prev) => {
+          const next = prev.filter((item) => item.id !== linkId);
+          campaignLinksCacheRef.current.set(selectedProposal.id, next);
+          return next;
+        });
+        toast({ variant: 'success', title: 'Vínculo removido.' });
+      } catch (error: any) {
+        toast({ variant: 'error', title: error?.message || 'Falha ao remover vínculo.' });
+      } finally {
+        setLinkMutating(false);
+        setActiveLinkMutationId(null);
+      }
+    },
+    [selectedProposal, toast]
+  );
+
+  const handleUpdateLinkStatus = useCallback(
+    async (linkId: string, status: CampaignLinkScriptApprovalStatus) => {
+      if (!selectedProposal) return;
+      try {
+        setLinkMutating(true);
+        setActiveLinkMutationId(linkId);
+        const response = await fetch(`/api/proposals/${selectedProposal.id}/links/${linkId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scriptApprovalStatus: status }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Não foi possível atualizar status do roteiro.');
+        }
+
+        const item = payload?.item as CampaignLinkItem | undefined;
+        if (item?.id) {
+          setCampaignLinks((prev) => {
+            const next = prev.map((link) => (link.id === item.id ? item : link));
+            campaignLinksCacheRef.current.set(selectedProposal.id, next);
+            return next;
+          });
+        } else {
+          await loadCampaignWorkspace(selectedProposal.id, { force: true });
+        }
+      } catch (error: any) {
+        toast({ variant: 'error', title: error?.message || 'Falha ao atualizar status.' });
+      } finally {
+        setLinkMutating(false);
+        setActiveLinkMutationId(null);
+      }
+    },
+    [loadCampaignWorkspace, selectedProposal, toast]
+  );
 
   const updateProposalStatus = useCallback(
     async (id: string, status: ProposalStatus, notify = true) => {
@@ -900,18 +1180,28 @@ export default function ProposalsClient() {
 
     setReplySending(true);
     try {
-      const parsedCreatorBudget = parseBudgetInput(creatorProposedBudgetInput);
-      if (parsedCreatorBudget === undefined) {
-        throw new Error('Valor de orçamento proposto inválido.');
+      const budgetInputTrimmed = creatorProposedBudgetInput.trim();
+      let parsedCreatorBudget: number | undefined;
+
+      if (budgetInputTrimmed.length > 0) {
+        const parsed = parseBudgetInput(creatorProposedBudgetInput);
+        if (parsed === undefined || parsed === null) {
+          throw new Error('Valor de orçamento proposto inválido.');
+        }
+        parsedCreatorBudget = parsed;
+      }
+
+      const requestPayload: Record<string, unknown> = {
+        emailText: normalizedDraft,
+      };
+      if (typeof parsedCreatorBudget === 'number') {
+        requestPayload.creatorProposedBudget = parsedCreatorBudget;
       }
 
       const response = await fetch(`/api/proposals/${selectedProposal.id}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailText: normalizedDraft,
-          creatorProposedBudget: parsedCreatorBudget,
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       if (!response.ok) {
@@ -1041,12 +1331,40 @@ export default function ProposalsClient() {
 
 
   const shouldShowUpgradeBanner = !canInteract && !isBillingLoading;
+  const handleBackToInbox = useCallback(() => {
+    setCurrentStep('inbox');
+    if (requestedProposalId) {
+      router.replace('/campaigns');
+    }
+  }, [requestedProposalId, router]);
+  const linkedScriptIds = useMemo(
+    () =>
+      new Set(
+        campaignLinks.filter((link) => link.entityType === 'script').map((link) => link.entityId)
+      ),
+    [campaignLinks]
+  );
+  const linkedPubliIds = useMemo(
+    () =>
+      new Set(
+        campaignLinks.filter((link) => link.entityType === 'publi').map((link) => link.entityId)
+      ),
+    [campaignLinks]
+  );
+  const availableScripts = useMemo(
+    () => linkableScripts.filter((item) => !linkedScriptIds.has(item.id)),
+    [linkableScripts, linkedScriptIds]
+  );
+  const availablePublis = useMemo(
+    () => linkablePublis.filter((item) => !linkedPubliIds.has(item.id)),
+    [linkablePublis, linkedPubliIds]
+  );
 
   if (currentStep !== 'inbox' && selectedProposal) {
     return (
       <CampaignDetailView
         proposal={selectedProposal}
-        onBack={() => setCurrentStep('inbox')}
+        onBack={handleBackToInbox}
         onStatusChange={updateProposalStatus}
         formatDate={formatDate}
         formatMoney={formatMoneyValue}
@@ -1079,16 +1397,55 @@ export default function ProposalsClient() {
         replySending={replySending}
         onSendReply={handleSendReply}
         replyTextareaRef={replyTextareaRef}
+        campaignLinks={campaignLinks}
+        campaignLinksLoading={linksLoading}
+        campaignLinksError={linksError}
+        availableScripts={availableScripts}
+        availablePublis={availablePublis}
+        linkableLoading={linkableLoading}
+        linkableError={linkableError}
+        linkMutating={linkMutating}
+        activeLinkMutationId={activeLinkMutationId}
+        onLinkScript={handleLinkScript}
+        onLinkPubli={handleLinkPubli}
+        onUnlinkEntity={handleUnlinkEntity}
+        onUpdateLinkStatus={handleUpdateLinkStatus}
       />
     );
   }
 
   const tabs: Array<{ key: InboxTab; label: string; statuses: ProposalStatus[] }> = [
     { key: 'incoming', label: 'Recebidas', statuses: ['novo', 'visto'] },
-    { key: 'negotiation', label: 'Negociação', statuses: ['respondido'] },
+    { key: 'negotiation', label: 'Em negociação', statuses: ['respondido'] },
     { key: 'won', label: 'Fechadas', statuses: ['aceito'] },
     { key: 'lost', label: 'Perdidas', statuses: ['rejeitado'] },
   ];
+  const TAB_THEME: Record<InboxTab, { active: string; inactive: string; activeMuted: string; inactiveMuted: string }> = {
+    incoming: {
+      active: 'bg-sky-50 text-sky-800 border border-sky-200 shadow-sm',
+      inactive: 'bg-white text-sky-700 border border-sky-200 hover:bg-sky-50/50',
+      activeMuted: 'text-sky-600',
+      inactiveMuted: 'text-sky-500',
+    },
+    negotiation: {
+      active: 'bg-amber-50 text-amber-800 border border-amber-200 shadow-sm',
+      inactive: 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50/50',
+      activeMuted: 'text-amber-600',
+      inactiveMuted: 'text-amber-500',
+    },
+    won: {
+      active: 'bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm',
+      inactive: 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50/50',
+      activeMuted: 'text-emerald-600',
+      inactiveMuted: 'text-emerald-500',
+    },
+    lost: {
+      active: 'bg-rose-50 text-rose-800 border border-rose-200 shadow-sm',
+      inactive: 'bg-white text-rose-700 border border-rose-200 hover:bg-rose-50/50',
+      activeMuted: 'text-rose-600',
+      inactiveMuted: 'text-rose-500',
+    },
+  };
 
   const currentTab = tabs.find((t) => t.key === activeTab) || tabs[0]!;
   const filteredProposals = proposals
@@ -1114,6 +1471,7 @@ export default function ProposalsClient() {
               const isActive = activeTab === tab.key;
               const tabProposals = proposals.filter((p) => tab.statuses.includes(p.status));
               const count = tabProposals.length;
+              const tabTone = TAB_THEME[tab.key];
 
               const totalValue = tabProposals.reduce((acc, curr) => acc + (curr.budget || 0), 0);
               // Use currency from first item or default to BRL. 
@@ -1127,18 +1485,18 @@ export default function ProposalsClient() {
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex flex-col items-start gap-0.5 rounded-2xl px-5 py-2.5 text-sm font-semibold transition whitespace-nowrap min-w-[120px]
                                 ${isActive
-                      ? "bg-slate-900 text-white shadow-md transform scale-[1.02]"
-                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      ? `${tabTone.active} transform scale-[1.02]`
+                      : tabTone.inactive
                     }`}
                 >
-                  <span className={`text-[11px] font-bold uppercase tracking-wider ${isActive ? "text-slate-400" : "text-slate-400"}`}>
+                  <span className={`text-[11px] font-bold uppercase tracking-wider ${isActive ? tabTone.activeMuted : tabTone.inactiveMuted}`}>
                     {tab.label}
                   </span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-lg font-bold leading-none">
                       {formattedTotal || "—"}
                     </span>
-                    <span className={`text-xs ${isActive ? "text-slate-400" : "text-slate-400"} font-medium`}>
+                    <span className={`text-xs font-medium ${isActive ? tabTone.activeMuted : tabTone.inactiveMuted}`}>
                       ({count})
                     </span>
                   </div>

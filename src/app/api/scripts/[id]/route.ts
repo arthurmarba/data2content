@@ -69,6 +69,51 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
   };
 }
 
+export async function GET(request: Request, { params }: Params) {
+  const session = (await getServerSession(authOptions as any)) as any;
+  if (!session?.user?.id) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+  if (!Types.ObjectId.isValid(params.id)) {
+    return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
+  }
+
+  const access = await validateScriptsAccess({ request, session: session as any });
+  if (!access.ok) {
+    return NextResponse.json(
+      { ok: false, error: access.error, reason: access.reason },
+      { status: access.status }
+    );
+  }
+
+  const url = new URL(request.url);
+  const targetResolution = resolveTargetScriptsUser({
+    session: session as any,
+    targetUserId: url.searchParams.get("targetUserId"),
+  });
+  if (!targetResolution.ok) {
+    return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+  }
+
+  const effectiveUserId = targetResolution.userId;
+  const includeAdminAnnotation = true;
+
+  await connectToDatabase();
+  const doc = await ScriptEntry.findOne({
+    _id: new Types.ObjectId(params.id),
+    userId: new Types.ObjectId(effectiveUserId),
+  }).lean();
+
+  if (!doc) {
+    return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    item: serializeScriptItem(doc, { includeAdminAnnotation }),
+  });
+}
+
 export async function PATCH(request: Request, { params }: Params) {
   const session = (await getServerSession(authOptions as any)) as any;
   if (!session?.user?.id) {

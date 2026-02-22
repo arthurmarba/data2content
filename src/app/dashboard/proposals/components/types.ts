@@ -16,6 +16,44 @@ export type AnalysisViewMode = 'summary' | 'expanded';
 
 export type ReplyIntent = 'accept' | 'adjust_value' | 'adjust_scope' | 'collect_budget';
 
+export type CampaignLinkEntityType = 'script' | 'publi';
+export type CampaignLinkScriptApprovalStatus = 'draft' | 'sent' | 'approved' | 'changes_requested';
+
+export interface CampaignLinkEntitySummary {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  coverUrl: string | null;
+  detailUrl: string | null;
+  updatedAt: string | null;
+  postDate: string | null;
+}
+
+export interface CampaignLinkItem {
+  id: string;
+  entityType: CampaignLinkEntityType;
+  entityId: string;
+  scriptApprovalStatus: CampaignLinkScriptApprovalStatus | null;
+  notes: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  entity: CampaignLinkEntitySummary | null;
+}
+
+export interface LinkableScriptItem {
+  id: string;
+  title: string;
+  source: 'manual' | 'ai' | 'planner';
+  updatedAt: string | null;
+}
+
+export interface LinkablePubliItem {
+  id: string;
+  description: string;
+  theme: string | null;
+  postDate: string | null;
+}
+
 export interface ProposalListItem {
   id: string;
   brandName: string;

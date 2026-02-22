@@ -12,14 +12,14 @@ interface CampaignCardProps {
 
 const STATUS_TONE: Record<ProposalStatus, { header: string; text: string; ring: string }> = {
     novo: {
-        header: "bg-pink-50 border-pink-100",
-        text: "text-pink-700",
-        ring: "hover:ring-pink-200",
+        header: "bg-sky-50 border-sky-100",
+        text: "text-sky-700",
+        ring: "hover:ring-sky-200",
     },
     visto: {
-        header: "bg-slate-50 border-slate-100",
-        text: "text-slate-700",
-        ring: "hover:ring-slate-200",
+        header: "bg-sky-50 border-sky-100",
+        text: "text-sky-700",
+        ring: "hover:ring-sky-200",
     },
     respondido: {
         header: "bg-amber-50 border-amber-100",
@@ -41,7 +41,7 @@ const STATUS_TONE: Record<ProposalStatus, { header: string; text: string; ring: 
 const STATUS_LABELS: Record<ProposalStatus, string> = {
     novo: "Recebida",
     visto: "Recebida",
-    respondido: "Negociação",
+    respondido: "Em negociação",
     aceito: "Fechada",
     rejeitado: "Perdida",
 };

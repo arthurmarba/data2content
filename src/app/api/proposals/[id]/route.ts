@@ -29,7 +29,7 @@ function parseOptionalMoneyInput(value: unknown): {
     return { provided: true, valid: true, value: null };
   }
   if (typeof value === 'number') {
-    return Number.isFinite(value)
+    return Number.isFinite(value) && value > 0
       ? { provided: true, valid: true, value: value }
       : { provided: true, valid: false, value: null };
   }
@@ -72,7 +72,7 @@ function parseOptionalMoneyInput(value: unknown): {
   }
 
   const parsed = Number.parseFloat((isNegative ? '-' : '') + numeric);
-  if (!Number.isFinite(parsed)) {
+  if (!Number.isFinite(parsed) || parsed <= 0) {
     return { provided: true, valid: false, value: null };
   }
 

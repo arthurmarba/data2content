@@ -78,7 +78,7 @@ function parseBudget(value: unknown): number | undefined {
   if (!numeric) return undefined;
 
   const parsed = Number.parseFloat((isNegative ? '-' : '') + numeric);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function normalizeBudgetIntent(input: unknown, hasBudgetValue: boolean): BudgetIntent {

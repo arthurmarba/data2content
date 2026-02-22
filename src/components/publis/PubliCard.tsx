@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { EyeIcon, ChatBubbleLeftIcon, BookmarkIcon, ArrowTopRightOnSquareIcon, ChartBarIcon, ShareIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, ChatBubbleLeftIcon, BookmarkIcon, ChartBarIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { getProxiedImageUrl } from '@/utils/imageUtils';
 
 interface PubliCardProps {
@@ -19,9 +18,23 @@ interface PubliCardProps {
     };
     onShare: (publiId: string) => void;
     onAnalyze: (publiId: string) => void;
+    onLinkCampaign: (publiId: string) => void;
+    onOpenCampaign?: () => void;
+    linkDisabled?: boolean;
+    isLinking?: boolean;
+    isLinkedToCampaign?: boolean;
 }
 
-const PubliCard: React.FC<PubliCardProps> = ({ publi, onShare, onAnalyze }) => {
+const PubliCard: React.FC<PubliCardProps> = ({
+    publi,
+    onShare,
+    onAnalyze,
+    onLinkCampaign,
+    onOpenCampaign,
+    linkDisabled = false,
+    isLinking = false,
+    isLinkedToCampaign = false,
+}) => {
     const { description, postDate, coverUrl, theme, classificationStatus, stats } = publi;
 
     const formattedDate = postDate ? format(new Date(postDate), "d 'de' MMMM, yyyy", { locale: ptBR }) : 'Data desconhecida';
@@ -95,6 +108,11 @@ const PubliCard: React.FC<PubliCardProps> = ({ publi, onShare, onAnalyze }) => {
                     </span>
                     <span className="text-xs text-gray-500">{formattedDate}</span>
                 </div>
+                {isLinkedToCampaign ? (
+                    <p className="mb-2 inline-flex w-fit rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                        Vinculada na campanha
+                    </p>
+                ) : null}
 
                 <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-3 min-h-[40px]">
                     {description || 'Sem descrição'}
@@ -116,20 +134,39 @@ const PubliCard: React.FC<PubliCardProps> = ({ publi, onShare, onAnalyze }) => {
                     </div>
                 </div>
 
-                <div className="mt-auto flex gap-2">
+                <div className="mt-auto space-y-2">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => onAnalyze(publi.id)}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            <ChartBarIcon className="w-4 h-4" />
+                            Analisar
+                        </button>
+                        <button
+                            onClick={() => onShare(publi.id)}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                            <ShareIcon className="w-4 h-4" />
+                            Share
+                        </button>
+                    </div>
                     <button
-                        onClick={() => onAnalyze(publi.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={() => {
+                            if (isLinkedToCampaign) {
+                                onOpenCampaign?.();
+                                return;
+                            }
+                            onLinkCampaign(publi.id);
+                        }}
+                        disabled={isLinkedToCampaign ? false : (linkDisabled || isLinking)}
+                        className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            isLinkedToCampaign
+                                ? 'text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100'
+                                : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50'
+                        }`}
                     >
-                        <ChartBarIcon className="w-4 h-4" />
-                        Analisar
-                    </button>
-                    <button
-                        onClick={() => onShare(publi.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                        <ShareIcon className="w-4 h-4" />
-                        Share
+                        {isLinkedToCampaign ? "Abrir campanha" : isLinking ? "Vinculando..." : "Vincular à campanha"}
                     </button>
                 </div>
             </div>
@@ -138,4 +175,3 @@ const PubliCard: React.FC<PubliCardProps> = ({ publi, onShare, onAnalyze }) => {
 };
 
 export default PubliCard;
-

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2 } from "lucide-react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -90,6 +91,12 @@ type AdminTargetUser = {
   id: string;
   name: string;
   profilePictureUrl?: string | null;
+};
+
+type CampaignOption = {
+  id: string;
+  campaignTitle: string;
+  brandName: string;
 };
 
 const PAGE_LIMIT = 12;
@@ -181,6 +188,8 @@ function createInitialEditorState(): EditorState {
 }
 
 export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -194,6 +203,22 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editor, setEditor] = useState<EditorState>(createInitialEditorState());
   const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
+  const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [linkingToCampaign, setLinkingToCampaign] = useState(false);
+  const requestedScriptId = useMemo(() => {
+    const value = searchParams?.get("scriptId");
+    if (!value) return null;
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }, [searchParams]);
+  const requestedProposalId = useMemo(() => {
+    const value = searchParams?.get("proposalId");
+    if (!value) return null;
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }, [searchParams]);
   const { toast } = useToast();
   const [, setLastViewedScriptsRecommendationsAt] = useLocalStorage<string>(
     LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY,
@@ -215,6 +240,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   });
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSnapshotRef = useRef<DraftSnapshot | null>(null);
+  const hasAutoOpenedQueryScriptRef = useRef<string | null>(null);
+  const hasFetchedCampaignOptionsRef = useRef(false);
   const latestFeedbackToastRef = useRef<string>("");
   const nextCursorRef = useRef<string | null>(null);
 
@@ -226,6 +253,10 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       adminTargetUser.id !== viewer.id
   );
   const targetUserId = isActingOnBehalf ? adminTargetUser?.id ?? null : null;
+  const handleReturnToCampaign = useCallback(() => {
+    if (!requestedProposalId) return;
+    router.push(`/campaigns?proposalId=${encodeURIComponent(requestedProposalId)}`);
+  }, [requestedProposalId, router]);
 
   const slotOptions = useMemo(() => {
     return plannerSlots
@@ -234,8 +265,72 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [plannerSlots]);
 
   useEffect(() => {
+    hasAutoOpenedQueryScriptRef.current = null;
+  }, [requestedScriptId, targetUserId]);
+
+  useEffect(() => {
     nextCursorRef.current = nextCursor;
   }, [nextCursor]);
+
+  useEffect(() => {
+    if (!editorOpen || isAdminViewer || hasFetchedCampaignOptionsRef.current) return;
+
+    let cancelled = false;
+
+    async function fetchCampaignOptions() {
+      try {
+        setCampaignsLoading(true);
+        const response = await fetch("/api/proposals?limit=200", { cache: "no-store" });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload?.error || "Não foi possível carregar campanhas.");
+        }
+
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        const options: CampaignOption[] = items
+          .map((item: any) => ({
+            id: String(item?.id ?? ""),
+            campaignTitle:
+              typeof item?.campaignTitle === "string" && item.campaignTitle.trim()
+                ? item.campaignTitle.trim()
+                : "Campanha sem título",
+            brandName:
+              typeof item?.brandName === "string" && item.brandName.trim()
+                ? item.brandName.trim()
+                : "Marca",
+          }))
+          .filter((item: CampaignOption) => Boolean(item.id));
+
+        if (cancelled) return;
+
+        setCampaignOptions(options);
+        hasFetchedCampaignOptionsRef.current = true;
+        setSelectedCampaignId((current) => {
+          if (current && options.some((option) => option.id === current)) {
+            return current;
+          }
+          return options[0]?.id ?? "";
+        });
+      } catch (error: any) {
+        if (cancelled) return;
+        setCampaignOptions([]);
+        setSelectedCampaignId("");
+        toast({
+          variant: "error",
+          title: error?.message || "Falha ao carregar campanhas para vinculação.",
+        });
+      } finally {
+        if (!cancelled) setCampaignsLoading(false);
+      }
+    }
+
+    fetchCampaignOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editorOpen, isAdminViewer, toast]);
 
   const unreadFeedbackScriptIds = useMemo(() => {
     const ids = new Set<string>();
@@ -565,6 +660,60 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     setEditorOpen(true);
   }, [fetchPlannerSlots, isActingOnBehalf, plannerSlots.length, plannerWeekStart, resetDraftHistory]);
 
+  useEffect(() => {
+    if (!requestedScriptId) return;
+    if (loadingList || editorOpen) return;
+    if (hasAutoOpenedQueryScriptRef.current === requestedScriptId) return;
+
+    const currentScript = scripts.find((item) => item.id === requestedScriptId);
+    if (currentScript) {
+      hasAutoOpenedQueryScriptRef.current = requestedScriptId;
+      openExistingEditor(currentScript);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRequestedScript() {
+      try {
+        const params = new URLSearchParams();
+        if (targetUserId) params.set("targetUserId", targetUserId);
+        const suffix = params.toString() ? `?${params.toString()}` : "";
+        const response = await fetch(`/api/scripts/${requestedScriptId}${suffix}`, { cache: "no-store" });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.ok || !payload?.item) {
+          throw new Error(payload?.error || "Não foi possível abrir o roteiro da campanha.");
+        }
+        if (cancelled) return;
+
+        const item = payload.item as ScriptItem;
+        hasAutoOpenedQueryScriptRef.current = requestedScriptId;
+        setScripts((prev) => (prev.some((entry) => entry.id === item.id) ? prev : [item, ...prev]));
+        openExistingEditor(item);
+      } catch (error: any) {
+        if (cancelled) return;
+        hasAutoOpenedQueryScriptRef.current = requestedScriptId;
+        toast({
+          variant: "warning",
+          title: error?.message || "Não foi possível abrir esse roteiro automaticamente.",
+        });
+      }
+    }
+
+    void loadRequestedScript();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    editorOpen,
+    loadingList,
+    openExistingEditor,
+    requestedScriptId,
+    scripts,
+    targetUserId,
+    toast,
+  ]);
+
   const patchScriptList = useCallback((updated: ScriptItem) => {
     setScripts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
   }, []);
@@ -798,6 +947,53 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     [editor.adjusting, handleAiAdjust]
   );
 
+  const handleLinkToCampaign = useCallback(async () => {
+    if (!editor.id) {
+      toast({
+        variant: "warning",
+        title: "Salve o roteiro antes de vincular à campanha.",
+      });
+      return;
+    }
+
+    if (!selectedCampaignId) {
+      toast({
+        variant: "warning",
+        title: "Selecione uma campanha para vincular.",
+      });
+      return;
+    }
+
+    try {
+      setLinkingToCampaign(true);
+      const response = await fetch(`/api/proposals/${selectedCampaignId}/links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityType: "script",
+          entityId: editor.id,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Não foi possível vincular roteiro à campanha.");
+      }
+
+      toast({
+        variant: "success",
+        title: payload?.created === false ? "Roteiro já estava vinculado." : "Roteiro vinculado à campanha.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "error",
+        title: error?.message || "Falha ao vincular roteiro.",
+      });
+    } finally {
+      setLinkingToCampaign(false);
+    }
+  }, [editor.id, selectedCampaignId, toast]);
+
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
@@ -832,6 +1028,50 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
               </div>
 
               <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
+                {requestedProposalId ? (
+                  <button
+                    type="button"
+                    onClick={handleReturnToCampaign}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Voltar para campanha
+                  </button>
+                ) : null}
+                {!isAdminViewer ? (
+                  <>
+                    <select
+                      value={selectedCampaignId}
+                      onChange={(e) => setSelectedCampaignId(e.target.value)}
+                      disabled={campaignsLoading || linkingToCampaign || campaignOptions.length === 0}
+                      className="min-w-[190px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    >
+                      {campaignsLoading ? (
+                        <option value="">Carregando campanhas...</option>
+                      ) : campaignOptions.length === 0 ? (
+                        <option value="">Sem campanhas disponíveis</option>
+                      ) : (
+                        campaignOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.campaignTitle} · {option.brandName}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleLinkToCampaign}
+                      disabled={
+                        linkingToCampaign ||
+                        campaignsLoading ||
+                        !selectedCampaignId ||
+                        !editor.id
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {linkingToCampaign ? "Vinculando..." : "Vincular à campanha"}
+                    </button>
+                  </>
+                ) : null}
                 <button
                   type="button"
                   onClick={applyUndo}
@@ -989,10 +1229,21 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           </div>
         ) : null}
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Meus Roteiros</h1>
-          {!isActingOnBehalf ? (
-            <p className="mt-1 text-slate-500">Escolha um roteiro salvo ou comece um novo.</p>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Meus Roteiros</h1>
+            {!isActingOnBehalf ? (
+              <p className="mt-1 text-slate-500">Escolha um roteiro salvo ou comece um novo.</p>
+            ) : null}
+          </div>
+          {requestedProposalId ? (
+            <button
+              type="button"
+              onClick={handleReturnToCampaign}
+              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Voltar para campanha
+            </button>
           ) : null}
         </div>
 
