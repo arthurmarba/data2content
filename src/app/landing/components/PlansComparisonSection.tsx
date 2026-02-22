@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import ButtonPrimary from "./ButtonPrimary";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useMotionTemplate, useTransform } from "framer-motion";
 
 type PlansComparisonSectionProps = {
   onCreateAccount: () => void;
@@ -39,78 +39,138 @@ const PlanCard = ({
   onCta: () => void;
   note?: string;
 }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Mouse positions
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  // Perspective rotations
+  const rotateX = useSpring(useTransform(y, [0.5, -0.5], [10, -10]), { stiffness: 100, damping: 20 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [10, -10]), { stiffness: 100, damping: 20 });
+
+  // Glow position
+  const glowX = useMotionValue(0);
+  const glowY = useMotionValue(0);
+
+  function onMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    // Normalized position (-0.5 to 0.5)
+    const normalizedX = (event.clientX - rect.left) / width - 0.5;
+    const normalizedY = (event.clientY - rect.top) / height - 0.5;
+
+    x.set(normalizedX);
+    y.set(normalizedY);
+    glowX.set(event.clientX - rect.left);
+    glowY.set(event.clientY - rect.top);
+  }
+
+  function onMouseLeave() {
+    x.set(0);
+    y.set(0);
+  }
+
+  const glowStyle = useMotionTemplate`
+    radial-gradient(
+      450px circle at ${glowX}px ${glowY}px,
+      rgba(255, 64, 128, 0.08),
+      transparent 80%
+    )
+  `;
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      whileHover={{ y: -10 }}
-      className={`relative flex flex-col overflow-hidden rounded-[3rem] border p-10 transition-all duration-500 shadow-2xl ${isPro
-          ? "border-brand-primary/30 bg-white/60 shadow-brand-primary/10 ring-1 ring-brand-primary/20"
-          : "border-white/80 bg-white/40 shadow-slate-200/50"
-        } backdrop-blur-xl`}
+    <div
+      className="perspective-1000"
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
     >
-      {isPro && (
-        <div className="absolute top-8 right-8">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-brand-primary/30">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-            </span>
-            Recomendado
-          </span>
-        </div>
-      )}
+      <motion.div
+        ref={cardRef}
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+        }}
+        className={`relative flex flex-col overflow-hidden rounded-[3rem] border p-10 transition-shadow duration-500 shadow-2xl ${isPro
+          ? "border-brand-primary/30 bg-white shadow-brand-primary/10 ring-1 ring-brand-primary/20"
+          : "border-white bg-white shadow-slate-200/50"
+          } backdrop-blur-xl`}
+      >
+        {/* Glow Layer */}
+        <motion.div
+          className="pointer-events-none absolute inset-0 z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          style={{ background: glowStyle }}
+        />
 
-      <div className="mb-10">
-        <h3 className={`text-2xl font-black tracking-tight ${isPro ? "text-brand-primary" : "text-brand-dark"}`}>
-          {title}
-        </h3>
-        <div className="mt-6 flex items-baseline gap-1">
-          <span className="text-5xl font-black text-brand-dark tracking-tighter">{price}</span>
-          {price !== "Investimento" && <span className="text-lg font-bold text-slate-400">/ mês</span>}
-        </div>
-        <p className="mt-4 text-base font-bold text-slate-500/80 leading-relaxed">
-          {description}
-        </p>
-      </div>
-
-      <div className="flex-1">
-        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-6">
-          O que está incluído:
-        </p>
-        <ul className="grid gap-4 sm:grid-cols-1">
-          {features.map((feature, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isPro ? "bg-brand-primary/10 text-brand-primary" : "bg-slate-100 text-slate-400"}`}>
-                <CheckIcon />
+        {isPro && (
+          <div className="absolute top-8 right-8" style={{ transform: "translateZ(40px)" }}>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-brand-primary/30">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
               </span>
-              <span className="text-base font-bold text-brand-dark/90 leading-tight">{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-12 space-y-4">
-        <ButtonPrimary
-          onClick={onCta}
-          variant={isPro ? "brand" : "outline"}
-          size="lg"
-          className={`w-full py-6 text-lg font-black shadow-xl ring-2 ${isPro ? "ring-brand-primary/10" : "ring-slate-100"}`}
-        >
-          {ctaText}
-        </ButtonPrimary>
-        {note && (
-          <p className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-            {note}
-          </p>
+              Recomendado
+            </span>
+          </div>
         )}
-      </div>
 
-      {isPro && (
-        <div className="absolute -bottom-24 -right-24 h-48 w-48 bg-brand-primary/10 rounded-full blur-[80px]" />
-      )}
-    </motion.div>
+        <div className="mb-10" style={{ transform: "translateZ(50px)" }}>
+          <h3 className={`text-2xl font-black tracking-tight ${isPro ? "text-brand-primary" : "text-brand-dark"}`}>
+            {title}
+          </h3>
+          <div className="mt-6 flex items-baseline gap-1">
+            <span className="text-5xl font-black text-brand-dark tracking-tighter">{price}</span>
+            {price !== "Investimento" && <span className="text-lg font-bold text-slate-400">/ mês</span>}
+          </div>
+          <p className="mt-4 text-base font-bold text-slate-500/80 leading-relaxed">
+            {description}
+          </p>
+        </div>
+
+        <div className="flex-1" style={{ transform: "translateZ(30px)" }}>
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-6">
+            O que está incluído:
+          </p>
+          <ul className="grid gap-4 sm:grid-cols-1">
+            {features.map((feature, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isPro ? "bg-brand-primary/10 text-brand-primary" : "bg-slate-100 text-slate-400"}`}>
+                  <CheckIcon />
+                </span>
+                <span className="text-base font-bold text-brand-dark/90 leading-tight">{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-12 space-y-4" style={{ transform: "translateZ(60px)" }}>
+          <ButtonPrimary
+            onClick={onCta}
+            variant={isPro ? "brand" : "outline"}
+            size="lg"
+            className={`w-full py-6 text-lg font-black shadow-xl ring-2 ${isPro ? "ring-brand-primary/10" : "ring-slate-100"}`}
+          >
+            {ctaText}
+          </ButtonPrimary>
+          {note && (
+            <p className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {note}
+            </p>
+          )}
+        </div>
+
+        {isPro && (
+          <div className="absolute -bottom-24 -right-24 h-48 w-48 bg-brand-primary/10 rounded-full blur-[80px]" />
+        )}
+      </motion.div>
+    </div>
   );
 };
 
@@ -161,6 +221,11 @@ export default function PlansComparisonSection({ onCreateAccount }: PlansCompari
           Precisa de uma solução para empresas ou marcas? <button className="text-brand-primary hover:underline underline-offset-4">Fale com um consultor →</button>
         </p>
       </div>
+      <style jsx global>{`
+        .perspective-1000 {
+          perspective: 1000px;
+        }
+      `}</style>
     </section>
   );
 }

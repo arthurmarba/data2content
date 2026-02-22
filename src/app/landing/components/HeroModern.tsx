@@ -3,7 +3,7 @@
 import React from "react";
 import type { LandingCommunityMetrics } from "@/types/landing";
 import ButtonPrimary from "./ButtonPrimary";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 
 type HeroModernProps = {
   onCreatorCta: () => void;
@@ -191,8 +191,35 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
       </div>
 
-      <motion.div style={{ y: y1, opacity }} className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-brand-primary/5 rounded-full blur-[140px]" />
-      <motion.div style={{ y: y2, opacity }} className="absolute top-40 -right-20 w-[500px] h-[500px] bg-brand-accent/5 rounded-full blur-[120px]" />
+      <motion.div
+        style={{ y: y1, opacity, willChange: "transform, opacity" }}
+        animate={{
+          scale: [1, 1.1, 1],
+          opacity: [0.3, 0.4, 0.3],
+          rotate: [0, 5, 0]
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+        className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-brand-primary/10 rounded-full blur-[140px]"
+      />
+      <motion.div
+        style={{ y: y2, opacity, willChange: "transform, opacity" }}
+        animate={{
+          scale: [1, 1.15, 1],
+          opacity: [0.2, 0.35, 0.2],
+          rotate: [0, -5, 0]
+        }}
+        transition={{
+          duration: 18,
+          repeat: Infinity,
+          ease: "linear",
+          delay: 2
+        }}
+        className="absolute top-40 -right-20 w-[500px] h-[500px] bg-brand-accent/10 rounded-full blur-[120px]"
+      />
 
       <div className="landing-section__inner relative z-10 flex w-full flex-col gap-7 sm:gap-14 md:gap-24">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:gap-8 md:gap-10">
@@ -210,36 +237,76 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
           <div className="flex flex-col items-center gap-6 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
             <h1 className="font-black tracking-[-0.04em] text-brand-dark">
               <span className="mx-auto flex max-w-[13ch] flex-col items-center text-[3.85rem] leading-[1.03] sm:hidden">
-                <span className="block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
+                <motion.span
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
+                >
                   Agência
-                </span>
-                <span className="mt-0.5 block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
+                </motion.span>
+                <motion.span
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.1, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="mt-0.5 block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
+                >
                   estratégica
-                </span>
-                <span className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]">
+                </motion.span>
+                <motion.span
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]"
+                >
                   para creators
-                </span>
-                <span className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]">
+                </motion.span>
+                <motion.span
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.3, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]"
+                >
                   via IA.
-                </span>
+                </motion.span>
               </span>
 
               <span className="hidden max-w-[14ch] text-balance text-[3rem] leading-[1.03] sm:block md:max-w-[15.5ch] md:text-[5.4rem] md:leading-[0.96] lg:text-[6.3rem]">
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800">
+                <motion.span
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
+                >
                   Agência estratégica
-                </span>
-                <span className="mt-2.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] md:mt-3 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]">
+                </motion.span>
+                <motion.span
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.15, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="mt-2.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] md:mt-3 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]"
+                >
                   para creators via IA.
-                </span>
+                </motion.span>
               </span>
             </h1>
 
-            <p className="mt-2 max-w-[34ch] px-1 text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:mt-0 sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-3xl md:px-0 md:text-2xl md:leading-[1.4]">
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.35, ease: [0.21, 0.47, 0.32, 0.98] }}
+              className="mt-2 max-w-[34ch] px-1 text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:mt-0 sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-3xl md:px-0 md:text-2xl md:leading-[1.4]"
+            >
               Revisão de posts em reuniões semanais. Plataforma para gestão de conteúdo e publicidade para <span className="font-bold text-slate-700">negociar com marcas.</span>
-            </p>
+            </motion.p>
           </div>
 
-          <div className="mt-4 flex w-full flex-row items-center justify-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
+            className="mt-4 flex w-full flex-row items-center justify-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0"
+          >
             <ButtonPrimary
               onClick={onCreatorCta}
               size="lg"
@@ -251,10 +318,15 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
             </ButtonPrimary>
-          </div>
+          </motion.div>
 
           {/* New Integrated Media Kit Info Card */}
-          <div className="relative mt-4 hidden w-full max-w-3xl overflow-hidden rounded-[1.75rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-8 sm:block sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6, ease: [0.21, 0.47, 0.32, 0.98] }}
+            className="relative mt-4 hidden w-full max-w-3xl overflow-hidden rounded-[1.75rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-8 sm:block sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]"
+          >
             <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/40 to-transparent" />
             <div className="relative bg-white/40 p-3.5 transition-all group-hover:bg-white/50 sm:p-6 md:p-10">
               <div className="mb-2 inline-flex rounded-2xl bg-[#141C2F] px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-white sm:mb-6 sm:px-4 sm:py-2 sm:text-[9px] md:text-[10px] md:tracking-[0.3em]">
@@ -264,10 +336,21 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
                 Seu portal direto para o mercado.
               </h3>
               <p className="mt-2 text-[13px] font-bold leading-[1.45] text-slate-500/80 sm:mt-4 sm:text-[0.98rem] md:mt-6 md:text-lg md:leading-relaxed">
-                <span className="sm:hidden">
-                  {isInfoExpanded
-                    ? "Crie seu mídia kit auditado para fechar publis melhores. Se bater insegurança na hora de precificar ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA."
-                    : "Crie seu mídia kit auditado e receba suporte para fechar publis melhores."}
+                <span className="sm:hidden block">
+                  Crie seu mídia kit auditado e receba suporte para fechar publis melhores.
+                  <AnimatePresence>
+                    {isInfoExpanded && (
+                      <motion.span
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="block overflow-hidden"
+                      >
+                        Se bater insegurança na hora de precificar ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA.
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </span>
                 <span className="hidden sm:inline">
                   Crie seu mídia kit auditado para fechar publis melhores. Se bater insegurança na hora de <span className="text-brand-dark">precificar</span> ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA.
@@ -294,7 +377,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         <div className="hidden md:grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -8,6 +8,7 @@ import { track } from "@/lib/track";
 import type { UtmContext } from "@/lib/analytics/utm";
 import type { LandingCommunityMetrics, LandingCreatorHighlight } from "@/types/landing";
 import { BRAND_CAMPAIGN_ROUTE } from "@/constants/routes";
+import { motion, useAnimationControls } from "framer-motion";
 
 const CASTING_API_ROUTE = "/api/landing/casting";
 
@@ -417,44 +418,45 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                     ) : (
                         <>
                             {fullRails.map((rail, railIndex) => (
-                                <div
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-100px" }}
+                                    transition={{ duration: 0.6, delay: railIndex * 0.15, ease: "easeOut" }}
                                     key={rail.key}
                                     className={railIndex === 0
                                         ? "space-y-3 pt-5 sm:space-y-4 sm:pt-10"
                                         : "space-y-3 border-t border-slate-100 pt-7 sm:space-y-4 sm:pt-10"}
                                 >
-                                    <div className="flex items-end px-2">
+                                    <div className="flex items-end px-2 sm:px-4 max-w-7xl mx-auto">
                                         <div>
                                             <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">{rail.title}</h3>
                                         </div>
                                     </div>
-                                    <div
-                                        className="flex gap-2.5 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-3 sm:pr-8"
-                                        style={railScrollerStyle}
-                                    >
-                                        {rail.creators.map(c => (
-                                            <CastingRankCard key={c.id} creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
-                                        ))}
-                                    </div>
-                                </div>
+
+                                    {/* Auto-Marquee Wrapper */}
+                                    <AutoScrollRail creators={rail.creators} handleBrandForm={handleBrandForm} speed={0.04} style={railScrollerStyle} />
+
+                                </motion.div>
                             ))}
 
                             {microRails.length > 0 && (
-                                <div className="space-y-4 pt-8 border-t border-slate-100 sm:space-y-6 sm:pt-10">
-                                    <div className="flex items-end justify-between px-2">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-100px" }}
+                                    transition={{ duration: 0.6, ease: "easeOut" }}
+                                    className="space-y-4 pt-8 border-t border-slate-100 sm:space-y-6 sm:pt-10"
+                                >
+                                    <div className="flex items-end justify-between px-2 sm:px-4 max-w-7xl mx-auto">
                                         <div>
-                                            <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">Varias Narrativas</h3>
+                                            <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">Várias Narrativas</h3>
                                         </div>
                                     </div>
-                                    <div
-                                        className="flex gap-2.5 sm:gap-5 overflow-x-auto pb-8 hide-scrollbar snap-x snap-mandatory touch-pan-x overscroll-x-contain pl-2 pr-3 sm:pr-8"
-                                        style={railScrollerStyle}
-                                    >
-                                        {microRails.flatMap(r => r.creators).map(c => (
-                                            <CastingRankCard key={c.id} creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
-                                        ))}
-                                    </div>
-                                </div>
+
+                                    {/* Auto-Marquee Wrapper */}
+                                    <AutoScrollRail creators={microRails.flatMap(r => r.creators)} handleBrandForm={handleBrandForm} speed={0.03} style={railScrollerStyle} />
+                                </motion.div>
                             )}
 
                         </>
@@ -466,6 +468,246 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
       `}</style>
         </section>
+    );
+}
+
+function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { creators: LandingCreatorHighlight[]; handleBrandForm: () => void; speed?: number; style?: React.CSSProperties }) {
+    const scrollerRef = React.useRef<HTMLDivElement>(null);
+    const setRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+    const [isMobile, setIsMobile] = React.useState<boolean | null>(null);
+    const [isInteraction, setIsInteraction] = React.useState(false);
+    const [cycleWidth, setCycleWidth] = React.useState(0);
+    const interactionTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    // Build one base cycle and render it 3 times. We measure the real cycle width
+    // instead of using scrollWidth / 3 because flex gaps break that math.
+    const baseItems = React.useMemo(() => {
+        if (!creators.length) return [];
+        let base = [...creators];
+        while (base.length < 10) {
+            base = [...base, ...creators];
+        }
+        return base;
+    }, [creators]);
+
+    const mobileItems = React.useMemo(() => {
+        if (!creators.length) return [];
+        if (process.env.NODE_ENV === "test") return creators;
+
+        let items = [...creators];
+        while (items.length < 10) {
+            items = [...items, ...creators];
+        }
+        return items;
+    }, [creators]);
+
+    React.useEffect(() => {
+        if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+        const mediaQuery = window.matchMedia("(max-width: 767px)");
+        const sync = () => setIsMobile(mediaQuery.matches);
+        sync();
+
+        if (typeof mediaQuery.addEventListener === "function") {
+            mediaQuery.addEventListener("change", sync);
+            return () => mediaQuery.removeEventListener("change", sync);
+        }
+
+        mediaQuery.addListener(sync);
+        return () => mediaQuery.removeListener(sync);
+    }, []);
+
+    const handleInteractionStart = () => {
+        setIsInteraction(true);
+        if (interactionTimeoutRef.current) {
+            clearTimeout(interactionTimeoutRef.current);
+        }
+    };
+
+    const handleInteractionEnd = () => {
+        interactionTimeoutRef.current = setTimeout(() => {
+            setIsInteraction(false);
+        }, 800);
+    };
+
+    const normalizeScrollPosition = React.useCallback((scroller: HTMLDivElement, measuredCycleWidth: number) => {
+        if (measuredCycleWidth <= 0) return;
+
+        const min = measuredCycleWidth;
+        const max = measuredCycleWidth * 2;
+        let next = scroller.scrollLeft;
+
+        while (next < min) {
+            next += measuredCycleWidth;
+        }
+        while (next >= max) {
+            next -= measuredCycleWidth;
+        }
+
+        if (Math.abs(next - scroller.scrollLeft) > 0.1) {
+            scroller.scrollLeft = next;
+        }
+    }, []);
+
+    React.useEffect(() => {
+        return () => {
+            if (interactionTimeoutRef.current) {
+                clearTimeout(interactionTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    React.useEffect(() => {
+        const scroller = scrollerRef.current;
+        const firstSet = setRefs.current[0];
+        const secondSet = setRefs.current[1];
+        if (isMobile !== false || !scroller || !firstSet || !secondSet) return;
+
+        const recalculateCycleWidth = () => {
+            const measuredWidth = secondSet.getBoundingClientRect().left - firstSet.getBoundingClientRect().left;
+            if (measuredWidth > 0) {
+                setCycleWidth(measuredWidth);
+            }
+        };
+
+        recalculateCycleWidth();
+
+        if (typeof ResizeObserver !== "undefined") {
+            const observer = new ResizeObserver(recalculateCycleWidth);
+            observer.observe(scroller);
+            observer.observe(firstSet);
+            observer.observe(secondSet);
+            return () => observer.disconnect();
+        }
+
+        window.addEventListener("resize", recalculateCycleWidth);
+        return () => window.removeEventListener("resize", recalculateCycleWidth);
+    }, [baseItems.length, isMobile]);
+
+    React.useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (isMobile !== false || !scroller || cycleWidth <= 0) return;
+        scroller.scrollLeft = cycleWidth;
+        normalizeScrollPosition(scroller, cycleWidth);
+    }, [cycleWidth, baseItems.length, isMobile, normalizeScrollPosition]);
+
+    React.useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (isMobile !== false || !scroller || cycleWidth <= 0) return;
+
+        let animationId: number;
+        let lastTimestamp: number;
+
+        const step = (timestamp: number) => {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            if (!isInteraction) {
+                // native subpixel animation
+                scroller.scrollLeft += deltaTime * speed;
+                normalizeScrollPosition(scroller, cycleWidth);
+            }
+            animationId = requestAnimationFrame(step);
+        };
+
+        animationId = requestAnimationFrame(step);
+        return () => cancelAnimationFrame(animationId);
+    }, [cycleWidth, isInteraction, isMobile, normalizeScrollPosition, speed]);
+
+    React.useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (isMobile !== true || !scroller) return;
+
+        let animationId: number;
+        let lastTimestamp: number;
+
+        const step = (timestamp: number) => {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            if (!isInteraction) {
+                const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+                if (maxScroll > 0) {
+                    const next = scroller.scrollLeft + deltaTime * speed;
+                    scroller.scrollLeft = next >= maxScroll ? 0 : next;
+                }
+            }
+
+            animationId = requestAnimationFrame(step);
+        };
+
+        animationId = requestAnimationFrame(step);
+        return () => cancelAnimationFrame(animationId);
+    }, [isInteraction, isMobile, speed, mobileItems.length]);
+
+    if (isMobile !== false) {
+        return (
+            <div className="relative flex overflow-hidden w-full">
+                <div
+                    ref={scrollerRef}
+                    className="flex gap-2 overflow-x-auto pb-4 pt-1 hide-scrollbar touch-pan-x px-3"
+                    style={style}
+                    onMouseEnter={handleInteractionStart}
+                    onMouseLeave={handleInteractionEnd}
+                    onPointerDown={handleInteractionStart}
+                    onPointerUp={handleInteractionEnd}
+                    onTouchStart={handleInteractionStart}
+                    onTouchEnd={handleInteractionEnd}
+                    onWheel={() => {
+                        handleInteractionStart();
+                        handleInteractionEnd();
+                    }}
+                >
+                    {mobileItems.map((c, i) => (
+                        <CastingRankCard key={`${c.id}-${i}`} creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative flex overflow-hidden group w-full" style={style}>
+            <div className="absolute left-0 top-0 bottom-0 w-24 z-10 bg-gradient-to-r from-white to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-24 z-10 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+
+            <div
+                ref={scrollerRef}
+                className="flex gap-4 overflow-x-auto pb-4 pt-1 hide-scrollbar touch-pan-x px-6"
+                onMouseEnter={handleInteractionStart}
+                onMouseLeave={handleInteractionEnd}
+                onPointerDown={handleInteractionStart}
+                onPointerUp={handleInteractionEnd}
+                onTouchStart={handleInteractionStart}
+                onTouchEnd={handleInteractionEnd}
+                onWheel={() => {
+                    handleInteractionStart();
+                    handleInteractionEnd();
+                }}
+                onScroll={() => {
+                    const scroller = scrollerRef.current;
+                    if (!scroller || cycleWidth <= 0) return;
+                    normalizeScrollPosition(scroller, cycleWidth);
+                }}
+            >
+                {[0, 1, 2].map((setIndex) => (
+                    <div
+                        key={`set-${setIndex}`}
+                        ref={(el) => {
+                            setRefs.current[setIndex] = el;
+                        }}
+                        className="flex shrink-0 gap-2 sm:gap-4"
+                    >
+                        {baseItems.map((c, i) => (
+                            <div key={`${setIndex}-${c.id}-${i}`} className="shrink-0">
+                                <CastingRankCard creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 

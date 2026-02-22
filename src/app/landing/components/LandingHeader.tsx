@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { signIn, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { motion, useScroll, useTransform, useMotionTemplate } from 'framer-motion';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
 import { track } from '@/lib/track';
@@ -33,6 +34,17 @@ export default function LandingHeader({
   const previousBodyOverflow = useRef<string | null>(null);
   const previousBodyTouchAction = useRef<string | null>(null);
   const { appendUtm, utm } = useUtmAttribution();
+
+  const { scrollY } = useScroll();
+  const headerBgOpacity = useTransform(scrollY, [0, 80], [0, 0.95]);
+  const headerBlur = useTransform(scrollY, [0, 80], [0, 16]);
+  const headerShadowOpacity = useTransform(scrollY, [0, 80], [0, 0.08]);
+  const headerBorderOpacity = useTransform(scrollY, [0, 80], [0, 1]);
+
+  const backgroundColor = useMotionTemplate`rgba(255, 255, 255, ${headerBgOpacity})`;
+  const backdropFilter = useMotionTemplate`blur(${headerBlur}px)`;
+  const boxShadow = useMotionTemplate`0 4px 24px rgba(15, 23, 42, ${headerShadowOpacity})`;
+  const borderColor = useMotionTemplate`rgba(228, 232, 243, ${headerBorderOpacity})`;
 
   const navLinks = [
     { href: '#galeria', label: 'Marketplace' },
@@ -128,20 +140,20 @@ export default function LandingHeader({
   }, [isMenuOpen, session]);
 
   return (
-    <header
-      className={[
-        'fixed top-0 z-50 w-full border-b transition-all duration-300 ease-out backdrop-blur',
-        isScrolled
-          ? 'border-[#E4E8F3] bg-white/95 shadow-[0_4px_24px_rgba(15,23,42,0.08)]'
-          : 'border-transparent bg-white/80',
-      ].join(' ')}
-      style={
-        isMounted
-          ? ({
+    <motion.header
+      className="fixed top-0 z-50 w-full border-b transition-[padding] duration-300 ease-out"
+      style={{
+        backgroundColor,
+        backdropFilter,
+        WebkitBackdropFilter: backdropFilter,
+        boxShadow,
+        borderColor,
+        ...(isMounted
+          ? {
             '--landing-header-extra': isScrolled ? '0px' : '8px',
-          } as CSSProperties)
-          : undefined
-      }
+          }
+          : {}),
+      } as any}
     >
       <Container className="relative z-[55] flex h-16 items-center justify-between transition-all duration-300 ease-out md:h-[4.5rem]">
         <Link href="/" className="group flex items-center gap-2 text-2xl font-bold text-brand-dark">
@@ -232,6 +244,6 @@ export default function LandingHeader({
           </nav>
         </div>
       )}
-    </header>
+    </motion.header>
   );
 }
