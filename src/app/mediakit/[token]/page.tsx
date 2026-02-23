@@ -12,6 +12,11 @@ import AccountInsightModel from '@/app/models/AccountInsight';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
 import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
+import {
+  buildMediaKitMetaDescription,
+  buildMediaKitMetaTitle,
+  normalizePreviewUsername,
+} from '@/app/lib/mediakit/socialPreview';
 
 import MediaKitView from './MediaKitView';
 
@@ -74,7 +79,7 @@ export async function generateMetadata(
   }
 
   const user = await UserModel.findById(resolvedToken.userId)
-    .select('name mediaKitDisplayName biography')
+    .select('name mediaKitDisplayName biography username followers_count media_count updatedAt')
     .lean();
 
   if (!user) {
@@ -84,14 +89,21 @@ export async function generateMetadata(
     };
   }
 
-  const displayName = (user as any)?.mediaKitDisplayName || user.name;
-  const title = `Mídia Kit de ${displayName}`;
-  const description = user.biography
-    ? String(user.biography).slice(0, 160)
-    : `Dados de desempenho e publicações de destaque de ${displayName}.`;
+  const displayName = ((user as any)?.mediaKitDisplayName || user.name || 'Criador').trim();
+  const normalizedUsername = normalizePreviewUsername((user as any)?.username ?? null);
+  const title = buildMediaKitMetaTitle(displayName, normalizedUsername);
+  const description = buildMediaKitMetaDescription({
+    displayName,
+    username: normalizedUsername,
+    followersCount: (user as any)?.followers_count,
+    mediaCount: (user as any)?.media_count,
+    biography: (user as any)?.biography,
+  });
 
   const pageUrl = absoluteUrl(`/mediakit/${resolvedToken.canonicalSlug}`);
-  const ogImage = absoluteUrl(`/api/mediakit/${resolvedToken.canonicalSlug}/og-image`);
+  const ogImageVersionRaw = (user as any)?.updatedAt ? new Date((user as any).updatedAt).getTime() : 1;
+  const ogImageVersion = Number.isFinite(ogImageVersionRaw) ? ogImageVersionRaw : 1;
+  const ogImage = absoluteUrl(`/api/mediakit/${resolvedToken.canonicalSlug}/og-image?v=${ogImageVersion}`);
 
   return {
     title,

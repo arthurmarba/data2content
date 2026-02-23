@@ -59,6 +59,7 @@ const DEFAULT_PERIOD: Period = "30d";
 const TRIAL_CTA_LABEL = "⚡ Ativar alertas no WhatsApp";
 const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
 const PROPOSAL_COPY_FEEDBACK_MS = 20_000;
+const PAID_PRO_NORMALIZED_STATUSES = new Set(["active", "non_renewing"]);
 
 type HeroAction = {
   key: string;
@@ -212,6 +213,7 @@ export default function HomeClientPage() {
   });
   const [initialFetch, setInitialFetch] = React.useState(false);
   const [showWhatsAppConnect, setShowWhatsAppConnect] = React.useState(false);
+  const [resolvingVipAccess, setResolvingVipAccess] = React.useState(false);
   const communityFlag = useFeatureFlag("modules.community_on_home", true);
   const planningFlag = useFeatureFlag("planning.group_locked", false);
   const dashboardMinimalFlag = useFeatureFlag("nav.dashboard_minimal", false);
@@ -518,7 +520,7 @@ export default function HomeClientPage() {
   const defaultCommunityFreeUrl =
     process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/planning/discover";
   const defaultCommunityVipUrl =
-    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? null;
+    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? "/planning/whatsapp";
   const communityFreeMember = summary?.community?.free?.isMember ?? false;
   const communityFreeInviteUrl =
     summary?.community?.free?.inviteUrl ?? defaultCommunityFreeUrl;
@@ -1029,16 +1031,87 @@ export default function HomeClientPage() {
     trackCardAction,
   ]);
 
-  const handleJoinVip = React.useCallback(() => {
-    if (canAccessVipCommunity) {
-      if (!communityVipInviteUrl) return;
-      trackCardAction("mentorship", "vip_click", { surface: "mentorship_strip", access: "allowed" });
-      handleNavigate(communityVipInviteUrl);
-      return;
+  const resolveVipInviteUrl = React.useCallback(async (): Promise<string | null> => {
+    if (canAccessVipCommunity && communityVipInviteUrl) {
+      return communityVipInviteUrl;
     }
-    trackCardAction("mentorship", "vip_locked", { surface: "mentorship_strip", access: "blocked" });
-    openSubscribeModal("default", { source: "mentorship_strip", returnTo: "/dashboard/home" });
-  }, [canAccessVipCommunity, communityVipInviteUrl, handleNavigate, openSubscribeModal, trackCardAction]);
+
+    try {
+      const response = await fetch("/api/plan/status?force=true", { cache: "no-store" });
+      if (!response.ok) return null;
+
+      const payload = await response.json().catch(() => null);
+      const normalizedStatus =
+        typeof payload?.extras?.normalizedStatus === "string"
+          ? payload.extras.normalizedStatus.trim().toLowerCase()
+          : "";
+
+      if (!PAID_PRO_NORMALIZED_STATUSES.has(normalizedStatus)) {
+        return null;
+      }
+
+      const inviteUrl = communityVipInviteUrl ?? defaultCommunityVipUrl;
+      if (!inviteUrl) return null;
+
+      setSummary((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          plan: prev.plan
+            ? {
+                ...prev.plan,
+                normalizedStatus: normalizedStatus || prev.plan.normalizedStatus,
+                hasPremiumAccess: true,
+                isPro: true,
+              }
+            : prev.plan,
+          community: prev.community
+            ? {
+                ...prev.community,
+                vip: {
+                  ...prev.community.vip,
+                  hasAccess: true,
+                  inviteUrl,
+                },
+              }
+            : prev.community,
+        };
+      });
+
+      return inviteUrl;
+    } catch {
+      return null;
+    }
+  }, [canAccessVipCommunity, communityVipInviteUrl, defaultCommunityVipUrl]);
+
+  const handleJoinVip = React.useCallback(async () => {
+    if (resolvingVipAccess) return;
+
+    setResolvingVipAccess(true);
+    try {
+      const inviteUrl = await resolveVipInviteUrl();
+      if (inviteUrl) {
+        trackCardAction("mentorship", "vip_click", {
+          surface: "mentorship_strip",
+          access: canAccessVipCommunity ? "allowed" : "revalidated",
+        });
+        handleNavigate(inviteUrl);
+        return;
+      }
+
+      trackCardAction("mentorship", "vip_locked", { surface: "mentorship_strip", access: "blocked" });
+      openSubscribeModal("default", { source: "mentorship_strip", returnTo: "/dashboard/home" });
+    } finally {
+      setResolvingVipAccess(false);
+    }
+  }, [
+    canAccessVipCommunity,
+    handleNavigate,
+    openSubscribeModal,
+    resolveVipInviteUrl,
+    resolvingVipAccess,
+    trackCardAction,
+  ]);
 
   const handleOpenFreeCommunity = React.useCallback(() => {
     if (!communityFreeInviteUrl) return;
@@ -1272,11 +1345,7 @@ export default function HomeClientPage() {
             handleMentorshipAction("whatsapp_reminder");
             return;
           }
-          if (communityVipHasAccess) {
-            handleJoinVip();
-            return;
-          }
-          handleHeaderSubscribe();
+          void handleJoinVip();
         },
         variant: "vip",
         disabled: false,
@@ -1663,7 +1732,9 @@ export default function HomeClientPage() {
             : "Entrar na comunidade",
         onAction:
           isSubscriberPlan && communityVipInviteUrl
-            ? handleJoinVip
+            ? () => {
+                void handleJoinVip();
+              }
             : () => handleJoinFreeCommunity("tool_card"),
       });
     }
@@ -2067,10 +2138,17 @@ export default function HomeClientPage() {
       <div className="mt-3 flex flex-col gap-2 sm:mt-0 sm:flex-row sm:items-center">
         <button
           type="button"
-          onClick={handleJoinVip}
+          onClick={() => {
+            void handleJoinVip();
+          }}
+          disabled={resolvingVipAccess}
           className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
-          {canAccessVipCommunity ? "Abrir grupo VIP" : "Assinar para entrar"}
+          {resolvingVipAccess
+            ? "Validando acesso..."
+            : canAccessVipCommunity
+            ? "Abrir grupo VIP"
+            : "Assinar para entrar"}
           {!canAccessVipCommunity ? (
             <FaLock className="h-4 w-4" />
           ) : (

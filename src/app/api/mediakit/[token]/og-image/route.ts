@@ -1,14 +1,25 @@
+import React from 'react';
 import { NextRequest } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { ImageResponse } from '@vercel/og';
 
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import AccountInsightModel from '@/app/models/AccountInsight';
 import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
+import {
+  buildMediaKitMetaDescription,
+  formatCompactCount,
+  formatIntegerCount,
+  normalizePreviewUsername,
+  toNonNegativeInt,
+} from '@/app/lib/mediakit/socialPreview';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const OG_WIDTH = 1200;
+const OG_HEIGHT = 630;
+const OG_CACHE_CONTROL = 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400';
 
 function normalizeMetaValue(raw?: string | null) {
   if (typeof raw !== 'string') return null;
@@ -59,7 +70,7 @@ function toProxyUrl(raw?: string | null) {
 
 function toAbsoluteUrl(url: string, origin: string) {
   if (/^https?:\/\//i.test(url)) return url;
-  return `${origin}${url.startsWith('/') ? url : '/' + url}`;
+  return `${origin}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 function withStrictProxy(url: string) {
@@ -75,61 +86,326 @@ async function fetchImage(url: string) {
   return { body: new Uint8Array(buffer), contentType };
 }
 
-async function loadFallbackImage() {
-  const fallbackPath = path.join(process.cwd(), 'public', 'images', 'default-profile.png');
-  try {
-    const buffer = await fs.promises.readFile(fallbackPath);
-    return new Response(new Uint8Array(buffer), {
-      headers: {
-        'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+function toDataUri(body: Uint8Array, contentType: string) {
+  return `data:${contentType};base64,${Buffer.from(body).toString('base64')}`;
+}
+
+function initialsFrom(displayName: string, username?: string | null) {
+  const source = displayName || username || 'MK';
+  const parts = source
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('');
+  return initials || 'MK';
+}
+
+function createOgImageResponse(options: {
+  displayName: string;
+  username?: string | null;
+  followersCount?: number | null;
+  mediaCount?: number | null;
+  description?: string | null;
+  avatarDataUri?: string | null;
+}) {
+  const displayName = options.displayName?.trim() || 'Criador';
+  const normalizedUsername = normalizePreviewUsername(options.username ?? null);
+  const description = options.description?.trim() || `Mídia Kit oficial de ${displayName}`;
+  const followersLabel = options.followersCount !== null && options.followersCount !== undefined
+    ? `${formatCompactCount(options.followersCount)} seguidores`
+    : 'Seguidores em atualização';
+  const mediaLabel = options.mediaCount !== null && options.mediaCount !== undefined
+    ? `${formatIntegerCount(options.mediaCount)} publicações`
+    : 'Publicações em atualização';
+  const initials = initialsFrom(displayName, normalizedUsername);
+
+  const card = React.createElement(
+    'div',
+    {
+      style: {
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'linear-gradient(135deg, #0f172a 0%, #111827 50%, #1f2937 100%)',
+        color: '#f8fafc',
+        position: 'relative',
+        overflow: 'hidden',
+        padding: '52px',
       },
-    });
-  } catch {
-    return new Response(null, { status: 404 });
-  }
+    },
+    React.createElement('div', {
+      style: {
+        position: 'absolute',
+        top: '-110px',
+        right: '-120px',
+        width: '420px',
+        height: '420px',
+        borderRadius: '9999px',
+        background: 'rgba(56, 189, 248, 0.16)',
+      },
+    }),
+    React.createElement('div', {
+      style: {
+        position: 'absolute',
+        bottom: '-140px',
+        left: '-70px',
+        width: '360px',
+        height: '360px',
+        borderRadius: '9999px',
+        background: 'rgba(16, 185, 129, 0.18)',
+      },
+    }),
+    React.createElement(
+      'div',
+      {
+        style: {
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '40px',
+          borderRadius: '28px',
+          border: '1px solid rgba(148, 163, 184, 0.4)',
+          background: 'rgba(15, 23, 42, 0.62)',
+          padding: '34px 38px',
+        },
+      },
+      React.createElement(
+        'div',
+        {
+          style: {
+            width: '190px',
+            height: '190px',
+            borderRadius: '9999px',
+            border: '4px solid rgba(148, 163, 184, 0.7)',
+            overflow: 'hidden',
+            background: '#0f172a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#f8fafc',
+            fontSize: '62px',
+            fontWeight: 700,
+            flexShrink: 0,
+          },
+        },
+        options.avatarDataUri
+          ? React.createElement('img', {
+              src: options.avatarDataUri,
+              alt: `Avatar de ${displayName}`,
+              width: 190,
+              height: 190,
+              style: { width: '100%', height: '100%', objectFit: 'cover' },
+            })
+          : initials,
+      ),
+      React.createElement(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: '14px',
+            width: '100%',
+          },
+        },
+        React.createElement(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              alignSelf: 'flex-start',
+              borderRadius: '9999px',
+              border: '1px solid rgba(56, 189, 248, 0.55)',
+              background: 'rgba(14, 116, 144, 0.28)',
+              color: '#bae6fd',
+              padding: '8px 14px',
+              fontSize: '20px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+            },
+          },
+          'MÍDIA KIT DATA2CONTENT',
+        ),
+        React.createElement(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              flexWrap: 'wrap',
+            },
+          },
+          React.createElement(
+            'span',
+            {
+              style: {
+                fontSize: '52px',
+                lineHeight: 1.05,
+                fontWeight: 800,
+                color: '#f8fafc',
+              },
+            },
+            displayName,
+          ),
+          normalizedUsername
+            ? React.createElement(
+                'span',
+                {
+                  style: {
+                    fontSize: '32px',
+                    fontWeight: 700,
+                    color: '#cbd5e1',
+                  },
+                },
+                `@${normalizedUsername}`,
+              )
+            : null,
+        ),
+        React.createElement(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+            },
+          },
+          React.createElement(
+            'span',
+            {
+              style: {
+                borderRadius: '9999px',
+                background: 'rgba(30, 41, 59, 0.85)',
+                border: '1px solid rgba(148, 163, 184, 0.45)',
+                color: '#e2e8f0',
+                fontSize: '28px',
+                fontWeight: 600,
+                padding: '8px 14px',
+              },
+            },
+            followersLabel,
+          ),
+          React.createElement(
+            'span',
+            {
+              style: {
+                borderRadius: '9999px',
+                background: 'rgba(30, 41, 59, 0.85)',
+                border: '1px solid rgba(148, 163, 184, 0.45)',
+                color: '#e2e8f0',
+                fontSize: '28px',
+                fontWeight: 600,
+                padding: '8px 14px',
+              },
+            },
+            mediaLabel,
+          ),
+        ),
+        React.createElement(
+          'span',
+          {
+            style: {
+              color: '#cbd5e1',
+              fontSize: '26px',
+              lineHeight: 1.25,
+              maxWidth: '760px',
+            },
+          },
+          description,
+        ),
+        React.createElement(
+          'span',
+          {
+            style: {
+              marginTop: '4px',
+              color: '#7dd3fc',
+              fontSize: '24px',
+              fontWeight: 700,
+            },
+          },
+          'data2content.ai',
+        ),
+      ),
+    ),
+  );
+
+  return new ImageResponse(card, {
+    width: OG_WIDTH,
+    height: OG_HEIGHT,
+    headers: {
+      'Cache-Control': OG_CACHE_CONTROL,
+    },
+  });
+}
+
+async function resolveAvatarDataUri(user: any, origin: string) {
+  const rawAvatar = await resolveAvatar(user);
+  if (!rawAvatar) return null;
+
+  const proxied = toProxyUrl(rawAvatar);
+  if (!proxied) return null;
+
+  const avatarUrl = withStrictProxy(toAbsoluteUrl(proxied, origin));
+  const fetched = await fetchImage(avatarUrl);
+  if (!fetched) return null;
+
+  return toDataUri(fetched.body, fetched.contentType);
 }
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: { token: string } },
 ) {
   await connectToDatabase();
 
+  const fallbackResponse = createOgImageResponse({
+    displayName: 'Criador Data2Content',
+    description: 'Mídia Kit oficial com métricas e publicações de destaque.',
+    followersCount: null,
+    mediaCount: null,
+  });
+
   const resolvedToken = await resolveMediaKitToken(params.token);
   if (!resolvedToken?.userId) {
-    return loadFallbackImage();
+    return fallbackResponse;
   }
 
   const user = await UserModel.findById(resolvedToken.userId)
-    .select('profile_picture_url image instagram availableIgAccounts.profile_picture_url')
+    .select(
+      'name mediaKitDisplayName username biography followers_count media_count profile_picture_url image instagram availableIgAccounts.profile_picture_url',
+    )
     .lean();
 
   if (!user) {
-    return loadFallbackImage();
+    return fallbackResponse;
   }
 
-  const rawAvatar = await resolveAvatar(user);
-  if (!rawAvatar) {
-    return loadFallbackImage();
-  }
+  const displayName = String((user as any)?.mediaKitDisplayName || (user as any)?.name || 'Criador').trim();
+  const username = normalizePreviewUsername((user as any)?.username ?? null);
+  const followersCount = toNonNegativeInt((user as any)?.followers_count);
+  const mediaCount = toNonNegativeInt((user as any)?.media_count);
+  const description = buildMediaKitMetaDescription({
+    displayName,
+    username,
+    followersCount,
+    mediaCount,
+    biography: (user as any)?.biography,
+  });
 
-  const proxied = toProxyUrl(rawAvatar);
-  if (!proxied) {
-    return loadFallbackImage();
-  }
+  const avatarDataUri = await resolveAvatarDataUri(user, req.nextUrl.origin);
 
-  const origin = req.nextUrl.origin;
-  const avatarUrl = withStrictProxy(toAbsoluteUrl(proxied, origin));
-  const fetched = await fetchImage(avatarUrl);
-  if (!fetched) {
-    return loadFallbackImage();
-  }
-
-  return new Response(fetched.body, {
-    headers: {
-      'Content-Type': fetched.contentType,
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-    },
+  return createOgImageResponse({
+    displayName,
+    username,
+    followersCount,
+    mediaCount,
+    description,
+    avatarDataUri,
   });
 }

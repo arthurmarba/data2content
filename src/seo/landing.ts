@@ -1,29 +1,39 @@
 import type { Metadata } from "next";
 import faqItems from "@/data/faq";
 
+const SITE_URL = "https://data2content.ai";
+const HOME_OG_VERSION = "20260223-home-og-v1";
+const HOME_OG_IMAGE_URL = `${SITE_URL}/api/og/home?v=${HOME_OG_VERSION}`;
+
 export const landingMetadata: Metadata = {
   title: "Data2Content: IA para criadores e oportunidades com marcas.",
   description:
     "Analise seus posts, organize sua rotina e apareça para marcas com IA. Crie seu mídia kit e receba propostas no mesmo lugar.",
-  alternates: { canonical: "https://data2content.ai/" },
+  alternates: { canonical: `${SITE_URL}/` },
   openGraph: {
     title: "Data2Content: IA para criadores e oportunidades com marcas.",
     description:
       "Analise seus posts, organize sua rotina e apareça para marcas com IA. Crie seu mídia kit e receba propostas no mesmo lugar.",
-    url: "https://data2content.ai",
+    url: SITE_URL,
     type: "website",
+    siteName: "Data2Content",
+    locale: "pt_BR",
     images: [
       {
-        url: "/images/Colorido-Simbolo.png",
+        url: HOME_OG_IMAGE_URL,
         width: 1200,
         height: 630,
-        alt: "data2content logo"
+        alt: "Data2Content: IA para criadores e oportunidades com marcas",
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    creator: "@data2content"
+    creator: "@data2content",
+    title: "Data2Content: IA para criadores e oportunidades com marcas.",
+    description:
+      "Analise seus posts, organize sua rotina e apareça para marcas com IA. Crie seu mídia kit e receba propostas no mesmo lugar.",
+    images: [HOME_OG_IMAGE_URL],
   }
 };
 
