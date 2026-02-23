@@ -1330,7 +1330,9 @@ export const authOptions: NextAuthOptions = {
           logger.warn(`[NextAuth Redirect Callback] Interceptando redirecionamento para /login com erro (${requestedUrl.searchParams.get("error")}). Enviando para página inicial.`);
           return new URL("/", base).toString();
         }
-        logger.debug(`[NextAuth Redirect Callback] URL solicitada (${requestedUrl.toString()}) é interna. Permitindo.`);
+        if (process.env.NODE_ENV !== "production") {
+          logger.debug(`[NextAuth Redirect Callback] URL solicitada (${requestedUrl.toString()}) é interna. Permitindo.`);
+        }
         return requestedUrl.toString();
       }
 

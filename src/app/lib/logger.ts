@@ -6,7 +6,11 @@ import { sendAlert } from "@/app/lib/alerts";
 const baseMeta = {
   env: process.env.NODE_ENV || "dev",
   service: "affiliates",
-  version: process.env.GIT_SHA || "local",
+  version:
+    process.env.GIT_SHA ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
+    "local",
 };
 
 // Adiciona 'import "server-only";' se este arquivo for estritamente para o servidor.

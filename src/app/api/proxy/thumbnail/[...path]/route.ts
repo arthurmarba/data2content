@@ -58,6 +58,15 @@ function isAllowedHost(hostname: string): boolean {
   return ALLOWED_HOSTS_SUFFIX.some((s) => h === s || h.endsWith(`.${s}`));
 }
 
+function describeUrlForLog(raw: string): string {
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return "invalid-url";
+  }
+}
+
 /**
  * Mapeamento simples de content-type -> extensão (apenas para logs/diagnóstico).
  * Obs: não dependemos da extensão para servir; usamos o content-type salvo no .json
@@ -168,7 +177,7 @@ export async function GET(
     }
 
     // Cache miss — busca upstream
-    const requestHeaders: Record<string, string> = {
+    const defaultRequestHeaders: Record<string, string> = {
       "accept-language": "en-US,en;q=0.9,pt-BR;q=0.8",
       "user-agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
@@ -177,32 +186,50 @@ export async function GET(
       "cache-control": "no-cache",
       pragma: "no-cache",
     };
-    // Alguns CDNs do Instagram exigem referer/origin; para fbcdn evitamos forçar cabeçalhos
+    // Alguns endpoints exigem referer/origin do Instagram.
+    // Não forçar para fbcdn evita bloqueios 403 em URLs já assinadas.
     const host = urlObj.hostname.toLowerCase();
-    const needsInstagramHeaders =
+    const shouldTryInstagramHeaders =
       host.includes("instagram.com") ||
       host.endsWith("cdninstagram.com") ||
-      host.includes("fbcdn.net") ||
       host.includes("fbsbx.com");
+    const instagramRequestHeaders: Record<string, string> = {
+      ...defaultRequestHeaders,
+      referer: "https://www.instagram.com/",
+      origin: "https://www.instagram.com",
+      "sec-fetch-dest": "image",
+      "sec-fetch-mode": "no-cors",
+      "sec-fetch-site": "cross-site",
+    };
 
-    if (needsInstagramHeaders) {
-      requestHeaders.referer = "https://www.instagram.com/";
-      requestHeaders.origin = "https://www.instagram.com";
-      requestHeaders["sec-fetch-dest"] = "image";
-      requestHeaders["sec-fetch-mode"] = "no-cors";
-      requestHeaders["sec-fetch-site"] = "cross-site";
-    }
-
-    const upstreamRes = await fetch(targetUrl, {
-      headers: requestHeaders,
+    let upstreamRes = await fetch(targetUrl, {
+      headers: shouldTryInstagramHeaders
+        ? instagramRequestHeaders
+        : defaultRequestHeaders,
       redirect: "follow",
       cache: "no-store",
     });
 
+    if ((!upstreamRes.ok || !upstreamRes.body) && shouldTryInstagramHeaders) {
+      logger.warn("[thumbnail-proxy] Upstream fetch failed with Instagram headers. Retrying without them.", {
+        status: upstreamRes.status,
+        host,
+        target: describeUrlForLog(targetUrl),
+      });
+      upstreamRes = await fetch(targetUrl, {
+        headers: defaultRequestHeaders,
+        redirect: "follow",
+        cache: "no-store",
+      });
+    }
+
     if (!upstreamRes.ok || !upstreamRes.body) {
-      logger.error(
-        `[thumbnail-proxy] Upstream fetch failed for ${targetUrl}: ${upstreamRes.status}`
-      );
+      const msg = `[thumbnail-proxy] Upstream fetch failed for ${describeUrlForLog(targetUrl)}: ${upstreamRes.status}`;
+      if (upstreamRes.status >= 500) {
+        logger.error(msg, { host, strict });
+      } else {
+        logger.warn(msg, { host, strict });
+      }
       if (strict) {
         return new Response("Upstream image fetch failed", { status: 502 });
       }
@@ -276,7 +303,7 @@ export async function GET(
 
     return new Response(responseStream, { headers: responseHeaders });
   } catch (err) {
-    logger.error(`[thumbnail-proxy] Unexpected error for ${targetUrl}`, err);
+    logger.error(`[thumbnail-proxy] Unexpected error for ${describeUrlForLog(targetUrl)}`, err);
     if (strict) {
       return new Response("Proxy unexpected error", { status: 500 });
     }
