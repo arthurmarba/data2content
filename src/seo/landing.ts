@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import faqItems from "@/data/faq";
 
 const SITE_URL = "https://data2content.ai";
-const HOME_OG_VERSION = "20260223-home-og-v1";
+const HOME_OG_VERSION = "20260223-home-og-v2";
 const HOME_OG_IMAGE_URL = `${SITE_URL}/api/og/home?v=${HOME_OG_VERSION}`;
 
 export const landingMetadata: Metadata = {

@@ -42,6 +42,7 @@ async function loadAuthOptions() {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const runtime = 'nodejs';
+const MEDIAKIT_OG_VERSION = '20260223-mediakit-og-v2';
 
 /** Helpers para metadados */
 function absoluteUrl(path: string) {
@@ -103,7 +104,9 @@ export async function generateMetadata(
   const pageUrl = absoluteUrl(`/mediakit/${resolvedToken.canonicalSlug}`);
   const ogImageVersionRaw = (user as any)?.updatedAt ? new Date((user as any).updatedAt).getTime() : 1;
   const ogImageVersion = Number.isFinite(ogImageVersionRaw) ? ogImageVersionRaw : 1;
-  const ogImage = absoluteUrl(`/api/mediakit/${resolvedToken.canonicalSlug}/og-image?v=${ogImageVersion}`);
+  const ogImage = absoluteUrl(
+    `/api/mediakit/${resolvedToken.canonicalSlug}/og-image?v=${MEDIAKIT_OG_VERSION}-${ogImageVersion}`,
+  );
 
   return {
     title,

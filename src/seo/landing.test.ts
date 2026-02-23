@@ -6,7 +6,7 @@ describe("landingMetadata", () => {
     const imageUrl = typeof image === "string" ? image : image?.url;
 
     expect(imageUrl).toContain("https://data2content.ai/api/og/home");
-    expect(imageUrl).toContain("v=20260223-home-og-v1");
+    expect(imageUrl).toContain("v=20260223-home-og-v2");
   });
 
   it("preenche campos de twitter summary_large_image", () => {
