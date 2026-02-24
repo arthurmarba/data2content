@@ -6,6 +6,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import { logger } from '@/app/lib/logger';
 import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
+import { resolveTargetCalculatorUser } from '@/app/api/calculator/access';
 
 export const runtime = 'nodejs';
 
@@ -14,10 +15,18 @@ export async function GET(request: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }
+  const url = new URL(request.url);
+  const targetResolution = resolveTargetCalculatorUser({
+    session,
+    targetUserId: url.searchParams.get('targetUserId'),
+  });
+  if (!targetResolution.ok) {
+    return NextResponse.json({ error: targetResolution.error }, { status: targetResolution.status });
+  }
 
   try {
     await connectToDatabase();
-    const calculation = await PubliCalculation.findOne({ userId: session.user.id })
+    const calculation = await PubliCalculation.findOne({ userId: targetResolution.userId })
       .sort({ createdAt: -1 })
       .lean()
       .exec();

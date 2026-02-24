@@ -28,6 +28,7 @@ import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
 import { isPricingCalibrationV1Enabled } from '@/app/lib/pricing/featureFlag';
 import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
+import { hasAdminRole, resolveTargetCalculatorUser } from '@/app/api/calculator/access';
 
 export const runtime = 'nodejs';
 
@@ -61,6 +62,7 @@ interface CalculatorPayload {
   seasonality?: string;
   periodDays?: number;
   explanation?: string;
+  targetUserId?: string;
 }
 
 const isIntegerLike = (value: unknown): boolean => {
@@ -92,13 +94,14 @@ export async function POST(request: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }
+  const isAdminActor = hasAdminRole(session?.user);
 
   const routePath = new URL(request.url).pathname;
   const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
   if (!access.ok) {
     return NextResponse.json({ error: access.message, reason: access.reason }, { status: access.status });
   }
-  if (!access.normalizedStatus) {
+  if (!access.normalizedStatus && !isAdminActor) {
     return NextResponse.json({ error: 'Recurso disponível apenas para planos premium. Faça upgrade para continuar.' }, { status: 402 });
   }
 
@@ -129,7 +132,15 @@ export async function POST(request: NextRequest) {
     complexity,
     authority,
     seasonality = 'normal',
+    targetUserId,
   } = payload;
+  const effectiveUserResolution = resolveTargetCalculatorUser({
+    session,
+    targetUserId,
+  });
+  if (!effectiveUserResolution.ok) {
+    return NextResponse.json({ error: effectiveUserResolution.error }, { status: effectiveUserResolution.status });
+  }
 
   const brandRiskV1Enabled = true;
 
@@ -260,8 +271,8 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const calibrationV1Enabled = await isPricingCalibrationV1Enabled();
 
-    const userId = session.user.id;
-    const user = (await UserModel.findById(userId).lean()) as IUser | null;
+    const effectiveUserId = effectiveUserResolution.userId;
+    const user = (await UserModel.findById(effectiveUserId).lean()) as IUser | null;
     if (!user) {
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
     }
@@ -276,7 +287,7 @@ export async function POST(request: NextRequest) {
     });
 
     const calculation = await PubliCalculation.create({
-      userId,
+      userId: effectiveUserId,
       metrics: calculationPayload.metrics,
       params: calculationPayload.params,
       result: calculationPayload.result,
@@ -347,22 +358,31 @@ export async function GET(request: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   }
+  const isAdminActor = hasAdminRole(session?.user);
+  const url = new URL(request.url);
+  const targetResolution = resolveTargetCalculatorUser({
+    session,
+    targetUserId: url.searchParams.get('targetUserId'),
+  });
+  if (!targetResolution.ok) {
+    return NextResponse.json({ error: targetResolution.error }, { status: targetResolution.status });
+  }
 
-  const routePath = new URL(request.url).pathname;
+  const routePath = url.pathname;
   const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
   if (!access.ok) {
     return NextResponse.json({ error: access.message, reason: access.reason }, { status: access.status });
   }
-  if (!access.normalizedStatus) {
+  if (!access.normalizedStatus && !isAdminActor) {
     return NextResponse.json({ error: 'Recurso disponível apenas para planos premium. Faça upgrade para continuar.' }, { status: 402 });
   }
 
-  const limitParam = Number(new URL(request.url).searchParams.get('limit') || '20');
+  const limitParam = Number(url.searchParams.get('limit') || '20');
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.trunc(limitParam), 1), 50) : 20;
 
   try {
     await connectToDatabase();
-    const calculations = await PubliCalculation.find({ userId: session.user.id })
+    const calculations = await PubliCalculation.find({ userId: targetResolution.userId })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean()

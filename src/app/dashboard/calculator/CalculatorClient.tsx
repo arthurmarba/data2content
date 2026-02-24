@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -9,6 +10,24 @@ import { isPlanActiveLike } from "@/utils/planStatus";
 import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, FaVideo, FaImage, FaLayerGroup, FaCalendarCheck, FaCalendarAlt, FaCalendarTimes, FaGlobeAmericas, FaBullhorn, FaUser, FaUserCheck, FaUserTie, FaStar, FaSnowflake, FaSun, FaCloudSun, FaPlus, FaTrash, FaChevronDown } from "react-icons/fa";
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
+
+const CreatorQuickSearch = dynamic(
+  () => import("@/app/admin/creator-dashboard/components/CreatorQuickSearch"),
+  { ssr: false, loading: () => null }
+);
+
+type ViewerInfo = {
+  id?: string | null;
+  role?: string | null;
+  name?: string | null;
+  planStatus?: string | null;
+};
+
+type AdminTargetUser = {
+  id: string;
+  name: string;
+  profilePictureUrl?: string | null;
+};
 
 type DeliveryType = "conteudo" | "evento";
 type CalculatorFormat = "post" | "reels" | "stories" | "pacote" | "evento";
@@ -106,6 +125,7 @@ type SubmitSource = "form_submit";
 type SaveSource = "result_cta";
 type PackageResponseItem = Omit<MediaKitPackage, "id"> & { _id?: string };
 
+const ADMIN_CALCULATOR_TARGET_STORAGE_KEY = "calculator_admin_target_user";
 let localPackageIdCounter = 0;
 type CollapsibleSectionKey = "delivery" | "rights" | "brand" | "packages" | "insights";
 
@@ -282,21 +302,41 @@ function sanitizePackagePrice(value: unknown): number {
   return 0;
 }
 
-export default function CalculatorClient() {
+export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   const router = useRouter();
   const { toast } = useToast();
   const { data: session } = useSession();
-  const billingStatus = useBillingStatus();
+  const viewerRoleFromProp = typeof viewer?.role === "string" ? viewer.role.trim().toLowerCase() : null;
+  const billingStatus = useBillingStatus({ auto: viewerRoleFromProp !== "admin" });
   const brandRiskV1Enabled = true;
+  const sessionUser = (session?.user as any) ?? null;
+  const sessionUserId =
+    typeof viewer?.id === "string" && viewer.id.trim().length > 0
+      ? viewer.id.trim()
+      : typeof sessionUser?.id === "string" && sessionUser.id.trim().length > 0
+        ? sessionUser.id.trim()
+        : null;
+  const rawViewerRole = viewerRoleFromProp ?? sessionUser?.role ?? null;
+  const viewerRole = typeof rawViewerRole === "string" ? rawViewerRole.trim().toLowerCase() : null;
+  const isAdminViewer = viewerRole === "admin";
+  const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
+  const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
+  const isActingOnBehalf = Boolean(
+    isAdminViewer &&
+      targetUserId &&
+      sessionUserId &&
+      targetUserId !== sessionUserId
+  );
 
-  const planStatusSession = (session?.user as any)?.planStatus;
+  const planStatusSession = viewer?.planStatus ?? sessionUser?.planStatus;
   const resolvedPlanAccess = Boolean(
     billingStatus.hasPremiumAccess ||
     billingStatus.isTrialActive ||
     isPlanActiveLike(planStatusSession)
   );
-  const canAccessFeatures = !billingStatus.isLoading && resolvedPlanAccess;
-  const showLockedMessage = !billingStatus.isLoading && !resolvedPlanAccess;
+  const canAccessFeatures = isAdminViewer || (!billingStatus.isLoading && resolvedPlanAccess);
+  const showLockedMessage = !isAdminViewer && !billingStatus.isLoading && !resolvedPlanAccess;
+  const showBillingLoading = !isAdminViewer && billingStatus.isLoading;
   const lockTrackedRef = useRef(false);
   const resumeHandledRef = useRef(false);
   const submitButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -339,8 +379,49 @@ export default function CalculatorClient() {
   const [isSavingPackages, setIsSavingPackages] = useState(false);
 
   useEffect(() => {
+    if (!isAdminViewer || adminTargetUser || typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem(ADMIN_CALCULATOR_TARGET_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<AdminTargetUser>;
+      if (typeof parsed?.id !== "string" || typeof parsed?.name !== "string") return;
+      const normalizedId = parsed.id.trim();
+      const normalizedName = parsed.name.trim();
+      if (!normalizedId || !normalizedName) return;
+      setAdminTargetUser({
+        id: normalizedId,
+        name: normalizedName,
+        profilePictureUrl: parsed.profilePictureUrl ?? null,
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [adminTargetUser, isAdminViewer]);
+
+  useEffect(() => {
+    if (!isAdminViewer || typeof window === "undefined") return;
+    try {
+      if (!adminTargetUser?.id) {
+        window.sessionStorage.removeItem(ADMIN_CALCULATOR_TARGET_STORAGE_KEY);
+        return;
+      }
+      window.sessionStorage.setItem(
+        ADMIN_CALCULATOR_TARGET_STORAGE_KEY,
+        JSON.stringify(adminTargetUser)
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [adminTargetUser, isAdminViewer]);
+
+  useEffect(() => {
+    setCalculation(null);
+    setError(null);
+  }, [targetUserId]);
+
+  useEffect(() => {
     // Fetch existing packages on mount or when access is confirmed
-    if (canAccessFeatures) {
+    if (canAccessFeatures && !isActingOnBehalf) {
       fetch('/api/mediakit/self/packages')
         .then((res) => res.json())
         .then((data: { packages?: PackageResponseItem[] }) => {
@@ -356,8 +437,10 @@ export default function CalculatorClient() {
           }
         })
         .catch((err) => console.error('Failed to load packages', err));
+      return;
     }
-  }, [canAccessFeatures]);
+    setPackages([]);
+  }, [canAccessFeatures, isActingOnBehalf]);
 
   useEffect(() => {
     if (showLockedMessage) {
@@ -703,7 +786,10 @@ export default function CalculatorClient() {
       const response = await fetch("/api/calculator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(normalizedParams),
+        body: JSON.stringify({
+          ...normalizedParams,
+          targetUserId: isActingOnBehalf ? targetUserId : undefined,
+        }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -859,6 +945,14 @@ export default function CalculatorClient() {
   };
 
   const handleAddPackage = (pkg?: Partial<MediaKitPackage>, source: PackageInsertSource = "manual") => {
+    if (isActingOnBehalf) {
+      toast({
+        variant: "info",
+        title: "Pacotes desativados",
+        description: "No modo admin para outro criador, pacotes do Media Kit ficam desativados.",
+      });
+      return;
+    }
     const paramsForTelemetry = calculation?.params ?? calcParams;
     const newPackage: MediaKitPackage = {
       id: buildLocalPackageId(),
@@ -907,6 +1001,14 @@ export default function CalculatorClient() {
   };
 
   const handleAddToMediaKit = async () => {
+    if (isActingOnBehalf) {
+      toast({
+        variant: "info",
+        title: "Ação indisponível",
+        description: "Para evitar alterações indevidas, o salvamento no Media Kit só funciona no modo da sua conta.",
+      });
+      return;
+    }
     if (isSavingPackages) return;
     setIsSavingPackages(true);
 
@@ -1223,7 +1325,32 @@ export default function CalculatorClient() {
           </p>
         </header>
 
-        {billingStatus.isLoading && (
+        {isAdminViewer ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full sm:max-w-md">
+              <CreatorQuickSearch
+                onSelect={(creator) =>
+                  setAdminTargetUser({
+                    id: creator.id,
+                    name: creator.name,
+                    profilePictureUrl: creator.profilePictureUrl,
+                  })
+                }
+                selectedCreatorName={adminTargetUser?.name || null}
+                selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
+                onClear={() => setAdminTargetUser(null)}
+                apiPrefix="/api/admin"
+              />
+            </div>
+            <p className="text-xs text-slate-500">
+              {isActingOnBehalf
+                ? `Calculando para ${adminTargetUser?.name}.`
+                : "Calculando para sua própria conta."}
+            </p>
+          </div>
+        ) : null}
+
+        {showBillingLoading && (
           <div className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-slate-600 sm:p-8">
             <FaSpinner className="h-5 w-5 animate-spin text-slate-700" />
             <span className="font-medium">Carregando seus dados...</span>
@@ -1657,7 +1784,8 @@ export default function CalculatorClient() {
                         description: card?.description ?? '',
                       }, "suggested_card");
                     }}
-                    className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+                    disabled={isActingOnBehalf}
+                    className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <FaPlus className="h-3 w-3" />
                     Usar como pacote
@@ -1676,6 +1804,11 @@ export default function CalculatorClient() {
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">Seus Pacotes</h3>
                   <p className="text-sm text-slate-500">Estes pacotes aparecerão no seu Mídia Kit.</p>
+                  {isActingOnBehalf ? (
+                    <p className="mt-1 text-xs text-amber-700">
+                      Modo admin ativo: edição de pacotes desativada para evitar salvar no Media Kit da conta errada.
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -1690,7 +1823,8 @@ export default function CalculatorClient() {
                 </button>
                 <button
                   onClick={() => handleAddPackage()}
-                  className="group flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  disabled={isActingOnBehalf}
+                  className="group flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <FaPlus className="h-3 w-3" />
                   Novo Pacote
@@ -1760,7 +1894,7 @@ export default function CalculatorClient() {
                   <button
                     type="button"
                     onClick={handleAddToMediaKit}
-                    disabled={isSavingPackages}
+                    disabled={isSavingPackages || isActingOnBehalf}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSavingPackages ? (

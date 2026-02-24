@@ -11,5 +11,14 @@ export default async function CalculatorPage() {
     redirect('/login');
   }
 
-  return <CalculatorClient />;
+  return (
+    <CalculatorClient
+      viewer={{
+        id: session.user.id,
+        role: session.user.role ?? null,
+        name: session.user.name ?? null,
+        planStatus: (session.user as { planStatus?: string | null }).planStatus ?? null,
+      }}
+    />
+  );
 }
