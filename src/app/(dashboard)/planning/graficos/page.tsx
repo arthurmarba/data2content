@@ -18,5 +18,13 @@ export default async function PlanningChartsRoutePage() {
     return <PlanningLockedView variant="planner" returnTo="/planning/graficos" />;
   }
 
-  return <PlanningChartsPage />;
+  return (
+    <PlanningChartsPage
+      viewer={{
+        id: session.user.id,
+        role: session.user.role ?? null,
+        name: session.user.name ?? null,
+      }}
+    />
+  );
 }

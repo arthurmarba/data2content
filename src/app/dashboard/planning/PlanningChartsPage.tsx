@@ -2,11 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -30,6 +27,10 @@ const DiscoverVideoModal = dynamic(() => import("@/app/discover/components/Disco
   ssr: false,
   loading: () => null,
 });
+const CreatorQuickSearch = dynamic(
+  () => import("@/app/admin/creator-dashboard/components/CreatorQuickSearch"),
+  { ssr: false, loading: () => null }
+);
 
 const cardBase = "rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
@@ -52,6 +53,27 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 const numberFormatter = new Intl.NumberFormat("pt-BR");
+const TARGET_TIMEZONE = "America/Sao_Paulo";
+const WEEKDAY_SHORT_SUN_FIRST = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
+const WEEKDAY_LONG_SUN_FIRST = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"] as const;
+const WEEKDAY_SHORT_EN_TO_INDEX: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+const zonedDatePartsFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: TARGET_TIMEZONE,
+  weekday: "short",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  hourCycle: "h23",
+});
 const toNumber = (value: any): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = typeof value === "string" ? Number(value) : NaN;
@@ -63,21 +85,49 @@ const formatPostsCount = (count: number) => {
 };
 type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
 type CategoryBarDatum = { name: string; value: number; postsCount: number };
-const getWeekStart = (d: string | Date) => {
-  const date = new Date(d);
+const getTargetDateParts = (value: string | Date) => {
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  const day = date.getDay(); // 0 = domingo
-  const diffToMonday = (day + 6) % 7;
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - diffToMonday);
+  const parts = zonedDatePartsFormatter.formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value;
+  const weekdayShort = get("weekday");
+  const month = Number(get("month"));
+  const day = Number(get("day"));
+  const year = Number(get("year"));
+  const hour = Number(get("hour"));
+  const weekdayIndexSun0 = typeof weekdayShort === "string" ? WEEKDAY_SHORT_EN_TO_INDEX[weekdayShort] : undefined;
+  if (
+    weekdayIndexSun0 === undefined ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    !Number.isFinite(year) ||
+    !Number.isFinite(hour)
+  ) {
+    return null;
+  }
+  return {
+    weekdayIndexSun0,
+    dayOfWeekMongo: weekdayIndexSun0 + 1,
+    year,
+    month,
+    day,
+    hour,
+  };
+};
+
+const getWeekStart = (d: string | Date) => {
+  const parts = getTargetDateParts(d);
+  if (!parts) return null;
+  const diffToMonday = (parts.weekdayIndexSun0 + 6) % 7;
+  const start = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  start.setUTCDate(start.getUTCDate() - diffToMonday);
   return start;
 };
 
 const formatDateKey = (d: Date) => {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 };
 
@@ -87,13 +137,13 @@ const parseIsoWeekKey = (value: string) => {
   const year = Number(match[1]);
   const week = Number(match[2]);
   if (!Number.isFinite(year) || !Number.isFinite(week) || week < 1 || week > 53) return null;
-  const jan4 = new Date(year, 0, 4);
-  const jan4Dow = (jan4.getDay() + 6) % 7; // Monday = 0
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Dow = (jan4.getUTCDay() + 6) % 7; // Monday = 0
   const week1Monday = new Date(jan4);
-  week1Monday.setDate(jan4.getDate() - jan4Dow);
+  week1Monday.setUTCDate(jan4.getUTCDate() - jan4Dow);
   const target = new Date(week1Monday);
-  target.setDate(week1Monday.getDate() + (week - 1) * 7);
-  target.setHours(0, 0, 0, 0);
+  target.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+  target.setUTCHours(0, 0, 0, 0);
   return target;
 };
 
@@ -179,18 +229,16 @@ const filterPostsByWeek = (posts: any[], weekKey: string | null) => {
 const filterPostsByHour = (posts: any[], hour: number) =>
   posts.filter((p) => {
     if (!p?.postDate) return false;
-    const d = new Date(p.postDate);
-    return !Number.isNaN(d.getTime()) && d.getHours() === hour;
+    const parts = getTargetDateParts(p.postDate);
+    return !!parts && parts.hour === hour;
   });
 
 const filterPostsByDayHour = (posts: any[], day: number, startHour: number, endHour: number) =>
   posts.filter((p) => {
     if (!p?.postDate) return false;
-    const d = new Date(p.postDate);
-    if (Number.isNaN(d.getTime())) return false;
-    const dow = d.getDay() === 0 ? 7 : d.getDay();
-    const h = d.getHours();
-    return dow === day && h >= startHour && h <= endHour;
+    const parts = getTargetDateParts(p.postDate);
+    if (!parts) return false;
+    return parts.dayOfWeekMongo === day && parts.hour >= startHour && parts.hour <= endHour;
   });
 
 const formatAliases: Record<string, string> = {
@@ -260,9 +308,31 @@ const aggregateAverageInteractionsByCategory = (posts: any[], field: CategoryFie
     .sort((a, b) => b.value - a.value);
 };
 
-export default function PlanningChartsPage() {
-  const { data: session } = useSession();
-  const userId = session?.user?.id;
+type ViewerInfo = {
+  id: string;
+  role?: string | null;
+  name?: string | null;
+};
+
+type AdminTargetUser = {
+  id: string;
+  name: string;
+  profilePictureUrl?: string | null;
+};
+
+export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
+  const sessionUserId = viewer?.id;
+  const viewerRole = viewer?.role ?? null;
+  const isAdminViewer = viewerRole === "admin";
+  const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
+  const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
+  const activeUserId = targetUserId ?? sessionUserId;
+  const isActingOnBehalf = Boolean(
+    isAdminViewer &&
+      targetUserId &&
+      sessionUserId &&
+      targetUserId !== sessionUserId
+  );
   const swrOptions = useMemo(
     () => ({
       revalidateOnFocus: false,
@@ -277,24 +347,28 @@ export default function PlanningChartsPage() {
   const PAGE_LIMIT = 200;
   const MAX_PAGES = 6; // evita loop infinito; 6*200 = 1200 posts em 90 dias
 
-  const handleTimePeriodChange = (value: string) => {
-    setTimePeriod(value);
+  const resetPaginationState = React.useCallback(() => {
     setPage(1);
     setPostsCache([]);
     setAutoPaginating(false);
+  }, []);
+
+  const handleTimePeriodChange = (value: string) => {
+    setTimePeriod(value);
+    resetPaginationState();
   };
 
   const { data: chartsBatchData, isLoading: loadingBatch } = useSWR(
-    userId
-      ? `/api/v1/users/${userId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&metric=stats.total_interactions&engagementMetricField=stats.total_interactions&limit=${PAGE_LIMIT}`
+    activeUserId
+      ? `/api/v1/users/${activeUserId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&metric=stats.total_interactions&engagementMetricField=stats.total_interactions&limit=${PAGE_LIMIT}`
       : null,
     fetcher,
     swrOptions
   );
 
   const { data: pagedPostsData } = useSWR(
-    userId && page > 1
-      ? `/api/v1/users/${userId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
+    activeUserId && page > 1
+      ? `/api/v1/users/${activeUserId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
       : null,
     fetcher,
     swrOptions
@@ -400,10 +474,10 @@ export default function PlanningChartsPage() {
       }
 
       // Fallback: busca posts do horário no back-end usando o período selecionado.
-      if (!userId) return;
+      if (!activeUserId) return;
       try {
         const res = await fetch(
-          `/api/v1/users/${userId}/videos/list?timePeriod=${timePeriod}&hour=${hour}&limit=200&page=1&sortBy=postDate&sortOrder=desc`,
+          `/api/v1/users/${activeUserId}/videos/list?timePeriod=${timePeriod}&hour=${hour}&limit=200&page=1&sortBy=postDate&sortOrder=desc`,
           { cache: "no-store" }
         );
         if (!res.ok) {
@@ -431,14 +505,14 @@ export default function PlanningChartsPage() {
         });
       }
     },
-    [normalizedPosts, openSliceModal, timePeriod, userId]
+    [activeUserId, normalizedPosts, openSliceModal, timePeriod]
   );
 
   const handleDayHourClick = React.useCallback(
     (day: number, startHour: number, endHour: number, subtitle: string) => {
       const posts = sortPostsByDateDesc(filterPostsByDayHour(normalizedPosts, day, startHour, endHour));
       openSliceModal({
-        title: `Posts em ${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][day - 1]} entre ${startHour}h e ${endHour}h`,
+        title: `Posts em ${WEEKDAY_SHORT_SUN_FIRST[day - 1] || `Dia ${day}`} entre ${startHour}h e ${endHour}h`,
         subtitle,
         posts,
       });
@@ -522,42 +596,58 @@ export default function PlanningChartsPage() {
     const buckets: Array<{ hour: number; average: number; count?: number }> = timeData?.buckets || [];
     const source =
       buckets.length > 0
-        ? buckets.map(({ hour, average, count }) => {
-            const postsCount = typeof count === "number" && count > 0 ? count : 1;
-            return {
-              hour,
-              interactionsSum: (average || 0) * postsCount,
-              postsCount,
-            };
-          })
+        ? buckets.map(({ hour, average, count }) => ({
+            hour,
+            average: average || 0,
+            count: typeof count === "number" && count > 0 ? count : null,
+          }))
         : Array.isArray(postsSource)
           ? postsSource
             .filter((p) => p?.postDate)
             .map((p) => {
-              const d = new Date(p.postDate);
+              const parts = getTargetDateParts(p.postDate);
+              if (!parts) return null;
               return {
-                hour: d.getHours(),
-                interactionsSum: toNumber(p?.stats?.total_interactions) ?? 0,
-                postsCount: 1,
+                hour: parts.hour,
+                average: toNumber(p?.stats?.total_interactions) ?? 0,
+                count: 1,
               };
             })
+            .filter(Boolean)
           : [];
 
     if (!source.length) return [];
-    const acc = new Map<number, { interactionsSum: number; postsCount: number }>();
-    source.forEach(({ hour, interactionsSum, postsCount }) => {
-      const current = acc.get(hour) || { interactionsSum: 0, postsCount: 0 };
-      acc.set(hour, {
-        interactionsSum: current.interactionsSum + (interactionsSum || 0),
-        postsCount: current.postsCount + (postsCount || 0),
+    const acc = new Map<number, { weightedSum: number; weight: number; fallbackSum: number; fallbackCount: number; postsCount: number }>();
+    source.forEach((item: any) => {
+      const current = acc.get(item.hour) || {
+        weightedSum: 0,
+        weight: 0,
+        fallbackSum: 0,
+        fallbackCount: 0,
+        postsCount: 0,
+      };
+      if (typeof item.count === "number" && item.count > 0) {
+        current.weightedSum += item.average * item.count;
+        current.weight += item.count;
+        current.postsCount += item.count;
+      } else {
+        current.fallbackSum += item.average;
+        current.fallbackCount += 1;
+      }
+      acc.set(item.hour, {
+        weightedSum: current.weightedSum,
+        weight: current.weight,
+        fallbackSum: current.fallbackSum,
+        fallbackCount: current.fallbackCount,
+        postsCount: current.postsCount,
       });
     });
 
     return Array.from(acc.entries())
-      .map(([hour, { interactionsSum, postsCount }]) => ({
+      .map(([hour, { weightedSum, weight, fallbackSum, fallbackCount, postsCount }]) => ({
         hour,
-        average: postsCount ? interactionsSum / postsCount : 0,
-        postsCount,
+        average: weight > 0 ? weightedSum / weight : fallbackCount > 0 ? fallbackSum / fallbackCount : 0,
+        postsCount: weight > 0 ? postsCount : undefined,
       }))
       .sort((a, b) => a.hour - b.hour);
   }, [postsSource, timeData]);
@@ -755,13 +845,15 @@ export default function PlanningChartsPage() {
       source = postsSource
         .filter((p) => p?.postDate)
         .map((p) => {
-          const d = new Date(p.postDate);
+          const parts = getTargetDateParts(p.postDate);
+          if (!parts) return null;
           return {
-            day: d.getDay() === 0 ? 7 : d.getDay(), // Sunday -> 7
-            hour: d.getHours(),
+            day: parts.dayOfWeekMongo,
+            hour: parts.hour,
             value: toNumber(p?.stats?.total_interactions) ?? 0,
           };
-        });
+        })
+        .filter(Boolean) as Array<{ day: number; hour: number; value: number }>;
     }
     if (!source.length) return [];
     const maxVal = Math.max(...source.map((s) => s.value || 0), 0.0001);
@@ -823,22 +915,22 @@ export default function PlanningChartsPage() {
   const weeklyEngagementRate = useMemo(() => {
     const posts = Array.isArray(postsSource) ? postsSource : [];
     if (!posts.length) return [];
-    const weeks = new Map<string, { date: string; sumRate: number; count: number }>();
+    const weeks = new Map<string, { date: string; totalInteractions: number; totalReach: number; count: number }>();
     posts.forEach((p: any) => {
       if (!p?.postDate) return;
       const reach = toNumber(p?.stats?.reach);
       const interactions = toNumber(p?.stats?.total_interactions);
-      if (!reach || reach <= 0 || !interactions || interactions <= 0) return;
-      const rate = interactions / reach;
+      if (!reach || reach <= 0 || interactions === null) return;
       const key = getWeekKey(p.postDate);
       if (!key) return;
-      const bucket = weeks.get(key) || { date: key, sumRate: 0, count: 0 };
-      bucket.sumRate += rate;
+      const bucket = weeks.get(key) || { date: key, totalInteractions: 0, totalReach: 0, count: 0 };
+      bucket.totalInteractions += Math.max(interactions, 0);
+      bucket.totalReach += reach;
       bucket.count += 1;
       weeks.set(key, bucket);
     });
     return Array.from(weeks.values())
-      .map((w) => ({ ...w, avgRate: w.count ? w.sumRate / w.count : 0 }))
+      .map((w) => ({ ...w, avgRate: w.totalReach > 0 ? w.totalInteractions / w.totalReach : 0 }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
   }, [postsSource]);
 
@@ -975,6 +1067,34 @@ export default function PlanningChartsPage() {
               Gráficos do planejamento
             </div>
             <h1 className="text-2xl font-semibold text-slate-900">Leituras com dados reais</h1>
+            {isAdminViewer ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="w-full sm:max-w-md">
+                  <CreatorQuickSearch
+                    onSelect={(creator) => {
+                      resetPaginationState();
+                      setAdminTargetUser({
+                        id: creator.id,
+                        name: creator.name,
+                        profilePictureUrl: creator.profilePictureUrl,
+                      });
+                    }}
+                    selectedCreatorName={adminTargetUser?.name || null}
+                    selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
+                    onClear={() => {
+                      resetPaginationState();
+                      setAdminTargetUser(null);
+                    }}
+                    apiPrefix="/api/admin"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  {isActingOnBehalf
+                    ? `Visualizando dados de ${adminTargetUser?.name}.`
+                    : "Visualizando seus próprios dados."}
+                </p>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-slate-600">
                 Atualizado para o período selecionado. Use alcance, interações e horários reais para planejar sem canibalizar posts.
@@ -1029,14 +1149,28 @@ export default function PlanningChartsPage() {
                         axisLine={false}
                         tick={{ fill: "#94a3b8", fontSize: 11 }}
                       />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        yAxisId="reach"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                      />
+                      <YAxis
+                        yAxisId="interactions"
+                        orientation="right"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                      />
                       <Tooltip
                         contentStyle={tooltipStyle}
                         labelFormatter={(label) => formatWeekLabel(String(label))}
                         formatter={(value: number) => numberFormatter.format(Math.round(value))}
                       />
-                      <Line type="monotone" dataKey="reach" name="Alcance médio" stroke="#2563eb" strokeWidth={3} dot={false} />
-                      <Line type="monotone" dataKey="interactions" name="Interações médias" stroke="#7c3aed" strokeWidth={3} dot={false} />
+                      <Line yAxisId="reach" type="monotone" dataKey="reach" name="Alcance médio" stroke="#2563eb" strokeWidth={3} dot={false} />
+                      <Line yAxisId="interactions" type="monotone" dataKey="interactions" name="Interações médias" stroke="#7c3aed" strokeWidth={3} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -1488,25 +1622,22 @@ export default function PlanningChartsPage() {
                 ) : heatmap.length === 0 ? (
                   <p className="text-sm text-slate-500">Sem dados para montar o heatmap.</p>
                 ) : (
-                  <div className="grid grid-cols-8 gap-1 text-[11px] text-slate-500">
+                  <div className="grid grid-cols-7 gap-1 text-[11px] text-slate-500">
                     <div />
-                    {Array.from({ length: 7 }).map((_, idx) => (
+                    {Array.from({ length: 6 }).map((_, idx) => (
                       <div key={idx} className="text-center">{`${idx * 4}h`}</div>
                     ))}
                     {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
                       <React.Fragment key={dow}>
-                        <div className="pr-2 text-right">{["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][dow - 1]}</div>
-                        {Array.from({ length: 7 }).map((_, hIdx) => {
+                        <div className="pr-2 text-right">{WEEKDAY_SHORT_SUN_FIRST[dow - 1] || `Dia ${dow}`}</div>
+                        {Array.from({ length: 6 }).map((_, hIdx) => {
                           const h = hIdx * 4;
-                          const startHour = Math.min(h, 23);
+                          const startHour = h;
                           const endHour = Math.min(h + 3, 23);
-                          const match = heatmap.reduce((best, curr) => {
-                            if (Math.abs(curr.hour - h) <= 1 && curr.day === dow) {
-                              return curr.score > (best?.score ?? 0) ? curr : best;
-                            }
-                            return best;
-                          }, null as any);
-                          const score = match?.score ?? 0;
+                          const windowPoints = heatmap.filter((curr) => curr.day === dow && curr.hour >= startHour && curr.hour <= endHour);
+                          const score = windowPoints.length
+                            ? windowPoints.reduce((sum, curr) => sum + curr.score, 0) / windowPoints.length
+                            : 0;
                           const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
                           return (
                             <button
@@ -1515,7 +1646,7 @@ export default function PlanningChartsPage() {
                               className="aspect-square rounded border border-slate-100 transition hover:border-slate-300"
                               style={{ background: bg }}
                               onClick={() => handleDayHourClick(dow, startHour, endHour, "Heatmap de janelas")}
-                              aria-label={`Posts em ${["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][dow - 1]} entre ${startHour}h e ${endHour}h`}
+                              aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
                             />
                           );
                         })}
@@ -1541,37 +1672,29 @@ export default function PlanningChartsPage() {
                   <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
+                    <BarChart
                       data={formatBars}
-                      margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
-                      onClick={(state: any) => {
-                        const name =
-                          state?.activeLabel ||
-                          state?.activePayload?.[0]?.payload?.name ||
-                          state?.activePayload?.[0]?.payload?.format;
-                        if (name) handleCategoryClick("format", String(name), "Distribuição de interações");
-                      }}
+                      margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
                       style={{ cursor: "pointer" }}
                     >
-                      <defs>
-                        <linearGradient id="formatGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
-                          <stop offset="100%" stopColor="#f97316" stopOpacity={0.05} />
-                        </linearGradient>
-                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                       <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number, name) =>
-                          name === "percentage"
-                            ? [`${value.toFixed(1)}%`, "Participação"]
-                            : [numberFormatter.format(Math.round(value)), "Interações"]
-                        }
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
                       />
-                      <Area type="monotone" dataKey="value" name="Interações" stroke="#f97316" fill="url(#formatGradient)" strokeWidth={3} dot={false} />
-                    </AreaChart>
+                      <Bar
+                        dataKey="value"
+                        name="Interações"
+                        fill="#f97316"
+                        radius={[6, 6, 0, 0]}
+                        onClick={({ payload }) => {
+                          const value = payload?.name ? String(payload.name) : null;
+                          if (value) handleCategoryClick("format", value, "Distribuição de interações");
+                        }}
+                      />
+                    </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
