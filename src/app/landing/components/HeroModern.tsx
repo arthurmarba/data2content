@@ -188,14 +188,16 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
         }}
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,#FF2C7E22_0%,transparent_50%),radial-gradient(circle_at_80%_20%,#246BFD22_0%,transparent_50%),radial-gradient(circle_at_50%_80%,#FFB34722_0%,transparent_60%)]" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+        <div className="absolute inset-0 hidden bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay sm:block" />
       </div>
+
+      <div className="absolute -top-16 -left-14 h-56 w-56 rounded-full bg-brand-primary/10 blur-[72px] sm:hidden" />
+      <div className="absolute top-24 -right-10 h-52 w-52 rounded-full bg-brand-accent/10 blur-[64px] sm:hidden" />
 
       <motion.div
         style={{ y: y1, opacity, willChange: "transform, opacity" }}
         animate={{
           scale: [1, 1.1, 1],
-          opacity: [0.3, 0.4, 0.3],
           rotate: [0, 5, 0]
         }}
         transition={{
@@ -203,13 +205,12 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
           repeat: Infinity,
           ease: "linear"
         }}
-        className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-brand-primary/10 rounded-full blur-[140px]"
+        className="absolute -top-20 -left-20 hidden h-[600px] w-[600px] rounded-full bg-brand-primary/10 blur-[140px] sm:block"
       />
       <motion.div
         style={{ y: y2, opacity, willChange: "transform, opacity" }}
         animate={{
           scale: [1, 1.15, 1],
-          opacity: [0.2, 0.35, 0.2],
           rotate: [0, -5, 0]
         }}
         transition={{
@@ -218,7 +219,7 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
           ease: "linear",
           delay: 2
         }}
-        className="absolute top-40 -right-20 w-[500px] h-[500px] bg-brand-accent/10 rounded-full blur-[120px]"
+        className="absolute top-40 -right-20 hidden h-[500px] w-[500px] rounded-full bg-brand-accent/10 blur-[120px] sm:block"
       />
 
       <div className="landing-section__inner relative z-10 flex w-full flex-col gap-7 sm:gap-14 md:gap-24">

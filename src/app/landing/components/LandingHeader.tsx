@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { signIn, useSession } from 'next-auth/react';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, useScroll, useTransform, useMotionTemplate } from 'framer-motion';
 import ButtonPrimary from './ButtonPrimary';
@@ -24,16 +24,20 @@ export default function LandingHeader({
   onCreatorCta,
   hideBrandCta = false,
 }: LandingHeaderProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
+  const loginButtonRef = useRef<HTMLButtonElement>(null);
   const ctaButtonRef = useRef<HTMLButtonElement>(null);
   const previousBodyOverflow = useRef<string | null>(null);
   const previousBodyTouchAction = useRef<string | null>(null);
   const { appendUtm, utm } = useUtmAttribution();
+  const isAuthenticated = Boolean(session?.user);
+  const isSessionLoading = status === 'loading';
+  const shouldShowLoginAction = showLoginButton && !isAuthenticated && !isSessionLoading;
 
   const { scrollY } = useScroll();
   const headerBgOpacity = useTransform(scrollY, [0, 80], [0, 0.95]);
@@ -52,6 +56,7 @@ export default function LandingHeader({
   ];
 
   const handleJoinCommunity = () => {
+    if (isSessionLoading) return;
     track('landing_header_creator_cta_click');
 
     if (onCreatorCta) {
@@ -70,6 +75,22 @@ export default function LandingHeader({
       .catch(fallbackToLogin);
   };
 
+  const handleOpenLogin = () => {
+    track('landing_header_login_click');
+    window.location.assign('/login');
+  };
+
+  const handleBrands = () => {
+    track('landing_header_brand_cta_click');
+    const overrides: Partial<UtmContext> = {
+      utm_content: 'landing_header_brand_button',
+    };
+    if (!utm.utm_source) overrides.utm_source = 'landing';
+    if (!utm.utm_medium) overrides.utm_medium = 'header_cta';
+    if (!utm.utm_campaign) overrides.utm_campaign = 'casting_page';
+    const destination = appendUtm(CASTING_ROUTE, overrides) || CASTING_ROUTE;
+    window.location.assign(destination);
+  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 24);
@@ -129,15 +150,17 @@ export default function LandingHeader({
 
   useEffect(() => {
     if (isMenuOpen) {
-      if (!session) {
-        firstLinkRef.current?.focus();
-      } else {
+      if (isAuthenticated || isSessionLoading) {
         ctaButtonRef.current?.focus();
+      } else if (shouldShowLoginAction) {
+        loginButtonRef.current?.focus();
+      } else {
+        firstLinkRef.current?.focus();
       }
     } else {
       menuButtonRef.current?.focus();
     }
-  }, [isMenuOpen, session]);
+  }, [isMenuOpen, isAuthenticated, isSessionLoading, shouldShowLoginAction]);
 
   return (
     <motion.header
@@ -179,13 +202,28 @@ export default function LandingHeader({
                 {link.label}
               </a>
             ))}
-            {session ? (
+            {!hideBrandCta ? (
+              <ButtonPrimary
+                onClick={handleBrands}
+                size="sm"
+                variant="outline"
+                className="shadow-none"
+              >
+                Sou marca
+              </ButtonPrimary>
+            ) : null}
+            {shouldShowLoginAction ? (
+              <ButtonPrimary onClick={handleOpenLogin} size="sm" variant="outline" className="shadow-none">
+                Entrar
+              </ButtonPrimary>
+            ) : null}
+            {isAuthenticated ? (
               <ButtonPrimary href={MAIN_DASHBOARD_ROUTE} size="sm" variant="brand" className="shadow-none">
                 Ir para o painel
               </ButtonPrimary>
             ) : (
-              <ButtonPrimary onClick={handleJoinCommunity} size="sm" variant="brand">
-                Criar conta gratuita
+              <ButtonPrimary onClick={handleJoinCommunity} size="sm" variant="brand" disabled={isSessionLoading}>
+                {isSessionLoading ? 'Carregando...' : 'Criar conta gratuita'}
               </ButtonPrimary>
             )}
           </nav>
@@ -227,19 +265,50 @@ export default function LandingHeader({
                 {link.label}
               </a>
             ))}
+            {!hideBrandCta ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleBrands();
+                }}
+                className="mt-1 rounded-xl border border-brand-primary/40 px-4 py-3 text-left text-sm font-semibold text-brand-primary hover:bg-brand-primary/10"
+              >
+                Sou marca
+              </button>
+            ) : null}
+            {shouldShowLoginAction ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleOpenLogin();
+                }}
+                className="mt-1 rounded-xl border border-brand-primary/20 px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light"
+                ref={loginButtonRef}
+              >
+                Entrar
+              </button>
+            ) : null}
             <button
+              type="button"
               onClick={() => {
+                if (isSessionLoading) return;
                 setIsMenuOpen(false);
-                if (session) {
+                if (isAuthenticated) {
                   window.location.assign(MAIN_DASHBOARD_ROUTE);
                 } else {
                   handleJoinCommunity();
                 }
               }}
-              className="mt-1 rounded-xl px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light"
-              ref={session ? ctaButtonRef : undefined}
+              className={[
+                'mt-1 rounded-xl px-4 py-3 text-left text-sm font-semibold text-brand-dark hover:bg-brand-light',
+                isSessionLoading ? 'cursor-not-allowed opacity-60' : '',
+              ].join(' ')}
+              ref={isAuthenticated || isSessionLoading ? ctaButtonRef : undefined}
+              disabled={isSessionLoading}
             >
-              {session ? 'Ir para o painel' : 'Criar conta gratuita'}
+              {isSessionLoading ? 'Carregando...' : isAuthenticated ? 'Ir para o painel' : 'Criar conta gratuita'}
             </button>
           </nav>
         </div>

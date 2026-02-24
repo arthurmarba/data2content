@@ -31,13 +31,13 @@ type APIRawPrice = {
 // cache simples em escopo de módulo para reabrir o modal sem re-buscar sempre
 let pricesCache: PricesShape | null = null;
 
-// 🎯 Narrativa focada: alertas no WhatsApp + Chat AI na plataforma
+// 🎯 Narrativa focada: ferramentas de execução (roteiros/review) + alertas no WhatsApp
 const FEATURES: string[] = [
   "Mídia kit auditado + vitrine no marketplace",
   "Review de posts com vereditos antes de publicar",
+  "Meus Roteiros com IA para planejar e publicar",
   "Negociação assistida por IA + precificação inteligente",
   "Mentorias semanais e alertas no WhatsApp",
-  "Chat IA estratégico dentro da plataforma",
   "Assinatura fixa: 0% de comissão nas publis",
 ];
 
@@ -98,11 +98,11 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   },
   whatsapp: {
     title: "Alertas no WhatsApp fazem parte do Pro",
-    subtitle: "Receba lembretes e prioridades; a IA fica no Chat dentro do app.",
+    subtitle: "Receba lembretes e prioridades para executar seu plano de conteúdo.",
     bullets: [
       "Alertas com horários, campanhas e oportunidades",
       "Diagnóstico automático do Instagram",
-      "Chat IA estratégico na plataforma",
+      "Acesso a Meus Roteiros e Review de Post no app",
     ],
     ctaLabel: "Ativar Plano Pro",
   },

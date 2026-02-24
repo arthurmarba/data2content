@@ -92,9 +92,14 @@ export default function BillingSuccessPage() {
         </p>
       )}
 
-      <a className="mt-5 inline-block rounded-xl bg-black px-4 py-2 text-white" href="/dashboard/chat">
-        Conversar com IA
-      </a>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <a className="inline-block rounded-xl bg-black px-4 py-2 text-white" href="/planning/roteiros">
+          Abrir Meus Roteiros
+        </a>
+        <a className="inline-block rounded-xl border border-gray-300 px-4 py-2 text-gray-800" href="/dashboard/post-analysis">
+          Abrir Review de Post
+        </a>
+      </div>
     </div>
   );
 }

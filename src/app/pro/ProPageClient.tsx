@@ -88,9 +88,9 @@ const FAQS = [
       "Seu perfil ganha destaque e mais visibilidade para marcas que buscam creators auditados.",
   },
   {
-    question: "O Chat IA substitui as mentorias?",
+    question: "Roteiros e review de post substituem as mentorias?",
     answer:
-      "Não. O Chat IA resolve dúvidas rápidas no dia a dia; as mentorias fazem o direcionamento estratégico.",
+      "Não. Roteiros e review aceleram a execução do conteúdo; as mentorias fazem o direcionamento estratégico da sua carreira.",
   },
   {
     question: "Como são feitas as cobranças?",
@@ -118,12 +118,17 @@ const UNLOCKED_SURFACES = [
   {
     title: "Planejamento Pro",
     description: "Planner com IA, previsões e alertas para cada entrega.",
-    href: "/dashboard/planning",
+    href: "/planning/planner",
+  },
+  {
+    title: "Meus Roteiros",
+    description: "Gere e organize roteiros prontos para publicar com consistência.",
+    href: "/planning/roteiros",
   },
   {
     title: "Discovery da comunidade",
     description: "Benchmarks e referências exclusivas para acelerar resultados.",
-    href: "/dashboard/discover",
+    href: "/planning/discover",
   },
   {
     title: "Inbox de oportunidades",
@@ -134,11 +139,6 @@ const UNLOCKED_SURFACES = [
     title: "Review de posts",
     description: "Vereditos claros para ajustar antes de publicar.",
     href: "/dashboard/post-analysis",
-  },
-  {
-    title: "Chat IA estratégico",
-    description: "Decisões rápidas e dúvidas resolvidas dentro do app.",
-    href: "/dashboard/chat",
   },
 ];
 
@@ -343,7 +343,7 @@ export default function ProPageClient({
             <div className="mx-auto max-w-xl rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900 shadow-sm">
               <p className="font-semibold">Plano Pro ativo ✅</p>
               <p className="mt-1 text-emerald-800">
-                Acesse mentorias, alertas no WhatsApp e negociação assistida sempre que precisar.
+                Acesse Meus Roteiros, Review de Post, mentorias e negociação assistida sempre que precisar.
               </p>
             </div>
           )}
@@ -528,7 +528,7 @@ export default function ProPageClient({
           <header className="text-center">
             <h2 className="text-2xl font-bold text-slate-900">Perguntas frequentes</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Se ainda ficou alguma dúvida, fale com a gente pelo chat ou WhatsApp.
+              Se ainda ficou alguma dúvida, fale com a gente pelo suporte ou WhatsApp.
             </p>
           </header>
           <div className="mx-auto max-w-3xl space-y-4">
@@ -550,7 +550,7 @@ export default function ProPageClient({
         {!hasProAccess && (
           <section className="rounded-3xl border border-[#F6007B]/20 bg-gradient-to-br from-[#F6007B]/5 via-white to-[#F6007B]/10 p-10 text-center shadow-sm">
             <h2 className="mx-auto max-w-2xl text-3xl font-bold text-slate-900">
-              Pronto para responder com IA e fechar sua próxima campanha?
+              Pronto para acelerar seus roteiros e fechar sua próxima campanha?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">
               Ative o Plano Pro para liberar mídia kit auditado, mentorias e negociação assistida.

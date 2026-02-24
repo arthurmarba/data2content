@@ -32,7 +32,7 @@ export default function SuccessPage() {
           if (intervalRef.current) clearInterval(intervalRef.current); // Para o polling.
           toast.success("Assinatura confirmada!");
           await update(); // Força a atualização final da sessão.
-          router.push("/dashboard/chat"); // Redireciona para o painel.
+          router.push("/planning/roteiros"); // Redireciona para Meus Roteiros.
         }
       } catch (error) {
         console.error("Failed to check status:", error);
@@ -78,7 +78,7 @@ export default function SuccessPage() {
             Pagamento confirmado! ✅
           </h1>
           <p className="text-gray-600 mt-2">
-            Sua assinatura está ativa. Redirecionando para o painel...
+            Sua assinatura está ativa. Redirecionando para Meus Roteiros...
           </p>
         </>
       )}

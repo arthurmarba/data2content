@@ -4,7 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { FaCheckCircle, FaWhatsapp, FaArrowRight, FaComments } from 'react-icons/fa';
+import { FaCheckCircle, FaWhatsapp, FaArrowRight, FaPenNib } from 'react-icons/fa';
 
 export default function SubscriptionThanksPage() {
   const router = useRouter();
@@ -19,10 +19,10 @@ export default function SubscriptionThanksPage() {
     update();
   }, [update]);
 
-  // Redireciona o usuário para o chat após alguns segundos
+  // Redireciona o usuário para Meus Roteiros após alguns segundos
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace('/dashboard/chat');
+      router.replace('/planning/roteiros');
     }, 5000); // 5 segundos
 
     return () => clearTimeout(timer); // Limpa o timer se o componente for desmontado
@@ -46,7 +46,7 @@ export default function SubscriptionThanksPage() {
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-slate-600">
             Plano ativo e benefícios liberados. Entre no grupo VIP para receber avisos e mentoria,
-            ou siga direto para o chat com IA.
+            ou siga direto para organizar seus roteiros.
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
@@ -60,11 +60,11 @@ export default function SubscriptionThanksPage() {
             </button>
             <button
               type="button"
-              onClick={() => router.replace('/dashboard/chat')}
+              onClick={() => router.replace('/planning/roteiros')}
               className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
             >
-              <FaComments className="h-4 w-4" />
-              Abrir chat com IA
+              <FaPenNib className="h-4 w-4" />
+              Abrir Meus Roteiros
             </button>
             <button
               type="button"
@@ -84,12 +84,12 @@ export default function SubscriptionThanksPage() {
               body: "Receba alertas semanais, mentoria e networking com criadores.",
             },
             {
-              title: "Use a IA no chat",
-              body: "Peça diagnósticos, roteiros e negocie publis em minutos.",
+              title: "Monte seus roteiros",
+              body: "Abra Meus Roteiros e transforme ideias em conteúdos prontos para publicar.",
             },
             {
-              title: "Atualize seu mídia kit",
-              body: "Mostre métricas atualizadas e valores sugeridos para marcas.",
+              title: "Revise seus posts",
+              body: "Use o Review de Post para ajustar conteúdo antes de publicar.",
             },
           ].map((item) => (
             <div
