@@ -377,9 +377,11 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   // Package Management State
   const [packages, setPackages] = useState<MediaKitPackage[]>([]);
   const [isSavingPackages, setIsSavingPackages] = useState(false);
+  const hasHydratedAdminTargetRef = useRef(false);
 
   useEffect(() => {
-    if (!isAdminViewer || adminTargetUser || typeof window === "undefined") return;
+    if (!isAdminViewer || hasHydratedAdminTargetRef.current || typeof window === "undefined") return;
+    hasHydratedAdminTargetRef.current = true;
     try {
       const raw = window.sessionStorage.getItem(ADMIN_CALCULATOR_TARGET_STORAGE_KEY);
       if (!raw) return;
@@ -396,7 +398,7 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
     } catch {
       /* ignore */
     }
-  }, [adminTargetUser, isAdminViewer]);
+  }, [isAdminViewer]);
 
   useEffect(() => {
     if (!isAdminViewer || typeof window === "undefined") return;

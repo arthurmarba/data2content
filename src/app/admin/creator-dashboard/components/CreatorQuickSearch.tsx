@@ -27,7 +27,16 @@ const CreatorBadge = ({
   >
     <UserAvatar name={name} src={photoUrl} size={24} />
     <span>{name}</span>
-    <button onClick={onClear} className="p-0.5 rounded-full hover:bg-indigo-200">
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClear();
+      }}
+      className="p-0.5 rounded-full hover:bg-indigo-200"
+      aria-label={`Remover filtro de ${name}`}
+    >
       <XMarkIcon className="w-4 h-4" />
     </button>
   </motion.div>
