@@ -476,6 +476,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
           userId,
           dayOfWeek: inspirationSeed.dayOfWeek,
           blockStartHour: inspirationSeed.blockStartHour,
+          format: inspirationSeed.format,
           categories: inspirationSeed.categories || {},
           limit: 8,
         }),
@@ -510,6 +511,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
+          format: inspirationSeed.format,
           categories: inspirationSeed.categories || {},
           script: typeof inspirationSeed.rationale === 'string'
             ? inspirationSeed.rationale

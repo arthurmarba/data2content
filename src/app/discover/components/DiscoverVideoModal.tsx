@@ -168,6 +168,7 @@ export default function DiscoverVideoModal({
   posterUrl,
   nextItem,
   onReviewClick,
+  zIndexClassName = 'z-[80]',
 }: {
   open: boolean;
   onClose: () => void;
@@ -183,6 +184,7 @@ export default function DiscoverVideoModal({
     caption?: string;
     creatorName?: string;
   };
+  zIndexClassName?: string;
 }) {
   const [mounted, setMounted] = useState(false);
   const queue = useMemo(() => {
@@ -308,7 +310,7 @@ export default function DiscoverVideoModal({
   if (!open || !mounted) return null;
 
   const modal = (
-    <div className="fixed inset-0 z-[80] bg-black/70 grid place-items-center" role="dialog" aria-modal>
+    <div className={`fixed inset-0 ${zIndexClassName} bg-black/70 grid place-items-center`} role="dialog" aria-modal>
       <div
         ref={containerRef}
         className="relative h-[92svh] sm:h-[92vh] max-h-[900px] w-auto max-w-[94vw] sm:max-w-[520px] aspect-[9/16] bg-black rounded-xl overflow-hidden shadow-lg"

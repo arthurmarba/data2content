@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     const dayOfWeek: number = Number(body?.dayOfWeek);
     const blockStartHour: number = Number(body?.blockStartHour);
     const categories = (body?.categories || {}) as { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
+    const format = typeof body?.format === 'string' ? body.format : undefined;
     const periodDays: number = Number(body?.periodDays) > 0 ? Number(body?.periodDays) : WINDOW_DAYS;
     const limit: number = Math.max(1, Math.min(20, Number(body?.limit) || 6));
 
@@ -46,9 +47,10 @@ export async function POST(request: Request) {
       dayOfWeek,
       blockStartHour,
       {
-        contextId: categories.context?.[0],
-        proposalId: categories.proposal?.[0],
-        referenceId: categories.reference?.[0],
+        formatIds: format ? [format] : [],
+        contextIds: Array.isArray(categories.context) ? categories.context : [],
+        proposalIds: Array.isArray(categories.proposal) ? categories.proposal : [],
+        referenceIds: Array.isArray(categories.reference) ? categories.reference : [],
       },
       limit
     );

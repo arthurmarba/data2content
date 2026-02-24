@@ -133,7 +133,7 @@ export default function PlannerDemoPage() {
       const res = await fetch("/api/planner/inspirations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "demo", dayOfWeek, blockStartHour, categories, limit: 6 }), // eslint-disable-line react-hooks/exhaustive-deps
+        body: JSON.stringify({ userId: "demo", dayOfWeek, blockStartHour, format: "reel", categories, limit: 6 }), // eslint-disable-line react-hooks/exhaustive-deps
       });
       if (!res.ok) throw new Error("Falha ao buscar conteúdos");
       const data = await res.json();
@@ -154,6 +154,7 @@ export default function PlannerDemoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: "demo",
+          format: "reel",
           categories,
           script: script || "",
           themeKeyword: themes?.[0] || "skincare",

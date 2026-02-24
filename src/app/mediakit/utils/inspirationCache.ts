@@ -54,6 +54,7 @@ export async function fetchSlotInspirations(
                         userId,
                         dayOfWeek: slot.dayOfWeek,
                         blockStartHour: slot.blockStartHour,
+                        format: slot.format,
                         categories: slot.categories || {},
                         limit: 1,
                     }),
@@ -63,6 +64,7 @@ export async function fetchSlotInspirations(
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId,
+                        format: slot.format,
                         categories: slot.categories || {},
                         script: typeof slot.rationale === 'string' ? slot.rationale : slot.scriptShort || '',
                         themeKeyword: slot.themeKeyword,

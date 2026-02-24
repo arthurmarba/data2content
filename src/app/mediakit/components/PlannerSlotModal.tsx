@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
 import { idsToLabels } from '@/app/lib/classification';
 import { prefillInspirationCache } from '../utils/inspirationCache';
 import { setCachedThemes } from '../utils/plannerThemesCache';
@@ -29,7 +30,21 @@ const toProxyUrl = (raw?: string | null) => {
   return raw;
 };
 
+const toVideoProxyUrl = (raw?: string | null) => {
+  if (!raw) return undefined;
+  if (raw.startsWith('/api/proxy/video/')) return raw;
+  if (/^https?:\/\//i.test(raw)) return `/api/proxy/video/${encodeURIComponent(raw)}`;
+  return raw;
+};
+
 type GenerationStrategy = 'default' | 'strong_hook' | 'more_humor' | 'practical_imperative';
+type InspirationVideoItem = {
+  id: string;
+  caption?: string;
+  postLink?: string | null;
+  posterUrl?: string | null;
+  videoUrl?: string | null;
+};
 
 export interface PlannerSlotData {
   slotId?: string;
@@ -127,15 +142,17 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const [inspLoading, setInspLoading] = useState<boolean>(false);
   const [inspError, setInspError] = useState<string | null>(null);
   const [inspPosts, setInspPosts] = useState<
-    Array<{ id: string; caption: string; views: number; date: string; thumbnailUrl?: string | null; postLink?: string | null }>
+    Array<{ id: string; caption: string; views: number; date: string; thumbnailUrl?: string | null; postLink?: string | null; videoUrl?: string | null }>
   >([]);
   const [inspExpanded, setInspExpanded] = useState<boolean>(false);
   const [communityLoading, setCommunityLoading] = useState<boolean>(false);
   const [communityError, setCommunityError] = useState<string | null>(null);
   const [communityPosts, setCommunityPosts] = useState<
-    Array<{ id: string; caption: string; views: number; date: string; coverUrl?: string | null; postLink?: string | null; reason?: string[] }>
+    Array<{ id: string; caption: string; views: number; date: string; coverUrl?: string | null; postLink?: string | null; videoUrl?: string | null; reason?: string[] }>
   >([]);
   const [communityExpanded, setCommunityExpanded] = useState<boolean>(false);
+  const [activeInspirationVideo, setActiveInspirationVideo] = useState<InspirationVideoItem | null>(null);
+  const [nextInspirationVideo, setNextInspirationVideo] = useState<InspirationVideoItem | null>(null);
   const [inspirationsOpen, setInspirationsOpen] = useState(true);
   const [communityOpen, setCommunityOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(open);
@@ -170,6 +187,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     setCommunityExpanded(false);
     setInspirationsOpen(true);
     setCommunityOpen(true);
+    setActiveInspirationVideo(null);
+    setNextInspirationVideo(null);
   }, [open, slot, derivedTheme]);
 
   useEffect(() => {
@@ -219,13 +238,13 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || activeInspirationVideo) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, activeInspirationVideo]);
 
   const headerText = useMemo(() => {
     if (!slot) return '';
@@ -395,6 +414,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           userId,
           dayOfWeek: slot.dayOfWeek,
           blockStartHour: slot.blockStartHour,
+          format,
           categories: slot.categories || {},
           limit: 8,
         }),
@@ -424,6 +444,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           date: String(p.date || ''),
           thumbnailUrl: p.thumbnailUrl || null,
           postLink: p.postLink || null,
+          videoUrl: p.videoUrl || null,
         }))
       );
     } catch (err: any) {
@@ -431,7 +452,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     } finally {
       setInspLoading(false);
     }
-  }, [slot, userId]);
+  }, [slot, userId, format]);
 
   useEffect(() => {
     if (!open || !slot || !inspirationsOpen) return;
@@ -484,6 +505,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           date: String(p.date || ''),
           coverUrl: p.coverUrl || null,
           postLink: p.postLink || null,
+          videoUrl: p.videoUrl || null,
           reason: Array.isArray(p.reason) ? p.reason : [],
         }))
       );
@@ -542,6 +564,20 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     }
   };
 
+  const handleOpenInspirationVideo = useCallback((items: InspirationVideoItem[], index: number) => {
+    const current = items[index];
+    if (!current) return;
+    if (!current.postLink && !current.videoUrl) return;
+    const next = index + 1 < items.length ? (items[index + 1] ?? null) : null;
+    setActiveInspirationVideo(current);
+    setNextInspirationVideo(next);
+  }, []);
+
+  const handleCloseInspirationVideo = useCallback(() => {
+    setActiveInspirationVideo(null);
+    setNextInspirationVideo(null);
+  }, []);
+
   if ((!open && !isMounted) || !slot) return null;
 
   const dialogLabelId = 'planner-slot-modal-title';
@@ -557,7 +593,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center px-4 py-6 sm:px-6">
+    <>
+      <div className="fixed inset-0 z-[500] flex items-center justify-center px-4 py-6 sm:px-6">
       <button
         type="button"
         aria-label="Fechar painel"
@@ -786,14 +823,24 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                   )}
                   {inspPosts.length > 0 && (
                     <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                      {(inspExpanded ? inspPosts : inspPosts.slice(0, 6)).map((p) => {
+                      {(inspExpanded ? inspPosts : inspPosts.slice(0, 6)).map((p, idx, list) => {
                         const viewsLabel = formatCompact(p.views) || p.views.toLocaleString('pt-BR');
                         return (
-                          <a
+                          <button
                             key={`insp-${p.id}`}
-                            href={p.postLink || '#'}
-                            target="_blank"
-                            rel="noreferrer"
+                            type="button"
+                            onClick={() =>
+                              handleOpenInspirationVideo(
+                                list.map((item) => ({
+                                  id: item.id,
+                                  caption: item.caption,
+                                  postLink: item.postLink,
+                                  posterUrl: item.thumbnailUrl,
+                                  videoUrl: item.videoUrl,
+                                })),
+                                idx
+                              )
+                            }
                             className="snap-start shrink-0 w-[200px] group flex flex-col gap-3 rounded-xl transition hover:-translate-y-1"
                           >
                             <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-slate-100 shadow-sm group-hover:shadow-md">
@@ -813,7 +860,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                             <p className="line-clamp-2 text-xs font-medium text-slate-700 group-hover:text-slate-900">
                               {p.caption || 'Sem legenda'}
                             </p>
-                          </a>
+                          </button>
                         );
                       })}
                     </div>
@@ -870,8 +917,24 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                   )}
                   {communityPosts.length > 0 && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {(communityExpanded ? communityPosts : communityPosts.slice(0, 4)).map((p) => (
-                        <div key={`community-${p.id}`} className="flex gap-3 rounded-2xl border border-neutral-200/80 bg-white p-3 shadow-sm transition hover:border-brand-primary/30 hover:shadow-md">
+                      {(communityExpanded ? communityPosts : communityPosts.slice(0, 4)).map((p, idx, list) => (
+                        <button
+                          key={`community-${p.id}`}
+                          type="button"
+                          onClick={() =>
+                            handleOpenInspirationVideo(
+                              list.map((item) => ({
+                                id: item.id,
+                                caption: item.caption,
+                                postLink: item.postLink,
+                                posterUrl: item.coverUrl,
+                                videoUrl: item.videoUrl,
+                              })),
+                              idx
+                            )
+                          }
+                          className="flex gap-3 rounded-2xl border border-neutral-200/80 bg-white p-3 text-left shadow-sm transition hover:border-brand-primary/30 hover:shadow-md"
+                        >
                           <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
                             {p.coverUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -895,7 +958,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                               </div>
                             )}
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -957,7 +1020,29 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+      </div>
+      {activeInspirationVideo ? (
+        <DiscoverVideoModal
+          open={Boolean(activeInspirationVideo)}
+          onClose={handleCloseInspirationVideo}
+          postLink={activeInspirationVideo.postLink || undefined}
+          videoUrl={toVideoProxyUrl(activeInspirationVideo.videoUrl)}
+          posterUrl={toProxyUrl(activeInspirationVideo.posterUrl)}
+          nextItem={
+            nextInspirationVideo
+              ? {
+                  id: nextInspirationVideo.id,
+                  videoUrl: toVideoProxyUrl(nextInspirationVideo.videoUrl),
+                  postLink: nextInspirationVideo.postLink || undefined,
+                  posterUrl: toProxyUrl(nextInspirationVideo.posterUrl),
+                  caption: nextInspirationVideo.caption,
+                }
+              : undefined
+          }
+          zIndexClassName="z-[650]"
+        />
+      ) : null}
+    </>
   );
 };
 
