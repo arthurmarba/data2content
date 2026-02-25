@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
-import { FaSpinner, FaLock, FaArrowRight, FaChartLine, FaChartPie, FaInstagram, FaVideo, FaImage, FaLayerGroup, FaCalendarCheck, FaCalendarAlt, FaCalendarTimes, FaGlobeAmericas, FaBullhorn, FaUser, FaUserCheck, FaUserTie, FaStar, FaSnowflake, FaSun, FaCloudSun, FaPlus, FaTrash, FaChevronDown } from "react-icons/fa";
+import { Loader2, Lock, ArrowRight, TrendingUp, PieChart, Instagram, Video, Image as ImageIcon, Layers, CalendarCheck, Calendar, CalendarOff, Globe, Megaphone, User, UserCheck, Briefcase, Star, Snowflake, Sun, CloudSun, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
@@ -145,72 +145,72 @@ const EVENT_DURATION_VALUES: EventDetails["durationHours"][] = [2, 4, 8];
 const TRAVEL_TIER_VALUES: EventDetails["travelTier"][] = ["local", "nacional", "internacional"];
 
 const FORMAT_OPTIONS = [
-  { value: "reels", label: "Reels", icon: FaVideo, helper: "Vídeo curto (até 90s)" },
-  { value: "post", label: "Post no Feed", icon: FaImage, helper: "Foto única ou carrossel" },
-  { value: "stories", label: "Stories", icon: FaInstagram, helper: "Sequência de 3 stories" },
+  { value: "reels", label: "Reels", icon: Video, helper: "Vídeo curto (até 90s)" },
+  { value: "post", label: "Post no Feed", icon: ImageIcon, helper: "Foto única ou carrossel" },
+  { value: "stories", label: "Stories", icon: Instagram, helper: "Sequência de 3 stories" },
 ];
 
 const EXCLUSIVITY_OPTIONS = [
-  { value: "nenhuma", label: "Sem Exclusividade", icon: FaCalendarTimes },
-  { value: "7d", label: "7 Dias", icon: FaCalendarCheck },
-  { value: "15d", label: "15 Dias", icon: FaCalendarCheck },
-  { value: "30d", label: "30 Dias", icon: FaCalendarAlt },
-  { value: "90d", label: "90 Dias", icon: FaCalendarAlt },
-  { value: "180d", label: "180 Dias", icon: FaCalendarAlt },
-  { value: "365d", label: "365 Dias", icon: FaCalendarAlt },
+  { value: "nenhuma", label: "Sem Exclusividade", icon: CalendarOff },
+  { value: "7d", label: "7 Dias", icon: CalendarCheck },
+  { value: "15d", label: "15 Dias", icon: CalendarCheck },
+  { value: "30d", label: "30 Dias", icon: Calendar },
+  { value: "90d", label: "90 Dias", icon: Calendar },
+  { value: "180d", label: "180 Dias", icon: Calendar },
+  { value: "365d", label: "365 Dias", icon: Calendar },
 ];
 
 const USAGE_OPTIONS = [
-  { value: "organico", label: "Orgânico", icon: FaUser, helper: "Apenas no seu perfil" },
-  { value: "midiapaga", label: "Mídia Paga", icon: FaBullhorn, helper: "Impulsionamento em todas as plataformas envolvidas" },
-  { value: "global", label: "Global", icon: FaGlobeAmericas, helper: "Uso amplo + impulsionamento cross-plataforma" },
+  { value: "organico", label: "Orgânico", icon: User, helper: "Apenas no seu perfil" },
+  { value: "midiapaga", label: "Mídia Paga", icon: Megaphone, helper: "Impulsionamento em todas as plataformas envolvidas" },
+  { value: "global", label: "Global", icon: Globe, helper: "Uso amplo + impulsionamento cross-plataforma" },
 ];
 
 const PAID_MEDIA_DURATION_OPTIONS = [
-  { value: "7d", label: "7 Dias", icon: FaCalendarCheck },
-  { value: "15d", label: "15 Dias", icon: FaCalendarCheck },
-  { value: "30d", label: "30 Dias", icon: FaCalendarAlt },
-  { value: "90d", label: "90 Dias", icon: FaCalendarAlt },
-  { value: "180d", label: "180 Dias", icon: FaCalendarAlt },
-  { value: "365d", label: "365 Dias", icon: FaCalendarAlt },
+  { value: "7d", label: "7 Dias", icon: CalendarCheck },
+  { value: "15d", label: "15 Dias", icon: CalendarCheck },
+  { value: "30d", label: "30 Dias", icon: Calendar },
+  { value: "90d", label: "90 Dias", icon: Calendar },
+  { value: "180d", label: "180 Dias", icon: Calendar },
+  { value: "365d", label: "365 Dias", icon: Calendar },
 ];
 const BRAND_SIZE_OPTIONS = [
-  { value: "pequena", label: "Pequena", icon: FaUser, helper: "Menor caixa e risco comercial maior" },
-  { value: "media", label: "Média", icon: FaUserCheck, helper: "Cenário intermediário" },
-  { value: "grande", label: "Grande", icon: FaUserTie, helper: "Mais previsível e potencial estratégico" },
+  { value: "pequena", label: "Pequena", icon: User, helper: "Menor caixa e risco comercial maior" },
+  { value: "media", label: "Média", icon: UserCheck, helper: "Cenário intermediário" },
+  { value: "grande", label: "Grande", icon: Briefcase, helper: "Mais previsível e potencial estratégico" },
 ];
 const IMAGE_RISK_OPTIONS = [
-  { value: "baixo", label: "Baixo", icon: FaCloudSun, helper: "Baixo risco reputacional" },
-  { value: "medio", label: "Médio", icon: FaCalendarAlt, helper: "Risco moderado para imagem" },
-  { value: "alto", label: "Alto", icon: FaSun, helper: "Risco alto, exige prêmio" },
+  { value: "baixo", label: "Baixo", icon: CloudSun, helper: "Baixo risco reputacional" },
+  { value: "medio", label: "Médio", icon: Calendar, helper: "Risco moderado para imagem" },
+  { value: "alto", label: "Alto", icon: Sun, helper: "Risco alto, exige prêmio" },
 ];
 const STRATEGIC_GAIN_OPTIONS = [
-  { value: "baixo", label: "Baixo", icon: FaCalendarTimes, helper: "Pouco ganho de posicionamento" },
-  { value: "medio", label: "Médio", icon: FaChartLine, helper: "Ajuda parcialmente no posicionamento" },
-  { value: "alto", label: "Alto", icon: FaStar, helper: "Parceria muito estratégica para imagem" },
+  { value: "baixo", label: "Baixo", icon: CalendarOff, helper: "Pouco ganho de posicionamento" },
+  { value: "medio", label: "Médio", icon: TrendingUp, helper: "Ajuda parcialmente no posicionamento" },
+  { value: "alto", label: "Alto", icon: Star, helper: "Parceria muito estratégica para imagem" },
 ];
 const CONTENT_MODEL_OPTIONS = [
-  { value: "publicidade_perfil", label: "Publicidade no perfil", icon: FaInstagram, helper: "Publicado no perfil do creator" },
-  { value: "ugc_whitelabel", label: "UGC (whitelabel)", icon: FaVideo, helper: "Conteúdo de uso da marca, mais barato" },
+  { value: "publicidade_perfil", label: "Publicidade no perfil", icon: Instagram, helper: "Publicado no perfil do creator" },
+  { value: "ugc_whitelabel", label: "UGC (whitelabel)", icon: Video, helper: "Conteúdo de uso da marca, mais barato" },
 ];
 
 const COMPLEXITY_OPTIONS = [
-  { value: "simples", label: "Simples", icon: FaUser, helper: "Sem roteiro prévio" },
-  { value: "roteiro", label: "Com Roteiro", icon: FaUserCheck, helper: "Roteiro aprovado" },
-  { value: "profissional", label: "Pro", icon: FaUserTie, helper: "Edição avançada" },
+  { value: "simples", label: "Simples", icon: User, helper: "Sem roteiro prévio" },
+  { value: "roteiro", label: "Com Roteiro", icon: UserCheck, helper: "Roteiro aprovado" },
+  { value: "profissional", label: "Pro", icon: Briefcase, helper: "Edição avançada" },
 ];
 
 const AUTHORITY_OPTIONS = [
-  { value: "padrao", label: "Padrão", icon: FaUser, helper: "Iniciante" },
-  { value: "ascensao", label: "Em Ascensão", icon: FaChartLine, helper: "Crescendo" },
-  { value: "autoridade", label: "Autoridade", icon: FaStar, helper: "Referência" },
-  { value: "celebridade", label: "Celebridade", icon: FaStar, helper: "Famoso" },
+  { value: "padrao", label: "Padrão", icon: User, helper: "Iniciante" },
+  { value: "ascensao", label: "Em Ascensão", icon: TrendingUp, helper: "Crescendo" },
+  { value: "autoridade", label: "Autoridade", icon: Star, helper: "Referência" },
+  { value: "celebridade", label: "Celebridade", icon: Star, helper: "Famoso" },
 ];
 
 const SEASONALITY_OPTIONS = [
-  { value: "normal", label: "Normal", icon: FaCloudSun, helper: "Dias comuns" },
-  { value: "alta", label: "Alta Demanda", icon: FaSun, helper: "Black Friday, Natal" },
-  { value: "baixa", label: "Baixa", icon: FaSnowflake, helper: "Pós-datas festivas" },
+  { value: "normal", label: "Normal", icon: CloudSun, helper: "Dias comuns" },
+  { value: "alta", label: "Alta Demanda", icon: Sun, helper: "Black Friday, Natal" },
+  { value: "baixa", label: "Baixa", icon: Snowflake, helper: "Pós-datas festivas" },
 ];
 
 const EXCLUSIVITY_LABELS: Record<CalculatorParams["exclusivity"], string> = {
@@ -323,9 +323,9 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
   const isActingOnBehalf = Boolean(
     isAdminViewer &&
-      targetUserId &&
-      sessionUserId &&
-      targetUserId !== sessionUserId
+    targetUserId &&
+    sessionUserId &&
+    targetUserId !== sessionUserId
   );
 
   const planStatusSession = viewer?.planStatus ?? sessionUser?.planStatus;
@@ -863,8 +863,8 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
               : 0,
           confidenceBand:
             (parsed as any)?.calibration?.confidenceBand === "alta" ||
-            (parsed as any)?.calibration?.confidenceBand === "media" ||
-            (parsed as any)?.calibration?.confidenceBand === "baixa"
+              (parsed as any)?.calibration?.confidenceBand === "media" ||
+              (parsed as any)?.calibration?.confidenceBand === "baixa"
               ? (parsed as any).calibration.confidenceBand
               : "baixa",
           segmentSampleSize:
@@ -889,8 +889,8 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
               : false,
           linkQuality:
             (parsed as any)?.calibration?.linkQuality === "high" ||
-            (parsed as any)?.calibration?.linkQuality === "mixed" ||
-            (parsed as any)?.calibration?.linkQuality === "low"
+              (parsed as any)?.calibration?.linkQuality === "mixed" ||
+              (parsed as any)?.calibration?.linkQuality === "low"
               ? (parsed as any).calibration.linkQuality
               : "low",
         },
@@ -1155,11 +1155,11 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
               disabled={disabled}
               aria-pressed={isSelected}
               className={`flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${isSelected
-                ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)]"
-                : "border-transparent bg-slate-50 hover:bg-slate-100"
-                } ${disabled ? "cursor-not-allowed opacity-60" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-1"}`}
+                ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
+                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                } ${disabled ? "cursor-not-allowed opacity-60" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"}`}
             >
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[var(--brand-accent)] text-white" : "bg-slate-100 text-slate-500"}`}>
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-slate-800 text-white" : "border border-slate-200 bg-white text-slate-500"}`}>
                 <Icon className="h-3.5 w-3.5" aria-hidden />
               </span>
               <div className="space-y-0.5">
@@ -1196,12 +1196,12 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
             <div
               key={option.value}
               className={`rounded-xl border p-2.5 transition ${isSelected
-                ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)]"
-                : "border-transparent bg-slate-50"
+                ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
+                : "border-slate-200 bg-white"
                 } ${disabled ? "opacity-70" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[var(--brand-accent)] text-white" : "bg-slate-100 text-slate-500"}`}>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-slate-800 text-white" : "border border-slate-200 bg-white text-slate-500"}`}>
                   <Icon className="h-3.5 w-3.5" aria-hidden />
                 </span>
                 <button
@@ -1209,7 +1209,7 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                   disabled={disabled}
                   aria-pressed={isSelected}
                   aria-label={`${isSelected ? "Desativar" : "Ativar"} ${option.label}`}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${isSelected ? "bg-[var(--brand-accent)] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${isSelected ? "bg-slate-100 text-slate-700" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                   onClick={() => onChange(optionKey, isSelected ? 0 : 1)}
                 >
                   {isSelected ? "Ativo" : "Ativar"}
@@ -1354,7 +1354,7 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
 
         {showBillingLoading && (
           <div className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-slate-600 sm:p-8">
-            <FaSpinner className="h-5 w-5 animate-spin text-slate-700" />
+            <Loader2 className="h-5 w-5 animate-spin text-slate-700" />
             <span className="font-medium">Carregando seus dados...</span>
           </div>
         )}
@@ -1363,7 +1363,7 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
             <div className="flex flex-col items-center gap-5 text-center md:flex-row md:text-left">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                <FaLock className="h-4 w-4" />
+                <Lock className="h-4 w-4" />
               </div>
               <div className="flex-1 space-y-1.5">
                 <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
@@ -1379,767 +1379,763 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
               >
                 Quero acesso agora
-                <FaArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-          <button
-            type="button"
-            onClick={() => toggleSectionCollapse("delivery")}
-            aria-expanded={!collapsedSections.delivery}
-            aria-controls="calculator-section-delivery"
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-xs font-semibold text-[var(--brand-accent-ink)]">1</span>
-                Detalhes da Entrega
-              </h3>
-              <p className="mt-0.5 text-xs text-slate-500">Escolha entregas e marque evento só quando necessário.</p>
-            </div>
-            <FaChevronDown
-              className={`h-4 w-4 text-slate-500 transition-transform ${collapsedSections.delivery ? "" : "rotate-180"}`}
-              aria-hidden
-            />
-          </button>
-          {!collapsedSections.delivery ? (
-          <div id="calculator-section-delivery" className="mt-4 space-y-4">
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Presença em Evento</p>
-                <p className="text-xs text-slate-500">Ative apenas quando houver presença física.</p>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800">Detalhes da Entrega</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Escolha entregas e marque evento só quando necessário.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setDeliveryType(calcParams.deliveryType === "evento" ? "conteudo" : "evento")}
-                disabled={disableInputs}
-                aria-pressed={calcParams.deliveryType === "evento"}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  calcParams.deliveryType === "evento"
-                    ? "bg-[var(--brand-accent)] text-white"
-                    : "bg-white text-slate-700 ring-1 ring-slate-200"
-                }`}
-                aria-label="Presença em Evento"
+                onClick={() => toggleSectionCollapse("delivery")}
+                aria-expanded={!collapsedSections.delivery}
+                aria-controls="calculator-section-delivery"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
               >
-                {calcParams.deliveryType === "evento" ? "Incluída" : "Não incluída"}
+                {!collapsedSections.delivery ? "Fechar detalhes" : "Ver detalhes"}
+                {!collapsedSections.delivery ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
             </div>
 
-            <QuantitySelectionGroup
-              label="Quais entregas de conteúdo entram no cálculo?"
-              quantities={calcParams.formatQuantities}
-              onChange={updateFormatQuantity}
-              disabled={disableInputs}
-            />
-
-            {calcParams.deliveryType === "evento" ? (
-              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <label className="space-y-1 text-sm">
-                    <span className="font-semibold text-slate-800">Duração do evento</span>
-                    <select
-                      value={calcParams.eventDetails.durationHours}
-                      disabled={disableInputs}
-                      onChange={(e) =>
-                        setCalcParams((prev) => ({
-                          ...prev,
-                          eventDetails: { ...prev.eventDetails, durationHours: Number(e.target.value) as EventDetails["durationHours"] },
-                          format: "evento",
-                        }))
-                      }
-                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
-                    >
-                      <option value={2}>2 horas</option>
-                      <option value={4}>4 horas</option>
-                      <option value={8}>8 horas</option>
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm">
-                    <span className="font-semibold text-slate-800">Deslocamento</span>
-                    <select
-                      value={calcParams.eventDetails.travelTier}
-                      disabled={disableInputs}
-                      onChange={(e) =>
-                        setCalcParams((prev) => ({
-                          ...prev,
-                          eventDetails: { ...prev.eventDetails, travelTier: e.target.value as EventDetails["travelTier"] },
-                          format: "evento",
-                        }))
-                      }
-                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
-                    >
-                      <option value="local">Local</option>
-                      <option value="nacional">Nacional</option>
-                      <option value="internacional">Internacional</option>
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm">
-                    <span className="font-semibold text-slate-800">Noites de hotel</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={20}
-                      value={calcParams.eventDetails.hotelNights}
-                      disabled={disableInputs}
-                      onChange={(e) =>
-                        setCalcParams((prev) => ({
-                          ...prev,
-                          eventDetails: { ...prev.eventDetails, hotelNights: clampQuantity(Number(e.target.value)) },
-                          format: "evento",
-                        }))
-                      }
-                      className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
-                    />
-                  </label>
+            {!collapsedSections.delivery && (
+              <div id="calculator-section-delivery" className="space-y-4 border-t border-slate-100 px-4 py-4">
+                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Presença em Evento</p>
+                    <p className="text-xs text-slate-500">Ative apenas quando houver presença física.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType(calcParams.deliveryType === "evento" ? "conteudo" : "evento")}
+                    disabled={disableInputs}
+                    aria-pressed={calcParams.deliveryType === "evento"}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${calcParams.deliveryType === "evento"
+                      ? "border-slate-800 bg-slate-800 text-white"
+                      : "border-slate-200 bg-white text-slate-700"
+                      }`}
+                    aria-label="Presença em Evento"
+                  >
+                    {calcParams.deliveryType === "evento" ? "Incluída" : "Não incluída"}
+                  </button>
                 </div>
 
                 <QuantitySelectionGroup
-                  label="Cobertura opcional no evento (não obrigatória)"
-                  quantities={calcParams.eventCoverageQuantities}
-                  onChange={updateCoverageQuantity}
+                  label="Quais entregas de conteúdo entram no cálculo?"
+                  quantities={calcParams.formatQuantities}
+                  onChange={updateFormatQuantity}
+                  disabled={disableInputs}
+                />
+
+                {calcParams.deliveryType === "evento" ? (
+                  <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <label className="space-y-1 text-sm">
+                        <span className="font-semibold text-slate-800">Duração do evento</span>
+                        <select
+                          value={calcParams.eventDetails.durationHours}
+                          disabled={disableInputs}
+                          onChange={(e) =>
+                            setCalcParams((prev) => ({
+                              ...prev,
+                              eventDetails: { ...prev.eventDetails, durationHours: Number(e.target.value) as EventDetails["durationHours"] },
+                              format: "evento",
+                            }))
+                          }
+                          className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
+                        >
+                          <option value={2}>2 horas</option>
+                          <option value={4}>4 horas</option>
+                          <option value={8}>8 horas</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm">
+                        <span className="font-semibold text-slate-800">Deslocamento</span>
+                        <select
+                          value={calcParams.eventDetails.travelTier}
+                          disabled={disableInputs}
+                          onChange={(e) =>
+                            setCalcParams((prev) => ({
+                              ...prev,
+                              eventDetails: { ...prev.eventDetails, travelTier: e.target.value as EventDetails["travelTier"] },
+                              format: "evento",
+                            }))
+                          }
+                          className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
+                        >
+                          <option value="local">Local</option>
+                          <option value="nacional">Nacional</option>
+                          <option value="internacional">Internacional</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm">
+                        <span className="font-semibold text-slate-800">Noites de hotel</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          value={calcParams.eventDetails.hotelNights}
+                          disabled={disableInputs}
+                          onChange={(e) =>
+                            setCalcParams((prev) => ({
+                              ...prev,
+                              eventDetails: { ...prev.eventDetails, hotelNights: clampQuantity(Number(e.target.value)) },
+                              format: "evento",
+                            }))
+                          }
+                          className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
+                        />
+                      </label>
+                    </div>
+
+                    <QuantitySelectionGroup
+                      label="Cobertura opcional no evento (não obrigatória)"
+                      quantities={calcParams.eventCoverageQuantities}
+                      onChange={updateCoverageQuantity}
+                      disabled={disableInputs}
+                    />
+                  </div>
+                ) : null}
+                <SelectionGroup
+                  label="Qual a complexidade da produção?"
+                  options={COMPLEXITY_OPTIONS}
+                  value={calcParams.complexity}
+                  onChange={(v: any) => handleChange("complexity", v)}
+                  disabled={disableInputs}
+                />
+                {calcParams.contentModel === "ugc_whitelabel" ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-xs text-amber-800">
+                    <p>
+                      UGC é um modelo de entrega separado da complexidade. Recomendação prática: usar{" "}
+                      <span className="font-semibold">Simples</span> como padrão.
+                    </p>
+                    {calcParams.complexity !== "simples" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleChange("complexity", "simples")}
+                        disabled={disableInputs}
+                        className="mt-2 inline-flex rounded-md bg-amber-100 px-2.5 py-1 font-semibold text-amber-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        Aplicar recomendado
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+                <SelectionGroup
+                  label="Qual o momento (Sazonalidade)?"
+                  options={SEASONALITY_OPTIONS}
+                  value={calcParams.seasonality}
+                  onChange={(v: any) => handleChange("seasonality", v)}
                   disabled={disableInputs}
                 />
               </div>
-            ) : null}
-            <SelectionGroup
-              label="Qual a complexidade da produção?"
-              options={COMPLEXITY_OPTIONS}
-              value={calcParams.complexity}
-              onChange={(v: any) => handleChange("complexity", v)}
-              disabled={disableInputs}
-            />
-            {calcParams.contentModel === "ugc_whitelabel" ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-xs text-amber-800">
-                <p>
-                  UGC é um modelo de entrega separado da complexidade. Recomendação prática: usar{" "}
-                  <span className="font-semibold">Simples</span> como padrão.
-                </p>
-                {calcParams.complexity !== "simples" ? (
-                  <button
-                    type="button"
-                    onClick={() => handleChange("complexity", "simples")}
-                    disabled={disableInputs}
-                    className="mt-2 inline-flex rounded-md bg-amber-100 px-2.5 py-1 font-semibold text-amber-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    Aplicar recomendado
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            <SelectionGroup
-              label="Qual o momento (Sazonalidade)?"
-              options={SEASONALITY_OPTIONS}
-              value={calcParams.seasonality}
-              onChange={(v: any) => handleChange("seasonality", v)}
-              disabled={disableInputs}
-            />
-          </div>
-          ) : null}
-        </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-          <button
-            type="button"
-            onClick={() => toggleSectionCollapse("rights")}
-            aria-expanded={!collapsedSections.rights}
-            aria-controls="calculator-section-rights"
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-xs font-semibold text-[var(--brand-accent-ink)]">2</span>
-                Direitos e Prazos
-              </h3>
-              <p className="mt-0.5 text-xs text-slate-500">Defina uso de imagem, prazos e adicionais.</p>
-            </div>
-            <FaChevronDown
-              className={`h-4 w-4 text-slate-500 transition-transform ${collapsedSections.rights ? "" : "rotate-180"}`}
-              aria-hidden
-            />
-          </button>
-          {!collapsedSections.rights ? (
-          <div id="calculator-section-rights" className="mt-4 space-y-4">
-            <SelectionGroup
-              label="Exclusividade exigida"
-              options={EXCLUSIVITY_OPTIONS}
-              value={calcParams.exclusivity}
-              onChange={(v: any) => handleChange("exclusivity", v)}
-              disabled={disableInputs}
-            />
-            <SelectionGroup
-              label="Direitos de uso de imagem"
-              options={USAGE_OPTIONS}
-              value={calcParams.usageRights}
-              onChange={(v: any) => setUsageRights(v)}
-              disabled={disableInputs}
-            />
-            <p className="text-xs text-slate-500">
-              Quando houver mídia paga (ou global), o direito de impulsionamento vale para todas as plataformas envolvidas durante o prazo contratado.
-            </p>
-            {calcParams.usageRights !== "organico" ? (
-              <SelectionGroup
-                label="Prazo de uso de imagem em mídia paga"
-                options={PAID_MEDIA_DURATION_OPTIONS}
-                value={calcParams.paidMediaDuration}
-                onChange={(v: any) => setPaidMediaDuration(v)}
-                disabled={disableInputs}
-              />
-            ) : null}
-            <div className="space-y-2.5">
-              <p id="commercial-addons-label" className="text-sm font-semibold text-slate-800">Condições comerciais adicionais</p>
-              <div className="grid gap-2 sm:grid-cols-2" role="group" aria-labelledby="commercial-addons-label">
-                <button
-                  type="button"
-                  onClick={() => toggleFlag("repostTikTok")}
-                  disabled={disableInputs}
-                  aria-pressed={calcParams.repostTikTok}
-                  className={`rounded-xl border p-3 text-left transition ${calcParams.repostTikTok
-                    ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)] ring-1 ring-[var(--brand-accent-ring-soft)]"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                    } ${disableInputs ? "opacity-70" : ""}`}
-                >
-                  <p className="text-sm font-semibold text-slate-900">Repost no TikTok</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {calcParams.repostTikTok
-                      ? "Sim. Inclui direito de repost e impulsionamento no TikTok."
-                      : "Não. Sem repost adicional no TikTok."}
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleFlag("instagramCollab")}
-                  disabled={disableInputs}
-                  aria-pressed={calcParams.instagramCollab}
-                  className={`rounded-xl border p-3 text-left transition ${calcParams.instagramCollab
-                    ? "border-[var(--brand-accent)] bg-[var(--brand-accent-soft-strong)] ring-1 ring-[var(--brand-accent-ring-soft)]"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                    } ${disableInputs ? "opacity-70" : ""}`}
-                >
-                  <p className="text-sm font-semibold text-slate-900">Collab com marca no Instagram</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {calcParams.instagramCollab
-                      ? "Sim. Registro contratual sem impacto no cálculo."
-                      : "Não. Sem collab com marca no Instagram."}
-                  </p>
-                </button>
-              </div>
-            </div>
-            <SelectionGroup
-              label="Seu nível de autoridade atual"
-              options={AUTHORITY_OPTIONS}
-              value={calcParams.authority}
-              onChange={(v: any) => handleChange("authority", v)}
-              disabled={disableInputs}
-            />
-          </div>
-          ) : null}
-        </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-          <button
-            type="button"
-            onClick={() => toggleSectionCollapse("brand")}
-            aria-expanded={!collapsedSections.brand}
-            aria-controls="calculator-section-brand"
-            className="flex w-full items-center justify-between gap-3 text-left"
-          >
-            <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900 sm:text-xl">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-accent-soft)] text-xs font-semibold text-[var(--brand-accent-ink)]">3</span>
-                Marca e Estratégia
-              </h3>
-              <p className="mt-0.5 text-xs text-slate-500">Classifique risco, porte e potencial estratégico.</p>
-            </div>
-            <FaChevronDown
-              className={`h-4 w-4 text-slate-500 transition-transform ${collapsedSections.brand ? "" : "rotate-180"}`}
-              aria-hidden
-            />
-          </button>
-          {!collapsedSections.brand ? (
-          <div id="calculator-section-brand" className="mt-4 space-y-4">
-            <SelectionGroup
-              label="Porte da marca"
-              options={BRAND_SIZE_OPTIONS}
-              value={calcParams.brandSize}
-              onChange={(v: CalculatorParams["brandSize"]) => handleChange("brandSize", v)}
-              disabled={disableInputs}
-            />
-            <SelectionGroup
-              label="Risco de imagem da parceria"
-              options={IMAGE_RISK_OPTIONS}
-              value={calcParams.imageRisk}
-              onChange={(v: CalculatorParams["imageRisk"]) => handleChange("imageRisk", v)}
-              disabled={disableInputs}
-            />
-            <SelectionGroup
-              label="Ganho estratégico para posicionamento"
-              options={STRATEGIC_GAIN_OPTIONS}
-              value={calcParams.strategicGain}
-              onChange={(v: CalculatorParams["strategicGain"]) => handleChange("strategicGain", v)}
-              disabled={disableInputs}
-            />
-            <SelectionGroup
-              label="Modelo de conteúdo"
-              options={CONTENT_MODEL_OPTIONS}
-              value={calcParams.contentModel}
-              onChange={(v: CalculatorParams["contentModel"]) => setContentModel(v)}
-              disabled={disableInputs}
-            />
-            <div className="space-y-2.5">
-              <label className="text-sm font-semibold text-slate-800">Exceção estratégica</label>
-              <div className="rounded-xl border border-slate-200 bg-white p-2.5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Permitir R$ 0 no preço estratégico</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Use somente em parcerias de alto ganho estratégico e baixo risco.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleFlag("allowStrategicWaiver")}
-                    disabled={disableInputs}
-                    aria-pressed={calcParams.allowStrategicWaiver}
-                    className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      calcParams.allowStrategicWaiver
-                        ? "bg-[var(--brand-accent)] text-white"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    } ${disableInputs ? "cursor-not-allowed opacity-70" : ""}`}
-                  >
-                    {calcParams.allowStrategicWaiver ? "Ligada" : "Desligada"}
-                  </button>
-                </div>
-                <p className="mt-2.5 text-xs text-slate-600">
-                  {calcParams.allowStrategicWaiver
-                    ? "Com a opção ligada, o estratégico pode ir para R$ 0 quando todos os critérios forem atendidos."
-                    : "Com a opção desligada, o estratégico sempre segue o cálculo normal."}
-                </p>
-              </div>
-            </div>
-          </div>
-          ) : null}
-        </div>
-
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="sticky bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-1.5 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
-          <button
-            type="submit"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white sm:ml-auto sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
-            disabled={disableInputs}
-            ref={submitButtonRef}
-          >
-            {isCalculating ? (
-              <>
-                <FaSpinner className="h-5 w-5 animate-spin" />
-                Calculando Melhor Preço...
-              </>
-            ) : (
-              <>
-                Calcular Valor da Publi
-                <FaArrowRight className="h-4 w-4" />
-              </>
             )}
-          </button>
-        </div>
-        </form>
-
-      {calculation && statsCards && (
-        <section
-          ref={resultsSectionRef}
-          className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-700"
-        >
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
-            {statsCards.map((card) => (
-              <div
-                key={card.label}
-                className="group flex min-h-[230px] flex-col overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg hover:ring-slate-200 sm:min-h-[250px] sm:rounded-[1.5rem]"
-              >
-                <div className={`flex items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5 ${card.headerClass}`}>
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {card.label}
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    CPM {card.cpm}
-                  </span>
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col p-3.5 sm:p-4">
-                  <div className="space-y-1">
-                    <p className="text-3xl font-semibold text-slate-900">{card.value}</p>
-                  </div>
-                  <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-slate-600">{card.description}</p>
-                  <button
-                    onClick={() => {
-                      const labelText = typeof card?.label === 'string' ? card.label : '';
-                      const baseLabel = (labelText.split('(')[0] ?? '').trim() || 'Pacote';
-                      handleAddPackage({
-                        name: baseLabel || 'Pacote',
-                        price: card.amount,
-                        description: card?.description ?? '',
-                      }, "suggested_card");
-                    }}
-                    disabled={isActingOnBehalf}
-                    className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <FaPlus className="h-3 w-3" />
-                    Usar como pacote
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-[var(--brand-accent-soft)] p-2 text-[var(--brand-accent-ink)]">
-                  <FaLayerGroup className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Seus Pacotes</h3>
-                  <p className="text-sm text-slate-500">Estes pacotes aparecerão no seu Mídia Kit.</p>
-                  {isActingOnBehalf ? (
-                    <p className="mt-1 text-xs text-amber-700">
-                      Modo admin ativo: edição de pacotes desativada para evitar salvar no Media Kit da conta errada.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleSectionCollapse("packages")}
-                  aria-expanded={!collapsedSections.packages}
-                  aria-controls="calculator-section-packages"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
-                >
-                  <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSections.packages ? "" : "rotate-180"}`} aria-hidden />
-                </button>
-                <button
-                  onClick={() => handleAddPackage()}
-                  disabled={isActingOnBehalf}
-                  className="group flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <FaPlus className="h-3 w-3" />
-                  Novo Pacote
-                </button>
-              </div>
-            </div>
-            {!collapsedSections.packages ? (
-              <div id="calculator-section-packages">
-                {packages.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
-                    <p className="text-slate-500">Nenhum pacote definido.</p>
-                    <p className="text-sm text-slate-400">Adicione manualmente ou use as sugestões acima.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {packages.map((pkg) => (
-                      <div key={pkg.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
-                        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-                          <div className="space-y-3">
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-slate-500">Nome do Pacote</label>
-                                <input
-                                  type="text"
-                                  value={pkg.name}
-                                  onChange={(e) => handleUpdatePackage(pkg.id!, { name: e.target.value })}
-                                  className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
-                                  placeholder="Ex: Combo Reels"
-                                />
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-slate-500">Valor (R$)</label>
-                                <input
-                                  type="number"
-                                  value={pkg.price}
-                                  onChange={(e) => handleUpdatePackage(pkg.id!, { price: sanitizePackagePrice(e.target.value) })}
-                                  className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
-                                  placeholder="0,00"
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-slate-500">Entregáveis (separados por vírgula)</label>
-                              <input
-                                type="text"
-                                value={pkg.deliverables.join(",")}
-                                onChange={(e) => handleUpdatePackage(pkg.id!, { deliverables: e.target.value.split(",") })}
-                                className="w-full rounded-lg border-slate-200 text-sm text-slate-600 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
-                                placeholder="Ex: 1 Reels, 3 Stories"
-                              />
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => handleDeletePackage(pkg.id!)}
-                            className="inline-flex min-h-10 min-w-10 items-center justify-center self-start rounded-lg border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                            title="Remover pacote"
-                            aria-label={`Remover pacote ${pkg.name || ""}`.trim()}
-                          >
-                            <FaTrash className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-4 border-t border-slate-200 pt-3.5">
-                  <button
-                    type="button"
-                    onClick={handleAddToMediaKit}
-                    disabled={isSavingPackages || isActingOnBehalf}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSavingPackages ? (
-                      <>
-                        <FaSpinner className="h-4 w-4 animate-spin" />
-                        Salvando no Media Kit...
-                      </>
-                    ) : (
-                      <>
-                        <FaBullhorn className="h-4 w-4" />
-                        Salvar pacotes no Media Kit
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-[var(--brand-accent-soft)] p-2 text-[var(--brand-accent-ink)]">
-                  <FaChartPie className="h-5 w-5" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">Entenda o cálculo</h3>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800">Direitos e Prazos</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Defina uso de imagem, prazos e adicionais.</p>
               </div>
               <button
                 type="button"
-                onClick={() => toggleSectionCollapse("insights")}
-                aria-expanded={!collapsedSections.insights}
-                aria-controls="calculator-section-insights"
-                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+                onClick={() => toggleSectionCollapse("rights")}
+                aria-expanded={!collapsedSections.rights}
+                aria-controls="calculator-section-rights"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
               >
-                <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSections.insights ? "" : "rotate-180"}`} aria-hidden />
+                {!collapsedSections.rights ? "Fechar detalhes" : "Ver detalhes"}
+                {!collapsedSections.rights ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
             </div>
-            {!collapsedSections.insights ? (
-            <div id="calculator-section-insights" className="space-y-3.5">
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm text-slate-700">
-                  <h4 className="mb-2 font-semibold text-slate-900">Resumo do que entra no preço</h4>
-                  <p>Alcance considerado: <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span></p>
-                  <p>CPM aplicado: <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span></p>
-                  <div className="mt-1.5 space-y-1">
-                    <p>Multiplicadores ativos:</p>
-                    <ul className="flex flex-wrap gap-1">
-                      {visibleMultiplierTags.map((tag) => (
-                        <li key={tag} className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                          {tag}
-                        </li>
-                      ))}
-                      {hiddenMultiplierCount > 0 ? (
-                        <li className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-500">
-                          +{hiddenMultiplierCount} fatores
-                        </li>
-                      ) : null}
-                    </ul>
-                  </div>
-                  <p className="mt-2 text-xs text-slate-500">
-                    {calculation.params.usageRights === "organico"
-                      ? "Sem mídia paga, o uso fica restrito ao orgânico."
-                      : "Impulsionamento cobre todas as plataformas envolvidas durante o prazo contratado."}
-                  </p>
-                  {calculation.calibration.enabled ? (
-                    <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-white p-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Confiança</span>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            calculation.calibration.confidenceBand === "alta"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : calculation.calibration.confidenceBand === "media"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-rose-100 text-rose-700"
-                          }`}
-                        >
-                          {calibrationBandLabel}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600">
-                        Ajuste de calibração aplicado:{" "}
-                        <span className="font-semibold text-slate-900">
-                          {calibrationAdjustmentPercent >= 0 ? "+" : ""}
-                          {formatPercent(calibrationAdjustmentPercent)}
-                        </span>
-                        {" "}sobre o valor base justo.
+
+            {!collapsedSections.rights && (
+              <div id="calculator-section-rights" className="space-y-4 border-t border-slate-100 px-4 py-4">
+                <SelectionGroup
+                  label="Exclusividade exigida"
+                  options={EXCLUSIVITY_OPTIONS}
+                  value={calcParams.exclusivity}
+                  onChange={(v: any) => handleChange("exclusivity", v)}
+                  disabled={disableInputs}
+                />
+                <SelectionGroup
+                  label="Direitos de uso de imagem"
+                  options={USAGE_OPTIONS}
+                  value={calcParams.usageRights}
+                  onChange={(v: any) => setUsageRights(v)}
+                  disabled={disableInputs}
+                />
+                <p className="text-xs text-slate-500">
+                  Quando houver mídia paga (ou global), o direito de impulsionamento vale para todas as plataformas envolvidas durante o prazo contratado.
+                </p>
+                {calcParams.usageRights !== "organico" ? (
+                  <SelectionGroup
+                    label="Prazo de uso de imagem em mídia paga"
+                    options={PAID_MEDIA_DURATION_OPTIONS}
+                    value={calcParams.paidMediaDuration}
+                    onChange={(v: any) => setPaidMediaDuration(v)}
+                    disabled={disableInputs}
+                  />
+                ) : null}
+                <div className="space-y-2.5">
+                  <p id="commercial-addons-label" className="text-sm font-semibold text-slate-800">Condições comerciais adicionais</p>
+                  <div className="grid gap-2 sm:grid-cols-2" role="group" aria-labelledby="commercial-addons-label">
+                    <button
+                      type="button"
+                      onClick={() => toggleFlag("repostTikTok")}
+                      disabled={disableInputs}
+                      aria-pressed={calcParams.repostTikTok}
+                      className={`rounded-xl border p-3 text-left transition ${calcParams.repostTikTok
+                        ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                        } ${disableInputs ? "opacity-70" : ""}`}
+                    >
+                      <p className="text-sm font-semibold text-slate-900">Repost no TikTok</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {calcParams.repostTikTok
+                          ? "Sim. Inclui direito de repost e impulsionamento no TikTok."
+                          : "Não. Sem repost adicional no TikTok."}
                       </p>
-                      {calculation.calibration.guardrailApplied ? (
-                        <p className="text-xs text-amber-700">
-                          Guardrail ativado: limite de ajuste em ±25% aplicado para segurança.
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleFlag("instagramCollab")}
+                      disabled={disableInputs}
+                      aria-pressed={calcParams.instagramCollab}
+                      className={`rounded-xl border p-3 text-left transition ${calcParams.instagramCollab
+                        ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                        } ${disableInputs ? "opacity-70" : ""}`}
+                    >
+                      <p className="text-sm font-semibold text-slate-900">Collab com marca no Instagram</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {calcParams.instagramCollab
+                          ? "Sim. Registro contratual sem impacto no cálculo."
+                          : "Não. Sem collab com marca no Instagram."}
+                      </p>
+                    </button>
+                  </div>
+                </div>
+                <SelectionGroup
+                  label="Seu nível de autoridade atual"
+                  options={AUTHORITY_OPTIONS}
+                  value={calcParams.authority}
+                  onChange={(v: any) => handleChange("authority", v)}
+                  disabled={disableInputs}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800">Marca e Estratégia</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Classifique risco, porte e potencial estratégico.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleSectionCollapse("brand")}
+                aria-expanded={!collapsedSections.brand}
+                aria-controls="calculator-section-brand"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                {!collapsedSections.brand ? "Fechar detalhes" : "Ver detalhes"}
+                {!collapsedSections.brand ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+            </div>
+
+            {!collapsedSections.brand && (
+              <div id="calculator-section-brand" className="space-y-4 border-t border-slate-100 px-4 py-4">
+                <SelectionGroup
+                  label="Porte da marca"
+                  options={BRAND_SIZE_OPTIONS}
+                  value={calcParams.brandSize}
+                  onChange={(v: CalculatorParams["brandSize"]) => handleChange("brandSize", v)}
+                  disabled={disableInputs}
+                />
+                <SelectionGroup
+                  label="Risco de imagem da parceria"
+                  options={IMAGE_RISK_OPTIONS}
+                  value={calcParams.imageRisk}
+                  onChange={(v: CalculatorParams["imageRisk"]) => handleChange("imageRisk", v)}
+                  disabled={disableInputs}
+                />
+                <SelectionGroup
+                  label="Ganho estratégico para posicionamento"
+                  options={STRATEGIC_GAIN_OPTIONS}
+                  value={calcParams.strategicGain}
+                  onChange={(v: CalculatorParams["strategicGain"]) => handleChange("strategicGain", v)}
+                  disabled={disableInputs}
+                />
+                <SelectionGroup
+                  label="Modelo de conteúdo"
+                  options={CONTENT_MODEL_OPTIONS}
+                  value={calcParams.contentModel}
+                  onChange={(v: CalculatorParams["contentModel"]) => setContentModel(v)}
+                  disabled={disableInputs}
+                />
+                <div className="space-y-2.5">
+                  <label className="text-sm font-semibold text-slate-800">Exceção estratégica</label>
+                  <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Permitir R$ 0 no preço estratégico</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Use somente em parcerias de alto ganho estratégico e baixo risco.
                         </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleFlag("allowStrategicWaiver")}
+                        disabled={disableInputs}
+                        aria-pressed={calcParams.allowStrategicWaiver}
+                        className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition ${calcParams.allowStrategicWaiver
+                          ? "border-slate-800 bg-slate-800 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          } ${disableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+                      >
+                        {calcParams.allowStrategicWaiver ? "Ligada" : "Desligada"}
+                      </button>
+                    </div>
+                    <p className="mt-2.5 text-xs text-slate-600">
+                      {calcParams.allowStrategicWaiver
+                        ? "Com a opção ligada, o estratégico pode ir para R$ 0 quando todos os critérios forem atendidos."
+                        : "Com a opção desligada, o estratégico sempre segue o cálculo normal."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="sticky bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-1.5 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
+            <button
+              type="submit"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white sm:ml-auto sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
+              disabled={disableInputs}
+              ref={submitButtonRef}
+            >
+              {isCalculating ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Calculando Melhor Preço...
+                </>
+              ) : (
+                <>
+                  Calcular Valor da Publi
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {
+          calculation && statsCards && (
+            <section
+              ref={resultsSectionRef}
+              className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-700"
+            >
+              <div className="grid gap-4 md:grid-cols-3">
+                {statsCards.map((card) => (
+                  <div
+                    key={card.label}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70 text-left transition-all"
+                  >
+                    <div className={`flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 ${card.headerClass}`}>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        {card.label}
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-400">
+                        CPM {card.cpm}
+                      </span>
+                    </div>
+                    <div className="flex flex-1 flex-col p-4 bg-white/40">
+                      <div className="space-y-1">
+                        <p className="text-2xl font-bold text-slate-900">{card.value}</p>
+                      </div>
+                      <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-500">{card.description}</p>
+                      <button
+                        onClick={() => {
+                          const labelText = typeof card?.label === 'string' ? card.label : '';
+                          const baseLabel = (labelText.split('(')[0] ?? '').trim() || 'Pacote';
+                          handleAddPackage({
+                            name: baseLabel || 'Pacote',
+                            price: card.amount,
+                            description: card?.description ?? '',
+                          }, "suggested_card");
+                        }}
+                        disabled={isActingOnBehalf}
+                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Usar como pacote
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                      <Layers size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">Seus Pacotes</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">Estes pacotes aparecerão no seu Mídia Kit.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAddPackage()}
+                      disabled={isActingOnBehalf}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Plus size={14} />
+                      Novo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleSectionCollapse("packages")}
+                      aria-expanded={!collapsedSections.packages}
+                      aria-controls="calculator-section-packages"
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-slate-600 transition hover:bg-slate-50"
+                    >
+                      {!collapsedSections.packages ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {isActingOnBehalf && (
+                  <div className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-[10px] text-amber-700">
+                    Modo admin ativo: edição de pacotes desativada para evitar salvar no Media Kit da conta errada.
+                  </div>
+                )}
+
+                {!collapsedSections.packages && (
+                  <div id="calculator-section-packages" className="border-t border-slate-100 px-4 py-4">
+                    {packages.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                        <p className="text-slate-500">Nenhum pacote definido.</p>
+                        <p className="text-sm text-slate-400">Adicione manualmente ou use as sugestões acima.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {packages.map((pkg) => (
+                          <div key={pkg.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+                            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                              <div className="space-y-3">
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-xs font-medium text-slate-500">Nome do Pacote</label>
+                                    <input
+                                      type="text"
+                                      value={pkg.name}
+                                      onChange={(e) => handleUpdatePackage(pkg.id!, { name: e.target.value })}
+                                      className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                      placeholder="Ex: Combo Reels"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs font-medium text-slate-500">Valor (R$)</label>
+                                    <input
+                                      type="number"
+                                      value={pkg.price}
+                                      onChange={(e) => handleUpdatePackage(pkg.id!, { price: sanitizePackagePrice(e.target.value) })}
+                                      className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                      placeholder="0,00"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs font-medium text-slate-500">Entregáveis (separados por vírgula)</label>
+                                  <input
+                                    type="text"
+                                    value={pkg.deliverables.join(",")}
+                                    onChange={(e) => handleUpdatePackage(pkg.id!, { deliverables: e.target.value.split(",") })}
+                                    className="w-full rounded-lg border-slate-200 text-sm text-slate-600 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                    placeholder="Ex: 1 Reels, 3 Stories"
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDeletePackage(pkg.id!)}
+                                className="inline-flex min-h-10 min-w-10 items-center justify-center self-start rounded-lg border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                title="Remover pacote"
+                                aria-label={`Remover pacote ${pkg.name || ""}`.trim()}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-4 border-t border-slate-200 pt-3.5">
+                      <button
+                        type="button"
+                        onClick={handleAddToMediaKit}
+                        disabled={isSavingPackages || isActingOnBehalf}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isSavingPackages ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Salvando no Media Kit...
+                          </>
+                        ) : (
+                          <>
+                            <Megaphone className="h-4 w-4" />
+                            Salvar pacotes no Media Kit
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                      <PieChart size={16} />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-800">Entenda o cálculo</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleSectionCollapse("insights")}
+                    aria-expanded={!collapsedSections.insights}
+                    aria-controls="calculator-section-insights"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-slate-600 transition hover:bg-slate-50"
+                  >
+                    {!collapsedSections.insights ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </div>
+                {!collapsedSections.insights && (
+                  <div id="calculator-section-insights" className="space-y-4 border-t border-slate-100 px-4 py-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm text-slate-700">
+                      <h4 className="mb-2 font-semibold text-slate-900">Resumo do que entra no preço</h4>
+                      <p>Alcance considerado: <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span></p>
+                      <p>CPM aplicado: <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span></p>
+                      <div className="mt-1.5 space-y-1">
+                        <p>Multiplicadores ativos:</p>
+                        <ul className="flex flex-wrap gap-1">
+                          {visibleMultiplierTags.map((tag) => (
+                            <li key={tag} className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                              {tag}
+                            </li>
+                          ))}
+                          {hiddenMultiplierCount > 0 ? (
+                            <li className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                              +{hiddenMultiplierCount} fatores
+                            </li>
+                          ) : null}
+                        </ul>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        {calculation.params.usageRights === "organico"
+                          ? "Sem mídia paga, o uso fica restrito ao orgânico."
+                          : "Impulsionamento cobre todas as plataformas envolvidas durante o prazo contratado."}
+                      </p>
+                      {calculation.calibration.enabled ? (
+                        <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Confiança</span>
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${calculation.calibration.confidenceBand === "alta"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : calculation.calibration.confidenceBand === "media"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-rose-100 text-rose-700"
+                                }`}
+                            >
+                              {calibrationBandLabel}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            Ajuste de calibração aplicado:{" "}
+                            <span className="font-semibold text-slate-900">
+                              {calibrationAdjustmentPercent >= 0 ? "+" : ""}
+                              {formatPercent(calibrationAdjustmentPercent)}
+                            </span>
+                            {" "}sobre o valor base justo.
+                          </p>
+                          {calculation.calibration.guardrailApplied ? (
+                            <p className="text-xs text-amber-700">
+                              Guardrail ativado: limite de ajuste em ±25% aplicado para segurança.
+                            </p>
+                          ) : null}
+                          {calculation.calibration.lowConfidenceRangeExpanded ? (
+                            <p className="text-xs text-amber-700">
+                              Faixa estratégico/premium ampliada por baixa confiança para reduzir risco de subprecificação.
+                            </p>
+                          ) : null}
+                        </div>
                       ) : null}
-                      {calculation.calibration.lowConfidenceRangeExpanded ? (
-                        <p className="text-xs text-amber-700">
-                          Faixa estratégico/premium ampliada por baixa confiança para reduzir risco de subprecificação.
+                      {brandRiskV1Enabled && strategicWaiverApplied ? (
+                        <p className="mt-2 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          Exceção estratégica aplicada: Estratégico em R$ 0, com Justo/Premium mantidos para referência comercial.
                         </p>
                       ) : null}
                     </div>
-                  ) : null}
-                  {brandRiskV1Enabled && strategicWaiverApplied ? (
-                    <p className="mt-2 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                      Exceção estratégica aplicada: Estratégico em R$ 0, com Justo/Premium mantidos para referência comercial.
-                    </p>
-                  ) : null}
-                </div>
-                <details className="rounded-xl border border-slate-200 bg-white p-3.5">
-                  <summary className="cursor-pointer text-sm font-semibold text-slate-900">Fatores de impacto</summary>
-                  <ul className="mt-2.5 space-y-1.5 text-sm text-slate-600">
-                    <li className="flex justify-between">
-                      <span>Modo</span>
-                      <span className="font-medium text-slate-900">
-                        {calculation.params.deliveryType === "evento"
-                          ? hasContentInResult
-                            ? "Conteúdo + Evento"
-                            : "Evento"
-                          : "Conteúdo"}
-                      </span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Alcance Base</span>
-                      <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Engajamento</span>
-                      <span className="font-medium text-green-600">+{formatPercent(calculation.metrics.engagement)} (Bônus)</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Sazonalidade</span>
-                      <span className="font-medium text-slate-900 capitalize">{calculation.params.seasonality || "Normal"}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Prazo de mídia paga</span>
-                      <span className="font-medium text-slate-900">
-                        {calculation.params.paidMediaDuration ? PAID_MEDIA_DURATION_LABELS[calculation.params.paidMediaDuration] : "Não se aplica"}
-                      </span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Repost no TikTok</span>
-                      <span className="font-medium text-slate-900">{calculation.params.repostTikTok ? "Sim" : "Não"}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Confiança da calibração</span>
-                      <span className="font-medium text-slate-900">{calibrationBandLabel}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Ajuste da calibração</span>
-                      <span className="font-medium text-slate-900">
-                        {calibrationAdjustmentPercent >= 0 ? "+" : ""}
-                        {formatPercent(calibrationAdjustmentPercent)}
-                      </span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Collab no Instagram</span>
-                      <span className="font-medium text-slate-900">{calculation.params.instagramCollab ? "Sim" : "Não"}</span>
-                    </li>
-                    {brandRiskV1Enabled ? (
-                      <>
+                    <details className="rounded-xl border border-slate-200 bg-white p-3.5">
+                      <summary className="cursor-pointer text-sm font-semibold text-slate-900">Fatores de impacto</summary>
+                      <ul className="mt-2.5 space-y-1.5 text-sm text-slate-600">
                         <li className="flex justify-between">
-                          <span>Porte da marca</span>
-                          <span className="font-medium text-slate-900">{BRAND_SIZE_LABELS[calculation.params.brandSize]}</span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span>Risco de imagem</span>
-                          <span className="font-medium text-slate-900">{IMAGE_RISK_LABELS[calculation.params.imageRisk]}</span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span>Ganho estratégico</span>
-                          <span className="font-medium text-slate-900">{STRATEGIC_GAIN_LABELS[calculation.params.strategicGain]}</span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span>Modelo de conteúdo</span>
-                          <span className="font-medium text-slate-900">{CONTENT_MODEL_LABELS[calculation.params.contentModel]}</span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span>Exceção estratégica</span>
-                          <span className="font-medium text-slate-900">{calculation.params.allowStrategicWaiver ? "Permitida" : "Desligada"}</span>
-                        </li>
-                      </>
-                    ) : null}
-                    {hasContentInResult ? (
-                      <li className="flex justify-between">
-                        <span>Unidades de conteúdo</span>
-                        <span className="font-medium text-slate-900">
-                          {calculation.breakdown.contentUnits.toFixed(2)}
-                        </span>
-                      </li>
-                    ) : null}
-                    {calculation.params.deliveryType === "evento" ? (
-                      <>
-                        <li className="flex justify-between">
-                          <span>Presença no evento</span>
+                          <span>Modo</span>
                           <span className="font-medium text-slate-900">
-                            {formatCurrency(calculation.breakdown.eventPresenceJusto)}
+                            {calculation.params.deliveryType === "evento"
+                              ? hasContentInResult
+                                ? "Conteúdo + Evento"
+                                : "Evento"
+                              : "Conteúdo"}
                           </span>
                         </li>
-                        {calculation.breakdown.coverageJusto > 0 ? (
+                        <li className="flex justify-between">
+                          <span>Alcance Base</span>
+                          <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Engajamento</span>
+                          <span className="font-medium text-green-600">+{formatPercent(calculation.metrics.engagement)} (Bônus)</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Sazonalidade</span>
+                          <span className="font-medium text-slate-900 capitalize">{calculation.params.seasonality || "Normal"}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Prazo de mídia paga</span>
+                          <span className="font-medium text-slate-900">
+                            {calculation.params.paidMediaDuration ? PAID_MEDIA_DURATION_LABELS[calculation.params.paidMediaDuration] : "Não se aplica"}
+                          </span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Repost no TikTok</span>
+                          <span className="font-medium text-slate-900">{calculation.params.repostTikTok ? "Sim" : "Não"}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Confiança da calibração</span>
+                          <span className="font-medium text-slate-900">{calibrationBandLabel}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Ajuste da calibração</span>
+                          <span className="font-medium text-slate-900">
+                            {calibrationAdjustmentPercent >= 0 ? "+" : ""}
+                            {formatPercent(calibrationAdjustmentPercent)}
+                          </span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Collab no Instagram</span>
+                          <span className="font-medium text-slate-900">{calculation.params.instagramCollab ? "Sim" : "Não"}</span>
+                        </li>
+                        {brandRiskV1Enabled ? (
+                          <>
+                            <li className="flex justify-between">
+                              <span>Porte da marca</span>
+                              <span className="font-medium text-slate-900">{BRAND_SIZE_LABELS[calculation.params.brandSize]}</span>
+                            </li>
+                            <li className="flex justify-between">
+                              <span>Risco de imagem</span>
+                              <span className="font-medium text-slate-900">{IMAGE_RISK_LABELS[calculation.params.imageRisk]}</span>
+                            </li>
+                            <li className="flex justify-between">
+                              <span>Ganho estratégico</span>
+                              <span className="font-medium text-slate-900">{STRATEGIC_GAIN_LABELS[calculation.params.strategicGain]}</span>
+                            </li>
+                            <li className="flex justify-between">
+                              <span>Modelo de conteúdo</span>
+                              <span className="font-medium text-slate-900">{CONTENT_MODEL_LABELS[calculation.params.contentModel]}</span>
+                            </li>
+                            <li className="flex justify-between">
+                              <span>Exceção estratégica</span>
+                              <span className="font-medium text-slate-900">{calculation.params.allowStrategicWaiver ? "Permitida" : "Desligada"}</span>
+                            </li>
+                          </>
+                        ) : null}
+                        {hasContentInResult ? (
                           <li className="flex justify-between">
-                            <span>Cobertura opcional</span>
+                            <span>Unidades de conteúdo</span>
                             <span className="font-medium text-slate-900">
-                              {formatCurrency(calculation.breakdown.coverageJusto)}
+                              {calculation.breakdown.contentUnits.toFixed(2)}
                             </span>
                           </li>
                         ) : null}
+                        {calculation.params.deliveryType === "evento" ? (
+                          <>
+                            <li className="flex justify-between">
+                              <span>Presença no evento</span>
+                              <span className="font-medium text-slate-900">
+                                {formatCurrency(calculation.breakdown.eventPresenceJusto)}
+                              </span>
+                            </li>
+                            {calculation.breakdown.coverageJusto > 0 ? (
+                              <li className="flex justify-between">
+                                <span>Cobertura opcional</span>
+                                <span className="font-medium text-slate-900">
+                                  {formatCurrency(calculation.breakdown.coverageJusto)}
+                                </span>
+                              </li>
+                            ) : null}
+                            <li className="flex justify-between">
+                              <span>Logística sugerida (extra)</span>
+                              <span className="font-medium text-slate-900">
+                                {formatCurrency(calculation.breakdown.logisticsSuggested)}
+                              </span>
+                            </li>
+                          </>
+                        ) : null}
                         <li className="flex justify-between">
-                          <span>Logística sugerida (extra)</span>
-                          <span className="font-medium text-slate-900">
-                            {formatCurrency(calculation.breakdown.logisticsSuggested)}
-                          </span>
+                          <span>CPM do Nicho</span>
+                          <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span>
                         </li>
-                      </>
+                      </ul>
+                      <div className="mt-2.5 border-t border-gray-200 pt-2.5 text-xs text-slate-500">
+                        {calculation.params.deliveryType === "conteudo" ? (
+                          <p>Fórmula: (Alcance / 1.000) x CPM x multiplicadores (direitos, risco/estratégia, complexidade etc.) x unidades de conteúdo.</p>
+                        ) : hasContentInResult ? (
+                          <p>Fórmula: conteúdo + presença em evento + cobertura opcional, aplicando os mesmos multiplicadores.</p>
+                        ) : (
+                          <p>Fórmula: presença em evento + cobertura opcional, aplicando os mesmos multiplicadores (logística exibida separadamente).</p>
+                        )}
+                        <p className="mt-1">Logística é sugerida como extra e não entra no valor em cache da calculadora.</p>
+                      </div>
+                    </details>
+                    {calculation.explanation ? (
+                      <details className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                        <summary className="cursor-pointer font-medium text-slate-700">Ver explicação detalhada</summary>
+                        <p className="mt-2 leading-relaxed text-slate-500">{calculation.explanation}</p>
+                      </details>
                     ) : null}
-                    <li className="flex justify-between">
-                      <span>CPM do Nicho</span>
-                      <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span>
-                    </li>
-                  </ul>
-                  <div className="mt-2.5 border-t border-gray-200 pt-2.5 text-xs text-slate-500">
-                    {calculation.params.deliveryType === "conteudo" ? (
-                      <p>Fórmula: (Alcance / 1.000) x CPM x multiplicadores (direitos, risco/estratégia, complexidade etc.) x unidades de conteúdo.</p>
-                    ) : hasContentInResult ? (
-                      <p>Fórmula: conteúdo + presença em evento + cobertura opcional, aplicando os mesmos multiplicadores.</p>
-                    ) : (
-                      <p>Fórmula: presença em evento + cobertura opcional, aplicando os mesmos multiplicadores (logística exibida separadamente).</p>
-                    )}
-                    <p className="mt-1">Logística é sugerida como extra e não entra no valor em cache da calculadora.</p>
                   </div>
-                </details>
-                {calculation.explanation ? (
-                  <details className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
-                    <summary className="cursor-pointer font-medium text-slate-700">Ver explicação detalhada</summary>
-                    <p className="mt-2 leading-relaxed text-slate-500">{calculation.explanation}</p>
-                  </details>
-                ) : null}
-            </div>
-            ) : null}
-          </div>
+                )}
+              </div>
 
-          <div className="text-center text-xs text-slate-400">
-            Cálculo ID: <span className="font-mono">{calculation.calculationId}</span> • Gerado em {formatDateTime(calculation.createdAt)}
-          </div>
-        </section>
-      )}
-      </div>
-    </div>
+              <div className="text-center text-xs text-slate-400">
+                Cálculo ID: <span className="font-mono">{calculation.calculationId}</span> • Gerado em {formatDateTime(calculation.createdAt)}
+              </div>
+            </section>
+          )
+        }
+      </div >
+    </div >
   );
 }
