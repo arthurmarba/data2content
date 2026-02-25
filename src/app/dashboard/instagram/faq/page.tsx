@@ -24,6 +24,7 @@ export default function InstagramFacebookFAQPage() {
           <li><a className="underline hover:text-blue-800" href="#erros-permissoes">Erros #10/#200 (Permissão negada)</a></li>
           <li><a className="underline hover:text-blue-800" href="#token-expirado">Token expirado/inválido</a></li>
           <li><a className="underline hover:text-blue-800" href="#conta-vinculada">Conta já vinculada</a></li>
+          <li><a className="underline hover:text-blue-800" href="#conta-restrita">Conta temporariamente restringida</a></li>
           <li><a className="underline hover:text-blue-800" href="#quanto-tempo">Quanto tempo leva?</a></li>
           <li><a className="underline hover:text-blue-800" href="#acesso">O que o D2C acessa exatamente?</a></li>
           <li><a className="underline hover:text-blue-800" href="#revogar">Posso revogar depois?</a></li>
@@ -91,6 +92,10 @@ export default function InstagramFacebookFAQPage() {
             </li>
             <li>
               <b id="conta-vinculada">Conta já vinculada</b>: a mesma conta do Facebook/IG já foi conectada a outro usuário no D2C. Desvincule lá ou contate o suporte para migrar.
+            </li>
+            <li>
+              <b id="conta-restrita">Conta temporariamente restringida</b>: quando a Meta exibe mensagens como “Sua conta foi restringida”, a ação fica bloqueada por segurança do próprio Instagram/Facebook.
+              Conclua as verificações de segurança no app oficial, aguarde o prazo da restrição e tente novamente depois.
             </li>
             <li>
               <b>Sem contas encontradas</b>: confirme que o IG é Profissional/Creator e está associado a uma Página que você administra.

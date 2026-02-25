@@ -103,7 +103,10 @@ export default function InstagramPreConnectPage() {
   const essentialChecklist = quickChecklist.filter((item) => item.essential);
   const optionalChecklist = quickChecklist.filter((item) => !item.essential);
 
-  const oauthErrorCode = mapNextAuthErrorToReconnectCode(searchParams.get("error"));
+  const oauthErrorCode = mapNextAuthErrorToReconnectCode(
+    searchParams.get("error"),
+    searchParams.get("error_description")
+  );
   const oauthErrorMessage =
     oauthErrorCode === "UNKNOWN" ? null : reconnectErrorMessageForCode(oauthErrorCode);
   const displayError = error ?? oauthErrorMessage;

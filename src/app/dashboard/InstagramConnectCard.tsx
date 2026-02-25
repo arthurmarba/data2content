@@ -115,6 +115,14 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
         icon: FaLock,
         colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
       };
+    case IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED:
+      return {
+        message:
+          "A Meta restringiu temporariamente esta conta por segurança. Conclua a verificação no Instagram/Facebook e tente novamente mais tarde.",
+        type: "permission",
+        icon: FaClock,
+        colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
+      };
     case IG_RECONNECT_ERROR_CODES.TOKEN_INVALID:
     case IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID:
       return {

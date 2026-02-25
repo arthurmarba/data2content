@@ -1,6 +1,7 @@
 export const IG_RECONNECT_ERROR_CODES = {
   TOKEN_INVALID: "TOKEN_INVALID",
   PERMISSION_DENIED: "PERMISSION_DENIED",
+  ACCOUNT_RESTRICTED: "ACCOUNT_RESTRICTED",
   NO_FACEBOOK_PAGE: "NO_FACEBOOK_PAGE",
   NO_BUSINESS_ACCESS: "NO_BUSINESS_ACCESS",
   NO_LINKED_IG_ACCOUNT: "NO_LINKED_IG_ACCOUNT",
@@ -18,6 +19,7 @@ export type InstagramReconnectErrorCode =
 export const IG_RECONNECT_ACTIONABLE_CODES = new Set<InstagramReconnectErrorCode>([
   IG_RECONNECT_ERROR_CODES.TOKEN_INVALID,
   IG_RECONNECT_ERROR_CODES.PERMISSION_DENIED,
+  IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED,
   IG_RECONNECT_ERROR_CODES.NO_FACEBOOK_PAGE,
   IG_RECONNECT_ERROR_CODES.NO_BUSINESS_ACCESS,
   IG_RECONNECT_ERROR_CODES.NO_LINKED_IG_ACCOUNT,
@@ -44,6 +46,18 @@ export function inferReconnectErrorCodeFromMessage(
 ): InstagramReconnectErrorCode {
   if (!message) return IG_RECONNECT_ERROR_CODES.UNKNOWN;
   const value = message.toLowerCase();
+  if (
+    value.includes("conta foi restringida") ||
+    value.includes("restrição temporária") ||
+    value.includes("temporariamente restringid") ||
+    value.includes("temporarily restricted") ||
+    value.includes("account restricted") ||
+    value.includes("checkpoint required") ||
+    value.includes("tente novamente mais tarde") ||
+    value.includes("try again later")
+  ) {
+    return IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED;
+  }
   if (
     value.includes("nenhuma página") ||
     value.includes("no pages")
@@ -97,15 +111,25 @@ export function inferReconnectErrorCodeFromMessage(
 }
 
 export function mapNextAuthErrorToReconnectCode(
-  errorParam?: string | null
+  errorParam?: string | null,
+  errorDescriptionParam?: string | null
 ): InstagramReconnectErrorCode {
   const normalized = String(errorParam || "").trim();
+  const inferredFromDescription = inferReconnectErrorCodeFromMessage(
+    errorDescriptionParam
+  );
+  if (inferredFromDescription !== IG_RECONNECT_ERROR_CODES.UNKNOWN) {
+    return inferredFromDescription;
+  }
   if (!normalized) return IG_RECONNECT_ERROR_CODES.UNKNOWN;
   if (normalized === "FacebookAlreadyLinked") {
     return IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED;
   }
   if (normalized === "FacebookLinkFailed" || normalized === "FacebookLinkRequired") {
     return IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID;
+  }
+  if (normalized === "AccessDenied") {
+    return IG_RECONNECT_ERROR_CODES.PERMISSION_DENIED;
   }
   return IG_RECONNECT_ERROR_CODES.UNKNOWN;
 }
@@ -114,6 +138,8 @@ export function reconnectErrorMessageForCode(code: InstagramReconnectErrorCode):
   switch (code) {
     case IG_RECONNECT_ERROR_CODES.PERMISSION_DENIED:
       return "Permissão necessária não concedida no Facebook. Reconecte e aprove todas as permissões.";
+    case IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED:
+      return "A Meta bloqueou temporariamente esta conta por segurança. Abra o Instagram/Facebook, conclua a verificação e tente novamente mais tarde.";
     case IG_RECONNECT_ERROR_CODES.TOKEN_INVALID:
       return "Seu token de acesso expirou ou foi invalidado. Reconecte sua conta.";
     case IG_RECONNECT_ERROR_CODES.NO_FACEBOOK_PAGE:
@@ -151,6 +177,11 @@ export function reconnectFaqLinkForCode(
       return {
         href: "/dashboard/instagram/faq#erros-permissoes",
         label: "Permissão negada (#10/#200) — abrir solução",
+      };
+    case IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED:
+      return {
+        href: "/dashboard/instagram/faq#conta-restrita",
+        label: "Conta temporariamente restringida — abrir solução",
       };
     case IG_RECONNECT_ERROR_CODES.TOKEN_INVALID:
     case IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID:

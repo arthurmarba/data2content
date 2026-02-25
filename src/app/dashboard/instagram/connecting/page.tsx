@@ -110,6 +110,15 @@ function reconnectActionPlanForCode(code: InstagramReconnectErrorCode): ActionPl
           "Se usar Business Manager, confirme acesso à Página e ao Instagram.",
         ],
       };
+    case IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED:
+      return {
+        title: "Ação recomendada para conta temporariamente restringida",
+        steps: [
+          "Abra o Instagram/Facebook e conclua as verificações de segurança solicitadas pela Meta.",
+          "Aguarde o fim da restrição temporária e só então tente conectar novamente.",
+          "Ao retomar, use a mesma conta Facebook que administra a Página vinculada ao Instagram.",
+        ],
+      };
     case IG_RECONNECT_ERROR_CODES.TOKEN_INVALID:
     case IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID:
       return {
@@ -380,7 +389,10 @@ export default function InstagramConnectingPage() {
           return;
         }
 
-        const oauthErrorCode = mapNextAuthErrorToReconnectCode(sp.get("error"));
+        const oauthErrorCode = mapNextAuthErrorToReconnectCode(
+          sp.get("error"),
+          sp.get("error_description")
+        );
         const backendCode = (u.igConnectionErrorCode || IG_RECONNECT_ERROR_CODES.UNKNOWN) as InstagramReconnectErrorCode;
         const codeToUse = oauthErrorCode !== IG_RECONNECT_ERROR_CODES.UNKNOWN ? oauthErrorCode : backendCode;
         setSuccessNotice(null);

@@ -1,6 +1,7 @@
 import {
   IG_RECONNECT_ERROR_CODES,
   inferReconnectErrorCodeFromMessage,
+  mapNextAuthErrorToReconnectCode,
   reconnectFaqLinkForCode,
 } from "./reconnectErrors";
 
@@ -33,6 +34,27 @@ describe("instagram/reconnectErrors", () => {
     ).toBe(IG_RECONNECT_ERROR_CODES.NO_LINKED_IG_ACCOUNT);
   });
 
+  it("maps account restriction messages to ACCOUNT_RESTRICTED", () => {
+    expect(
+      inferReconnectErrorCodeFromMessage(
+        "Sua conta foi restringida. Tente novamente mais tarde."
+      )
+    ).toBe(IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED);
+  });
+
+  it("maps NextAuth access denied to reconnect codes", () => {
+    expect(
+      mapNextAuthErrorToReconnectCode("AccessDenied")
+    ).toBe(IG_RECONNECT_ERROR_CODES.PERMISSION_DENIED);
+
+    expect(
+      mapNextAuthErrorToReconnectCode(
+        "OAuthCallback",
+        "Sua conta foi restringida temporariamente"
+      )
+    ).toBe(IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED);
+  });
+
   it("returns FAQ links based on reconnect error code", () => {
     expect(
       reconnectFaqLinkForCode(IG_RECONNECT_ERROR_CODES.PERMISSION_DENIED)
@@ -46,6 +68,13 @@ describe("instagram/reconnectErrors", () => {
     ).toEqual({
       href: "/dashboard/instagram/faq#token-expirado",
       label: "Token expirado/inválido — abrir solução",
+    });
+
+    expect(
+      reconnectFaqLinkForCode(IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED)
+    ).toEqual({
+      href: "/dashboard/instagram/faq#conta-restrita",
+      label: "Conta temporariamente restringida — abrir solução",
     });
 
     expect(
