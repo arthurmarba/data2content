@@ -29,6 +29,57 @@ export interface TimeBlockScoreUI {
 
 const TARGET_SUGGESTIONS = 5; // regra: sugerir 3..5; usamos 5 como teto
 const PERIOD_DAYS = 90;       // janela histórica
+const PLANNER_UI_CACHE_TTL_MS = 30_000;
+const PLANNER_UI_CACHE_MAX_ENTRIES = 40;
+
+type PlannerSnapshot = {
+  slots: PlannerUISlot[] | null;
+  heatmap: TimeBlockScoreUI[] | null;
+  recommendations: PlannerUISlot[];
+  locked: boolean;
+  lockedReason: string | null;
+  createdAt: number;
+};
+
+const plannerUiMemoryCache = new Map<string, PlannerSnapshot>();
+
+function buildPlannerUiMemoryKey(params: {
+  userId: string;
+  targetUserId: string | null;
+  publicMode: boolean;
+  weekStart: Date;
+  targetSlotsPerWeek: number;
+}): string {
+  return [
+    params.publicMode ? 'public' : 'owner',
+    params.userId,
+    params.targetUserId ?? 'self',
+    params.weekStart.toISOString(),
+    String(params.targetSlotsPerWeek),
+  ].join('|');
+}
+
+function readPlannerUiMemory(key: string): PlannerSnapshot | null {
+  const value = plannerUiMemoryCache.get(key);
+  if (!value) return null;
+  if (Date.now() - value.createdAt > PLANNER_UI_CACHE_TTL_MS) {
+    plannerUiMemoryCache.delete(key);
+    return null;
+  }
+  return value;
+}
+
+function writePlannerUiMemory(key: string, snapshot: Omit<PlannerSnapshot, 'createdAt'>) {
+  plannerUiMemoryCache.set(key, {
+    ...snapshot,
+    createdAt: Date.now(),
+  });
+  if (plannerUiMemoryCache.size <= PLANNER_UI_CACHE_MAX_ENTRIES) return;
+  const firstKey = plannerUiMemoryCache.keys().next().value;
+  if (typeof firstKey === 'string') {
+    plannerUiMemoryCache.delete(firstKey);
+  }
+}
 
 function normalizeToMondayUTC(d: Date): Date {
   const dd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -87,13 +138,52 @@ function mergePlanAndRecommendations(planSlots: PlannerUISlot[], recSlots: Plann
   return Array.from(map.values());
 }
 
+function mapApiSlot(raw: any, isSaved: boolean): PlannerUISlot {
+  return {
+    slotId: typeof raw?.slotId === 'string' ? raw.slotId : undefined,
+    dayOfWeek: raw?.dayOfWeek,
+    blockStartHour: raw?.blockStartHour,
+    format: (typeof raw?.format === 'string' && raw.format) ? raw.format : 'reel',
+    categories: raw?.categories || {},
+    status: raw?.status,
+    isExperiment: !!raw?.isExperiment,
+    expectedMetrics: raw?.expectedMetrics || {},
+    title: raw?.title,
+    scriptShort: raw?.scriptShort,
+    themes: raw?.themes || [],
+    themeKeyword: raw?.themeKeyword,
+    rationale: typeof raw?.rationale === 'string' ? raw.rationale : undefined,
+    recordingTimeSec: typeof raw?.recordingTimeSec === 'number' ? raw.recordingTimeSec : undefined,
+    aiVersionId: typeof raw?.aiVersionId === 'string' ? raw.aiVersionId : undefined,
+    isSaved,
+  };
+}
+
+function mapApiHeatmap(raw: any): TimeBlockScoreUI {
+  return {
+    dayOfWeek: raw?.dayOfWeek,
+    blockStartHour: raw?.blockStartHour,
+    score: typeof raw?.score === 'number' ? raw.score : 0,
+  };
+}
+
 export function usePlannerData(params: {
   userId: string;
+  targetUserId?: string | null;
   publicMode?: boolean;
   weekStart?: Date;
   targetSlotsPerWeek?: number;
 }) {
-  const { userId, publicMode = false, weekStart, targetSlotsPerWeek = TARGET_SUGGESTIONS } = params;
+  const {
+    userId,
+    targetUserId = null,
+    publicMode = false,
+    weekStart,
+    targetSlotsPerWeek = TARGET_SUGGESTIONS,
+  } = params;
+  const normalizedTargetUserId = typeof targetUserId === 'string' && targetUserId.trim()
+    ? targetUserId.trim()
+    : null;
 
   // ✅ Congela o weekStart default no primeiro render (evita drift e re-buscas)
   const defaultWeekStartRef = useRef<Date | null>(null);
@@ -117,12 +207,30 @@ export function usePlannerData(params: {
   const abortRef = useRef<AbortController | null>(null);
   const recommendationsRef = useRef<PlannerUISlot[]>([]);
 
-  const safeSetSlots = (next: PlannerUISlot[] | null) => {
+  const safeSetSlots = useCallback((next: PlannerUISlot[] | null) => {
     setSlots(prev => (slotsShallowEqual(prev, next) ? prev : next));
-  };
-  const safeSetHeatmap = (next: TimeBlockScoreUI[] | null) => {
+  }, []);
+  const safeSetHeatmap = useCallback((next: TimeBlockScoreUI[] | null) => {
     setHeatmap(prev => (heatmapShallowEqual(prev, next) ? prev : next));
-  };
+  }, []);
+  const plannerUiMemoryKey = useMemo(
+    () =>
+      buildPlannerUiMemoryKey({
+        userId,
+        targetUserId: normalizedTargetUserId,
+        publicMode,
+        weekStart: normalizedWeekStart,
+        targetSlotsPerWeek: targetSlotsPerWeek ?? TARGET_SUGGESTIONS,
+      }),
+    [userId, normalizedTargetUserId, publicMode, normalizedWeekStart, targetSlotsPerWeek]
+  );
+  const applySnapshot = useCallback((snapshot: Omit<PlannerSnapshot, 'createdAt'>) => {
+    recommendationsRef.current = snapshot.recommendations;
+    setLocked(snapshot.locked);
+    setLockedReason(snapshot.lockedReason);
+    safeSetSlots(snapshot.slots);
+    safeSetHeatmap(snapshot.heatmap);
+  }, [safeSetHeatmap, safeSetSlots]);
 
   const fetchData = useCallback(async () => {
     // cancela requisição anterior (se houver)
@@ -131,17 +239,36 @@ export function usePlannerData(params: {
     abortRef.current = controller;
 
     const myId = ++fetchIdRef.current;
-    setLoading(true);
     setError(null);
-    setLocked(false);
-    setLockedReason(null);
 
     if (!userId) {
       if (fetchIdRef.current !== myId) return;
+      recommendationsRef.current = [];
       safeSetSlots(null);
       safeSetHeatmap(null);
+      setLocked(false);
+      setLockedReason(null);
       setLoading(false);
       return;
+    }
+
+    const cachedSnapshot = readPlannerUiMemory(plannerUiMemoryKey);
+    const hasWarmCache = Boolean(cachedSnapshot);
+    if (cachedSnapshot) {
+      applySnapshot({
+        slots: cachedSnapshot.slots,
+        heatmap: cachedSnapshot.heatmap,
+        recommendations: cachedSnapshot.recommendations,
+        locked: cachedSnapshot.locked,
+        lockedReason: cachedSnapshot.lockedReason,
+      });
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setLocked(false);
+      setLockedReason(null);
+      safeSetSlots(null);
+      safeSetHeatmap(null);
     }
 
     try {
@@ -164,6 +291,7 @@ export function usePlannerData(params: {
           if (fetchIdRef.current !== myId) return;
           setLocked(true);
           setLockedReason(message);
+          recommendationsRef.current = [];
           safeSetSlots(null);
           safeSetHeatmap(null);
           return;
@@ -177,54 +305,28 @@ export function usePlannerData(params: {
         if (fetchIdRef.current !== myId) return; // resposta obsoleta
 
         if (data.mode === 'plan' && data.plan) {
-          const planSlots: PlannerUISlot[] = (data.plan.slots || []).map((s: any) => ({
-            slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
-            dayOfWeek: s.dayOfWeek,
-            blockStartHour: s.blockStartHour,
-            format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',
-            categories: s.categories || {},
-            status: s.status,
-            isExperiment: !!s.isExperiment,
-            expectedMetrics: s.expectedMetrics || {},
-            title: s.title,
-            scriptShort: s.scriptShort,
-            themes: s.themes || [],
-            themeKeyword: s.themeKeyword,
-            rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
-            recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
-            aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
-            isSaved: true,
-          }));
-          recommendationsRef.current = [];
-          safeSetSlots(planSlots);
-          safeSetHeatmap(null); // público: quando vem plan, não há heatmap
+          const planSlots: PlannerUISlot[] = (data.plan.slots || []).map((s: any) => mapApiSlot(s, true));
+          const snapshot = {
+            slots: planSlots,
+            heatmap: null,
+            recommendations: [] as PlannerUISlot[],
+            locked: false,
+            lockedReason: null,
+          };
+          applySnapshot(snapshot);
+          writePlannerUiMemory(plannerUiMemoryKey, snapshot);
         } else {
-          const recSlots: PlannerUISlot[] = (data.recommendations || []).map((r: any) => ({
-            slotId: typeof r.slotId === 'string' ? r.slotId : undefined,
-            dayOfWeek: r.dayOfWeek,
-            blockStartHour: r.blockStartHour,
-            format: (typeof r.format === 'string' && r.format) ? r.format : 'reel',
-            categories: r.categories || {},
-            status: r.status,
-            isExperiment: !!r.isExperiment,
-            expectedMetrics: r.expectedMetrics || {},
-            title: r.title,
-            scriptShort: r.scriptShort,
-            themes: r.themes || [],
-            themeKeyword: r.themeKeyword,
-            rationale: typeof r.rationale === 'string' ? r.rationale : undefined,
-            recordingTimeSec: typeof r.recordingTimeSec === 'number' ? r.recordingTimeSec : undefined,
-            aiVersionId: typeof r.aiVersionId === 'string' ? r.aiVersionId : undefined,
-            isSaved: false,
-          }));
-          recommendationsRef.current = recSlots;
-          safeSetSlots(recSlots);
-          const hm: TimeBlockScoreUI[] = (data.heatmap || []).map((h: any) => ({
-            dayOfWeek: h.dayOfWeek,
-            blockStartHour: h.blockStartHour,
-            score: typeof h.score === 'number' ? h.score : 0,
-          }));
-          safeSetHeatmap(hm);
+          const recSlots: PlannerUISlot[] = (data.recommendations || []).map((r: any) => mapApiSlot(r, false));
+          const hm: TimeBlockScoreUI[] = (data.heatmap || []).map((h: any) => mapApiHeatmap(h));
+          const snapshot = {
+            slots: recSlots,
+            heatmap: hm,
+            recommendations: recSlots,
+            locked: false,
+            lockedReason: null,
+          };
+          applySnapshot(snapshot);
+          writePlannerUiMemory(plannerUiMemoryKey, snapshot);
         }
       } else {
         // Dono (autenticado) — usa endpoint batch para reduzir round-trips
@@ -233,6 +335,9 @@ export function usePlannerData(params: {
           targetSlotsPerWeek: String(targetSlotsPerWeek ?? TARGET_SUGGESTIONS),
           periodDays: String(PERIOD_DAYS),
         });
+        if (normalizedTargetUserId) {
+          qs.set('targetUserId', normalizedTargetUserId);
+        }
 
         const batchRes = await fetch(`/api/planner/batch?${qs.toString()}`, {
           cache: 'no-store',
@@ -250,6 +355,7 @@ export function usePlannerData(params: {
           if (fetchIdRef.current !== myId) return;
           setLocked(true);
           setLockedReason(message);
+          recommendationsRef.current = [];
           safeSetSlots(null);
           safeSetHeatmap(null);
           return;
@@ -264,62 +370,41 @@ export function usePlannerData(params: {
         const batchData = await batchRes.json();
         if (fetchIdRef.current !== myId) return; // resposta obsoleta
 
-        const planSlots: PlannerUISlot[] = (batchData?.plan?.slots || []).map((s: any) => ({
-          slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
-          dayOfWeek: s.dayOfWeek,
-          blockStartHour: s.blockStartHour,
-          format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',
-          categories: s.categories || {},
-          status: s.status,
-          isExperiment: !!s.isExperiment,
-          expectedMetrics: s.expectedMetrics || {},
-          title: s.title,
-          scriptShort: s.scriptShort,
-          themes: s.themes || [],
-          themeKeyword: s.themeKeyword,
-          rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
-          recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
-          aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
-          isSaved: true,
-        }));
-
-        const recSlots: PlannerUISlot[] = (batchData?.recommendations || []).map((r: any) => ({
-          slotId: typeof r.slotId === 'string' ? r.slotId : undefined,
-          dayOfWeek: r.dayOfWeek,
-          blockStartHour: r.blockStartHour,
-          format: (typeof r.format === 'string' && r.format) ? r.format : 'reel',
-          categories: r.categories || {},
-          status: r.status,
-          isExperiment: !!r.isExperiment,
-          expectedMetrics: r.expectedMetrics || {},
-          title: r.title,
-          scriptShort: r.scriptShort,
-          themes: r.themes || [],
-          themeKeyword: r.themeKeyword,
-          rationale: typeof r.rationale === 'string' ? r.rationale : undefined,
-          recordingTimeSec: typeof r.recordingTimeSec === 'number' ? r.recordingTimeSec : undefined,
-          aiVersionId: typeof r.aiVersionId === 'string' ? r.aiVersionId : undefined,
-          isSaved: false,
-        }));
-
-        recommendationsRef.current = recSlots;
+        const planSlots: PlannerUISlot[] = (batchData?.plan?.slots || []).map((s: any) => mapApiSlot(s, true));
+        const recSlots: PlannerUISlot[] = (batchData?.recommendations || []).map((r: any) => mapApiSlot(r, false));
         const mergedSlots = mergePlanAndRecommendations(planSlots, recSlots);
-        safeSetSlots(mergedSlots);
-
-        const hm: TimeBlockScoreUI[] = (batchData?.heatmap || []).map((h: any) => ({
-          dayOfWeek: h.dayOfWeek,
-          blockStartHour: h.blockStartHour,
-          score: typeof h.score === 'number' ? h.score : 0,
-        }));
-        safeSetHeatmap(hm);
+        const hm: TimeBlockScoreUI[] = (batchData?.heatmap || []).map((h: any) => mapApiHeatmap(h));
+        const snapshot = {
+          slots: mergedSlots,
+          heatmap: hm,
+          recommendations: recSlots,
+          locked: false,
+          lockedReason: null,
+        };
+        applySnapshot(snapshot);
+        writePlannerUiMemory(plannerUiMemoryKey, snapshot);
       }
     } catch (err: any) {
       if (err?.name === 'AbortError') return; // requisição cancelada, ignora
-      setError(err?.message || 'Erro inesperado');
+      if (!hasWarmCache) {
+        setError(err?.message || 'Erro inesperado');
+      }
     } finally {
-      if (fetchIdRef.current === myId) setLoading(false);
+      if (fetchIdRef.current === myId && !hasWarmCache) {
+        setLoading(false);
+      }
     }
-  }, [publicMode, userId, normalizedWeekStart, targetSlotsPerWeek]);
+  }, [
+    applySnapshot,
+    plannerUiMemoryKey,
+    publicMode,
+    safeSetHeatmap,
+    safeSetSlots,
+    userId,
+    normalizedWeekStart,
+    targetSlotsPerWeek,
+    normalizedTargetUserId,
+  ]);
 
   // 🔧 Sem “de-dupe” manual: no Strict Mode a 1ª execução é abortada, a 2ª completa normalmente
   useEffect(() => {
@@ -332,6 +417,7 @@ export function usePlannerData(params: {
     const body = {
       weekStart: normalizedWeekStart.toISOString(),
       userTimeZone,
+      targetUserId: normalizedTargetUserId || undefined,
       slots: slotsToPersist,
     };
     const res = await fetch('/api/planner/plan', {
@@ -356,30 +442,20 @@ export function usePlannerData(params: {
     }
     if (!res.ok) throw new Error('Falha ao salvar plano');
     const data = await res.json();
-    const planSlots: PlannerUISlot[] = (data?.plan?.slots || []).map((s: any) => ({
-      slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
-      dayOfWeek: s.dayOfWeek,
-      blockStartHour: s.blockStartHour,
-      format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',
-      categories: s.categories || {},
-      status: s.status,
-      isExperiment: !!s.isExperiment,
-      expectedMetrics: s.expectedMetrics || {},
-      title: s.title,
-      scriptShort: s.scriptShort,
-      themes: s.themes || [],
-      themeKeyword: s.themeKeyword,
-      rationale: typeof s.rationale === 'string' ? s.rationale : undefined,
-      recordingTimeSec: typeof s.recordingTimeSec === 'number' ? s.recordingTimeSec : undefined,
-      aiVersionId: typeof s.aiVersionId === 'string' ? s.aiVersionId : undefined,
-      isSaved: true,
-    }));
-    setSlots((prev) => {
-      const mergedSlots = mergePlanAndRecommendations(planSlots, recommendationsRef.current || []);
-      return slotsShallowEqual(prev, mergedSlots) ? prev : mergedSlots;
+    const planSlots: PlannerUISlot[] = (data?.plan?.slots || []).map((s: any) => mapApiSlot(s, true));
+    const mergedSlots = mergePlanAndRecommendations(planSlots, recommendationsRef.current || []);
+    safeSetSlots(mergedSlots);
+    setLocked(false);
+    setLockedReason(null);
+    writePlannerUiMemory(plannerUiMemoryKey, {
+      slots: mergedSlots,
+      heatmap,
+      recommendations: recommendationsRef.current || [],
+      locked: false,
+      lockedReason: null,
     });
     return planSlots;
-  }, [normalizedWeekStart]);
+  }, [normalizedWeekStart, normalizedTargetUserId, safeSetSlots, plannerUiMemoryKey, heatmap]);
 
   return {
     weekStart: normalizedWeekStart,

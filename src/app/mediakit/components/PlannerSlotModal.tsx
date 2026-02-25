@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DiscoverVideoModal from '@/app/discover/components/DiscoverVideoModal';
+import dynamic from 'next/dynamic';
 import { idsToLabels } from '@/app/lib/classification';
 import { prefillInspirationCache } from '../utils/inspirationCache';
 import { setCachedThemes } from '../utils/plannerThemesCache';
+
+const DiscoverVideoModal = dynamic(() => import('@/app/discover/components/DiscoverVideoModal'), {
+  ssr: false,
+  loading: () => null,
+});
 
 const DAYS_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
@@ -46,6 +51,99 @@ type InspirationVideoItem = {
   videoUrl?: string | null;
 };
 
+type InspirationPost = {
+  id: string;
+  caption: string;
+  views: number;
+  date: string;
+  thumbnailUrl?: string | null;
+  postLink?: string | null;
+  videoUrl?: string | null;
+};
+
+type CommunityPost = {
+  id: string;
+  caption: string;
+  views: number;
+  date: string;
+  coverUrl?: string | null;
+  postLink?: string | null;
+  videoUrl?: string | null;
+  reason?: string[];
+};
+
+type CacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+const MODAL_CACHE_TTL_MS = 180_000;
+const MODAL_CACHE_MAX_ENTRIES = 120;
+const inspirationPostsCache = new Map<string, CacheEntry<InspirationPost[]>>();
+const communityPostsCache = new Map<string, CacheEntry<CommunityPost[]>>();
+
+function pruneModalCache<T>(cache: Map<string, CacheEntry<T>>) {
+  const now = Date.now();
+  for (const [key, entry] of cache.entries()) {
+    if (entry.expiresAt <= now) {
+      cache.delete(key);
+    }
+  }
+  while (cache.size > MODAL_CACHE_MAX_ENTRIES) {
+    const firstKey = cache.keys().next().value;
+    if (typeof firstKey !== 'string') break;
+    cache.delete(firstKey);
+  }
+}
+
+function readModalCache<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  pruneModalCache(cache);
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function writeModalCache<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T) {
+  pruneModalCache(cache);
+  cache.set(key, {
+    value,
+    expiresAt: Date.now() + MODAL_CACHE_TTL_MS,
+  });
+}
+
+function stableListKey(values?: string[]) {
+  if (!Array.isArray(values) || !values.length) return '';
+  return values
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .sort()
+    .join(',');
+}
+
+function buildModalSlotKey(slot: PlannerSlotData, format: string) {
+  return [
+    String(slot.dayOfWeek ?? ''),
+    String(slot.blockStartHour ?? ''),
+    format || 'reel',
+    stableListKey(slot.categories?.context),
+    stableListKey(slot.categories?.proposal),
+    stableListKey(slot.categories?.reference),
+    String(slot.categories?.tone || ''),
+  ].join('|');
+}
+
+function buildInspirationsCacheKey(userId: string, slot: PlannerSlotData, format: string) {
+  return `self|${userId}|${buildModalSlotKey(slot, format)}`;
+}
+
+function buildCommunityCacheKey(userId: string, slot: PlannerSlotData, format: string, theme: string) {
+  return `community|${userId}|${buildModalSlotKey(slot, format)}|${theme.trim().toLowerCase()}`;
+}
+
 export interface PlannerSlotData {
   slotId?: string;
   dayOfWeek: number;
@@ -68,6 +166,7 @@ export interface PlannerSlotModalProps {
   open: boolean;
   onClose: () => void;
   userId: string;
+  targetUserId?: string | null;
   weekStartISO: string;
   slot: PlannerSlotData | null;
   onSave: (updated: PlannerSlotData) => Promise<void>;
@@ -115,6 +214,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   open,
   onClose,
   userId,
+  targetUserId,
   weekStartISO,
   slot,
   onSave,
@@ -141,16 +241,14 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const [autoThemesFetched, setAutoThemesFetched] = useState(false);
   const [inspLoading, setInspLoading] = useState<boolean>(false);
   const [inspError, setInspError] = useState<string | null>(null);
-  const [inspPosts, setInspPosts] = useState<
-    Array<{ id: string; caption: string; views: number; date: string; thumbnailUrl?: string | null; postLink?: string | null; videoUrl?: string | null }>
-  >([]);
+  const [inspPosts, setInspPosts] = useState<InspirationPost[]>([]);
   const [inspExpanded, setInspExpanded] = useState<boolean>(false);
+  const [autoInspirationsFetched, setAutoInspirationsFetched] = useState(false);
   const [communityLoading, setCommunityLoading] = useState<boolean>(false);
   const [communityError, setCommunityError] = useState<string | null>(null);
-  const [communityPosts, setCommunityPosts] = useState<
-    Array<{ id: string; caption: string; views: number; date: string; coverUrl?: string | null; postLink?: string | null; videoUrl?: string | null; reason?: string[] }>
-  >([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [communityExpanded, setCommunityExpanded] = useState<boolean>(false);
+  const [autoCommunityFetched, setAutoCommunityFetched] = useState(false);
   const [activeInspirationVideo, setActiveInspirationVideo] = useState<InspirationVideoItem | null>(null);
   const [nextInspirationVideo, setNextInspirationVideo] = useState<InspirationVideoItem | null>(null);
   const [inspirationsOpen, setInspirationsOpen] = useState(true);
@@ -185,6 +283,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     setAutoThemesFetched(false);
     setInspExpanded(false);
     setCommunityExpanded(false);
+    setAutoInspirationsFetched(false);
+    setAutoCommunityFetched(false);
     setInspirationsOpen(true);
     setCommunityOpen(true);
     setActiveInspirationVideo(null);
@@ -254,6 +354,14 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   }, [slot]);
 
   const effectiveTheme = useMemo(() => (themeKw || derivedTheme || '').trim(), [themeKw, derivedTheme]);
+  const inspirationsCacheKey = useMemo(
+    () => (slot ? buildInspirationsCacheKey(userId, slot, format || 'reel') : null),
+    [slot, userId, format]
+  );
+  const communityCacheKey = useMemo(
+    () => (slot ? buildCommunityCacheKey(userId, slot, format || 'reel', effectiveTheme) : null),
+    [slot, userId, format, effectiveTheme]
+  );
 
   const statusDetails = useMemo(() => {
     if (!slot) return null;
@@ -296,16 +404,6 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     };
     return map[format] || map.reel;
   }, [format]);
-
-  const summaryChips = useMemo(
-    () => [
-      { key: 'objective', icon: '🎯', value: proposalSummary, fallback: 'Defina o objetivo' },
-      { key: 'theme', icon: '💬', value: effectiveTheme, fallback: 'Tema em aberto' },
-      { key: 'format', icon: '🎬', value: formatLabel, fallback: 'Formato indefinido' },
-      { key: 'context', icon: '👥', value: contextSummary, fallback: 'Público amplo' },
-    ],
-    [contextSummary, effectiveTheme, formatLabel, proposalSummary]
-  );
 
   const p50Compact = formatCompact(slot?.expectedMetrics?.viewsP50);
   const p90Compact = formatCompact(slot?.expectedMetrics?.viewsP90);
@@ -402,8 +500,16 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     };
   }, [open, slot, autoThemesFetched, handleRegenerateThemes]);
 
-  const fetchInspirations = useCallback(async () => {
-    if (!slot) return;
+  const fetchInspirations = useCallback(async (opts?: { force?: boolean }) => {
+    if (!slot || !inspirationsCacheKey) return;
+    const force = Boolean(opts?.force);
+    if (!force) {
+      const cached = readModalCache(inspirationPostsCache, inspirationsCacheKey);
+      if (cached) {
+        setInspPosts(cached);
+        return;
+      }
+    }
     setInspLoading(true);
     setInspError(null);
     try {
@@ -436,8 +542,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         });
       }
 
-      setInspPosts(
-        arr.map((p: any) => ({
+      const mapped: InspirationPost[] = arr.map((p: any) => ({
           id: String(p.id),
           caption: String(p.caption || ''),
           views: Number(p.views || 0),
@@ -445,25 +550,34 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           thumbnailUrl: p.thumbnailUrl || null,
           postLink: p.postLink || null,
           videoUrl: p.videoUrl || null,
-        }))
-      );
+      }));
+      setInspPosts(mapped);
+      writeModalCache(inspirationPostsCache, inspirationsCacheKey, mapped);
     } catch (err: any) {
       setInspError(err?.message || 'Erro ao carregar conteúdos');
     } finally {
       setInspLoading(false);
     }
-  }, [slot, userId, format]);
+  }, [slot, userId, format, inspirationsCacheKey]);
 
   useEffect(() => {
-    if (!open || !slot || !inspirationsOpen) return;
-    if (inspLoading || inspPosts.length) return;
+    if (!open || !slot || !inspirationsOpen || autoInspirationsFetched) return;
+    setAutoInspirationsFetched(true);
     void fetchInspirations();
-  }, [open, slot, inspirationsOpen, inspLoading, inspPosts.length, fetchInspirations]);
+  }, [open, slot, inspirationsOpen, autoInspirationsFetched, fetchInspirations]);
 
 
 
-  const fetchCommunityInspirations = useCallback(async () => {
-    if (!slot) return;
+  const fetchCommunityInspirations = useCallback(async (opts?: { force?: boolean }) => {
+    if (!slot || !communityCacheKey) return;
+    const force = Boolean(opts?.force);
+    if (!force) {
+      const cached = readModalCache(communityPostsCache, communityCacheKey);
+      if (cached) {
+        setCommunityPosts(cached);
+        return;
+      }
+    }
     setCommunityLoading(true);
     setCommunityError(null);
     try {
@@ -497,8 +611,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         });
       }
 
-      setCommunityPosts(
-        arr.map((p: any) => ({
+      const mapped: CommunityPost[] = arr.map((p: any) => ({
           id: String(p.id),
           caption: String(p.caption || ''),
           views: Number(p.views || 0),
@@ -507,20 +620,43 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           postLink: p.postLink || null,
           videoUrl: p.videoUrl || null,
           reason: Array.isArray(p.reason) ? p.reason : [],
-        }))
-      );
+      }));
+      setCommunityPosts(mapped);
+      writeModalCache(communityPostsCache, communityCacheKey, mapped);
     } catch (err: any) {
       setCommunityError(err?.message || 'Erro ao carregar comunidade');
     } finally {
       setCommunityLoading(false);
     }
-  }, [slot, description, effectiveTheme, userId, format]);
+  }, [slot, description, effectiveTheme, userId, format, communityCacheKey]);
 
   useEffect(() => {
-    if (!open || !slot || !communityOpen) return;
-    if (communityLoading || communityPosts.length) return;
+    if (!open || !slot || !communityOpen || autoCommunityFetched) return;
+    setAutoCommunityFetched(true);
     void fetchCommunityInspirations();
-  }, [open, slot, communityOpen, communityLoading, communityPosts.length, fetchCommunityInspirations]);
+  }, [open, slot, communityOpen, autoCommunityFetched, fetchCommunityInspirations]);
+
+  useEffect(() => {
+    if (!open || !slot) return;
+    setAutoInspirationsFetched(false);
+    setAutoCommunityFetched(false);
+
+    if (inspirationsCacheKey) {
+      const cachedSelf = readModalCache(inspirationPostsCache, inspirationsCacheKey);
+      if (cachedSelf) {
+        setInspPosts(cachedSelf);
+        setAutoInspirationsFetched(true);
+      }
+    }
+
+    if (communityCacheKey) {
+      const cachedCommunity = readModalCache(communityPostsCache, communityCacheKey);
+      if (cachedCommunity) {
+        setCommunityPosts(cachedCommunity);
+        setAutoCommunityFetched(true);
+      }
+    }
+  }, [open, slot, inspirationsCacheKey, communityCacheKey]);
 
   const handleGenerate = async (strategy: GenerationStrategy = 'default') => {
     if (!slot) return;
@@ -533,6 +669,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         body: JSON.stringify({
           weekStart: weekStartISO,
           slot: { ...slot, format, themeKeyword: effectiveTheme },
+          targetUserId: targetUserId || undefined,
           strategy,
           noSignals: false,
         }),
@@ -796,7 +933,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                   type="button"
                   onClick={() => {
                     setInspirationsOpen(true);
-                    void fetchInspirations();
+                    setAutoInspirationsFetched(true);
+                    void fetchInspirations({ force: true });
                   }}
                   disabled={inspLoading}
                   className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
@@ -846,7 +984,13 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                             <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-slate-100 shadow-sm group-hover:shadow-md">
                               {p.thumbnailUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={toProxyUrl(p.thumbnailUrl)} alt="Inspiracao" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                                <img
+                                  src={toProxyUrl(p.thumbnailUrl)}
+                                  alt="Inspiracao"
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                                />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">Sem imagem</div>
                               )}
@@ -890,7 +1034,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                   type="button"
                   onClick={() => {
                     setCommunityOpen(true);
-                    void fetchCommunityInspirations();
+                    setAutoCommunityFetched(true);
+                    void fetchCommunityInspirations({ force: true });
                   }}
                   disabled={communityLoading}
                   className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
@@ -938,7 +1083,13 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                           <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
                             {p.coverUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={toProxyUrl(p.coverUrl)} alt="Post da comunidade" className="h-full w-full object-cover" />
+                              <img
+                                src={toProxyUrl(p.coverUrl)}
+                                alt="Post da comunidade"
+                                loading="lazy"
+                                decoding="async"
+                                className="h-full w-full object-cover"
+                              />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-[10px] text-neutral-500">Sem capa</div>
                             )}

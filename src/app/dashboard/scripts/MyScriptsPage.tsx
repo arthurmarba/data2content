@@ -15,6 +15,7 @@ const CreatorQuickSearch = dynamic(
   () => import("@/app/admin/creator-dashboard/components/CreatorQuickSearch"),
   { ssr: false, loading: () => null }
 );
+import { InlineScriptEditor, type InlineAnnotation } from "./InlineScriptEditor";
 
 type ScriptOrigin = "manual" | "ai" | "planner";
 type ScriptLinkType = "standalone" | "planner_slot";
@@ -44,6 +45,17 @@ type ScriptItem = {
     updatedByName?: string | null;
     updatedAt?: string | null;
   } | null;
+  inlineAnnotations?: Array<{
+    id: string;
+    startIndex: number;
+    endIndex: number;
+    quote: string;
+    comment: string;
+    authorName: string;
+    isOrphaned: boolean;
+    resolved: boolean;
+    createdAt: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -62,6 +74,7 @@ type EditorState = {
   recommendation: ScriptItem["recommendation"];
   adminAnnotation: ScriptItem["adminAnnotation"];
   adminAnnotationDraft: string;
+  inlineAnnotations: InlineAnnotation[];
   aiPrompt: string;
   saving: boolean;
   saved: boolean;
@@ -178,6 +191,7 @@ function createInitialEditorState(): EditorState {
     recommendation: null,
     adminAnnotation: null,
     adminAnnotationDraft: "",
+    inlineAnnotations: [],
     aiPrompt: "",
     saving: false,
     saved: false,
@@ -248,9 +262,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const isAdminViewer = viewer?.role === "admin";
   const isActingOnBehalf = Boolean(
     isAdminViewer &&
-      adminTargetUser?.id &&
-      viewer?.id &&
-      adminTargetUser.id !== viewer.id
+    adminTargetUser?.id &&
+    viewer?.id &&
+    adminTargetUser.id !== viewer.id
   );
   const targetUserId = isActingOnBehalf ? adminTargetUser?.id ?? null : null;
   const handleReturnToCampaign = useCallback(() => {
@@ -649,6 +663,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       recommendation: script.recommendation || null,
       adminAnnotation: script.adminAnnotation || null,
       adminAnnotationDraft: script.adminAnnotation?.notes || "",
+      inlineAnnotations: script.inlineAnnotations || [],
       aiPrompt: "",
       saving: false,
       saved: false,
@@ -741,6 +756,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           title: title || "Roteiro sem título",
           content,
           targetUserId: targetUserId || undefined,
+          inlineAnnotations: editor.inlineAnnotations,
         };
         if (isAdminViewer) {
           patchBody.adminAnnotation = editor.adminAnnotationDraft;
@@ -764,6 +780,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           recommendation: updated.recommendation || null,
           adminAnnotation: updated.adminAnnotation || null,
           adminAnnotationDraft: updated.adminAnnotation?.notes || "",
+          inlineAnnotations: updated.inlineAnnotations || [],
           saving: false,
           saved: true,
           error: null,
@@ -774,6 +791,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           title: title || "Roteiro sem título",
           content,
           targetUserId: targetUserId || undefined,
+          inlineAnnotations: editor.inlineAnnotations,
         };
         if (isAdminViewer) {
           body.adminAnnotation = editor.adminAnnotationDraft;
@@ -810,6 +828,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           recommendation: created.recommendation || null,
           adminAnnotation: created.adminAnnotation || null,
           adminAnnotationDraft: created.adminAnnotation?.notes || "",
+          inlineAnnotations: created.inlineAnnotations || [],
           saving: false,
           saved: true,
           error: null,
@@ -882,6 +901,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           recommendation: updated.recommendation || null,
           adminAnnotation: updated.adminAnnotation || null,
           adminAnnotationDraft: updated.adminAnnotation?.notes || editor.adminAnnotationDraft,
+          inlineAnnotations: updated.inlineAnnotations || [],
           aiPrompt: "",
           adjusting: false,
           error: null,
@@ -912,6 +932,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           recommendation: created.recommendation || null,
           adminAnnotation: created.adminAnnotation || null,
           adminAnnotationDraft: created.adminAnnotation?.notes || editor.adminAnnotationDraft,
+          inlineAnnotations: created.inlineAnnotations || [],
           aiPrompt: "",
           adjusting: false,
           error: null,
@@ -1094,11 +1115,10 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                   type="button"
                   onClick={handleSave}
                   disabled={editor.saving}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
-                    editor.saved
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-                  }`}
+                  className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${editor.saved
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                    }`}
                 >
                   <Save size={15} />
                   {editor.saving ? "Salvando..." : editor.saved ? "Salvo" : "Salvar"}
@@ -1119,7 +1139,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           </div>
         </header>
 
-        <main className="dashboard-page-shell flex-1 min-h-0 py-2">
+        <main className="dashboard-page-shell flex-1 min-h-0 py-2 flex gap-4 h-full relative">
           <div className="mx-auto flex h-full w-full max-w-[860px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 sm:px-6">
             {editor.recommendation?.isRecommended ? (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:text-sm">
@@ -1143,13 +1163,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                 ) : null}
               </div>
             ) : null}
-            <div className="flex-1 min-h-[62vh]">
-              <textarea
-                value={editor.content}
-                onChange={(e) => handleContentChange(e.target.value)}
+            <div className="flex-1 min-h-[62vh] relative">
+              <InlineScriptEditor
+                content={editor.content}
+                onChangeContent={handleContentChange}
+                annotations={editor.inlineAnnotations}
+                onAnnotationsChange={(newAnnotations) => patchEditor({ inlineAnnotations: newAnnotations, saved: false })}
                 onKeyDown={handleDraftKeyDown}
+                isAdminViewer={isAdminViewer}
+                viewerName={viewer?.name || "Admin"}
                 placeholder="Escreva seu roteiro aqui..."
-                className="h-full min-h-[62vh] w-full resize-none overflow-y-auto border-0 bg-transparent py-7 text-[17px] leading-9 text-slate-800 outline-none ring-0 ring-transparent placeholder:text-slate-300 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0"
               />
             </div>
 
@@ -1201,6 +1224,46 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
             </div>
             {editor.error ? <p className="shrink-0 pb-4 text-sm text-rose-600">{editor.error}</p> : null}
           </div>
+
+          {/* Annotations Sidebar */}
+          {editor.inlineAnnotations.length > 0 && (
+            <div className="hidden xl:flex w-80 shrink-0 flex-col gap-3 overflow-y-auto pl-4 pb-4">
+              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Comentários</h3>
+              {editor.inlineAnnotations.map((ann) => (
+                <div
+                  key={ann.id}
+                  className={`relative flex flex-col gap-2 rounded-xl border p-4 shadow-sm transition-opacity ${ann.isOrphaned ? "border-slate-200 bg-slate-50 opacity-60" : "border-amber-200 bg-amber-50/50 hover:bg-amber-100/50"
+                    }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700">{ann.authorName}</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400">
+                      {ann.isOrphaned ? "Órfão" : formatDate(ann.createdAt)}
+                    </span>
+                  </div>
+                  <p className="border-l-2 border-slate-300 pl-2 text-xs italic text-slate-500 break-words line-clamp-3">
+                    &quot;{ann.quote}&quot;
+                  </p>
+                  <p className="text-sm font-medium text-slate-800 break-words">
+                    {ann.comment}
+                  </p>
+                  {isAdminViewer && !ann.resolved && (
+                    <button
+                      onClick={() => {
+                        const nextAnnotations = editor.inlineAnnotations.map((a) =>
+                          a.id === ann.id ? { ...a, resolved: true } : a
+                        );
+                        patchEditor({ inlineAnnotations: nextAnnotations, saved: false });
+                      }}
+                      className="mt-2 self-start rounded bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-300"
+                    >
+                      Resolver
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </main>
       </div>
     );

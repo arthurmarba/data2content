@@ -6,6 +6,9 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
+import { resolveTargetPlannerUser } from '@/app/lib/planner/access';
+import { invalidatePlannerRecommendationMemory } from '@/app/lib/planner/recommendationMemoryCache';
+import { PLANNER_PLAN_READ_PROJECTION } from '@/app/lib/planner/planProjection';
 import { syncLinkedScriptsFromPlannerPlan } from '@/app/lib/scripts/scriptSync';
 
 import { Types } from 'mongoose';
@@ -257,6 +260,15 @@ export async function GET(request: Request) {
 
   const rawWeekStart = parseWeekStartParam(request.url) ?? new Date();
   const weekStart = normalizeToMondayInTZ(rawWeekStart, PLANNER_TIMEZONE);
+  const targetResolution = resolveTargetPlannerUser({
+    session,
+    targetUserId: new URL(request.url).searchParams.get('targetUserId'),
+    forbiddenMessage: 'Apenas administradores podem visualizar o planner de outro usuário.',
+  });
+  if (!targetResolution.ok) {
+    return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+  }
+  const effectiveUserId = targetResolution.userId;
 
   try {
     const PlannerPlan = await loadPlannerPlanModel();
@@ -266,12 +278,15 @@ export async function GET(request: Request) {
     // se o model falhar, devolvemos plan=null (UI ainda funciona)
     let planData: any | null = null;
     try {
-      planData = await PlannerPlan.findOne({ userId: session.user.id, platform: 'instagram', weekStart }).lean().exec();
+      planData = await PlannerPlan.findOne({ userId: effectiveUserId, platform: 'instagram', weekStart })
+        .select(PLANNER_PLAN_READ_PROJECTION)
+        .lean()
+        .exec();
     } catch (e) {
       console.warn('[planner/plan GET] PlannerPlan model indisponível; devolvendo plan=null. Detalhe:', e);
     }
 
-    logger.info('[planner/plan GET] user=%s weekStart=%s', session.user.id, weekStart.toISOString());
+    logger.info('[planner/plan GET] user=%s weekStart=%s', effectiveUserId, weekStart.toISOString());
 
     if (!PlannerPlan) {
       return NextResponse.json({ ok: true, plan: null, weekStart });
@@ -297,6 +312,15 @@ export async function POST(request: Request) {
       ? normalizeToMondayInTZ(new Date(rawWeekStart), PLANNER_TIMEZONE)
       : normalizeToMondayInTZ(new Date(), PLANNER_TIMEZONE);
     const userTimeZone = typeof body?.userTimeZone === 'string' ? body.userTimeZone : undefined;
+    const targetResolution = resolveTargetPlannerUser({
+      session,
+      targetUserId: body?.targetUserId,
+      forbiddenMessage: 'Apenas administradores podem salvar o planner de outro usuário.',
+    });
+    if (!targetResolution.ok) {
+      return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+    }
+    const effectiveUserId = targetResolution.userId;
 
     const routePath = new URL(request.url).pathname;
     const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
@@ -345,7 +369,7 @@ export async function POST(request: Request) {
 
     logger.info(
       '[planner/plan POST] user=%s weekStart=%s input=%d sanitized=%d saved=%d',
-      session.user.id,
+      effectiveUserId,
       weekStart.toISOString(),
       Array.isArray(body?.slots) ? body.slots.length : 0,
       sanitized.length,
@@ -353,13 +377,21 @@ export async function POST(request: Request) {
     );
 
     const upserted = await PlannerPlan.findOneAndUpdate(
-      { userId: session.user.id, platform: 'instagram', weekStart },
+      { userId: effectiveUserId, platform: 'instagram', weekStart },
       { $set: { userTimeZone, slots: deduped } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
-    ).lean().exec();
+    )
+      .select(PLANNER_PLAN_READ_PROJECTION)
+      .lean()
+      .exec();
+
+    invalidatePlannerRecommendationMemory({
+      userId: effectiveUserId,
+      weekStart,
+    });
 
     await syncLinkedScriptsFromPlannerPlan({
-      userId: session.user.id,
+      userId: effectiveUserId,
       weekStart,
       slots: Array.isArray(upserted?.slots) ? upserted.slots : [],
     });

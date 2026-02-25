@@ -52,12 +52,12 @@ export type ScriptModelSelection = {
   model: string;
   tier: ScriptModelTier;
   reason:
-    | "hybrid_disabled"
-    | "operation_generate_default"
-    | "operation_adjust_default"
-    | "explicit_intent"
-    | "complexity"
-    | "default_base";
+  | "hybrid_disabled"
+  | "operation_generate_default"
+  | "operation_adjust_default"
+  | "explicit_intent"
+  | "complexity"
+  | "default_base";
   fallbackModel: string | null;
 };
 
@@ -77,22 +77,21 @@ const PREMIUM_MODEL_INTENT_REGEX =
 const CONSTRAINT_TOKEN_REGEX =
   /(sem|com|evite|obrigat[oó]ri|inclua|não|nao|tom|estrutura|objetivo|p[úu]blico|persona|cta|gancho|par[aá]grafo|hook|copy)/gi;
 const BULLET_ITEM_REGEX = /(?:^|\n)\s*(?:[-*]|\d+[.)])/gm;
-const TECHNICAL_SCRIPT_START = "[ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]";
-const TECHNICAL_SCRIPT_END = "[/ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]";
-const LEGACY_TECHNICAL_SCRIPT_START = "[ROTEIRO_TECNICO_V1]";
-const LEGACY_TECHNICAL_SCRIPT_END = "[/ROTEIRO_TECNICO_V1]";
+const TECHNICAL_SCRIPT_START = "[ROTEIRO COPY-FIRST V1]";
+const TECHNICAL_SCRIPT_END = "[/ROTEIRO COPY-FIRST V1]";
+const LEGACY_TECHNICAL_SCRIPT_START = "[ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]";
+const LEGACY_TECHNICAL_SCRIPT_END = "[/ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]";
 const TECHNICAL_SCENE_HEADING_REGEX =
   /^\s*(?:\[\s*)?(?:CENA|SCENE)\s*(?:#\s*)?(\d{1,2})\s*:\s*([^\]\n]+?)(?:\]\s*)?$/i;
 const TECHNICAL_HEADER_LINE =
-  "| Tempo | Enquadramento | Ação/Movimento | Texto na Tela | Fala (literal) | Direção de Performance |";
-const TECHNICAL_HEADER_SEPARATOR = "| :--- | :--- | :--- | :--- | :--- | :--- |";
+  "| Tempo | Visual | Fala | Direção |";
+const TECHNICAL_HEADER_SEPARATOR = "| :--- | :--- | :--- | :--- |";
 const TECHNICAL_HEADER_DETECT_REGEX =
-  /^\|\s*tempo\s*\|\s*enquadramento\s*\|\s*a[çc][aã]o\/movimento\s*\|\s*texto na tela\s*\|\s*fala \(literal\)\s*\|\s*dire[cç][aã]o de performance\s*\|?$/i;
-const FLOW_ENQUADRAMENTO_REGEX = /^enquadramento\s*:\s*(.+)$/i;
-const FLOW_ACAO_REGEX = /^(?:a[cç][aã]o|a[cç][aã]o\/movimento)\s*:\s*(.+)$/i;
-const FLOW_PERFORMANCE_REGEX = /^(?:performance|dire[cç][aã]o de performance)\s*:\s*(.+)$/i;
-const FLOW_TEXTO_TELA_REGEX = /^texto na tela\s*:\s*(.+)$/i;
-const FLOW_FALA_REGEX = /^fala\s*:\s*(.+)$/i;
+  /^\|\s*tempo\s*\|\s*visual\s*\|\s*fala\s*\|\s*dire[cç][aã]o\s*\|?$/i;
+
+const FLOW_VISUAL_REGEX = /^(?:visual|texto na tela|texto|imagem|mostre|enquadramento|a[cç][aã]o)\s*:\s*(.+)$/i;
+const FLOW_FALA_REGEX = /^fala(?: \(literal\))?\s*:\s*(.+)$/i;
+const FLOW_DIRECAO_REGEX = /^(?:tom|dire[cç][aã]o|performance|nota)\s*:\s*(.+)$/i;
 const FLOW_TEMPO_IN_HEADING_REGEX = /\(([^)]+)\)\s*$/;
 const CTA_LITERAL_REGEX = /\b(comente|coment[aá]rio|salve|salvar|compartilhe|compartilha|direct|dm|me chama|segue|seguir|link)\b/i;
 const CTA_HEADING_REGEX = /\b(CTA|CALL TO ACTION|CHAMADA)\b/i;
@@ -100,11 +99,15 @@ const CTA_OVERLAY_REGEX = /\b(comente|salve|compartilhe|cta|link|direct|dm|segue
 const INSTRUCTIONAL_LITERAL_REGEX =
   /^\s*(mostre|mostra|explique|explica|apresente|apresenta|grave|abra|feche|finalize|encerre|fa[cç]a|diga|fale)\b/i;
 
+// Legacy fallbacks for parsers
+const FLOW_ENQUADRAMENTO_REGEX = /^enquadramento\s*:\s*(.+)$/i;
+const FLOW_ACAO_REGEX = /^(?:a[cç][aã]o|a[cç][aã]o\/movimento)\s*:\s*(.+)$/i;
+const FLOW_PERFORMANCE_REGEX = /^(?:performance|dire[cç][aã]o de performance)\s*:\s*(.+)$/i;
+const FLOW_TEXTO_TELA_REGEX = /^texto na tela\s*:\s*(.+)$/i;
+
 type TechnicalSceneRow = {
   tempo: string;
-  enquadramento: string;
-  acao: string;
-  textoTela: string;
+  visual: string;
   fala: string;
   direcao: string;
 };
@@ -451,17 +454,25 @@ function parseTechnicalRowFromLine(line: string): TechnicalSceneRow | null {
     .map((part) => part.trim())
     .filter(Boolean);
   if (!cols.length) return null;
-  while (cols.length < 6) cols.push("");
-  if (cols.length > 6) {
-    cols[5] = cols.slice(5).join(" / ");
+
+  if (cols.length >= 5) {
+    return {
+      tempo: sanitizeTableCell(cols[0] || "", "00-03s"),
+      visual: sanitizeTableCell(cols[1] + " " + cols[2] + " " + cols[3] || ""),
+      fala: sanitizeTableCell(cols[4] || ""),
+      direcao: sanitizeTableCell(cols[5] || ""),
+    };
+  }
+
+  while (cols.length < 4) cols.push("");
+  if (cols.length > 4) {
+    cols[3] = cols.slice(3).join(" / ");
   }
   return {
     tempo: sanitizeTableCell(cols[0] || "", "00-03s"),
-    enquadramento: sanitizeTableCell(cols[1] || ""),
-    acao: sanitizeTableCell(cols[2] || ""),
-    textoTela: sanitizeTableCell(cols[3] || ""),
-    fala: sanitizeTableCell(cols[4] || ""),
-    direcao: sanitizeTableCell(cols[5] || ""),
+    visual: sanitizeTableCell(cols[1] || ""),
+    fala: sanitizeTableCell(cols[2] || ""),
+    direcao: sanitizeTableCell(cols[3] || ""),
   };
 }
 
@@ -469,28 +480,16 @@ function parseTechnicalRowFromFlowLines(
   lines: string[],
   tempoFallback: string
 ): TechnicalSceneRow | null {
-  let enquadramento = "";
-  let acao = "";
-  let textoTela = "";
+  let visual = "";
   let fala = "";
   let direcao = "";
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    let match = trimmed.match(FLOW_ENQUADRAMENTO_REGEX);
+    let match = trimmed.match(FLOW_VISUAL_REGEX);
     if (match?.[1]) {
-      enquadramento = sanitizeTableCell(match[1], enquadramento || "...");
-      continue;
-    }
-    match = trimmed.match(FLOW_ACAO_REGEX);
-    if (match?.[1]) {
-      acao = sanitizeTableCell(match[1], acao || "...");
-      continue;
-    }
-    match = trimmed.match(FLOW_TEXTO_TELA_REGEX);
-    if (match?.[1]) {
-      textoTela = sanitizeTableCell(match[1], textoTela || "...");
+      visual = sanitizeTableCell(match[1], visual || "...");
       continue;
     }
     match = trimmed.match(FLOW_FALA_REGEX);
@@ -499,20 +498,28 @@ function parseTechnicalRowFromFlowLines(
       fala = fala.replace(/^"+|"+$/g, "").trim() || fala;
       continue;
     }
+    match = trimmed.match(FLOW_DIRECAO_REGEX);
+    if (match?.[1]) {
+      direcao = sanitizeTableCell(match[1], direcao || "...");
+      continue;
+    }
+    match = trimmed.match(FLOW_ENQUADRAMENTO_REGEX) || trimmed.match(FLOW_ACAO_REGEX) || trimmed.match(FLOW_TEXTO_TELA_REGEX);
+    if (match?.[1]) {
+      visual = visual ? `${visual} ${sanitizeTableCell(match[1], "...")}` : sanitizeTableCell(match[1], "...");
+      continue;
+    }
     match = trimmed.match(FLOW_PERFORMANCE_REGEX);
     if (match?.[1]) {
       direcao = sanitizeTableCell(match[1], direcao || "...");
     }
   }
 
-  const hasFlowFields = Boolean(enquadramento || acao || textoTela || fala || direcao);
+  const hasFlowFields = Boolean(visual || fala || direcao);
   if (!hasFlowFields) return null;
 
   return {
     tempo: sanitizeTableCell(tempoFallback || "00-03s", "00-03s"),
-    enquadramento: sanitizeTableCell(enquadramento, "..."),
-    acao: sanitizeTableCell(acao, "..."),
-    textoTela: sanitizeTableCell(textoTela, "..."),
+    visual: sanitizeTableCell(visual, "..."),
     fala: sanitizeTableCell(fala, "..."),
     direcao: sanitizeTableCell(direcao, "..."),
   };
@@ -540,11 +547,13 @@ function isTechnicalScript(content: string): boolean {
       !hasTechnicalStructure &&
       (
         TECHNICAL_HEADER_DETECT_REGEX.test(trimmed) ||
+        FLOW_VISUAL_REGEX.test(trimmed) ||
+        FLOW_FALA_REGEX.test(trimmed) ||
+        FLOW_DIRECAO_REGEX.test(trimmed) ||
         FLOW_ENQUADRAMENTO_REGEX.test(trimmed) ||
         FLOW_ACAO_REGEX.test(trimmed) ||
         FLOW_PERFORMANCE_REGEX.test(trimmed) ||
-        FLOW_TEXTO_TELA_REGEX.test(trimmed) ||
-        FLOW_FALA_REGEX.test(trimmed)
+        FLOW_TEXTO_TELA_REGEX.test(trimmed)
       )
     ) {
       hasTechnicalStructure = true;
@@ -593,9 +602,7 @@ function parseTechnicalScenes(content: string): TechnicalSceneBlock[] {
       heading: marker.heading,
       row: row || {
         tempo: marker.tempoFromHeading || "00-03s",
-        enquadramento: "...",
-        acao: "...",
-        textoTela: "...",
+        visual: "...",
         fala: "...",
         direcao: "...",
       },
@@ -616,71 +623,57 @@ function buildDefaultTechnicalRow(
   if (sceneIndex === 1) {
     return {
       tempo: "00-03s",
-      enquadramento: "Close no rosto (lente 1x), câmera na altura dos olhos.",
-      acao: "Entrada rápida com gesto de mão e micro-pausa antes da frase principal.",
-      textoTela: `PARE DE ERRAR: ${safeTopic.toUpperCase()}`,
-      fala: `Se você quer destravar ${safeTopic}, presta atenção nesses próximos segundos.`,
-      direcao: "Ritmo alto, olhar direto na lente e entonação firme na primeira frase.",
+      visual: `Texto na tela: PARE DE ERRAR: ${safeTopic.toUpperCase()}. Close no rosto, entrada rápida.`,
+      fala: `Se você quer destravar ${safeTopic}, não desliza essa tela.`,
+      direcao: "Ritmo alto, olhar direto na lente e tom instigante.",
     };
   }
   if (sceneIndex === 2) {
     return {
       tempo: "03-10s",
-      enquadramento: "Plano médio com corte para detalhe da ação.",
-      acao: "Mostrar o cenário real do problema com movimento curto de câmera.",
-      textoTela: "ERRO QUE MAIS DERRUBA RESULTADO",
-      fala: `Quando você ignora esse ponto em ${safeTopic}, o resultado cai antes de ganhar tração.`,
-      direcao: "Tom didático, frase objetiva e pausa curta após o problema central.",
+      visual: `Texto na tela: O MAIOR ERRO. Corte dinâmico demonstrando o problema.`,
+      fala: `Sempre que alguém ignora esse ponto em ${safeTopic}, as coisas desandam rápido.`,
+      direcao: "Tom de alerta, revelação.",
     };
   }
   if (sceneIndex === 3) {
     return {
       tempo: "10-20s",
-      enquadramento: "Plano médio + insert de apoio (antes/depois).",
-      acao: "Demonstrar a correção em dois movimentos visuais simples.",
-      textoTela: "AJUSTE PRÁTICO EM 2 PASSOS",
-      fala: `Eu resolvo assim: primeiro corrijo a base, depois repito a execução com consistência.`,
-      direcao: "Cadência progressiva, reforçar 'primeiro' e 'depois' com gesto de contagem.",
+      visual: `Texto na tela: AJUSTE PRÁTICO. B-roll ou demonstração visual da solução.`,
+      fala: `O que você precisa fazer é muito simples: focar na fundação primeiro.`,
+      direcao: "Cadência progressiva, didático.",
     };
   }
   if (!isLast && sceneIndex === 4) {
     return {
       tempo: totalScenes >= 6 ? "20-28s" : "20-30s",
-      enquadramento: "Plano médio com corte de apoio (print/prova visual).",
-      acao: "Exibir prova objetiva com resultado ou contraste antes/depois da aplicação.",
-      textoTela: "PROVA RÁPIDA",
-      fala: "Quando você aplica isso por alguns dias, a diferença aparece no alcance e na retenção do público.",
-      direcao: "Tom assertivo, reduzir velocidade na palavra-chave e fechar com micro-pausa.",
+      visual: `Texto na tela: A PROVA. Mostre resultado ou print.`,
+      fala: "Com essa pequena mudança, o resultado começou a aparecer em dias.",
+      direcao: "Assertivo, demonstrando valor.",
     };
   }
   if (!isLast && sceneIndex === 5) {
     return {
       tempo: "28-36s",
-      enquadramento: "Close com leve avanço de câmera para reforço final.",
-      acao: "Conectar a prova com o benefício final antes da chamada para ação.",
-      textoTela: "VIRADA FINAL",
-      fala: "A virada acontece quando você repete o método com consistência, sem pular a base.",
-      direcao: "Cadência crescente, manter contato visual e reforçar a frase final com gesto curto.",
+      visual: `Texto na tela: VIRADA FINAL. Retorno para o rosto (A-roll).`,
+      fala: "O segredo oculto é repetir o método sem pular as etapas essenciais.",
+      direcao: "Contato visual forte, reforçando a mensagem.",
     };
   }
   const ctaTempo = totalScenes <= 4 ? "20-30s" : totalScenes === 5 ? "30-38s" : "36-45s";
   if (objective === "converter") {
     return {
       tempo: ctaTempo,
-      enquadramento: "Close final com gesto apontando para a legenda.",
-      acao: "Encerrar com benefício claro e chamada direta para ação.",
-      textoTela: "COMENTE “QUERO”",
-      fala: "Se você quer aplicar isso no seu caso, comenta “quero” e me chama no direct.",
-      direcao: "Tom confiante, sorriso curto no fechamento e pausa antes do CTA.",
+      visual: `Texto na tela: COMENTE "QUERO". Gesto apontando para os comentários.`,
+      fala: "Se quiser que eu te mostre o passo a passo no seu perfil, comenta 'quero' aqui embaixo.",
+      direcao: "Confiante, amigável, sorriso curto.",
     };
   }
   return {
     tempo: ctaTempo,
-    enquadramento: "Close final com texto de reforço no centro da tela.",
-    acao: "Fechar com benefício final e CTA explícito.",
-    textoTela: "SALVE E COMPARTILHE",
-    fala: "Se isso te ajudou, salva este roteiro e compartilha com alguém do seu nicho.",
-    direcao: "Entonação conclusiva, fala curta e clara com gesto de confirmação.",
+    visual: `Texto na tela: SALVE. Gesto fechando a ideia.`,
+    fala: "Se essa dica evitou uma dor de cabeça, salva pra lembrar depois.",
+    direcao: "Conclusivo, entrega de valor.",
   };
 }
 
@@ -727,20 +720,32 @@ function scoreHookStrength(row?: TechnicalSceneRow): number {
   let score = 0;
   const speech = sanitizeTableCell(row.fala, "");
   const words = countWords(speech);
-  if (words >= 8 && words <= 26) score += 0.3;
-  if (/\b(voc[eê]|se voc[eê]|hoje|agora)\b/i.test(speech)) score += 0.2;
-  if (/\b(erro|perde|cai|destrava|corrig|resultado|ganha)\b/i.test(speech)) score += 0.3;
-  if (hasMeaningfulOverlay(row.textoTela)) score += 0.2;
+
+  // Punchy hook
+  if (words >= 6 && words <= 22) score += 0.25;
+  // Personal connection
+  if (/\b(voc[eê]|seu|sua|te|se voc[eê])\b/i.test(speech)) score += 0.2;
+  // Urgency / Actionable
+  if (/\b(hoje|agora|pare|n[aã]o fa[cç]a|imediata)\b/i.test(speech)) score += 0.2;
+  // Curiosity & Agitation
+  if (/\b(erro|segredo|motivo|verdade|descubra|sabia que|por que|cai|destrava|resultado|ganha)\b/i.test(speech)) score += 0.25;
+  // Visual anchor
+  if (hasMeaningfulOverlay(row.visual)) score += 0.1;
   return roundScore(score);
 }
 
 function scoreSceneSpecificity(row: TechnicalSceneRow): number {
   let score = 0;
-  const combined = `${row.enquadramento} ${row.acao} ${row.textoTela} ${row.fala}`.toLowerCase();
-  if (/\b(\d+|passo|antes|depois|close|plano|insert|corte|lente|1x|2x|3x)\b/.test(combined)) score += 0.35;
-  if (sanitizeTableCell(row.acao, "").length >= 24) score += 0.25;
-  if (hasMeaningfulOverlay(row.textoTela)) score += 0.2;
-  if (countWords(row.fala) >= 10 && /\b(eu|voc[eê]|quando|se)\b/i.test(row.fala)) score += 0.2;
+  const visual = sanitizeTableCell(row.visual, "").toLowerCase();
+  const fala = sanitizeTableCell(row.fala, "").toLowerCase();
+
+  // Strong visual directives
+  if (/\b(close|corte|mostra|aponta|transi[cç][aã]o|b-roll|broll|zoom|texto|texto na tela|aparece|fundo)\b/.test(visual)) score += 0.3;
+  // Adequate visual description
+  if (visual.length >= 15) score += 0.2;
+  if (hasMeaningfulOverlay(row.visual)) score += 0.25;
+  // Storytelling / demonstration in copy
+  if (countWords(fala) >= 8 && /\b(exemplo|olha|veja|isso|assim|na pr[aá]tica|passo|como)\b/i.test(fala)) score += 0.25;
   return roundScore(score);
 }
 
@@ -748,12 +753,22 @@ function scoreSpeakability(row: TechnicalSceneRow): number {
   const speech = sanitizeTableCell(row.fala, "");
   if (!speech) return 0;
   if (INSTRUCTIONAL_LITERAL_REGEX.test(speech)) return 0;
+
   let score = 0;
   const words = countWords(speech);
-  if (words >= 8 && words <= 34) score += 0.5;
-  else if (words >= 6 && words <= 40) score += 0.25;
-  if (/\b(eu|voc[eê]|se voc[eê]|quando voc[eê])\b/i.test(speech)) score += 0.25;
-  if (/\b(corrig|melhor|ganha|destrava|resultado|salv|comenta|compartilha)\b/i.test(speech)) score += 0.25;
+  // Sweet spot for a fast-paced vertical video scene
+  if (words >= 6 && words <= 28) score += 0.4;
+  else if (words > 28 && words <= 42) score += 0.2;
+
+  // Conversational markers
+  if (/\b(gente|galera|voc[eê]|eu|olha|ent[aã]o|mas a[ií])\b/i.test(speech)) score += 0.3;
+
+  // Natural flow or consequence
+  if (/\b(sempre|nunca|melhor|pior|isso|aquilo|na verdade)\b/i.test(speech)) score += 0.15;
+
+  // Short punchy sentences check (has commas or periods breaking it up if it's long)
+  if (words > 15 && /[.?!,]\s/.test(speech)) score += 0.15;
+
   return roundScore(score);
 }
 
@@ -761,7 +776,7 @@ function scoreCtaStrength(lastScene?: TechnicalSceneRow): number {
   if (!lastScene) return 0;
   let score = 0;
   const speech = sanitizeTableCell(lastScene.fala, "");
-  const overlay = sanitizeTableCell(lastScene.textoTela, "");
+  const overlay = sanitizeTableCell(lastScene.visual, "");
   if (CTA_LITERAL_REGEX.test(speech)) score += 0.65;
   if (/\b(comenta|salva|compartilha|direct|dm|link|segue)\b/i.test(speech)) score += 0.2;
   if (/\b(agora|hoje|neste|nesse)\b/i.test(speech)) score += 0.05;
@@ -850,42 +865,36 @@ function polishScenesForQuality(
     const isLast = idx === total - 1;
     const nextRow: TechnicalSceneRow = {
       tempo: sanitizeTableCell(scene.row.tempo, fallbackRow.tempo),
-      enquadramento: sanitizeTableCell(scene.row.enquadramento, fallbackRow.enquadramento),
-      acao: sanitizeTableCell(scene.row.acao, fallbackRow.acao),
-      textoTela: sanitizeTableCell(scene.row.textoTela, fallbackRow.textoTela),
+      visual: sanitizeTableCell(scene.row.visual, fallbackRow.visual),
       fala: ensureLiteralSpeech(scene.row.fala, fallbackRow.fala),
       direcao: isActionableDirection(scene.row.direcao)
         ? sanitizeTableCell(scene.row.direcao, fallbackRow.direcao)
         : fallbackRow.direcao,
     };
 
-    if (sanitizeTableCell(nextRow.acao, "").length < 20) {
-      nextRow.acao = fallbackRow.acao;
-    }
-    if (!hasMeaningfulOverlay(nextRow.textoTela)) {
-      nextRow.textoTela = fallbackRow.textoTela;
+    if (sanitizeTableCell(nextRow.visual, "").length < 20) {
+      nextRow.visual = fallbackRow.visual;
     }
     if (scoreSceneSpecificity(nextRow) < 0.55) {
-      nextRow.acao = fallbackRow.acao;
-      nextRow.textoTela = fallbackRow.textoTela;
+      nextRow.visual = fallbackRow.visual;
     }
     if (sceneIndex === 1 && scoreHookStrength(nextRow) < 0.6) {
       nextRow.fala = fallbackRow.fala;
-      nextRow.textoTela = fallbackRow.textoTela;
+      nextRow.visual = fallbackRow.visual;
     }
     if (!isLast) {
       if (CTA_LITERAL_REGEX.test(nextRow.fala)) {
         nextRow.fala = fallbackRow.fala;
       }
-      if (CTA_OVERLAY_REGEX.test(nextRow.textoTela)) {
-        nextRow.textoTela = fallbackRow.textoTela;
+      if (CTA_OVERLAY_REGEX.test(nextRow.visual)) {
+        nextRow.visual = fallbackRow.visual;
       }
     }
     if (isLast) {
       nextRow.fala = ensureCtaSpeech(nextRow.fala, fallbackRow.fala);
-      nextRow.textoTela = CTA_OVERLAY_REGEX.test(nextRow.textoTela)
-        ? nextRow.textoTela
-        : fallbackRow.textoTela;
+      nextRow.visual = CTA_OVERLAY_REGEX.test(nextRow.visual)
+        ? nextRow.visual
+        : fallbackRow.visual;
     }
     return {
       index: sceneIndex,
@@ -933,22 +942,16 @@ function serializeSceneBlock(scene: TechnicalSceneBlock, totalScenes: number): s
   const row = scene.row;
   const headingLabel = formatSceneHeadingForDisplay(heading);
   const tempo = formatTempoForHeading(row.tempo);
-  const enquadramento = sanitizeTableCell(row.enquadramento, "...");
-  const acao = sanitizeTableCell(row.acao, "...");
-  const textoTela = sanitizeTableCell(row.textoTela, "...");
+  const visual = sanitizeTableCell(row.visual, "...");
   const fala = sanitizeTableCell(row.fala, "...").replace(/^"+|"+$/g, "");
   const direcao = sanitizeTableCell(row.direcao, "...");
   return [
     `CENA ${scene.index}: ${headingLabel} (${tempo})`,
-    `Enquadramento: ${enquadramento}`,
-    ``,
-    `Ação: ${acao}`,
-    ``,
-    `Performance: ${direcao}`,
-    ``,
-    `Texto na Tela: ${textoTela}`,
+    `Visual: ${visual}`,
     ``,
     `Fala: "${fala}"`,
+    ``,
+    `Direção: ${direcao}`,
   ].join("\n");
 }
 
@@ -1092,19 +1095,19 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
   const styleExamples =
     context.styleProfile?.styleExamples?.length
       ? context.styleProfile.styleExamples
-          .slice(0, 3)
-          .map((item, index) => `${index + 1}) ${item}`)
-          .join("\n")
+        .slice(0, 3)
+        .map((item, index) => `${index + 1}) ${item}`)
+        .join("\n")
       : "";
 
   const styleBlock =
     context.styleProfile && context.styleSampleSize > 0
       ? `\nPerfil de estilo do usuario (roteiros salvos):\n` +
-        `- Versao do perfil: ${context.styleProfileVersion || "desconhecida"}\n` +
-        `- Amostra de roteiros: ${context.styleSampleSize}\n` +
-        `- Regras de estilo:\n${styleGuidelines}\n` +
-        `${styleExamples ? `- Exemplos resumidos de estilo:\n${styleExamples}\n` : ""}` +
-        `- Imite o estilo do criador sem copiar frases literalmente.`
+      `- Versao do perfil: ${context.styleProfileVersion || "desconhecida"}\n` +
+      `- Amostra de roteiros: ${context.styleSampleSize}\n` +
+      `- Regras de estilo:\n${styleGuidelines}\n` +
+      `${styleExamples ? `- Exemplos resumidos de estilo:\n${styleExamples}\n` : ""}` +
+      `- Imite o estilo do criador sem copiar frases literalmente.`
       : "\nPerfil de estilo indisponivel: use apenas categorias vencedoras e regras base.";
 
   return (
@@ -1222,10 +1225,10 @@ function buildNormalizedTechnicalScenes(
   const scenes: TechnicalSceneBlock[] = normalized.length
     ? normalized
     : [1, 2, 3, 4].map((sceneIndex) => ({
-        index: sceneIndex,
-        heading: defaultHeadingForScene(sceneIndex, 4),
-        row: buildDefaultTechnicalRow(sceneIndex, 4, topic, objective),
-      }));
+      index: sceneIndex,
+      heading: defaultHeadingForScene(sceneIndex, 4),
+      row: buildDefaultTechnicalRow(sceneIndex, 4, topic, objective),
+    }));
 
   scenes.sort((a, b) => a.index - b.index);
   while (scenes.length < 4) {
@@ -1250,19 +1253,17 @@ function buildNormalizedTechnicalScenes(
       : CTA_LITERAL_REGEX.test(falaBase)
         ? fallbackRow.fala
         : falaBase;
-    const textoTelaBase = sanitizeTableCell(scene.row.textoTela, fallbackRow.textoTela);
-    const textoTela = !isLast && CTA_OVERLAY_REGEX.test(textoTelaBase)
-      ? fallbackRow.textoTela
-      : textoTelaBase;
+    const visualBase = sanitizeTableCell(scene.row.visual, fallbackRow.visual);
+    const visual = !isLast && CTA_OVERLAY_REGEX.test(visualBase)
+      ? fallbackRow.visual
+      : visualBase;
     const direcaoRaw = sanitizeTableCell(scene.row.direcao, fallbackRow.direcao);
     return {
       index: sceneIndex,
       heading,
       row: {
         tempo: sanitizeTableCell(scene.row.tempo, fallbackRow.tempo),
-        enquadramento: sanitizeTableCell(scene.row.enquadramento, fallbackRow.enquadramento),
-        acao: sanitizeTableCell(scene.row.acao, fallbackRow.acao),
-        textoTela,
+        visual,
         fala,
         direcao: isActionableDirection(direcaoRaw) ? direcaoRaw : fallbackRow.direcao,
       },
@@ -1368,40 +1369,32 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     `- content deve seguir EXATAMENTE o formato técnico abaixo:\n` +
     `${TECHNICAL_SCRIPT_START}\n` +
     `CENA 1: O GANCHO (0:00 - 0:06)\n` +
-    `Enquadramento: ...\n\n` +
-    `Ação: ...\n\n` +
-    `Performance: ...\n\n` +
-    `Texto na Tela: ...\n\n` +
+    `Visual: ...\n\n` +
     `Fala: "..."\n\n` +
+    `Direção: ...\n\n` +
     `CENA 2: CONTEXTO (0:07 - 0:15)\n` +
-    `Enquadramento: ...\n\n` +
-    `Ação: ...\n\n` +
-    `Performance: ...\n\n` +
-    `Texto na Tela: ...\n\n` +
+    `Visual: ...\n\n` +
     `Fala: "..."\n\n` +
+    `Direção: ...\n\n` +
     `CENA 3: DEMONSTRAÇÃO (0:16 - 0:25)\n` +
-    `Enquadramento: ...\n\n` +
-    `Ação: ...\n\n` +
-    `Performance: ...\n\n` +
-    `Texto na Tela: ...\n\n` +
+    `Visual: ...\n\n` +
     `Fala: "..."\n\n` +
+    `Direção: ...\n\n` +
     `CENA 4: CHAMADA PARA AÇÃO (0:26 - 0:35)\n` +
-    `Enquadramento: ...\n\n` +
-    `Ação: ...\n\n` +
-    `Performance: ...\n\n` +
-    `Texto na Tela: ...\n\n` +
-    `Fala: "..."\n` +
+    `Visual: ...\n\n` +
+    `Fala: "..."\n\n` +
+    `Direção: ...\n` +
     `${TECHNICAL_SCRIPT_END}\n` +
-    `- Cada cena deve conter obrigatoriamente os campos: Enquadramento, Ação, Performance, Texto na Tela e Fala\n` +
+    `- Cada cena deve conter obrigatoriamente os campos: Visual, Fala e Direção\n` +
     `- Mínimo 4 e máximo 6 cenas\n` +
     `- Somente a ÚLTIMA cena pode ter heading CTA\n` +
     `- Se tiver 5 cenas: Cena 4 é PROVA e Cena 5 é CHAMADA PARA AÇÃO\n` +
     `- Se tiver 6 cenas: Cena 4 é PROVA, Cena 5 é VIRADA e Cena 6 é CHAMADA PARA AÇÃO\n` +
-    `- Fala (literal): frase pronta para câmera, proibido texto instrucional\n` +
-    `- Direção de Performance: orientação objetiva de tom/ritmo/entonação/gesto\n` +
+    `- Fala (literal): copy persuasivo e focado em retenção, texto corrido e pronto para uso dinâmico\n` +
+    `- Direção: orientação objetiva de tom/ritmo/entonação/gesto\n` +
     `- Última cena obrigatoriamente com CTA explícito\n` +
     `- Imitar o estilo do criador sem copiar frases literalmente\n` +
-    `- Linguagem natural, objetiva e adequada ao criador\n` +
+    `- Linguagem natural, de creator para humano\n` +
     `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
     `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente`;
 
@@ -1452,9 +1445,9 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
   const technicalFormatRules =
     `Formato técnico obrigatório:\n` +
     `- Manter bloco ${TECHNICAL_SCRIPT_START} ... ${TECHNICAL_SCRIPT_END}\n` +
-    `- Cada cena deve seguir: CENA N: TITULO (tempo) + Enquadramento + Ação + Performance + Texto na Tela + Fala\n` +
-    `- Fala sempre literal (frase pronta para câmera)\n` +
-    `- Direção de Performance sempre acionável\n` +
+    `- Cada cena deve seguir: CENA N: TITULO (tempo) + Visual + Fala + Direção\n` +
+    `- Fala sempre literal (frase pronta para câmera), fluida e focada em retenção\n` +
+    `- Direção de Performance sempre acionável (tom de voz, velocidade)\n` +
     `- Somente a última cena pode ter heading CTA\n` +
     `- Se houver 5 cenas, use CENA 4: A PROVA e CENA 5: CHAMADA PARA AÇÃO\n` +
     `- Se houver 6 cenas, use CENA 4: A PROVA, CENA 5: VIRADA e CENA 6: CHAMADA PARA AÇÃO\n` +
@@ -1463,38 +1456,38 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
 
   const llmPrompt = shouldEnforceScopedPatch
     ? `Ajuste apenas a cena alvo do roteiro técnico com base no pedido do usuário.\n` +
-      `Título atual: ${inputForAdjust.title}\n` +
-      `Roteiro atual:\n${inputForAdjust.content}\n\n` +
-      `${intelligenceBlock}\n\n` +
-      `Trecho alvo: ${describeScriptAdjustTarget(scope.target)}\n` +
-      `Conteúdo atual do trecho alvo:\n${scopedResolution?.segment.text || ""}\n\n` +
-      `Ajuste solicitado: ${userPrompt}\n\n` +
-      `Regras obrigatórias:\n` +
-      `- Edite somente a cena alvo\n` +
-      `- Não reescreva outras cenas\n` +
-      `- Retorne APENAS o bloco completo da cena alvo (CENA ... + campos do formato de fluxo)\n` +
-      `- Preserve a mesma numeração da cena alvo\n` +
-      `- Retorne JSON válido com {"title","content"}\n` +
-      `- "title": mantenha o título atual, salvo pedido explícito para alterá-lo\n` +
-      `- "content": retorne APENAS o bloco da cena alvo revisado\n` +
-      `- Não inclua explicações fora do JSON\n` +
-      `${technicalFormatRules}`
+    `Título atual: ${inputForAdjust.title}\n` +
+    `Roteiro atual:\n${inputForAdjust.content}\n\n` +
+    `${intelligenceBlock}\n\n` +
+    `Trecho alvo: ${describeScriptAdjustTarget(scope.target)}\n` +
+    `Conteúdo atual do trecho alvo:\n${scopedResolution?.segment.text || ""}\n\n` +
+    `Ajuste solicitado: ${userPrompt}\n\n` +
+    `Regras obrigatórias:\n` +
+    `- Edite somente a cena alvo\n` +
+    `- Não reescreva outras cenas\n` +
+    `- Retorne APENAS o bloco completo da cena alvo (CENA ... + campos do formato de fluxo)\n` +
+    `- Preserve a mesma numeração da cena alvo\n` +
+    `- Retorne JSON válido com {"title","content"}\n` +
+    `- "title": mantenha o título atual, salvo pedido explícito para alterá-lo\n` +
+    `- "content": retorne APENAS o bloco da cena alvo revisado\n` +
+    `- Não inclua explicações fora do JSON\n` +
+    `${technicalFormatRules}`
     : `Ajuste o roteiro técnico existente com base no pedido do usuário.\n` +
-      `Título atual: ${inputForAdjust.title}\n` +
-      `Roteiro atual:\n${inputForAdjust.content}\n\n` +
-      `${intelligenceBlock}\n\n` +
-      `Ajuste solicitado: ${userPrompt}\n\n` +
-      `Regras obrigatórias:\n` +
-      `- Preserve integralmente o que não foi pedido para mudar\n` +
-      `- Se o pedido for pontual (ex.: primeiro parágrafo), altere só esse trecho\n` +
-      `- Retorne sempre o roteiro técnico completo atualizado (nunca apenas um trecho)\n` +
-      `- Use o formato técnico canônico em todas as cenas\n` +
-      `- Imitar o estilo do criador sem copiar frases literalmente\n` +
-      `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
-      `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
-      `- Resposta em JSON válido com {"title","content"}\n` +
-      `- Não inclua explicações fora do JSON\n` +
-      `${technicalFormatRules}`;
+    `Título atual: ${inputForAdjust.title}\n` +
+    `Roteiro atual:\n${inputForAdjust.content}\n\n` +
+    `${intelligenceBlock}\n\n` +
+    `Ajuste solicitado: ${userPrompt}\n\n` +
+    `Regras obrigatórias:\n` +
+    `- Preserve integralmente o que não foi pedido para mudar\n` +
+    `- Se o pedido for pontual (ex.: primeiro parágrafo), altere só esse trecho\n` +
+    `- Retorne sempre o roteiro técnico completo atualizado (nunca apenas um trecho)\n` +
+    `- Use o formato técnico canônico em todas as cenas\n` +
+    `- Imitar o estilo do criador sem copiar frases literalmente\n` +
+    `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
+    `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente\n` +
+    `- Resposta em JSON válido com {"title","content"}\n` +
+    `- Não inclua explicações fora do JSON\n` +
+    `${technicalFormatRules}`;
 
   const allowedIdentitySources = [userPrompt, inputForAdjust.title, inputForAdjust.content];
 

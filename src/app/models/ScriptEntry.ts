@@ -10,6 +10,18 @@ export interface ScriptPlannerRef {
   blockStartHour?: number;
 }
 
+export interface ScriptInlineAnnotation {
+  id: string;
+  startIndex: number;
+  endIndex: number;
+  quote: string;
+  comment: string;
+  authorName: string;
+  isOrphaned: boolean;
+  resolved: boolean;
+  createdAt: Date;
+}
+
 export interface IScriptEntry extends Document {
   userId: Types.ObjectId;
   title: string;
@@ -26,6 +38,7 @@ export interface IScriptEntry extends Document {
   adminAnnotationUpdatedById?: Types.ObjectId | null;
   adminAnnotationUpdatedByName?: string | null;
   adminAnnotationUpdatedAt?: Date | null;
+  inlineAnnotations?: ScriptInlineAnnotation[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +49,21 @@ const ScriptPlannerRefSchema = new Schema<ScriptPlannerRef>(
     slotId: { type: String, trim: true },
     dayOfWeek: { type: Number, min: 1, max: 7 },
     blockStartHour: { type: Number, min: 0, max: 23 },
+  },
+  { _id: false }
+);
+
+const ScriptInlineAnnotationSchema = new Schema<ScriptInlineAnnotation>(
+  {
+    id: { type: String, required: true },
+    startIndex: { type: Number, required: true },
+    endIndex: { type: Number, required: true },
+    quote: { type: String, required: true, maxlength: 2000 },
+    comment: { type: String, required: true, maxlength: 2000 },
+    authorName: { type: String, required: true, maxlength: 120 },
+    isOrphaned: { type: Boolean, default: false },
+    resolved: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now },
   },
   { _id: false }
 );
@@ -69,6 +97,7 @@ const ScriptEntrySchema = new Schema<IScriptEntry>(
     adminAnnotationUpdatedById: { type: Schema.Types.ObjectId, ref: "User", default: null },
     adminAnnotationUpdatedByName: { type: String, trim: true, maxlength: 120, default: null },
     adminAnnotationUpdatedAt: { type: Date, default: null },
+    inlineAnnotations: { type: [ScriptInlineAnnotationSchema], default: [] },
   },
   {
     timestamps: true,

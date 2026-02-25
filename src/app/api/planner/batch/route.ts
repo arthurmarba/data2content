@@ -7,14 +7,24 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";
 import PlannerPlan from "@/app/models/PlannerPlan";
 import PlannerRecCache from "@/app/models/PlannerRecCache";
+import {
+  buildPlannerRecommendationMemoryKey,
+  clearPlannerRecommendationInFlight,
+  getPlannerRecommendationInFlight,
+  readPlannerRecommendationMemory,
+  setPlannerRecommendationInFlight,
+  writePlannerRecommendationMemory,
+} from "@/app/lib/planner/recommendationMemoryCache";
 import { recommendWeeklySlots, getTimeBlockScores } from "@/app/lib/planner/recommender";
 import { getThemesForSlot } from "@/app/lib/planner/themes";
+import { resolveTargetPlannerUser } from "@/app/lib/planner/access";
 import {
   TARGET_SUGGESTIONS_MIN,
   TARGET_SUGGESTIONS_MAX,
   WINDOW_DAYS,
   PLANNER_TIMEZONE,
 } from "@/app/lib/planner/constants";
+import { PLANNER_PLAN_READ_PROJECTION } from "@/app/lib/planner/planProjection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +46,8 @@ type RecommendationBatchResult = {
   recommendations: any[];
   heatmap: any[];
   cached: boolean;
+  memoryHit?: boolean;
+  coalesced?: boolean;
   frozenAt?: string;
   cacheLookupMs: number;
   recommendMs: number;
@@ -138,120 +150,186 @@ async function loadRecommendationsWithCache({
   periodDays,
   targetSlotsPerWeek,
   freezeEnabled,
+  allowMemoryCache,
 }: {
   userId: string;
   weekStart: Date;
   periodDays: number;
   targetSlotsPerWeek: number;
   freezeEnabled: boolean;
+  allowMemoryCache: boolean;
 }) {
   const startedAt = nowMs();
-  let cacheLookupMs = 0;
-  let recommendMs = 0;
-  let recommendSlotsMs = 0;
-  let heatmapMs = 0;
-  let themesMs = 0;
-  let cacheWriteMs = 0;
-
-  if (freezeEnabled) {
-    const cacheLookupStart = nowMs();
-    const cached = await PlannerRecCache.findOne({ userId, weekStart }).lean().exec();
-    cacheLookupMs = nowMs() - cacheLookupStart;
-    if (cached && (cached as any).algoVersion === ALGO_VERSION) {
+  const memoryKey = buildPlannerRecommendationMemoryKey({
+    scope: "planner-batch",
+    userId,
+    weekStart,
+    periodDays,
+    targetSlotsPerWeek,
+    freezeEnabled,
+    algoVersion: ALGO_VERSION,
+  });
+  if (allowMemoryCache) {
+    const memoryEntry = readPlannerRecommendationMemory<Omit<RecommendationBatchResult, "totalMs">>(memoryKey);
+    if (memoryEntry) {
       return {
-        recommendations: Array.isArray((cached as any).recommendations)
-          ? (cached as any).recommendations
-          : [],
-        heatmap: Array.isArray((cached as any).heatmap) ? (cached as any).heatmap : [],
+        ...memoryEntry,
         cached: true,
-        frozenAt: (cached as any).frozenAt ? new Date((cached as any).frozenAt).toISOString() : undefined,
-        cacheLookupMs,
-        recommendMs,
-        recommendSlotsMs,
-        heatmapMs,
-        themesMs,
-        cacheWriteMs,
+        memoryHit: true,
         totalMs: nowMs() - startedAt,
-      };
+      } satisfies RecommendationBatchResult;
+    }
+    const inFlight = getPlannerRecommendationInFlight<RecommendationBatchResult>(memoryKey);
+    if (inFlight) {
+      const coalesced = await inFlight;
+      return {
+        ...coalesced,
+        coalesced: true,
+        totalMs: nowMs() - startedAt,
+      } satisfies RecommendationBatchResult;
     }
   }
 
-  const recommendStart = nowMs();
-  const recommendationsRawPromise = (async () => {
-    const started = nowMs();
-    try {
-      return await recommendWeeklySlots({
-        userId,
-        weekStart,
-        targetSlotsPerWeek,
-        periodDays,
-      });
-    } finally {
-      recommendSlotsMs = nowMs() - started;
-    }
-  })();
-  const heatmapPromise = (async () => {
-    const started = nowMs();
-    try {
-      return await getTimeBlockScores(userId, periodDays);
-    } finally {
-      heatmapMs = nowMs() - started;
-    }
-  })();
-  const [recsRaw, heatmap] = await Promise.all([recommendationsRawPromise, heatmapPromise]);
-  recommendMs = nowMs() - recommendStart;
+  const loadFresh = async () => {
+    const freshStartedAt = nowMs();
+    let cacheLookupMs = 0;
+    let recommendMs = 0;
+    let recommendSlotsMs = 0;
+    let heatmapMs = 0;
+    let themesMs = 0;
+    let cacheWriteMs = 0;
 
-  const themesStart = nowMs();
-  const recommendations = await Promise.all(
-    (recsRaw || []).map(async (r) => {
-      try {
-        const { themes, keyword } = await getThemesForSlot(
-          userId,
-          periodDays,
-          r.dayOfWeek,
-          r.blockStartHour,
-          r.categories || {}
-        );
-        return { ...r, themes, themeKeyword: keyword };
-      } catch {
-        return { ...r, themes: [], themeKeyword: undefined };
+    if (freezeEnabled) {
+      const cacheLookupStart = nowMs();
+      const cached = await PlannerRecCache.findOne({ userId, weekStart }).lean().exec();
+      cacheLookupMs = nowMs() - cacheLookupStart;
+      if (cached && (cached as any).algoVersion === ALGO_VERSION) {
+        return {
+          recommendations: Array.isArray((cached as any).recommendations)
+            ? (cached as any).recommendations
+            : [],
+          heatmap: Array.isArray((cached as any).heatmap) ? (cached as any).heatmap : [],
+          cached: true,
+          frozenAt: (cached as any).frozenAt ? new Date((cached as any).frozenAt).toISOString() : undefined,
+          cacheLookupMs,
+          recommendMs,
+          recommendSlotsMs,
+          heatmapMs,
+          themesMs,
+          cacheWriteMs,
+          totalMs: nowMs() - freshStartedAt,
+        } satisfies RecommendationBatchResult;
       }
-    })
-  );
-  themesMs = nowMs() - themesStart;
+    }
 
-  if (freezeEnabled) {
-    const cacheWriteStart = nowMs();
-    await PlannerRecCache.findOneAndUpdate(
-      { userId, weekStart },
-      {
-        $set: {
+    const recommendStart = nowMs();
+    const recommendationsRawPromise = (async () => {
+      const started = nowMs();
+      try {
+        return await recommendWeeklySlots({
           userId,
           weekStart,
-          recommendations,
-          heatmap,
-          frozenAt: new Date(),
-          algoVersion: ALGO_VERSION,
-        },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    ).exec();
-    cacheWriteMs = nowMs() - cacheWriteStart;
-  }
+          targetSlotsPerWeek,
+          periodDays,
+        });
+      } finally {
+        recommendSlotsMs = nowMs() - started;
+      }
+    })();
+    const heatmapPromise = (async () => {
+      const started = nowMs();
+      try {
+        return await getTimeBlockScores(userId, periodDays);
+      } finally {
+        heatmapMs = nowMs() - started;
+      }
+    })();
+    const [recsRaw, heatmap] = await Promise.all([recommendationsRawPromise, heatmapPromise]);
+    recommendMs = nowMs() - recommendStart;
 
-  return {
-    recommendations,
-    heatmap,
-    cached: false,
-    frozenAt: freezeEnabled ? new Date().toISOString() : undefined,
-    cacheLookupMs,
-    recommendMs,
-    recommendSlotsMs,
-    heatmapMs,
-    themesMs,
-    cacheWriteMs,
-    totalMs: nowMs() - startedAt,
-  } satisfies RecommendationBatchResult;
+    const themesStart = nowMs();
+    const recommendations = await Promise.all(
+      (recsRaw || []).map(async (r) => {
+        try {
+          const { themes, keyword } = await getThemesForSlot(
+            userId,
+            periodDays,
+            r.dayOfWeek,
+            r.blockStartHour,
+            r.categories || {}
+          );
+          return { ...r, themes, themeKeyword: keyword };
+        } catch {
+          return { ...r, themes: [], themeKeyword: undefined };
+        }
+      })
+    );
+    themesMs = nowMs() - themesStart;
+
+    if (freezeEnabled) {
+      const cacheWriteStart = nowMs();
+      await PlannerRecCache.findOneAndUpdate(
+        { userId, weekStart },
+        {
+          $set: {
+            userId,
+            weekStart,
+            recommendations,
+            heatmap,
+            frozenAt: new Date(),
+            algoVersion: ALGO_VERSION,
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      ).exec();
+      cacheWriteMs = nowMs() - cacheWriteStart;
+    }
+
+    return {
+      recommendations,
+      heatmap,
+      cached: false,
+      frozenAt: freezeEnabled ? new Date().toISOString() : undefined,
+      cacheLookupMs,
+      recommendMs,
+      recommendSlotsMs,
+      heatmapMs,
+      themesMs,
+      cacheWriteMs,
+      totalMs: nowMs() - freshStartedAt,
+    } satisfies RecommendationBatchResult;
+  };
+
+  const pending = loadFresh();
+  if (allowMemoryCache) {
+    setPlannerRecommendationInFlight(memoryKey, pending);
+  }
+  try {
+    const fresh = await pending;
+    if (allowMemoryCache) {
+      const payload: Omit<RecommendationBatchResult, "totalMs"> = {
+        recommendations: fresh.recommendations,
+        heatmap: fresh.heatmap,
+        cached: fresh.cached,
+        frozenAt: fresh.frozenAt,
+        cacheLookupMs: fresh.cacheLookupMs,
+        recommendMs: fresh.recommendMs,
+        recommendSlotsMs: fresh.recommendSlotsMs,
+        heatmapMs: fresh.heatmapMs,
+        themesMs: fresh.themesMs,
+        cacheWriteMs: fresh.cacheWriteMs,
+      };
+      writePlannerRecommendationMemory(memoryKey, payload);
+    }
+    return {
+      ...fresh,
+      totalMs: nowMs() - startedAt,
+    } satisfies RecommendationBatchResult;
+  } finally {
+    if (allowMemoryCache) {
+      clearPlannerRecommendationInFlight(memoryKey);
+    }
+  }
 }
 
 export async function GET(request: Request) {
@@ -266,7 +344,17 @@ export async function GET(request: Request) {
     return jsonWithTiming({ ok: false, error: "Unauthorized" }, 401, timings);
   }
 
-  const userId = session.user.id as string;
+  const targetResolution = resolveTargetPlannerUser({
+    session,
+    targetUserId: new URL(request.url).searchParams.get("targetUserId"),
+    forbiddenMessage: "Apenas administradores podem visualizar o planner de outro usuário.",
+  });
+  if (!targetResolution.ok) {
+    timings.push({ name: "total", durationMs: nowMs() - requestStartedAt });
+    return jsonWithTiming({ ok: false, error: targetResolution.error }, targetResolution.status, timings);
+  }
+
+  const userId = targetResolution.userId;
   const routePath = new URL(request.url).pathname;
   const accessStartedAt = nowMs();
   const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
@@ -303,7 +391,10 @@ export async function GET(request: Request) {
     const planPromise = (async () => {
       const startedAt = nowMs();
       try {
-        return await PlannerPlan.findOne({ userId, platform: "instagram", weekStart }).lean().exec();
+        return await PlannerPlan.findOne({ userId, platform: "instagram", weekStart })
+          .select(PLANNER_PLAN_READ_PROJECTION)
+          .lean()
+          .exec();
       } finally {
         timings.push({ name: "plan", durationMs: nowMs() - startedAt });
       }
@@ -315,8 +406,15 @@ export async function GET(request: Request) {
         periodDays,
         targetSlotsPerWeek,
         freezeEnabled,
+        allowMemoryCache: !noCache,
       });
       timings.push({ name: "rec", durationMs: result.totalMs ?? 0 });
+      if (result.memoryHit) {
+        timings.push({ name: "recMem", durationMs: result.totalMs ?? 0 });
+      }
+      if (result.coalesced) {
+        timings.push({ name: "recJoin", durationMs: result.totalMs ?? 0 });
+      }
       if (typeof result.cacheLookupMs === "number" && result.cacheLookupMs > 0) {
         timings.push({ name: "recCache", durationMs: result.cacheLookupMs });
       }

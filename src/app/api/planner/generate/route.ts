@@ -14,6 +14,8 @@ import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { logger } from '@/app/lib/logger';
 import { WINDOW_DAYS, PLANNER_TIMEZONE } from '@/app/lib/planner/constants';
+import { resolveTargetPlannerUser } from '@/app/lib/planner/access';
+import { invalidatePlannerRecommendationMemory } from '@/app/lib/planner/recommendationMemoryCache';
 import { upsertLinkedScriptFromPlanner } from '@/app/lib/scripts/scriptSync';
 
 export const runtime = 'nodejs';
@@ -160,6 +162,8 @@ export async function POST(request: Request) {
     const weekStartRaw: string | undefined = body?.weekStart;
     const slotFromBody: any = body?.slot || null;
     const slotId: string | undefined = body?.slotId;
+    const requestedTargetUserId: string | null =
+      typeof body?.targetUserId === 'string' ? body.targetUserId : null;
     const strategy: any = body?.strategy || 'default';
     const noSignals: boolean = Boolean(body?.noSignals);
 
@@ -180,11 +184,20 @@ export async function POST(request: Request) {
         { status: access.status }
       );
     }
+    const targetResolution = resolveTargetPlannerUser({
+      session,
+      targetUserId: requestedTargetUserId,
+      forbiddenMessage: 'Apenas administradores podem gerar roteiro do planner para outro usuário.',
+    });
+    if (!targetResolution.ok) {
+      return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+    }
+    const effectiveUserId = targetResolution.userId;
 
     await connectToDatabase();
 
     // Rate limit: 10 gerações / 5 minutos
-    const rl = await checkRateLimit(`planner:gen:${session.user.id}`, 10, 300);
+    const rl = await checkRateLimit(`planner:gen:${effectiveUserId}`, 10, 300);
     if (!rl.allowed) {
       return NextResponse.json({ ok: false, error: 'Limite de geração atingido. Tente novamente em alguns minutos.' }, { status: 429 });
     }
@@ -192,7 +205,7 @@ export async function POST(request: Request) {
     // Carrega/resolve slot
     let slot: any | null = null;
     const PlannerPlan = await loadPlannerPlanModel();
-    let planDoc = await PlannerPlan.findOne({ userId: session.user.id, platform: 'instagram', weekStart });
+    let planDoc = await PlannerPlan.findOne({ userId: effectiveUserId, platform: 'instagram', weekStart });
     if (slotId && planDoc) {
       slot = planDoc.slots.find((s: any) => s.slotId === slotId) || null;
     }
@@ -204,7 +217,7 @@ export async function POST(request: Request) {
 
     // Amostras reais de legendas no bloco
     const caps = await getBlockSampleCaptions(
-      session.user.id,
+      effectiveUserId,
       WINDOW_DAYS,
       slot.dayOfWeek,
       slot.blockStartHour,
@@ -250,7 +263,7 @@ export async function POST(request: Request) {
 
     logger.info(
       '[planner/generate] user=%s weekStart=%s slotId=%s strategy=%s theme=%s (from=%s)',
-      session.user.id,
+      effectiveUserId,
       weekStart.toISOString(),
       slot?.slotId ?? 'new',
       strategy,
@@ -303,7 +316,7 @@ export async function POST(request: Request) {
 
     // Geração do rascunho
     const gen = await generatePostDraft({
-      userId: session.user.id,
+      userId: effectiveUserId,
       dayOfWeek: slot.dayOfWeek,
       blockStartHour: slot.blockStartHour,
       format: slot.format,
@@ -317,7 +330,7 @@ export async function POST(request: Request) {
 
     // Persiste versão de IA
     const aiDoc = await AIGeneratedPost.create({
-      userId: new Types.ObjectId(session.user.id),
+      userId: new Types.ObjectId(effectiveUserId),
       platform: 'instagram',
       planId: (planDoc?._id as any) || null,
       slotId: slot.slotId || null,
@@ -340,7 +353,7 @@ export async function POST(request: Request) {
     // Atualiza/Cria plano/slot
     if (!planDoc) {
       planDoc = await PlannerPlan.create({
-        userId: new Types.ObjectId(session.user.id),
+        userId: new Types.ObjectId(effectiveUserId),
         platform: 'instagram',
         weekStart,
         slots: [],
@@ -375,8 +388,12 @@ export async function POST(request: Request) {
     else planDoc.slots.push(updatedSlot as any);
 
     await planDoc.save();
+    invalidatePlannerRecommendationMemory({
+      userId: effectiveUserId,
+      weekStart,
+    });
     await upsertLinkedScriptFromPlanner({
-      userId: session.user.id,
+      userId: effectiveUserId,
       weekStart,
       slot: {
         slotId: updatedSlot.slotId,

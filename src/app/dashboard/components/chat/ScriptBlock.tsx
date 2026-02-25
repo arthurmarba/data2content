@@ -28,9 +28,10 @@ interface ScriptScene {
     time: string;
     visual: string;
     audio: string;
+    direction?: string;
 }
 
-type SceneExpandedMap = Record<string, { visual: boolean; audio: boolean }>;
+type SceneExpandedMap = Record<string, { visual: boolean; audio: boolean; direction: boolean }>;
 
 interface InspirationData {
     source?: 'community' | 'user_top_posts' | 'none';
@@ -75,7 +76,7 @@ type SceneCardProps = {
     isFirstScene: boolean;
     theme: RenderTheme;
     isExpandedMap: SceneExpandedMap;
-    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio') => void;
+    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio' | 'direction') => void;
 };
 
 // --- Parsing Logic ---
@@ -121,7 +122,8 @@ const isMeaningfulScene = (scene: ScriptScene) => {
     const time = cleanSceneCell(scene.time || '');
     const visual = cleanSceneCell(scene.visual || '');
     const audio = cleanSceneCell(scene.audio || '');
-    if (isPlaceholderValue(time) && isPlaceholderValue(visual) && isPlaceholderValue(audio)) return false;
+    const direction = cleanSceneCell(scene.direction || '');
+    if (isPlaceholderValue(time) && isPlaceholderValue(visual) && isPlaceholderValue(audio) && isPlaceholderValue(direction)) return false;
     if (isPlaceholderValue(visual) && isPlaceholderValue(audio)) return false;
     return Boolean(visual || audio);
 };
@@ -280,7 +282,7 @@ const parseVariationChunk = (label: string, lines: string[]): ScriptVariation =>
         }
 
         if (
-            (trimmed.startsWith('|') && /tempo|time/i.test(trimmed) && /visual|cena/i.test(trimmed) && /a[úu]dio|fala|narra/i.test(trimmed))
+            (trimmed.startsWith('|') && /tempo|time/i.test(trimmed) && /visual|cena|enquadramento/i.test(trimmed) && /a[úu]dio|fala|narra/i.test(trimmed))
         ) {
             isParsingTable = true;
             continue;
@@ -299,7 +301,8 @@ const parseVariationChunk = (label: string, lines: string[]): ScriptVariation =>
                 const scene: ScriptScene = {
                     time: cleanSceneCell(cols.length >= 3 ? (cols[0] || 'Auto') : 'Auto'),
                     visual: cleanSceneCell(cols.length >= 3 ? (cols[1] || '') : (cols[0] || '')),
-                    audio: cleanSceneCell(cols.length >= 3 ? cols.slice(2).join(' | ') : (cols[1] || '')),
+                    audio: cleanSceneCell(cols.length >= 3 ? (cols[2] || '') : (cols[1] || '')),
+                    direction: cleanSceneCell(cols.length >= 4 ? cols.slice(3).join(' | ') : ''),
                 };
                 if (!isMeaningfulScene(scene)) continue;
                 scenes.push(scene);
@@ -695,14 +698,14 @@ const MetadataHeader: React.FC<{
 };
 
 const SceneField: React.FC<{
-    label: 'Visual' | 'Fala';
+    label: 'Visual' | 'Fala' | 'Direção';
     text: string;
     maxLines: number;
     sceneKey: string;
-    field: 'visual' | 'audio';
+    field: 'visual' | 'audio' | 'direction';
     theme: RenderTheme;
     isExpandedMap: SceneExpandedMap;
-    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio') => void;
+    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio' | 'direction') => void;
 }> = ({ label, text, maxLines, sceneKey, field, theme, isExpandedMap, onToggleExpand }) => {
     const isInverse = theme === 'inverse';
     const cleanValue = cleanText(text).replace(/"/g, '');
@@ -762,8 +765,8 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 ? (isInverse ? 'mt-2 border-t border-white/12 pt-6' : 'mt-2 border-t border-gray-200/90 pt-6')
                 : ''
                 } ${isLastScene
-                ? (isInverse ? 'border-l-2 border-emerald-300/50 pl-3' : 'border-l-2 border-emerald-300 pl-3')
-                : ''
+                    ? (isInverse ? 'border-l-2 border-emerald-300/50 pl-3' : 'border-l-2 border-emerald-300 pl-3')
+                    : ''
                 }`}
         >
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -795,6 +798,18 @@ const SceneCard: React.FC<SceneCardProps> = ({
                     isExpandedMap={isExpandedMap}
                     onToggleExpand={onToggleExpand}
                 />
+                {scene.direction && (
+                    <SceneField
+                        label="Direção"
+                        text={scene.direction}
+                        maxLines={2}
+                        sceneKey={sceneKey}
+                        field="direction"
+                        theme={theme}
+                        isExpandedMap={isExpandedMap}
+                        onToggleExpand={onToggleExpand}
+                    />
+                )}
             </div>
         </article>
     );
@@ -915,12 +930,13 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
         }
     };
 
-    const handleToggleSceneExpand = (sceneKey: string, field: 'visual' | 'audio') => {
+    const handleToggleSceneExpand = (sceneKey: string, field: 'visual' | 'audio' | 'direction') => {
         setSceneExpandedMap((prev) => ({
             ...prev,
             [sceneKey]: {
                 visual: field === 'visual' ? !prev[sceneKey]?.visual : Boolean(prev[sceneKey]?.visual),
                 audio: field === 'audio' ? !prev[sceneKey]?.audio : Boolean(prev[sceneKey]?.audio),
+                direction: field === 'direction' ? !prev[sceneKey]?.direction : Boolean(prev[sceneKey]?.direction),
             },
         }));
     };

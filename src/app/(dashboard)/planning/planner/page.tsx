@@ -18,5 +18,13 @@ export default async function PlanningPlannerPage() {
     return <PlanningLockedView variant="planner" returnTo="/planning/planner" />;
   }
 
-  return <PlannerClientPage />;
+  return (
+    <PlannerClientPage
+      viewer={{
+        id: session.user.id,
+        role: session.user.role ?? null,
+        name: session.user.name ?? null,
+      }}
+    />
+  );
 }

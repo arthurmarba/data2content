@@ -5,6 +5,14 @@ import type { Session } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import PlannerRecCache from '@/app/models/PlannerRecCache';
+import {
+  buildPlannerRecommendationMemoryKey,
+  clearPlannerRecommendationInFlight,
+  getPlannerRecommendationInFlight,
+  readPlannerRecommendationMemory,
+  setPlannerRecommendationInFlight,
+  writePlannerRecommendationMemory,
+} from '@/app/lib/planner/recommendationMemoryCache';
 import { recommendWeeklySlots, getTimeBlockScores } from '@/app/lib/planner/recommender';
 import { getThemesForSlot } from '@/app/lib/planner/themes';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
@@ -124,95 +132,168 @@ export async function GET(request: Request) {
 
   const rawPeriod = parseIntParam(request.url, 'periodDays');
   const periodDays = typeof rawPeriod === 'number' && rawPeriod > 0 ? rawPeriod : WINDOW_DAYS;
+  const memoryKey = buildPlannerRecommendationMemoryKey({
+    scope: 'planner-recommendations',
+    userId,
+    weekStart,
+    periodDays,
+    targetSlotsPerWeek,
+    freezeEnabled,
+    algoVersion: ALGO_VERSION,
+  });
+
+  type MemoryPayload = {
+    recommendations: any[];
+    heatmap: any[];
+    frozenAt?: string;
+    cachedFromMongo: boolean;
+  };
 
   try {
-    await connectToDatabase();
-
-    // 1) Snapshot semanal (apenas se habilitado) — respeita versão do algoritmo
-    if (freezeEnabled) {
-      type Cached = {
-        userId: string;
-        weekStart: Date;
-        recommendations: any[];
-        heatmap: any[];
-        frozenAt: Date;
-        algoVersion?: number;
-      };
-
-      const cached = (await PlannerRecCache.findOne({ userId, weekStart }).lean().exec()) as Cached | null;
-
-      if (cached && cached.algoVersion === ALGO_VERSION) {
+    if (!noCache) {
+      const memoryHit = readPlannerRecommendationMemory<MemoryPayload>(memoryKey);
+      if (memoryHit) {
         return NextResponse.json({
           ok: true,
           metricBase: 'views',
           weekStart: weekStartISO,
-          recommendations: cached.recommendations || [],
-          heatmap: cached.heatmap || [],
-          frozenAt: cached.frozenAt?.toISOString?.() || new Date(cached.frozenAt as any).toISOString?.(),
+          recommendations: memoryHit.recommendations,
+          heatmap: memoryHit.heatmap,
+          frozenAt: memoryHit.frozenAt,
           cached: true,
+          memoryHit: true,
+          freezeEnabled,
+          algoVersion: ALGO_VERSION,
+        });
+      }
+
+      const pending = getPlannerRecommendationInFlight<MemoryPayload>(memoryKey);
+      if (pending) {
+        const joined = await pending;
+        return NextResponse.json({
+          ok: true,
+          metricBase: 'views',
+          weekStart: weekStartISO,
+          recommendations: joined.recommendations,
+          heatmap: joined.heatmap,
+          frozenAt: joined.frozenAt,
+          cached: joined.cachedFromMongo,
+          coalesced: true,
           freezeEnabled,
           algoVersion: ALGO_VERSION,
         });
       }
     }
 
-    // 2) Sem cache válido → calcula recomendações + heatmap (já em views)
-    const [recsRaw, heatmap] = await Promise.all([
-      recommendWeeklySlots({
-        userId,
-        weekStart,
-        targetSlotsPerWeek,
-        periodDays,
-      }),
-      getTimeBlockScores(userId, periodDays),
-    ]);
+    const computePayload = async (): Promise<MemoryPayload> => {
+      await connectToDatabase();
 
-    // 3) Enriquecer cada slot com TEMAS (também “congela” se habilitado)
-    const recs = await Promise.all(
-      (recsRaw || []).map(async (r) => {
-        try {
-          const { themes, keyword } = await getThemesForSlot(
-            userId,
-            periodDays,
-            r.dayOfWeek,
-            r.blockStartHour,
-            r.categories || {}
-          );
-          return { ...r, themes, themeKeyword: keyword };
-        } catch {
-          return { ...r, themes: [], themeKeyword: undefined };
+      // 1) Snapshot semanal (apenas se habilitado) — respeita versão do algoritmo
+      if (freezeEnabled) {
+        type Cached = {
+          userId: string;
+          weekStart: Date;
+          recommendations: any[];
+          heatmap: any[];
+          frozenAt: Date;
+          algoVersion?: number;
+        };
+
+        const cached = (await PlannerRecCache.findOne({ userId, weekStart }).lean().exec()) as Cached | null;
+
+        if (cached && cached.algoVersion === ALGO_VERSION) {
+          return {
+            recommendations: cached.recommendations || [],
+            heatmap: cached.heatmap || [],
+            frozenAt: cached.frozenAt?.toISOString?.() || new Date(cached.frozenAt as any).toISOString?.(),
+            cachedFromMongo: true,
+          };
         }
-      })
-    );
+      }
 
-    if (freezeEnabled) {
-      await PlannerRecCache.findOneAndUpdate(
-        { userId, weekStart },
-        {
-          $set: {
-            userId,
-            weekStart,
-            recommendations: recs,
-            heatmap,
-            frozenAt: new Date(),
-            algoVersion: ALGO_VERSION,
+      // 2) Sem cache válido → calcula recomendações + heatmap (já em views)
+      const [recsRaw, heatmap] = await Promise.all([
+        recommendWeeklySlots({
+          userId,
+          weekStart,
+          targetSlotsPerWeek,
+          periodDays,
+        }),
+        getTimeBlockScores(userId, periodDays),
+      ]);
+
+      // 3) Enriquecer cada slot com TEMAS (também “congela” se habilitado)
+      const recs = await Promise.all(
+        (recsRaw || []).map(async (r) => {
+          try {
+            const { themes, keyword } = await getThemesForSlot(
+              userId,
+              periodDays,
+              r.dayOfWeek,
+              r.blockStartHour,
+              r.categories || {}
+            );
+            return { ...r, themes, themeKeyword: keyword };
+          } catch {
+            return { ...r, themes: [], themeKeyword: undefined };
+          }
+        })
+      );
+
+      const frozenAt = freezeEnabled ? new Date().toISOString() : undefined;
+
+      if (freezeEnabled) {
+        await PlannerRecCache.findOneAndUpdate(
+          { userId, weekStart },
+          {
+            $set: {
+              userId,
+              weekStart,
+              recommendations: recs,
+              heatmap,
+              frozenAt: new Date(),
+              algoVersion: ALGO_VERSION,
+            },
           },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      ).exec();
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        ).exec();
+      }
+
+      return {
+        recommendations: recs,
+        heatmap,
+        frozenAt,
+        cachedFromMongo: false,
+      };
+    };
+
+    const pendingComputation = computePayload();
+    if (!noCache) {
+      setPlannerRecommendationInFlight(memoryKey, pendingComputation);
     }
 
-    return NextResponse.json({
-      ok: true,
-      metricBase: 'views',
-      weekStart: weekStartISO,
-      recommendations: recs,
-      heatmap,
-      frozenAt: freezeEnabled ? new Date().toISOString() : undefined,
-      cached: false,
-      freezeEnabled,
-      algoVersion: ALGO_VERSION,
-    });
+    try {
+      const computed = await pendingComputation;
+      if (!noCache) {
+        writePlannerRecommendationMemory(memoryKey, computed);
+      }
+
+      return NextResponse.json({
+        ok: true,
+        metricBase: 'views',
+        weekStart: weekStartISO,
+        recommendations: computed.recommendations,
+        heatmap: computed.heatmap,
+        frozenAt: computed.frozenAt,
+        cached: computed.cachedFromMongo,
+        freezeEnabled,
+        algoVersion: ALGO_VERSION,
+      });
+    } finally {
+      if (!noCache) {
+        clearPlannerRecommendationInFlight(memoryKey);
+      }
+    }
   } catch (err) {
     console.error('[planner/recommendations] Error:', err);
     return NextResponse.json({ ok: false, error: 'Failed to compute recommendations' }, { status: 500 });

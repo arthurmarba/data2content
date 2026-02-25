@@ -108,6 +108,74 @@ export type EnsurePlannerAccessResult =
   | { ok: true; normalizedStatus: ActiveLikeStatus | null; source: 'session' | 'database' | 'token' }
   | { ok: false; status: number; reason: PlannerAccessFailureReason; message: string };
 
+const DEFAULT_PLANNER_ACCESS_CACHE_TTL_MS = 15_000;
+const DEFAULT_PLANNER_ACCESS_CACHE_MAX_ENTRIES = 500;
+const PLANNER_ACCESS_CACHE_TTL_MS = Math.max(
+  2_000,
+  Number.parseInt(
+    process.env.PLANNER_ACCESS_CACHE_TTL_MS || `${DEFAULT_PLANNER_ACCESS_CACHE_TTL_MS}`,
+    10
+  ) || DEFAULT_PLANNER_ACCESS_CACHE_TTL_MS
+);
+const PLANNER_ACCESS_CACHE_MAX_ENTRIES = Math.max(
+  50,
+  Number.parseInt(
+    process.env.PLANNER_ACCESS_CACHE_MAX_ENTRIES || `${DEFAULT_PLANNER_ACCESS_CACHE_MAX_ENTRIES}`,
+    10
+  ) || DEFAULT_PLANNER_ACCESS_CACHE_MAX_ENTRIES
+);
+
+type PlannerAccessCacheEntry = {
+  expiresAt: number;
+  result: EnsurePlannerAccessResult;
+};
+
+const plannerAccessMemoryCache = new Map<string, PlannerAccessCacheEntry>();
+
+function prunePlannerAccessMemoryCache(nowEpochMs: number) {
+  for (const [key, entry] of plannerAccessMemoryCache.entries()) {
+    if (entry.expiresAt <= nowEpochMs) {
+      plannerAccessMemoryCache.delete(key);
+    }
+  }
+  while (plannerAccessMemoryCache.size > PLANNER_ACCESS_CACHE_MAX_ENTRIES) {
+    const oldestKey = plannerAccessMemoryCache.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    plannerAccessMemoryCache.delete(oldestKey);
+  }
+}
+
+function buildPlannerAccessCacheKey(params: {
+  resolvedUserId?: string | null;
+  resolvedEmail?: string | null;
+  allowAdmin: boolean;
+}): string | null {
+  const uid = typeof params.resolvedUserId === 'string' ? params.resolvedUserId.trim() : '';
+  const email = typeof params.resolvedEmail === 'string' ? params.resolvedEmail.trim().toLowerCase() : '';
+  if (!uid && !email) return null;
+  return [params.allowAdmin ? '1' : '0', uid || '-', email || '-'].join('|');
+}
+
+function readPlannerAccessMemory(key: string): EnsurePlannerAccessResult | null {
+  const nowEpochMs = Date.now();
+  prunePlannerAccessMemoryCache(nowEpochMs);
+  const entry = plannerAccessMemoryCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= nowEpochMs) {
+    plannerAccessMemoryCache.delete(key);
+    return null;
+  }
+  return entry.result;
+}
+
+function writePlannerAccessMemory(key: string, result: EnsurePlannerAccessResult) {
+  plannerAccessMemoryCache.set(key, {
+    result,
+    expiresAt: Date.now() + PLANNER_ACCESS_CACHE_TTL_MS,
+  });
+  prunePlannerAccessMemoryCache(Date.now());
+}
+
 export async function ensurePlannerAccess(
   options: EnsurePlannerAccessOptions = {}
 ): Promise<EnsurePlannerAccessResult> {
@@ -151,6 +219,11 @@ export async function ensurePlannerAccess(
 
   const resolvedUserId = safe(userId) ?? safe((sessionUser as any)?.id) ?? safe((session as any)?.id);
   const resolvedEmail = safe(email) ?? safe(sessionUser?.email);
+  const accessCacheKey = buildPlannerAccessCacheKey({
+    resolvedUserId,
+    resolvedEmail,
+    allowAdmin,
+  });
 
   if (!resolvedUserId && !resolvedEmail) {
     console.warn('[planGuard] ensurePlannerAccess: missing identifiers - blocking');
@@ -161,6 +234,13 @@ export async function ensurePlannerAccess(
       reason: 'unauthenticated',
       message: 'Não autenticado.',
     };
+  }
+
+  if (accessCacheKey) {
+    const cachedAccess = readPlannerAccessMemory(accessCacheKey);
+    if (cachedAccess) {
+      return cachedAccess;
+    }
   }
 
   try {
@@ -180,17 +260,23 @@ export async function ensurePlannerAccess(
 
     const dbRole = typeof dbUser?.role === 'string' ? dbUser.role.toLowerCase() : undefined;
     if (allowAdmin && dbRole === 'admin') {
-      return { ok: true, normalizedStatus: 'active', source: 'database' };
+      const adminResult: EnsurePlannerAccessResult = { ok: true, normalizedStatus: 'active', source: 'database' };
+      if (accessCacheKey) writePlannerAccessMemory(accessCacheKey, adminResult);
+      return adminResult;
     }
 
     const dbTrialActive = isProTrialActive(dbUser?.proTrialStatus, dbUser?.proTrialExpiresAt);
     if (dbTrialActive) {
-      return { ok: true, normalizedStatus: 'trial', source: 'database' };
+      const trialResult: EnsurePlannerAccessResult = { ok: true, normalizedStatus: 'trial', source: 'database' };
+      if (accessCacheKey) writePlannerAccessMemory(accessCacheKey, trialResult);
+      return trialResult;
     }
 
     const dbStatusNorm = normalizePlanStatus(dbUser?.planStatus);
     const activeLike = isActiveLike(dbStatusNorm) ? (dbStatusNorm as ActiveLikeStatus) : null;
-    return { ok: true, normalizedStatus: activeLike, source: 'database' };
+    const result: EnsurePlannerAccessResult = { ok: true, normalizedStatus: activeLike, source: 'database' };
+    if (accessCacheKey) writePlannerAccessMemory(accessCacheKey, result);
+    return result;
   } catch (error) {
     console.error('[planGuard] ensurePlannerAccess() DB error:', error);
     return {

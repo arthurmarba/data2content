@@ -1,28 +1,36 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { Clock, Layers, Lock, Sparkles, Target, Wand2, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Target, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X } from 'lucide-react';
 import { PlannerUISlot } from '@/hooks/usePlannerData';
 import { idsToLabels } from '@/app/lib/classification';
-import { prefillInspirationCache, fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
+import { fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
 
-const BLOCKS = [9, 12, 15, 18] as const;
-const DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
-const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']; // 1..7 (1 = Dom)
 const DAYS_FULL_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 type StatusCategory = 'champion' | 'test' | 'watch' | 'planned';
-const TARGET_SLOTS_PER_WEEK = 7;
+const CARD_BATCH_SIZE = 12;
+const LABELS_CACHE_LIMIT = 320;
+type LabelCategory = 'proposal' | 'context' | 'tone' | 'reference';
+type SlotCardCacheEntry = {
+  slotRef: PlannerUISlot;
+  heatScore: number | undefined;
+  card: PlannerSlotCard;
+};
+type SlotCardBaseFields = {
+  cardId: string;
+  title: string;
+  formatLabel: string;
+  viewsP50: string;
+  proposalLabel: string;
+  contextLabel: string;
+  toneLabel: string;
+  referenceLabel: string;
+};
 
 export interface CalendarHeatPoint {
   dayOfWeek: number;
   blockStartHour: number;
   score: number;
-}
-
-function dayLabel(dayOfWeek: number) {
-  const idx = ((dayOfWeek - 1) % 7 + 7) % 7;
-  return DAYS_PT[idx] ?? DAYS_PT[0];
 }
 
 function dayFullLabel(dayOfWeek: number): string {
@@ -40,6 +48,96 @@ function blockLabel(start: number) {
 
 function keyFor(day: number, block: number) {
   return `${day}-${block}`;
+}
+
+const DETAIL_OBSERVER_ROOT_MARGIN = '420px 0px';
+const detailObserverCallbacks = new Map<Element, () => void>();
+let detailObserver: IntersectionObserver | null = null;
+
+function getDetailObserver(): IntersectionObserver | null {
+  if (typeof IntersectionObserver === 'undefined') return null;
+  if (detailObserver) return detailObserver;
+
+  detailObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const callback = detailObserverCallbacks.get(entry.target);
+        if (!callback) continue;
+        detailObserverCallbacks.delete(entry.target);
+        detailObserver?.unobserve(entry.target);
+        callback();
+      }
+    },
+    { rootMargin: DETAIL_OBSERVER_ROOT_MARGIN, threshold: 0 }
+  );
+
+  return detailObserver;
+}
+
+function observeCardDetails(node: Element, onVisible: () => void): () => void {
+  const observer = getDetailObserver();
+  if (!observer) {
+    onVisible();
+    return () => {};
+  }
+
+  detailObserverCallbacks.set(node, onVisible);
+  observer.observe(node);
+
+  return () => {
+    detailObserverCallbacks.delete(node);
+    observer.unobserve(node);
+    if (detailObserverCallbacks.size === 0) {
+      observer.disconnect();
+      detailObserver = null;
+    }
+  };
+}
+
+function getSlotCardId(slot: PlannerUISlot): string {
+  if (slot.slotId) return slot.slotId;
+  const fallbackTitle = slot.title?.trim() || slot.themeKeyword || slot.themes?.[0] || 'Sugestão pronta do Mobi';
+  return `${slot.dayOfWeek}-${slot.blockStartHour}-${fallbackTitle}`;
+}
+
+function getCachedLabels(
+  cache: Map<string, readonly string[]>,
+  ids: string[] | undefined,
+  category: LabelCategory
+): readonly string[] {
+  if (!ids || ids.length === 0) return [];
+
+  const cacheKey = `${category}:${ids.join(',')}`;
+  const cachedLabels = cache.get(cacheKey);
+  if (cachedLabels) {
+    // Refresh order to behave like a tiny LRU cache.
+    cache.delete(cacheKey);
+    cache.set(cacheKey, cachedLabels);
+    return cachedLabels;
+  }
+
+  const computedLabels = idsToLabels(ids, category);
+  cache.set(cacheKey, computedLabels);
+
+  if (cache.size > LABELS_CACHE_LIMIT) {
+    const oldestKey = cache.keys().next().value;
+    if (typeof oldestKey === 'string') {
+      cache.delete(oldestKey);
+    }
+  }
+
+  return computedLabels;
+}
+
+function isSlotsChronologicallySorted(slotList: PlannerUISlot[]): boolean {
+  for (let i = 1; i < slotList.length; i += 1) {
+    const prev = slotList[i - 1]!;
+    const current = slotList[i]!;
+    if (prev.dayOfWeek > current.dayOfWeek) return false;
+    if (prev.dayOfWeek === current.dayOfWeek && prev.blockStartHour > current.blockStartHour) return false;
+  }
+  return true;
 }
 
 function formatViews(value?: number) {
@@ -63,18 +161,6 @@ const FORMAT_LABELS: Record<string, string> = {
 function formatSlotFormat(formatId?: string): string {
   if (!formatId) return 'Formato livre';
   return FORMAT_LABELS[formatId] ?? formatId;
-}
-
-function formatCompactNumber(value?: number) {
-  if (typeof value !== 'number' || !isFinite(value) || value < 0) return null;
-  try {
-    return value.toLocaleString('pt-BR', {
-      notation: 'compact',
-      maximumFractionDigits: 1,
-    });
-  } catch {
-    return String(value);
-  }
 }
 
 const toProxyUrl = (raw?: string | null) => {
@@ -136,45 +222,6 @@ function getStatusInfo(
   };
 }
 
-interface PlannerBlockSummary {
-  blockStartHour: number;
-  items: PlannerUISlot[];
-  heatScore?: number;
-}
-
-interface PlannerDaySummary {
-  day: number;
-  blocks: PlannerBlockSummary[];
-  totalSlots: number;
-  bestHeatBlock: { score: number; blockStartHour: number | null };
-  bestViewsSlot: { value: number; slot: PlannerUISlot | null };
-}
-
-type BestViewsOverview = {
-  dayOfWeek: number;
-  blockStartHour: number;
-  value: number;
-};
-
-type InspirationPost = {
-  id: string;
-  caption: string;
-  views: number;
-  date: string;
-  thumbnailUrl?: string | null;
-  postLink?: string | null;
-};
-
-type CommunityInspirationPost = {
-  id: string;
-  caption: string;
-  views: number;
-  date: string;
-  coverUrl?: string | null;
-  postLink?: string | null;
-  reason?: string[];
-};
-
 export interface ContentPlannerCalendarProps {
   userId?: string;
   slots: PlannerUISlot[] | null;
@@ -188,7 +235,7 @@ export interface ContentPlannerCalendarProps {
   isBillingLoading?: boolean;
   onRequestSubscribe?: () => void;
   onOpenSlot: (slot: PlannerUISlot) => void;
-  onCreateSlot: (dayOfWeek: number, blockStartHour: number) => void;
+  onCreateSlot?: (dayOfWeek: number, blockStartHour: number) => void;
   onDeleteSlot?: (slot: PlannerUISlot) => void;
 }
 
@@ -206,380 +253,182 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   isBillingLoading,
   onRequestSubscribe,
   onOpenSlot,
-  onCreateSlot,
   onDeleteSlot,
 }) => {
-  const [selectedDay] = React.useState<number>(() => {
-    const today = new Date().getDay() + 1; // 1=Sun, 7=Sat
-    return today;
-  });
-  const [inspirationPosts, setInspirationPosts] = useState<InspirationPost[]>([]);
-  const [communityPosts, setCommunityPosts] = useState<CommunityInspirationPost[]>([]);
-  const [inspirationLoading, setInspirationLoading] = useState(false);
-  const [communityLoading, setCommunityLoading] = useState(false);
-  const [inspirationError, setInspirationError] = useState<string | null>(null);
-  const [communityError, setCommunityError] = useState<string | null>(null);
+  const stableSortedSlotsRef = useRef<PlannerUISlot[]>([]);
+  const stableHeatMapRef = useRef<Map<string, number>>(new Map());
+  const slotCardCacheRef = useRef<Map<string, SlotCardCacheEntry>>(new Map());
+  const slotCardBaseRef = useRef<WeakMap<PlannerUISlot, SlotCardBaseFields>>(new WeakMap());
+  const labelsCacheRef = useRef<Map<string, readonly string[]>>(new Map());
+  const onOpenSlotRef = useRef(onOpenSlot);
+  const onRequestSubscribeRef = useRef(onRequestSubscribe);
+  const onDeleteSlotRef = useRef(onDeleteSlot);
+
+  useEffect(() => {
+    onOpenSlotRef.current = onOpenSlot;
+  }, [onOpenSlot]);
+
+  useEffect(() => {
+    onRequestSubscribeRef.current = onRequestSubscribe;
+  }, [onRequestSubscribe]);
+
+  useEffect(() => {
+    onDeleteSlotRef.current = onDeleteSlot;
+  }, [onDeleteSlot]);
+
+  const handleOpenSlot = React.useCallback((slot: PlannerUISlot) => {
+    onOpenSlotRef.current(slot);
+  }, []);
+
+  const handleRequestSubscribe = React.useCallback(() => {
+    onRequestSubscribeRef.current?.();
+  }, []);
+
+  const handleDeleteSlot = React.useCallback((slot: PlannerUISlot) => {
+    onDeleteSlotRef.current?.(slot);
+  }, []);
+
+  const canRequestSubscribe = Boolean(onRequestSubscribe);
+  const canDeleteSlot = Boolean(onDeleteSlot);
 
   const sortedSlots = useMemo(() => {
-    if (!slots) return [] as PlannerUISlot[];
-    return [...slots].sort((a, b) => {
-      if (a.dayOfWeek === b.dayOfWeek) {
-        return a.blockStartHour - b.blockStartHour;
-      }
-      return a.dayOfWeek - b.dayOfWeek;
-    });
-  }, [slots]);
+    if (!slots?.length) {
+      if (stableSortedSlotsRef.current.length === 0) return stableSortedSlotsRef.current;
+      stableSortedSlotsRef.current = [];
+      return stableSortedSlotsRef.current;
+    }
 
-  const slotsMap = useMemo(() => {
-    const map = new Map<string, PlannerUISlot[]>();
-    sortedSlots.forEach((slot) => {
-      const key = keyFor(slot.dayOfWeek, slot.blockStartHour);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(slot);
-    });
-    return map;
-  }, [sortedSlots]);
+    const nextSorted =
+      slots.length < 2 || isSlotsChronologicallySorted(slots)
+        ? slots
+        : [...slots].sort((a, b) => {
+            if (a.dayOfWeek === b.dayOfWeek) {
+              return a.blockStartHour - b.blockStartHour;
+            }
+            return a.dayOfWeek - b.dayOfWeek;
+          });
+
+    const previousSorted = stableSortedSlotsRef.current;
+    const hasSameReferences =
+      previousSorted.length === nextSorted.length &&
+      previousSorted.every((slot, index) => slot === nextSorted[index]);
+
+    if (hasSameReferences) {
+      return previousSorted;
+    }
+
+    stableSortedSlotsRef.current = nextSorted;
+    return nextSorted;
+  }, [slots]);
 
   const heatMapMap = useMemo(() => {
     const map = new Map<string, number>();
     (heatmap || []).forEach((point) => {
       map.set(keyFor(point.dayOfWeek, point.blockStartHour), point.score);
     });
+
+    const previousMap = stableHeatMapRef.current;
+    if (previousMap.size === map.size) {
+      let hasChanges = false;
+      for (const [slotKey, value] of map.entries()) {
+        if (previousMap.get(slotKey) !== value) {
+          hasChanges = true;
+          break;
+        }
+      }
+      if (!hasChanges) {
+        return previousMap;
+      }
+    }
+
+    stableHeatMapRef.current = map;
     return map;
   }, [heatmap]);
 
-  const daySummaries = useMemo<PlannerDaySummary[]>(() => {
-    return DAYS.map((day) => {
-      const blocks: PlannerBlockSummary[] = BLOCKS.map((blockStartHour) => {
-        const key = keyFor(day, blockStartHour);
-        const items = slotsMap.get(key) || [];
-        const heatScore = heatMapMap.get(key);
-        return { blockStartHour, items, heatScore };
-      });
-
-      const totalSlots = blocks.reduce((sum, block) => sum + block.items.length, 0);
-      const allSlots = blocks.flatMap((block) => block.items);
-      const bestHeatBlock = blocks.reduce(
-        (acc, block) => {
-          if (typeof block.heatScore === 'number' && block.heatScore > acc.score) {
-            return { score: block.heatScore, blockStartHour: block.blockStartHour };
-          }
-          return acc;
-        },
-        { score: -1, blockStartHour: null as number | null }
-      );
-      const bestViewsSlot = allSlots.reduce(
-        (acc, slot) => {
-          const value = slot.expectedMetrics?.viewsP50 ?? -1;
-          if (value > acc.value) return { value, slot };
-          return acc;
-        },
-        { value: -1, slot: null as PlannerUISlot | null }
-      );
-      return { day, blocks, totalSlots, bestHeatBlock, bestViewsSlot };
-    });
-  }, [slotsMap, heatMapMap]);
-
-  const overview = useMemo(() => {
-    const counts = new Map<number, number>();
-    const themeCounter = new Map<string, number>();
-    let bestViewsSlot: BestViewsOverview | null = null;
-
-    (slots || []).forEach((slot) => {
-      counts.set(slot.dayOfWeek, (counts.get(slot.dayOfWeek) ?? 0) + 1);
-      const themeKey =
-        (slot.themeKeyword && slot.themeKeyword.trim().length > 0
-          ? slot.themeKeyword.trim()
-          : (slot.themes && slot.themes[0]) || ''
-        ) || '';
-      if (themeKey) {
-        const normalized = themeKey.replace(/\s+/g, ' ').trim();
-        if (normalized) {
-          themeCounter.set(normalized, (themeCounter.get(normalized) ?? 0) + 1);
-        }
-      }
-
-      const p50 = slot.expectedMetrics?.viewsP50;
-      if (typeof p50 === 'number' && p50 > 0) {
-        if (!bestViewsSlot || p50 > bestViewsSlot.value) {
-          bestViewsSlot = {
-            dayOfWeek: slot.dayOfWeek,
-            blockStartHour: slot.blockStartHour,
-            value: p50,
-          };
-        }
-      }
-    });
-
-    const countsArray = [1, 2, 3, 4, 5, 6, 7].map((day) => ({
-      day,
-      count: counts.get(day) ?? 0,
-    }));
-
-    let bestBlockEntry: { dayOfWeek: number; blockStartHour: number } | null = null;
-    if (heatmap && heatmap.length > 0) {
-      const bestHeat = heatmap.reduce((top, current) => {
-        if (!top || current.score > top.score) return current;
-        return top;
-      }, heatmap[0]!);
-      bestBlockEntry = { dayOfWeek: bestHeat.dayOfWeek, blockStartHour: bestHeat.blockStartHour };
-    } else if (bestViewsSlot !== null) {
-      const { dayOfWeek, blockStartHour } = bestViewsSlot;
-      bestBlockEntry = {
-        dayOfWeek,
-        blockStartHour,
-      };
-    }
-
-    let topTheme: string | null = null;
-    if (themeCounter.size) {
-      topTheme = Array.from(themeCounter.entries())
-        .sort((a, b) => {
-          if (b[1] === a[1]) return a[0].localeCompare(b[0]);
-          return b[1] - a[1];
-        })[0]?.[0] ?? null;
-    }
-
-    const activeDays = countsArray.reduce((sum, { count }) => (count > 0 ? sum + 1 : sum), 0);
-
-    return {
-      counts: countsArray,
-      total: slots?.length ?? 0,
-      topTheme,
-      bestBlock: bestBlockEntry,
-      activeDays,
-    };
-  }, [slots, heatmap]);
-
-  const relevantDaySummaries = useMemo(
-    () => daySummaries.filter((summary) => summary.totalSlots > 0),
-    [daySummaries]
-  );
-  const defaultCreateTarget = useMemo(() => {
-    const first = relevantDaySummaries[0];
-    if (first) {
-      const blockStart = first.bestHeatBlock.blockStartHour ?? BLOCKS[1] ?? BLOCKS[0];
-      return { day: first.day, blockStartHour: blockStart };
-    }
-    return { day: 1, blockStartHour: BLOCKS[1] ?? BLOCKS[0] };
-  }, [relevantDaySummaries]);
-
   const slotCards = useMemo(() => {
-    if (!sortedSlots.length) return [] as PlannerSlotCard[];
+    if (!sortedSlots.length) {
+      if (slotCardCacheRef.current.size > 0) {
+        slotCardCacheRef.current.clear();
+      }
+      labelsCacheRef.current.clear();
+      slotCardBaseRef.current = new WeakMap();
+      return [] as PlannerSlotCard[];
+    }
 
-    return sortedSlots.map((slot) => {
+    const previousCache = slotCardCacheRef.current;
+    const nextCache = new Map<string, SlotCardCacheEntry>();
+    const baseCache = slotCardBaseRef.current;
+    const labelsCache = labelsCacheRef.current;
+
+    const cards = sortedSlots.map((slot) => {
       const key = keyFor(slot.dayOfWeek, slot.blockStartHour);
       const heatScore = heatMapMap.get(key);
+      const cardId = getSlotCardId(slot);
+
+      const cached = previousCache.get(cardId);
+      if (cached && cached.slotRef === slot && Object.is(cached.heatScore, heatScore)) {
+        nextCache.set(cardId, cached);
+        return cached.card;
+      }
+
+      let baseFields = baseCache.get(slot);
+      if (!baseFields) {
+        const title =
+          slot.title?.trim() || slot.themeKeyword || slot.themes?.[0] || 'Sugestão pronta do Mobi';
+        const formatLabel = formatSlotFormat(slot.format);
+        const expectedMetrics = slot.expectedMetrics ?? {};
+        const viewsP50 = formatViews(expectedMetrics.viewsP50) ?? '—';
+        const proposalLabels = getCachedLabels(labelsCache, slot.categories?.proposal, 'proposal');
+        const contextLabels = getCachedLabels(labelsCache, slot.categories?.context, 'context');
+        const toneLabels = getCachedLabels(
+          labelsCache,
+          slot.categories?.tone ? [slot.categories.tone] : undefined,
+          'tone'
+        );
+        const referenceLabels = getCachedLabels(labelsCache, slot.categories?.reference, 'reference');
+
+        baseFields = {
+          cardId,
+          title,
+          formatLabel,
+          viewsP50,
+          proposalLabel: proposalLabels.length ? proposalLabels.join(', ') : '-',
+          contextLabel: contextLabels.length ? contextLabels.join(', ') : '-',
+          toneLabel: toneLabels[0] ?? '-',
+          referenceLabel: referenceLabels.length ? referenceLabels.join(', ') : '-',
+        };
+
+        baseCache.set(slot, baseFields);
+      }
+
       const statusInfo = getStatusInfo(heatScore, slot);
-      const title =
-        slot.title?.trim() || slot.themeKeyword || slot.themes?.[0] || 'Sugestão pronta do Mobi';
-      const formatLabel = formatSlotFormat(slot.format);
-      const contextLabels = idsToLabels(slot.categories?.context, 'context');
-      const objectiveLabel = contextLabels[0] || slot.themeKeyword || slot.themes?.[1] || 'Contexto livre';
-      const channelLabel = slot.categories?.reference?.[0] || null;
-      const expectedMetrics = slot.expectedMetrics ?? {};
 
-      const viewsP50 = formatViews(expectedMetrics.viewsP50) ?? '—';
-      const viewsP90 = expectedMetrics.viewsP90 ? formatViews(expectedMetrics.viewsP90) : null;
-      const metricRange = viewsP90 ? `${viewsP50}–${viewsP90}` : viewsP50;
-
-      // Extended labels for the new grid
-      const proposalLabel = idsToLabels(slot.categories?.proposal, 'proposal').join(', ') || '-';
-      const contextLabel = idsToLabels(slot.categories?.context, 'context').join(', ') || '-';
-      const toneLabel = idsToLabels(slot.categories?.tone ? [slot.categories.tone] : [], 'tone')[0] || '-';
-      const referenceLabel = idsToLabels(slot.categories?.reference, 'reference').join(', ') || '-';
-
-      return {
-        id: slot.slotId ?? `${slot.dayOfWeek}-${slot.blockStartHour}-${title}`,
+      const card = {
+        id: baseFields.cardId,
         dayTitle: dayFullLabel(slot.dayOfWeek),
         blockLabel: blockLabel(slot.blockStartHour),
-        title,
-        formatLabel,
-        objectiveLabel,
-        channelLabel,
-        viewsP50,
-        viewsP90,
-        metricRange,
+        title: baseFields.title,
+        formatLabel: baseFields.formatLabel,
+        viewsP50: baseFields.viewsP50,
         statusLabel: statusInfo.label,
         statusCategory: statusInfo.category,
         statusClass: statusInfo.metaClass,
         slot,
         // New fields
-        proposalLabel,
-        contextLabel,
-        toneLabel,
-        referenceLabel,
+        proposalLabel: baseFields.proposalLabel,
+        contextLabel: baseFields.contextLabel,
+        toneLabel: baseFields.toneLabel,
+        referenceLabel: baseFields.referenceLabel,
       } as PlannerSlotCard;
+
+      nextCache.set(baseFields.cardId, { slotRef: slot, heatScore, card });
+      return card;
     });
+
+    slotCardCacheRef.current = nextCache;
+    return cards;
   }, [sortedSlots, heatMapMap]);
-
-  const completedSlots = useMemo(() => (slots || []).filter((slot) => slot.status === 'posted').length, [slots]);
-  const remainingSlots = Math.max(0, TARGET_SLOTS_PER_WEEK - (overview.total ?? 0));
-
-  const inspirationSeed = useMemo(() => {
-    if (!slots || !slots.length) return null;
-    const daySlots = slots.filter((slot) => slot.dayOfWeek === selectedDay);
-    const pool = daySlots.length ? daySlots : slots;
-    const withTheme = pool.find(
-      (slot) =>
-        (slot.themeKeyword && slot.themeKeyword.trim()) ||
-        (slot.themes && slot.themes.length > 0)
-    );
-    if (withTheme) return withTheme;
-    const sorted = [...pool].sort(
-      (a, b) => (b.expectedMetrics?.viewsP50 ?? 0) - (a.expectedMetrics?.viewsP50 ?? 0)
-    );
-    return sorted[0] ?? pool[0] ?? null;
-  }, [slots, selectedDay]);
-  const inspirationTheme = useMemo(() => {
-    const rawTheme =
-      (inspirationSeed?.themeKeyword && inspirationSeed.themeKeyword.trim()) ||
-      (inspirationSeed?.themes && inspirationSeed.themes[0]) ||
-      '';
-    if (rawTheme) return rawTheme;
-    return overview.topTheme ?? '';
-  }, [inspirationSeed, overview.topTheme]);
-  const inspirationSummary = useMemo(() => {
-    if (!inspirationSeed) return null;
-    const dayName = dayFullLabel(inspirationSeed.dayOfWeek).replace('-feira', '');
-    const blockRange = blockLabel(inspirationSeed.blockStartHour);
-    const formatLabel = formatSlotFormat(inspirationSeed.format);
-    return `${dayName} • ${blockRange} • ${formatLabel}`;
-  }, [inspirationSeed]);
-  const inspirationContextLabels = useMemo(
-    () => idsToLabels(inspirationSeed?.categories?.context, 'context'),
-    [inspirationSeed?.categories?.context]
-  );
-  const inspirationProposalLabels = useMemo(
-    () => idsToLabels(inspirationSeed?.categories?.proposal, 'proposal'),
-    [inspirationSeed?.categories?.proposal]
-  );
-  const inspirationKey = useMemo(
-    () =>
-      inspirationSeed
-        ? `${inspirationSeed.dayOfWeek}-${inspirationSeed.blockStartHour}-${inspirationTheme}`
-        : null,
-    [inspirationSeed, inspirationTheme]
-  );
-  const shouldLoadInspirations =
-    Boolean(userId) && Boolean(inspirationSeed) && !publicMode && !locked;
-
-  const loadInspirationPosts = useCallback(async () => {
-    if (!inspirationSeed || !userId || publicMode || locked) return;
-    setInspirationLoading(true);
-    setInspirationError(null);
-    try {
-      const res = await fetch('/api/planner/inspirations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          dayOfWeek: inspirationSeed.dayOfWeek,
-          blockStartHour: inspirationSeed.blockStartHour,
-          format: inspirationSeed.format,
-          categories: inspirationSeed.categories || {},
-          limit: 8,
-        }),
-      });
-      if (!res.ok) throw new Error('Falha ao buscar inspirações pessoais');
-      const data = await res.json();
-      const arr = Array.isArray(data?.posts) ? data.posts : [];
-      setInspirationPosts(
-        arr.map((p: any) => ({
-          id: String(p.id),
-          caption: String(p.caption || ''),
-          views: Number(p.views || 0),
-          date: String(p.date || ''),
-          thumbnailUrl: p.thumbnailUrl || null,
-          postLink: p.postLink || null,
-        }))
-      );
-    } catch (err: any) {
-      setInspirationError(err?.message || 'Erro ao carregar conteúdos');
-    } finally {
-      setInspirationLoading(false);
-    }
-  }, [inspirationSeed, locked, publicMode, userId]);
-
-  const loadCommunityPosts = useCallback(async () => {
-    if (!inspirationSeed || !userId || publicMode || locked) return;
-    setCommunityLoading(true);
-    setCommunityError(null);
-    try {
-      const res = await fetch('/api/planner/inspirations/community', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          format: inspirationSeed.format,
-          categories: inspirationSeed.categories || {},
-          script: typeof inspirationSeed.rationale === 'string'
-            ? inspirationSeed.rationale
-            : inspirationSeed.scriptShort || '',
-          themeKeyword: inspirationTheme || undefined,
-          limit: 10,
-        }),
-      });
-      if (!res.ok) throw new Error('Falha ao buscar inspirações da comunidade');
-      const data = await res.json();
-      const arr = Array.isArray(data?.posts) ? data.posts : [];
-      setCommunityPosts(
-        arr.map((p: any) => ({
-          id: String(p.id),
-          caption: String(p.caption || ''),
-          views: Number(p.views || 0),
-          date: String(p.date || ''),
-          coverUrl: p.coverUrl || null,
-          postLink: p.postLink || null,
-          reason: Array.isArray(p.reason) ? p.reason : [],
-        }))
-      );
-    } catch (err: any) {
-      setCommunityError(err?.message || 'Erro ao carregar comunidade');
-    } finally {
-      setCommunityLoading(false);
-    }
-  }, [inspirationSeed, inspirationTheme, locked, publicMode, userId]);
-
-  useEffect(() => {
-    if (!shouldLoadInspirations) {
-      setInspirationPosts([]);
-      setCommunityPosts([]);
-      setInspirationError(null);
-      setCommunityError(null);
-      setInspirationLoading(false);
-      setCommunityLoading(false);
-      return;
-    }
-    void loadInspirationPosts();
-    void loadCommunityPosts();
-  }, [shouldLoadInspirations, inspirationKey, loadInspirationPosts, loadCommunityPosts]);
-
-  useEffect(() => {
-    if (!inspirationSeed || inspirationLoading || communityLoading) return;
-
-    const firstSelf = inspirationPosts[0];
-    const firstCommunity = communityPosts[0];
-
-    prefillInspirationCache(inspirationSeed, {
-      self: firstSelf ? {
-        id: firstSelf.id,
-        caption: firstSelf.caption,
-        views: firstSelf.views,
-        thumbnailUrl: firstSelf.thumbnailUrl,
-        postLink: firstSelf.postLink
-      } : null,
-      community: firstCommunity ? {
-        id: firstCommunity.id,
-        caption: firstCommunity.caption,
-        views: firstCommunity.views,
-        coverUrl: firstCommunity.coverUrl,
-        postLink: firstCommunity.postLink
-      } : null
-    });
-  }, [inspirationSeed, inspirationPosts, communityPosts, inspirationLoading, communityLoading]);
-
-  const showLoadingBanner = loading;
+  const hasSlotCards = slotCards.length > 0;
 
   if (!publicMode && locked && !isBillingLoading) {
     return (
@@ -593,7 +442,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         </p>
         <button
           type="button"
-          onClick={onRequestSubscribe}
+          onClick={handleRequestSubscribe}
           className="mt-4 inline-flex items-center justify-center rounded-lg bg-[#6E1F93] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5a1877]"
         >
           Conferir planos
@@ -618,25 +467,28 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         </div>
       </div>
 
-      {showLoadingBanner && <PlannerLoadingBanner />}
+      {loading && !hasSlotCards && <PlannerLoadingBanner />}
 
-      {loading && <PlannerLoadingSkeleton />}
+      {loading && !hasSlotCards && <PlannerLoadingSkeleton />}
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      {slotCards.length ? (
+      {hasSlotCards ? (
         <PlannerSlotCardGrid
           cards={slotCards}
           canEdit={canEdit}
-          onOpenSlot={onOpenSlot}
-          onRequestSubscribe={onRequestSubscribe}
+          onOpenSlot={handleOpenSlot}
+          onRequestSubscribe={canRequestSubscribe ? handleRequestSubscribe : undefined}
           userId={userId}
           publicMode={publicMode}
           locked={locked}
-          onDeleteSlot={onDeleteSlot}
+          onDeleteSlot={canDeleteSlot ? handleDeleteSlot : undefined}
         />
-      ) : (
-        <PlannerEmptyState onRequestSubscribe={onRequestSubscribe} loading={loading} />
-      )}
+      ) : !loading ? (
+        <PlannerEmptyState
+          onRequestSubscribe={canRequestSubscribe ? handleRequestSubscribe : undefined}
+          loading={loading}
+        />
+      ) : null}
 
       {!publicMode && !canEdit && (
         <div className="mt-4 flex items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800">
@@ -648,7 +500,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
           </div>
           <button
             type="button"
-            onClick={onRequestSubscribe}
+            onClick={handleRequestSubscribe}
             className="ml-3 rounded-md bg-pink-600 px-4 py-2 text-sm text-white transition hover:bg-pink-700"
           >
             Assinar
@@ -667,200 +519,13 @@ const STATUS_EMOJI: Record<StatusCategory, string> = {
   planned: '⏳',
 };
 
-const PlannerInspirationsPanel = ({
-  inspirationSummary,
-  inspirationTheme,
-  contextLabels,
-  proposalLabels,
-  inspirationPosts,
-  communityPosts,
-  inspirationLoading,
-  communityLoading,
-  inspirationError,
-  communityError,
-  onRefreshInspiration,
-  onRefreshCommunity,
-}: {
-  inspirationSummary: string | null;
-  inspirationTheme: string;
-  contextLabels: string[];
-  proposalLabels: string[];
-  inspirationPosts: InspirationPost[];
-  communityPosts: CommunityInspirationPost[];
-  inspirationLoading: boolean;
-  communityLoading: boolean;
-  inspirationError: string | null;
-  communityError: string | null;
-  onRefreshInspiration: () => void;
-  onRefreshCommunity: () => void;
-}) => {
-  const helperPieces = [
-    inspirationTheme ? `Tema: ${inspirationTheme}` : null,
-    contextLabels.length ? `Contexto: ${contextLabels.slice(0, 2).join(' • ')}` : null,
-    proposalLabels.length ? `Objetivo: ${proposalLabels.slice(0, 2).join(' • ')}` : null,
-  ].filter((piece): piece is string => Boolean(piece));
-
-  return (
-    <div className="space-y-3 border-t border-slate-200 pt-4">
-      <div className="space-y-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-500">
-          Inspirações alinhadas a estas pautas
-        </p>
-        {inspirationSummary && (
-          <p className="text-sm font-semibold text-slate-900">{inspirationSummary}</p>
-        )}
-        {helperPieces.length > 0 && (
-          <p className="text-[13px] text-slate-600">
-            {helperPieces.join(' · ')}
-          </p>
-        )}
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        <CompactInspirationList
-          title="Do seu histórico"
-          subtitle="Recortes seus com mesmo tema/horário"
-          posts={inspirationPosts}
-          loading={inspirationLoading}
-          error={inspirationError}
-          onRefresh={onRefreshInspiration}
-          kind="self"
-        />
-        <CompactInspirationList
-          title="Da comunidade"
-          subtitle="Posts externos que combinam com a pauta"
-          posts={communityPosts}
-          loading={communityLoading}
-          error={communityError}
-          onRefresh={onRefreshCommunity}
-          kind="community"
-        />
-      </div>
-    </div>
-  );
-};
-
-const CompactInspirationList = ({
-  title,
-  subtitle,
-  posts,
-  loading,
-  error,
-  onRefresh,
-  kind,
-}: {
-  title: string;
-  subtitle: string;
-  posts: InspirationPost[] | CommunityInspirationPost[];
-  loading: boolean;
-  error: string | null;
-  onRefresh: () => void;
-  kind: 'self' | 'community';
-}) => (
-  <div className="space-y-2 rounded-2xl border border-slate-100 bg-white px-3 py-3 shadow-sm">
-    <div className="flex items-center justify-between gap-2">
-      <div className="space-y-0.5">
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="text-[11px] text-slate-500">{subtitle}</p>
-      </div>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRefresh();
-        }}
-        disabled={loading}
-        className="text-[11px] font-semibold text-slate-600 underline underline-offset-2 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? 'Atualizando…' : 'Recarregar'}
-      </button>
-    </div>
-    {error && <p className="text-xs text-red-600">{error}</p>}
-    {loading && !posts.length && (
-      <div className="space-y-2">
-        {[1, 2, 3].map((idx) => (
-          <div
-            key={`insp-skel-${idx}-${kind}`}
-            className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-2.5 animate-pulse"
-          >
-            <div className="h-12 w-12 rounded-lg bg-slate-200" />
-            <div className="flex-1 space-y-2">
-              <div className="h-3 w-3/4 rounded bg-slate-200" />
-              <div className="h-3 w-1/2 rounded bg-slate-200" />
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
-    {!loading && !posts.length && !error && (
-      <p className="text-xs text-slate-500">
-        Nenhum conteúdo encontrado para este conjunto de pautas.
-      </p>
-    )}
-    {posts.length > 0 && (
-      <div className="space-y-2">
-        {posts.slice(0, 4).map((p) => {
-          const views = formatCompactNumber((p as any).views) || (p as any).views?.toLocaleString?.('pt-BR');
-          const dateLabel = (p as any).date ? new Date((p as any).date).toLocaleDateString('pt-BR') : '';
-          const cover = 'thumbnailUrl' in p ? p.thumbnailUrl : (p as any).coverUrl;
-          const reasons = 'reason' in p ? (p as any).reason : [];
-          return (
-            <a
-              key={`list-${kind}-${p.id}`}
-              href={(p as any).postLink || undefined}
-              target={(p as any).postLink ? '_blank' : undefined}
-              rel={(p as any).postLink ? 'noreferrer' : undefined}
-              className="flex items-center gap-3 rounded-xl border border-slate-100 px-2.5 py-2 transition hover:-translate-y-[1px] hover:shadow-sm"
-            >
-              <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                {cover ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={toProxyUrl(cover)} alt="Inspiração" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">Sem imagem</div>
-                )}
-              </div>
-              <div className="flex-1 space-y-1">
-                <p className="line-clamp-2 text-xs font-semibold text-slate-900">{p.caption || 'Sem legenda'}</p>
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                  {views && <span>{views} views</span>}
-                  {dateLabel && <span>{dateLabel}</span>}
-                </div>
-                {reasons && Array.isArray(reasons) && reasons.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {reasons.slice(0, 2).map((tag, idx) => (
-                      <span
-                        key={`reason-${p.id}-${idx}`}
-                        className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <span className="text-[11px] font-semibold text-slate-400">
-                {kind === 'self' ? 'Você' : 'Comunidade'}
-              </span>
-            </a>
-          );
-        })}
-      </div>
-    )}
-  </div>
-);
-
 export interface PlannerSlotCard {
   id: string;
   dayTitle: string;
   blockLabel: string;
   title: string;
   formatLabel: string;
-  objectiveLabel: string;
-  channelLabel: string | null;
   viewsP50: string;
-  viewsP90: string | null;
-  metricRange: string;
   statusLabel: string;
   statusCategory: StatusCategory;
   statusClass: string;
@@ -872,16 +537,23 @@ export interface PlannerSlotCard {
   referenceLabel: string;
 }
 
-const ListModeSlotCard = ({
-  card,
-  canEdit,
-  onOpenSlot,
-  onRequestSubscribe,
-  userId,
-  publicMode,
-  locked,
-  onDeleteSlot,
-}: {
+type SelfInspirationCard = {
+  id: string;
+  caption: string;
+  views?: number;
+  thumbnailUrl?: string | null;
+  postLink?: string | null;
+};
+
+type CommunityInspirationCard = {
+  id: string;
+  caption: string;
+  views?: number;
+  coverUrl?: string | null;
+  postLink?: string | null;
+};
+
+type ListModeSlotCardProps = {
   card: PlannerSlotCard;
   canEdit: boolean;
   onOpenSlot: (slot: PlannerUISlot) => void;
@@ -890,44 +562,62 @@ const ListModeSlotCard = ({
   publicMode?: boolean;
   locked?: boolean;
   onDeleteSlot?: (slot: PlannerUISlot) => void;
-}) => {
-  const [showInspirations, setShowInspirations] = useState(() => !publicMode && !locked);
-  const [selfInspiration, setSelfInspiration] = useState<{ id: string; caption: string; views?: number; thumbnailUrl?: string | null; postLink?: string | null } | null>(null);
-  const [communityInspiration, setCommunityInspiration] = useState<{ id: string; caption: string; views?: number; coverUrl?: string | null; postLink?: string | null } | null>(null);
+  priorityRender?: boolean;
+};
+
+function formatInspirationCaption(caption?: string): string {
+  if (!caption) return '';
+  return caption.length > 70 ? `${caption.slice(0, 67)}…` : caption;
+}
+
+function openExternalLink(event: React.MouseEvent, link?: string | null): void {
+  event.stopPropagation();
+  if (!link) return;
+  try {
+    window.open(link, '_blank', 'noopener,noreferrer');
+  } catch {
+    // silent fail
+  }
+}
+
+type SlotInspirationsContentProps = {
+  slot: PlannerUISlot;
+  userId?: string;
+};
+
+const SlotInspirationsContentBase = ({ slot, userId }: SlotInspirationsContentProps) => {
+  const [selfInspiration, setSelfInspiration] = useState<SelfInspirationCard | null>(null);
+  const [communityInspiration, setCommunityInspiration] = useState<CommunityInspirationCard | null>(null);
   const [inspLoading, setInspLoading] = useState(false);
   const [inspError, setInspError] = useState<string | null>(null);
 
   useEffect(() => {
-    const canShowInspirations = !publicMode && !locked;
-    setShowInspirations(canShowInspirations);
-
-    const cached = canShowInspirations ? getCachedInspirations(card.slot) : null;
-    setSelfInspiration(cached?.self ?? null);
-    setCommunityInspiration(cached?.community ?? null);
-    setInspLoading(false);
-    setInspError(null);
-  }, [card.slot, publicMode, locked]);
-
-  useEffect(() => {
-    if (!showInspirations || !userId || publicMode || locked) {
+    if (!userId) {
+      setSelfInspiration(null);
+      setCommunityInspiration(null);
+      setInspLoading(false);
+      setInspError(null);
       return;
     }
 
     let cancelled = false;
     const load = async () => {
-      const cached = getCachedInspirations(card.slot);
-      const hasCached = Boolean(cached?.self || cached?.community);
+      const cached = getCachedInspirations(slot);
 
       if (cached) {
         setSelfInspiration(cached.self);
         setCommunityInspiration(cached.community);
         setInspLoading(false);
-      } else {
-        setInspLoading(true);
+        setInspError(null);
+        return;
       }
+
+      setSelfInspiration(null);
+      setCommunityInspiration(null);
+      setInspLoading(true);
       setInspError(null);
       try {
-        const result = await fetchSlotInspirations(userId, card.slot);
+        const result = await fetchSlotInspirations(userId, slot);
         if (!cancelled) {
           setSelfInspiration(result.self);
           setCommunityInspiration(result.community);
@@ -937,51 +627,385 @@ const ListModeSlotCard = ({
           setInspError(err?.message || 'Erro ao carregar inspirações');
         }
       } finally {
-        if (!cancelled && !hasCached) setInspLoading(false);
+        if (!cancelled) setInspLoading(false);
       }
     };
 
     void load();
-    return () => { cancelled = true; };
-  }, [card.slot, userId, publicMode, locked, showInspirations]);
+    return () => {
+      cancelled = true;
+    };
+  }, [slot, userId]);
 
-  const formatCaption = (caption?: string) => {
-    if (!caption) return '';
-    return caption.length > 70 ? `${caption.slice(0, 67)}…` : caption;
-  };
+  const handleSelfInspirationClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => openExternalLink(event, selfInspiration?.postLink),
+    [selfInspiration?.postLink]
+  );
 
-  const handleOpenLink = (event: React.MouseEvent, link?: string | null) => {
-    event.stopPropagation();
-    if (!link) return;
-    try {
-      window.open(link, '_blank', 'noopener,noreferrer');
-    } catch {
-      // silent fail
+  const handleCommunityInspirationClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => openExternalLink(event, communityInspiration?.postLink),
+    [communityInspiration?.postLink]
+  );
+
+  return (
+    <div className="mt-2 space-y-3 border-t border-slate-100 pt-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          Inspirações
+        </p>
+      </div>
+
+      {inspError && <p className="text-[11px] text-red-600">{inspError}</p>}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {inspLoading && !selfInspiration && !communityInspiration && (
+          <div className="col-span-2 grid gap-3 sm:grid-cols-2">
+            {[0, 1].map((idx) => (
+              <div
+                key={`insp-skeleton-${idx}`}
+                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5"
+              >
+                <div className="h-14 w-14 shrink-0 animate-pulse rounded-lg bg-gradient-to-br from-slate-200 to-slate-100" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-24 animate-pulse rounded-full bg-slate-200" />
+                  <div className="h-3 w-full animate-pulse rounded-full bg-slate-200" />
+                  <div className="h-3 w-1/2 animate-pulse rounded-full bg-slate-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!inspLoading && !selfInspiration && !communityInspiration && (
+          <div className="col-span-2 py-2 text-center text-[11px] text-slate-400 italic">
+            Nenhuma inspiração encontrada para este contexto.
+          </div>
+        )}
+
+        {selfInspiration && (
+          <button
+            type="button"
+            onClick={handleSelfInspirationClick}
+            className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left text-[11px] text-slate-600 transition hover:-translate-y-[1px] hover:shadow-md hover:border-brand-primary/20"
+          >
+            <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
+              {selfInspiration.thumbnailUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={toProxyUrl(selfInspiration.thumbnailUrl)}
+                  alt="Inspiracao"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
+              )}
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-brand-primary">Seu Acervo</span>
+              </div>
+              <p className="line-clamp-2 text-[11px] font-medium text-slate-700 leading-snug">
+                {formatInspirationCaption(selfInspiration.caption)}
+              </p>
+              {selfInspiration.views ? (
+                <span className="text-[10px] text-slate-500">{selfInspiration.views.toLocaleString('pt-BR')} views</span>
+              ) : null}
+            </div>
+          </button>
+        )}
+
+        {communityInspiration && (
+          <button
+            type="button"
+            onClick={handleCommunityInspirationClick}
+            className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left text-[11px] text-slate-600 transition hover:-translate-y-[1px] hover:shadow-md hover:border-brand-primary/20"
+          >
+            <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
+              {communityInspiration.coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={toProxyUrl(communityInspiration.coverUrl)}
+                  alt="Inspiracao comunidade"
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
+              )}
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600">Comunidade</span>
+              </div>
+              <p className="line-clamp-2 text-[11px] font-medium text-slate-700 leading-snug">
+                {formatInspirationCaption(communityInspiration.caption)}
+              </p>
+              {communityInspiration.views ? (
+                <span className="text-[10px] text-slate-500">{communityInspiration.views.toLocaleString('pt-BR')} views</span>
+              ) : null}
+            </div>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SlotInspirationsContent = React.memo(
+  SlotInspirationsContentBase,
+  (prev, next) => prev.slot === next.slot && prev.userId === next.userId
+);
+
+type SlotInspirationsPanelProps = {
+  canShowInspirations: boolean;
+  showInspirations: boolean;
+  slot: PlannerUISlot;
+  userId?: string;
+  onToggleInspirations: (event: React.MouseEvent<HTMLButtonElement>) => void;
+};
+
+const SlotInspirationsPanelBase = ({
+  canShowInspirations,
+  showInspirations,
+  slot,
+  userId,
+  onToggleInspirations,
+}: SlotInspirationsPanelProps) => {
+  if (!canShowInspirations) return null;
+
+  return (
+    <>
+      <div className="mt-2 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={onToggleInspirations}
+          className="text-[11px] font-semibold text-slate-600 underline underline-offset-2 hover:text-slate-900"
+        >
+          {showInspirations ? 'Ocultar inspirações' : 'Ver inspirações'}
+        </button>
+      </div>
+
+      {showInspirations ? <SlotInspirationsContent slot={slot} userId={userId} /> : null}
+    </>
+  );
+};
+
+const SlotInspirationsPanel = React.memo(
+  SlotInspirationsPanelBase,
+  (prev, next) =>
+    prev.canShowInspirations === next.canShowInspirations &&
+    prev.showInspirations === next.showInspirations &&
+    prev.slot === next.slot &&
+    prev.userId === next.userId &&
+    prev.onToggleInspirations === next.onToggleInspirations
+);
+
+type SlotCardDetailsPanelProps = {
+  card: PlannerSlotCard;
+  userId?: string;
+  canShowInspirations: boolean;
+  showInspirations: boolean;
+  onToggleInspirations: (event: React.MouseEvent<HTMLButtonElement>) => void;
+};
+
+const SlotCardDetailsPanelBase = ({
+  card,
+  userId,
+  canShowInspirations,
+  showInspirations,
+  onToggleInspirations,
+}: SlotCardDetailsPanelProps) => (
+  <>
+    {/* Mobile-Optimized Layout (Big Numbers) */}
+    <div className="flex flex-col gap-4 sm:hidden">
+      <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Projeção</span>
+          <span className="text-2xl font-bold text-emerald-700">{card.viewsP50}</span>
+        </div>
+        <div className="h-8 w-px bg-slate-200" />
+        <div className="flex flex-col gap-1 text-right">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formato</span>
+          <div className="flex items-center justify-end gap-1.5 text-slate-700">
+            <LayoutTemplate className="h-4 w-4" />
+            <span className="text-sm font-semibold">{card.formatLabel}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {card.contextLabel && card.contextLabel !== '-' && (
+          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+            {card.contextLabel}
+          </span>
+        )}
+        {card.toneLabel && card.toneLabel !== '-' && (
+          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+            {card.toneLabel}
+          </span>
+        )}
+      </div>
+    </div>
+
+    {/* Desktop Grid Layout */}
+    <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-y-4 gap-x-3 lg:gap-x-4 lg:divide-x lg:divide-slate-100">
+      <div className="flex flex-col gap-1.5 px-1 lg:px-3 lg:first:pl-0">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <LayoutTemplate className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Formato</span>
+        </div>
+        <span className="truncate text-xs font-semibold text-slate-800" title={card.formatLabel}>{card.formatLabel}</span>
+      </div>
+      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <Target className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Proposta</span>
+        </div>
+        <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.proposalLabel}>{card.proposalLabel}</span>
+      </div>
+      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <Compass className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Contexto</span>
+        </div>
+        <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.contextLabel}>{card.contextLabel}</span>
+      </div>
+      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <MessageCircle className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Tom</span>
+        </div>
+        <span className="truncate text-xs font-semibold text-slate-800" title={card.toneLabel}>{card.toneLabel}</span>
+      </div>
+      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <LinkIcon className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Referência</span>
+        </div>
+        <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.referenceLabel}>{card.referenceLabel}</span>
+      </div>
+      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <TrendingUp className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Projeção</span>
+        </div>
+        <span className="text-xs font-bold text-emerald-700">{card.viewsP50}</span>
+      </div>
+    </div>
+
+    <SlotInspirationsPanel
+      canShowInspirations={canShowInspirations}
+      showInspirations={showInspirations}
+      slot={card.slot}
+      userId={userId}
+      onToggleInspirations={onToggleInspirations}
+    />
+  </>
+);
+
+const SlotCardDetailsPanel = React.memo(
+  SlotCardDetailsPanelBase,
+  (prev, next) =>
+    prev.card === next.card &&
+    prev.userId === next.userId &&
+    prev.canShowInspirations === next.canShowInspirations &&
+    prev.showInspirations === next.showInspirations &&
+    prev.onToggleInspirations === next.onToggleInspirations
+);
+
+const ListModeSlotCardBase = ({
+  card,
+  canEdit,
+  onOpenSlot,
+  onRequestSubscribe,
+  userId,
+  publicMode,
+  locked,
+  onDeleteSlot,
+  priorityRender = false,
+}: ListModeSlotCardProps) => {
+  const cardRef = useRef<HTMLElement | null>(null);
+  const [isNearViewport, setIsNearViewport] = useState(priorityRender);
+  const canShowInspirations = !publicMode && !locked;
+  const [showInspirations, setShowInspirations] = useState(false);
+  const shouldRenderRichDetails = isNearViewport || showInspirations;
+
+  const handleCardActivate = React.useCallback(() => {
+    if (canEdit) {
+      onOpenSlot(card.slot);
+      return;
     }
-  };
+    onRequestSubscribe?.();
+  }, [canEdit, onOpenSlot, onRequestSubscribe, card.slot]);
+
+  const handleCardKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLElement>) => {
+      if (!canEdit) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onOpenSlot(card.slot);
+      }
+    },
+    [canEdit, onOpenSlot, card.slot]
+  );
+
+  const handleToggleInspirations = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setShowInspirations((prev) => !prev);
+  }, []);
+
+  const handleDeleteSaved = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (!onDeleteSlot) return;
+      onDeleteSlot(card.slot);
+    },
+    [onDeleteSlot, card.slot]
+  );
+
+  const handleRequestSubscribeClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      onRequestSubscribe?.();
+    },
+    [onRequestSubscribe]
+  );
+
+  useEffect(() => {
+    if (priorityRender && !isNearViewport) {
+      setIsNearViewport(true);
+    }
+  }, [priorityRender, isNearViewport]);
+
+  useEffect(() => {
+    if (priorityRender || isNearViewport) return;
+    const node = cardRef.current;
+    if (!node) return;
+
+    return observeCardDetails(node, () => setIsNearViewport(true));
+  }, [priorityRender, isNearViewport]);
+
+  useEffect(() => {
+    if (!canShowInspirations) {
+      setShowInspirations(false);
+    }
+  }, [canShowInspirations]);
 
   return (
     <article
+      ref={cardRef}
       role={canEdit ? 'button' : undefined}
       tabIndex={canEdit ? 0 : -1}
-      onClick={() => {
-        if (canEdit) {
-          onOpenSlot(card.slot);
-        } else if (onRequestSubscribe) {
-          onRequestSubscribe();
-        }
-      }}
-      onKeyDown={(event) => {
-        if (!canEdit) return;
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onOpenSlot(card.slot);
-        }
-      }}
+      onClick={handleCardActivate}
+      onKeyDown={handleCardKeyDown}
       className={[
         'group relative flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
         canEdit ? 'cursor-pointer' : 'cursor-default',
       ].join(' ')}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '380px' }}
     >
       {/* Header with Day/Time and Status */}
       <div className="flex items-center justify-between pb-3">
@@ -998,10 +1022,7 @@ const ListModeSlotCard = ({
               {onDeleteSlot && (
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteSlot(card.slot);
-                  }}
+                  onClick={handleDeleteSaved}
                   className="ml-1 rounded-full p-0.5 hover:bg-brand-primary/20 text-brand-primary"
                   title="Remover salvo"
                 >
@@ -1027,182 +1048,25 @@ const ListModeSlotCard = ({
         </div>
       </div>
 
-      {/* Mobile-Optimized Layout (Big Numbers) */}
-      <div className="flex flex-col gap-4 sm:hidden">
-        <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Projeção</span>
-            <span className="text-2xl font-bold text-emerald-700">{card.viewsP50}</span>
-          </div>
-          <div className="h-8 w-px bg-slate-200" />
-          <div className="flex flex-col gap-1 text-right">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formato</span>
-            <div className="flex items-center justify-end gap-1.5 text-slate-700">
-              <LayoutTemplate className="h-4 w-4" />
-              <span className="text-sm font-semibold">{card.formatLabel}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {card.contextLabel && card.contextLabel !== '-' && (
-            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-              {card.contextLabel}
-            </span>
-          )}
-          {card.toneLabel && card.toneLabel !== '-' && (
-            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-              {card.toneLabel}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Desktop Grid Layout */}
-      <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-y-4 gap-x-3 lg:gap-x-4 lg:divide-x lg:divide-slate-100">
-        <div className="flex flex-col gap-1.5 px-1 lg:px-3 lg:first:pl-0">
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <LayoutTemplate className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Formato</span>
-          </div>
-          <span className="truncate text-xs font-semibold text-slate-800" title={card.formatLabel}>{card.formatLabel}</span>
-        </div>
-        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <Target className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Proposta</span>
-          </div>
-          <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.proposalLabel}>{card.proposalLabel}</span>
-        </div>
-        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <Compass className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Contexto</span>
-          </div>
-          <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.contextLabel}>{card.contextLabel}</span>
-        </div>
-        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <MessageCircle className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Tom</span>
-          </div>
-          <span className="truncate text-xs font-semibold text-slate-800" title={card.toneLabel}>{card.toneLabel}</span>
-        </div>
-        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <LinkIcon className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Referência</span>
-          </div>
-          <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.referenceLabel}>{card.referenceLabel}</span>
-        </div>
-        <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <TrendingUp className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Projeção</span>
-          </div>
-          <span className="text-xs font-bold text-emerald-700">{card.viewsP50}</span>
-        </div>
-      </div>
-
-      {/* Inspirations inline */}
-      {!publicMode && !locked && showInspirations && (
-        <div className="mt-2 space-y-3 border-t border-slate-100 pt-4">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Inspirações
-            </p>
-          </div>
-
-          {inspError && <p className="text-[11px] text-red-600">{inspError}</p>}
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {/* Loading Skeletons */}
-            {inspLoading && !selfInspiration && !communityInspiration && (
-              <div className="col-span-2 grid gap-3 sm:grid-cols-2">
-                {[0, 1].map((idx) => (
-                  <div
-                    key={`insp-skeleton-${idx}`}
-                    className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5"
-                  >
-                    <div className="h-14 w-14 shrink-0 animate-pulse rounded-lg bg-gradient-to-br from-slate-200 to-slate-100" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="h-3 w-24 animate-pulse rounded-full bg-slate-200" />
-                      <div className="h-3 w-full animate-pulse rounded-full bg-slate-200" />
-                      <div className="h-3 w-1/2 animate-pulse rounded-full bg-slate-200" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!inspLoading && !selfInspiration && !communityInspiration && (
-              <div className="col-span-2 py-2 text-center text-[11px] text-slate-400 italic">
-                Nenhuma inspiração encontrada para este contexto.
-              </div>
-            )}
-
-            {selfInspiration && (
-              <button
-                type="button"
-                onClick={(e) => handleOpenLink(e, selfInspiration.postLink)}
-                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left text-[11px] text-slate-600 transition hover:-translate-y-[1px] hover:shadow-md hover:border-brand-primary/20"
-              >
-                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
-                  {selfInspiration.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={toProxyUrl(selfInspiration.thumbnailUrl)} alt="Inspiracao" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
-                  )}
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-brand-primary">Seu Acervo</span>
-                  </div>
-                  <p className="line-clamp-2 text-[11px] font-medium text-slate-700 leading-snug">{formatCaption(selfInspiration.caption)}</p>
-                  {selfInspiration.views ? (
-                    <span className="text-[10px] text-slate-500">{selfInspiration.views.toLocaleString('pt-BR')} views</span>
-                  ) : null}
-                </div>
-              </button>
-            )}
-
-            {communityInspiration && (
-              <button
-                type="button"
-                onClick={(e) => handleOpenLink(e, communityInspiration.postLink)}
-                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left text-[11px] text-slate-600 transition hover:-translate-y-[1px] hover:shadow-md hover:border-brand-primary/20"
-              >
-                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200">
-                  {communityInspiration.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={toProxyUrl(communityInspiration.coverUrl)} alt="Inspiracao comunidade" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
-                  )}
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-600">Comunidade</span>
-                  </div>
-                  <p className="line-clamp-2 text-[11px] font-medium text-slate-700 leading-snug">{formatCaption(communityInspiration.caption)}</p>
-                  {communityInspiration.views ? (
-                    <span className="text-[10px] text-slate-500">{communityInspiration.views.toLocaleString('pt-BR')} views</span>
-                  ) : null}
-                </div>
-              </button>
-            )}
-          </div>
+      {shouldRenderRichDetails ? (
+        <SlotCardDetailsPanel
+          card={card}
+          userId={userId}
+          canShowInspirations={canShowInspirations}
+          showInspirations={showInspirations}
+          onToggleInspirations={handleToggleInspirations}
+        />
+      ) : (
+        <div className="space-y-3">
+          <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
+          <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
         </div>
       )}
 
       {!canEdit && onRequestSubscribe && (
         <button
           type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRequestSubscribe();
-          }}
+          onClick={handleRequestSubscribeClick}
           className="mt-2 text-xs font-semibold text-[#D62E5E] underline underline-offset-2"
         >
           Assine para editar esta pauta
@@ -1212,16 +1076,21 @@ const ListModeSlotCard = ({
   );
 };
 
-const PlannerSlotCardGrid = ({
-  cards,
-  canEdit,
-  onOpenSlot,
-  onRequestSubscribe,
-  userId,
-  publicMode,
-  locked,
-  onDeleteSlot,
-}: {
+const ListModeSlotCard = React.memo(
+  ListModeSlotCardBase,
+  (prev, next) =>
+    prev.card === next.card &&
+    prev.canEdit === next.canEdit &&
+    prev.onOpenSlot === next.onOpenSlot &&
+    prev.onRequestSubscribe === next.onRequestSubscribe &&
+    prev.userId === next.userId &&
+    prev.publicMode === next.publicMode &&
+    prev.locked === next.locked &&
+    prev.onDeleteSlot === next.onDeleteSlot &&
+    prev.priorityRender === next.priorityRender
+);
+
+type PlannerSlotCardGridProps = {
   cards: PlannerSlotCard[];
   canEdit: boolean;
   onOpenSlot: (slot: PlannerUISlot) => void;
@@ -1230,11 +1099,64 @@ const PlannerSlotCardGrid = ({
   publicMode?: boolean;
   locked?: boolean;
   onDeleteSlot?: (slot: PlannerUISlot) => void;
-}) => {
-  if (!cards.length) return null;
+};
+
+const PlannerSlotCardGridBase = ({
+  cards,
+  canEdit,
+  onOpenSlot,
+  onRequestSubscribe,
+  userId,
+  publicMode,
+  locked,
+  onDeleteSlot,
+}: PlannerSlotCardGridProps) => {
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(cards.length, CARD_BATCH_SIZE));
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setVisibleCount((previousVisible) => {
+      if (!cards.length) return 0;
+      const minimumVisible = Math.min(cards.length, CARD_BATCH_SIZE);
+      const clampedVisible = Math.min(previousVisible, cards.length);
+      return Math.max(clampedVisible, minimumVisible);
+    });
+  }, [cards.length]);
+
+  const hasMoreCards = visibleCount < cards.length;
+
+  useEffect(() => {
+    if (!hasMoreCards) return;
+    const node = loadMoreRef.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisibleCount((previousVisible) => Math.min(cards.length, previousVisible + CARD_BATCH_SIZE));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const reachedViewport = entries.some((entry) => entry.isIntersecting);
+        if (!reachedViewport) return;
+        observer.disconnect();
+        setVisibleCount((previousVisible) => Math.min(cards.length, previousVisible + CARD_BATCH_SIZE));
+      },
+      { rootMargin: '800px 0px', threshold: 0 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMoreCards, visibleCount, cards.length]);
+
+  const visibleCards = useMemo(
+    () => cards.slice(0, visibleCount),
+    [cards, visibleCount]
+  );
+
+  if (!visibleCards.length) return null;
   return (
     <div className="grid grid-cols-1 gap-4">
-      {cards.map((card) => (
+      {visibleCards.map((card, index) => (
         <ListModeSlotCard
           key={card.id}
           card={card}
@@ -1245,11 +1167,30 @@ const PlannerSlotCardGrid = ({
           publicMode={publicMode}
           locked={locked}
           onDeleteSlot={onDeleteSlot}
+          priorityRender={index < 4}
         />
       ))}
+      {hasMoreCards ? (
+        <div ref={loadMoreRef} className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs text-slate-500">
+          Carregando mais pautas…
+        </div>
+      ) : null}
     </div>
   );
 };
+
+const PlannerSlotCardGrid = React.memo(
+  PlannerSlotCardGridBase,
+  (prev, next) =>
+    prev.cards === next.cards &&
+    prev.canEdit === next.canEdit &&
+    prev.onOpenSlot === next.onOpenSlot &&
+    prev.onRequestSubscribe === next.onRequestSubscribe &&
+    prev.userId === next.userId &&
+    prev.publicMode === next.publicMode &&
+    prev.locked === next.locked &&
+    prev.onDeleteSlot === next.onDeleteSlot
+);
 
 const PlannerLoadingSkeleton = () => (
   <div className="space-y-3 rounded-2xl border border-dashed border-[#E4E4EA] bg-white p-5">
@@ -1280,12 +1221,6 @@ const PlannerLoadingBanner = () => (
       </div>
     </div>
   </div>
-);
-
-const InfoChip = ({ value }: { value: string }) => (
-  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-    {value}
-  </span>
 );
 
 const PlannerEmptyState = ({

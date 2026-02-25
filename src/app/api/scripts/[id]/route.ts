@@ -27,7 +27,8 @@ function normalizeBody(body: any) {
     typeof body?.adminAnnotation === "string" || body?.adminAnnotation === null
       ? body.adminAnnotation
       : undefined;
-  return { title, content, targetUserId, adminAnnotation };
+  const inlineAnnotations = Array.isArray(body?.inlineAnnotations) ? body.inlineAnnotations : undefined;
+  return { title, content, targetUserId, adminAnnotation, inlineAnnotations };
 }
 
 function normalizeAdminAnnotation(value: unknown): string | null | undefined {
@@ -52,18 +53,31 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
     aiVersionId: item.aiVersionId ?? null,
     recommendation: hasRecommendation
       ? {
-          isRecommended: true,
-          recommendedByAdminName: item.recommendedByAdminName || null,
-          recommendedAt: item.recommendedAt || null,
-        }
+        isRecommended: true,
+        recommendedByAdminName: item.recommendedByAdminName || null,
+        recommendedAt: item.recommendedAt || null,
+      }
       : null,
     adminAnnotation: includeAdminAnnotation
       ? {
-          notes: item.adminAnnotation || null,
-          updatedByName: item.adminAnnotationUpdatedByName || null,
-          updatedAt: item.adminAnnotationUpdatedAt || null,
-        }
+        notes: item.adminAnnotation || null,
+        updatedByName: item.adminAnnotationUpdatedByName || null,
+        updatedAt: item.adminAnnotationUpdatedAt || null,
+      }
       : null,
+    inlineAnnotations: Array.isArray(item.inlineAnnotations)
+      ? item.inlineAnnotations.map((ann: any) => ({
+        id: ann.id,
+        startIndex: ann.startIndex,
+        endIndex: ann.endIndex,
+        quote: ann.quote,
+        comment: ann.comment,
+        authorName: ann.authorName,
+        isOrphaned: ann.isOrphaned ?? false,
+        resolved: ann.resolved ?? false,
+        createdAt: typeof ann.createdAt?.toISOString === "function" ? ann.createdAt.toISOString() : ann.createdAt,
+      }))
+      : [],
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -138,7 +152,7 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
   }
 
-  const { title, content, targetUserId, adminAnnotation } = normalizeBody(body);
+  const { title, content, targetUserId, adminAnnotation, inlineAnnotations } = normalizeBody(body);
   const targetResolution = resolveTargetScriptsUser({ session: session as any, targetUserId });
   if (!targetResolution.ok) {
     return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
@@ -170,6 +184,19 @@ export async function PATCH(request: Request, { params }: Params) {
     doc.adminAnnotationUpdatedById = normalizedAdminAnnotation ? new Types.ObjectId(session.user.id as string) : null;
     doc.adminAnnotationUpdatedByName = normalizedAdminAnnotation ? ((session.user as any)?.name || "Admin") : null;
     doc.adminAnnotationUpdatedAt = normalizedAdminAnnotation ? new Date() : null;
+  }
+  if (inlineAnnotations !== undefined) {
+    doc.inlineAnnotations = inlineAnnotations.map((ann: any) => ({
+      ...ann,
+      startIndex: Number(ann.startIndex) || 0,
+      endIndex: Number(ann.endIndex) || 0,
+      quote: String(ann.quote || "").slice(0, 2000),
+      comment: String(ann.comment || "").slice(0, 2000),
+      authorName: String(ann.authorName || "Admin").slice(0, 120),
+      isOrphaned: Boolean(ann.isOrphaned),
+      resolved: Boolean(ann.resolved),
+      createdAt: ann.createdAt ? new Date(ann.createdAt) : new Date(),
+    }));
   }
   await doc.save();
 

@@ -3,6 +3,14 @@ import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import PlannerRecCache from '@/app/models/PlannerRecCache';
+import {
+  buildPlannerRecommendationMemoryKey,
+  clearPlannerRecommendationInFlight,
+  getPlannerRecommendationInFlight,
+  readPlannerRecommendationMemory,
+  setPlannerRecommendationInFlight,
+  writePlannerRecommendationMemory,
+} from '@/app/lib/planner/recommendationMemoryCache';
 import { recommendWeeklySlots, getTimeBlockScores } from '@/app/lib/planner/recommender';
 import { getThemesForSlot } from '@/app/lib/planner/themes';
 import {
@@ -11,6 +19,7 @@ import {
   WINDOW_DAYS,
   PLANNER_TIMEZONE,
 } from '@/app/lib/planner/constants';
+import { PLANNER_PLAN_READ_PROJECTION } from '@/app/lib/planner/planProjection';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -158,6 +167,22 @@ export async function GET(request: Request) {
 
   const rawPeriod = parseIntParam(request.url, 'periodDays');
   const periodDays = typeof rawPeriod === 'number' && rawPeriod > 0 ? rawPeriod : WINDOW_DAYS;
+  const memoryKey = buildPlannerRecommendationMemoryKey({
+    scope: 'planner-public',
+    userId: uid.toString(),
+    weekStart,
+    periodDays,
+    targetSlotsPerWeek,
+    freezeEnabled,
+    algoVersion: ALGO_VERSION,
+  });
+
+  type MemoryPayload = {
+    recommendations: any[];
+    heatmap: any[];
+    frozenAt?: string;
+    cachedFromMongo: boolean;
+  };
 
   try {
     await connectToDatabase();
@@ -172,7 +197,10 @@ export async function GET(request: Request) {
 
     // 1) Se houver um plano salvo para a semana, retorna o plano
     if (PlannerPlanModel) {
-      const planData = await PlannerPlanModel.findOne({ userId: uid, platform: 'instagram', weekStart }).lean().exec();
+      const planData = await PlannerPlanModel.findOne({ userId: uid, platform: 'instagram', weekStart })
+        .select(PLANNER_PLAN_READ_PROJECTION)
+        .lean()
+        .exec();
       if (planData) {
         return NextResponse.json({
           ok: true,
@@ -186,99 +214,156 @@ export async function GET(request: Request) {
       }
     }
 
-    // 2) Se freeze estiver habilitado → tenta snapshot semanal (válido só se versão bater)
-    if (freezeEnabled) {
-      type CachedRec = {
-        userId: Types.ObjectId;
-        weekStart: Date;
-        recommendations: any[];
-        heatmap: any[];
-        frozenAt: Date;
-        algoVersion?: number;
-      };
-
-      const cached = (await PlannerRecCache
-        .findOne({ userId: uid, weekStart })
-        .lean()
-        .exec()) as CachedRec | null;
-
-      if (cached && cached.algoVersion === ALGO_VERSION) {
+    if (!noCache) {
+      const memoryHit = readPlannerRecommendationMemory<MemoryPayload>(memoryKey);
+      if (memoryHit) {
         return NextResponse.json({
           ok: true,
           mode: 'recommendations',
           metricBase: 'views',
-          recommendations: cached.recommendations || [],
-          heatmap: cached.heatmap || [],
+          recommendations: memoryHit.recommendations,
+          heatmap: memoryHit.heatmap,
           weekStart: weekStartISO,
-          frozenAt:
-            cached.frozenAt?.toISOString?.() ||
-            new Date(cached.frozenAt as any).toISOString?.(),
+          frozenAt: memoryHit.frozenAt,
           cached: true,
+          memoryHit: true,
+          freezeEnabled,
+          algoVersion: ALGO_VERSION,
+        });
+      }
+
+      const pending = getPlannerRecommendationInFlight<MemoryPayload>(memoryKey);
+      if (pending) {
+        const joined = await pending;
+        return NextResponse.json({
+          ok: true,
+          mode: 'recommendations',
+          metricBase: 'views',
+          recommendations: joined.recommendations,
+          heatmap: joined.heatmap,
+          weekStart: weekStartISO,
+          frozenAt: joined.frozenAt,
+          cached: joined.cachedFromMongo,
+          coalesced: true,
           freezeEnabled,
           algoVersion: ALGO_VERSION,
         });
       }
     }
 
-    // 3) Sem plano/snapshot → gera recomendações + heatmap
-    const [recsRaw, heatmap] = await Promise.all([
-      recommendWeeklySlots({
-        userId: uid,
-        weekStart,
-        targetSlotsPerWeek,
-        periodDays,
-      }),
-      getTimeBlockScores(uid, periodDays),
-    ]);
+    const computePayload = async (): Promise<MemoryPayload> => {
+      // 2) Se freeze estiver habilitado → tenta snapshot semanal (válido só se versão bater)
+      if (freezeEnabled) {
+        type CachedRec = {
+          userId: Types.ObjectId;
+          weekStart: Date;
+          recommendations: any[];
+          heatmap: any[];
+          frozenAt: Date;
+          algoVersion?: number;
+        };
 
-    // 4) Enriquecer cada slot com TEMAS
-    const recs = await Promise.all(
-      (recsRaw || []).map(async (r) => {
-        try {
-          const { themes, keyword } = await getThemesForSlot(
-            uid,
-            periodDays,
-            r.dayOfWeek,
-            r.blockStartHour,
-            r.categories || {}
-          );
-          return { ...r, themes, themeKeyword: keyword };
-        } catch {
-          return { ...r, themes: [], themeKeyword: undefined };
+        const cached = (await PlannerRecCache
+          .findOne({ userId: uid, weekStart })
+          .lean()
+          .exec()) as CachedRec | null;
+
+        if (cached && cached.algoVersion === ALGO_VERSION) {
+          return {
+            recommendations: cached.recommendations || [],
+            heatmap: cached.heatmap || [],
+            frozenAt:
+              cached.frozenAt?.toISOString?.() ||
+              new Date(cached.frozenAt as any).toISOString?.(),
+            cachedFromMongo: true,
+          };
         }
-      })
-    );
+      }
 
-    // 5) Congela somente se habilitado (com versão do algoritmo)
-    if (freezeEnabled) {
-      await PlannerRecCache.findOneAndUpdate(
-        { userId: uid, weekStart },
-        {
-          $set: {
-            userId: uid,
-            weekStart,
-            recommendations: recs,
-            heatmap,
-            frozenAt: new Date(),
-            algoVersion: ALGO_VERSION,
+      // 3) Sem plano/snapshot → gera recomendações + heatmap
+      const [recsRaw, heatmap] = await Promise.all([
+        recommendWeeklySlots({
+          userId: uid,
+          weekStart,
+          targetSlotsPerWeek,
+          periodDays,
+        }),
+        getTimeBlockScores(uid, periodDays),
+      ]);
+
+      // 4) Enriquecer cada slot com TEMAS
+      const recs = await Promise.all(
+        (recsRaw || []).map(async (r) => {
+          try {
+            const { themes, keyword } = await getThemesForSlot(
+              uid,
+              periodDays,
+              r.dayOfWeek,
+              r.blockStartHour,
+              r.categories || {}
+            );
+            return { ...r, themes, themeKeyword: keyword };
+          } catch {
+            return { ...r, themes: [], themeKeyword: undefined };
+          }
+        })
+      );
+
+      const frozenAt = freezeEnabled ? new Date().toISOString() : undefined;
+
+      // 5) Congela somente se habilitado (com versão do algoritmo)
+      if (freezeEnabled) {
+        await PlannerRecCache.findOneAndUpdate(
+          { userId: uid, weekStart },
+          {
+            $set: {
+              userId: uid,
+              weekStart,
+              recommendations: recs,
+              heatmap,
+              frozenAt: new Date(),
+              algoVersion: ALGO_VERSION,
+            },
           },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      ).exec();
-    }
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        ).exec();
+      }
 
-    return NextResponse.json({
-      ok: true,
-      mode: 'recommendations',
-      metricBase: 'views',
-      recommendations: recs,
-      heatmap,
-      weekStart: weekStartISO,
-      frozenAt: freezeEnabled ? new Date().toISOString() : undefined,
-      cached: false,
-      freezeEnabled,
-      algoVersion: ALGO_VERSION,
-    });
+      return {
+        recommendations: recs,
+        heatmap,
+        frozenAt,
+        cachedFromMongo: false,
+      };
+    };
+
+    const pendingComputation = computePayload();
+    if (!noCache) {
+      setPlannerRecommendationInFlight(memoryKey, pendingComputation);
+    }
+    try {
+      const computed = await pendingComputation;
+      if (!noCache) {
+        writePlannerRecommendationMemory(memoryKey, computed);
+      }
+
+      return NextResponse.json({
+        ok: true,
+        mode: 'recommendations',
+        metricBase: 'views',
+        recommendations: computed.recommendations,
+        heatmap: computed.heatmap,
+        weekStart: weekStartISO,
+        frozenAt: computed.frozenAt,
+        cached: computed.cachedFromMongo,
+        freezeEnabled,
+        algoVersion: ALGO_VERSION,
+      });
+    } finally {
+      if (!noCache) {
+        clearPlannerRecommendationInFlight(memoryKey);
+      }
+    }
   } catch (err) {
     console.error('[planner/public GET] Error:', err);
     return NextResponse.json({ ok: false, error: 'Failed to load public planner' }, { status: 500 });

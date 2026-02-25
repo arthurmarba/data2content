@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -12,6 +12,11 @@ import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
 import { useBillingStatus } from '@/app/hooks/useBillingStatus';
 import { track } from '@/lib/track';
 import { openPaywallModal } from '@/utils/paywallModal';
+
+const CreatorQuickSearch = dynamic(
+  () => import('@/app/admin/creator-dashboard/components/CreatorQuickSearch'),
+  { ssr: false, loading: () => null }
+);
 
 const PlannerSlotModal = dynamic(() => import('@/app/mediakit/components/PlannerSlotModal'), {
   ssr: false,
@@ -67,34 +72,73 @@ function getWeekStartISO(date = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function PlannerClientPage() {
+type ViewerInfo = {
+  id?: string | null;
+  role?: string | null;
+  name?: string | null;
+};
+
+type AdminTargetUser = {
+  id: string;
+  name: string;
+  profilePictureUrl?: string | null;
+};
+
+const ADMIN_PLANNER_TARGET_STORAGE_KEY = 'planner_admin_target_user';
+
+export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
   const { data: session, status } = useSession();
+  const sessionUser = (session?.user as any) ?? null;
+  const viewerRoleFromProp = typeof viewer?.role === 'string' ? viewer.role.trim().toLowerCase() : null;
+  const sessionRole = typeof sessionUser?.role === 'string' ? sessionUser.role.trim().toLowerCase() : null;
+  const sessionUserId =
+    typeof viewer?.id === 'string' && viewer.id.trim().length > 0
+      ? viewer.id.trim()
+      : typeof sessionUser?.id === 'string' && sessionUser.id.trim().length > 0
+        ? sessionUser.id.trim()
+        : '';
+  const isAdminViewer = (viewerRoleFromProp ?? sessionRole) === 'admin';
+  const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
+  const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
+  const isActingOnBehalf = Boolean(
+    isAdminViewer &&
+    targetUserId &&
+    sessionUserId &&
+    targetUserId !== sessionUserId
+  );
+  const activeUserId = targetUserId ?? sessionUserId;
+
   const router = useRouter();
   const searchParams = useSearchParams();
-  const billing = useBillingStatus();
-  const { planStatus } = billing;
-  const isBillingLoading = billing.isLoading;
+  const billing = useBillingStatus({ auto: !isAdminViewer });
+  const isBillingLoading = isAdminViewer ? false : billing.isLoading;
 
   const {
     slots,
     heatmap,
     loading,
     error,
-    reload,
     saveSlots,
     locked,
     lockedReason,
-  } = usePlannerData({ userId: session?.user?.id || '', targetSlotsPerWeek: 7 });
+  } = usePlannerData({
+    userId: activeUserId,
+    targetUserId: isActingOnBehalf ? targetUserId : null,
+    targetSlotsPerWeek: 7,
+  });
 
   const [selectedSlot, setSelectedSlot] = useState<PlannerUISlot | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [savingError, setSavingError] = useState<string | null>(null);
+  const hasHydratedAdminTargetRef = useRef(false);
+  const previousActiveUserIdRef = useRef<string | null>(null);
   const weekStartISO = useMemo(() => getWeekStartISO(), []);
 
   // Check access
   // Note: canAccessPlanner and getPlanStatus might need to be imported or implemented if not available
   // Assuming they are available as per previous code, but if not, we use billing flags
-  const hasAccess = billing.hasPremiumAccess || billing.isTrialActive || billing.normalizedStatus === 'active';
+  const hasAccess =
+    isAdminViewer || billing.hasPremiumAccess || billing.isTrialActive || billing.normalizedStatus === 'active';
   const effectiveLocked = locked || !hasAccess;
   const effectiveLockedReason = effectiveLocked
     ? lockedReason ?? 'Atualize seu plano para acessar o planejador completo.'
@@ -113,6 +157,67 @@ export default function PlannerClientPage() {
     }
   }, [searchParams, slots, selectedSlot, isModalOpen]);
 
+  useEffect(() => {
+    if (!isAdminViewer || hasHydratedAdminTargetRef.current || typeof window === 'undefined') return;
+    hasHydratedAdminTargetRef.current = true;
+    try {
+      const raw = window.sessionStorage.getItem(ADMIN_PLANNER_TARGET_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<AdminTargetUser>;
+      if (typeof parsed?.id !== 'string' || typeof parsed?.name !== 'string') return;
+      const normalizedId = parsed.id.trim();
+      const normalizedName = parsed.name.trim();
+      if (!normalizedId || !normalizedName) return;
+      setAdminTargetUser({
+        id: normalizedId,
+        name: normalizedName,
+        profilePictureUrl: parsed.profilePictureUrl ?? null,
+      });
+    } catch {
+      // noop
+    }
+  }, [isAdminViewer]);
+
+  useEffect(() => {
+    if (!isAdminViewer || typeof window === 'undefined') return;
+    try {
+      if (!adminTargetUser?.id) {
+        window.sessionStorage.removeItem(ADMIN_PLANNER_TARGET_STORAGE_KEY);
+        return;
+      }
+      window.sessionStorage.setItem(ADMIN_PLANNER_TARGET_STORAGE_KEY, JSON.stringify(adminTargetUser));
+    } catch {
+      // noop
+    }
+  }, [adminTargetUser, isAdminViewer]);
+
+  useEffect(() => {
+    const previous = previousActiveUserIdRef.current;
+    previousActiveUserIdRef.current = activeUserId;
+    if (!previous || previous === activeUserId) return;
+
+    setSelectedSlot(null);
+    setIsModalOpen(false);
+    setSavingError(null);
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (!params.has('slotId')) return;
+    params.delete('slotId');
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [activeUserId, router, searchParams]);
+
+  const handleAdminSelect = useCallback((creator: AdminTargetUser) => {
+    setAdminTargetUser({
+      id: creator.id,
+      name: creator.name,
+      profilePictureUrl: creator.profilePictureUrl,
+    });
+  }, []);
+
+  const handleAdminClear = useCallback(() => {
+    setAdminTargetUser(null);
+  }, []);
+
   const handleOpenSlot = useCallback((slot: PlannerUISlot) => {
     setSelectedSlot(slot);
     setIsModalOpen(true);
@@ -125,36 +230,10 @@ export default function PlannerClientPage() {
     setIsModalOpen(false);
     setSavingError(null);
     const params = new URLSearchParams(searchParams.toString());
+    if (!params.has('slotId')) return;
     params.delete('slotId');
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
-
-  const handleCreateSlot = useCallback(
-    (dayOfWeek: number, blockStartHour: number) => {
-      if (!canEdit) {
-        openPaywallModal();
-        return;
-      }
-      track("planner_plan_generated", {
-        creator_id: session?.user?.id,
-        day_of_week: dayOfWeek,
-        block_start_hour: blockStartHour,
-        source: "calendar_quick_generate",
-      });
-      const stub: PlannerUISlot = {
-        dayOfWeek,
-        blockStartHour,
-        format: 'reel',
-        categories: {},
-        status: 'test',
-        isExperiment: true,
-        expectedMetrics: {},
-        title: '',
-      } as PlannerUISlot;
-      handleOpenSlot(stub);
-    },
-    [canEdit, handleOpenSlot, session?.user?.id]
-  );
 
   const handleSave = useCallback(
     async (updated: PlannerSlotDataModal) => {
@@ -190,14 +269,13 @@ export default function PlannerClientPage() {
         await saveSlots(list);
         setSavingError(null);
         handleCloseSlot();
-        reload(); // Refresh to get updated IDs etc
       } catch (err: any) {
         const message = err?.message || 'Não foi possível salvar o planejamento.';
         setSavingError(message);
         throw err;
       }
     },
-    [canEdit, slots, saveSlots, handleCloseSlot, reload]
+    [canEdit, slots, saveSlots, handleCloseSlot]
   );
 
   const handleDelete = useCallback(
@@ -224,14 +302,13 @@ export default function PlannerClientPage() {
         await saveSlots(filtered);
         setSavingError(null);
         handleCloseSlot();
-        reload();
       } catch (err: any) {
         const message = err?.message || 'Não foi possível excluir a pauta.';
         setSavingError(message);
         throw err;
       }
     },
-    [canEdit, slots, saveSlots, handleCloseSlot, reload]
+    [canEdit, slots, saveSlots, handleCloseSlot]
   );
 
   const handleDuplicate = useCallback(
@@ -250,14 +327,13 @@ export default function PlannerClientPage() {
       try {
         await saveSlots(list);
         setSavingError(null);
-        reload();
       } catch (err: any) {
         const message = err?.message || 'Não foi possível duplicar a pauta.';
         setSavingError(message);
         throw err;
       }
     },
-    [canEdit, slots, saveSlots, reload]
+    [canEdit, slots, saveSlots]
   );
 
   const handleRequestSubscribe = useCallback(() => {
@@ -265,11 +341,35 @@ export default function PlannerClientPage() {
     track('planner_subscribe_clicked');
   }, []);
 
-  if (status === 'loading') return null;
+  const handleDeleteFromCalendar = useCallback((slot: PlannerUISlot) => {
+    const data = toPlannerSlotData(slot);
+    if (data) void handleDelete(data);
+  }, [handleDelete]);
+
+  if (status === 'loading' && !viewer) return null;
 
   return (
     <div className="min-h-screen bg-white pb-20">
       <div className="dashboard-page-shell py-8">
+        {isAdminViewer ? (
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full sm:max-w-md">
+              <CreatorQuickSearch
+                onSelect={handleAdminSelect}
+                selectedCreatorName={adminTargetUser?.name || null}
+                selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
+                onClear={handleAdminClear}
+                apiPrefix="/api/admin"
+              />
+            </div>
+            <p className="text-xs text-slate-500">
+              {isActingOnBehalf
+                ? `Visualizando calendário de ${adminTargetUser?.name}.`
+                : 'Visualizando seu próprio calendário.'}
+            </p>
+          </div>
+        ) : null}
+
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-slate-900">Planejador de Conteúdo</h1>
           <p className="mt-1 text-slate-500">
@@ -284,7 +384,7 @@ export default function PlannerClientPage() {
 
             {/* Calendário */}
             <ContentPlannerCalendar
-              userId={session?.user?.id || ''}
+              userId={activeUserId}
               slots={slots}
               heatmap={heatmap}
               loading={loading}
@@ -295,11 +395,7 @@ export default function PlannerClientPage() {
               isBillingLoading={isBillingLoading}
               onRequestSubscribe={handleRequestSubscribe}
               onOpenSlot={handleOpenSlot}
-              onCreateSlot={handleCreateSlot}
-              onDeleteSlot={(slot) => {
-                const data = toPlannerSlotData(slot);
-                if (data) handleDelete(data);
-              }}
+              onDeleteSlot={handleDeleteFromCalendar}
             />
           </div>
         </div>
@@ -309,7 +405,8 @@ export default function PlannerClientPage() {
         <PlannerSlotModal
           open={isModalOpen}
           onClose={handleCloseSlot}
-          userId={session?.user?.id || ''}
+          userId={activeUserId}
+          targetUserId={isActingOnBehalf ? targetUserId : null}
           weekStartISO={weekStartISO}
           slot={toPlannerSlotData(selectedSlot)}
           onSave={handleSave}
