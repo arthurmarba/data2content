@@ -1,4 +1,4 @@
-import { Schema, model, models } from 'mongoose';
+import mongoose, { Schema, model } from 'mongoose';
 
 const CronLockSchema = new Schema(
   {
@@ -10,4 +10,4 @@ const CronLockSchema = new Schema(
   { timestamps: true }
 );
 
-export const CronLock = models.CronLock || model('CronLock', CronLockSchema);
+export const CronLock = mongoose.models.CronLock || model('CronLock', CronLockSchema);

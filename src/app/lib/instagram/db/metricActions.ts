@@ -14,6 +14,31 @@ const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClassificationClient = qstashToken ? new Client({ token: qstashToken }) : null;
 let invalidTimestampDiscardedCount = 0;
 
+function toPositiveNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
+function resolveMediaVideoDurationSeconds(media: InstagramMedia): number | null {
+  const directDuration = toPositiveNumber((media as any)?.video_duration);
+  if (directDuration) return directDuration;
+
+  if (media.media_type === 'CAROUSEL_ALBUM' && Array.isArray(media.children?.data)) {
+    for (const child of media.children.data) {
+      if (child.media_type !== 'VIDEO') continue;
+      const childDuration = toPositiveNumber((child as any)?.video_duration);
+      if (childDuration) return childDuration;
+    }
+  }
+  return null;
+}
+
 if (!qstashClassificationClient && process.env.NODE_ENV === 'production') {
   logger.error("[metricActions] QSTASH_TOKEN não definido ou cliente QStash (para classificação) falhou ao inicializar. A classificação automática não funcionará.");
 } else if (!qstashClassificationClient) {
@@ -107,6 +132,11 @@ export async function saveMetricData(
           statsUpdate[`stats.${key}`] = value;
         }
       });
+    }
+    const mediaVideoDurationSeconds = resolveMediaVideoDurationSeconds(media);
+    const currentDurationFromInsights = toPositiveNumber(statsUpdate['stats.video_duration_seconds']);
+    if (mediaVideoDurationSeconds && !currentDurationFromInsights) {
+      statsUpdate['stats.video_duration_seconds'] = mediaVideoDurationSeconds;
     }
 
     // Determine the best cover URL based on media type

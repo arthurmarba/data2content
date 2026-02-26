@@ -163,8 +163,15 @@ export const DEMOGRAPHICS_REQUIRING_TOTAL_VALUE: string[] = [
 // --- Constantes de Controle de Fluxo e Limites (mantidas do seu arquivo original) ---
 export const RETRY_OPTIONS = { retries: 3, factor: 2, minTimeout: 500, maxTimeout: 5000, randomize: true };
 export const INSIGHTS_CONCURRENCY_LIMIT = 5; 
-export const MAX_PAGES_MEDIA = 10; 
+const parsePositiveIntEnv = (rawValue: string | undefined, fallback: number): number => {
+  if (!rawValue) return fallback;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+};
+
+export const MAX_PAGES_MEDIA = parsePositiveIntEnv(process.env.MAX_PAGES_MEDIA, 10); 
 export const DELAY_MS = 250; 
 export const MAX_ACCOUNT_FETCH_PAGES = 30; 
 export const ACCOUNT_FETCH_DELAY_MS = 100; 
-export const INSIGHT_FETCH_CUTOFF_DAYS = 180;
+export const INSIGHT_FETCH_CUTOFF_DAYS = parsePositiveIntEnv(process.env.INSIGHT_FETCH_CUTOFF_DAYS, 180);

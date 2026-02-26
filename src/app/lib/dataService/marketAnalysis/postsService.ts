@@ -321,6 +321,7 @@ export interface IFindUserPostsArgs { // ALTERADO
     source?: string;
     linkSearch?: string;
     minViews?: number;
+    durationBucket?: '0_15' | '15_30' | '30_60' | '60_plus';
     types?: string[];
   };
 }
@@ -467,6 +468,29 @@ export async function findUserPosts({ // ALTERADO
         { 'stats.video_views': { $gte: filters.minViews } }
       ];
     }
+    if (filters.durationBucket) {
+      const durationField = 'stats.video_duration_seconds';
+      let durationMatch: Record<string, number> | null = null;
+      switch (filters.durationBucket) {
+        case '0_15':
+          durationMatch = { $gt: 0, $lt: 15 };
+          break;
+        case '15_30':
+          durationMatch = { $gte: 15, $lt: 30 };
+          break;
+        case '30_60':
+          durationMatch = { $gte: 30, $lt: 60 };
+          break;
+        case '60_plus':
+          durationMatch = { $gte: 60 };
+          break;
+        default:
+          durationMatch = null;
+      }
+      if (durationMatch) {
+        (matchStage as any)[durationField] = durationMatch;
+      }
+    }
     if (typeof (filters as any).hour === 'number') {
       matchStage.$expr = {
         $eq: [
@@ -542,6 +566,7 @@ export async function findUserPosts({ // ALTERADO
             reach_non_followers_ratio: '$stats.reach_non_followers_ratio',
             profile_visits: '$stats.profile_visits',
             total_interactions: '$stats.total_interactions',
+            video_duration_seconds: '$stats.video_duration_seconds',
           },
         },
       },

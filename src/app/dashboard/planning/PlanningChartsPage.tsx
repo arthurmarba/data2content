@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import {
@@ -85,6 +85,130 @@ const formatPostsCount = (count: number) => {
 };
 type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
 type CategoryBarDatum = { name: string; value: number; postsCount: number };
+type DurationBucketKey = "0_15" | "15_30" | "30_60" | "60_plus";
+type DurationBarDatum = {
+  key: DurationBucketKey;
+  label: "0-15s" | "15-30s" | "30-60s" | "60s+";
+  minSeconds: number;
+  maxSeconds: number | null;
+  postsCount: number;
+  totalInteractions: number;
+  averageInteractions: number;
+};
+type DurationSummary = {
+  totalVideoPosts: number;
+  totalPostsWithDuration: number;
+  totalPostsWithoutDuration: number;
+  durationCoverageRate: number;
+};
+type DurationFallbackData = {
+  buckets: DurationBarDatum[];
+  summary: DurationSummary;
+};
+const DURATION_BUCKETS: Array<{
+  key: DurationBucketKey;
+  label: DurationBarDatum["label"];
+  minSeconds: number;
+  maxSeconds: number | null;
+}> = [
+  { key: "0_15", label: "0-15s", minSeconds: 0, maxSeconds: 15 },
+  { key: "15_30", label: "15-30s", minSeconds: 15, maxSeconds: 30 },
+  { key: "30_60", label: "30-60s", minSeconds: 30, maxSeconds: 60 },
+  { key: "60_plus", label: "60s+", minSeconds: 60, maxSeconds: null },
+];
+const DURATION_FETCH_CONCURRENCY = 4;
+const getDurationBucket = (seconds: number | null | undefined) => {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) return null;
+  return DURATION_BUCKETS.find(
+    (bucket) => seconds >= bucket.minSeconds && (bucket.maxSeconds === null || seconds < bucket.maxSeconds)
+  ) || null;
+};
+const getPostStableKey = (post: any): string | null =>
+  post?._id || post?.id || post?.instagramMediaId || (post?.postDate ? `${post.postDate}-${post?.caption || ""}` : null);
+const isVideoPost = (post: any) => {
+  const type = String(post?.type || "").toUpperCase();
+  if (type === "REEL" || type === "VIDEO") return true;
+  const duration = toNumber(post?.stats?.video_duration_seconds) ?? 0;
+  return duration > 0;
+};
+const getPostInteractions = (post: any) => {
+  const fromTotal = toNumber(post?.stats?.total_interactions);
+  if (fromTotal !== null) return fromTotal;
+  const likes = toNumber(post?.stats?.likes) ?? 0;
+  const comments = toNumber(post?.stats?.comments) ?? 0;
+  const shares = toNumber(post?.stats?.shares) ?? 0;
+  const saves = toNumber(post?.stats?.saved) ?? toNumber(post?.stats?.saves) ?? 0;
+  return likes + comments + shares + saves;
+};
+const EMPTY_DURATION_FALLBACK: DurationFallbackData = {
+  buckets: DURATION_BUCKETS.map((definition) => ({
+    key: definition.key,
+    label: definition.label,
+    minSeconds: definition.minSeconds,
+    maxSeconds: definition.maxSeconds,
+    postsCount: 0,
+    totalInteractions: 0,
+    averageInteractions: 0,
+  })),
+  summary: {
+    totalVideoPosts: 0,
+    totalPostsWithDuration: 0,
+    totalPostsWithoutDuration: 0,
+    durationCoverageRate: 0,
+  },
+};
+
+const buildDurationFallbackFromPosts = (posts: any[]): DurationFallbackData => {
+  const bucketTotals = new Map<DurationBucketKey, { postsCount: number; totalInteractions: number }>(
+    DURATION_BUCKETS.map((bucket) => [bucket.key, { postsCount: 0, totalInteractions: 0 }])
+  );
+
+  let totalVideoPosts = 0;
+  let totalPostsWithDuration = 0;
+  let totalPostsWithoutDuration = 0;
+
+  posts.forEach((post) => {
+    if (!isVideoPost(post)) return;
+    totalVideoPosts += 1;
+
+    const duration = toNumber(post?.stats?.video_duration_seconds);
+    const bucket = getDurationBucket(duration);
+    if (!bucket) {
+      totalPostsWithoutDuration += 1;
+      return;
+    }
+
+    totalPostsWithDuration += 1;
+    const bucketTotal = bucketTotals.get(bucket.key);
+    if (!bucketTotal) return;
+    bucketTotal.postsCount += 1;
+    bucketTotal.totalInteractions += getPostInteractions(post);
+    bucketTotals.set(bucket.key, bucketTotal);
+  });
+
+  const buckets = DURATION_BUCKETS.map((definition) => {
+    const totals = bucketTotals.get(definition.key) || { postsCount: 0, totalInteractions: 0 };
+    return {
+      key: definition.key,
+      label: definition.label,
+      minSeconds: definition.minSeconds,
+      maxSeconds: definition.maxSeconds,
+      postsCount: totals.postsCount,
+      totalInteractions: totals.totalInteractions,
+      averageInteractions: totals.postsCount > 0 ? totals.totalInteractions / totals.postsCount : 0,
+    };
+  });
+
+  return {
+    buckets,
+    summary: {
+      totalVideoPosts,
+      totalPostsWithDuration,
+      totalPostsWithoutDuration,
+      durationCoverageRate: totalVideoPosts > 0 ? totalPostsWithDuration / totalVideoPosts : 0,
+    },
+  };
+};
 const getTargetDateParts = (value: string | Date) => {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -308,6 +432,24 @@ const aggregateAverageInteractionsByCategory = (posts: any[], field: CategoryFie
     .sort((a, b) => b.value - a.value);
 };
 
+const hydrateBarsWithCounts = (
+  bars: Array<{ name: string; value: number; postsCount?: number }>,
+  fallback: CategoryBarDatum[] | undefined
+) =>
+  bars.map((bar) => {
+    if (typeof bar.postsCount === "number") return bar;
+    const fallbackBar = fallback?.find((row) => matchesValue([row.name], bar.name));
+    return {
+      ...bar,
+      postsCount: fallbackBar?.postsCount ?? 0,
+    };
+  });
+
+const hasCategoryDataWithCounts = (rows: any): boolean =>
+  Array.isArray(rows) &&
+  rows.length > 0 &&
+  rows.every((row) => typeof row?.postsCount === "number");
+
 type ViewerInfo = {
   id: string;
   role?: string | null;
@@ -344,6 +486,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const [autoPaginating, setAutoPaginating] = useState(false);
+  const durationBucketPostsCacheRef = useRef<Map<string, any[]>>(new Map());
   const PAGE_LIMIT = 200;
   const MAX_PAGES = 6; // evita loop infinito; 6*200 = 1200 posts em 90 dias
 
@@ -358,6 +501,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     resetPaginationState();
   };
 
+  useEffect(() => {
+    durationBucketPostsCacheRef.current.clear();
+  }, [activeUserId, timePeriod]);
+
   const { data: chartsBatchData, isLoading: loadingBatch } = useSWR(
     activeUserId
       ? `/api/v1/users/${activeUserId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&metric=stats.total_interactions&engagementMetricField=stats.total_interactions&limit=${PAGE_LIMIT}`
@@ -366,21 +513,36 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     swrOptions
   );
 
+  const trendData = chartsBatchData?.trendData;
+  const timeData = chartsBatchData?.timeData;
+  const durationData = chartsBatchData?.durationData;
+  const formatData = chartsBatchData?.formatData;
+  const proposalData = chartsBatchData?.proposalData;
+  const toneData = chartsBatchData?.toneData;
+  const referenceData = chartsBatchData?.referenceData;
+  const contextData = chartsBatchData?.contextData;
+
+  const hasDurationDataFromApi =
+    Array.isArray(durationData?.buckets) && typeof durationData?.totalVideoPosts === "number";
+  const hasTimeBucketsFromApi = Array.isArray(timeData?.buckets) && timeData.buckets.length > 0;
+  const requiresExtendedPosts =
+    !hasDurationDataFromApi ||
+    !hasTimeBucketsFromApi ||
+    !hasCategoryDataWithCounts(proposalData?.chartData) ||
+    !hasCategoryDataWithCounts(toneData?.chartData) ||
+    !hasCategoryDataWithCounts(referenceData?.chartData) ||
+    !hasCategoryDataWithCounts(contextData?.chartData);
+
   const { data: pagedPostsData } = useSWR(
-    activeUserId && page > 1
+    activeUserId && page > 1 && requiresExtendedPosts
       ? `/api/v1/users/${activeUserId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
       : null,
     fetcher,
     swrOptions
   );
-  const trendData = chartsBatchData?.trendData;
-  const timeData = chartsBatchData?.timeData;
-  const formatData = chartsBatchData?.formatData;
-  const proposalData = chartsBatchData?.proposalData;
-  const toneData = chartsBatchData?.toneData;
-  const referenceData = chartsBatchData?.referenceData;
   const loadingTrend = loadingBatch;
   const loadingTime = loadingBatch;
+  const loadingDuration = loadingBatch;
   const loadingFormat = loadingBatch;
   const loadingProposal = loadingBatch;
   const loadingTone = loadingBatch;
@@ -419,6 +581,24 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const normalizedPosts = useMemo(
     () => (Array.isArray(postsSource) ? postsSource.map((p) => normalizePost(p)) : []),
     [postsSource]
+  );
+
+  const durationFallback = useMemo(() => {
+    if (hasDurationDataFromApi) return null;
+    if (!normalizedPosts.length) return EMPTY_DURATION_FALLBACK;
+    return buildDurationFallbackFromPosts(normalizedPosts);
+  }, [hasDurationDataFromApi, normalizedPosts]);
+
+  const getLocalDurationPosts = React.useCallback(
+    (bucketKey: DurationBucketKey) =>
+      sortPostsByDateDesc(
+        normalizedPosts.filter((post) => {
+          const duration = toNumber(post?.stats?.video_duration_seconds);
+          const bucket = getDurationBucket(duration);
+          return bucket?.key === bucketKey;
+        })
+      ),
+    [normalizedPosts]
   );
 
   const [sliceModal, setSliceModal] = useState<{ open: boolean; title: string; subtitle?: string; posts: any[] }>({
@@ -508,6 +688,104 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     [activeUserId, normalizedPosts, openSliceModal, timePeriod]
   );
 
+  const handleDurationBucketClick = React.useCallback(
+    async (bucketKey: DurationBucketKey, subtitle: string) => {
+      const bucket = DURATION_BUCKETS.find((item) => item.key === bucketKey);
+      if (!bucket) return;
+
+      const localPosts = getLocalDurationPosts(bucketKey);
+      if (!activeUserId) {
+        openSliceModal({
+          title: `Posts com duração real ${bucket.label}`,
+          subtitle,
+          posts: localPosts,
+        });
+        return;
+      }
+
+      const cacheKey = `${activeUserId}:${timePeriod}:${bucketKey}`;
+      const cachedPosts = durationBucketPostsCacheRef.current.get(cacheKey);
+      if (cachedPosts && cachedPosts.length > 0) {
+        openSliceModal({
+          title: `Posts com duração real ${bucket.label}`,
+          subtitle,
+          posts: cachedPosts,
+        });
+        return;
+      }
+
+      try {
+        const pageLimit = 200;
+        const buildUrl = (page: number) =>
+          `/api/v1/users/${activeUserId}/videos/list?timePeriod=${timePeriod}&durationBucket=${bucketKey}&types=REEL,VIDEO&limit=${pageLimit}&page=${page}&sortBy=postDate&sortOrder=desc`;
+        const parsePagePosts = (data: any) =>
+          (Array.isArray(data?.posts) ? data.posts : []).map((post: any) => normalizePost(post));
+
+        const firstRes = await fetch(buildUrl(1), { cache: "no-store" });
+        if (!firstRes.ok) throw new Error(`duration page 1 failed with status ${firstRes.status}`);
+
+        const firstData = await firstRes.json();
+        const fetchedPosts: any[] = parsePagePosts(firstData);
+
+        let totalPages = Number(firstData?.pagination?.totalPages);
+        if (!Number.isFinite(totalPages) || totalPages < 1) {
+          totalPages = fetchedPosts.length < pageLimit ? 1 : 2;
+        }
+
+        const remainingPages = Array.from(
+          { length: Math.max(0, totalPages - 1) },
+          (_, index) => index + 2
+        );
+
+        for (let i = 0; i < remainingPages.length; i += DURATION_FETCH_CONCURRENCY) {
+          const batch = remainingPages.slice(i, i + DURATION_FETCH_CONCURRENCY);
+          const batchResults = await Promise.allSettled(
+            batch.map(async (page) => {
+              const res = await fetch(buildUrl(page), { cache: "no-store" });
+              if (!res.ok) return [];
+              const data = await res.json();
+              return parsePagePosts(data);
+            })
+          );
+
+          batchResults.forEach((result) => {
+            if (result.status !== "fulfilled" || !Array.isArray(result.value)) return;
+            if (result.value.length > 0) fetchedPosts.push(...result.value);
+          });
+        }
+
+        const dedupedPosts: any[] = [];
+        const seenKeys = new Set<string>();
+        fetchedPosts.forEach((post) => {
+          const key = getPostStableKey(post);
+          if (!key) {
+            dedupedPosts.push(post);
+            return;
+          }
+          if (seenKeys.has(key)) return;
+          seenKeys.add(key);
+          dedupedPosts.push(post);
+        });
+
+        const postsForModal = dedupedPosts.length > 0 ? sortPostsByDateDesc(dedupedPosts) : localPosts;
+        durationBucketPostsCacheRef.current.set(cacheKey, postsForModal);
+        openSliceModal({
+          title: `Posts com duração real ${bucket.label}`,
+          subtitle,
+          posts: postsForModal,
+        });
+      } catch (error) {
+        console.warn("[PlanningCharts] Falha ao buscar posts por duração", error);
+        openSliceModal({
+          title: `Posts com duração real ${bucket.label}`,
+          subtitle,
+          posts: localPosts,
+        });
+      }
+    },
+    [activeUserId, getLocalDurationPosts, openSliceModal, timePeriod]
+  );
+
   const handleDayHourClick = React.useCallback(
     (day: number, startHour: number, endHour: number, subtitle: string) => {
       const posts = sortPostsByDateDesc(filterPostsByDayHour(normalizedPosts, day, startHour, endHour));
@@ -550,6 +828,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   // carrega a primeira página junto do batch para reduzir round-trips no primeiro paint
   useEffect(() => {
     const list = Array.isArray(chartsBatchData?.postsData?.posts) ? chartsBatchData.postsData.posts : [];
+    const totalPagesFromBatch = Number(chartsBatchData?.postsData?.pagination?.totalPages || 1);
+    const maxPrefetchPages = Math.min(
+      MAX_PAGES,
+      Number.isFinite(totalPagesFromBatch) && totalPagesFromBatch > 0 ? totalPagesFromBatch : 1
+    );
     if (!chartsBatchData) return;
 
     if (!list.length) {
@@ -560,9 +843,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     }
 
     setPostsCache(list);
-    setPage(list.length === PAGE_LIMIT && MAX_PAGES > 1 ? 2 : 1);
+    const shouldPrefetch = requiresExtendedPosts && list.length === PAGE_LIMIT && maxPrefetchPages > 1;
+    setPage(shouldPrefetch ? 2 : 1);
     setAutoPaginating(false);
-  }, [chartsBatchData]);
+  }, [chartsBatchData, requiresExtendedPosts]);
 
   // acumula páginas adicionais em baixa prioridade para não competir com interação inicial
   useEffect(() => {
@@ -577,11 +861,17 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
     setPostsCache((prev) => mergePosts(prev, list));
 
-    const shouldLoadMore = list.length === PAGE_LIMIT && page < MAX_PAGES;
+    const totalPagesFromResponse = Number(pagedPostsData?.pagination?.totalPages || 0);
+    const maxPrefetchPages = Math.min(
+      MAX_PAGES,
+      Number.isFinite(totalPagesFromResponse) && totalPagesFromResponse > 0 ? totalPagesFromResponse : MAX_PAGES
+    );
+
+    const shouldLoadMore = requiresExtendedPosts && list.length === PAGE_LIMIT && page < maxPrefetchPages;
     if (shouldLoadMore && !autoPaginating) {
       setAutoPaginating(true);
       const queueNextPage = () => {
-        setPage((p) => Math.min(p + 1, MAX_PAGES));
+        setPage((p) => Math.min(p + 1, maxPrefetchPages));
         setAutoPaginating(false);
       };
       if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
@@ -590,7 +880,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         window.setTimeout(queueNextPage, 180);
       }
     }
-  }, [pagedPostsData, page, autoPaginating]);
+  }, [pagedPostsData, page, autoPaginating, requiresExtendedPosts]);
 
   const hourBars = useMemo(() => {
     const buckets: Array<{ hour: number; average: number; count?: number }> = timeData?.buckets || [];
@@ -654,46 +944,134 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
   const bestHour = useMemo(() => hourBars?.slice().sort((a, b) => b.average - a.average)?.[0]?.hour ?? null, [hourBars]);
 
-  const formatBars = useMemo(() => formatData?.chartData || [], [formatData]);
-  const proposalBars = useMemo(() => {
-    const fromApi = (proposalData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
-    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "proposal");
-    return fromApi.map((bar) => {
-      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
+  const durationBuckets = useMemo<DurationBarDatum[]>(() => {
+    const fromApi = Array.isArray(durationData?.buckets) ? durationData.buckets : [];
+    if (fromApi.length > 0) {
+      return DURATION_BUCKETS.map((definition) => {
+        const row = fromApi.find((item: any) => item?.key === definition.key);
+        const postsCount = Number(row?.postsCount || 0);
+        const totalInteractions = Number(row?.totalInteractions || 0);
+        const averageInteractions = Number(row?.averageInteractions || 0);
+        return {
+          key: definition.key,
+          label: definition.label,
+          minSeconds: definition.minSeconds,
+          maxSeconds: definition.maxSeconds,
+          postsCount,
+          totalInteractions,
+          averageInteractions: Number.isFinite(averageInteractions)
+            ? averageInteractions
+            : postsCount > 0
+              ? totalInteractions / postsCount
+              : 0,
+        };
+      });
+    }
+
+    return durationFallback?.buckets || EMPTY_DURATION_FALLBACK.buckets;
+  }, [durationData, durationFallback]);
+
+  const durationSummary = useMemo(() => {
+    if (durationData && typeof durationData.totalVideoPosts === "number") {
+      const totalVideoPosts = Number(durationData.totalVideoPosts || 0);
+      const totalPostsWithDuration = Number(durationData.totalPostsWithDuration || 0);
+      const totalPostsWithoutDuration = Number(durationData.totalPostsWithoutDuration || 0);
+      const durationCoverageRate =
+        typeof durationData.durationCoverageRate === "number"
+          ? durationData.durationCoverageRate
+          : totalVideoPosts > 0
+            ? totalPostsWithDuration / totalVideoPosts
+            : 0;
       return {
-        ...bar,
-        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
+        totalVideoPosts,
+        totalPostsWithDuration,
+        totalPostsWithoutDuration,
+        durationCoverageRate,
       };
-    });
-  }, [proposalData, normalizedPosts]);
+    }
+
+    return durationFallback?.summary || EMPTY_DURATION_FALLBACK.summary;
+  }, [durationData, durationFallback]);
+
+  const bestDurationBucket = useMemo(() => {
+    return durationBuckets
+      .filter((bucket) => bucket.postsCount > 0)
+      .sort((a, b) => b.averageInteractions - a.averageInteractions)[0] || null;
+  }, [durationBuckets]);
+
+  const lowSampleDurationBuckets = useMemo(() => {
+    return durationBuckets.filter((bucket) => bucket.postsCount > 0 && bucket.postsCount < 5).length;
+  }, [durationBuckets]);
+
+  const formatBars = useMemo(() => formatData?.chartData || [], [formatData]);
+  const proposalBarsFromApi = useMemo(
+    () => (proposalData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    [proposalData]
+  );
+  const toneBarsFromApi = useMemo(
+    () => (toneData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    [toneData]
+  );
+  const referenceBarsFromApi = useMemo(
+    () => (referenceData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    [referenceData]
+  );
+  const contextBarsFromApi = useMemo(
+    () => (contextData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    [contextData]
+  );
+
+  const needsCategoryFallback = useMemo(() => {
+    if (!proposalBarsFromApi.length || !toneBarsFromApi.length || !referenceBarsFromApi.length || !contextBarsFromApi.length) {
+      return true;
+    }
+    const hasMissingCount = (bars: Array<{ postsCount?: number }>) =>
+      bars.some((bar) => typeof bar.postsCount !== "number");
+    return (
+      hasMissingCount(proposalBarsFromApi) ||
+      hasMissingCount(toneBarsFromApi) ||
+      hasMissingCount(referenceBarsFromApi) ||
+      hasMissingCount(contextBarsFromApi)
+    );
+  }, [proposalBarsFromApi, toneBarsFromApi, referenceBarsFromApi, contextBarsFromApi]);
+
+  const categoryFallback = useMemo(() => {
+    if (!needsCategoryFallback) return null;
+    return {
+      proposal: aggregateAverageInteractionsByCategory(normalizedPosts, "proposal"),
+      tone: aggregateAverageInteractionsByCategory(normalizedPosts, "tone"),
+      references: aggregateAverageInteractionsByCategory(normalizedPosts, "references"),
+      context: aggregateAverageInteractionsByCategory(normalizedPosts, "context"),
+    };
+  }, [needsCategoryFallback, normalizedPosts]);
+
+  const proposalBars = useMemo(() => {
+    if (proposalBarsFromApi.length) {
+      return hydrateBarsWithCounts(proposalBarsFromApi, categoryFallback?.proposal);
+    }
+    return (categoryFallback?.proposal || []).slice(0, 6);
+  }, [proposalBarsFromApi, categoryFallback]);
 
   const toneBars = useMemo(() => {
-    const fromApi = (toneData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
-    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "tone");
-    return fromApi.map((bar) => {
-      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
-      return {
-        ...bar,
-        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
-      };
-    });
-  }, [toneData, normalizedPosts]);
+    if (toneBarsFromApi.length) {
+      return hydrateBarsWithCounts(toneBarsFromApi, categoryFallback?.tone);
+    }
+    return (categoryFallback?.tone || []).slice(0, 6);
+  }, [toneBarsFromApi, categoryFallback]);
 
   const referenceBars = useMemo(() => {
-    const fromApi = (referenceData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
-    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "references");
-    return fromApi.map((bar) => {
-      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
-      return {
-        ...bar,
-        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
-      };
-    });
-  }, [referenceData, normalizedPosts]);
+    if (referenceBarsFromApi.length) {
+      return hydrateBarsWithCounts(referenceBarsFromApi, categoryFallback?.references);
+    }
+    return (categoryFallback?.references || []).slice(0, 6);
+  }, [referenceBarsFromApi, categoryFallback]);
 
   const contextBars = useMemo(() => {
-    return aggregateAverageInteractionsByCategory(normalizedPosts, "context").slice(0, 6);
-  }, [normalizedPosts]);
+    if (contextBarsFromApi.length) {
+      return hydrateBarsWithCounts(contextBarsFromApi, categoryFallback?.context);
+    }
+    return (categoryFallback?.context || []).slice(0, 6);
+  }, [contextBarsFromApi, categoryFallback]);
 
   const followerMix = useMemo(() => {
     const posts = Array.isArray(postsSource) ? postsSource : [];
@@ -1239,6 +1617,167 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           fontSize={10}
                         />
                       </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração do Vídeo (Real)</p>
+                  <h2 className="text-base font-semibold text-slate-900">Quantidade de posts por faixa de duração real</h2>
+                  {durationSummary.totalVideoPosts > 0 ? (
+                    <p className="text-xs text-slate-500">
+                      Cobertura de duração real: {(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos (
+                      {numberFormatter.format(durationSummary.totalPostsWithDuration)}/
+                      {numberFormatter.format(durationSummary.totalVideoPosts)}).
+                    </p>
+                  ) : null}
+                </div>
+                <Clock3 className="h-5 w-5 text-cyan-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingDuration ? (
+                  <p className="text-sm text-slate-500">Carregando duração real...</p>
+                ) : durationSummary.totalVideoPosts === 0 ? (
+                  <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
+                ) : durationSummary.totalPostsWithDuration === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    Os vídeos deste período ainda não possuem duração real (`video_duration_seconds`).
+                  </p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={durationBuckets} margin={{ top: 20, right: 8, left: -6, bottom: 0 }} style={{ cursor: "pointer" }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label, payload: any[]) => {
+                          const avg = payload?.[0]?.payload?.averageInteractions ?? 0;
+                          return `${label} de duração real • ${numberFormatter.format(Math.round(avg))} interações médias`;
+                        }}
+                        formatter={(value: number) => [formatPostsCount(value), "Posts"]}
+                      />
+                      <Bar
+                        dataKey="postsCount"
+                        name="Posts"
+                        fill="#06b6d4"
+                        radius={[6, 6, 0, 0]}
+                        onClick={({ payload }) => {
+                          const bucketKey = payload?.key as DurationBucketKey | undefined;
+                          if (bucketKey) handleDurationBucketClick(bucketKey, "Quantidade de posts por faixa de duração real");
+                        }}
+                      >
+                        <LabelList
+                          dataKey="postsCount"
+                          position="top"
+                          formatter={(value: number) => numberFormatter.format(Math.max(0, Math.round(value)))}
+                          fill="#64748b"
+                          fontSize={10}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </article>
+            <article className={cardBase}>
+              <header className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração Real x Interações</p>
+                  <h2 className="text-base font-semibold text-slate-900">Interações médias por faixa de duração real</h2>
+                  {bestDurationBucket ? (
+                    <p className="text-xs text-emerald-700">
+                      Melhor faixa recente: {bestDurationBucket.label} ({numberFormatter.format(Math.round(bestDurationBucket.averageInteractions))} interações médias).
+                    </p>
+                  ) : null}
+                  {lowSampleDurationBuckets > 0 ? (
+                    <p className="text-xs text-amber-700">
+                      {lowSampleDurationBuckets} faixa(s) têm menos de 5 posts.
+                    </p>
+                  ) : null}
+                </div>
+                <LineChartIcon className="h-5 w-5 text-indigo-500" />
+              </header>
+              <div className="mt-4 h-64">
+                {loadingDuration ? (
+                  <p className="text-sm text-slate-500">Carregando duração real...</p>
+                ) : durationSummary.totalVideoPosts === 0 ? (
+                  <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
+                ) : durationSummary.totalPostsWithDuration === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados de duração real para calcular interações por faixa.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={durationBuckets}
+                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                      onClick={(state) => {
+                        const label = state?.activeLabel ? String(state.activeLabel) : null;
+                        if (!label) return;
+                        const bucket = DURATION_BUCKETS.find((item) => item.label === label);
+                        if (!bucket) return;
+                        handleDurationBucketClick(bucket.key, "Interações médias por faixa de duração real");
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      />
+                      <YAxis
+                        yAxisId="posts"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                      />
+                      <YAxis
+                        yAxisId="interactions"
+                        orientation="right"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                      />
+                      <Tooltip
+                        contentStyle={tooltipStyle}
+                        labelFormatter={(label, payload: any[]) => {
+                          const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
+                          return `${label} de duração real • ${formatPostsCount(postsCount)}`;
+                        }}
+                        formatter={(value: number, name: string) =>
+                          name === "postsCount"
+                            ? [formatPostsCount(value), "Posts"]
+                            : [numberFormatter.format(Math.round(value)), "Interações médias"]
+                        }
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={28}
+                        iconType="circle"
+                        formatter={(value) => (value === "postsCount" ? "Posts" : "Interações médias")}
+                      />
+                      <Bar yAxisId="posts" dataKey="postsCount" name="postsCount" fill="#14b8a6" radius={[6, 6, 0, 0]} />
+                      <Line
+                        yAxisId="interactions"
+                        type="monotone"
+                        dataKey="averageInteractions"
+                        name="averageInteractions"
+                        stroke="#7c3aed"
+                        strokeWidth={3}
+                        dot={{ r: 2.5 }}
+                        activeDot={{ r: 4 }}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 )}

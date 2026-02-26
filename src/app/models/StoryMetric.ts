@@ -2,7 +2,7 @@
 // - CORRIGIDO: A interface IStoryStats agora é exportada diretamente para permitir
 //   a importação nomeada padrão em outros módulos.
 
-import { Schema, model, models, Document, Model, Types } from "mongoose";
+import mongoose, { Schema, model, Document, Model, Types } from "mongoose";
 
 /**
  * Interface para o subdocumento 'stats' dentro de IStoryMetric.
@@ -98,8 +98,8 @@ storyMetricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true });
 storyMetricSchema.index({ user: 1, instagramAccountId: 1, timestamp: -1 });
 storyMetricSchema.index({ instagramMediaId: 1 });
 
-const StoryMetricModel = models.StoryMetric
-  ? (models.StoryMetric as Model<IStoryMetric>)
+const StoryMetricModel = mongoose.models.StoryMetric
+  ? (mongoose.models.StoryMetric as Model<IStoryMetric>)
   : model<IStoryMetric>("StoryMetric", storyMetricSchema);
 
 export default StoryMetricModel;

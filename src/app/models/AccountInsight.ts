@@ -1,7 +1,7 @@
 // src/app/models/AccountInsight.ts (v1.4 - Otimização de Índices)
 // - CONSOLIDAÇÃO: Os índices foram revisados e consolidados para otimizar as consultas principais do dashboard.
 // - LIMPEZA: Removido índice do campo `fetchDate` que está sendo depreciado em favor de `recordedAt`.
-import { Schema, model, models, Document, Model, Types } from "mongoose";
+import mongoose, { Schema, model, Document, Model, Types } from "mongoose";
 import { IAudienceDemographics, IDemographicBreakdown } from './demographics/AudienceDemographicSnapshot';
 
 // --- INTERFACES ---
@@ -141,8 +141,8 @@ accountInsightSchema.index({ user: 1, recordedAt: -1 });
 accountInsightSchema.index({ instagramAccountId: 1, recordedAt: -1 }); // Útil para buscas em toda a plataforma.
 
 
-const AccountInsightModel = models.AccountInsight
-  ? (models.AccountInsight as Model<IAccountInsight>)
+const AccountInsightModel = mongoose.models.AccountInsight
+  ? (mongoose.models.AccountInsight as Model<IAccountInsight>)
   : model<IAccountInsight>("AccountInsight", accountInsightSchema);
 
 export default AccountInsightModel;

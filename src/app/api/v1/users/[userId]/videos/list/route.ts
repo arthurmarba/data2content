@@ -10,6 +10,8 @@ import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriod
 export const dynamic = 'force-dynamic';
 
 const DEFAULT_SORT_BY = 'postDate';
+const ALLOWED_DURATION_BUCKETS = ['0_15', '15_30', '30_60', '60_plus'] as const;
+type DurationBucket = (typeof ALLOWED_DURATION_BUCKETS)[number];
 
 function extractThumbnail(v: any): string | undefined {
   const fromChildren =
@@ -53,6 +55,14 @@ const toHour = (value: string | null): number | null => {
   return Number.isInteger(n) && n >= 0 && n <= 23 ? n : null;
 };
 
+const toDurationBucket = (value: string | null): DurationBucket | null => {
+  if (!value) return null;
+  const normalized = String(value).trim();
+  return (ALLOWED_DURATION_BUCKETS as readonly string[]).includes(normalized)
+    ? (normalized as DurationBucket)
+    : null;
+};
+
 export async function GET(
   request: Request,
   { params }: { params: { userId: string } }
@@ -73,6 +83,8 @@ export async function GET(
     const page = toInt(searchParams.get('page'), 1);
     const limit = Math.min(toInt(searchParams.get('limit'), 10), 200);
     const hourFilter = toHour(searchParams.get('hour'));
+    const durationBucketRaw = searchParams.get('durationBucket');
+    const durationBucket = toDurationBucket(durationBucketRaw);
 
     const typesParam = searchParams.get('types');
     const parsedTypes = typesParam
@@ -88,9 +100,17 @@ export async function GET(
       source: searchParams.get('source') || undefined,
       linkSearch: searchParams.get('linkSearch') || undefined,
       minViews: searchParams.has('minViews') ? toInt(searchParams.get('minViews'), 0) : undefined,
+      durationBucket: durationBucket || undefined,
       // se não houver filtro explícito, busca todos os tipos (não só vídeo/reel)
       types: parsedTypes,
     };
+
+    if (durationBucketRaw && !durationBucket) {
+      return NextResponse.json(
+        { error: `durationBucket inválido. Permitidos: ${ALLOWED_DURATION_BUCKETS.join(', ')}` },
+        { status: 400 }
+      );
+    }
 
     const timePeriod: TimePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
       ? timePeriodParam

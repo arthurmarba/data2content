@@ -17,8 +17,18 @@ const baseMeta = {
 // Isso ajuda a evitar importações acidentais em componentes de cliente.
 // import "server-only";
 
-if (process.env.SENTRY_DSN) {
-  Sentry.init({ dsn: process.env.SENTRY_DSN });
+const hasSentryDsn = Boolean(process.env.SENTRY_DSN);
+const hasSentryCaptureException =
+  typeof (Sentry as { captureException?: unknown }).captureException === "function";
+
+if (hasSentryDsn) {
+  try {
+    Sentry.init({ dsn: process.env.SENTRY_DSN });
+  } catch (initError) {
+    // Never crash app boot due to observability setup.
+    // eslint-disable-next-line no-console
+    console.error("[logger] Falha ao inicializar Sentry:", initError);
+  }
 }
 
 export const logger = winston.createLogger({
@@ -38,20 +48,37 @@ function sanitize(msg: string): string {
   return msg.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/g, "[redacted]");
 }
 
+function safeToString(value: unknown): string {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 logger.error = (message: unknown, ...meta: unknown[]) => {
-  const logMessage =
-    typeof message === "string" ? sanitize(message) : JSON.stringify(message);
+  const logMessage = sanitize(safeToString(message));
 
   originalError(logMessage, ...meta);
 
   const err = meta[0] instanceof Error ? meta[0] : new Error(logMessage);
   err.message = sanitize(err.message);
 
-  if (process.env.SENTRY_DSN) {
-    Sentry.captureException(err);
+  if (hasSentryDsn && hasSentryCaptureException) {
+    try {
+      (Sentry as { captureException: (error: Error) => void }).captureException(err);
+    } catch (sentryError) {
+      originalError(
+        "[logger] Falha ao enviar excecao para o Sentry.",
+        sentryError
+      );
+    }
   }
 
-  void sendAlert(`Erro crítico: ${err.message}`);
+  void sendAlert(`Erro crítico: ${err.message}`).catch((alertError) => {
+    originalError("[logger] Falha ao enviar alerta.", alertError);
+  });
 
   return logger;
 };

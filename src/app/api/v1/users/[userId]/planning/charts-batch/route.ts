@@ -5,7 +5,8 @@ import { logger } from "@/app/lib/logger";
 import { getUserReachInteractionTrendChartData } from "@/charts/getReachInteractionTrendChartData";
 import getEngagementDistributionByFormatChartData from "@/charts/getEngagementDistributionByFormatChartData";
 import { aggregateUserTimePerformance } from "@/utils/aggregateUserTimePerformance";
-import getAverageEngagementByGrouping from "@/utils/getAverageEngagementByGrouping";
+import { aggregateUserDurationPerformance } from "@/utils/aggregateUserDurationPerformance";
+import { getAverageEngagementByGroupings } from "@/utils/getAverageEngagementByGrouping";
 import { findUserPosts, toProxyUrl } from "@/app/lib/dataService/marketAnalysis/postsService";
 import { timePeriodToDays } from "@/utils/timePeriodHelpers";
 import {
@@ -25,6 +26,7 @@ const DEFAULT_MAX_SLICES = 7;
 const MAX_PAGE_LIMIT = 200;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 200;
+const CACHE_SCHEMA_VERSION = "v4";
 
 const DEFAULT_FORMAT_MAPPING: Record<string, string> = {
   IMAGE: "Imagem",
@@ -104,10 +106,9 @@ function normalizeThumb(url?: string | null): string | null {
 type ChartsBatchComputeTimings = {
   trendMs?: number;
   timeMs?: number;
+  durationMs?: number;
   formatMs?: number;
-  proposalMs?: number;
-  toneMs?: number;
-  referenceMs?: number;
+  groupingsMs?: number;
   postsMs?: number;
   normalizeMs?: number;
 };
@@ -168,6 +169,7 @@ export async function GET(
   try {
     const cacheWrapStartedAt = nowMs();
     const cacheKey = `${SERVICE_TAG}:${JSON.stringify({
+      v: CACHE_SCHEMA_VERSION,
       userId,
       timePeriod,
       granularity,
@@ -194,14 +196,14 @@ export async function GET(
         const [
           trendData,
           timeData,
+          durationData,
           formatData,
-          proposalChartData,
-          toneChartData,
-          referenceChartData,
+          groupedCharts,
           postsResult,
         ] = await Promise.all([
           timed("trendMs", () => getUserReachInteractionTrendChartData(userId, timePeriod, granularity, {})),
           timed("timeMs", () => aggregateUserTimePerformance(userId, periodInDaysValue, metricField, {})),
+          timed("durationMs", () => aggregateUserDurationPerformance(userId, periodInDaysValue)),
           timed("formatMs", () =>
             getEngagementDistributionByFormatChartData(
               userId,
@@ -211,12 +213,13 @@ export async function GET(
               maxSlices
             )
           ),
-          timed("proposalMs", () =>
-            getAverageEngagementByGrouping(userId, timePeriod, engagementMetricField, "proposal")
-          ),
-          timed("toneMs", () => getAverageEngagementByGrouping(userId, timePeriod, engagementMetricField, "tone")),
-          timed("referenceMs", () =>
-            getAverageEngagementByGrouping(userId, timePeriod, engagementMetricField, "references")
+          timed("groupingsMs", () =>
+            getAverageEngagementByGroupings(
+              userId,
+              timePeriod,
+              engagementMetricField,
+              ["proposal", "tone", "references", "context"]
+            )
           ),
           timed("postsMs", () =>
             findUserPosts({
@@ -248,21 +251,27 @@ export async function GET(
           payload: {
             trendData,
             timeData,
+            durationData,
             formatData,
             proposalData: {
-              chartData: proposalChartData,
+              chartData: groupedCharts?.proposal || [],
               metricUsed: engagementMetricField,
               groupBy: "proposal",
             },
             toneData: {
-              chartData: toneChartData,
+              chartData: groupedCharts?.tone || [],
               metricUsed: engagementMetricField,
               groupBy: "tone",
             },
             referenceData: {
-              chartData: referenceChartData,
+              chartData: groupedCharts?.references || [],
               metricUsed: engagementMetricField,
               groupBy: "references",
+            },
+            contextData: {
+              chartData: groupedCharts?.context || [],
+              metricUsed: engagementMetricField,
+              groupBy: "context",
             },
             postsData: {
               posts: normalizedPosts,
@@ -284,10 +293,9 @@ export async function GET(
     if (perfData) {
       if (typeof perfData.trendMs === "number") timings.push({ name: "trend", durationMs: perfData.trendMs });
       if (typeof perfData.timeMs === "number") timings.push({ name: "time", durationMs: perfData.timeMs });
+      if (typeof perfData.durationMs === "number") timings.push({ name: "duration", durationMs: perfData.durationMs });
       if (typeof perfData.formatMs === "number") timings.push({ name: "format", durationMs: perfData.formatMs });
-      if (typeof perfData.proposalMs === "number") timings.push({ name: "proposal", durationMs: perfData.proposalMs });
-      if (typeof perfData.toneMs === "number") timings.push({ name: "tone", durationMs: perfData.toneMs });
-      if (typeof perfData.referenceMs === "number") timings.push({ name: "reference", durationMs: perfData.referenceMs });
+      if (typeof perfData.groupingsMs === "number") timings.push({ name: "groupings", durationMs: perfData.groupingsMs });
       if (typeof perfData.postsMs === "number") timings.push({ name: "posts", durationMs: perfData.postsMs });
       if (typeof perfData.normalizeMs === "number") timings.push({ name: "normalize", durationMs: perfData.normalizeMs });
     }

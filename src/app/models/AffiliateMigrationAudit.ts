@@ -1,4 +1,4 @@
-import { Schema, Types, model, models, Document } from 'mongoose';
+import mongoose, { Schema, Types, model, Document } from 'mongoose';
 
 export interface IAffiliateMigrationAudit extends Document {
   userId: Types.ObjectId;
@@ -20,5 +20,5 @@ const affiliateMigrationAuditSchema = new Schema<IAffiliateMigrationAudit>({
   at: { type: Date, default: Date.now },
 });
 
-export default models.AffiliateMigrationAudit ||
+export default mongoose.models.AffiliateMigrationAudit ||
   model<IAffiliateMigrationAudit>('AffiliateMigrationAudit', affiliateMigrationAuditSchema);

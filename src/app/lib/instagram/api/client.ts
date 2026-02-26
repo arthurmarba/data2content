@@ -72,7 +72,9 @@ export async function graphApiRequest<T>(
         type: 'HttpError',
         fbtrace_id: response.headers.get('x-fbtrace-id') || 'N/A',
       };
-      logger.error(`${TAG} Erro da API (Tentativa ${attemptNum}, Status: ${response.status}) para ${urlForLog}:`, JSON.stringify(errorDetail));
+      logger.error(
+        `${TAG} Erro da API (Tentativa ${attemptNum}, Status: ${response.status}) para ${urlForLog}: ${JSON.stringify(errorDetail)}`
+      );
 
       if (isTokenInvalidError(errorDetail.code, errorDetail.error_subcode, errorDetail.message)) {
         logger.warn(`${TAG} Erro de token/permissão detectado (${errorDetail.code}/${errorDetail.error_subcode || 'N/A'}). Não tentar novamente.`);
@@ -159,7 +161,9 @@ export async function graphApiNodeRequest<T>(
         type: 'HttpError',
         fbtrace_id: response.headers.get('x-fbtrace-id') || 'N/A',
       };
-      logger.error(`${TAG} Erro da API (Tentativa ${attemptNum}, Status: ${response.status}) para ${urlForLog}:`, JSON.stringify(errorDetail));
+      logger.error(
+        `${TAG} Erro da API (Tentativa ${attemptNum}, Status: ${response.status}) para ${urlForLog}: ${JSON.stringify(errorDetail)}`
+      );
 
       if (isTokenInvalidError(errorDetail.code, errorDetail.error_subcode, errorDetail.message)) {
         logger.warn(`${TAG} Erro de token/permissão detectado (${errorDetail.code}/${errorDetail.error_subcode || 'N/A'}). Não tentar novamente.`);

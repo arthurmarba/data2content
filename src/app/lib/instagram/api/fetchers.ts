@@ -45,7 +45,7 @@ export async function fetchInstagramMedia(
       url += (url.includes('?') ? '&' : '?') + `access_token=${accessToken}`;
     }
   } else {
-    const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,children{id,media_type,media_product_type,media_url,thumbnail_url},parent_id';
+    const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,video_duration,children{id,media_type,media_product_type,media_url,thumbnail_url,video_duration},parent_id';
     const limit = 25;
     url = `${BASE_URL}/${API_VERSION}/${accountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`;
   }
@@ -83,8 +83,10 @@ export async function fetchSingleInstagramMedia(
   if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' };
   if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
-  const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,children{id,media_type,media_product_type,media_url,thumbnail_url},parent_id';
-  const url = `${BASE_URL}/${API_VERSION}/${mediaId}?fields=${fields}&access_token=${accessToken}`;
+  // Keep this lean to maximize compatibility across Graph API versions and media types.
+  const fields = 'id,media_type,media_product_type,media_url,thumbnail_url,video_duration,children{id,media_type,media_product_type,media_url,thumbnail_url,video_duration}';
+  const encodedFields = encodeURIComponent(fields);
+  const url = `${BASE_URL}/${API_VERSION}/${mediaId}?fields=${encodedFields}&access_token=${accessToken}`;
 
   try {
     const response = await graphApiNodeRequest<InstagramMedia>(url, undefined, logContext, accessToken);

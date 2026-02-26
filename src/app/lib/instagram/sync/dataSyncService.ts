@@ -26,6 +26,7 @@ import AudienceDemographicSnapshotModel, { IAudienceDemographics } from '@/app/m
 import {
   fetchBasicAccountData,
   fetchInstagramMedia,
+  fetchSingleInstagramMedia,
   fetchMediaInsights,
   fetchAccountInsights,
   fetchAudienceDemographics,
@@ -37,10 +38,100 @@ import { saveMetricData } from '../db/metricActions';
 import { saveAccountInsightData } from '../db/accountInsightActions';
 import { isTokenInvalidError } from '../utils/tokenUtils';
 import { calcFormulas } from '@/app/lib/formulas';
+import { probeVideoDurationSecondsFromUrl } from '../utils/videoDurationFromUrl';
 
 import { refreshLongLivedUserAccessToken } from '../api/auth';
 
 const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
+
+function toPositiveNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
+function hasVideoDurationInMedia(media: InstagramMedia): boolean {
+  if (toPositiveNumber((media as any)?.video_duration)) return true;
+  if (media.media_type === 'CAROUSEL_ALBUM' && Array.isArray(media.children?.data)) {
+    for (const child of media.children.data) {
+      if (toPositiveNumber((child as any)?.video_duration)) return true;
+    }
+  }
+  return false;
+}
+
+function getVideoUrlForDurationProbe(media: InstagramMedia): string | null {
+  const directUrl = typeof (media as any)?.media_url === 'string' ? (media as any).media_url : null;
+  if (media.media_type === 'VIDEO' && directUrl) return directUrl;
+  if (media.media_product_type === 'REELS' && directUrl) return directUrl;
+
+  if (media.media_type === 'CAROUSEL_ALBUM' && Array.isArray(media.children?.data)) {
+    const childVideo = media.children.data.find(
+      (child) => child.media_type === 'VIDEO' && typeof (child as any)?.media_url === 'string'
+    );
+    if (childVideo) return (childVideo as any).media_url;
+  }
+
+  return directUrl;
+}
+
+function applyResolvedDurationToMedia(media: InstagramMedia, durationSeconds: number): InstagramMedia {
+  if (!(durationSeconds > 0)) return media;
+
+  const nextMedia: InstagramMedia = { ...media };
+  if (!toPositiveNumber((nextMedia as any)?.video_duration)) {
+    (nextMedia as any).video_duration = durationSeconds;
+  }
+
+  if (nextMedia.media_type === 'CAROUSEL_ALBUM' && Array.isArray(nextMedia.children?.data)) {
+    nextMedia.children = {
+      data: nextMedia.children.data.map((child) => {
+        if (child.media_type !== 'VIDEO') return child;
+        if (toPositiveNumber((child as any)?.video_duration)) return child;
+        return { ...child, video_duration: durationSeconds };
+      }),
+    };
+  }
+
+  return nextMedia;
+}
+
+function mergeMediaDuration(baseMedia: InstagramMedia, fallbackMedia: InstagramMedia): InstagramMedia {
+  const merged: InstagramMedia = { ...baseMedia };
+  const fallbackDuration = toPositiveNumber((fallbackMedia as any)?.video_duration);
+  if (!toPositiveNumber((merged as any)?.video_duration) && fallbackDuration) {
+    (merged as any).video_duration = fallbackDuration;
+  }
+
+  if (merged.media_type === 'CAROUSEL_ALBUM') {
+    const baseChildren = Array.isArray(merged.children?.data) ? merged.children.data : [];
+    const fallbackChildren = Array.isArray(fallbackMedia.children?.data) ? fallbackMedia.children.data : [];
+    if (baseChildren.length > 0 && fallbackChildren.length > 0) {
+      const fallbackById = new Map(fallbackChildren.map((child) => [child.id, child]));
+      merged.children = {
+        data: baseChildren.map((baseChild) => {
+          const fallbackChild = fallbackById.get(baseChild.id);
+          if (!fallbackChild) return baseChild;
+          const baseDuration = toPositiveNumber((baseChild as any)?.video_duration);
+          const fallbackChildDuration = toPositiveNumber((fallbackChild as any)?.video_duration);
+          if (!baseDuration && fallbackChildDuration) {
+            return { ...baseChild, video_duration: fallbackChildDuration };
+          }
+          return baseChild;
+        }),
+      };
+    } else if (baseChildren.length === 0 && fallbackChildren.length > 0) {
+      merged.children = { data: fallbackChildren };
+    }
+  }
+
+  return merged;
+}
 
 /**
  * Orquestra a atualização completa dos dados de uma conta Instagram conectada.
@@ -213,6 +304,9 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
         const mediaInPage = mediaResult.data ?? [];
         totalMediaFound += mediaInPage.length;
+        let pageDurationFallbackAttempts = 0;
+        let pageDurationFallbackRecovered = 0;
+        let pageDurationFallbackStillMissing = 0;
 
         if (mediaInPage.length > 0) {
           const processableMediaForInsights = mediaInPage.filter(m => {
@@ -223,6 +317,18 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             return false;
           });
           totalMediaProcessedForInsights += processableMediaForInsights.length;
+
+          const videoLikeInPage = processableMediaForInsights.filter((mediaItem) =>
+            mediaItem.media_product_type === 'REELS' ||
+            mediaItem.media_type === 'VIDEO' ||
+            mediaItem.media_type === 'CAROUSEL_ALBUM'
+          );
+          const withDurationInPage = videoLikeInPage.filter((mediaItem) => hasVideoDurationInMedia(mediaItem)).length;
+          if (videoLikeInPage.length > 0) {
+            logger.info(
+              `${TAG} Pág ${mediaCurrentPage}: duração presente em payload de mídia para ${withDurationInPage}/${videoLikeInPage.length} vídeos/reels.`
+            );
+          }
 
           if (processableMediaForInsights.length > 0) {
             logger.info(`${TAG} Pág ${mediaCurrentPage}: ${processableMediaForInsights.length} mídias recentes para buscar insights...`);
@@ -324,6 +430,53 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 };
               }
 
+              let mediaForPersistence = mediaItem;
+              const isVideoLikeMedia =
+                productType === 'REELS' || itemMediaType === 'VIDEO' || itemMediaType === 'CAROUSEL_ALBUM';
+              if (isVideoLikeMedia && !hasVideoDurationInMedia(mediaForPersistence)) {
+                pageDurationFallbackAttempts += 1;
+                const initialVideoUrl = getVideoUrlForDurationProbe(mediaForPersistence);
+                const initialProbedDuration = await probeVideoDurationSecondsFromUrl(initialVideoUrl);
+                if (initialProbedDuration && initialProbedDuration > 0) {
+                  mediaForPersistence = applyResolvedDurationToMedia(mediaForPersistence, initialProbedDuration);
+                  logger.debug(
+                    `${TAG} Duração recuperada via metadata de vídeo (payload inicial) para ${mediaItem.id}: ${initialProbedDuration.toFixed(2)}s.`
+                  );
+                }
+
+                if (!hasVideoDurationInMedia(mediaForPersistence)) {
+                  const singleMediaResult = await fetchSingleInstagramMedia(mediaItem.id, userLlat!);
+                  if (singleMediaResult.success && singleMediaResult.data?.[0]) {
+                    mediaForPersistence = mergeMediaDuration(mediaForPersistence, singleMediaResult.data[0]);
+                    if (hasVideoDurationInMedia(mediaForPersistence)) {
+                      logger.debug(`${TAG} Duração recuperada via fallback de mídia individual para ${mediaItem.id}.`);
+                    } else {
+                      logger.debug(`${TAG} Mídia ${mediaItem.id} permanece sem duração após fallback de mídia individual.`);
+                    }
+                  } else if (singleMediaResult.error) {
+                    logger.debug(`${TAG} Fallback de mídia individual sem sucesso para ${mediaItem.id}: ${singleMediaResult.error}`);
+                  }
+                }
+
+                if (!hasVideoDurationInMedia(mediaForPersistence)) {
+                  const fallbackVideoUrl = getVideoUrlForDurationProbe(mediaForPersistence);
+                  const probedDuration = await probeVideoDurationSecondsFromUrl(fallbackVideoUrl);
+                  if (probedDuration && probedDuration > 0) {
+                    mediaForPersistence = applyResolvedDurationToMedia(mediaForPersistence, probedDuration);
+                    logger.debug(
+                      `${TAG} Duração recuperada via metadata de vídeo (fallback) para ${mediaItem.id}: ${probedDuration.toFixed(2)}s.`
+                    );
+                  }
+                }
+
+                if (hasVideoDurationInMedia(mediaForPersistence)) {
+                  pageDurationFallbackRecovered += 1;
+                }
+                if (!hasVideoDurationInMedia(mediaForPersistence)) {
+                  pageDurationFallbackStillMissing += 1;
+                }
+              }
+
               logger.debug(`${TAG} Buscando insights para mídia ${mediaItem.id} com métricas: ${metricsForThisMedia}`);
               const insightsResult = await fetchMediaInsights(mediaItem.id, userLlat!, metricsForThisMedia);
 
@@ -334,7 +487,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                   throw new Error(`Token error on media ${mediaItem.id} with User LLAT: ${insightsResult.error}`);
                 }
               }
-              return { mediaId: mediaItem.id, media: mediaItem, insightsResult, insightTokenSource: 'User LLAT', status: 'processed' };
+              return { mediaId: mediaItem.id, media: mediaForPersistence, insightsResult, insightTokenSource: 'User LLAT', status: 'processed' };
             }));
 
             const insightTaskResultsSettled = await Promise.allSettled(insightTasks);
@@ -374,6 +527,20 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                     }
                   } else {
                     logger.warn(`${TAG} Falha ao buscar insights para mídia ${mediaId} (Token usado: ${insightTokenSource}): ${insightsResult.error || insightsResult.errorMessage || 'Erro desconhecido'}`);
+                    try {
+                      // Mesmo sem insights, persiste metadados da mídia para manter duração (video_duration_seconds) atualizada.
+                      await saveMetricData(userObjectId, media, {} as IMetricStats);
+                      savedMediaMetrics++;
+                      logger.info(`${TAG} Mídia ${mediaId} salva sem insights para preservar metadados/duração.`);
+                    } catch (saveError: any) {
+                      logger.error(`${TAG} Erro ao salvar métrica ${mediaId} sem insights:`, saveError);
+                      errors.push({
+                        step: 'saveMetricDataNoInsights',
+                        message: `Salvar mídia ${mediaId} sem insights: ${saveError.message}`,
+                        tokenUsed: insightTokenSource,
+                      });
+                      overallSuccess = false;
+                    }
                     if (!isTokenInvalidError(undefined, undefined, insightsResult.error ?? undefined)) {
                       errors.push({
                         step: 'fetchMediaInsights',
@@ -413,7 +580,11 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         }
         nextPageMediaUrl = mediaResult.nextPageUrl;
         if (!nextPageMediaUrl) hasMoreMediaPages = false;
-        logger.info(`${TAG} Pág ${mediaCurrentPage} de mídias processada em ${Date.now() - pageStartTime}ms. Skipped Carousel Children: ${skippedCarouselChildren}`);
+        logger.info(
+          `${TAG} Pág ${mediaCurrentPage} de mídias processada em ${Date.now() - pageStartTime}ms. ` +
+          `Skipped Carousel Children: ${skippedCarouselChildren}. ` +
+          `page_duration_fallback: attempts=${pageDurationFallbackAttempts}, recovered=${pageDurationFallbackRecovered}, missing=${pageDurationFallbackStillMissing}.`
+        );
         if (hasMoreMediaPages && mediaCurrentPage < MAX_PAGES_MEDIA && !criticalTokenErrorOccurred) {
           await new Promise(r => setTimeout(r, DELAY_MS));
         }

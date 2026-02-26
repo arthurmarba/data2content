@@ -1,4 +1,4 @@
-import { Schema, model, models, Document, Types, Model } from "mongoose";
+import mongoose, { Schema, model, Document, Types, Model } from "mongoose";
 
 export interface IMediaKitAccessLog extends Document {
   user: Types.ObjectId;
@@ -19,8 +19,7 @@ mediaKitAccessLogSchema.index({ user: 1 });
 mediaKitAccessLogSchema.index({ timestamp: -1 });
 
 const MediaKitAccessLogModel: Model<IMediaKitAccessLog> =
-  models.MediaKitAccessLog ||
+  mongoose.models.MediaKitAccessLog ||
   model<IMediaKitAccessLog>("MediaKitAccessLog", mediaKitAccessLogSchema);
 
 export default MediaKitAccessLogModel;
-

@@ -1,4 +1,4 @@
-import { Schema, model, models, Document, Model } from 'mongoose';
+import mongoose, { Schema, model, Document, Model } from 'mongoose';
 import { nanoid } from 'nanoid';
 import { PLAN_STATUSES, type PlanStatus, AGENCY_PLAN_TYPES, type AgencyPlanType } from '@/types/enums';
 
@@ -22,5 +22,5 @@ const agencySchema = new Schema<IAgency>({
 
 agencySchema.index({ inviteCode: 1 }, { unique: true });
 
-const AgencyModel: Model<IAgency> = models.Agency || model<IAgency>('Agency', agencySchema);
+const AgencyModel: Model<IAgency> = mongoose.models.Agency || model<IAgency>('Agency', agencySchema);
 export default AgencyModel;

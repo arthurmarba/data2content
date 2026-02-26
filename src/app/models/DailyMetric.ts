@@ -1,4 +1,4 @@
-import { Schema, model, models, Document, Types, Model } from "mongoose"; // Import Model
+import mongoose, { Schema, model, Document, Types, Model } from "mongoose"; // Import Model
 
 /**
  * IDailyMetric:
@@ -208,6 +208,6 @@ dailyMetricSchema.index({ postId: 1 });
 // Evita recriar o modelo em dev/hot reload
 // CORRIGIDO: Usa Model<IDailyMetric> para tipagem correta
 const DailyMetricModel: Model<IDailyMetric> =
-  models.DailyMetric || model<IDailyMetric>("DailyMetric", dailyMetricSchema);
+  mongoose.models.DailyMetric || model<IDailyMetric>("DailyMetric", dailyMetricSchema);
 
 export { DailyMetricModel as DailyMetric };

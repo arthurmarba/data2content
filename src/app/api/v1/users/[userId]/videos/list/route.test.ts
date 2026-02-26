@@ -93,6 +93,24 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     }));
   });
 
+  it('forwards duration bucket filter when provided', async () => {
+    mockFindUserPosts.mockResolvedValueOnce({
+      posts: [],
+      totalPosts: 0,
+      page: 1,
+      limit: 10,
+    });
+
+    const req = createRequest(userId, '?durationBucket=30_60');
+    await GET(req, { params: { userId } });
+
+    expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
+      filters: expect.objectContaining({
+        durationBucket: '30_60',
+      }),
+    }));
+  });
+
   it('returns 400 for invalid timePeriod', async () => {
     const req = createRequest(userId, '?timePeriod=bad');
     const res = await GET(req, { params: { userId } });
@@ -100,6 +118,16 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
 
     expect(res.status).toBe(400);
     expect(body.error).toContain('timePeriod inválido');
+    expect(mockFindUserPosts).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for invalid durationBucket', async () => {
+    const req = createRequest(userId, '?durationBucket=bad_bucket');
+    const res = await GET(req, { params: { userId } });
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toContain('durationBucket inválido');
     expect(mockFindUserPosts).not.toHaveBeenCalled();
   });
 

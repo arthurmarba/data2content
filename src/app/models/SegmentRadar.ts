@@ -1,4 +1,4 @@
-import { Schema, model, models, Document } from 'mongoose';
+import mongoose, { Schema, model, Document } from 'mongoose';
 
 /**
  * A interface ISegmentRadar define a estrutura de um documento SegmentRadar.
@@ -31,4 +31,4 @@ const segmentRadarSchema = new Schema<ISegmentRadar>({
  * Exporta o modelo. Usa o modelo existente se já tiver sido compilado (padrão do Next.js)
  * para evitar erros durante o hot-reloading em desenvolvimento.
  */
-export default models.SegmentRadar || model<ISegmentRadar>('SegmentRadar', segmentRadarSchema);
+export default mongoose.models.SegmentRadar || model<ISegmentRadar>('SegmentRadar', segmentRadarSchema);

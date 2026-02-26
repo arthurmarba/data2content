@@ -4,7 +4,7 @@
 // O índice `{ metric: 1, date: -1 }` é perfeito para buscar o histórico de
 // um post específico em diferentes períodos. Nenhuma alteração é necessária.
 
-import { Schema, model, models, Document, Model, Types } from "mongoose";
+import mongoose, { Schema, model, Document, Model, Types } from "mongoose";
 import { IMetric } from "./Metric";
 
 export interface IDailyMetricSnapshot extends Document {
@@ -92,7 +92,7 @@ dailyMetricSnapshotSchema.index(
 );
 
 const DailyMetricSnapshotModel =
-  (models.DailyMetricSnapshot as Model<IDailyMetricSnapshot>) ||
+  (mongoose.models.DailyMetricSnapshot as Model<IDailyMetricSnapshot>) ||
   model<IDailyMetricSnapshot>(
     "DailyMetricSnapshot",
     dailyMetricSnapshotSchema

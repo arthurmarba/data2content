@@ -1,4 +1,4 @@
-import { Schema, model, models, Document, Types, Model } from 'mongoose';
+import mongoose, { Schema, model, Document, Types, Model } from 'mongoose';
 
 export interface IUserUsageSnapshot extends Document {
   user: Types.ObjectId;
@@ -21,7 +21,7 @@ const userUsageSnapshotSchema = new Schema<IUserUsageSnapshot>(
 userUsageSnapshotSchema.index({ user: 1, date: -1 });
 
 const UserUsageSnapshotModel: Model<IUserUsageSnapshot> =
-  models.UserUsageSnapshot ||
+  mongoose.models.UserUsageSnapshot ||
   model<IUserUsageSnapshot>('UserUsageSnapshot', userUsageSnapshotSchema);
 
 export default UserUsageSnapshotModel;

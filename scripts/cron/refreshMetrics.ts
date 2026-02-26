@@ -7,11 +7,12 @@ async function run() {
   const TAG = '[cron refreshMetrics]';
   await connectToDatabase();
   const users = await User.find({
-    isInstagramConnected: true,
+    role: 'user',
+    planStatus: 'active',
     instagramAccessToken: { $ne: null },
     instagramAccountId: { $ne: null }
-  }).select('_id').lean();
-  logger.info(`${TAG} ${users.length} usuarios encontrados`);
+  }).select('_id planStatus role').lean();
+  logger.info(`${TAG} ${users.length} criadores assinantes ativos encontrados`);
   for (const u of users) {
     const uid = u._id.toString();
     try {

@@ -50,9 +50,14 @@ export async function refreshSinglePubliMetric(userId: string, instagramMediaId:
         const insightsResult = await fetchMediaInsights(instagramMediaId, accessToken, metricsToFetch);
         if (!insightsResult.success || !insightsResult.data) {
             logger.error(`${TAG} Failed to fetch insights: ${insightsResult.error}`);
-            // If we have media but no insights, we might still want to update metadata? 
-            // For now, fail safely.
-            return { success: false, message: 'Failed to fetch insights from Instagram.' };
+            // Persist media metadata even when insights fail to keep duration data in sync.
+            try {
+                await saveMetricData(userObjectId, mediaItem, {} as IMetricStats);
+                return { success: true, message: 'Media metadata updated, but insights fetch failed.' };
+            } catch (saveError: any) {
+                logger.error(`${TAG} Failed to persist metadata without insights:`, saveError);
+                return { success: false, message: 'Failed to fetch insights from Instagram.' };
+            }
         }
 
         // 5. Calculate Formulas & Save

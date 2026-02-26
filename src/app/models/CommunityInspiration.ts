@@ -2,7 +2,7 @@
 // - ADICIONADO: Índice composto em status, addedToCommunityAt e internalMetricsSnapshot.saveRate.
 // - Baseado na v1.1.0 (Enums, Índice Único em postId_Instagram, Sub-schema para Métricas Internas).
 
-import { Schema, model, models, Document, Model, Types } from "mongoose";
+import mongoose, { Schema, model, Document, Model, Types } from "mongoose";
 import {
     VALID_FORMATS,
     VALID_PROPOSALS,
@@ -129,6 +129,6 @@ communityInspirationSchema.index({ status: 1, addedToCommunityAt: -1, "internalM
  * Exporta o modelo 'CommunityInspiration', evitando recriação em dev/hot reload.
  */
 const CommunityInspirationModel: Model<ICommunityInspiration> = 
-  models.CommunityInspiration || model<ICommunityInspiration>("CommunityInspiration", communityInspirationSchema);
+  mongoose.models.CommunityInspiration || model<ICommunityInspiration>("CommunityInspiration", communityInspirationSchema);
 
 export default CommunityInspirationModel;

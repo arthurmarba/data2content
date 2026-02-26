@@ -112,6 +112,7 @@ export interface InstagramMediaChild {
   media_url?: string;
   permalink?: string;
   thumbnail_url?: string;
+  video_duration?: number;
 }
 
 /**
@@ -127,6 +128,7 @@ export interface InstagramMedia {
   permalink?: string;
   media_url?: string;
   thumbnail_url?: string;
+  video_duration?: number;
   username?: string;
   is_published?: boolean;
   children?: { // Presente se media_type for CAROUSEL_ALBUM
