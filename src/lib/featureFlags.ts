@@ -2,6 +2,7 @@ export const FEATURE_FLAG_KEYS = [
   'nav.dashboard_minimal',
   'nav.campaigns_focus',
   'planning.group_locked',
+  'planning.recommendations_v1',
   'modules.community_on_home',
   'paywall.modal_enabled',
   'home.tutorial_minimal',
@@ -17,6 +18,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   'nav.dashboard_minimal': false,
   'nav.campaigns_focus': false,
   'planning.group_locked': false,
+  'planning.recommendations_v1': false,
   'modules.community_on_home': true,
   'paywall.modal_enabled': true,
   // Mantemos a nova Home como padrão em todos os ambientes. Caso precisemos voltar

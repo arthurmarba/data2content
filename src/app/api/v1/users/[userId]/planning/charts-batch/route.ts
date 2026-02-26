@@ -7,6 +7,11 @@ import getEngagementDistributionByFormatChartData from "@/charts/getEngagementDi
 import { aggregateUserTimePerformance } from "@/utils/aggregateUserTimePerformance";
 import { aggregateUserDurationPerformance } from "@/utils/aggregateUserDurationPerformance";
 import { getAverageEngagementByGroupings } from "@/utils/getAverageEngagementByGrouping";
+import {
+  ALLOWED_PLANNING_OBJECTIVES,
+  buildPlanningRecommendations,
+  PlanningObjectiveMode,
+} from "@/utils/buildPlanningRecommendations";
 import { findUserPosts, toProxyUrl } from "@/app/lib/dataService/marketAnalysis/postsService";
 import { timePeriodToDays } from "@/utils/timePeriodHelpers";
 import {
@@ -74,6 +79,10 @@ function toPositiveInt(value: string | null, fallback: number) {
   return parsed;
 }
 
+function isAllowedPlanningObjective(value: any): value is PlanningObjectiveMode {
+  return ALLOWED_PLANNING_OBJECTIVES.includes(value);
+}
+
 function extractThumbnail(v: any): string | undefined {
   const fromChildren =
     Array.isArray(v?.children) &&
@@ -133,6 +142,7 @@ export async function GET(
   const maxSlicesParam = searchParams.get("maxSlices");
   const pageParam = searchParams.get("page");
   const limitParam = searchParams.get("limit");
+  const objectiveModeParam = searchParams.get("objectiveMode");
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam) ? timePeriodParam : DEFAULT_TIME_PERIOD;
   if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
@@ -164,6 +174,17 @@ export async function GET(
   const page = toPositiveInt(pageParam, DEFAULT_PAGE);
   const limit = Math.min(toPositiveInt(limitParam, DEFAULT_PAGE_LIMIT), MAX_PAGE_LIMIT);
   const maxSlices = toPositiveInt(maxSlicesParam, DEFAULT_MAX_SLICES);
+  const objectiveMode: PlanningObjectiveMode = isAllowedPlanningObjective(objectiveModeParam)
+    ? objectiveModeParam
+    : "engagement";
+  if (objectiveModeParam && !isAllowedPlanningObjective(objectiveModeParam)) {
+    return NextResponse.json(
+      {
+        error: `objectiveMode inválido. Permitidos: ${ALLOWED_PLANNING_OBJECTIVES.join(", ")}`,
+      },
+      { status: 400 }
+    );
+  }
   const periodInDaysValue = timePeriodToDays(timePeriod);
 
   try {
@@ -246,7 +267,6 @@ export async function GET(
         });
         computeTimings.normalizeMs = nowMs() - normalizeStartedAt;
         const totalPages = Math.max(1, Math.ceil(postsResult.totalPosts / postsResult.limit));
-
         return {
           payload: {
             trendData,
@@ -301,11 +321,29 @@ export async function GET(
     }
 
     const responsePayload = (value as any)?.payload ?? value;
+    const recommendationsStartedAt = nowMs();
+    const recommendations = buildPlanningRecommendations({
+      objectiveMode,
+      trendData: responsePayload?.trendData,
+      timeData: responsePayload?.timeData,
+      durationData: responsePayload?.durationData,
+      formatData: responsePayload?.formatData,
+      proposalData: responsePayload?.proposalData,
+      toneData: responsePayload?.toneData,
+      contextData: responsePayload?.contextData,
+    });
+    timings.push({ name: "recommendations", durationMs: nowMs() - recommendationsStartedAt });
+    const responsePayloadWithRecommendations = {
+      ...responsePayload,
+      objectiveMode,
+      recommendations,
+      topActions: recommendations.actions.slice(0, 3),
+    };
 
     const durationMs = nowMs() - startedAt;
     timings.push({ name: "total", durationMs });
     logger.info(`${SERVICE_TAG} Responded in ${durationMs}ms (cacheHit=${hit})`);
-    const response = NextResponse.json(responsePayload, { status: 200 });
+    const response = NextResponse.json(responsePayloadWithRecommendations, { status: 200 });
     return withServerTiming(response, timings, { "X-D2C-Cache": hit ? "hit" : "miss" });
   } catch (error: any) {
     logger.error(`${SERVICE_TAG} Error for user ${userId}:`, error);

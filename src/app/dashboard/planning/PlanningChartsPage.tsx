@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import {
   Bar,
@@ -18,6 +19,9 @@ import {
 } from "recharts";
 import { Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
 import { TopDiscoveryTable } from "./components/TopDiscoveryTable";
+import Drawer from "@/components/ui/Drawer";
+import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
+import { track } from "@/lib/track";
 
 const PostsBySliceModal = dynamic(() => import("./components/PostsBySliceModal"), {
   ssr: false,
@@ -43,6 +47,14 @@ const PERIOD_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "Últimos 90 dias", value: "last_90_days" },
   { label: "Últimos 120 dias", value: "last_120_days" },
 ];
+const AUTO_PREFETCH_PAGE_CAP_BY_PERIOD: Record<string, number> = {
+  last_7_days: 1,
+  last_14_days: 1,
+  last_30_days: 2,
+  last_60_days: 2,
+  last_90_days: 3,
+  last_120_days: 4,
+};
 const metricCellClass = "text-right tabular-nums text-slate-800 font-semibold";
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -82,6 +94,59 @@ const toNumber = (value: any): number | null => {
 const formatPostsCount = (count: number) => {
   const rounded = Math.max(0, Math.round(count));
   return `${numberFormatter.format(rounded)} post${rounded === 1 ? "" : "s"}`;
+};
+type PlanningObjectiveMode = "reach" | "engagement" | "leads";
+type PlanningRecommendationAction = {
+  id: string;
+  title: string;
+  action: string;
+  impactEstimate: string;
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+};
+const OBJECTIVE_OPTIONS: Array<{ value: PlanningObjectiveMode; label: string }> = [
+  { value: "engagement", label: "Engajamento" },
+  { value: "reach", label: "Alcance" },
+  { value: "leads", label: "Leads" },
+];
+const confidenceLabel: Record<PlanningRecommendationAction["confidence"], string> = {
+  high: "Alta confiança",
+  medium: "Confiança média",
+  low: "Baixa confiança",
+};
+const confidencePillLabel: Record<PlanningRecommendationAction["confidence"], string> = {
+  high: "Alta",
+  medium: "Média",
+  low: "Baixa",
+};
+const twoLineClampStyle: React.CSSProperties = {
+  display: "-webkit-box",
+  WebkitBoxOrient: "vertical",
+  WebkitLineClamp: 2,
+  overflow: "hidden",
+};
+const parseRolloutPercent = (value: string | undefined, fallback: number) => {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(100, Math.max(0, parsed));
+};
+const PLANNING_RECOMMENDATIONS_ROLLOUT_PERCENT = parseRolloutPercent(
+  process.env.NEXT_PUBLIC_PLANNING_RECOMMENDATIONS_ROLLOUT_PERCENT,
+  10
+);
+const hashToRolloutBucket = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash % 100);
+};
+const isUserInRollout = (userId: string, rolloutPercent: number) => {
+  if (!userId) return false;
+  if (rolloutPercent >= 100) return true;
+  if (rolloutPercent <= 0) return false;
+  return hashToRolloutBucket(userId) < rolloutPercent;
 };
 type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
 type CategoryBarDatum = { name: string; value: number; postsCount: number };
@@ -463,9 +528,14 @@ type AdminTargetUser = {
 };
 
 export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
+  const router = useRouter();
   const sessionUserId = viewer?.id;
   const viewerRole = viewer?.role ?? null;
   const isAdminViewer = viewerRole === "admin";
+  const { enabled: recommendationsFlagEnabled, loading: recommendationsFlagLoading } = useFeatureFlag(
+    "planning.recommendations_v1",
+    false
+  );
   const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
   const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
   const activeUserId = targetUserId ?? sessionUserId;
@@ -483,12 +553,29 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     []
   );
   const [timePeriod, setTimePeriod] = useState<string>(DEFAULT_TIME_PERIOD);
+  const [objectiveMode, setObjectiveMode] = useState<PlanningObjectiveMode>("engagement");
+  const [selectedRecommendation, setSelectedRecommendation] = useState<PlanningRecommendationAction | null>(null);
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const [autoPaginating, setAutoPaginating] = useState(false);
+  const [showAdvancedSections, setShowAdvancedSections] = useState(false);
   const durationBucketPostsCacheRef = useRef<Map<string, any[]>>(new Map());
+  const fetchedPagesRef = useRef<Set<number>>(new Set());
+  const paginationScopeRef = useRef<string>("");
+  const advancedSectionsSentinelRef = useRef<HTMLDivElement | null>(null);
   const PAGE_LIMIT = 200;
-  const MAX_PAGES = 6; // evita loop infinito; 6*200 = 1200 posts em 90 dias
+  const MAX_PAGES = 6; // hard cap de segurança
+  const paginationScopeKey = `${activeUserId || "none"}:${timePeriod}`;
+  const recommendationsFeatureEnabled = useMemo(() => {
+    if (isAdminViewer) return true;
+    if (recommendationsFlagLoading) return false;
+    if (!recommendationsFlagEnabled) return false;
+    return isUserInRollout(activeUserId, PLANNING_RECOMMENDATIONS_ROLLOUT_PERCENT);
+  }, [activeUserId, isAdminViewer, recommendationsFlagEnabled, recommendationsFlagLoading]);
+  const autoPrefetchPagesCap = Math.min(
+    MAX_PAGES,
+    AUTO_PREFETCH_PAGE_CAP_BY_PERIOD[timePeriod] ?? 2
+  );
 
   const resetPaginationState = React.useCallback(() => {
     setPage(1);
@@ -501,13 +588,88 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     resetPaginationState();
   };
 
+  const handleObjectiveModeChange = React.useCallback(
+    (nextObjective: PlanningObjectiveMode) => {
+      if (nextObjective === objectiveMode) return;
+      track("planning_charts_objective_changed", {
+        creator_id: activeUserId || null,
+        from_objective: objectiveMode,
+        to_objective: nextObjective,
+        time_period: timePeriod,
+      });
+      setObjectiveMode(nextObjective);
+    },
+    [activeUserId, objectiveMode, timePeriod]
+  );
+
+  const openRecommendationEvidence = React.useCallback(
+    (action: PlanningRecommendationAction) => {
+      track("planning_charts_action_clicked", {
+        creator_id: activeUserId || null,
+        action_id: action.id,
+        objective_mode: objectiveMode,
+        confidence: action.confidence,
+        time_period: timePeriod,
+      });
+      setSelectedRecommendation(action);
+    },
+    [activeUserId, objectiveMode, timePeriod]
+  );
+
+  const closeRecommendationEvidence = React.useCallback(() => {
+    setSelectedRecommendation(null);
+  }, []);
+
+  const handleGoToPlanner = React.useCallback(
+    (source: "recommendations_card" | "recommendation_drawer") => {
+      track("planning_charts_go_to_planner_clicked", {
+        creator_id: activeUserId || null,
+        source,
+        objective_mode: objectiveMode,
+        time_period: timePeriod,
+      });
+      router.push("/planning/planner");
+    },
+    [activeUserId, objectiveMode, router, timePeriod]
+  );
+
   useEffect(() => {
     durationBucketPostsCacheRef.current.clear();
   }, [activeUserId, timePeriod]);
 
+  useEffect(() => {
+    if (!recommendationsFeatureEnabled) {
+      setSelectedRecommendation(null);
+    }
+  }, [recommendationsFeatureEnabled]);
+
+  useEffect(() => {
+    setSelectedRecommendation(null);
+  }, [activeUserId, objectiveMode, timePeriod]);
+
+  useEffect(() => {
+    if (showAdvancedSections) return;
+    const target = advancedSectionsSentinelRef.current;
+    if (!target || typeof window === "undefined" || typeof IntersectionObserver === "undefined") {
+      setShowAdvancedSections(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (!entry?.isIntersecting) return;
+        setShowAdvancedSections(true);
+        observer.disconnect();
+      },
+      { rootMargin: "520px 0px 520px 0px", threshold: 0.01 }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [showAdvancedSections]);
+
   const { data: chartsBatchData, isLoading: loadingBatch } = useSWR(
     activeUserId
-      ? `/api/v1/users/${activeUserId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&metric=stats.total_interactions&engagementMetricField=stats.total_interactions&limit=${PAGE_LIMIT}`
+      ? `/api/v1/users/${activeUserId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&metric=stats.total_interactions&engagementMetricField=stats.total_interactions&objectiveMode=${objectiveMode}&limit=${PAGE_LIMIT}`
       : null,
     fetcher,
     swrOptions
@@ -521,6 +683,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const toneData = chartsBatchData?.toneData;
   const referenceData = chartsBatchData?.referenceData;
   const contextData = chartsBatchData?.contextData;
+  const recommendationActions = useMemo(
+    () =>
+      recommendationsFeatureEnabled
+        ? ((chartsBatchData?.recommendations?.actions || []) as PlanningRecommendationAction[])
+        : [],
+    [chartsBatchData?.recommendations?.actions, recommendationsFeatureEnabled]
+  );
 
   const hasDurationDataFromApi =
     Array.isArray(durationData?.buckets) && typeof durationData?.totalVideoPosts === "number";
@@ -534,7 +703,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     !hasCategoryDataWithCounts(contextData?.chartData);
 
   const { data: pagedPostsData } = useSWR(
-    activeUserId && page > 1 && requiresExtendedPosts
+    activeUserId && page > 1 && requiresExtendedPosts && !fetchedPagesRef.current.has(page)
       ? `/api/v1/users/${activeUserId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
       : null,
     fetcher,
@@ -812,17 +981,20 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
   const mergePosts = (prev: any[], next: any[]) => {
     const map = new Map<string, any>();
-    const all = [...prev, ...next];
-    all.forEach((p) => {
-      const key =
-        p?._id ||
-        p?.id ||
-        p?.instagramMediaId ||
-        (p?.postDate ? `${p.postDate}-${p?.caption || ""}` : null) ||
-        Math.random().toString(36);
-      map.set(key, { ...map.get(key), ...p });
+    let uniqueAdded = 0;
+
+    prev.forEach((post) => {
+      const key = getPostStableKey(post) ?? Math.random().toString(36);
+      map.set(key, post);
     });
-    return Array.from(map.values());
+
+    next.forEach((post) => {
+      const key = getPostStableKey(post) ?? Math.random().toString(36);
+      if (!map.has(key)) uniqueAdded += 1;
+      map.set(key, { ...map.get(key), ...post });
+    });
+
+    return { merged: Array.from(map.values()), uniqueAdded };
   };
 
   // carrega a primeira página junto do batch para reduzir round-trips no primeiro paint
@@ -830,23 +1002,36 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     const list = Array.isArray(chartsBatchData?.postsData?.posts) ? chartsBatchData.postsData.posts : [];
     const totalPagesFromBatch = Number(chartsBatchData?.postsData?.pagination?.totalPages || 1);
     const maxPrefetchPages = Math.min(
-      MAX_PAGES,
+      autoPrefetchPagesCap,
       Number.isFinite(totalPagesFromBatch) && totalPagesFromBatch > 0 ? totalPagesFromBatch : 1
     );
+    const scopeChanged = paginationScopeRef.current !== paginationScopeKey;
+    if (scopeChanged) {
+      paginationScopeRef.current = paginationScopeKey;
+      fetchedPagesRef.current = new Set();
+    }
     if (!chartsBatchData) return;
 
     if (!list.length) {
-      setPostsCache([]);
-      setPage(1);
-      setAutoPaginating(false);
+      if (scopeChanged) {
+        setPostsCache([]);
+        setPage(1);
+        setAutoPaginating(false);
+      }
       return;
     }
 
+    const incomingFirstKey = getPostStableKey(list[0]);
+    const currentFirstKey = getPostStableKey(postsCache[0]);
+    const shouldRefreshSeedPage = scopeChanged || postsCache.length === 0 || incomingFirstKey !== currentFirstKey;
+    if (!shouldRefreshSeedPage) return;
+
+    fetchedPagesRef.current = new Set([1]);
     setPostsCache(list);
     const shouldPrefetch = requiresExtendedPosts && list.length === PAGE_LIMIT && maxPrefetchPages > 1;
     setPage(shouldPrefetch ? 2 : 1);
     setAutoPaginating(false);
-  }, [chartsBatchData, requiresExtendedPosts]);
+  }, [chartsBatchData, requiresExtendedPosts, autoPrefetchPagesCap, paginationScopeKey, postsCache]);
 
   // acumula páginas adicionais em baixa prioridade para não competir com interação inicial
   useEffect(() => {
@@ -859,15 +1044,23 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         : [];
     if (!list.length) return;
 
-    setPostsCache((prev) => mergePosts(prev, list));
+    fetchedPagesRef.current.add(page);
+    const { merged, uniqueAdded } = mergePosts(postsCache, list);
+    if (uniqueAdded > 0) {
+      setPostsCache(merged);
+    }
 
     const totalPagesFromResponse = Number(pagedPostsData?.pagination?.totalPages || 0);
     const maxPrefetchPages = Math.min(
-      MAX_PAGES,
-      Number.isFinite(totalPagesFromResponse) && totalPagesFromResponse > 0 ? totalPagesFromResponse : MAX_PAGES
+      autoPrefetchPagesCap,
+      Number.isFinite(totalPagesFromResponse) && totalPagesFromResponse > 0 ? totalPagesFromResponse : autoPrefetchPagesCap
     );
 
-    const shouldLoadMore = requiresExtendedPosts && list.length === PAGE_LIMIT && page < maxPrefetchPages;
+    const shouldLoadMore =
+      requiresExtendedPosts &&
+      uniqueAdded > 0 &&
+      list.length === PAGE_LIMIT &&
+      page < maxPrefetchPages;
     if (shouldLoadMore && !autoPaginating) {
       setAutoPaginating(true);
       const queueNextPage = () => {
@@ -880,7 +1073,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         window.setTimeout(queueNextPage, 180);
       }
     }
-  }, [pagedPostsData, page, autoPaginating, requiresExtendedPosts]);
+  }, [pagedPostsData, page, autoPaginating, requiresExtendedPosts, autoPrefetchPagesCap, postsCache]);
 
   const hourBars = useMemo(() => {
     const buckets: Array<{ hour: number; average: number; count?: number }> = timeData?.buckets || [];
@@ -1022,6 +1215,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
 
   const needsCategoryFallback = useMemo(() => {
+    if (!showAdvancedSections) return false;
     if (!proposalBarsFromApi.length || !toneBarsFromApi.length || !referenceBarsFromApi.length || !contextBarsFromApi.length) {
       return true;
     }
@@ -1033,7 +1227,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       hasMissingCount(referenceBarsFromApi) ||
       hasMissingCount(contextBarsFromApi)
     );
-  }, [proposalBarsFromApi, toneBarsFromApi, referenceBarsFromApi, contextBarsFromApi]);
+  }, [proposalBarsFromApi, toneBarsFromApi, referenceBarsFromApi, contextBarsFromApi, showAdvancedSections]);
 
   const categoryFallback = useMemo(() => {
     if (!needsCategoryFallback) return null;
@@ -1120,6 +1314,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   }, [postsSource]);
 
   const topDiscovery = useMemo(() => {
+    if (!showAdvancedSections) return [];
     const posts = Array.isArray(postsSource) ? postsSource : [];
     const normalizeCategories = (value: any): string[] =>
       Array.isArray(value)
@@ -1212,9 +1407,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         saves: number;
         thumbnail?: string | null;
       }>;
-  }, [postsSource]);
+  }, [postsSource, showAdvancedSections]);
 
   const heatmap = useMemo(() => {
+    if (!showAdvancedSections) return [];
     const buckets: Array<{ dayOfWeek: number; hour: number; average: number }> = timeData?.buckets || [];
     let source: Array<{ day: number; hour: number; value: number }> = [];
     if (buckets.length) {
@@ -1240,9 +1436,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       hour: s.hour,
       score: (s.value || 0) / maxVal,
     }));
-  }, [postsSource, timeData]);
+  }, [postsSource, timeData, showAdvancedSections]);
 
   const weeklyConsistency = useMemo(() => {
+    if (!showAdvancedSections) return [];
     const posts = Array.isArray(postsSource) ? postsSource : [];
     if (!posts.length) return [];
     const weeks = new Map<
@@ -1262,9 +1459,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     return Array.from(weeks.values())
       .map((w) => ({ ...w, avgInteractions: w.posts ? w.totalInteractions / w.posts : 0 }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
-  }, [postsSource]);
+  }, [postsSource, showAdvancedSections]);
 
   const deepEngagement = useMemo(() => {
+    if (!showAdvancedSections) return [];
     const posts = Array.isArray(postsSource) ? postsSource : [];
     if (!posts.length) return [];
     const acc = new Map<string, { saves: number; shares: number; reach: number; count: number }>();
@@ -1288,9 +1486,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         postsCount: data.count,
       }))
       .sort((a, b) => b.savesPerThousand + b.sharesPerThousand - (a.savesPerThousand + a.sharesPerThousand));
-  }, [postsSource]);
+  }, [postsSource, showAdvancedSections]);
 
   const weeklyEngagementRate = useMemo(() => {
+    if (!showAdvancedSections) return [];
     const posts = Array.isArray(postsSource) ? postsSource : [];
     if (!posts.length) return [];
     const weeks = new Map<string, { date: string; totalInteractions: number; totalReach: number; count: number }>();
@@ -1310,9 +1509,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     return Array.from(weeks.values())
       .map((w) => ({ ...w, avgRate: w.totalReach > 0 ? w.totalInteractions / w.totalReach : 0 }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
-  }, [postsSource]);
+  }, [postsSource, showAdvancedSections]);
 
   const shareVelocitySeries = useMemo(() => {
+    if (!showAdvancedSections) return [];
     const posts = Array.isArray(postsSource) ? postsSource : [];
     const rows = posts
       .map((p: any) => {
@@ -1348,7 +1548,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         visits: data.count ? data.visits / data.count : 0,
       }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
-  }, [postsSource]);
+  }, [postsSource, showAdvancedSections]);
 
   const saveVelocitySeries = useMemo(() => {
     const posts = Array.isArray(postsSource) ? postsSource : [];
@@ -1433,13 +1633,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     };
   }, [followerMix]);
 
-
+  const objectiveLabel = OBJECTIVE_OPTIONS.find((option) => option.value === objectiveMode)?.label || "Engajamento";
 
   return (
     <>
       <main className="w-full pb-12 pt-8">
         <div className="dashboard-page-shell space-y-5">
-          <header className="flex flex-col gap-2">
+          <header className="flex flex-col gap-4">
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               <LineChartIcon className="h-4 w-4" />
               Gráficos do planejamento
@@ -1473,29 +1673,103 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 </p>
               </div>
             ) : null}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-slate-600">
-                Atualizado para o período selecionado. Use alcance, interações e horários reais para planejar sem canibalizar posts.
-              </p>
-              <div className="flex items-center gap-2">
-                <label htmlFor="timePeriod" className="text-xs font-semibold text-slate-600">
-                  Período
-                </label>
-                <select
-                  id="timePeriod"
-                  value={timePeriod}
-                  onChange={(e) => handleTimePeriodChange(e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
-                  {PERIOD_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-600">Dados reais do período selecionado.</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  {recommendationsFeatureEnabled ? (
+                    <label htmlFor="objectiveMode" className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                      Objetivo
+                      <select
+                        id="objectiveMode"
+                        value={objectiveMode}
+                        onChange={(e) => handleObjectiveModeChange(e.target.value as PlanningObjectiveMode)}
+                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      >
+                        {OBJECTIVE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                  <label htmlFor="timePeriod" className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    Período
+                    <select
+                      id="timePeriod"
+                      value={timePeriod}
+                      onChange={(e) => handleTimePeriodChange(e.target.value)}
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      {PERIOD_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
             </div>
           </header>
+
+          {recommendationsFeatureEnabled ? (
+            <section className="grid gap-4">
+              <article className={cardBase}>
+                <header className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Direcionamento</p>
+                    <h2 className="text-base font-semibold text-slate-900 leading-tight">
+                      Próximas ações para {objectiveLabel.toLowerCase()}
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500">3 ações diretas para a próxima semana.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Target className="h-5 w-5 text-indigo-500" />
+                    <button
+                      type="button"
+                      onClick={() => handleGoToPlanner("recommendations_card")}
+                      className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                    >
+                      Ir para planejamento
+                    </button>
+                  </div>
+                </header>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {loadingBatch ? (
+                    <p className="text-sm text-slate-500 md:col-span-3">Carregando recomendações...</p>
+                  ) : recommendationActions.length === 0 ? (
+                    <p className="text-sm text-slate-500 md:col-span-3">
+                      Sem ação acionável agora. Mantenha cadência e reavalie após novos posts.
+                    </p>
+                  ) : (
+                    recommendationActions.map((item) => (
+                      <article key={item.id} className="flex h-full flex-col rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">{item.title}</p>
+                        <p className="mt-1 text-sm font-medium text-slate-900" style={twoLineClampStyle}>
+                          {item.action}
+                        </p>
+                        <p className="mt-2 text-xs text-slate-600" style={twoLineClampStyle}>
+                          {item.impactEstimate}
+                        </p>
+                        <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          {confidencePillLabel[item.confidence]}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => openRecommendationEvidence(item)}
+                          className="mt-auto pt-3 text-left text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                        >
+                          Ver evidência
+                        </button>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </article>
+            </section>
+          ) : null}
 
           <section className="grid gap-4 md:grid-cols-2">
             <article className={cardBase}>
@@ -1881,6 +2155,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             </article>
           </section>
 
+          <div ref={advancedSectionsSentinelRef} className="h-px w-full" />
+          {showAdvancedSections ? (
+            <>
           <section className="grid gap-4 md:grid-cols-2">
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
@@ -2515,8 +2792,59 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <TopDiscoveryTable posts={topDiscovery} isLoading={loadingPosts} />
             )}
           </section>
+            </>
+          ) : (
+            <section className="grid gap-4 md:grid-cols-2">
+              {[0, 1].map((index) => (
+                <article key={index} className={cardBase}>
+                  <div className="h-[340px] animate-pulse rounded-xl bg-slate-100/80" />
+                </article>
+              ))}
+            </section>
+          )}
         </div>
       </main>
+      <Drawer
+        open={Boolean(selectedRecommendation)}
+        onClose={closeRecommendationEvidence}
+        title={selectedRecommendation ? `Evidência — ${selectedRecommendation.title}` : "Evidência"}
+      >
+        {selectedRecommendation ? (
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Ação sugerida</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">{selectedRecommendation.action}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Impacto estimado</p>
+              <p className="mt-1 text-sm text-slate-700">{selectedRecommendation.impactEstimate}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Confiança</p>
+              <p className="mt-1 text-sm text-slate-700">{confidenceLabel[selectedRecommendation.confidence]}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Evidência</p>
+              <ul className="mt-2 space-y-2 text-sm text-slate-700">
+                {selectedRecommendation.evidence.map((item, index) => (
+                  <li key={`${selectedRecommendation.id}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => handleGoToPlanner("recommendation_drawer")}
+                className="text-sm font-semibold text-indigo-600 underline-offset-2 hover:underline"
+              >
+                Abrir planejamento
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Drawer>
       {sliceModal.open ? (
         <PostsBySliceModal
           isOpen={sliceModal.open}

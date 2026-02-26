@@ -192,6 +192,37 @@ export const analyticsEventCatalog = {
       surface: '' as ('planner_page' | 'planner_demo' | 'other' | null | undefined),
     },
   },
+  planning_charts_objective_changed: {
+    group: 'navigation',
+    description: 'Creator changed objective mode in planning charts.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      from_objective: '' as ('reach' | 'engagement' | 'leads' | null | undefined),
+      to_objective: '' as ('reach' | 'engagement' | 'leads' | null | undefined),
+      time_period: '' as StringMaybe,
+    },
+  },
+  planning_charts_action_clicked: {
+    group: 'navigation',
+    description: 'Creator clicked one recommendation action in planning charts.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      action_id: '' as StringMaybe,
+      objective_mode: '' as ('reach' | 'engagement' | 'leads' | null | undefined),
+      confidence: '' as ('high' | 'medium' | 'low' | null | undefined),
+      time_period: '' as StringMaybe,
+    },
+  },
+  planning_charts_go_to_planner_clicked: {
+    group: 'navigation',
+    description: 'Creator clicked CTA to open planner from planning charts.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      source: '' as ('recommendations_card' | 'recommendation_drawer' | null | undefined),
+      objective_mode: '' as ('reach' | 'engagement' | 'leads' | null | undefined),
+      time_period: '' as StringMaybe,
+    },
+  },
   planner_plan_generated: {
     group: 'ai',
     description: 'Creator triggered generation of planner slots or roteiros.',
