@@ -17,7 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
+import { ArrowUpRight, Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
 import { TopDiscoveryTable } from "./components/TopDiscoveryTable";
 import Drawer from "@/components/ui/Drawer";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
@@ -98,11 +98,36 @@ const formatPostsCount = (count: number) => {
 type PlanningObjectiveMode = "reach" | "engagement" | "leads";
 type PlanningRecommendationAction = {
   id: string;
+  feedbackKey?: string | null;
   title: string;
   action: string;
   impactEstimate: string;
   confidence: "high" | "medium" | "low";
   evidence: string[];
+  sampleSize?: number | null;
+  expectedLiftRatio?: number | null;
+  opportunityScore?: number | null;
+  rankingScore?: number | null;
+  signalQuality?: "high_signal" | "medium_signal" | "low_signal";
+  guardrailReason?: string | null;
+  feedbackStatus?: RecommendationFeedbackStatus | null;
+};
+type RecommendationFeedbackStatus = "applied" | "not_applied";
+type RecommendationActionView = PlanningRecommendationAction & {
+  confidenceAdjusted: PlanningRecommendationAction["confidence"];
+  sampleSize: number | null;
+  hasLowSampleGuardrail: boolean;
+  opportunityScore: number;
+  rankingScore: number;
+  feedbackStatus: RecommendationFeedbackStatus | null;
+};
+type BackendStrategicMetricDelta = {
+  currentAvg: number | null;
+  previousAvg: number | null;
+  deltaRatio: number | null;
+  currentPosts: number;
+  previousPosts: number;
+  hasMinimumSample: boolean;
 };
 const OBJECTIVE_OPTIONS: Array<{ value: PlanningObjectiveMode; label: string }> = [
   { value: "engagement", label: "Engajamento" },
@@ -118,6 +143,381 @@ const confidencePillLabel: Record<PlanningRecommendationAction["confidence"], st
   high: "Alta",
   medium: "Média",
   low: "Baixa",
+};
+const feedbackStatusLabel: Record<RecommendationFeedbackStatus, string> = {
+  applied: "Aplicada",
+  not_applied: "Não apliquei",
+};
+const RECOMMENDATION_TITLE_OVERRIDES: Record<string, string> = {
+  duration: "Duração ideal",
+  time_slot: "Melhor horário",
+  tone_engagement: "Tom dominante",
+  proposal_engagement: "Proposta vencedora",
+  format_reach: "Formato dominante",
+  context_reach: "Contexto com tração",
+  proposal_leads: "Proposta com intenção",
+  context_leads: "Contexto para conversão",
+  trend_recovery: "Recuperar tendência",
+  trend_scale: "Escalar tendência",
+  trend_stability: "Estabilizar tendência",
+  baseline: "Criar baseline",
+};
+const compactImpactEstimate = (impactEstimate: string) => {
+  const normalized = String(impactEstimate || "").trim();
+  if (!normalized) return "Sem estimativa";
+
+  const percentMatch = normalized.match(/[+\-]?\d[\d.,]*%/);
+  if (percentMatch) return `${percentMatch[0]} potencial`;
+
+  if (/interações médias/i.test(normalized)) {
+    const numberMatch = normalized.match(/[+\-]?\d[\d.,]*/);
+    if (numberMatch) return `${numberMatch[0]} interações médias`;
+  }
+
+  return normalized.replace(/\.$/, "");
+};
+const extractImpactSignal = (impactEstimate: string): number => {
+  const normalized = String(impactEstimate || "").trim();
+  if (!normalized) return 0.3;
+
+  const percentMatch = normalized.match(/([+\-]?\d[\d.,]*)%/);
+  if (percentMatch?.[1]) {
+    const raw = Number(percentMatch[1].replace(/\./g, "").replace(",", "."));
+    if (Number.isFinite(raw)) return Math.min(Math.abs(raw) / 100, 1.4);
+  }
+
+  const interactionsMatch = normalized.match(/([+\-]?\d[\d.,]*)\s*intera/i);
+  if (interactionsMatch?.[1]) {
+    const raw = Number(interactionsMatch[1].replace(/\./g, "").replace(",", "."));
+    if (Number.isFinite(raw)) return Math.min(Math.abs(raw) / 5000, 1.2);
+  }
+
+  return 0.35;
+};
+const getSampleWeight = (sampleSize: number | null): number => {
+  if (typeof sampleSize !== "number" || !Number.isFinite(sampleSize) || sampleSize <= 0) return 0.4;
+  if (sampleSize >= 15) return 1;
+  if (sampleSize >= 8) return 0.85;
+  if (sampleSize >= 5) return 0.7;
+  if (sampleSize >= 3) return 0.5;
+  return 0.35;
+};
+const confidenceScoreMap: Record<PlanningRecommendationAction["confidence"], number> = {
+  high: 1,
+  medium: 0.72,
+  low: 0.45,
+};
+const feedbackRankingWeight = (status: RecommendationFeedbackStatus | null): number => {
+  if (status === "applied") return 0.62;
+  if (status === "not_applied") return 1.14;
+  return 1;
+};
+type DeltaInsight = {
+  deltaRatio: number;
+  recentAvg: number;
+  previousAvg: number;
+};
+type ExecutiveDeltaTone = "positive" | "neutral" | "negative" | "warning";
+type ExecutiveDeltaSummary = { text: string; tone: ExecutiveDeltaTone };
+const buildPeriodDelta = <T,>(rows: T[], readValue: (row: T) => number | null, minPoints = 4): DeltaInsight | null => {
+  if (!Array.isArray(rows) || rows.length < minPoints) return null;
+  const values = rows
+    .map((row) => readValue(row))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0);
+  if (values.length < minPoints) return null;
+
+  const windowSize = Math.max(2, Math.floor(values.length / 2));
+  if (values.length < windowSize * 2) return null;
+  const previousSlice = values.slice(values.length - windowSize * 2, values.length - windowSize);
+  const recentSlice = values.slice(values.length - windowSize);
+  if (!previousSlice.length || !recentSlice.length) return null;
+
+  const previousAvg = previousSlice.reduce((sum, value) => sum + value, 0) / previousSlice.length;
+  const recentAvg = recentSlice.reduce((sum, value) => sum + value, 0) / recentSlice.length;
+  if (!Number.isFinite(previousAvg) || previousAvg <= 0 || !Number.isFinite(recentAvg)) return null;
+
+  return {
+    deltaRatio: (recentAvg - previousAvg) / previousAvg,
+    recentAvg,
+    previousAvg,
+  };
+};
+const deltaToneClassMap: Record<ExecutiveDeltaTone, string> = {
+  positive: "text-emerald-700",
+  neutral: "text-slate-500",
+  negative: "text-amber-700",
+  warning: "text-amber-700",
+};
+const formatDeltaSummary = (delta: DeltaInsight | null, metricLabel: string): ExecutiveDeltaSummary => {
+  if (!delta) {
+    return { text: "Amostra insuficiente para comparação.", tone: "warning" };
+  }
+  const pct = Math.round(delta.deltaRatio * 100);
+  if (Math.abs(pct) < 3) {
+    return { text: `Estável: ${metricLabel} sem variação relevante no bloco recente.`, tone: "neutral" };
+  }
+  if (pct > 0) {
+    return { text: `Em alta: +${pct}% em ${metricLabel} no bloco recente.`, tone: "positive" };
+  }
+  return { text: `Atenção: ${pct}% em ${metricLabel} no bloco recente.`, tone: "negative" };
+};
+const formatStrategicDeltaSummary = (
+  metric: BackendStrategicMetricDelta | null | undefined,
+  metricLabel: string
+): ExecutiveDeltaSummary | null => {
+  if (!metric) return null;
+  if (!metric.hasMinimumSample) {
+    return {
+      text: `Amostra baixa: ${formatPostsCount(metric.currentPosts)} atual vs ${formatPostsCount(metric.previousPosts)} anterior.`,
+      tone: "warning",
+    };
+  }
+  if (typeof metric.deltaRatio !== "number" || !Number.isFinite(metric.deltaRatio)) {
+    return { text: "Sem base suficiente no período anterior equivalente.", tone: "warning" };
+  }
+  const pct = Math.round(metric.deltaRatio * 100);
+  if (Math.abs(pct) < 3) {
+    return { text: `Estável: ${metricLabel} sem variação relevante vs período anterior.`, tone: "neutral" };
+  }
+  if (pct > 0) {
+    return { text: `Em alta: +${pct}% em ${metricLabel} vs período anterior.`, tone: "positive" };
+  }
+  return { text: `Atenção: ${pct}% em ${metricLabel} vs período anterior.`, tone: "negative" };
+};
+const buildCategoryExecutiveSummary = (
+  rows: Array<{ name: string; value: number; postsCount?: number }>,
+  dimensionLabel: string
+): ExecutiveDeltaSummary => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { text: `Sem base suficiente para leitura por ${dimensionLabel}.`, tone: "warning" };
+  }
+
+  const top = rows[0];
+  const runnerUp = rows[1];
+  const topName = String(top?.name || "grupo líder");
+  const topValue = toNumber(top?.value) ?? 0;
+  const sampleSize = typeof top?.postsCount === "number" && Number.isFinite(top.postsCount) ? top.postsCount : null;
+
+  if (typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5) {
+    return {
+      text: `Amostra baixa: ${topName} lidera em ${dimensionLabel} com ${formatPostsCount(sampleSize)}.`,
+      tone: "warning",
+    };
+  }
+
+  if (!runnerUp) {
+    return {
+      text: `Estável: ${topName} é a principal referência em ${dimensionLabel}.`,
+      tone: "neutral",
+    };
+  }
+
+  const runnerUpValue = toNumber(runnerUp.value) ?? 0;
+  if (!runnerUpValue || runnerUpValue <= 0 || topValue <= 0) {
+    return {
+      text: `Estável: ${topName} lidera em ${dimensionLabel}.`,
+      tone: "neutral",
+    };
+  }
+
+  const deltaRatio = (topValue - runnerUpValue) / runnerUpValue;
+  const pct = Math.round(deltaRatio * 100);
+  if (pct >= 5) {
+    return {
+      text: `Em alta: ${topName} lidera ${dimensionLabel} com +${pct}% vs 2º lugar.`,
+      tone: "positive",
+    };
+  }
+  return {
+    text: `Estável: ${topName} lidera ${dimensionLabel} sem distância relevante.`,
+    tone: "neutral",
+  };
+};
+const buildHeatmapExecutiveSummary = (rows: Array<{ day: number; hour: number; score: number }>): ExecutiveDeltaSummary => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { text: "Amostra insuficiente para leitura por janela.", tone: "warning" };
+  }
+
+  const windowMap = new Map<string, { day: number; startHour: number; endHour: number; scoreSum: number; count: number }>();
+  rows.forEach((row) => {
+    const day = toNumber(row?.day);
+    const hour = toNumber(row?.hour);
+    const score = toNumber(row?.score);
+    if (day === null || hour === null || score === null) return;
+    const startHour = Math.floor(hour / 4) * 4;
+    const endHour = Math.min(startHour + 3, 23);
+    const key = `${day}-${startHour}`;
+    const current = windowMap.get(key) || { day, startHour, endHour, scoreSum: 0, count: 0 };
+    current.scoreSum += score;
+    current.count += 1;
+    windowMap.set(key, current);
+  });
+
+  const windows = Array.from(windowMap.values())
+    .map((window) => ({
+      ...window,
+      avgScore: window.count > 0 ? window.scoreSum / window.count : 0,
+    }))
+    .sort((a, b) => b.avgScore - a.avgScore);
+  const top = windows[0];
+  if (!top) return { text: "Sem janela dominante no período.", tone: "neutral" };
+
+  const runnerUp = windows[1];
+  const dayLabel = WEEKDAY_SHORT_SUN_FIRST[top.day - 1] || `Dia ${top.day}`;
+  const windowLabel = `${dayLabel} ${top.startHour}h-${top.endHour}h`;
+
+  if (top.avgScore < 0.35) {
+    return { text: "Estável: sem janela dominante clara nas últimas semanas.", tone: "neutral" };
+  }
+  if (!runnerUp || runnerUp.avgScore <= 0) {
+    return { text: `Em alta: ${windowLabel} concentra a melhor tração recente.`, tone: "positive" };
+  }
+
+  const dominancePct = Math.round(((top.avgScore - runnerUp.avgScore) / runnerUp.avgScore) * 100);
+  if (dominancePct >= 12) {
+    return { text: `Em alta: ${windowLabel} lidera com +${dominancePct}% vs 2ª janela.`, tone: "positive" };
+  }
+  return { text: `Estável: ${windowLabel} lidera sem distância relevante.`, tone: "neutral" };
+};
+const buildConsistencyExecutiveSummary = (
+  rows: Array<{ posts: number; avgInteractions: number }>
+): ExecutiveDeltaSummary => {
+  if (!Array.isArray(rows) || rows.length < 3) {
+    return { text: "Amostra insuficiente para leitura de consistência.", tone: "warning" };
+  }
+
+  const postsSeries = rows.map((row) => Math.max(0, toNumber(row?.posts) ?? 0));
+  const avgPosts = postsSeries.reduce((sum, value) => sum + value, 0) / postsSeries.length;
+  if (avgPosts <= 0) return { text: "Sem cadência suficiente para leitura de consistência.", tone: "warning" };
+
+  const variance = postsSeries.reduce((sum, value) => sum + (value - avgPosts) ** 2, 0) / postsSeries.length;
+  const std = Math.sqrt(Math.max(variance, 0));
+  const cv = std / avgPosts;
+
+  const delta = buildPeriodDelta(rows, (row) => toNumber((row as any)?.avgInteractions), 3);
+  if (cv > 0.45) {
+    return {
+      text: `Atenção: cadência irregular (${numberFormatter.format(Math.round(avgPosts))} posts/semana).`,
+      tone: "negative",
+    };
+  }
+  if (delta && delta.deltaRatio > 0.05) {
+    return {
+      text: `Em alta: cadência estável e interações por post em crescimento.`,
+      tone: "positive",
+    };
+  }
+  if (delta && delta.deltaRatio < -0.05) {
+    return {
+      text: `Atenção: cadência estável, mas interações por post em queda.`,
+      tone: "negative",
+    };
+  }
+  return {
+    text: `Estável: ritmo previsível de ${numberFormatter.format(Math.round(avgPosts))} posts/semana.`,
+    tone: "neutral",
+  };
+};
+const buildDeepEngagementExecutiveSummary = (
+  rows: Array<{ format: string; savesPerThousand: number; sharesPerThousand: number; postsCount: number }>
+): ExecutiveDeltaSummary => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { text: "Amostra insuficiente para leitura de profundidade.", tone: "warning" };
+  }
+  const top = rows[0];
+  const topScore = (toNumber(top?.savesPerThousand) ?? 0) + (toNumber(top?.sharesPerThousand) ?? 0);
+  const topSample = toNumber(top?.postsCount) ?? 0;
+  const topLabel = String(top?.format || "formato líder");
+  if (topSample > 0 && topSample < 5) {
+    return {
+      text: `Amostra baixa: ${topLabel} lidera profundidade com ${formatPostsCount(topSample)}.`,
+      tone: "warning",
+    };
+  }
+  if (topScore <= 0.5) {
+    return {
+      text: "Atenção: profundidade baixa (salvos+shares) no período.",
+      tone: "negative",
+    };
+  }
+
+  const runnerUp = rows[1];
+  const runnerScore = runnerUp
+    ? (toNumber(runnerUp.savesPerThousand) ?? 0) + (toNumber(runnerUp.sharesPerThousand) ?? 0)
+    : 0;
+  if (!runnerScore || runnerScore <= 0) {
+    return {
+      text: `Em alta: ${topLabel} concentra a profundidade mais forte do período.`,
+      tone: "positive",
+    };
+  }
+  const dominancePct = Math.round(((topScore - runnerScore) / runnerScore) * 100);
+  if (dominancePct >= 12) {
+    return {
+      text: `Em alta: ${topLabel} lidera profundidade com +${dominancePct}% vs 2º formato.`,
+      tone: "positive",
+    };
+  }
+  return {
+    text: `Estável: ${topLabel} lidera profundidade sem distância relevante.`,
+    tone: "neutral",
+  };
+};
+const buildWeeklyRateExecutiveSummary = (
+  rows: Array<{ avgRate: number }>
+): ExecutiveDeltaSummary => {
+  if (!Array.isArray(rows) || rows.length < 3) {
+    return { text: "Amostra insuficiente para leitura de engajamento semanal.", tone: "warning" };
+  }
+  const latest = rows[rows.length - 1];
+  const latestRate = Math.max(0, toNumber(latest?.avgRate) ?? 0);
+  const latestPct = `${(latestRate * 100).toFixed(1)}%`;
+  const delta = buildPeriodDelta(rows, (row) => toNumber((row as any)?.avgRate), 3);
+  if (!delta) {
+    return { text: `Estável: taxa recente em ${latestPct}.`, tone: "neutral" };
+  }
+  const pct = Math.round(delta.deltaRatio * 100);
+  if (Math.abs(pct) < 3) {
+    return { text: `Estável: taxa recente em ${latestPct} sem variação relevante.`, tone: "neutral" };
+  }
+  if (pct > 0) {
+    return { text: `Em alta: taxa semanal em ${latestPct} (+${pct}% no bloco recente).`, tone: "positive" };
+  }
+  return { text: `Atenção: taxa semanal em ${latestPct} (${pct}% no bloco recente).`, tone: "negative" };
+};
+const buildTopDiscoveryExecutiveSummary = (
+  stats: { avgShare: number; avgVisits: number; peakLabel?: string; peakShare?: number } | null,
+  rows: Array<{ caption: string; nf: number | null }>
+): ExecutiveDeltaSummary => {
+  if (!stats || !Array.isArray(rows) || rows.length === 0) {
+    return { text: "Amostra insuficiente para leitura de descoberta.", tone: "warning" };
+  }
+  const top = rows[0];
+  if (!top) {
+    return { text: "Amostra insuficiente para leitura de descoberta.", tone: "warning" };
+  }
+  const topShare = Math.max(0, toNumber(top?.nf) ?? toNumber(stats.peakShare) ?? 0);
+  const runnerShare = rows[1] ? Math.max(0, toNumber(rows[1]?.nf) ?? 0) : 0;
+  const topLabel = (stats.peakLabel || top.caption || "post líder").slice(0, 32);
+
+  if (topShare < 30) {
+    return { text: `Atenção: descoberta baixa no topo (${Math.round(topShare)}% de não seguidores).`, tone: "negative" };
+  }
+
+  if (runnerShare > 0) {
+    const dominancePct = Math.round(((topShare - runnerShare) / runnerShare) * 100);
+    if (dominancePct >= 15) {
+      return {
+        text: `Em alta: "${topLabel}" puxou descoberta com +${dominancePct}% vs 2º post.`,
+        tone: "positive",
+      };
+    }
+  }
+
+  return {
+    text: `Estável: topo de descoberta em ${Math.round(topShare)}% de não seguidores.`,
+    tone: "neutral",
+  };
 };
 const twoLineClampStyle: React.CSSProperties = {
   display: "-webkit-box",
@@ -555,6 +955,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const [timePeriod, setTimePeriod] = useState<string>(DEFAULT_TIME_PERIOD);
   const [objectiveMode, setObjectiveMode] = useState<PlanningObjectiveMode>("engagement");
   const [selectedRecommendation, setSelectedRecommendation] = useState<PlanningRecommendationAction | null>(null);
+  const [feedbackMutationByActionId, setFeedbackMutationByActionId] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const [autoPaginating, setAutoPaginating] = useState(false);
@@ -604,6 +1005,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
   const openRecommendationEvidence = React.useCallback(
     (action: PlanningRecommendationAction) => {
+      const actionKey = String(action.feedbackKey || action.id || "").trim().toLowerCase();
       track("planning_charts_action_clicked", {
         creator_id: activeUserId || null,
         action_id: action.id,
@@ -674,6 +1076,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     fetcher,
     swrOptions
   );
+  const { data: recommendationFeedbackData, mutate: mutateRecommendationFeedback } = useSWR(
+    activeUserId && recommendationsFeatureEnabled
+      ? `/api/v1/users/${activeUserId}/planning/recommendation-feedback?objectiveMode=${objectiveMode}&timePeriod=${timePeriod}`
+      : null,
+    fetcher,
+    swrOptions
+  );
 
   const trendData = chartsBatchData?.trendData;
   const timeData = chartsBatchData?.timeData;
@@ -683,12 +1092,98 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const toneData = chartsBatchData?.toneData;
   const referenceData = chartsBatchData?.referenceData;
   const contextData = chartsBatchData?.contextData;
-  const recommendationActions = useMemo(
+  const rawRecommendationActions = useMemo(
     () =>
       recommendationsFeatureEnabled
         ? ((chartsBatchData?.recommendations?.actions || []) as PlanningRecommendationAction[])
         : [],
     [chartsBatchData?.recommendations?.actions, recommendationsFeatureEnabled]
+  );
+  const feedbackByActionId = useMemo(
+    () =>
+      (recommendationFeedbackData?.feedbackByActionId || {}) as Record<
+        string,
+        RecommendationFeedbackStatus
+      >,
+    [recommendationFeedbackData?.feedbackByActionId]
+  );
+  const submitRecommendationFeedback = React.useCallback(
+    async (action: PlanningRecommendationAction, status: RecommendationFeedbackStatus) => {
+      if (!activeUserId) return;
+
+      const actionKey = String(action.feedbackKey || action.id || "").trim().toLowerCase();
+      if (!actionKey) return;
+
+      const currentStatus = feedbackByActionId[actionKey] || null;
+      const nextStatus: RecommendationFeedbackStatus | "clear" =
+        currentStatus === status ? "clear" : status;
+      const previousPayload = recommendationFeedbackData;
+
+      setFeedbackMutationByActionId((prev) => ({ ...prev, [actionKey]: true }));
+
+      await mutateRecommendationFeedback(
+        (current: any) => {
+          const currentMap = { ...(current?.feedbackByActionId || {}) };
+          if (nextStatus === "clear") {
+            delete currentMap[actionKey];
+          } else {
+            currentMap[actionKey] = nextStatus;
+          }
+          return { ...(current || {}), feedbackByActionId: currentMap };
+        },
+        false
+      );
+
+      try {
+        const response = await fetch(
+          `/api/v1/users/${activeUserId}/planning/recommendation-feedback`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              actionId: actionKey,
+              status: nextStatus,
+              objectiveMode,
+              timePeriod,
+              actionTitle: action.title,
+              confidence: action.confidence,
+              opportunityScore: action.opportunityScore,
+              sampleSize: action.sampleSize,
+            }),
+          }
+        );
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload?.error || `HTTP ${response.status}`);
+        }
+
+        track("planning_charts_action_feedback_submitted", {
+          creator_id: activeUserId || null,
+          action_id: action.id,
+          feedback_status: nextStatus,
+          objective_mode: objectiveMode,
+          time_period: timePeriod,
+        });
+        await mutateRecommendationFeedback();
+      } catch (error) {
+        console.warn("[PlanningCharts] Falha ao salvar feedback da recomendação", error);
+        await mutateRecommendationFeedback(previousPayload, false);
+      } finally {
+        setFeedbackMutationByActionId((prev) => {
+          const next = { ...prev };
+          delete next[actionKey];
+          return next;
+        });
+      }
+    },
+    [
+      activeUserId,
+      feedbackByActionId,
+      mutateRecommendationFeedback,
+      objectiveMode,
+      recommendationFeedbackData,
+      timePeriod,
+    ]
   );
 
   const hasDurationDataFromApi =
@@ -1266,6 +1761,26 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     }
     return (categoryFallback?.context || []).slice(0, 6);
   }, [contextBarsFromApi, categoryFallback]);
+  const contextExecutiveSummary = useMemo(
+    () => buildCategoryExecutiveSummary(contextBars, "contexto"),
+    [contextBars]
+  );
+  const proposalExecutiveSummary = useMemo(
+    () => buildCategoryExecutiveSummary(proposalBars, "proposta"),
+    [proposalBars]
+  );
+  const toneExecutiveSummary = useMemo(
+    () => buildCategoryExecutiveSummary(toneBars, "tom"),
+    [toneBars]
+  );
+  const referenceExecutiveSummary = useMemo(
+    () => buildCategoryExecutiveSummary(referenceBars, "referência"),
+    [referenceBars]
+  );
+  const formatExecutiveSummary = useMemo(
+    () => buildCategoryExecutiveSummary(formatBars as Array<{ name: string; value: number; postsCount?: number }>, "formato"),
+    [formatBars]
+  );
 
   const followerMix = useMemo(() => {
     const posts = Array.isArray(postsSource) ? postsSource : [];
@@ -1460,6 +1975,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       .map((w) => ({ ...w, avgInteractions: w.posts ? w.totalInteractions / w.posts : 0 }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
   }, [postsSource, showAdvancedSections]);
+  const heatmapExecutiveSummary = useMemo(() => buildHeatmapExecutiveSummary(heatmap), [heatmap]);
+  const consistencyExecutiveSummary = useMemo(
+    () => buildConsistencyExecutiveSummary(weeklyConsistency as Array<{ posts: number; avgInteractions: number }>),
+    [weeklyConsistency]
+  );
 
   const deepEngagement = useMemo(() => {
     if (!showAdvancedSections) return [];
@@ -1510,6 +2030,17 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       .map((w) => ({ ...w, avgRate: w.totalReach > 0 ? w.totalInteractions / w.totalReach : 0 }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
   }, [postsSource, showAdvancedSections]);
+  const deepEngagementExecutiveSummary = useMemo(
+    () =>
+      buildDeepEngagementExecutiveSummary(
+        deepEngagement as Array<{ format: string; savesPerThousand: number; sharesPerThousand: number; postsCount: number }>
+      ),
+    [deepEngagement]
+  );
+  const weeklyRateExecutiveSummary = useMemo(
+    () => buildWeeklyRateExecutiveSummary(weeklyEngagementRate as Array<{ avgRate: number }>),
+    [weeklyEngagementRate]
+  );
 
   const shareVelocitySeries = useMemo(() => {
     if (!showAdvancedSections) return [];
@@ -1632,8 +2163,213 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       peakShare: peak?.nf,
     };
   }, [followerMix]);
+  const topDiscoveryExecutiveSummary = useMemo(
+    () =>
+      buildTopDiscoveryExecutiveSummary(
+        discoveryStats,
+        topDiscovery as Array<{ caption: string; nf: number | null }>
+      ),
+    [discoveryStats, topDiscovery]
+  );
+
+  const topFormatSample = useMemo(() => {
+    const topRow = Array.isArray(formatData?.chartData) ? formatData.chartData[0] : null;
+    const sample = toNumber(topRow?.postsCount ?? topRow?.count ?? topRow?.sampleSize);
+    return typeof sample === "number" && sample > 0 ? Math.round(sample) : null;
+  }, [formatData?.chartData]);
+
+  const bestHourSample = useMemo(() => {
+    const bestHourBar =
+      hourBars
+        .filter((bar) => typeof bar?.average === "number")
+        .slice()
+        .sort((a, b) => (b.average || 0) - (a.average || 0))[0] || null;
+    const sample = toNumber(bestHourBar?.postsCount);
+    return typeof sample === "number" && sample > 0 ? Math.round(sample) : null;
+  }, [hourBars]);
+
+  const recommendationActions = useMemo<RecommendationActionView[]>(() => {
+    if (!rawRecommendationActions.length) return [];
+
+    const resolveSampleSize = (action: PlanningRecommendationAction): number | null => {
+      const explicitSample = toNumber(action.sampleSize);
+      if (typeof explicitSample === "number" && explicitSample > 0) return Math.round(explicitSample);
+      const actionId = action.id;
+      switch (actionId) {
+        case "duration":
+          return typeof bestDurationBucket?.postsCount === "number" ? bestDurationBucket.postsCount : null;
+        case "time_slot":
+          return bestHourSample;
+        case "tone_engagement":
+          return typeof toneBars?.[0]?.postsCount === "number" ? toneBars[0].postsCount : null;
+        case "proposal_engagement":
+        case "proposal_leads":
+          return typeof proposalBars?.[0]?.postsCount === "number" ? proposalBars[0].postsCount : null;
+        case "context_reach":
+        case "context_leads":
+          return typeof contextBars?.[0]?.postsCount === "number" ? contextBars[0].postsCount : null;
+        case "format_reach":
+          return topFormatSample;
+        case "trend_recovery":
+        case "trend_scale":
+        case "trend_stability":
+          return trendSeries.length || null;
+        case "baseline":
+          return normalizedPosts.length || null;
+        default:
+          return null;
+      }
+    };
+
+    return rawRecommendationActions
+      .map((action) => {
+        const normalizedActionId = String(action.id || "").trim().toLowerCase();
+        const normalizedFeedbackKey = String(action.feedbackKey || "").trim().toLowerCase();
+        const feedbackStatus =
+          feedbackByActionId[normalizedFeedbackKey] ||
+          feedbackByActionId[normalizedActionId] ||
+          action.feedbackStatus ||
+          null;
+        const sampleSize = resolveSampleSize(action);
+        const hasLowSampleGuardrail = Boolean(action.guardrailReason) ||
+          (typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5);
+        const confidenceAdjusted: PlanningRecommendationAction["confidence"] = hasLowSampleGuardrail
+          ? "low"
+          : action.confidence;
+        const confidenceWeight = confidenceScoreMap[confidenceAdjusted] ?? 0.45;
+        const sampleWeight = getSampleWeight(sampleSize);
+        const impactSignal = extractImpactSignal(action.impactEstimate);
+        const fallbackOpportunityScore = confidenceWeight * sampleWeight * (1 + impactSignal) * 100;
+        const backendOpportunityScore = toNumber(action.opportunityScore);
+        const opportunityScore =
+          typeof backendOpportunityScore === "number" && backendOpportunityScore > 0
+            ? backendOpportunityScore
+            : fallbackOpportunityScore;
+        const backendRankingScore = toNumber(action.rankingScore);
+        const rankingScore =
+          typeof backendRankingScore === "number" && backendRankingScore > 0
+            ? backendRankingScore
+            : Number((opportunityScore * feedbackRankingWeight(feedbackStatus)).toFixed(1));
+        return {
+          ...action,
+          feedbackKey: normalizedFeedbackKey || normalizedActionId,
+          confidenceAdjusted,
+          sampleSize,
+          hasLowSampleGuardrail,
+          opportunityScore,
+          rankingScore,
+          feedbackStatus,
+        };
+      })
+      .sort((a, b) => b.rankingScore - a.rankingScore);
+  }, [
+    bestDurationBucket?.postsCount,
+    bestHourSample,
+    contextBars,
+    feedbackByActionId,
+    normalizedPosts.length,
+    proposalBars,
+    rawRecommendationActions,
+    toneBars,
+    topFormatSample,
+    trendSeries.length,
+  ]);
+
+  const trendInteractionsDelta = useMemo(
+    () => buildPeriodDelta(trendSeries, (row) => toNumber((row as any)?.interactions)),
+    [trendSeries]
+  );
+  const saveVelocityDelta = useMemo(
+    () => buildPeriodDelta(saveVelocitySeries, (row) => toNumber((row as any)?.avgSaves)),
+    [saveVelocitySeries]
+  );
+  const commentVelocityDelta = useMemo(
+    () => buildPeriodDelta(commentVelocitySeries, (row) => toNumber((row as any)?.avgComments)),
+    [commentVelocitySeries]
+  );
+  const strategicDeltas = chartsBatchData?.strategicDeltas;
+  const interactionsDeltaSummary = useMemo(() => {
+    const backendSummary = formatStrategicDeltaSummary(
+      strategicDeltas?.metrics?.interactionsPerPost as BackendStrategicMetricDelta | undefined,
+      "interações por post"
+    );
+    return backendSummary || formatDeltaSummary(trendInteractionsDelta, "interações");
+  }, [strategicDeltas?.metrics?.interactionsPerPost, trendInteractionsDelta]);
+  const savesDeltaSummary = useMemo(() => {
+    const backendSummary = formatStrategicDeltaSummary(
+      strategicDeltas?.metrics?.savesPerPost as BackendStrategicMetricDelta | undefined,
+      "salvamentos médios"
+    );
+    return backendSummary || formatDeltaSummary(saveVelocityDelta, "salvamentos médios");
+  }, [saveVelocityDelta, strategicDeltas?.metrics?.savesPerPost]);
+  const commentsDeltaSummary = useMemo(() => {
+    const backendSummary = formatStrategicDeltaSummary(
+      strategicDeltas?.metrics?.commentsPerPost as BackendStrategicMetricDelta | undefined,
+      "comentários médios"
+    );
+    return backendSummary || formatDeltaSummary(commentVelocityDelta, "comentários médios");
+  }, [commentVelocityDelta, strategicDeltas?.metrics?.commentsPerPost]);
 
   const objectiveLabel = OBJECTIVE_OPTIONS.find((option) => option.value === objectiveMode)?.label || "Engajamento";
+  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === timePeriod)?.label || timePeriod;
+  const recommendationsConfidenceSummary = useMemo(() => {
+    if (!recommendationActions.length) return "n/d";
+    const scoreMap: Record<RecommendationActionView["confidenceAdjusted"], number> = {
+      low: 1,
+      medium: 2,
+      high: 3,
+    };
+    const averageScore =
+      recommendationActions.reduce((sum, action) => sum + scoreMap[action.confidenceAdjusted], 0) /
+      recommendationActions.length;
+    if (averageScore >= 2.5) return "Alta";
+    if (averageScore >= 1.75) return "Média";
+    return "Baixa";
+  }, [recommendationActions]);
+  const appliedRecommendationCount = useMemo(
+    () => recommendationActions.filter((action) => action.feedbackStatus === "applied").length,
+    [recommendationActions]
+  );
+  const topStrategicAction = useMemo(
+    () => recommendationActions.find((action) => action.feedbackStatus !== "applied") || recommendationActions[0] || null,
+    [recommendationActions]
+  );
+  const strategicDecisionLine = useMemo(() => {
+    if (!topStrategicAction) return "Sem ação acionável agora. Gere mais histórico para liberar recomendação.";
+    if (recommendationActions.length > 0 && appliedRecommendationCount >= recommendationActions.length) {
+      return "Todas as ações deste ciclo já foram marcadas como aplicadas. Reavalie após novos dados.";
+    }
+    const confidence = confidencePillLabel[topStrategicAction.confidenceAdjusted];
+    const sampleLabel =
+      typeof topStrategicAction.sampleSize === "number" && topStrategicAction.sampleSize > 0
+        ? `${numberFormatter.format(topStrategicAction.sampleSize)} posts na amostra`
+        : "amostra limitada";
+    const guardrail = topStrategicAction.hasLowSampleGuardrail
+      ? (topStrategicAction.guardrailReason || "Amostra baixa: validar no próximo ciclo.")
+      : "";
+    return `Decisão da semana: ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title} (${compactImpactEstimate(
+      topStrategicAction.impactEstimate
+    )}, confiança ${confidence}, ${sampleLabel}). ${guardrail}`.trim();
+  }, [appliedRecommendationCount, recommendationActions.length, topStrategicAction]);
+  const selectedRecommendationView = useMemo(
+    () =>
+      selectedRecommendation
+        ? recommendationActions.find((action) => {
+            const actionKey = String(action.feedbackKey || action.id || "").trim().toLowerCase();
+            const selectedKey = String(selectedRecommendation.feedbackKey || selectedRecommendation.id || "")
+              .trim()
+              .toLowerCase();
+            return actionKey === selectedKey;
+          }) || null
+        : null,
+    [recommendationActions, selectedRecommendation]
+  );
+  const selectedRecommendationFeedbackKey = selectedRecommendation
+    ? String(selectedRecommendation.feedbackKey || selectedRecommendation.id || "").trim().toLowerCase()
+    : "";
+  const selectedRecommendationFeedbackLoading = selectedRecommendationFeedbackKey
+    ? Boolean(feedbackMutationByActionId[selectedRecommendationFeedbackKey])
+    : false;
 
   return (
     <>
@@ -1675,16 +2411,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             ) : null}
             <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-slate-600">Dados reais do período selecionado.</p>
-                <div className="flex flex-wrap items-center gap-3">
+                <p className="text-xs font-medium text-slate-600">Leitura real do período selecionado.</p>
+                <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
                   {recommendationsFeatureEnabled ? (
-                    <label htmlFor="objectiveMode" className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <label
+                      htmlFor="objectiveMode"
+                      className="flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-600 sm:text-xs"
+                    >
                       Objetivo
                       <select
                         id="objectiveMode"
                         value={objectiveMode}
                         onChange={(e) => handleObjectiveModeChange(e.target.value as PlanningObjectiveMode)}
-                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="min-h-[40px] min-w-[150px] rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:min-h-[36px]"
                       >
                         {OBJECTIVE_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -1694,13 +2433,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       </select>
                     </label>
                   ) : null}
-                  <label htmlFor="timePeriod" className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <label
+                    htmlFor="timePeriod"
+                    className="flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-600 sm:text-xs"
+                  >
                     Período
                     <select
                       id="timePeriod"
                       value={timePeriod}
                       onChange={(e) => handleTimePeriodChange(e.target.value)}
-                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="min-h-[40px] min-w-[150px] rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:min-h-[36px]"
                     >
                       {PERIOD_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -1709,6 +2451,15 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       ))}
                     </select>
                   </label>
+                  {recommendationsFeatureEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => handleGoToPlanner("recommendations_card")}
+                      className="inline-flex min-h-[40px] w-full items-center justify-center rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 sm:min-h-[36px] sm:w-auto sm:py-1.5"
+                    >
+                      Ir para planejamento
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -1717,24 +2468,31 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
           {recommendationsFeatureEnabled ? (
             <section className="grid gap-4">
               <article className={cardBase}>
-                <header className="flex flex-wrap items-start justify-between gap-3">
+                <header className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Direcionamento</p>
-                    <h2 className="text-base font-semibold text-slate-900 leading-tight">
+                    <h2 className="text-[15px] font-semibold text-slate-900 leading-tight sm:text-base">
                       Próximas ações para {objectiveLabel.toLowerCase()}
                     </h2>
-                    <p className="mt-1 text-xs text-slate-500">3 ações diretas para a próxima semana.</p>
+                    <p className="mt-1 text-[12px] text-slate-600 sm:text-xs">{strategicDecisionLine}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                        {objectiveLabel}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                        {periodLabel}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                        Confiança {recommendationsConfidenceSummary}
+                      </span>
+                      {recommendationActions.length > 0 ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                          Aplicadas {appliedRecommendationCount}/{recommendationActions.length}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Target className="h-5 w-5 text-indigo-500" />
-                    <button
-                      type="button"
-                      onClick={() => handleGoToPlanner("recommendations_card")}
-                      className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-                    >
-                      Ir para planejamento
-                    </button>
-                  </div>
+                  <Target className="mt-0.5 hidden h-4 w-4 text-indigo-500 sm:block sm:h-5 sm:w-5" />
                 </header>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {loadingBatch ? (
@@ -1744,27 +2502,79 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       Sem ação acionável agora. Mantenha cadência e reavalie após novos posts.
                     </p>
                   ) : (
-                    recommendationActions.map((item) => (
-                      <article key={item.id} className="flex h-full flex-col rounded-xl border border-slate-200 bg-slate-50/40 p-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">{item.title}</p>
-                        <p className="mt-1 text-sm font-medium text-slate-900" style={twoLineClampStyle}>
-                          {item.action}
-                        </p>
-                        <p className="mt-2 text-xs text-slate-600" style={twoLineClampStyle}>
-                          {item.impactEstimate}
-                        </p>
-                        <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                          {confidencePillLabel[item.confidence]}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => openRecommendationEvidence(item)}
-                          className="mt-auto pt-3 text-left text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                    recommendationActions.map((item, index) => {
+                      const actionFeedbackKey = String(item.feedbackKey || item.id || "").trim().toLowerCase();
+                      const isFeedbackUpdating = Boolean(feedbackMutationByActionId[actionFeedbackKey]);
+                      return (
+                        <article
+                          key={item.feedbackKey || item.id}
+                          className={`flex h-full flex-col rounded-xl border p-2.5 sm:p-3 ${
+                            index === 0
+                              ? "border-indigo-200 bg-white shadow-sm shadow-indigo-100/70"
+                              : "border-slate-200 bg-slate-50/40"
+                          }`}
                         >
-                          Ver evidência
-                        </button>
-                      </article>
-                    ))
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[13px] font-semibold text-slate-900 sm:text-sm">
+                              {RECOMMENDATION_TITLE_OVERRIDES[item.id] || item.title}
+                            </p>
+                            <span className="inline-flex shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 sm:text-[11px]">
+                              {confidencePillLabel[item.confidenceAdjusted]}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[13px] font-medium text-slate-900 sm:text-sm" style={twoLineClampStyle}>
+                            {item.action}
+                          </p>
+                          <p className="mt-2 text-[11px] text-slate-600 sm:text-xs">
+                            Impacto: <span className="font-semibold text-slate-700">{compactImpactEstimate(item.impactEstimate)}</span>
+                          </p>
+                          <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                            {typeof item.sampleSize === "number" && item.sampleSize > 0
+                              ? `${formatPostsCount(item.sampleSize)} na amostra`
+                              : "Amostra limitada"}
+                          </p>
+                          {item.hasLowSampleGuardrail ? (
+                            <p className="mt-1 text-[11px] font-semibold text-amber-700 sm:text-xs">
+                              {item.guardrailReason || "Ação em validação: amostra baixa."}
+                            </p>
+                          ) : null}
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isFeedbackUpdating}
+                              onClick={() => submitRecommendationFeedback(item, "applied")}
+                              className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
+                                item.feedbackStatus === "applied"
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                            >
+                              {feedbackStatusLabel.applied}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isFeedbackUpdating}
+                              onClick={() => submitRecommendationFeedback(item, "not_applied")}
+                              className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
+                                item.feedbackStatus === "not_applied"
+                                  ? "border-amber-300 bg-amber-50 text-amber-700"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                            >
+                              {feedbackStatusLabel.not_applied}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openRecommendationEvidence(item)}
+                            className="mt-auto inline-flex min-h-[36px] items-center gap-1 pt-2.5 text-left text-xs font-semibold text-indigo-600 hover:text-indigo-700 sm:min-h-[32px] sm:pt-3"
+                          >
+                            Ver evidência
+                            <ArrowUpRight className="h-3 w-3" />
+                          </button>
+                        </article>
+                      );
+                    })
                   )}
                 </div>
               </article>
@@ -1777,6 +2587,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Alcance x Interações</p>
                   <h2 className="text-base font-semibold text-slate-900">Evolução semanal</h2>
+                  <p className={`text-xs ${deltaToneClassMap[interactionsDeltaSummary.tone]}`}>{interactionsDeltaSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-indigo-500" />
               </header>
@@ -1934,8 +2745,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       <Tooltip
                         contentStyle={tooltipStyle}
                         labelFormatter={(label, payload: any[]) => {
-                          const avg = payload?.[0]?.payload?.averageInteractions ?? 0;
-                          return `${label} de duração real • ${numberFormatter.format(Math.round(avg))} interações médias`;
+                          const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
+                          return `${label} de duração real • ${formatPostsCount(postsCount)}`;
                         }}
                         formatter={(value: number) => [formatPostsCount(value), "Posts"]}
                       />
@@ -2009,15 +2820,6 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         tick={{ fill: "#94a3b8", fontSize: 11 }}
                       />
                       <YAxis
-                        yAxisId="posts"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
-                      />
-                      <YAxis
-                        yAxisId="interactions"
-                        orientation="right"
                         tickLine={false}
                         axisLine={false}
                         tick={{ fill: "#94a3b8", fontSize: 12 }}
@@ -2029,29 +2831,23 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
                           return `${label} de duração real • ${formatPostsCount(postsCount)}`;
                         }}
-                        formatter={(value: number, name: string) =>
-                          name === "postsCount"
-                            ? [formatPostsCount(value), "Posts"]
-                            : [numberFormatter.format(Math.round(value)), "Interações médias"]
-                        }
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
                       />
-                      <Legend
-                        verticalAlign="top"
-                        height={28}
-                        iconType="circle"
-                        formatter={(value) => (value === "postsCount" ? "Posts" : "Interações médias")}
-                      />
-                      <Bar yAxisId="posts" dataKey="postsCount" name="postsCount" fill="#14b8a6" radius={[6, 6, 0, 0]} />
-                      <Line
-                        yAxisId="interactions"
-                        type="monotone"
+                      <Bar
                         dataKey="averageInteractions"
-                        name="averageInteractions"
+                        name="Interações médias"
                         stroke="#7c3aed"
-                        strokeWidth={3}
-                        dot={{ r: 2.5 }}
-                        activeDot={{ r: 4 }}
-                      />
+                        fill="#7c3aed"
+                        radius={[6, 6, 0, 0]}
+                      >
+                        <LabelList
+                          dataKey="averageInteractions"
+                          position="top"
+                          formatter={(value: number) => numberFormatter.format(Math.round(value))}
+                          fill="#64748b"
+                          fontSize={10}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -2062,7 +2858,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Salvamentos</p>
                   <h2 className="text-base font-semibold text-slate-900">Média de salvamentos por semana</h2>
-                  <p className="text-xs text-slate-500">Quantidade média de salvamentos por post, agregada por semana.</p>
+                  <p className={`text-xs ${deltaToneClassMap[savesDeltaSummary.tone]}`}>{savesDeltaSummary.text}</p>
                 </div>
                 <LineChartIcon className="h-5 w-5 text-rose-500" />
               </header>
@@ -2110,7 +2906,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Comentários</p>
                   <h2 className="text-base font-semibold text-slate-900">Média de comentários por semana</h2>
-                  <p className="text-xs text-slate-500">Quantidade média de comentários por post, agregada por semana.</p>
+                  <p className={`text-xs ${deltaToneClassMap[commentsDeltaSummary.tone]}`}>{commentsDeltaSummary.text}</p>
                 </div>
                 <LineChartIcon className="h-5 w-5 text-indigo-500" />
               </header>
@@ -2164,6 +2960,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Contexto</p>
                   <h2 className="text-base font-semibold text-slate-900">Interação média por contexto</h2>
+                  <p className={`text-xs ${deltaToneClassMap[contextExecutiveSummary.tone]}`}>{contextExecutiveSummary.text}</p>
                 </div>
                 <Target className="h-5 w-5 text-slate-600" />
               </header>
@@ -2229,6 +3026,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Proposta</p>
                   <h2 className="text-base font-semibold text-slate-900">Interação média por proposta</h2>
+                  <p className={`text-xs ${deltaToneClassMap[proposalExecutiveSummary.tone]}`}>{proposalExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-indigo-500" />
               </header>
@@ -2296,6 +3094,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tom</p>
                   <h2 className="text-base font-semibold text-slate-900">Interação média por tom</h2>
+                  <p className={`text-xs ${deltaToneClassMap[toneExecutiveSummary.tone]}`}>{toneExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-emerald-500" />
               </header>
@@ -2361,6 +3160,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Referência</p>
                   <h2 className="text-base font-semibold text-slate-900">Interação média por referência</h2>
+                  <p className={`text-xs ${deltaToneClassMap[referenceExecutiveSummary.tone]}`}>{referenceExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-amber-500" />
               </header>
@@ -2428,7 +3228,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Heatmap</p>
                   <h2 className="text-base font-semibold text-slate-900">Melhores janelas por dia e hora</h2>
-                  <p className="text-xs text-slate-500">Quanto mais escuro, mais interações médias.</p>
+                  <p className={`text-xs ${deltaToneClassMap[heatmapExecutiveSummary.tone]}`}>{heatmapExecutiveSummary.text}</p>
                 </div>
                 <Clock3 className="h-5 w-5 text-indigo-500" />
               </header>
@@ -2478,6 +3278,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Formato</p>
                   <h2 className="text-base font-semibold text-slate-900">Distribuição de interações</h2>
+                  <p className={`text-xs ${deltaToneClassMap[formatExecutiveSummary.tone]}`}>{formatExecutiveSummary.text}</p>
                 </div>
                 <LineChartIcon className="h-5 w-5 text-amber-500" />
               </header>
@@ -2523,6 +3324,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Consistência</p>
                   <h2 className="text-base font-semibold text-slate-900">Posts por semana vs. média de interações</h2>
+                  <p className={`text-xs ${deltaToneClassMap[consistencyExecutiveSummary.tone]}`}>{consistencyExecutiveSummary.text}</p>
                 </div>
                 <LineChartIcon className="h-5 w-5 text-emerald-500" />
               </header>
@@ -2600,7 +3402,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Profundidade</p>
                   <h2 className="text-base font-semibold text-slate-900">Salvos e compartilhamentos a cada 1.000 de alcance</h2>
-                  <p className="text-xs text-slate-500">Quanto cada formato gera de profundidade ajustada por alcance.</p>
+                  <p className={`text-xs ${deltaToneClassMap[deepEngagementExecutiveSummary.tone]}`}>{deepEngagementExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-amber-500" />
               </header>
@@ -2676,7 +3478,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Engajamento</p>
                   <h2 className="text-base font-semibold text-slate-900">Taxa média de engajamento por semana</h2>
-                  <p className="text-xs text-slate-500">Interações / alcance por semana.</p>
+                  <p className={`text-xs ${deltaToneClassMap[weeklyRateExecutiveSummary.tone]}`}>{weeklyRateExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-indigo-500" />
               </header>
@@ -2782,7 +3584,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Top descoberta</p>
                 <h3 className="text-base font-semibold text-slate-900">Posts que mais puxam não seguidores</h3>
-                <p className="text-xs text-slate-500">Ordenados pelo maior share de não seguidores (ou visitas/reach).</p>
+                <p className={`text-xs ${deltaToneClassMap[topDiscoveryExecutiveSummary.tone]}`}>{topDiscoveryExecutiveSummary.text}</p>
               </div>
               <Sparkles className="h-5 w-5 text-indigo-500" />
             </header>
@@ -2821,7 +3623,46 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Confiança</p>
-              <p className="mt-1 text-sm text-slate-700">{confidenceLabel[selectedRecommendation.confidence]}</p>
+              <p className="mt-1 text-sm text-slate-700">
+                {confidenceLabel[selectedRecommendationView?.confidenceAdjusted || selectedRecommendation.confidence]}
+              </p>
+              {selectedRecommendationView?.hasLowSampleGuardrail ? (
+                <p className="mt-1 text-xs font-semibold text-amber-700">
+                  {selectedRecommendationView.guardrailReason || "Ação em validação por amostra baixa"}
+                  {typeof selectedRecommendationView.sampleSize === "number" && selectedRecommendationView.sampleSize > 0
+                    ? ` (${formatPostsCount(selectedRecommendationView.sampleSize)}).`
+                    : "."}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status da ação</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={selectedRecommendationFeedbackLoading}
+                  onClick={() => submitRecommendationFeedback(selectedRecommendation, "applied")}
+                  className={`inline-flex min-h-[32px] items-center rounded-full border px-3 text-xs font-semibold transition ${
+                    selectedRecommendationView?.feedbackStatus === "applied"
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
+                >
+                  {feedbackStatusLabel.applied}
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedRecommendationFeedbackLoading}
+                  onClick={() => submitRecommendationFeedback(selectedRecommendation, "not_applied")}
+                  className={`inline-flex min-h-[32px] items-center rounded-full border px-3 text-xs font-semibold transition ${
+                    selectedRecommendationView?.feedbackStatus === "not_applied"
+                      ? "border-amber-300 bg-amber-50 text-amber-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
+                >
+                  {feedbackStatusLabel.not_applied}
+                </button>
+              </div>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Evidência</p>

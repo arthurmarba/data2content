@@ -11,9 +11,14 @@ import {
   ALLOWED_PLANNING_OBJECTIVES,
   buildPlanningRecommendations,
   PlanningObjectiveMode,
+  RecommendationFeedbackStatus,
 } from "@/utils/buildPlanningRecommendations";
 import { findUserPosts, toProxyUrl } from "@/app/lib/dataService/marketAnalysis/postsService";
 import { timePeriodToDays } from "@/utils/timePeriodHelpers";
+import { getStartDateFromTimePeriod } from "@/utils/dateHelpers";
+import MetricModel from "@/app/models/Metric";
+import PlanningRecommendationFeedbackModel from "@/app/models/PlanningRecommendationFeedback";
+import { connectToDatabase } from "@/app/lib/dataService/connection";
 import {
   ALLOWED_TIME_PERIODS,
   ALLOWED_ENGAGEMENT_METRICS,
@@ -83,6 +88,34 @@ function isAllowedPlanningObjective(value: any): value is PlanningObjectiveMode 
   return ALLOWED_PLANNING_OBJECTIVES.includes(value);
 }
 
+function normalizeActionId(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9_:-]/g, "").slice(0, 80);
+}
+
+async function getRecommendationFeedbackByAction(
+  userId: string,
+  objectiveMode: PlanningObjectiveMode,
+  timePeriod: TimePeriod
+): Promise<Record<string, RecommendationFeedbackStatus>> {
+  await connectToDatabase();
+  const rows = await PlanningRecommendationFeedbackModel.find({
+    userId: new Types.ObjectId(userId),
+    objectiveMode,
+    timePeriod,
+  })
+    .select("actionId status")
+    .lean();
+
+  return rows.reduce<Record<string, RecommendationFeedbackStatus>>((acc, row: any) => {
+    const actionId = normalizeActionId(row?.actionId);
+    const status = row?.status;
+    if (!actionId) return acc;
+    if (status !== "applied" && status !== "not_applied") return acc;
+    acc[actionId] = status;
+    return acc;
+  }, {});
+}
+
 function extractThumbnail(v: any): string | undefined {
   const fromChildren =
     Array.isArray(v?.children) &&
@@ -120,7 +153,168 @@ type ChartsBatchComputeTimings = {
   groupingsMs?: number;
   postsMs?: number;
   normalizeMs?: number;
+  strategicDeltasMs?: number;
 };
+
+type PeriodAggregateMetrics = {
+  postsCount: number;
+  avgInteractionsPerPost: number;
+  avgSavesPerPost: number;
+  avgCommentsPerPost: number;
+};
+
+type StrategicMetricDelta = {
+  currentAvg: number | null;
+  previousAvg: number | null;
+  deltaRatio: number | null;
+  currentPosts: number;
+  previousPosts: number;
+  hasMinimumSample: boolean;
+};
+
+const STRATEGIC_DELTA_MIN_SAMPLE = 3;
+const SUPPORTED_POST_TYPES = ["REEL", "VIDEO", "IMAGE", "CAROUSEL_ALBUM"];
+
+const toSafeNumber = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+function buildMetricDelta(
+  currentAvgRaw: number,
+  previousAvgRaw: number,
+  currentPosts: number,
+  previousPosts: number
+): StrategicMetricDelta {
+  const currentAvg = Number.isFinite(currentAvgRaw) ? currentAvgRaw : 0;
+  const previousAvg = Number.isFinite(previousAvgRaw) ? previousAvgRaw : 0;
+  return {
+    currentAvg,
+    previousAvg,
+    deltaRatio: previousAvg > 0 ? (currentAvg - previousAvg) / previousAvg : null,
+    currentPosts,
+    previousPosts,
+    hasMinimumSample: currentPosts >= STRATEGIC_DELTA_MIN_SAMPLE && previousPosts >= STRATEGIC_DELTA_MIN_SAMPLE,
+  };
+}
+
+function getEquivalentPeriodRange(timePeriod: TimePeriod, referenceDate = new Date()) {
+  if (timePeriod === "all_time") return null;
+  const currentEnd = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+  const currentStart = getStartDateFromTimePeriod(currentEnd, timePeriod);
+  if (!(currentStart instanceof Date) || Number.isNaN(currentStart.getTime())) return null;
+  const rangeMs = currentEnd.getTime() - currentStart.getTime() + 1;
+  if (!Number.isFinite(rangeMs) || rangeMs <= 0) return null;
+
+  const previousEnd = new Date(currentStart.getTime() - 1);
+  const previousStart = new Date(previousEnd.getTime() - rangeMs + 1);
+
+  return {
+    currentStart,
+    currentEnd,
+    previousStart,
+    previousEnd,
+  };
+}
+
+async function aggregatePeriodMetrics(userObjectId: Types.ObjectId, startDate: Date, endDate: Date): Promise<PeriodAggregateMetrics> {
+  const aggregated = await MetricModel.aggregate([
+    {
+      $match: {
+        user: userObjectId,
+        type: { $in: SUPPORTED_POST_TYPES },
+        postDate: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $project: {
+        likes: { $ifNull: ["$stats.likes", 0] },
+        comments: { $ifNull: ["$stats.comments", 0] },
+        shares: { $ifNull: ["$stats.shares", 0] },
+        saves: { $ifNull: ["$stats.saved", { $ifNull: ["$stats.saves", 0] }] },
+        totalInteractionsRaw: "$stats.total_interactions",
+      },
+    },
+    {
+      $addFields: {
+        totalInteractions: {
+          $ifNull: ["$totalInteractionsRaw", { $add: ["$likes", "$comments", "$shares", "$saves"] }],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        postsCount: { $sum: 1 },
+        interactionsSum: { $sum: "$totalInteractions" },
+        savesSum: { $sum: "$saves" },
+        commentsSum: { $sum: "$comments" },
+      },
+    },
+  ]);
+
+  const row = aggregated[0];
+  const postsCount = toSafeNumber(row?.postsCount);
+  const interactionsSum = toSafeNumber(row?.interactionsSum);
+  const savesSum = toSafeNumber(row?.savesSum);
+  const commentsSum = toSafeNumber(row?.commentsSum);
+  return {
+    postsCount,
+    avgInteractionsPerPost: postsCount > 0 ? interactionsSum / postsCount : 0,
+    avgSavesPerPost: postsCount > 0 ? savesSum / postsCount : 0,
+    avgCommentsPerPost: postsCount > 0 ? commentsSum / postsCount : 0,
+  };
+}
+
+async function computeStrategicDeltas(userId: string, timePeriod: TimePeriod) {
+  const range = getEquivalentPeriodRange(timePeriod);
+  if (!range) return null;
+
+  const userObjectId = new Types.ObjectId(userId);
+  const [currentMetrics, previousMetrics] = await Promise.all([
+    aggregatePeriodMetrics(userObjectId, range.currentStart, range.currentEnd),
+    aggregatePeriodMetrics(userObjectId, range.previousStart, range.previousEnd),
+  ]);
+
+  return {
+    mode: "equivalent_period",
+    range: {
+      currentStart: range.currentStart.toISOString(),
+      currentEnd: range.currentEnd.toISOString(),
+      previousStart: range.previousStart.toISOString(),
+      previousEnd: range.previousEnd.toISOString(),
+    },
+    metrics: {
+      interactionsPerPost: buildMetricDelta(
+        currentMetrics.avgInteractionsPerPost,
+        previousMetrics.avgInteractionsPerPost,
+        currentMetrics.postsCount,
+        previousMetrics.postsCount
+      ),
+      savesPerPost: buildMetricDelta(
+        currentMetrics.avgSavesPerPost,
+        previousMetrics.avgSavesPerPost,
+        currentMetrics.postsCount,
+        previousMetrics.postsCount
+      ),
+      commentsPerPost: buildMetricDelta(
+        currentMetrics.avgCommentsPerPost,
+        previousMetrics.avgCommentsPerPost,
+        currentMetrics.postsCount,
+        previousMetrics.postsCount
+      ),
+    },
+  };
+}
 
 export async function GET(
   request: Request,
@@ -221,6 +415,7 @@ export async function GET(
           formatData,
           groupedCharts,
           postsResult,
+          strategicDeltas,
         ] = await Promise.all([
           timed("trendMs", () => getUserReachInteractionTrendChartData(userId, timePeriod, granularity, {})),
           timed("timeMs", () => aggregateUserTimePerformance(userId, periodInDaysValue, metricField, {})),
@@ -252,6 +447,7 @@ export async function GET(
               limit,
             })
           ),
+          timed("strategicDeltasMs", () => computeStrategicDeltas(userId, timePeriod)),
         ]);
 
         const normalizeStartedAt = nowMs();
@@ -301,6 +497,7 @@ export async function GET(
                 totalPosts: postsResult.totalPosts,
               },
             },
+            strategicDeltas,
           },
           __perf: computeTimings,
         };
@@ -318,9 +515,13 @@ export async function GET(
       if (typeof perfData.groupingsMs === "number") timings.push({ name: "groupings", durationMs: perfData.groupingsMs });
       if (typeof perfData.postsMs === "number") timings.push({ name: "posts", durationMs: perfData.postsMs });
       if (typeof perfData.normalizeMs === "number") timings.push({ name: "normalize", durationMs: perfData.normalizeMs });
+      if (typeof perfData.strategicDeltasMs === "number") timings.push({ name: "strategicDeltas", durationMs: perfData.strategicDeltasMs });
     }
 
     const responsePayload = (value as any)?.payload ?? value;
+    const feedbackStartedAt = nowMs();
+    const feedbackByActionId = await getRecommendationFeedbackByAction(userId, objectiveMode, timePeriod);
+    timings.push({ name: "feedback", durationMs: nowMs() - feedbackStartedAt });
     const recommendationsStartedAt = nowMs();
     const recommendations = buildPlanningRecommendations({
       objectiveMode,
@@ -331,6 +532,7 @@ export async function GET(
       proposalData: responsePayload?.proposalData,
       toneData: responsePayload?.toneData,
       contextData: responsePayload?.contextData,
+      feedbackByActionId,
     });
     timings.push({ name: "recommendations", durationMs: nowMs() - recommendationsStartedAt });
     const responsePayloadWithRecommendations = {

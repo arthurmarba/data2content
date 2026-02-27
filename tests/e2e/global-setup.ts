@@ -5,7 +5,10 @@ import os from 'node:os';
 import { loginByRequestCredentials } from './auth/loginByRequest';
 
 export default async function globalSetup(_config: FullConfig) {
-  const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
+  const projectBaseURL = _config.projects?.[0]?.use?.baseURL;
+  const baseURL =
+    process.env.E2E_BASE_URL ??
+    (typeof projectBaseURL === 'string' ? projectBaseURL : 'http://localhost:3000');
   const email = process.env.E2E_EMAIL;
   const password = process.env.E2E_PASSWORD;
 
