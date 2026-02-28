@@ -27,6 +27,9 @@ export type ScriptOutputDiagnostics = {
   styleSampleSize?: number;
   styleSimilarityScore?: number;
   styleFallbackUsed?: boolean;
+  linkedSampleSize?: number;
+  linkedBlendApplied?: boolean;
+  scriptEvidenceConfidence?: "low" | "medium" | "high";
   adjustMode?: ScriptAdjustMeta["adjustMode"];
   targetScope?: ScriptAdjustMeta["targetScope"];
   targetIndex?: number | null;
@@ -284,6 +287,9 @@ export function buildScriptOutputDiagnostics(
     diagnostics.styleFallbackUsed = Boolean(
       input.intelligenceContext.styleProfile && !input.intelligenceContext.styleProfile.hasEnoughEvidence
     );
+    diagnostics.linkedSampleSize = input.intelligenceContext.linkedOutcome?.sampleSizeLinked || 0;
+    diagnostics.linkedBlendApplied = Boolean(input.intelligenceContext.linkedOutcome?.blendedApplied);
+    diagnostics.scriptEvidenceConfidence = input.intelligenceContext.linkedOutcome?.confidence || "low";
     const similarity = computeStyleSimilarityScore(
       normalizedContent,
       input.intelligenceContext.styleProfile

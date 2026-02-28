@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
-import React from 'react';
-import { renderToString } from 'react-dom/server';
-import { CommunityInspirationMessage } from '../../src/app/dashboard/components/chat/CommunityInspirationMessage';
+import { parseCommunityInspirationText } from '../../src/app/dashboard/components/chat/CommunityInspirationMessage';
 import { stripUnprovenCommunityClaims } from '../../src/app/lib/text/sanitizeCommunityClaims';
 
-test('community inspiration renderer cleans noise and shows cards', async ({ page }) => {
+test('community inspiration renderer cleans noise and shows cards', async () => {
     const dirtyText = `Vou buscar inspirações... Um momento!###
 Diagnóstico: qualquer coisa
 Reel 1 - Teste
@@ -18,21 +16,18 @@ Reel 2: Outro
 Link: [Veja](https://example.com/r2)
 `;
 
-    const html = renderToString(<CommunityInspirationMessage text={dirtyText} />);
-    await page.setContent(`<div id="root">${html}</div>`);
-
-    const wrapper = page.locator('[data-testid="community-inspiration-wrapper"]');
-    await expect(wrapper).toHaveCount(1);
-
-    const cards = page.locator('[data-testid="community-inspiration-card"]');
-    await expect(cards).toHaveCount(2);
-    await expect(page.locator('text=Um momento')).toHaveCount(0);
-    await expect(page.locator('a', { hasText: 'Ver post' })).toHaveCount(2);
-    await expect(cards).not.toContainText('###');
-    await expect(cards).not.toContainText('**');
+    const parsed = parseCommunityInspirationText(dirtyText);
+    expect(parsed.cards).toHaveLength(2);
+    expect(parsed.intro || '').not.toContain('Um momento');
+    expect(parsed.cards.every((card) => Boolean(card.link?.url))).toBeTruthy();
+    expect(parsed.cards.every((card) => !(card.title || '').includes('###'))).toBeTruthy();
+    expect(parsed.cards.every((card) => !(card.title || '').includes('**'))).toBeTruthy();
+    expect(
+      parsed.cards.every((card) => !(card.description || '').includes('###') && !(card.description || '').includes('**'))
+    ).toBeTruthy();
 });
 
-test('renders structured JSON responses without markdown leaks', async ({ page }) => {
+test('renders structured JSON responses without markdown leaks', async () => {
     const structured = {
         type: 'content_ideas',
         items: [
@@ -40,15 +35,13 @@ test('renders structured JSON responses without markdown leaks', async ({ page }
         ],
         next_step_question: 'Qual priorizar?',
     };
-    const html = renderToString(<CommunityInspirationMessage text={JSON.stringify(structured)} />);
-    await page.setContent(`<div id="root">${html}</div>`);
-
-    const cards = page.locator('[data-testid="community-inspiration-card"]');
-    await expect(cards).toHaveCount(1);
-    await expect(cards).not.toContainText('###');
-    await expect(cards).not.toContainText('**');
-    await expect(page.locator('text=Titulo')).toHaveCount(1);
-    await expect(page.locator('text=Qual priorizar?')).toHaveCount(1);
+    const parsed = parseCommunityInspirationText(JSON.stringify(structured));
+    expect(parsed.cards).toHaveLength(1);
+    expect(parsed.cards[0]?.title).toContain('Titulo');
+    expect(parsed.cards[0]?.title || '').not.toContain('###');
+    expect(parsed.cards[0]?.title || '').not.toContain('**');
+    expect(parsed.cards[0]?.highlights?.[0] || '').not.toContain('**');
+    expect(parsed.footer?.items?.[0]).toContain('Qual priorizar?');
 });
 
 test('drops community claims when there is no evidence', async ({ page }) => {

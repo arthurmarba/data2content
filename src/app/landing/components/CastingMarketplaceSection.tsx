@@ -283,7 +283,7 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
                         <div className="relative space-y-2 sm:space-y-6">
                             <header className="flex flex-col items-center gap-1.5 text-center sm:gap-3">
                                 <h2 className="text-[1.9rem] font-black tracking-tight text-brand-dark text-balance sm:text-5xl lg:text-6xl">
-                                    Marketplace de Criadores
+                                    Membros d2c
                                 </h2>
                             </header>
                         </div>
@@ -477,29 +477,23 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
     const [isMobile, setIsMobile] = React.useState<boolean | null>(null);
     const [isInteraction, setIsInteraction] = React.useState(false);
     const [cycleWidth, setCycleWidth] = React.useState(0);
-    const interactionTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const [shouldAutoScrollDesktop, setShouldAutoScrollDesktop] = React.useState(false);
+    const [shouldAutoScrollMobile, setShouldAutoScrollMobile] = React.useState(false);
+    const interactionTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const AUTO_SCROLL_MIN_CREATORS_DESKTOP = 9;
+    const AUTO_SCROLL_MIN_CREATORS_MOBILE = 8;
 
-    // Build one base cycle and render it 3 times. We measure the real cycle width
-    // instead of using scrollWidth / 3 because flex gaps break that math.
-    const baseItems = React.useMemo(() => {
-        if (!creators.length) return [];
-        let base = [...creators];
-        while (base.length < 10) {
-            base = [...base, ...creators];
-        }
-        return base;
+    const normalizedCreators = React.useMemo(() => {
+        const seen = new Set<string>();
+        return creators.filter((creator) => {
+            const key = String(creator?.id || "").trim();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
     }, [creators]);
 
-    const mobileItems = React.useMemo(() => {
-        if (!creators.length) return [];
-        if (process.env.NODE_ENV === "test") return creators;
-
-        let items = [...creators];
-        while (items.length < 10) {
-            items = [...items, ...creators];
-        }
-        return items;
-    }, [creators]);
+    const desktopSetCount = shouldAutoScrollDesktop ? 3 : 1;
 
     React.useEffect(() => {
         if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -557,10 +551,46 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
     }, []);
 
     React.useEffect(() => {
+        setShouldAutoScrollDesktop(false);
+        setShouldAutoScrollMobile(false);
+        setCycleWidth(0);
+    }, [normalizedCreators.length]);
+
+    React.useEffect(() => {
+        const scroller = scrollerRef.current;
+        const firstSet = setRefs.current[0];
+        if (isMobile !== false || !scroller || !firstSet) return;
+
+        const evaluateAutoScroll = () => {
+            const viewportWidth = scroller.clientWidth;
+            const contentWidth = firstSet.scrollWidth;
+            const hasOverflow = contentWidth - viewportWidth > 24;
+            const shouldEnable = normalizedCreators.length >= AUTO_SCROLL_MIN_CREATORS_DESKTOP && hasOverflow;
+            setShouldAutoScrollDesktop(shouldEnable);
+            if (!shouldEnable) {
+                setCycleWidth(0);
+                scroller.scrollLeft = 0;
+            }
+        };
+
+        evaluateAutoScroll();
+
+        if (typeof ResizeObserver !== "undefined") {
+            const observer = new ResizeObserver(evaluateAutoScroll);
+            observer.observe(scroller);
+            observer.observe(firstSet);
+            return () => observer.disconnect();
+        }
+
+        window.addEventListener("resize", evaluateAutoScroll);
+        return () => window.removeEventListener("resize", evaluateAutoScroll);
+    }, [isMobile, normalizedCreators.length]);
+
+    React.useEffect(() => {
         const scroller = scrollerRef.current;
         const firstSet = setRefs.current[0];
         const secondSet = setRefs.current[1];
-        if (isMobile !== false || !scroller || !firstSet || !secondSet) return;
+        if (isMobile !== false || !shouldAutoScrollDesktop || !scroller || !firstSet || !secondSet) return;
 
         const recalculateCycleWidth = () => {
             const measuredWidth = secondSet.getBoundingClientRect().left - firstSet.getBoundingClientRect().left;
@@ -581,18 +611,18 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
 
         window.addEventListener("resize", recalculateCycleWidth);
         return () => window.removeEventListener("resize", recalculateCycleWidth);
-    }, [baseItems.length, isMobile]);
+    }, [isMobile, normalizedCreators.length, shouldAutoScrollDesktop]);
 
     React.useEffect(() => {
         const scroller = scrollerRef.current;
-        if (isMobile !== false || !scroller || cycleWidth <= 0) return;
+        if (isMobile !== false || !shouldAutoScrollDesktop || !scroller || cycleWidth <= 0) return;
         scroller.scrollLeft = cycleWidth;
         normalizeScrollPosition(scroller, cycleWidth);
-    }, [cycleWidth, baseItems.length, isMobile, normalizeScrollPosition]);
+    }, [cycleWidth, isMobile, normalizeScrollPosition, shouldAutoScrollDesktop]);
 
     React.useEffect(() => {
         const scroller = scrollerRef.current;
-        if (isMobile !== false || !scroller || cycleWidth <= 0) return;
+        if (isMobile !== false || !shouldAutoScrollDesktop || !scroller || cycleWidth <= 0) return;
 
         let animationId: number;
         let lastTimestamp: number;
@@ -612,11 +642,36 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
 
         animationId = requestAnimationFrame(step);
         return () => cancelAnimationFrame(animationId);
-    }, [cycleWidth, isInteraction, isMobile, normalizeScrollPosition, speed]);
+    }, [cycleWidth, isInteraction, isMobile, normalizeScrollPosition, shouldAutoScrollDesktop, speed]);
 
     React.useEffect(() => {
         const scroller = scrollerRef.current;
         if (isMobile !== true || !scroller) return;
+
+        const evaluateAutoScroll = () => {
+            const hasOverflow = scroller.scrollWidth - scroller.clientWidth > 24;
+            const shouldEnable = normalizedCreators.length >= AUTO_SCROLL_MIN_CREATORS_MOBILE && hasOverflow;
+            setShouldAutoScrollMobile(shouldEnable);
+            if (!shouldEnable) {
+                scroller.scrollLeft = 0;
+            }
+        };
+
+        evaluateAutoScroll();
+
+        if (typeof ResizeObserver !== "undefined") {
+            const observer = new ResizeObserver(evaluateAutoScroll);
+            observer.observe(scroller);
+            return () => observer.disconnect();
+        }
+
+        window.addEventListener("resize", evaluateAutoScroll);
+        return () => window.removeEventListener("resize", evaluateAutoScroll);
+    }, [isMobile, normalizedCreators.length]);
+
+    React.useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (isMobile !== true || !shouldAutoScrollMobile || !scroller) return;
 
         let animationId: number;
         let lastTimestamp: number;
@@ -639,7 +694,7 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
 
         animationId = requestAnimationFrame(step);
         return () => cancelAnimationFrame(animationId);
-    }, [isInteraction, isMobile, speed, mobileItems.length]);
+    }, [isInteraction, isMobile, shouldAutoScrollMobile, speed, normalizedCreators.length]);
 
     if (isMobile !== false) {
         return (
@@ -659,8 +714,8 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
                         handleInteractionEnd();
                     }}
                 >
-                    {mobileItems.map((c, i) => (
-                        <CastingRankCard key={`${c.id}-${i}`} creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
+                    {normalizedCreators.map((c) => (
+                        <CastingRankCard key={c.id} creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
                     ))}
                 </div>
             </div>
@@ -687,11 +742,11 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
                 }}
                 onScroll={() => {
                     const scroller = scrollerRef.current;
-                    if (!scroller || cycleWidth <= 0) return;
+                    if (!shouldAutoScrollDesktop || !scroller || cycleWidth <= 0) return;
                     normalizeScrollPosition(scroller, cycleWidth);
                 }}
             >
-                {[0, 1, 2].map((setIndex) => (
+                {Array.from({ length: desktopSetCount }, (_, setIndex) => (
                     <div
                         key={`set-${setIndex}`}
                         ref={(el) => {
@@ -699,8 +754,8 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
                         }}
                         className="flex shrink-0 gap-2 sm:gap-4"
                     >
-                        {baseItems.map((c, i) => (
-                            <div key={`${setIndex}-${c.id}-${i}`} className="shrink-0">
+                        {normalizedCreators.map((c) => (
+                            <div key={`${setIndex}-${c.id}`} className="shrink-0">
                                 <CastingRankCard creator={c} variant="railCompact" onRequestMediaKit={handleBrandForm} />
                             </div>
                         ))}

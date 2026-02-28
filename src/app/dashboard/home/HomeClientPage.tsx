@@ -58,7 +58,7 @@ type SummaryScope = "all" | "core" | "performance" | "proposals" | "community";
 const DEFAULT_PERIOD: Period = "30d";
 const TRIAL_CTA_LABEL = "⚡ Ativar alertas no WhatsApp";
 const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
-const PROPOSAL_COPY_FEEDBACK_MS = 20_000;
+const VIP_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
 const PAID_PRO_NORMALIZED_STATUSES = new Set(["active", "non_renewing"]);
 
 type HeroAction = {
@@ -117,7 +117,6 @@ const TUTORIAL_STEP_ICONS: Record<JourneyStepId, IconType> = {
   create_media_kit: FaMagic,
   publish_media_kit_link: FaLink,
   personalize_support: FaRobot,
-  publish_proposal_form_link: FaBullhorn,
   activate_pro: FaGem,
 };
 
@@ -140,10 +139,6 @@ const JOURNEY_STEP_COPY: Record<
   personalize_support: {
     stepHelper: "Responda a pesquisa de personalização (2 min) para ajustar IA e suporte ao seu momento.",
     ctaLabel: "Personalizar suporte",
-  },
-  publish_proposal_form_link: {
-    stepHelper: "Copie o link do formulário, coloque na bio e acompanhe propostas em Campanhas.",
-    ctaLabel: "Ver como funciona",
   },
   activate_pro: {
     stepHelper:
@@ -199,8 +194,6 @@ export default function HomeClientPage() {
   const [isHydrated, setIsHydrated] = React.useState(false);
   const onboardingCompletionRequested = React.useRef(false);
   const [showSurveyModal, setShowSurveyModal] = React.useState(false);
-  const [proposalCopyFeedbackVisible, setProposalCopyFeedbackVisible] = React.useState(false);
-  const proposalCopyFeedbackTimerRef = React.useRef<number | null>(null);
   const isNewUser = Boolean(session?.user?.isNewUserForOnboarding);
   const focusIntent = searchParams?.get("intent")?.toLowerCase() ?? null;
   const sessionUserId = session?.user?.id ?? null;
@@ -214,6 +207,7 @@ export default function HomeClientPage() {
   const [initialFetch, setInitialFetch] = React.useState(false);
   const [showWhatsAppConnect, setShowWhatsAppConnect] = React.useState(false);
   const [resolvingVipAccess, setResolvingVipAccess] = React.useState(false);
+  const [confirmingVipJoin, setConfirmingVipJoin] = React.useState(false);
   const communityFlag = useFeatureFlag("modules.community_on_home", true);
   const planningFlag = useFeatureFlag("planning.group_locked", false);
   const dashboardMinimalFlag = useFeatureFlag("nav.dashboard_minimal", false);
@@ -234,27 +228,6 @@ export default function HomeClientPage() {
       return url;
     }
   }, []);
-
-  const showProposalCopyFeedback = React.useCallback(() => {
-    setProposalCopyFeedbackVisible(true);
-    if (typeof window === "undefined") return;
-    if (proposalCopyFeedbackTimerRef.current) {
-      window.clearTimeout(proposalCopyFeedbackTimerRef.current);
-    }
-    proposalCopyFeedbackTimerRef.current = window.setTimeout(() => {
-      setProposalCopyFeedbackVisible(false);
-      proposalCopyFeedbackTimerRef.current = null;
-    }, PROPOSAL_COPY_FEEDBACK_MS);
-  }, []);
-
-  React.useEffect(
-    () => () => {
-      if (proposalCopyFeedbackTimerRef.current && typeof window !== "undefined") {
-        window.clearTimeout(proposalCopyFeedbackTimerRef.current);
-      }
-    },
-    []
-  );
 
   const fetchSummary = React.useCallback(
     async (period: Period, scope: SummaryScope = "all") => {
@@ -515,17 +488,19 @@ export default function HomeClientPage() {
     summary?.nextPost?.isInstagramConnected ?? Boolean(session?.user?.instagramConnected);
   const hasMediaKit = summary?.mediaKit?.hasMediaKit ?? false;
   const mediaKitShareUrl = summary?.mediaKit?.shareUrl ?? null;
-  const mediaKitProposalFormUrl = summary?.mediaKit?.proposalFormUrl ?? null;
   const journeyProgress = summary?.journeyProgress ?? null;
   const defaultCommunityFreeUrl =
     process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL ?? "/planning/discover";
   const defaultCommunityVipUrl =
-    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? "/planning/whatsapp";
+    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ?? VIP_WHATSAPP_GROUP_URL;
   const communityFreeMember = summary?.community?.free?.isMember ?? false;
   const communityFreeInviteUrl =
     summary?.community?.free?.inviteUrl ?? defaultCommunityFreeUrl;
   const communityVipHasAccess = summary?.community?.vip?.hasAccess ?? false;
   const communityVipMember = summary?.community?.vip?.isMember ?? false;
+  const communityVipNeedsJoinReminder =
+    summary?.community?.vip?.needsJoinReminder ??
+    (communityVipHasAccess && !communityVipMember);
   const communityVipInviteUrl =
     summary?.community?.vip?.inviteUrl ?? defaultCommunityVipUrl;
   const whatsappLinked = summary?.whatsapp?.linked ?? false;
@@ -728,43 +703,6 @@ export default function HomeClientPage() {
     }
   }, []);
 
-  const markProposalFormStepDone = React.useCallback(() => {
-    setSummary((prev) => {
-      if (!prev?.flowChecklist?.steps?.length) return prev;
-
-      const steps = prev.flowChecklist.steps.map((step) => {
-        if (step.id !== "share_proposal_form_link") return step;
-        return {
-          ...step,
-          status: "done" as const,
-          completedLabel: "Copiar novamente",
-          completedHref: step.actionHref,
-        };
-      });
-      const firstPendingStepId = steps.find((step) => step.status !== "done")?.id ?? null;
-
-      return {
-        ...prev,
-        flowChecklist: {
-          ...prev.flowChecklist,
-          steps,
-          firstPendingStepId,
-        },
-      };
-    });
-  }, []);
-
-  const markProposalFormLinkCopied = React.useCallback(async (): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/dashboard/home/proposal-link-copied", {
-        method: "POST",
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }, []);
-
   const handleCopyMediaKitLink = React.useCallback(
     async (origin: string) => {
       trackDashboardCta("copy_kit_link", { surface: origin });
@@ -788,76 +726,6 @@ export default function HomeClientPage() {
       }
     },
     [copyTextWithFallback, mediaKitShareUrl, trackDashboardCta]
-  );
-
-  const handleCopyProposalFormLink = React.useCallback(
-    async (origin: string) => {
-      trackDashboardCta("copy_proposal_form_link", { surface: origin });
-      if (!hasPremiumAccessPlan) {
-        toast.error("Ative sua assinatura para liberar o link do formulário.");
-        return;
-      }
-
-      let proposalUrl = mediaKitProposalFormUrl;
-      if (!proposalUrl) {
-        try {
-          const response = await fetch("/api/users/media-kit-token", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            throw new Error(body?.error || "Falha ao gerar link do formulário.");
-          }
-          const generatedBaseUrl =
-            typeof body?.url === "string" ? body.url.trim() : "";
-          if (!generatedBaseUrl) {
-            throw new Error("Falha ao gerar link do formulário.");
-          }
-          const url = new URL(
-            generatedBaseUrl,
-            typeof window !== "undefined" ? window.location.origin : undefined
-          );
-          url.searchParams.set("proposal", "only");
-          proposalUrl = url.toString();
-        } catch {
-          toast.error("Não foi possível gerar o link do formulário agora.");
-          return;
-        }
-      }
-
-      const stepMarkedAsDone = await markProposalFormLinkCopied();
-      if (stepMarkedAsDone) {
-        markProposalFormStepDone();
-        void refreshProposalsSummary({ silent: true }).catch(() => undefined);
-      }
-
-      try {
-        const copied = await copyTextWithFallback(proposalUrl);
-        if (!copied) {
-          throw new Error("copy_failed");
-        }
-        showProposalCopyFeedback();
-        toast.success("Link copiado. Agora cole na bio do Instagram.");
-      } catch (error) {
-        void error;
-        if (typeof window !== "undefined") {
-          window.prompt("Copie manualmente o link do formulário:", proposalUrl);
-        } else {
-          toast.error("Não foi possível copiar o link agora.");
-        }
-      }
-    },
-    [
-      copyTextWithFallback,
-      hasPremiumAccessPlan,
-      markProposalFormLinkCopied,
-      markProposalFormStepDone,
-      mediaKitProposalFormUrl,
-      refreshProposalsSummary,
-      showProposalCopyFeedback,
-      trackDashboardCta,
-    ]
   );
 
   const headerCta = React.useMemo(() => null, []);
@@ -1071,7 +939,9 @@ export default function HomeClientPage() {
                 vip: {
                   ...prev.community.vip,
                   hasAccess: true,
+                  isMember: prev.community.vip.isMember ?? false,
                   inviteUrl,
+                  needsJoinReminder: true,
                 },
               }
             : prev.community,
@@ -1084,7 +954,7 @@ export default function HomeClientPage() {
     }
   }, [canAccessVipCommunity, communityVipInviteUrl, defaultCommunityVipUrl]);
 
-  const handleJoinVip = React.useCallback(async () => {
+  const handleJoinVip = React.useCallback(async (surface: string = "mentorship_strip") => {
     if (resolvingVipAccess) return;
 
     setResolvingVipAccess(true);
@@ -1092,14 +962,15 @@ export default function HomeClientPage() {
       const inviteUrl = await resolveVipInviteUrl();
       if (inviteUrl) {
         trackCardAction("mentorship", "vip_click", {
-          surface: "mentorship_strip",
+          surface,
           access: canAccessVipCommunity ? "allowed" : "revalidated",
         });
         handleNavigate(inviteUrl);
+        toast.success("Depois de entrar no grupo VIP, clique em \"Já entrei no grupo\" na Home.");
         return;
       }
 
-      trackCardAction("mentorship", "vip_locked", { surface: "mentorship_strip", access: "blocked" });
+      trackCardAction("mentorship", "vip_locked", { surface, access: "blocked" });
       openSubscribeModal("default", { source: "mentorship_strip", returnTo: "/dashboard/home" });
     } finally {
       setResolvingVipAccess(false);
@@ -1110,6 +981,71 @@ export default function HomeClientPage() {
     openSubscribeModal,
     resolveVipInviteUrl,
     resolvingVipAccess,
+    trackCardAction,
+  ]);
+
+  const handleConfirmVipJoin = React.useCallback(async (surface: string = "vip_reminder") => {
+    if (confirmingVipJoin) return;
+
+    if (!communityVipHasAccess) {
+      openSubscribeModal("default", { source: "vip_join_confirmation", returnTo: "/dashboard/home" });
+      return;
+    }
+
+    setConfirmingVipJoin(true);
+    try {
+      const response = await fetch("/api/dashboard/community/vip-join-confirmation", {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Não foi possível confirmar sua entrada agora.");
+      }
+
+      const joinedAtIso =
+        typeof payload?.vipCommunityJoinedAt === "string"
+          ? payload.vipCommunityJoinedAt
+          : new Date().toISOString();
+
+      setSummary((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          community: prev.community
+            ? {
+                ...prev.community,
+                vip: {
+                  ...prev.community.vip,
+                  hasAccess: true,
+                  isMember: true,
+                  inviteUrl: prev.community.vip.inviteUrl ?? communityVipInviteUrl ?? defaultCommunityVipUrl,
+                  joinedAt: joinedAtIso,
+                  needsJoinReminder: false,
+                },
+              }
+            : prev.community,
+          mentorship: prev.mentorship
+            ? {
+                ...prev.mentorship,
+                isMember: true,
+              }
+            : prev.mentorship,
+        };
+      });
+
+      trackCardAction("mentorship", "vip_join_confirmed", { surface });
+      toast.success("Perfeito. Confirmamos sua entrada no grupo VIP.");
+    } catch (error: any) {
+      toast.error(error?.message || "Não foi possível confirmar agora. Tente novamente em instantes.");
+    } finally {
+      setConfirmingVipJoin(false);
+    }
+  }, [
+    communityVipHasAccess,
+    communityVipInviteUrl,
+    confirmingVipJoin,
+    defaultCommunityVipUrl,
+    openSubscribeModal,
     trackCardAction,
   ]);
 
@@ -1285,20 +1221,12 @@ export default function HomeClientPage() {
     const iaActive = whatsappLinked || whatsappTrialActive;
     const iaStatus: StepStatus = iaActive ? "done" : "todo";
     const proStatus: StepStatus = planIsPro ? "done" : trialExpired ? "todo" : whatsappTrialActive ? "in-progress" : "todo";
-    const mentorshipStatus: StepStatus = communityVipMember ? "done" : "todo";
+    const mentorshipStatus: StepStatus = communityVipMember
+      ? "done"
+      : communityVipHasAccess
+      ? "in-progress"
+      : "todo";
     const surveyStatus: StepStatus = surveyCompleted ? "done" : "todo";
-    const proposalsViaMediaKit = Math.max(
-      Number(summary?.proposalsSummary?.proposalsViaMediaKit ?? 0),
-      Number(summary?.mediaKit?.proposalsViaMediaKit ?? 0),
-    );
-    const proposalLinkStepDone = summary?.flowChecklist?.steps?.some(
-      (step) => step.id === "share_proposal_form_link" && step.status === "done"
-    );
-    const proposalBioStatus: StepStatus = !hasPremiumAccessPlan
-      ? "todo"
-      : proposalLinkStepDone || proposalsViaMediaKit > 0
-        ? "done"
-        : "in-progress";
 
     return [
       {
@@ -1332,6 +1260,8 @@ export default function HomeClientPage() {
         title: "Acessar grupo VIP (Consultoria)",
         description: communityVipMember
           ? "Participando das mentorias semanais e trocas com outros criadores."
+          : communityVipHasAccess
+            ? "Entre no grupo VIP para receber links das reuniões e fazer networking com os criadores."
           : "Entre para destravar mentorias semanais e networking exclusivo.",
         icon: <FaUsers />,
         status: mentorshipStatus,
@@ -1345,7 +1275,7 @@ export default function HomeClientPage() {
             handleMentorshipAction("whatsapp_reminder");
             return;
           }
-          void handleJoinVip();
+          void handleJoinVip("progress_section");
         },
         variant: "vip",
         disabled: false,
@@ -1363,54 +1293,17 @@ export default function HomeClientPage() {
         variant: "secondary",
         disabled: false,
       },
-      {
-        id: "progress-proposal-link-bio",
-        title: "Conquiste sua primeira publi",
-        description: !hasPremiumAccessPlan
-          ? "Ative sua assinatura para liberar o link público de propostas."
-          : proposalCopyFeedbackVisible
-            ? "Link copiado. Cole na bio do Instagram e acompanhe as propostas em Campanhas."
-          : proposalsViaMediaKit > 0
-            ? "Link ativo na bio. Acompanhe as propostas na página Campanhas."
-            : proposalLinkStepDone
-              ? "Link copiado. Acompanhe propostas em Campanhas e copie novamente quando quiser."
-            : "Copie o link do formulário, coloque na bio e receba propostas em Campanhas.",
-        icon: <FaLink />,
-        status: proposalBioStatus,
-        actionLabel: !hasPremiumAccessPlan
-          ? "Ativar assinatura"
-          : proposalCopyFeedbackVisible
-            ? "Copiado. Cole na bio"
-          : proposalBioStatus === "done"
-            ? "Copiar novamente"
-            : "Ver como funciona",
-        action: () => {
-          if (!hasPremiumAccessPlan) {
-            handleHeaderSubscribe();
-            return;
-          }
-          void handleCopyProposalFormLink("progress_section");
-        },
-        variant: "secondary",
-        disabled: false,
-      },
     ];
   }, [
     communityVipHasAccess,
     communityVipMember,
-    handleCopyProposalFormLink,
     handleHeaderConnectInstagram,
     handleHeaderSubscribe,
     handleNavigate,
     handleJoinVip,
     handleMentorshipAction,
     isInstagramConnected,
-    hasPremiumAccessPlan,
-    proposalCopyFeedbackVisible,
     planIsPro,
-    summary?.mediaKit?.proposalsViaMediaKit,
-    summary?.proposalsSummary?.proposalsViaMediaKit,
-    summary?.flowChecklist?.steps,
     trialExpired,
     surveyCompleted,
     whatsappLinked,
@@ -1432,9 +1325,6 @@ export default function HomeClientPage() {
         plan: "progress-pro",
         subscription: "progress-pro",
         survey: "progress-personalize-support",
-        proposta: "progress-proposal-link-bio",
-        proposal: "progress-proposal-link-bio",
-        bio: "progress-proposal-link-bio",
       };
       const mapped = intentMap[focusIntent];
       if (mapped) return mapped;
@@ -2077,7 +1967,6 @@ export default function HomeClientPage() {
       create_media_kit: "create_media_kit",
       publish_media_kit_link: "edit_kit",
       personalize_support: "open_creator_survey",
-      publish_proposal_form_link: "copy_proposal_form_link",
       activate_pro: "activate_pro",
     };
     const target = targetByStep[stepId] ?? "open_proposals";
@@ -2100,13 +1989,6 @@ export default function HomeClientPage() {
       case "personalize_support":
         handleNavigate("/#etapa-5-pesquisa");
         break;
-      case "publish_proposal_form_link":
-        if (mediaKitProposalFormUrl) {
-          void handleCopyProposalFormLink("tutorial_block");
-        } else {
-          handleNavigate(mediaKitShareIntentUrl);
-        }
-        break;
       case "activate_pro":
         if (hasPremiumAccessPlan) {
           handleNavigate("/dashboard/billing");
@@ -2117,7 +1999,7 @@ export default function HomeClientPage() {
       default:
         break;
     }
-  }, [emitTutorialAction, handleCopyMediaKitLink, handleCopyProposalFormLink, handleNavigate, hasPremiumAccessPlan, journeyProgress?.nextStepId, mediaKitProposalFormUrl, mediaKitShareIntentUrl, mediaKitShareUrl, openSubscribeModal, trackDashboardCta]);
+  }, [emitTutorialAction, handleCopyMediaKitLink, handleNavigate, hasPremiumAccessPlan, journeyProgress?.nextStepId, mediaKitShareIntentUrl, mediaKitShareUrl, openSubscribeModal, trackDashboardCta]);
 
   const mentorshipStrip = showMentorshipStrip ? (
     <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
@@ -2538,6 +2420,44 @@ export default function HomeClientPage() {
             })}
           </div>
         </section>
+
+        {communityVipHasAccess && communityVipNeedsJoinReminder ? (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50/70 px-5 py-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  Falta confirmar sua entrada no grupo VIP
+                </p>
+                <p className="text-sm text-amber-800">
+                  Os links das reuniões e o networking da comunidade acontecem por lá.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleJoinVip("vip_reminder");
+                  }}
+                  disabled={resolvingVipAccess}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-950 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Entrar no grupo VIP
+                  <FaExternalLinkAlt className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleConfirmVipJoin("vip_reminder");
+                  }}
+                  disabled={confirmingVipJoin}
+                  className="inline-flex items-center justify-center rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {confirmingVipJoin ? "Confirmando..." : "Já entrei no grupo"}
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
 
         <section className="mt-6 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6">

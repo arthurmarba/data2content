@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { RenderTheme } from './chatUtils';
-import Image from 'next/image';
+import Image from 'next/image.js';
 import { Copy, Check } from 'lucide-react';
 import { track } from '@/lib/track';
 

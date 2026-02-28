@@ -51,7 +51,7 @@ export default function LandingHeader({
   const borderColor = useMotionTemplate`rgba(228, 232, 243, ${headerBorderOpacity})`;
 
   const navLinks = [
-    { href: '#galeria', label: 'Marketplace' },
+    { href: '#galeria', label: 'Membros d2c' },
     { href: '#planos', label: 'Planos' },
   ];
 

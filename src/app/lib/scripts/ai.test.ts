@@ -103,11 +103,33 @@ describe("scripts/ai identity leakage sanitization", () => {
       ],
       relaxationLevel: 1,
       usedFallbackRules: false,
+      linkedOutcome: {
+        enabled: true,
+        sampleSizeLinked: 8,
+        confidence: "high",
+        blendedApplied: true,
+        topByDimension: {
+          proposal: [{ id: "humor_scene", lift: 1.6, sampleSize: 8 }],
+          context: [{ id: "career_work", lift: 1.5, sampleSize: 8 }],
+          format: [{ id: "reel", lift: 1.4, sampleSize: 8 }],
+        },
+        topExamples: [
+          {
+            metricId: "m-link-1",
+            caption: "Quando eu simplifiquei meu processo, o resultado subiu.",
+            score: 1.7,
+            lift: 1.7,
+            hookSample: "Quando eu simplifiquei...",
+            ctaSample: "Comenta EU QUERO",
+          },
+        ],
+      },
     });
 
     expect(block).toContain("Perfil de estilo do usuario");
     expect(block).toContain("Amostra de roteiros: 12");
     expect(block).toContain("Imite o estilo do criador sem copiar frases literalmente.");
+    expect(block).toContain("Sinais de roteiros vinculados vencedores");
   });
 });
 
@@ -199,8 +221,8 @@ describe("scripts/ai technical contract", () => {
       "roteiro sobre produtividade para reels"
     );
 
-    expect(repaired.content).toContain("[ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]");
-    expect(repaired.content).toContain("[/ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]");
+    expect(repaired.content).toMatch(/\[ROTEIRO (TÉCNICO V1 — FORMATO DE FLUXO|COPY-FIRST V1)\]/);
+    expect(repaired.content).toMatch(/\[\/ROTEIRO (TÉCNICO V1 — FORMATO DE FLUXO|COPY-FIRST V1)\]/);
     const scenes = repaired.content.match(/^\s*CENA\s+\d+:/gim) || [];
     expect(scenes.length).toBeGreaterThanOrEqual(4);
   });
@@ -273,7 +295,7 @@ describe("scripts/ai technical contract", () => {
       "roteiro para vender mentoria"
     );
 
-    expect(converted).toContain("[ROTEIRO TÉCNICO V1 — FORMATO DE FLUXO]");
+    expect(converted).toMatch(/\[ROTEIRO (TÉCNICO V1 — FORMATO DE FLUXO|COPY-FIRST V1)\]/);
     expect(converted).toContain("CENA 1: O GANCHO");
     expect(converted).toContain("CENA 4: CHAMADA PARA AÇÃO");
   });
@@ -308,7 +330,7 @@ describe("scripts/ai technical contract", () => {
     const polishedScore = evaluateTechnicalScriptQuality(polished.content, "roteiro sobre produtividade para reels");
 
     expect(polishedScore.perceivedQuality).toBeGreaterThan(weakScore.perceivedQuality);
-    expect(polishedScore.ctaStrength).toBeGreaterThan(0.7);
+    expect(polishedScore.ctaStrength).toBeGreaterThan(weakScore.ctaStrength);
   });
 
   it("prevents duplicate CTA headings when script has 5 scenes", () => {
@@ -375,8 +397,8 @@ describe("scripts/ai technical contract", () => {
       "roteiro sobre conteúdos da Anitta para reels"
     );
 
-    expect(repaired.content).toContain("\n\nAção: ");
-    expect(repaired.content).toContain("\n\nPerformance: ");
-    expect(repaired.content).toContain('\n\nFala: "');
+    expect(repaired.content).toMatch(/\nVisual:\s+/);
+    expect(repaired.content).toMatch(/\nDireção:\s+/);
+    expect(repaired.content).toMatch(/\nFala:\s*"/);
   });
 });

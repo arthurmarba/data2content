@@ -18,7 +18,7 @@ export const DEFAULT_FEATURE_FLAGS: Record<FeatureFlagKey, boolean> = {
   'nav.dashboard_minimal': false,
   'nav.campaigns_focus': false,
   'planning.group_locked': false,
-  'planning.recommendations_v1': false,
+  'planning.recommendations_v1': true,
   'modules.community_on_home': true,
   'paywall.modal_enabled': true,
   // Mantemos a nova Home como padrão em todos os ambientes. Caso precisemos voltar

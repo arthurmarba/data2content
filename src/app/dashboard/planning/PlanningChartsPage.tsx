@@ -46,6 +46,9 @@ const PERIOD_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "Últimos 60 dias", value: "last_60_days" },
   { label: "Últimos 90 dias", value: "last_90_days" },
   { label: "Últimos 120 dias", value: "last_120_days" },
+  { label: "Últimos 180 dias", value: "last_180_days" },
+  { label: "Últimos 12 meses", value: "last_12_months" },
+  { label: "Todo histórico", value: "all_time" },
 ];
 const AUTO_PREFETCH_PAGE_CAP_BY_PERIOD: Record<string, number> = {
   last_7_days: 1,
@@ -54,6 +57,9 @@ const AUTO_PREFETCH_PAGE_CAP_BY_PERIOD: Record<string, number> = {
   last_60_days: 2,
   last_90_days: 3,
   last_120_days: 4,
+  last_180_days: 5,
+  last_12_months: 6,
+  all_time: 6,
 };
 const metricCellClass = "text-right tabular-nums text-slate-800 font-semibold";
 const fetcher = async (url: string) => {
@@ -135,18 +141,18 @@ const OBJECTIVE_OPTIONS: Array<{ value: PlanningObjectiveMode; label: string }> 
   { value: "leads", label: "Leads" },
 ];
 const confidenceLabel: Record<PlanningRecommendationAction["confidence"], string> = {
-  high: "Alta confiança",
-  medium: "Confiança média",
-  low: "Baixa confiança",
+  high: "Sinal forte",
+  medium: "Sinal moderado",
+  low: "Sinal inicial",
 };
 const confidencePillLabel: Record<PlanningRecommendationAction["confidence"], string> = {
-  high: "Alta",
-  medium: "Média",
-  low: "Baixa",
+  high: "Forte",
+  medium: "Médio",
+  low: "Inicial",
 };
 const feedbackStatusLabel: Record<RecommendationFeedbackStatus, string> = {
-  applied: "Aplicada",
-  not_applied: "Não apliquei",
+  applied: "Fiz isso",
+  not_applied: "Não agora",
 };
 const RECOMMENDATION_TITLE_OVERRIDES: Record<string, string> = {
   duration: "Duração ideal",
@@ -167,7 +173,7 @@ const compactImpactEstimate = (impactEstimate: string) => {
   if (!normalized) return "Sem estimativa";
 
   const percentMatch = normalized.match(/[+\-]?\d[\d.,]*%/);
-  if (percentMatch) return `${percentMatch[0]} potencial`;
+  if (percentMatch) return `${percentMatch[0]} estimado`;
 
   if (/interações médias/i.test(normalized)) {
     const numberMatch = normalized.match(/[+\-]?\d[\d.,]*/);
@@ -176,6 +182,54 @@ const compactImpactEstimate = (impactEstimate: string) => {
 
   return normalized.replace(/\.$/, "");
 };
+const formatExpectedResult = (impactEstimate: string) => {
+  const normalized = String(impactEstimate || "").trim();
+  if (!normalized) return "O que pode acontecer: melhora neste resultado.";
+  const percentMatch = normalized.match(/[+\-]?\d[\d.,]*%/);
+  if (percentMatch) {
+    return `O que pode acontecer: variação estimada de ${percentMatch[0]}.`;
+  }
+  const interactionsMatch = normalized.match(/([+\-]?\d[\d.,]*)\s*intera/i);
+  if (interactionsMatch?.[1]) {
+    return `O que pode acontecer: cerca de ${interactionsMatch[1]} interações por post neste grupo.`;
+  }
+  return `O que pode acontecer: ${compactImpactEstimate(normalized)}.`;
+};
+const formatSampleBaseText = (sampleSize: number | null | undefined) => {
+  if (typeof sampleSize === "number" && sampleSize > 0) {
+    return `Base usada: ${formatPostsCount(sampleSize)}.`;
+  }
+  return "Poucos posts para confirmar padrão.";
+};
+const formatRecommendationMetaLine = (
+  sampleSize: number | null | undefined,
+  confidence: PlanningRecommendationAction["confidence"]
+) => {
+  const base = typeof sampleSize === "number" && sampleSize > 0 ? `Base: ${formatPostsCount(sampleSize)}` : "Base curta";
+  const signal = `Sinal ${confidencePillLabel[confidence].toLowerCase()}`;
+  return `${base} · ${signal}`;
+};
+const formatGuardrailText = (guardrailReason: string | null | undefined) => {
+  const normalized = String(guardrailReason || "").trim();
+  if (!normalized) return "Trate como teste curto e confirme nos próximos posts.";
+  return normalized
+    .replace(/amostra/gi, "base")
+    .replace(/potencial/gi, "estimativa")
+    .replace(/confiança/gi, "sinal")
+    .replace(/tendência/gi, "padrão");
+};
+const simplifyEvidenceText = (text: string) =>
+  String(text || "")
+    .replace(/amostra/gi, "base")
+    .replace(/potencial/gi, "estimativa")
+    .replace(/confiança/gi, "sinal")
+    .replace(/interações médias/gi, "interações por post")
+    .replace(/engajamento/gi, "resposta")
+    .replace(/alcance/gi, "pessoas alcançadas")
+    .replace(/grupo líder/gi, "grupo que mais funcionou")
+    .replace(/suavizaç[aã]o/gi, "ajuste de segurança")
+    .replace(/estabilidade do ranking/gi, "comparação justa")
+    .replace(/ranking/gi, "ordem de desempenho");
 const extractImpactSignal = (impactEstimate: string): number => {
   const normalized = String(impactEstimate || "").trim();
   if (!normalized) return 0.3;
@@ -250,16 +304,16 @@ const deltaToneClassMap: Record<ExecutiveDeltaTone, string> = {
 };
 const formatDeltaSummary = (delta: DeltaInsight | null, metricLabel: string): ExecutiveDeltaSummary => {
   if (!delta) {
-    return { text: "Amostra insuficiente para comparação.", tone: "warning" };
+    return { text: "Ainda faltam dados para comparar.", tone: "warning" };
   }
   const pct = Math.round(delta.deltaRatio * 100);
   if (Math.abs(pct) < 3) {
-    return { text: `Estável: ${metricLabel} sem variação relevante no bloco recente.`, tone: "neutral" };
+    return { text: `${metricLabel}: sem mudança forte no período recente.`, tone: "neutral" };
   }
   if (pct > 0) {
-    return { text: `Em alta: +${pct}% em ${metricLabel} no bloco recente.`, tone: "positive" };
+    return { text: `${metricLabel}: +${pct}% no período recente.`, tone: "positive" };
   }
-  return { text: `Atenção: ${pct}% em ${metricLabel} no bloco recente.`, tone: "negative" };
+  return { text: `${metricLabel}: ${pct}% no período recente.`, tone: "negative" };
 };
 const formatStrategicDeltaSummary = (
   metric: BackendStrategicMetricDelta | null | undefined,
@@ -268,7 +322,7 @@ const formatStrategicDeltaSummary = (
   if (!metric) return null;
   if (!metric.hasMinimumSample) {
     return {
-      text: `Amostra baixa: ${formatPostsCount(metric.currentPosts)} atual vs ${formatPostsCount(metric.previousPosts)} anterior.`,
+      text: `Base pequena: ${formatPostsCount(metric.currentPosts)} agora vs ${formatPostsCount(metric.previousPosts)} antes.`,
       tone: "warning",
     };
   }
@@ -300,7 +354,7 @@ const buildCategoryExecutiveSummary = (
 
   if (typeof sampleSize === "number" && sampleSize > 0 && sampleSize < 5) {
     return {
-      text: `Amostra baixa: ${topName} lidera em ${dimensionLabel} com ${formatPostsCount(sampleSize)}.`,
+      text: `Base pequena: ${topName} lidera em ${dimensionLabel} com ${formatPostsCount(sampleSize)}.`,
       tone: "warning",
     };
   }
@@ -335,7 +389,7 @@ const buildCategoryExecutiveSummary = (
 };
 const buildHeatmapExecutiveSummary = (rows: Array<{ day: number; hour: number; score: number }>): ExecutiveDeltaSummary => {
   if (!Array.isArray(rows) || rows.length === 0) {
-    return { text: "Amostra insuficiente para leitura por janela.", tone: "warning" };
+    return { text: "Ainda faltam dados para indicar melhor horário.", tone: "warning" };
   }
 
   const windowMap = new Map<string, { day: number; startHour: number; endHour: number; scoreSum: number; count: number }>();
@@ -360,35 +414,35 @@ const buildHeatmapExecutiveSummary = (rows: Array<{ day: number; hour: number; s
     }))
     .sort((a, b) => b.avgScore - a.avgScore);
   const top = windows[0];
-  if (!top) return { text: "Sem janela dominante no período.", tone: "neutral" };
+  if (!top) return { text: "Ainda não apareceu um horário claramente melhor.", tone: "neutral" };
 
   const runnerUp = windows[1];
   const dayLabel = WEEKDAY_SHORT_SUN_FIRST[top.day - 1] || `Dia ${top.day}`;
   const windowLabel = `${dayLabel} ${top.startHour}h-${top.endHour}h`;
 
   if (top.avgScore < 0.35) {
-    return { text: "Estável: sem janela dominante clara nas últimas semanas.", tone: "neutral" };
+    return { text: "Sem horário claramente dominante nas últimas semanas.", tone: "neutral" };
   }
   if (!runnerUp || runnerUp.avgScore <= 0) {
-    return { text: `Em alta: ${windowLabel} concentra a melhor tração recente.`, tone: "positive" };
+    return { text: `Melhor janela recente: ${windowLabel}.`, tone: "positive" };
   }
 
   const dominancePct = Math.round(((top.avgScore - runnerUp.avgScore) / runnerUp.avgScore) * 100);
   if (dominancePct >= 12) {
-    return { text: `Em alta: ${windowLabel} lidera com +${dominancePct}% vs 2ª janela.`, tone: "positive" };
+    return { text: `Melhor janela recente: ${windowLabel} (+${dominancePct}% vs próxima faixa).`, tone: "positive" };
   }
-  return { text: `Estável: ${windowLabel} lidera sem distância relevante.`, tone: "neutral" };
+  return { text: `${windowLabel} está na frente, mas por margem curta.`, tone: "neutral" };
 };
 const buildConsistencyExecutiveSummary = (
   rows: Array<{ posts: number; avgInteractions: number }>
 ): ExecutiveDeltaSummary => {
   if (!Array.isArray(rows) || rows.length < 3) {
-    return { text: "Amostra insuficiente para leitura de consistência.", tone: "warning" };
+    return { text: "Ainda faltam dados para avaliar ritmo.", tone: "warning" };
   }
 
   const postsSeries = rows.map((row) => Math.max(0, toNumber(row?.posts) ?? 0));
   const avgPosts = postsSeries.reduce((sum, value) => sum + value, 0) / postsSeries.length;
-  if (avgPosts <= 0) return { text: "Sem cadência suficiente para leitura de consistência.", tone: "warning" };
+  if (avgPosts <= 0) return { text: "Sem frequência suficiente para avaliar ritmo.", tone: "warning" };
 
   const variance = postsSeries.reduce((sum, value) => sum + (value - avgPosts) ** 2, 0) / postsSeries.length;
   const std = Math.sqrt(Math.max(variance, 0));
@@ -397,24 +451,24 @@ const buildConsistencyExecutiveSummary = (
   const delta = buildPeriodDelta(rows, (row) => toNumber((row as any)?.avgInteractions), 3);
   if (cv > 0.45) {
     return {
-      text: `Atenção: cadência irregular (${numberFormatter.format(Math.round(avgPosts))} posts/semana).`,
+      text: `Atenção: frequência irregular (${numberFormatter.format(Math.round(avgPosts))} posts por semana).`,
       tone: "negative",
     };
   }
   if (delta && delta.deltaRatio > 0.05) {
     return {
-      text: `Em alta: cadência estável e interações por post em crescimento.`,
+      text: "Boa evolução: ritmo estável e resposta por post subindo.",
       tone: "positive",
     };
   }
   if (delta && delta.deltaRatio < -0.05) {
     return {
-      text: `Atenção: cadência estável, mas interações por post em queda.`,
+      text: "Atenção: ritmo estável, mas resposta por post caiu.",
       tone: "negative",
     };
   }
   return {
-    text: `Estável: ritmo previsível de ${numberFormatter.format(Math.round(avgPosts))} posts/semana.`,
+    text: `Ritmo estável de ${numberFormatter.format(Math.round(avgPosts))} posts por semana.`,
     tone: "neutral",
   };
 };
@@ -422,7 +476,7 @@ const buildDeepEngagementExecutiveSummary = (
   rows: Array<{ format: string; savesPerThousand: number; sharesPerThousand: number; postsCount: number }>
 ): ExecutiveDeltaSummary => {
   if (!Array.isArray(rows) || rows.length === 0) {
-    return { text: "Amostra insuficiente para leitura de profundidade.", tone: "warning" };
+    return { text: "Ainda faltam dados para avaliar salvos e compartilhamentos.", tone: "warning" };
   }
   const top = rows[0];
   const topScore = (toNumber(top?.savesPerThousand) ?? 0) + (toNumber(top?.sharesPerThousand) ?? 0);
@@ -430,13 +484,13 @@ const buildDeepEngagementExecutiveSummary = (
   const topLabel = String(top?.format || "formato líder");
   if (topSample > 0 && topSample < 5) {
     return {
-      text: `Amostra baixa: ${topLabel} lidera profundidade com ${formatPostsCount(topSample)}.`,
+      text: `Base pequena: ${topLabel} está na frente com ${formatPostsCount(topSample)}.`,
       tone: "warning",
     };
   }
   if (topScore <= 0.5) {
     return {
-      text: "Atenção: profundidade baixa (salvos+shares) no período.",
+      text: "Atenção: poucos salvos e compartilhamentos no período.",
       tone: "negative",
     };
   }
@@ -447,19 +501,19 @@ const buildDeepEngagementExecutiveSummary = (
     : 0;
   if (!runnerScore || runnerScore <= 0) {
     return {
-      text: `Em alta: ${topLabel} concentra a profundidade mais forte do período.`,
+      text: `${topLabel} puxou mais salvos e compartilhamentos no período.`,
       tone: "positive",
     };
   }
   const dominancePct = Math.round(((topScore - runnerScore) / runnerScore) * 100);
   if (dominancePct >= 12) {
     return {
-      text: `Em alta: ${topLabel} lidera profundidade com +${dominancePct}% vs 2º formato.`,
+      text: `${topLabel} está na frente (+${dominancePct}% vs 2º formato).`,
       tone: "positive",
     };
   }
   return {
-    text: `Estável: ${topLabel} lidera profundidade sem distância relevante.`,
+    text: `${topLabel} está na frente, mas por margem curta.`,
     tone: "neutral",
   };
 };
@@ -467,55 +521,55 @@ const buildWeeklyRateExecutiveSummary = (
   rows: Array<{ avgRate: number }>
 ): ExecutiveDeltaSummary => {
   if (!Array.isArray(rows) || rows.length < 3) {
-    return { text: "Amostra insuficiente para leitura de engajamento semanal.", tone: "warning" };
+    return { text: "Ainda faltam dados para avaliar resposta semanal.", tone: "warning" };
   }
   const latest = rows[rows.length - 1];
   const latestRate = Math.max(0, toNumber(latest?.avgRate) ?? 0);
   const latestPct = `${(latestRate * 100).toFixed(1)}%`;
   const delta = buildPeriodDelta(rows, (row) => toNumber((row as any)?.avgRate), 3);
   if (!delta) {
-    return { text: `Estável: taxa recente em ${latestPct}.`, tone: "neutral" };
+    return { text: `Resposta recente em ${latestPct}.`, tone: "neutral" };
   }
   const pct = Math.round(delta.deltaRatio * 100);
   if (Math.abs(pct) < 3) {
-    return { text: `Estável: taxa recente em ${latestPct} sem variação relevante.`, tone: "neutral" };
+    return { text: `Resposta recente em ${latestPct}, sem mudança forte.`, tone: "neutral" };
   }
   if (pct > 0) {
-    return { text: `Em alta: taxa semanal em ${latestPct} (+${pct}% no bloco recente).`, tone: "positive" };
+    return { text: `Boa evolução: resposta semanal em ${latestPct} (+${pct}% no bloco recente).`, tone: "positive" };
   }
-  return { text: `Atenção: taxa semanal em ${latestPct} (${pct}% no bloco recente).`, tone: "negative" };
+  return { text: `Atenção: resposta semanal em ${latestPct} (${pct}% no bloco recente).`, tone: "negative" };
 };
 const buildTopDiscoveryExecutiveSummary = (
   stats: { avgShare: number; avgVisits: number; peakLabel?: string; peakShare?: number } | null,
   rows: Array<{ caption: string; nf: number | null }>
 ): ExecutiveDeltaSummary => {
   if (!stats || !Array.isArray(rows) || rows.length === 0) {
-    return { text: "Amostra insuficiente para leitura de descoberta.", tone: "warning" };
+    return { text: "Ainda faltam dados para avaliar público novo.", tone: "warning" };
   }
   const top = rows[0];
   if (!top) {
-    return { text: "Amostra insuficiente para leitura de descoberta.", tone: "warning" };
+    return { text: "Ainda faltam dados para avaliar público novo.", tone: "warning" };
   }
   const topShare = Math.max(0, toNumber(top?.nf) ?? toNumber(stats.peakShare) ?? 0);
   const runnerShare = rows[1] ? Math.max(0, toNumber(rows[1]?.nf) ?? 0) : 0;
   const topLabel = (stats.peakLabel || top.caption || "post líder").slice(0, 32);
 
   if (topShare < 30) {
-    return { text: `Atenção: descoberta baixa no topo (${Math.round(topShare)}% de não seguidores).`, tone: "negative" };
+    return { text: `Atenção: pouco público novo no topo (${Math.round(topShare)}%).`, tone: "negative" };
   }
 
   if (runnerShare > 0) {
     const dominancePct = Math.round(((topShare - runnerShare) / runnerShare) * 100);
     if (dominancePct >= 15) {
       return {
-        text: `Em alta: "${topLabel}" puxou descoberta com +${dominancePct}% vs 2º post.`,
+        text: `"${topLabel}" puxou público novo (+${dominancePct}% vs 2º post).`,
         tone: "positive",
       };
     }
   }
 
   return {
-    text: `Estável: topo de descoberta em ${Math.round(topShare)}% de não seguidores.`,
+    text: `Topo em público novo: ${Math.round(topShare)}%.`,
     tone: "neutral",
   };
 };
@@ -524,29 +578,6 @@ const twoLineClampStyle: React.CSSProperties = {
   WebkitBoxOrient: "vertical",
   WebkitLineClamp: 2,
   overflow: "hidden",
-};
-const parseRolloutPercent = (value: string | undefined, fallback: number) => {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.min(100, Math.max(0, parsed));
-};
-const PLANNING_RECOMMENDATIONS_ROLLOUT_PERCENT = parseRolloutPercent(
-  process.env.NEXT_PUBLIC_PLANNING_RECOMMENDATIONS_ROLLOUT_PERCENT,
-  10
-);
-const hashToRolloutBucket = (value: string) => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash % 100);
-};
-const isUserInRollout = (userId: string, rolloutPercent: number) => {
-  if (!userId) return false;
-  if (rolloutPercent >= 100) return true;
-  if (rolloutPercent <= 0) return false;
-  return hashToRolloutBucket(userId) < rolloutPercent;
 };
 type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
 type CategoryBarDatum = { name: string; value: number; postsCount: number };
@@ -934,7 +965,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const isAdminViewer = viewerRole === "admin";
   const { enabled: recommendationsFlagEnabled, loading: recommendationsFlagLoading } = useFeatureFlag(
     "planning.recommendations_v1",
-    false
+    true
   );
   const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
   const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
@@ -970,9 +1001,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const recommendationsFeatureEnabled = useMemo(() => {
     if (isAdminViewer) return true;
     if (recommendationsFlagLoading) return false;
-    if (!recommendationsFlagEnabled) return false;
-    return isUserInRollout(activeUserId, PLANNING_RECOMMENDATIONS_ROLLOUT_PERCENT);
-  }, [activeUserId, isAdminViewer, recommendationsFlagEnabled, recommendationsFlagLoading]);
+    return recommendationsFlagEnabled;
+  }, [isAdminViewer, recommendationsFlagEnabled, recommendationsFlagLoading]);
   const autoPrefetchPagesCap = Math.min(
     MAX_PAGES,
     AUTO_PREFETCH_PAGE_CAP_BY_PERIOD[timePeriod] ?? 2
@@ -2322,9 +2352,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     const averageScore =
       recommendationActions.reduce((sum, action) => sum + scoreMap[action.confidenceAdjusted], 0) /
       recommendationActions.length;
-    if (averageScore >= 2.5) return "Alta";
-    if (averageScore >= 1.75) return "Média";
-    return "Baixa";
+    if (averageScore >= 2.5) return "Forte";
+    if (averageScore >= 1.75) return "Médio";
+    return "Inicial";
   }, [recommendationActions]);
   const appliedRecommendationCount = useMemo(
     () => recommendationActions.filter((action) => action.feedbackStatus === "applied").length,
@@ -2335,21 +2365,15 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     [recommendationActions]
   );
   const strategicDecisionLine = useMemo(() => {
-    if (!topStrategicAction) return "Sem ação acionável agora. Gere mais histórico para liberar recomendação.";
+    if (!topStrategicAction) return "Sem prioridade definida nesta semana.";
     if (recommendationActions.length > 0 && appliedRecommendationCount >= recommendationActions.length) {
-      return "Todas as ações deste ciclo já foram marcadas como aplicadas. Reavalie após novos dados.";
+      return "Ações da semana concluídas. Aguarde novos dados.";
     }
-    const confidence = confidencePillLabel[topStrategicAction.confidenceAdjusted];
-    const sampleLabel =
-      typeof topStrategicAction.sampleSize === "number" && topStrategicAction.sampleSize > 0
-        ? `${numberFormatter.format(topStrategicAction.sampleSize)} posts na amostra`
-        : "amostra limitada";
-    const guardrail = topStrategicAction.hasLowSampleGuardrail
-      ? (topStrategicAction.guardrailReason || "Amostra baixa: validar no próximo ciclo.")
-      : "";
-    return `Decisão da semana: ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title} (${compactImpactEstimate(
-      topStrategicAction.impactEstimate
-    )}, confiança ${confidence}, ${sampleLabel}). ${guardrail}`.trim();
+    const focusTitle = RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title;
+    if (topStrategicAction.hasLowSampleGuardrail) {
+      return `Foco da semana: ${focusTitle} (teste rápido).`;
+    }
+    return `Foco da semana: ${focusTitle}.`;
   }, [appliedRecommendationCount, recommendationActions.length, topStrategicAction]);
   const selectedRecommendationView = useMemo(
     () =>
@@ -2411,7 +2435,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             ) : null}
             <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-medium text-slate-600">Leitura real do período selecionado.</p>
+                <p className="text-xs font-medium text-slate-600">Leitura prática do período selecionado.</p>
                 <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
                   {recommendationsFeatureEnabled ? (
                     <label
@@ -2468,39 +2492,30 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
           {recommendationsFeatureEnabled ? (
             <section className="grid gap-4">
               <article className={cardBase}>
-                <header className="flex items-start justify-between gap-2">
-                  <div>
+                <header className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Direcionamento</p>
-                    <h2 className="text-[15px] font-semibold text-slate-900 leading-tight sm:text-base">
-                      Próximas ações para {objectiveLabel.toLowerCase()}
-                    </h2>
-                    <p className="mt-1 text-[12px] text-slate-600 sm:text-xs">{strategicDecisionLine}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                        {objectiveLabel}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                        {periodLabel}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                        Confiança {recommendationsConfidenceSummary}
-                      </span>
-                      {recommendationActions.length > 0 ? (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                          Aplicadas {appliedRecommendationCount}/{recommendationActions.length}
-                        </span>
-                      ) : null}
-                    </div>
+                    <Target className="h-4 w-4 text-indigo-500 sm:h-5 sm:w-5" />
                   </div>
-                  <Target className="mt-0.5 hidden h-4 w-4 text-indigo-500 sm:block sm:h-5 sm:w-5" />
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{objectiveLabel}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{periodLabel}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                      Sinal {recommendationsConfidenceSummary}
+                    </span>
+                    {recommendationActions.length > 0 ? (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                        Concluídas {appliedRecommendationCount}/{recommendationActions.length}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{strategicDecisionLine}</p>
                 </header>
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
                   {loadingBatch ? (
                     <p className="text-sm text-slate-500 md:col-span-3">Carregando recomendações...</p>
                   ) : recommendationActions.length === 0 ? (
-                    <p className="text-sm text-slate-500 md:col-span-3">
-                      Sem ação acionável agora. Mantenha cadência e reavalie após novos posts.
-                    </p>
+                    <p className="text-sm text-slate-500 md:col-span-3">Sem ação prática no momento. Volte após novos posts.</p>
                   ) : (
                     recommendationActions.map((item, index) => {
                       const actionFeedbackKey = String(item.feedbackKey || item.id || "").trim().toLowerCase();
@@ -2508,70 +2523,66 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       return (
                         <article
                           key={item.feedbackKey || item.id}
-                          className={`flex h-full flex-col rounded-xl border p-2.5 sm:p-3 ${
+                          className={`flex h-full min-h-[206px] flex-col rounded-xl border p-3.5 sm:p-4 ${
                             index === 0
                               ? "border-indigo-200 bg-white shadow-sm shadow-indigo-100/70"
                               : "border-slate-200 bg-slate-50/40"
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[13px] font-semibold text-slate-900 sm:text-sm">
-                              {RECOMMENDATION_TITLE_OVERRIDES[item.id] || item.title}
-                            </p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Ação {index + 1}</p>
                             <span className="inline-flex shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 sm:text-[11px]">
                               {confidencePillLabel[item.confidenceAdjusted]}
                             </span>
                           </div>
-                          <p className="mt-1 text-[13px] font-medium text-slate-900 sm:text-sm" style={twoLineClampStyle}>
+                          <p className="mt-1 text-[13px] font-semibold text-slate-900 sm:text-sm">
+                            {RECOMMENDATION_TITLE_OVERRIDES[item.id] || item.title}
+                          </p>
+                          <p className="mt-1 text-[13px] font-medium text-slate-800 sm:text-sm" style={twoLineClampStyle}>
                             {item.action}
                           </p>
-                          <p className="mt-2 text-[11px] text-slate-600 sm:text-xs">
-                            Impacto: <span className="font-semibold text-slate-700">{compactImpactEstimate(item.impactEstimate)}</span>
-                          </p>
-                          <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
-                            {typeof item.sampleSize === "number" && item.sampleSize > 0
-                              ? `${formatPostsCount(item.sampleSize)} na amostra`
-                              : "Amostra limitada"}
+                          <p className="mt-2 text-[11px] text-slate-500 sm:text-xs">
+                            {formatRecommendationMetaLine(item.sampleSize, item.confidenceAdjusted)}
                           </p>
                           {item.hasLowSampleGuardrail ? (
-                            <p className="mt-1 text-[11px] font-semibold text-amber-700 sm:text-xs">
-                              {item.guardrailReason || "Ação em validação: amostra baixa."}
-                            </p>
+                            <p className="mt-1 text-[11px] font-semibold text-amber-700 sm:text-xs">Teste em pequena escala.</p>
                           ) : null}
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <button
+                                type="button"
+                                disabled={isFeedbackUpdating}
+                                onClick={() => submitRecommendationFeedback(item, "applied")}
+                                className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
+                                  item.feedbackStatus === "applied"
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                              >
+                                {feedbackStatusLabel.applied}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isFeedbackUpdating}
+                                onClick={() => submitRecommendationFeedback(item, "not_applied")}
+                                className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
+                                  item.feedbackStatus === "not_applied"
+                                    ? "border-amber-300 bg-amber-50 text-amber-700"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                              >
+                                {feedbackStatusLabel.not_applied}
+                              </button>
+                            </div>
                             <button
                               type="button"
-                              disabled={isFeedbackUpdating}
-                              onClick={() => submitRecommendationFeedback(item, "applied")}
-                              className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
-                                item.feedbackStatus === "applied"
-                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                              onClick={() => openRecommendationEvidence(item)}
+                              className="inline-flex min-h-[28px] items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
                             >
-                              {feedbackStatusLabel.applied}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isFeedbackUpdating}
-                              onClick={() => submitRecommendationFeedback(item, "not_applied")}
-                              className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
-                                item.feedbackStatus === "not_applied"
-                                  ? "border-amber-300 bg-amber-50 text-amber-700"
-                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
-                            >
-                              {feedbackStatusLabel.not_applied}
+                              Detalhes
+                              <ArrowUpRight className="h-3 w-3" />
                             </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => openRecommendationEvidence(item)}
-                            className="mt-auto inline-flex min-h-[36px] items-center gap-1 pt-2.5 text-left text-xs font-semibold text-indigo-600 hover:text-indigo-700 sm:min-h-[32px] sm:pt-3"
-                          >
-                            Ver evidência
-                            <ArrowUpRight className="h-3 w-3" />
-                          </button>
                         </article>
                       );
                     })
@@ -2585,8 +2596,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Alcance x Interações</p>
-                  <h2 className="text-base font-semibold text-slate-900">Evolução semanal</h2>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pessoas alcançadas x respostas</p>
+                  <h2 className="text-base font-semibold text-slate-900">Evolução por semana</h2>
                   <p className={`text-xs ${deltaToneClassMap[interactionsDeltaSummary.tone]}`}>{interactionsDeltaSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-indigo-500" />
@@ -2632,8 +2643,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         labelFormatter={(label) => formatWeekLabel(String(label))}
                         formatter={(value: number) => numberFormatter.format(Math.round(value))}
                       />
-                      <Line yAxisId="reach" type="monotone" dataKey="reach" name="Alcance médio" stroke="#2563eb" strokeWidth={3} dot={false} />
-                      <Line yAxisId="interactions" type="monotone" dataKey="interactions" name="Interações médias" stroke="#7c3aed" strokeWidth={3} dot={false} />
+                      <Line yAxisId="reach" type="monotone" dataKey="reach" name="Pessoas alcançadas (média)" stroke="#2563eb" strokeWidth={3} dot={false} />
+                      <Line yAxisId="interactions" type="monotone" dataKey="interactions" name="Respostas por post" stroke="#7c3aed" strokeWidth={3} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -2644,9 +2655,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Horário</p>
-                  <h2 className="text-base font-semibold text-slate-900">Entrega média por hora</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Melhor horário para postar</h2>
                   {bestHour !== null && (
-                    <p className="text-xs text-emerald-700">Melhor janela recente: {bestHour}h</p>
+                    <p className="text-xs text-emerald-700">Janela com melhor resposta: {bestHour}h</p>
                   )}
                 </div>
                 <Clock3 className="h-5 w-5 text-emerald-500" />
@@ -2655,7 +2666,22 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 {loadingTime ? (
                   <p className="text-sm text-slate-500">Carregando horários...</p>
                 ) : hourBars.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                  <div className="space-y-3">
+                    <p className="text-sm text-slate-500">Sem dados suficientes no período selecionado.</p>
+                    {timePeriod !== "all_time" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleTimePeriodChange("all_time")}
+                        className="inline-flex min-h-[36px] items-center rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Ver todo histórico
+                      </button>
+                    ) : (
+                      <p className="text-xs text-slate-400">
+                        Publique novos conteúdos para liberar recomendações de horário.
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -2680,17 +2706,17 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             ? `${label}h • ${formatPostsCount(postsCount)}`
                             : `${label}h`;
                         }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
                       />
                       <Bar
                         dataKey="average"
-                        name="Interações médias"
+                        name="Respostas por post"
                         fill="#0ea5e9"
                         radius={[6, 6, 0, 0]}
                         onClick={({ payload }) => {
                           const hour = typeof payload?.hour === "number" ? payload.hour : null;
                           if (hour !== null) {
-                            handleHourClick(hour, "Entrega média por hora");
+                            handleHourClick(hour, "Melhor horário para postar");
                           }
                         }}
                       >
@@ -2710,11 +2736,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração do Vídeo (Real)</p>
-                  <h2 className="text-base font-semibold text-slate-900">Quantidade de posts por faixa de duração real</h2>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração dos vídeos</p>
+                  <h2 className="text-base font-semibold text-slate-900">Quantos vídeos você tem em cada faixa de tempo</h2>
                   {durationSummary.totalVideoPosts > 0 ? (
                     <p className="text-xs text-slate-500">
-                      Cobertura de duração real: {(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos (
+                      Já temos duração em {(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos (
                       {numberFormatter.format(durationSummary.totalPostsWithDuration)}/
                       {numberFormatter.format(durationSummary.totalVideoPosts)}).
                     </p>
@@ -2724,12 +2750,12 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               </header>
               <div className="mt-4 h-64">
                 {loadingDuration ? (
-                  <p className="text-sm text-slate-500">Carregando duração real...</p>
+                  <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
                 ) : durationSummary.totalVideoPosts === 0 ? (
                   <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
                 ) : durationSummary.totalPostsWithDuration === 0 ? (
                   <p className="text-sm text-slate-500">
-                    Os vídeos deste período ainda não possuem duração real (`video_duration_seconds`).
+                    Ainda não conseguimos ler a duração dos vídeos deste período.
                   </p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
@@ -2746,7 +2772,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         contentStyle={tooltipStyle}
                         labelFormatter={(label, payload: any[]) => {
                           const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
-                          return `${label} de duração real • ${formatPostsCount(postsCount)}`;
+                          return `${label} • ${formatPostsCount(postsCount)}`;
                         }}
                         formatter={(value: number) => [formatPostsCount(value), "Posts"]}
                       />
@@ -2757,7 +2783,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         radius={[6, 6, 0, 0]}
                         onClick={({ payload }) => {
                           const bucketKey = payload?.key as DurationBucketKey | undefined;
-                          if (bucketKey) handleDurationBucketClick(bucketKey, "Quantidade de posts por faixa de duração real");
+                          if (bucketKey) handleDurationBucketClick(bucketKey, "Vídeos por faixa de duração");
                         }}
                       >
                         <LabelList
@@ -2776,16 +2802,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração Real x Interações</p>
-                  <h2 className="text-base font-semibold text-slate-900">Interações médias por faixa de duração real</h2>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração x resultado</p>
+                  <h2 className="text-base font-semibold text-slate-900">Qual duração traz mais resposta</h2>
                   {bestDurationBucket ? (
                     <p className="text-xs text-emerald-700">
-                      Melhor faixa recente: {bestDurationBucket.label} ({numberFormatter.format(Math.round(bestDurationBucket.averageInteractions))} interações médias).
+                      Faixa que mais respondeu: {bestDurationBucket.label} ({numberFormatter.format(Math.round(bestDurationBucket.averageInteractions))} respostas por post).
                     </p>
                   ) : null}
                   {lowSampleDurationBuckets > 0 ? (
                     <p className="text-xs text-amber-700">
-                      {lowSampleDurationBuckets} faixa(s) têm menos de 5 posts.
+                      {lowSampleDurationBuckets} faixa(s) ainda têm poucos vídeos (menos de 5).
                     </p>
                   ) : null}
                 </div>
@@ -2793,11 +2819,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               </header>
               <div className="mt-4 h-64">
                 {loadingDuration ? (
-                  <p className="text-sm text-slate-500">Carregando duração real...</p>
+                  <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
                 ) : durationSummary.totalVideoPosts === 0 ? (
                   <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
                 ) : durationSummary.totalPostsWithDuration === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados de duração real para calcular interações por faixa.</p>
+                  <p className="text-sm text-slate-500">Sem duração suficiente para comparar faixas.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -2808,7 +2834,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         if (!label) return;
                         const bucket = DURATION_BUCKETS.find((item) => item.label === label);
                         if (!bucket) return;
-                        handleDurationBucketClick(bucket.key, "Interações médias por faixa de duração real");
+                        handleDurationBucketClick(bucket.key, "Resposta por faixa de duração");
                       }}
                       style={{ cursor: "pointer" }}
                     >
@@ -2829,13 +2855,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         contentStyle={tooltipStyle}
                         labelFormatter={(label, payload: any[]) => {
                           const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
-                          return `${label} de duração real • ${formatPostsCount(postsCount)}`;
+                          return `${label} • ${formatPostsCount(postsCount)}`;
                         }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
                       />
                       <Bar
                         dataKey="averageInteractions"
-                        name="Interações médias"
+                        name="Respostas por post"
                         stroke="#7c3aed"
                         fill="#7c3aed"
                         radius={[6, 6, 0, 0]}
@@ -2959,7 +2985,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Contexto</p>
-                  <h2 className="text-base font-semibold text-slate-900">Interação média por contexto</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por contexto</h2>
                   <p className={`text-xs ${deltaToneClassMap[contextExecutiveSummary.tone]}`}>{contextExecutiveSummary.text}</p>
                 </div>
                 <Target className="h-5 w-5 text-slate-600" />
@@ -2995,16 +3021,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             ? `${label} • ${formatPostsCount(postsCount)}`
                             : label;
                         }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações médias"
+                        name="Respostas por post"
                         fill="#0ea5e9"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("context", value, "Interação média por contexto");
+                          if (value) handleCategoryClick("context", value, "Resposta por post por contexto");
                         }}
                       >
                         <LabelList
@@ -3025,7 +3051,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Proposta</p>
-                  <h2 className="text-base font-semibold text-slate-900">Interação média por proposta</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por proposta</h2>
                   <p className={`text-xs ${deltaToneClassMap[proposalExecutiveSummary.tone]}`}>{proposalExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-indigo-500" />
@@ -3061,16 +3087,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             ? `${label} • ${formatPostsCount(postsCount)}`
                             : label;
                         }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações médias"
+                        name="Respostas por post"
                         fill="#6366f1"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("proposal", value, "Interação média por proposta");
+                          if (value) handleCategoryClick("proposal", value, "Resposta por post por proposta");
                         }}
                       >
                         <LabelList
@@ -3093,7 +3119,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tom</p>
-                  <h2 className="text-base font-semibold text-slate-900">Interação média por tom</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por tom</h2>
                   <p className={`text-xs ${deltaToneClassMap[toneExecutiveSummary.tone]}`}>{toneExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-emerald-500" />
@@ -3129,16 +3155,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             ? `${label} • ${formatPostsCount(postsCount)}`
                             : label;
                         }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações médias"
+                        name="Respostas por post"
                         fill="#10b981"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("tone", value, "Interação média por tom");
+                          if (value) handleCategoryClick("tone", value, "Resposta por post por tom");
                         }}
                       >
                         <LabelList
@@ -3159,7 +3185,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Referência</p>
-                  <h2 className="text-base font-semibold text-slate-900">Interação média por referência</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por referência</h2>
                   <p className={`text-xs ${deltaToneClassMap[referenceExecutiveSummary.tone]}`}>{referenceExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-amber-500" />
@@ -3195,16 +3221,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             ? `${label} • ${formatPostsCount(postsCount)}`
                             : label;
                         }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações médias"
+                        name="Respostas por post"
                         fill="#f59e0b"
                         radius={[0, 6, 6, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("references", value, "Interação média por referência");
+                          if (value) handleCategoryClick("references", value, "Resposta por post por referência");
                         }}
                       >
                         <LabelList
@@ -3226,7 +3252,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Heatmap</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mapa de horários</p>
                   <h2 className="text-base font-semibold text-slate-900">Melhores janelas por dia e hora</h2>
                   <p className={`text-xs ${deltaToneClassMap[heatmapExecutiveSummary.tone]}`}>{heatmapExecutiveSummary.text}</p>
                 </div>
@@ -3234,9 +3260,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               </header>
               <div className="mt-4">
                 {loadingTime ? (
-                  <p className="text-sm text-slate-500">Carregando heatmap...</p>
+                  <p className="text-sm text-slate-500">Carregando mapa de horários...</p>
                 ) : heatmap.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados para montar o heatmap.</p>
+                  <p className="text-sm text-slate-500">Sem dados para montar o mapa de horários.</p>
                 ) : (
                   <div className="grid grid-cols-7 gap-1 text-[11px] text-slate-500">
                     <div />
@@ -3261,7 +3287,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               type="button"
                               className="aspect-square rounded border border-slate-100 transition hover:border-slate-300"
                               style={{ background: bg }}
-                              onClick={() => handleDayHourClick(dow, startHour, endHour, "Heatmap de janelas")}
+                              onClick={() => handleDayHourClick(dow, startHour, endHour, "Mapa de horários")}
                               aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
                             />
                           );
@@ -3277,7 +3303,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Formato</p>
-                  <h2 className="text-base font-semibold text-slate-900">Distribuição de interações</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Resposta por formato</h2>
                   <p className={`text-xs ${deltaToneClassMap[formatExecutiveSummary.tone]}`}>{formatExecutiveSummary.text}</p>
                 </div>
                 <LineChartIcon className="h-5 w-5 text-amber-500" />
@@ -3299,16 +3325,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                       <Tooltip
                         contentStyle={tooltipStyle}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações"]}
+                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas"]}
                       />
                       <Bar
                         dataKey="value"
-                        name="Interações"
+                        name="Respostas"
                         fill="#f97316"
                         radius={[6, 6, 0, 0]}
                         onClick={({ payload }) => {
                           const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("format", value, "Distribuição de interações");
+                          if (value) handleCategoryClick("format", value, "Resposta por formato");
                         }}
                       />
                     </BarChart>
@@ -3323,14 +3349,14 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <header className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Consistência</p>
-                  <h2 className="text-base font-semibold text-slate-900">Posts por semana vs. média de interações</h2>
+                  <h2 className="text-base font-semibold text-slate-900">Ritmo de posts x resposta por post</h2>
                   <p className={`text-xs ${deltaToneClassMap[consistencyExecutiveSummary.tone]}`}>{consistencyExecutiveSummary.text}</p>
                 </div>
                 <LineChartIcon className="h-5 w-5 text-emerald-500" />
               </header>
               <div className="mt-4 h-64">
                 {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando consistência...</p>
+                  <p className="text-sm text-slate-500">Carregando ritmo...</p>
                 ) : weeklyConsistency.length === 0 ? (
                   <p className="text-sm text-slate-500">Sem posts suficientes no período.</p>
                 ) : (
@@ -3338,7 +3364,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     <LineChart
                       data={weeklyConsistency}
                       margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Posts por semana vs. média de interações")}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Ritmo de posts x resposta por post")}
                       style={{ cursor: "pointer" }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -3364,21 +3390,21 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         axisLine={false}
                         tick={{ fill: "#94a3b8", fontSize: 12 }}
                         tickFormatter={(value: number) => numberFormatter.format(value)}
-                        label={{ value: "Interações médias", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }}
+                        label={{ value: "Respostas por post", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }}
                       />
                       <Tooltip
                         contentStyle={tooltipStyle}
                         labelFormatter={(label) => `Semana ${formatWeekLabel(String(label)).replace(/\sW/, " W")}`}
                         formatter={(value: number, name) => [
                           numberFormatter.format(Math.round(value)),
-                          name === "posts" ? "Posts/semana" : "Média de interações",
+                          name === "posts" ? "Posts por semana" : "Respostas por post",
                         ]}
                       />
                       <Legend
                         verticalAlign="top"
                         height={28}
                         iconType="circle"
-                        formatter={(value) => (value === "posts" ? "Posts/semana" : "Média de interações")}
+                        formatter={(value) => (value === "posts" ? "Posts por semana" : "Respostas por post")}
                       />
                       <Line yAxisId="left" type="monotone" dataKey="posts" name="posts" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
                       <Line
@@ -3400,17 +3426,17 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Profundidade</p>
-                  <h2 className="text-base font-semibold text-slate-900">Salvos e compartilhamentos a cada 1.000 de alcance</h2>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Salvos e compartilhamentos</p>
+                  <h2 className="text-base font-semibold text-slate-900">Salvos e compartilhamentos por pessoas alcançadas</h2>
                   <p className={`text-xs ${deltaToneClassMap[deepEngagementExecutiveSummary.tone]}`}>{deepEngagementExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-amber-500" />
               </header>
               <div className="mt-4 h-64">
                 {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando engajamento profundo...</p>
+                  <p className="text-sm text-slate-500">Carregando salvos e compartilhamentos...</p>
                 ) : deepEngagement.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados de salvos/compartilhamentos no período.</p>
+                  <p className="text-sm text-slate-500">Sem dados suficientes de salvos e compartilhamentos.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -3435,10 +3461,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           const perK = (value || 0).toFixed(2);
                           const count = payload?.postsCount ?? 0;
                           if (name === "savesPerThousand") {
-                            return [`${perK} por 1.000 de alcance · ${count} posts`, "Salvos"];
+                            return [`${perK} por 1.000 pessoas alcançadas · ${count} posts`, "Salvos"];
                           }
                           if (name === "sharesPerThousand") {
-                            return [`${perK} por 1.000 de alcance · ${count} posts`, "Compartilhamentos"];
+                            return [`${perK} por 1.000 pessoas alcançadas · ${count} posts`, "Compartilhamentos"];
                           }
                           return [`${perK}`, name];
                         }}
@@ -3476,8 +3502,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Engajamento</p>
-                  <h2 className="text-base font-semibold text-slate-900">Taxa média de engajamento por semana</h2>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Força de resposta</p>
+                  <h2 className="text-base font-semibold text-slate-900">Percentual de resposta por semana</h2>
                   <p className={`text-xs ${deltaToneClassMap[weeklyRateExecutiveSummary.tone]}`}>{weeklyRateExecutiveSummary.text}</p>
                 </div>
                 <Sparkles className="h-5 w-5 text-indigo-500" />
@@ -3492,7 +3518,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     <LineChart
                       data={weeklyEngagementRate}
                       margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Taxa média de engajamento por semana")}
+                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Percentual de resposta por semana")}
                       style={{ cursor: "pointer" }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -3512,9 +3538,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       <Tooltip
                         contentStyle={tooltipStyle}
                         labelFormatter={(label) => formatWeekLabel(String(label))}
-                        formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, "Taxa de engajamento (interações/alcance)"]}
+                        formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, "Percentual de resposta (interações entre pessoas alcançadas)"]}
                       />
-                      <Line type="monotone" dataKey="avgRate" name="Engajamento semanal" stroke="#7c3aed" strokeWidth={3} dot />
+                      <Line type="monotone" dataKey="avgRate" name="Resposta semanal" stroke="#7c3aed" strokeWidth={3} dot />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -3524,9 +3550,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <article className={cardBase}>
               <header className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Propagação</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Compartilhamentos e visitas</p>
                   <h2 className="text-base font-semibold text-slate-900">Compartilhamentos x Visitas</h2>
-                  <p className="text-xs text-slate-500">Veja se os shares estão puxando visitas ao perfil.</p>
+                  <p className="text-xs text-slate-500">Veja se compartilhar está trazendo visitas ao perfil.</p>
                 </div>
                 <LineChartIcon className="h-5 w-5 text-slate-600" />
               </header>
@@ -3609,40 +3635,45 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       <Drawer
         open={Boolean(selectedRecommendation)}
         onClose={closeRecommendationEvidence}
-        title={selectedRecommendation ? `Evidência — ${selectedRecommendation.title}` : "Evidência"}
+        title={selectedRecommendation ? "Ação recomendada" : "Ação recomendada"}
       >
         {selectedRecommendation ? (
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Ação sugerida</p>
-              <p className="mt-1 text-sm font-medium text-slate-900">{selectedRecommendation.action}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Impacto estimado</p>
-              <p className="mt-1 text-sm text-slate-700">{selectedRecommendation.impactEstimate}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Confiança</p>
-              <p className="mt-1 text-sm text-slate-700">
-                {confidenceLabel[selectedRecommendationView?.confidenceAdjusted || selectedRecommendation.confidence]}
+          <div className="space-y-5">
+            <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {RECOMMENDATION_TITLE_OVERRIDES[selectedRecommendation.id] || selectedRecommendation.title}
               </p>
-              {selectedRecommendationView?.hasLowSampleGuardrail ? (
-                <p className="mt-1 text-xs font-semibold text-amber-700">
-                  {selectedRecommendationView.guardrailReason || "Ação em validação por amostra baixa"}
-                  {typeof selectedRecommendationView.sampleSize === "number" && selectedRecommendationView.sampleSize > 0
-                    ? ` (${formatPostsCount(selectedRecommendationView.sampleSize)}).`
-                    : "."}
+              <p className="mt-1.5 text-sm font-semibold leading-snug text-slate-900">{selectedRecommendation.action}</p>
+            </section>
+
+            <section className="grid gap-3 sm:grid-cols-2">
+              <article className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">O que esperar</p>
+                <p className="mt-1 text-sm text-slate-700">{formatExpectedResult(selectedRecommendation.impactEstimate)}</p>
+              </article>
+              <article className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Base da sugestão</p>
+                <p className="mt-1 text-sm text-slate-700">{formatSampleBaseText(selectedRecommendationView?.sampleSize)}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  {confidenceLabel[selectedRecommendationView?.confidenceAdjusted || selectedRecommendation.confidence]}
                 </p>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status da ação</p>
+              </article>
+            </section>
+
+            {selectedRecommendationView?.hasLowSampleGuardrail ? (
+              <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-semibold text-amber-700">{formatGuardrailText(selectedRecommendationView.guardrailReason)}</p>
+              </section>
+            ) : null}
+
+            <section>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Você vai testar?</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   disabled={selectedRecommendationFeedbackLoading}
                   onClick={() => submitRecommendationFeedback(selectedRecommendation, "applied")}
-                  className={`inline-flex min-h-[32px] items-center rounded-full border px-3 text-xs font-semibold transition ${
+                  className={`inline-flex min-h-[34px] items-center rounded-full border px-3 text-xs font-semibold transition ${
                     selectedRecommendationView?.feedbackStatus === "applied"
                       ? "border-emerald-300 bg-emerald-50 text-emerald-700"
                       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
@@ -3654,7 +3685,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                   type="button"
                   disabled={selectedRecommendationFeedbackLoading}
                   onClick={() => submitRecommendationFeedback(selectedRecommendation, "not_applied")}
-                  className={`inline-flex min-h-[32px] items-center rounded-full border px-3 text-xs font-semibold transition ${
+                  className={`inline-flex min-h-[34px] items-center rounded-full border px-3 text-xs font-semibold transition ${
                     selectedRecommendationView?.feedbackStatus === "not_applied"
                       ? "border-amber-300 bg-amber-50 text-amber-700"
                       : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
@@ -3663,24 +3694,29 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                   {feedbackStatusLabel.not_applied}
                 </button>
               </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Evidência</p>
+            </section>
+
+            <section>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Por que vale testar</p>
               <ul className="mt-2 space-y-2 text-sm text-slate-700">
                 {selectedRecommendation.evidence.map((item, index) => (
-                  <li key={`${selectedRecommendation.id}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    {item}
+                  <li
+                    key={`${selectedRecommendation.id}-${index}`}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                  >
+                    {simplifyEvidenceText(item)}
                   </li>
                 ))}
               </ul>
-            </div>
-            <div className="pt-2">
+            </section>
+
+            <div className="pt-1">
               <button
                 type="button"
                 onClick={() => handleGoToPlanner("recommendation_drawer")}
-                className="text-sm font-semibold text-indigo-600 underline-offset-2 hover:underline"
+                className="inline-flex min-h-[38px] w-full items-center justify-center rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white hover:bg-indigo-700"
               >
-                Abrir planejamento
+                Ir para planejamento
               </button>
             </div>
           </div>

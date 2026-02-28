@@ -1,5 +1,5 @@
 import React from 'react';
-import Image from 'next/image';
+import Image from 'next/image.js';
 import { AnswerEvidence } from './types';
 import { track } from '@/lib/track';
 

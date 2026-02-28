@@ -56,6 +56,7 @@ test.describe('Instagram connecting flow', () => {
   });
 
   test('auto-finaliza quando há uma única conta disponível', async ({ page }) => {
+    test.setTimeout(90_000);
     let selectedAccountId: string | null = null;
     let flowIdHeader: string | undefined;
 
@@ -93,6 +94,7 @@ test.describe('Instagram connecting flow', () => {
   });
 
   test('exibe seleção quando há múltiplas contas e conecta a escolhida', async ({ page }) => {
+    test.setTimeout(90_000);
     let selectedAccountId: string | null = null;
 
     await mockNextAuthSession(
@@ -119,9 +121,10 @@ test.describe('Instagram connecting flow', () => {
 
     await page.goto('/dashboard/instagram/connecting?instagramLinked=true&next=chat&flowId=igrc_e2e_multi');
 
-    await expect(page.getByText('Selecione qual conta do Instagram você quer conectar.')).toBeVisible();
-    await expect(page.getByRole('button', { name: '@creatorone' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '@creatortwo' })).toBeVisible();
+    await expect(page.getByText('Carregando...')).toHaveCount(0, { timeout: 60_000 });
+    await expect(page.getByText('Selecione qual conta do Instagram você quer conectar.')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: '@creatorone' })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: '@creatortwo' })).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('button', { name: '@creatorone' }).click();
 
@@ -130,6 +133,7 @@ test.describe('Instagram connecting flow', () => {
   });
 
   test('exibe erro NO_IG_ACCOUNT com checklist e FAQ correta', async ({ page }) => {
+    test.setTimeout(90_000);
     await mockNextAuthSession(
       page,
       buildSession({

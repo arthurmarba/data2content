@@ -22,13 +22,14 @@ import {
   WINDOW_DAYS,
   PLANNER_TIMEZONE,
 } from '@/app/lib/planner/constants';
+import { logger } from '@/app/lib/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Versão do algoritmo/snapshot
-// 3 = mantém base em views, mas muda enriquecimento de TEMAS (modo flex por default)
-const ALGO_VERSION = 3;
+// 4 = adiciona score híbrido com evidência de roteiros vinculados (quando disponível)
+const ALGO_VERSION = 4;
 
 // === Toggle de freeze/cache ===
 // Em produção: segue env; em dev: desligado por padrão (p/ testes).
@@ -239,6 +240,35 @@ export async function GET(request: Request) {
           }
         })
       );
+
+      const scriptEvidenceRows = recs
+        .map((item: any) => item?.scriptEvidence)
+        .filter(Boolean) as Array<{ confidence?: string; sampleSize?: number }>;
+      const plannerHybridApplied = scriptEvidenceRows.length > 0;
+      const confidenceCounts = scriptEvidenceRows.reduce(
+        (acc, row) => {
+          const confidence =
+            row?.confidence === 'high' || row?.confidence === 'medium' || row?.confidence === 'low'
+              ? row.confidence
+              : 'low';
+          acc[confidence] += 1;
+          return acc;
+        },
+        { low: 0, medium: 0, high: 0 }
+      );
+      const scriptEvidenceConfidence =
+        confidenceCounts.high > 0 ? 'high' : confidenceCounts.medium > 0 ? 'medium' : 'low';
+      const linkedSampleSize = scriptEvidenceRows.reduce(
+        (best, row) => Math.max(best, Number(row?.sampleSize || 0)),
+        0
+      );
+      logger.info('[planner][recommendations][hybrid-signals]', {
+        userId,
+        weekStart: weekStartISO,
+        plannerHybridApplied,
+        linkedSampleSize,
+        scriptEvidenceConfidence,
+      });
 
       const frozenAt = freezeEnabled ? new Date().toISOString() : undefined;
 

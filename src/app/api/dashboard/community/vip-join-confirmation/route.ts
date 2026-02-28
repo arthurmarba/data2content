@@ -19,12 +19,12 @@ export async function POST() {
 
   try {
     await connectToDatabase();
-    const copiedAt = new Date();
+    const joinedAt = new Date();
     const result = await UserModel.updateOne(
       { _id: userId },
       {
         $set: {
-          proposalFormLinkCopiedAt: copiedAt,
+          vipCommunityJoinedAt: joinedAt,
         },
       }
     );
@@ -36,12 +36,12 @@ export async function POST() {
     invalidateDashboardHomeSummaryCache(String(userId));
     return NextResponse.json({
       ok: true,
-      proposalFormLinkCopiedAt: copiedAt.toISOString(),
+      vipCommunityJoinedAt: joinedAt.toISOString(),
     });
   } catch (error) {
-    logger.error("[home.proposal-link-copied] Failed to persist copy event", error);
+    logger.error("[dashboard.community.vip-join-confirmation] Failed to confirm VIP join", error);
     return NextResponse.json(
-      { ok: false, error: "Failed to persist proposal link copy event" },
+      { ok: false, error: "Failed to confirm VIP community join" },
       { status: 500 }
     );
   }

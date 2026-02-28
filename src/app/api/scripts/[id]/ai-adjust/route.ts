@@ -43,6 +43,7 @@ type Params = {
 function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boolean }) {
   const includeAdminAnnotation = Boolean(options?.includeAdminAnnotation);
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
+  const hasPostedContent = Boolean(item?.postedContent?.metricId);
   return {
     id: String(item._id),
     title: item.title,
@@ -65,6 +66,39 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
           updatedAt: item.adminAnnotationUpdatedAt || null,
         }
       : null,
+    inlineAnnotations: Array.isArray(item.inlineAnnotations)
+      ? item.inlineAnnotations.map((ann: any) => ({
+          id: ann.id,
+          startIndex: ann.startIndex,
+          endIndex: ann.endIndex,
+          quote: ann.quote,
+          comment: ann.comment,
+          authorName: ann.authorName,
+          isOrphaned: ann.isOrphaned ?? false,
+          resolved: ann.resolved ?? false,
+          createdAt:
+            typeof ann.createdAt?.toISOString === "function" ? ann.createdAt.toISOString() : ann.createdAt,
+        }))
+      : [],
+    publication: {
+      isPosted: hasPostedContent,
+      postedAt: item.postedAt || null,
+      content: hasPostedContent
+        ? {
+            id: String(item.postedContent.metricId),
+            caption: item.postedContent.caption || null,
+            postDate: item.postedContent.postDate || null,
+            postLink: item.postedContent.postLink || null,
+            type: item.postedContent.type || null,
+            engagement:
+              typeof item.postedContent.engagement === "number" ? item.postedContent.engagement : null,
+            totalInteractions:
+              typeof item.postedContent.totalInteractions === "number"
+                ? item.postedContent.totalInteractions
+                : null,
+          }
+        : null,
+    },
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };

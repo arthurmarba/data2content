@@ -22,7 +22,6 @@ export type DashboardCtaTarget =
   | "open_proposals"
   | "analyze_with_ai"
   | "copy_kit_link"
-  | "copy_proposal_form_link"
   | "view_as_brand"
   | "edit_kit"
   | "activate_pro"

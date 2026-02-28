@@ -98,6 +98,15 @@ const CTA_HEADING_REGEX = /\b(CTA|CALL TO ACTION|CHAMADA)\b/i;
 const CTA_OVERLAY_REGEX = /\b(comente|salve|compartilhe|cta|link|direct|dm|segue)\b/i;
 const INSTRUCTIONAL_LITERAL_REGEX =
   /^\s*(mostre|mostra|explique|explica|apresente|apresenta|grave|abra|feche|finalize|encerre|fa[cç]a|diga|fale)\b/i;
+const TITLE_CHANGE_INTENT_REGEX =
+  /(t[íi]tulo|headline|nome do roteiro|renomeie|renomear|mude o t[íi]tulo|troque o t[íi]tulo|ajuste o t[íi]tulo)/i;
+const PATCH_HEADING_INTENT_REGEX =
+  /(estrutura|sequ[eê]ncia|ordem|gancho|cta|prova|virada|nome da cena|t[ií]tulo da cena)/i;
+const PATCH_TEMPO_INTENT_REGEX = /(tempo|timing|dura[cç][aã]o|segundos|seg\b|minuto)/i;
+const PATCH_VISUAL_INTENT_REGEX =
+  /(visual|imagem|enquadramento|b-roll|broll|texto na tela|cen[aá]rio|mostre|mostra)/i;
+const PATCH_DIRECAO_INTENT_REGEX =
+  /(dire[cç][aã]o|tom|entona[cç][aã]o|cad[êe]ncia|ritmo|performance|gesto|postura)/i;
 
 // Legacy fallbacks for parsers
 const FLOW_ENQUADRAMENTO_REGEX = /^enquadramento\s*:\s*(.+)$/i;
@@ -116,6 +125,10 @@ type TechnicalSceneBlock = {
   index: number;
   heading: string;
   row: TechnicalSceneRow;
+};
+
+type TechnicalContractOptions = {
+  runQualityPass?: boolean;
 };
 
 export type TechnicalScriptQualityScore = {
@@ -1110,6 +1123,49 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
       `- Imite o estilo do criador sem copiar frases literalmente.`
       : "\nPerfil de estilo indisponivel: use apenas categorias vencedoras e regras base.";
 
+  const linkedOutcomeLines = context.linkedOutcome?.topExamples?.length
+    ? context.linkedOutcome.topExamples
+        .slice(0, 2)
+        .map((item, index) => {
+          const hook = item.hookSample ? ` | Gancho: ${item.hookSample}` : "";
+          const cta = item.ctaSample ? ` | CTA: ${item.ctaSample}` : "";
+          return `${index + 1}) Lift ${item.lift.toFixed(2)} | ${item.caption.slice(0, 150)}${hook}${cta}`;
+        })
+        .join("\n")
+    : "";
+
+  const linkedWinnersByDimension = context.linkedOutcome?.topByDimension
+    ? [
+        context.linkedOutcome.topByDimension.proposal?.[0]
+          ? `- proposal vencedora: ${context.linkedOutcome.topByDimension.proposal[0].id}`
+          : null,
+        context.linkedOutcome.topByDimension.context?.[0]
+          ? `- context vencedor: ${context.linkedOutcome.topByDimension.context[0].id}`
+          : null,
+        context.linkedOutcome.topByDimension.format?.[0]
+          ? `- format vencedor: ${context.linkedOutcome.topByDimension.format[0].id}`
+          : null,
+        context.linkedOutcome.topByDimension.tone?.[0]
+          ? `- tone vencedor: ${context.linkedOutcome.topByDimension.tone[0].id}`
+          : null,
+        context.linkedOutcome.topByDimension.references?.[0]
+          ? `- references vencedora: ${context.linkedOutcome.topByDimension.references[0].id}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  const linkedOutcomeBlock =
+    context.linkedOutcome?.enabled && context.linkedOutcome.sampleSizeLinked > 0
+      ? `\nSinais de roteiros vinculados vencedores:\n` +
+        `- Amostra vinculada: ${context.linkedOutcome.sampleSizeLinked}\n` +
+        `- Confiança: ${context.linkedOutcome.confidence}\n` +
+        `${linkedWinnersByDimension || "- Sem dimensão líder clara."}\n` +
+        `${linkedOutcomeLines ? `- Padrões de alto lift:\n${linkedOutcomeLines}\n` : ""}` +
+        `- Priorize padrões com lift alto sem copiar textos literalmente.`
+      : "";
+
   return (
     `\n\nContexto inteligente do criador (aplique silenciosamente, sem explicar ao usuario):\n` +
     `- Modo do pedido: ${context.promptMode}\n` +
@@ -1119,7 +1175,8 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
     `- Evidencias de DNA: ${context.dnaProfile.sampleSize} legendas\n` +
     `- Perfil de linguagem:\n${dnaLines}\n` +
     `${evidenceBlock}\n` +
-    `${styleBlock}`
+    `${styleBlock}` +
+    `${linkedOutcomeBlock}`
   );
 }
 
@@ -1271,13 +1328,99 @@ function buildNormalizedTechnicalScenes(
   });
 }
 
-export function enforceTechnicalScriptContract(draft: ScriptDraft, fallbackPrompt: string): ScriptDraft {
+function equalsLoose(a: string, b: string): boolean {
+  return sanitizeTableCell(a || "", "").toLowerCase() === sanitizeTableCell(b || "", "").toLowerCase();
+}
+
+function inferPatchFieldPolicy(prompt: string): {
+  allowHeading: boolean;
+  allowTempo: boolean;
+  allowVisual: boolean;
+  allowDirecao: boolean;
+} {
+  return {
+    allowHeading: PATCH_HEADING_INTENT_REGEX.test(prompt),
+    allowTempo: PATCH_TEMPO_INTENT_REGEX.test(prompt),
+    allowVisual: PATCH_VISUAL_INTENT_REGEX.test(prompt),
+    allowDirecao: PATCH_DIRECAO_INTENT_REGEX.test(prompt),
+  };
+}
+
+function applyConservativePatchMerge(
+  originalContent: string,
+  candidateContent: string,
+  prompt: string
+): { content: string; outOfScopeChangeRate: number } {
+  const originalScenes = parseTechnicalScenes(originalContent);
+  const candidateScenes = parseTechnicalScenes(candidateContent);
+  if (!originalScenes.length || !candidateScenes.length) {
+    return { content: candidateContent, outOfScopeChangeRate: -1 };
+  }
+
+  const policy = inferPatchFieldPolicy(prompt);
+  const candidateByIndex = new Map<number, TechnicalSceneBlock>();
+  candidateScenes.forEach((scene) => candidateByIndex.set(scene.index, scene));
+
+  let outOfScopeChanges = 0;
+  let outOfScopeChecks = 0;
+
+  const mergedScenes = originalScenes.map((originalScene) => {
+    const candidateScene = candidateByIndex.get(originalScene.index);
+    if (!candidateScene) return originalScene;
+
+    if (!policy.allowHeading) {
+      outOfScopeChecks += 1;
+      if (!equalsLoose(candidateScene.heading, originalScene.heading)) outOfScopeChanges += 1;
+    }
+    if (!policy.allowTempo) {
+      outOfScopeChecks += 1;
+      if (!equalsLoose(candidateScene.row.tempo, originalScene.row.tempo)) outOfScopeChanges += 1;
+    }
+    if (!policy.allowVisual) {
+      outOfScopeChecks += 1;
+      if (!equalsLoose(candidateScene.row.visual, originalScene.row.visual)) outOfScopeChanges += 1;
+    }
+    if (!policy.allowDirecao) {
+      outOfScopeChecks += 1;
+      if (!equalsLoose(candidateScene.row.direcao, originalScene.row.direcao)) outOfScopeChanges += 1;
+    }
+
+    return {
+      index: originalScene.index,
+      heading: policy.allowHeading ? (candidateScene.heading || originalScene.heading) : originalScene.heading,
+      row: {
+        tempo: policy.allowTempo ? (candidateScene.row.tempo || originalScene.row.tempo) : originalScene.row.tempo,
+        visual: policy.allowVisual ? (candidateScene.row.visual || originalScene.row.visual) : originalScene.row.visual,
+        // Fala (copy literal) e o campo mais comum para ajustes textuais.
+        fala: candidateScene.row.fala || originalScene.row.fala,
+        direcao: policy.allowDirecao
+          ? (candidateScene.row.direcao || originalScene.row.direcao)
+          : originalScene.row.direcao,
+      },
+    };
+  });
+
+  const outOfScopeChangeRate =
+    outOfScopeChecks > 0 ? Number((outOfScopeChanges / outOfScopeChecks).toFixed(4)) : 0;
+
+  return {
+    content: serializeTechnicalScript(mergedScenes),
+    outOfScopeChangeRate,
+  };
+}
+
+export function enforceTechnicalScriptContract(
+  draft: ScriptDraft,
+  fallbackPrompt: string,
+  options?: TechnicalContractOptions
+): ScriptDraft {
+  const runQualityPass = options?.runQualityPass ?? true;
   const fallback = fallbackGenerate(fallbackPrompt);
   const title = clampText(draft.title, fallback.title, 80);
   const rawContent = clampText(draft.content, "", 12000) || fallback.content;
   let scenes = buildNormalizedTechnicalScenes(rawContent, fallbackPrompt);
   const scoreBefore = evaluateTechnicalScriptQualityFromScenes(scenes);
-  if (shouldRunQualityPass(scoreBefore)) {
+  if (runQualityPass && shouldRunQualityPass(scoreBefore)) {
     const polished = polishScenesForQuality(scenes, fallbackPrompt);
     const polishedScore = evaluateTechnicalScriptQualityFromScenes(polished);
     const shouldAdoptPolished =
@@ -1311,9 +1454,12 @@ function extractScopedSceneContent(rawContent: string, targetSceneIndex: number)
 function sanitizeAdjustedScript(input: AdjustInput, draft: ScriptDraft): ScriptDraft {
   const originalTitle = clampText(input.title, "Roteiro ajustado", 80);
   const originalContent = clampText(input.content, "", 12000);
-  const nextTitle = clampText(draft.title, originalTitle, 80);
-  const nextContent = clampText(draft.content, originalContent, 12000);
   const prompt = input.prompt.trim();
+  const shouldAllowTitleChange = TITLE_CHANGE_INTENT_REGEX.test(prompt);
+  const nextTitle = shouldAllowTitleChange
+    ? clampText(draft.title, originalTitle, 80)
+    : originalTitle;
+  const nextContent = clampText(draft.content, originalContent, 12000);
 
   if (!originalContent) {
     return { title: nextTitle, content: nextContent };
@@ -1512,7 +1658,9 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
           title: sanitized.title,
           content: mergedContent,
         });
-        const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt);
+        const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt, {
+          runQualityPass: false,
+        });
         return {
           ...technicalDraft,
           adjustMeta: {
@@ -1527,7 +1675,19 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
       }
 
       const adjusted = sanitizeAdjustedScript(inputForAdjust, sanitized);
-      const technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt);
+      let technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt, {
+        runQualityPass: false,
+      });
+      const shouldApplyConservativePatch = scope.mode === "patch" && scope.target.type === "none";
+      let outOfScopeChangeRate = -1;
+      if (shouldApplyConservativePatch) {
+        const conservativeMerge = applyConservativePatchMerge(baseContent, technicalDraft.content, userPrompt);
+        technicalDraft = {
+          ...technicalDraft,
+          content: conservativeMerge.content,
+        };
+        outOfScopeChangeRate = conservativeMerge.outOfScopeChangeRate;
+      }
       return {
         ...technicalDraft,
         adjustMeta: {
@@ -1538,8 +1698,8 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
               ? scope.target.index
               : null,
           scopeFound: scopedResolution !== null || scope.target.type === "none",
-          scopeEnforced: false,
-          outOfScopeChangeRate: -1,
+          scopeEnforced: shouldApplyConservativePatch,
+          outOfScopeChangeRate,
         },
       };
     }
@@ -1554,7 +1714,9 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
       title: inputForAdjust.title,
       content: mergedContent,
     });
-    const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt);
+    const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt, {
+      runQualityPass: false,
+    });
     return {
       ...technicalDraft,
       adjustMeta: {
@@ -1570,7 +1732,19 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
 
   const fallback = sanitizeScriptIdentityLeakage(fallbackAdjust(inputForAdjust), allowedIdentitySources);
   const adjusted = sanitizeAdjustedScript(inputForAdjust, fallback);
-  const technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt);
+  let technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt, {
+    runQualityPass: false,
+  });
+  const shouldApplyConservativePatch = scope.mode === "patch" && scope.target.type === "none";
+  let outOfScopeChangeRate = -1;
+  if (shouldApplyConservativePatch) {
+    const conservativeMerge = applyConservativePatchMerge(baseContent, technicalDraft.content, userPrompt);
+    technicalDraft = {
+      ...technicalDraft,
+      content: conservativeMerge.content,
+    };
+    outOfScopeChangeRate = conservativeMerge.outOfScopeChangeRate;
+  }
   return {
     ...technicalDraft,
     adjustMeta: {
@@ -1581,8 +1755,8 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
           ? scope.target.index
           : null,
       scopeFound: scopedResolution !== null || scope.target.type === "none",
-      scopeEnforced: false,
-      outOfScopeChangeRate: -1,
+      scopeEnforced: shouldApplyConservativePatch,
+      outOfScopeChangeRate,
     },
   };
 }

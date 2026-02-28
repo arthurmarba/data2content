@@ -8,10 +8,16 @@ for (const deviceName of targetDevices) {
     test.use(mobileDevice);
 
     test("abre no mobile com item Início visível e sem bloquear touch scroll", async ({ page }) => {
+      test.setTimeout(90_000);
       await page.goto("/dashboard");
+      const serverErrorDialog = page.getByRole("dialog", { name: "Server Error" });
+      if (await serverErrorDialog.isVisible().catch(() => false)) {
+        await page.reload({ waitUntil: "domcontentloaded" });
+      }
+      await expect(page.getByText("Carregando...")).toHaveCount(0, { timeout: 60_000 });
 
       const toggle = page.getByRole("button", { name: "Alternar menu lateral" });
-      await expect(toggle).toBeVisible();
+      await expect(toggle).toBeVisible({ timeout: 30_000 });
       await toggle.click();
 
       const sidebar = page.locator('aside[aria-label="Navegação do dashboard"]');

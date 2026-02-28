@@ -80,7 +80,6 @@ export type DashboardChecklistStepId =
   | "create_media_kit"
   | "receive_proposals"
   | "respond_with_ai"
-  | "share_proposal_form_link"
   | "personalize_support";
 
 export type DashboardChecklistStepStatus = "done" | "in_progress" | "todo";
@@ -150,6 +149,8 @@ export interface HomeCommunitySummary {
     hasAccess: boolean;
     isMember: boolean;
     inviteUrl?: string | null;
+    joinedAt?: string | null;
+    needsJoinReminder?: boolean;
   };
 }
 
@@ -158,7 +159,6 @@ export type JourneyStepId =
   | "create_media_kit"
   | "publish_media_kit_link"
   | "personalize_support"
-  | "publish_proposal_form_link"
   | "activate_pro";
 
 export type JourneyStepStatus = "done" | "in_progress" | "todo";

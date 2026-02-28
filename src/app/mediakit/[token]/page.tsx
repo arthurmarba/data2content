@@ -104,8 +104,12 @@ export async function generateMetadata(
   const pageUrl = absoluteUrl(`/mediakit/${resolvedToken.canonicalSlug}`);
   const ogImageVersionRaw = (user as any)?.updatedAt ? new Date((user as any).updatedAt).getTime() : 1;
   const ogImageVersion = Number.isFinite(ogImageVersionRaw) ? ogImageVersionRaw : 1;
+  const previewVersion = `${MEDIAKIT_OG_VERSION}-${ogImageVersion}`;
+  const avatarImage = absoluteUrl(
+    `/api/mediakit/${resolvedToken.canonicalSlug}/avatar?v=${previewVersion}`,
+  );
   const ogImage = absoluteUrl(
-    `/api/mediakit/${resolvedToken.canonicalSlug}/og-image?v=${MEDIAKIT_OG_VERSION}-${ogImageVersion}`,
+    `/api/mediakit/${resolvedToken.canonicalSlug}/og-image?v=${previewVersion}`,
   );
 
   return {
@@ -116,13 +120,26 @@ export async function generateMetadata(
       description,
       type: 'website',
       url: pageUrl,
-      images: [{ url: ogImage, width: 1200, height: 630 }],
+      images: [
+        {
+          url: avatarImage,
+          width: 512,
+          height: 512,
+          alt: `Foto de perfil de ${displayName}`,
+        },
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [ogImage],
+      images: [avatarImage, ogImage],
     },
     alternates: { canonical: pageUrl },
   };

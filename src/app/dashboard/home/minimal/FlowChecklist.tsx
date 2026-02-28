@@ -13,8 +13,6 @@ interface FlowChecklistProps {
   checklist: DashboardFlowChecklist | null;
   loading: boolean;
   plan: HomePlanSummary | null;
-  creatorId?: string | null;
-  proposalCopyFeedbackVisible?: boolean;
   onStepAction: (step: DashboardChecklistStep) => void;
   onStepShortcut: (step: DashboardChecklistStep) => void;
 }
@@ -36,8 +34,8 @@ function FlowChecklistSkeleton() {
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="h-6 w-60 animate-pulse rounded bg-slate-200" />
       <div className="mt-2 h-4 w-96 max-w-full animate-pulse rounded bg-slate-200" />
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => (
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="rounded-xl border border-slate-100 p-4">
             <div className="h-5 w-16 animate-pulse rounded bg-slate-200" />
             <div className="mt-3 h-4 w-40 animate-pulse rounded bg-slate-200" />
@@ -54,36 +52,9 @@ export default function FlowChecklist({
   checklist,
   loading,
   plan,
-  creatorId,
-  proposalCopyFeedbackVisible = false,
   onStepAction,
   onStepShortcut,
 }: FlowChecklistProps) {
-  const [expandedStepId, setExpandedStepId] = React.useState<string | null>(null);
-  const [proposalBioConfirmed, setProposalBioConfirmed] = React.useState(false);
-
-  const proposalBioStorageKey = React.useMemo(() => {
-    const userScope = creatorId?.trim() ? creatorId.trim() : "anonymous";
-    return `home:proposal-bio-confirmed:${userScope}`;
-  }, [creatorId]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    setProposalBioConfirmed(window.localStorage.getItem(proposalBioStorageKey) === "1");
-  }, [proposalBioStorageKey]);
-
-  const handleConfirmProposalBio = React.useCallback(() => {
-    setProposalBioConfirmed(true);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(proposalBioStorageKey, "1");
-    }
-  }, [proposalBioStorageKey]);
-
-  const handleOpenInstagram = React.useCallback(() => {
-    if (typeof window === "undefined") return;
-    window.open("https://instagram.com", "_blank", "noopener,noreferrer");
-  }, []);
-
   if (loading && !checklist) {
     return <FlowChecklistSkeleton />;
   }
@@ -115,24 +86,12 @@ export default function FlowChecklist({
         ) : null}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {checklist.steps.map((step) => {
           const statusEmoji = STATUS_EMOJIS[step.status] ?? "⚪";
           const badgeClass = STATUS_BADGE_CLASSES[step.status] ?? STATUS_BADGE_CLASSES.todo;
           const isHighlighted = checklist.firstPendingStepId === step.id;
           const helperId = `flow-step-helper-${step.id}`;
-          const isProposalFormStep =
-            step.id === "share_proposal_form_link" && Boolean(plan?.hasPremiumAccess);
-          const proposalStepExpanded = expandedStepId === step.id;
-          const showBioGuidance =
-            step.id === "share_proposal_form_link" &&
-            !proposalBioConfirmed &&
-            (proposalCopyFeedbackVisible ||
-              (step.status === "done" && step.requiresBioPasteConfirmation));
-          const proposalActionLabel =
-            isProposalFormStep && proposalCopyFeedbackVisible
-              ? "Copiado. Cole na bio"
-              : step.actionLabel;
 
           return (
             <div
@@ -159,43 +118,7 @@ export default function FlowChecklist({
                 </p>
               ) : null}
 
-              {showBioGuidance ? (
-                <div className="mt-4 space-y-3">
-                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
-                    {step.status === "done" ? "Feito" : "Copiado"}
-                  </span>
-                  <div className="rounded-lg border border-sky-100 bg-sky-50/70 p-3 text-sm text-slate-700">
-                    <p className="font-medium text-slate-900">
-                      Link copiado. Agora cole na bio do Instagram.
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
-                        onClick={handleOpenInstagram}
-                      >
-                        Abrir Instagram
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-                        onClick={handleConfirmProposalBio}
-                      >
-                        Já colei na bio
-                      </button>
-                      {isProposalFormStep ? (
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-                          onClick={() => onStepShortcut(step)}
-                        >
-                          {step.completedLabel ?? "Copiar novamente"}
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : step.status === "done" ? (
+              {step.status === "done" ? (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
                     Feito
@@ -208,47 +131,6 @@ export default function FlowChecklist({
                     >
                       {step.completedLabel}
                     </button>
-                  ) : null}
-                </div>
-              ) : isProposalFormStep ? (
-                <div className="mt-4 space-y-3">
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
-                    aria-expanded={proposalStepExpanded}
-                    aria-describedby={step.helper ? helperId : undefined}
-                    onClick={() =>
-                      setExpandedStepId((current) => (current === step.id ? null : step.id))
-                    }
-                  >
-                    {proposalActionLabel}
-                  </button>
-
-                  {proposalStepExpanded ? (
-                    <div className="rounded-lg border border-sky-100 bg-sky-50/70 p-3 text-sm text-slate-700">
-                      <p className="font-medium text-slate-900">
-                        3 passos (leva menos de 1 minuto)
-                      </p>
-                      <p className="mt-1">1. Copie o link do formulário.</p>
-                      <p>2. Cole o link na bio do Instagram.</p>
-                      <p>3. Acompanhe e responda propostas em Campanhas.</p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
-                          onClick={() => onStepAction(step)}
-                        >
-                          Copiar link do formulário
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-                          onClick={() => setExpandedStepId(null)}
-                        >
-                          Fechar
-                        </button>
-                      </div>
-                    </div>
                   ) : null}
                 </div>
               ) : (

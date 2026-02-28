@@ -22,7 +22,11 @@ import {
   type CreatorDnaProfile,
   type ScriptCaptionSample,
 } from "./dnaProfile";
-import { isScriptsStyleTrainingV1Enabled } from "./featureFlag";
+import { isScriptsOutcomeLearningV1Enabled, isScriptsStyleTrainingV1Enabled } from "./featureFlag";
+import {
+  getScriptOutcomeProfile,
+  type ScriptOutcomeProfileSnapshot,
+} from "./outcomeTraining";
 import { buildScriptStyleContext, type ScriptStyleContext } from "./styleContext";
 import { recordScriptsStageDuration } from "./performanceTelemetry";
 import { getScriptStyleProfile, refreshScriptStyleProfile } from "./styleTraining";
@@ -76,6 +80,33 @@ export type ScriptIntelligenceCaptionEvidence = ScriptCaptionSample & {
   categories: ScriptCategorySelection;
 };
 
+export type ScriptIntelligenceLinkedOutcome = {
+  enabled: boolean;
+  sampleSizeLinked: number;
+  confidence: "low" | "medium" | "high";
+  blendedApplied: boolean;
+  topByDimension: Partial<
+    Record<
+      ScriptCategoryDimension,
+      Array<{
+        id: string;
+        lift: number;
+        sampleSize: number;
+      }>
+    >
+  >;
+  topExamples: Array<{
+    metricId: string;
+    caption: string;
+    score: number;
+    lift: number;
+    hookSample?: string | null;
+    ctaSample?: string | null;
+    postDate?: string | null;
+    categories?: ScriptCategorySelection;
+  }>;
+};
+
 export type ScriptIntelligenceContext = {
   intelligenceVersion: typeof SCRIPT_INTELLIGENCE_VERSION;
   promptMode: ScriptPromptMode;
@@ -92,6 +123,7 @@ export type ScriptIntelligenceContext = {
   captionEvidence: ScriptIntelligenceCaptionEvidence[];
   relaxationLevel: number;
   usedFallbackRules: boolean;
+  linkedOutcome?: ScriptIntelligenceLinkedOutcome | null;
 };
 
 export type ScriptIntelligencePromptSnapshot = {
@@ -111,6 +143,14 @@ export type ScriptIntelligencePromptSnapshot = {
     avgInteractions: number;
     relaxationLevel: number;
     usedFallbackRules: boolean;
+  };
+  linkedOutcomeSummary?: {
+    enabled: boolean;
+    sampleSizeLinked: number;
+    confidence: "low" | "medium" | "high";
+    blendedApplied: boolean;
+    topDimensions: Partial<Record<ScriptCategoryDimension, string[]>>;
+    topExampleMetricIds: string[];
   };
 };
 
@@ -308,6 +348,187 @@ function getTopRankedForDimension(
   const fromRanking = rankedCategories[dimension]?.[0];
   if (fromRanking) return fromRanking;
   return DEFAULT_DIMENSION_CATEGORY[dimension];
+}
+
+function shouldApplyLinkedBlend(profile: ScriptOutcomeProfileSnapshot | null | undefined): boolean {
+  if (!profile) return false;
+  if (profile.sampleSizeLinked < 5) return false;
+  return profile.confidence === "medium" || profile.confidence === "high";
+}
+
+function normalizeHistoricalRankingScores(
+  rankedCategories: RankedCategoriesByDimension
+): Partial<Record<ScriptCategoryDimension, Map<string, number>>> {
+  return SCRIPT_CATEGORY_DIMENSIONS.reduce<Partial<Record<ScriptCategoryDimension, Map<string, number>>>>(
+    (acc, dimension) => {
+      const ids = normalizeCategoryList(rankedCategories[dimension] || [], dimension);
+      if (!ids.length) return acc;
+      const map = new Map<string, number>();
+      const max = Math.max(1, ids.length - 1);
+      ids.forEach((id, index) => {
+        const normalized = max === 0 ? 1 : 1 - index / max;
+        map.set(id, roundScore(normalized));
+      });
+      acc[dimension] = map;
+      return acc;
+    },
+    {}
+  );
+}
+
+function normalizeLinkedOutcomeScores(
+  profile: ScriptOutcomeProfileSnapshot | null | undefined
+): Partial<Record<ScriptCategoryDimension, Map<string, { score: number; lift: number; sampleSize: number }>>> {
+  if (!profile) return {};
+  return SCRIPT_CATEGORY_DIMENSIONS.reduce<
+    Partial<Record<ScriptCategoryDimension, Map<string, { score: number; lift: number; sampleSize: number }>>>
+  >((acc, dimension) => {
+    const rows = Array.isArray(profile.topByDimension?.[dimension]) ? profile.topByDimension?.[dimension] || [] : [];
+    if (!rows.length) return acc;
+    const maxLift = rows.reduce((best, row) => Math.max(best, Number(row?.lift || 0)), 0);
+    const divisor = maxLift > 0 ? maxLift : 1;
+    const map = new Map<string, { score: number; lift: number; sampleSize: number }>();
+    rows.forEach((row: any) => {
+      const normalizedId = normalizeCategoryId(String(row?.id || ""), dimension);
+      if (!normalizedId) return;
+      const lift = Number(row?.lift || 0);
+      const score = clampScore(lift / divisor);
+      map.set(normalizedId, {
+        score: roundScore(score),
+        lift: roundScore(lift),
+        sampleSize: Math.max(0, Number(row?.sampleSize || 0)),
+      });
+    });
+    if (map.size) acc[dimension] = map;
+    return acc;
+  }, {});
+}
+
+function clampScore(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function roundScore(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 1000) / 1000;
+}
+
+function blendRankedCategoriesWithLinkedOutcome(params: {
+  rankedCategories: RankedCategoriesByDimension;
+  linkedProfile: ScriptOutcomeProfileSnapshot | null;
+  applyBlend: boolean;
+}): {
+  rankedCategories: RankedCategoriesByDimension;
+  topByDimension: ScriptIntelligenceLinkedOutcome["topByDimension"];
+} {
+  const linkedScoresByDimension = normalizeLinkedOutcomeScores(params.linkedProfile);
+  const linkedTopByDimension = SCRIPT_CATEGORY_DIMENSIONS.reduce<ScriptIntelligenceLinkedOutcome["topByDimension"]>(
+    (acc, dimension) => {
+      const map = linkedScoresByDimension[dimension];
+      if (!map || !map.size) return acc;
+      acc[dimension] = Array.from(map.entries())
+        .map(([id, item]) => ({
+          id,
+          lift: item.lift,
+          sampleSize: item.sampleSize,
+        }))
+        .sort((a, b) => b.lift - a.lift || b.sampleSize - a.sampleSize)
+        .slice(0, DEFAULT_TOP_CATEGORIES_LIMIT);
+      return acc;
+    },
+    {}
+  );
+
+  if (!params.applyBlend) {
+    return {
+      rankedCategories: params.rankedCategories,
+      topByDimension: linkedTopByDimension,
+    };
+  }
+
+  const historicalScoresByDimension = normalizeHistoricalRankingScores(params.rankedCategories);
+  const blendedCategories = SCRIPT_CATEGORY_DIMENSIONS.reduce<RankedCategoriesByDimension>((acc, dimension) => {
+    const historicalMap = historicalScoresByDimension[dimension] || new Map<string, number>();
+    const linkedMap = linkedScoresByDimension[dimension] || new Map<string, { score: number }>();
+    const keys = new Set<string>([...historicalMap.keys(), ...linkedMap.keys()]);
+    const scored = Array.from(keys).map((id) => {
+      const historicalScore = historicalMap.get(id) || 0;
+      const linkedScore = linkedMap.get(id)?.score || 0;
+      const blended = 0.65 * linkedScore + 0.35 * historicalScore;
+      return { id, score: roundScore(blended) };
+    });
+
+    const ordered = scored
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+      .slice(0, DEFAULT_TOP_CATEGORIES_LIMIT)
+      .map((item) => item.id);
+    acc[dimension] = ordered.length ? ordered : params.rankedCategories[dimension] || [];
+    return acc;
+  }, {});
+
+  return {
+    rankedCategories: blendedCategories,
+    topByDimension: linkedTopByDimension,
+  };
+}
+
+function mapLinkedExamplesToCaptionEvidence(
+  profile: ScriptOutcomeProfileSnapshot | null | undefined
+): ScriptIntelligenceCaptionEvidence[] {
+  if (!profile || !Array.isArray(profile.topExamples)) return [];
+  return profile.topExamples
+    .slice(0, 4)
+    .map((item) => {
+      const metricId = String(item?.metricId || "");
+      const caption = typeof item?.caption === "string" ? item.caption.trim() : "";
+      if (!metricId || !caption) return null;
+
+      const categories: ScriptCategorySelection = {};
+      for (const dimension of SCRIPT_CATEGORY_DIMENSIONS) {
+        const raw = item?.categories?.[dimension];
+        if (!raw || typeof raw !== "string") continue;
+        const normalized = normalizeCategoryId(raw, dimension);
+        if (normalized) categories[dimension] = normalized;
+      }
+
+      return {
+        metricId,
+        caption,
+        interactions:
+          typeof item?.interactions === "number" && Number.isFinite(item.interactions)
+            ? item.interactions
+            : 0,
+        postDate: item?.postDate || null,
+        categories,
+      } as ScriptIntelligenceCaptionEvidence;
+    })
+    .filter(Boolean) as ScriptIntelligenceCaptionEvidence[];
+}
+
+function mergeCaptionEvidenceWithLinkedExamples(params: {
+  linkedExamples: ScriptIntelligenceCaptionEvidence[];
+  rankedCaptions: ScriptIntelligenceCaptionEvidence[];
+}): ScriptIntelligenceCaptionEvidence[] {
+  if (!params.linkedExamples.length) return params.rankedCaptions;
+  const merged: ScriptIntelligenceCaptionEvidence[] = [];
+  const seen = new Set<string>();
+
+  for (const item of params.linkedExamples) {
+    const metricId = String(item.metricId || "");
+    if (!metricId || seen.has(metricId)) continue;
+    seen.add(metricId);
+    merged.push(item);
+  }
+  for (const item of params.rankedCaptions) {
+    const metricId = String(item.metricId || "");
+    if (!metricId || seen.has(metricId)) continue;
+    seen.add(metricId);
+    merged.push(item);
+    if (merged.length >= DEFAULT_CAPTION_LIMIT) break;
+  }
+
+  return merged.slice(0, DEFAULT_CAPTION_LIMIT);
 }
 
 export function resolveFinalCategories(params: {
@@ -725,6 +946,20 @@ export async function buildScriptIntelligenceContext(params: {
       return { styleProfile, styleProfileVersion, styleSampleSize };
     })();
 
+    const linkedOutcomePromise = (async () => {
+      const enabled = await isScriptsOutcomeLearningV1Enabled();
+      if (!enabled) return { enabled: false, profile: null as ScriptOutcomeProfileSnapshot | null };
+      try {
+        const profile = await getScriptOutcomeProfile(params.userId, {
+          rebuildIfMissing: false,
+          rebuildIfCorrupted: false,
+        });
+        return { enabled: true, profile };
+      } catch {
+        return { enabled: true, profile: null as ScriptOutcomeProfileSnapshot | null };
+      }
+    })();
+
     let rankedCategories: RankedCategoriesByDimension = {};
     if (parsed.promptMode !== "full") {
       const rankingStartMs = Date.now();
@@ -735,11 +970,20 @@ export async function buildScriptIntelligenceContext(params: {
       recordScriptsStageDuration("intelligence.ranking", Date.now() - rankingStartMs);
     }
 
+    const linkedOutcomeData = await linkedOutcomePromise;
+    const linkedBlendApplied = parsed.promptMode !== "full" && shouldApplyLinkedBlend(linkedOutcomeData.profile);
+    const blendedRanking = blendRankedCategoriesWithLinkedOutcome({
+      rankedCategories,
+      linkedProfile: linkedOutcomeData.profile,
+      applyBlend: linkedBlendApplied,
+    });
+    const rankedCategoriesForResolution = linkedBlendApplied ? blendedRanking.rankedCategories : rankedCategories;
+
     const resolvedCategories = resolveFinalCategories({
       promptMode: parsed.promptMode,
       intent: parsed.intent,
       explicitCategories: parsed.explicitCategories,
-      rankedCategories,
+      rankedCategories: rankedCategoriesForResolution,
     });
 
     const captionsStartMs = Date.now();
@@ -751,8 +995,33 @@ export async function buildScriptIntelligenceContext(params: {
     });
     recordScriptsStageDuration("intelligence.captions", Date.now() - captionsStartMs);
 
-    const dnaProfile = buildCreatorDnaProfileFromCaptions(captionFetchResult.captions);
+    const linkedCaptionEvidence = mapLinkedExamplesToCaptionEvidence(linkedOutcomeData.profile);
+    const finalCaptionEvidence = mergeCaptionEvidenceWithLinkedExamples({
+      linkedExamples: linkedCaptionEvidence,
+      rankedCaptions: captionFetchResult.captions,
+    });
+
+    const dnaProfile = buildCreatorDnaProfileFromCaptions(finalCaptionEvidence);
     const { styleProfile, styleProfileVersion, styleSampleSize } = await styleProfilePromise;
+    const linkedOutcome: ScriptIntelligenceLinkedOutcome | null = linkedOutcomeData.enabled
+      ? {
+          enabled: true,
+          sampleSizeLinked: linkedOutcomeData.profile?.sampleSizeLinked || 0,
+          confidence: linkedOutcomeData.profile?.confidence || "low",
+          blendedApplied: linkedBlendApplied,
+          topByDimension: blendedRanking.topByDimension,
+          topExamples: (linkedOutcomeData.profile?.topExamples || []).slice(0, 4).map((item) => ({
+            metricId: item.metricId,
+            caption: item.caption,
+            score: item.score,
+            lift: item.lift,
+            hookSample: item.hookSample || null,
+            ctaSample: item.ctaSample || null,
+            postDate: item.postDate || null,
+            categories: item.categories,
+          })),
+        }
+      : null;
 
     return {
       intelligenceVersion: SCRIPT_INTELLIGENCE_VERSION,
@@ -762,14 +1031,15 @@ export async function buildScriptIntelligenceContext(params: {
       lookbackDays,
       explicitCategories: parsed.explicitCategories,
       resolvedCategories,
-      rankedCategories,
+      rankedCategories: rankedCategoriesForResolution,
       dnaProfile,
       styleProfile,
       styleProfileVersion,
       styleSampleSize,
-      captionEvidence: captionFetchResult.captions,
+      captionEvidence: finalCaptionEvidence,
       relaxationLevel: captionFetchResult.relaxationLevel,
       usedFallbackRules: captionFetchResult.usedFallbackRules,
+      linkedOutcome,
     };
   } finally {
     recordScriptsStageDuration("intelligence.total", Date.now() - totalStartMs);
@@ -803,5 +1073,22 @@ export function buildIntelligencePromptSnapshot(
       relaxationLevel: context.relaxationLevel,
       usedFallbackRules: context.usedFallbackRules,
     },
+    linkedOutcomeSummary: context.linkedOutcome
+      ? {
+          enabled: context.linkedOutcome.enabled,
+          sampleSizeLinked: context.linkedOutcome.sampleSizeLinked,
+          confidence: context.linkedOutcome.confidence,
+          blendedApplied: context.linkedOutcome.blendedApplied,
+          topDimensions: SCRIPT_CATEGORY_DIMENSIONS.reduce<
+            Partial<Record<ScriptCategoryDimension, string[]>>
+          >((acc, dimension) => {
+            const rows = context.linkedOutcome?.topByDimension?.[dimension] || [];
+            if (!rows.length) return acc;
+            acc[dimension] = rows.map((row) => row.id);
+            return acc;
+          }, {}),
+          topExampleMetricIds: (context.linkedOutcome.topExamples || []).map((item) => item.metricId),
+        }
+      : undefined,
   };
 }

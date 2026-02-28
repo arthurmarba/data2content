@@ -5,6 +5,7 @@ const CACHE_TTL_MS = 60_000;
 const FLAG_KEYS = {
   scriptsIntelligenceV2: "scripts_intelligence_v2",
   scriptsStyleTrainingV1: "scripts_style_training_v1",
+  scriptsOutcomeLearningV1: "scripts_outcome_learning_v1",
 } as const;
 
 type CacheState = {
@@ -34,6 +35,13 @@ export async function isScriptsStyleTrainingV1Enabled(): Promise<boolean> {
   return getFlagValue({
     cacheKey: FLAG_KEYS.scriptsStyleTrainingV1,
     envVar: process.env.SCRIPTS_STYLE_TRAINING_V1,
+  });
+}
+
+export async function isScriptsOutcomeLearningV1Enabled(): Promise<boolean> {
+  return getFlagValue({
+    cacheKey: FLAG_KEYS.scriptsOutcomeLearningV1,
+    envVar: process.env.SCRIPTS_OUTCOME_LEARNING_V1,
   });
 }
 

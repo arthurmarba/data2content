@@ -202,7 +202,7 @@ export default function PlansComparisonSection({ onCreateAccount }: PlansCompari
             features={[
               "Reuniões Estratégicas Semanais",
               "Mídia Kit Completo (Auditado)",
-              "Exposição Hero no Marketplace",
+              "Exposição Hero em Membros d2c",
               "Meus Roteiros com IA (Planejamento)",
               "Review de Post (Vereditos)",
               "Descoberta de referências da comunidade",

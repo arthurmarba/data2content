@@ -13,7 +13,7 @@ describe("scripts/intelligenceContext", () => {
     format: ["reel"],
     tone: ["educational"],
     references: ["pop_culture"],
-  } as const;
+  };
 
   it("fills missing dimensions in partial mode with ranked categories", () => {
     const resolved = resolveFinalCategories({
@@ -132,6 +132,27 @@ describe("scripts/intelligenceContext", () => {
       ],
       relaxationLevel: 2,
       usedFallbackRules: true,
+      linkedOutcome: {
+        enabled: true,
+        sampleSizeLinked: 6,
+        confidence: "medium",
+        blendedApplied: true,
+        topByDimension: {
+          proposal: [{ id: "tips", lift: 1.4, sampleSize: 6 }],
+          context: [{ id: "career_work", lift: 1.3, sampleSize: 6 }],
+        },
+        topExamples: [
+          {
+            metricId: "m-link",
+            caption: "Exemplo vinculado vencedor",
+            score: 1.5,
+            lift: 1.5,
+            hookSample: "Gancho vinculado",
+            ctaSample: "Comente eu quero",
+            categories: { proposal: "tips", context: "career_work" },
+          },
+        ],
+      },
     };
 
     const snapshot = buildIntelligencePromptSnapshot(context);
@@ -143,5 +164,9 @@ describe("scripts/intelligenceContext", () => {
     expect(snapshot?.dnaEvidence.sampleSize).toBe(2);
     expect(snapshot?.dnaEvidence.avgInteractions).toBe(150);
     expect(snapshot?.dnaEvidence.usedFallbackRules).toBe(true);
+    expect(snapshot?.linkedOutcomeSummary?.enabled).toBe(true);
+    expect(snapshot?.linkedOutcomeSummary?.sampleSizeLinked).toBe(6);
+    expect(snapshot?.linkedOutcomeSummary?.blendedApplied).toBe(true);
+    expect(snapshot?.linkedOutcomeSummary?.topDimensions?.proposal?.[0]).toBe("tips");
   });
 });

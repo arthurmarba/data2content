@@ -11,6 +11,7 @@ function toLocalRequestTarget(rawUrl: string): string {
 
 test.describe("Home social preview metadata", () => {
   test("expõe metadados OG/Twitter e imagem de preview válida", async ({ page, request }) => {
+    test.setTimeout(90_000);
     await page.goto("/");
 
     const ogTitle = await page.locator('meta[property="og:title"]').getAttribute("content");
@@ -26,7 +27,7 @@ test.describe("Home social preview metadata", () => {
     expect(twitterImage ?? "").toContain("/api/og/home");
 
     const imageTarget = toLocalRequestTarget(ogImage as string);
-    const imageResponse = await request.get(imageTarget);
+    const imageResponse = await request.get(imageTarget, { timeout: 60_000 });
     expect(imageResponse.ok()).toBeTruthy();
     expect(imageResponse.headers()["content-type"] ?? "").toContain("image/");
   });

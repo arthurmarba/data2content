@@ -8,6 +8,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { hasScriptsAccess } from "@/app/lib/scripts/access";
 import Alert from "@/app/models/Alert";
+import BrandProposal from "@/app/models/BrandProposal";
 import PostReviewModel from "@/app/models/PostReview";
 import ScriptEntry from "@/app/models/ScriptEntry";
 import type { IScriptEntry } from "@/app/models/ScriptEntry";
@@ -33,6 +34,7 @@ const badgesCache = new Map<
     alertsUnreadCount: number;
     reviewsUnreadCount: number;
     scriptsUnreadCount: number;
+    campaignsUnreadCount: number;
     expiresAt: number;
   }
 >();
@@ -143,6 +145,7 @@ export async function GET(request: NextRequest) {
   const reviewsSince = parseSince(url.searchParams.get("reviewsSince"));
   const scriptsRecommendationsSince = parseSince(url.searchParams.get("scriptsRecommendationsSince"));
   const scriptsFeedbackSince = parseSince(url.searchParams.get("scriptsFeedbackSince"));
+  const campaignsSince = parseSince(url.searchParams.get("campaignsSince"));
   const reviewsLimit = parseReviewsLimit(url.searchParams.get("reviewsLimit"));
 
   const cacheKey = [
@@ -150,6 +153,7 @@ export async function GET(request: NextRequest) {
     reviewsSince ? reviewsSince.toISOString() : "",
     scriptsRecommendationsSince ? scriptsRecommendationsSince.toISOString() : "",
     scriptsFeedbackSince ? scriptsFeedbackSince.toISOString() : "",
+    campaignsSince ? campaignsSince.toISOString() : "",
     reviewsLimit,
   ].join("|");
 
@@ -161,6 +165,7 @@ export async function GET(request: NextRequest) {
       alertsUnreadCount: cached.alertsUnreadCount,
       reviewsUnreadCount: cached.reviewsUnreadCount,
       scriptsUnreadCount: cached.scriptsUnreadCount,
+      campaignsUnreadCount: cached.campaignsUnreadCount,
     });
   }
 
@@ -169,7 +174,7 @@ export async function GET(request: NextRequest) {
     const userObjectId = new Types.ObjectId(userId);
     const canAccessScripts = hasScriptsAccess(session?.user);
 
-    const [alertsUnreadCount, reviewsUnreadCount, scriptsUnreadCountRaw] = await Promise.all([
+    const [alertsUnreadCount, reviewsUnreadCount, scriptsUnreadCountRaw, campaignsUnreadCount] = await Promise.all([
       Alert.countDocuments({
         user: userId,
         $or: [{ readAt: null }, { readAt: { $exists: false } }],
@@ -188,6 +193,17 @@ export async function GET(request: NextRequest) {
             ],
           })
         : Promise.resolve(0),
+      BrandProposal.countDocuments(
+        campaignsSince
+          ? {
+              userId: userObjectId,
+              createdAt: { $gt: campaignsSince },
+            }
+          : {
+              userId: userObjectId,
+              status: "novo",
+            }
+      ),
     ]);
     const scriptsUnreadCount = canAccessScripts ? scriptsUnreadCountRaw : 0;
 
@@ -195,10 +211,16 @@ export async function GET(request: NextRequest) {
       alertsUnreadCount,
       reviewsUnreadCount,
       scriptsUnreadCount,
+      campaignsUnreadCount,
       expiresAt: nowTs + BADGES_CACHE_TTL_MS,
     });
 
-    return NextResponse.json({ alertsUnreadCount, reviewsUnreadCount, scriptsUnreadCount });
+    return NextResponse.json({
+      alertsUnreadCount,
+      reviewsUnreadCount,
+      scriptsUnreadCount,
+      campaignsUnreadCount,
+    });
   } catch (error) {
     logger.error("[api/dashboard/notifications/badges] Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

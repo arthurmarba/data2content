@@ -5,8 +5,11 @@ import { Types } from "mongoose";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import ScriptEntry from "@/app/models/ScriptEntry";
+import Metric from "@/app/models/Metric";
+import { invalidatePlannerRecommendationMemory } from "@/app/lib/planner/recommendationMemoryCache";
 import { applyScriptToPlannerSlot, clearScriptFromPlannerSlot } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
+import { refreshScriptOutcomeProfile } from "@/app/lib/scripts/outcomeTraining";
 import { isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
 
@@ -28,7 +31,12 @@ function normalizeBody(body: any) {
       ? body.adminAnnotation
       : undefined;
   const inlineAnnotations = Array.isArray(body?.inlineAnnotations) ? body.inlineAnnotations : undefined;
-  return { title, content, targetUserId, adminAnnotation, inlineAnnotations };
+  const isPosted = typeof body?.isPosted === "boolean" ? body.isPosted : undefined;
+  const postedContentId =
+    typeof body?.postedContentId === "string" || body?.postedContentId === null
+      ? body.postedContentId
+      : undefined;
+  return { title, content, targetUserId, adminAnnotation, inlineAnnotations, isPosted, postedContentId };
 }
 
 function normalizeAdminAnnotation(value: unknown): string | null | undefined {
@@ -40,9 +48,114 @@ function normalizeAdminAnnotation(value: unknown): string | null | undefined {
   return normalized.slice(0, 5000);
 }
 
+function normalizePostedContentId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  return normalized;
+}
+
+function buildPostedContentCaptionPreview(description: unknown): string | null {
+  if (typeof description !== "string") return null;
+  const normalized = description.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  if (normalized.length <= 320) return normalized;
+  return `${normalized.slice(0, 319).trimEnd()}...`;
+}
+
+async function resolvePostedContentForPatch(params: {
+  userId: string;
+  currentDoc: any;
+  isPosted?: boolean;
+  postedContentId?: string | null;
+}) {
+  const { userId, currentDoc, isPosted, postedContentId } = params;
+  const normalizedPostedContentId = normalizePostedContentId(postedContentId);
+  const hasPublicationPatch =
+    typeof isPosted === "boolean" || normalizedPostedContentId !== undefined;
+
+  if (!hasPublicationPatch) {
+    return { ok: true as const, shouldUpdate: false as const };
+  }
+
+  const shouldBePosted = isPosted === true || typeof normalizedPostedContentId === "string";
+  if (!shouldBePosted) {
+    return {
+      ok: true as const,
+      shouldUpdate: true as const,
+      postedAt: null,
+      postedContent: null,
+    };
+  }
+
+  if (!normalizedPostedContentId) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: "Selecione o conteúdo publicado para marcar o roteiro como postado.",
+    };
+  }
+  if (!Types.ObjectId.isValid(normalizedPostedContentId)) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: "Conteúdo selecionado inválido.",
+    };
+  }
+
+  const metricDoc = await Metric.findOne({
+    _id: new Types.ObjectId(normalizedPostedContentId),
+    user: new Types.ObjectId(userId),
+  })
+    .select("_id description postDate postLink type stats.engagement stats.total_interactions")
+    .lean()
+    .exec();
+
+  if (!metricDoc) {
+    return {
+      ok: false as const,
+      status: 404,
+      error: "Conteúdo não encontrado para este usuário.",
+    };
+  }
+
+  const currentMetricId = currentDoc?.postedContent?.metricId
+    ? String(currentDoc.postedContent.metricId)
+    : null;
+  const keepPostedAt =
+    currentDoc?.postedAt && currentMetricId === normalizedPostedContentId
+      ? currentDoc.postedAt
+      : new Date();
+
+  return {
+    ok: true as const,
+    shouldUpdate: true as const,
+    postedAt: keepPostedAt,
+    postedContent: {
+      metricId: metricDoc._id,
+      caption: buildPostedContentCaptionPreview(metricDoc.description),
+      postDate: metricDoc.postDate ?? null,
+      postLink: typeof metricDoc.postLink === "string" ? metricDoc.postLink : null,
+      type: typeof metricDoc.type === "string" ? metricDoc.type : null,
+      engagement:
+        typeof metricDoc.stats?.engagement === "number" && Number.isFinite(metricDoc.stats.engagement)
+          ? metricDoc.stats.engagement
+          : null,
+      totalInteractions:
+        typeof metricDoc.stats?.total_interactions === "number" &&
+          Number.isFinite(metricDoc.stats.total_interactions)
+          ? metricDoc.stats.total_interactions
+          : null,
+    },
+  };
+}
+
 function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boolean }) {
   const includeAdminAnnotation = Boolean(options?.includeAdminAnnotation);
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
+  const hasPostedContent = Boolean(item?.postedContent?.metricId);
   return {
     id: String(item._id),
     title: item.title,
@@ -78,6 +191,25 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
         createdAt: typeof ann.createdAt?.toISOString === "function" ? ann.createdAt.toISOString() : ann.createdAt,
       }))
       : [],
+    publication: {
+      isPosted: hasPostedContent,
+      postedAt: item.postedAt || null,
+      content: hasPostedContent
+        ? {
+          id: String(item.postedContent.metricId),
+          caption: item.postedContent.caption || null,
+          postDate: item.postedContent.postDate || null,
+          postLink: item.postedContent.postLink || null,
+          type: item.postedContent.type || null,
+          engagement:
+            typeof item.postedContent.engagement === "number" ? item.postedContent.engagement : null,
+          totalInteractions:
+            typeof item.postedContent.totalInteractions === "number"
+              ? item.postedContent.totalInteractions
+              : null,
+        }
+        : null,
+    },
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -152,7 +284,8 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
   }
 
-  const { title, content, targetUserId, adminAnnotation, inlineAnnotations } = normalizeBody(body);
+  const { title, content, targetUserId, adminAnnotation, inlineAnnotations, isPosted, postedContentId } =
+    normalizeBody(body);
   const targetResolution = resolveTargetScriptsUser({ session: session as any, targetUserId });
   if (!targetResolution.ok) {
     return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
@@ -177,6 +310,22 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
   }
 
+  const postedContentResolution = await resolvePostedContentForPatch({
+    userId: effectiveUserId,
+    currentDoc: doc,
+    isPosted,
+    postedContentId,
+  });
+  if (!postedContentResolution.ok) {
+    return NextResponse.json(
+      { ok: false, error: postedContentResolution.error },
+      { status: postedContentResolution.status }
+    );
+  }
+
+  const previousPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
+  const previousIsPosted = Boolean(previousPostedMetricId);
+
   doc.title = finalTitle;
   doc.content = content;
   if (normalizedAdminAnnotation !== undefined) {
@@ -198,11 +347,23 @@ export async function PATCH(request: Request, { params }: Params) {
       createdAt: ann.createdAt ? new Date(ann.createdAt) : new Date(),
     }));
   }
+  if (postedContentResolution.shouldUpdate) {
+    doc.postedAt = postedContentResolution.postedAt;
+    doc.postedContent = postedContentResolution.postedContent;
+  }
   await doc.save();
+
+  const nextPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
+  const nextIsPosted = Boolean(nextPostedMetricId);
+  const publicationChanged = previousIsPosted !== nextIsPosted || previousPostedMetricId !== nextPostedMetricId;
 
   const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
   if (styleTrainingEnabled) {
     void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+  }
+  if (publicationChanged) {
+    void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+    void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
   }
 
   if (doc.linkType === "planner_slot" && doc.plannerRef?.weekStart && doc.plannerRef?.slotId) {
@@ -274,6 +435,17 @@ export async function DELETE(request: Request, { params }: Params) {
     });
   }
 
+  const hadPostedContent = Boolean(doc.postedContent?.metricId);
   await doc.deleteOne();
+
+  const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
+  if (styleTrainingEnabled) {
+    void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+  }
+  if (hadPostedContent) {
+    void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+    void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
+  }
+
   return NextResponse.json({ ok: true });
 }

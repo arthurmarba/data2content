@@ -2,38 +2,36 @@ import type { Metadata } from "next";
 import faqItems from "@/data/faq";
 
 const SITE_URL = "https://data2content.ai";
-const HOME_OG_VERSION = "20260223-home-og-v2";
-const HOME_OG_IMAGE_URL = `${SITE_URL}/api/og/home?v=${HOME_OG_VERSION}`;
+const HOME_SHARE_LOGO_URL = `${SITE_URL}/images/Colorido-Simbolo.png`;
+const HOME_SHARE_TEXT =
+  "Data2Content: A agência estratégica consultiva que te ajuda a criar conteúdo para atrair marcas, gerar vendas e te conecta com grandes criadores para crescerem juntos";
 
 export const landingMetadata: Metadata = {
-  title: "Data2Content: IA para criadores e oportunidades com marcas.",
-  description:
-    "Analise seus posts, organize sua rotina e apareça para marcas com IA. Crie seu mídia kit e receba propostas no mesmo lugar.",
+  title: HOME_SHARE_TEXT,
+  description: HOME_SHARE_TEXT,
   alternates: { canonical: `${SITE_URL}/` },
   openGraph: {
-    title: "Data2Content: IA para criadores e oportunidades com marcas.",
-    description:
-      "Analise seus posts, organize sua rotina e apareça para marcas com IA. Crie seu mídia kit e receba propostas no mesmo lugar.",
+    title: HOME_SHARE_TEXT,
+    description: HOME_SHARE_TEXT,
     url: SITE_URL,
     type: "website",
     siteName: "Data2Content",
     locale: "pt_BR",
     images: [
       {
-        url: HOME_OG_IMAGE_URL,
-        width: 1200,
-        height: 630,
-        alt: "Data2Content: IA para criadores e oportunidades com marcas",
+        url: HOME_SHARE_LOGO_URL,
+        width: 607,
+        height: 539,
+        alt: "Logo Data2Content",
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
     creator: "@data2content",
-    title: "Data2Content: IA para criadores e oportunidades com marcas.",
-    description:
-      "Analise seus posts, organize sua rotina e apareça para marcas com IA. Crie seu mídia kit e receba propostas no mesmo lugar.",
-    images: [HOME_OG_IMAGE_URL],
+    title: HOME_SHARE_TEXT,
+    description: HOME_SHARE_TEXT,
+    images: [HOME_SHARE_LOGO_URL],
   }
 };
 

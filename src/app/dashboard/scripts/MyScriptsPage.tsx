@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2, Check } from "lucide-react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
@@ -19,12 +19,27 @@ import { InlineScriptEditor, type InlineAnnotation } from "./InlineScriptEditor"
 
 type ScriptOrigin = "manual" | "ai" | "planner";
 type ScriptLinkType = "standalone" | "planner_slot";
+type ScriptPostedFilter = "all" | "posted" | "unposted";
 
 type ScriptPlannerRef = {
   weekStart?: string;
   slotId?: string;
   dayOfWeek?: number;
   blockStartHour?: number;
+};
+
+type ScriptPublication = {
+  isPosted: boolean;
+  postedAt?: string | null;
+  content?: {
+    id: string;
+    caption?: string | null;
+    postDate?: string | null;
+    postLink?: string | null;
+    type?: string | null;
+    engagement?: number | null;
+    totalInteractions?: number | null;
+  } | null;
 };
 
 type ScriptItem = {
@@ -56,6 +71,7 @@ type ScriptItem = {
     resolved: boolean;
     createdAt: string;
   }>;
+  publication?: ScriptPublication | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -75,6 +91,9 @@ type EditorState = {
   adminAnnotation: ScriptItem["adminAnnotation"];
   adminAnnotationDraft: string;
   inlineAnnotations: InlineAnnotation[];
+  isPosted: boolean;
+  postedContentId: string;
+  publication: ScriptPublication | null;
   aiPrompt: string;
   saving: boolean;
   saved: boolean;
@@ -110,6 +129,17 @@ type CampaignOption = {
   id: string;
   campaignTitle: string;
   brandName: string;
+};
+
+type ContentOption = {
+  id: string;
+  caption: string;
+  postDate: string | null;
+  postLink: string | null;
+  type: string | null;
+  coverUrl: string | null;
+  engagement: number | null;
+  totalInteractions: number | null;
 };
 
 const PAGE_LIMIT = 12;
@@ -164,6 +194,38 @@ function formatDate(value: string) {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+function formatDateCompact(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  const day = date.toLocaleDateString("pt-BR", { day: "2-digit" });
+  const month = date
+    .toLocaleDateString("pt-BR", { month: "short" })
+    .replace(".", "")
+    .trim();
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "-";
+  return new Intl.NumberFormat("pt-BR").format(Math.round(value));
+}
+
+function getPostedContentLabel(publication?: ScriptPublication | null) {
+  const caption = publication?.content?.caption?.trim();
+  if (caption) return caption;
+  return "Conteúdo publicado";
+}
+
+function buildContentOptionLabel(option: ContentOption) {
+  const dateLabel = option.postDate ? formatDate(option.postDate) : "sem data";
+  const engagementLabel =
+    typeof option.engagement === "number" && Number.isFinite(option.engagement)
+      ? `${option.engagement.toFixed(2)}`
+      : "-";
+  return `${option.caption} · ${dateLabel} · Eng: ${engagementLabel}`;
+}
+
 function getCardTitle(script: ScriptItem) {
   const title = script.title?.trim();
   if (title) return title;
@@ -192,6 +254,9 @@ function createInitialEditorState(): EditorState {
     adminAnnotation: null,
     adminAnnotationDraft: "",
     inlineAnnotations: [],
+    isPosted: false,
+    postedContentId: "",
+    publication: null,
     aiPrompt: "",
     saving: false,
     saved: false,
@@ -221,6 +286,14 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [linkingToCampaign, setLinkingToCampaign] = useState(false);
+  const [contentOptions, setContentOptions] = useState<ContentOption[]>([]);
+  const [contentOptionsLoading, setContentOptionsLoading] = useState(false);
+  const [publicationSavingScriptId, setPublicationSavingScriptId] = useState<string | null>(null);
+  const [quickPublishAnchorScriptId, setQuickPublishAnchorScriptId] = useState<string | null>(null);
+  const [quickPublishContentId, setQuickPublishContentId] = useState("");
+  const [quickPublishSaving, setQuickPublishSaving] = useState(false);
+  const [quickPublishQuery, setQuickPublishQuery] = useState("");
+  const [postedFilter, setPostedFilter] = useState<ScriptPostedFilter>("all");
   const requestedScriptId = useMemo(() => {
     const value = searchParams?.get("scriptId");
     if (!value) return null;
@@ -256,8 +329,10 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const pendingSnapshotRef = useRef<DraftSnapshot | null>(null);
   const hasAutoOpenedQueryScriptRef = useRef<string | null>(null);
   const hasFetchedCampaignOptionsRef = useRef(false);
+  const hasFetchedContentOptionsRef = useRef(false);
   const latestFeedbackToastRef = useRef<string>("");
   const nextCursorRef = useRef<string | null>(null);
+  const quickPublishPopoverRef = useRef<HTMLDivElement | null>(null);
 
   const isAdminViewer = viewer?.role === "admin";
   const isActingOnBehalf = Boolean(
@@ -346,6 +421,89 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     };
   }, [editorOpen, isAdminViewer, toast]);
 
+  const ensureContentOptionsLoaded = useCallback(async () => {
+    if (hasFetchedContentOptionsRef.current) {
+      return contentOptions;
+    }
+
+    try {
+      setContentOptionsLoading(true);
+      const params = new URLSearchParams();
+      params.set("limit", "200");
+      if (targetUserId) params.set("targetUserId", targetUserId);
+      const response = await fetch(`/api/scripts/content-options?${params.toString()}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Não foi possível carregar conteúdos publicados.");
+      }
+
+      const items = Array.isArray(payload?.items) ? payload.items : [];
+      const options: ContentOption[] = items
+        .map((item: any) => ({
+          id: String(item?.id ?? ""),
+          caption:
+            typeof item?.caption === "string" && item.caption.trim()
+              ? item.caption.trim()
+              : "Conteúdo sem legenda",
+          postDate: typeof item?.postDate === "string" ? item.postDate : null,
+          postLink: typeof item?.postLink === "string" ? item.postLink : null,
+          type: typeof item?.type === "string" ? item.type : null,
+          coverUrl: typeof item?.coverUrl === "string" ? item.coverUrl : null,
+          engagement:
+            typeof item?.engagement === "number" && Number.isFinite(item.engagement)
+              ? item.engagement
+              : null,
+          totalInteractions:
+            typeof item?.totalInteractions === "number" && Number.isFinite(item.totalInteractions)
+              ? item.totalInteractions
+              : null,
+        }))
+        .filter((item: ContentOption) => Boolean(item.id));
+
+      setContentOptions(options);
+      hasFetchedContentOptionsRef.current = true;
+      return options;
+    } catch (error: any) {
+      setContentOptions([]);
+      hasFetchedContentOptionsRef.current = false;
+      toast({
+        variant: "warning",
+        title: error?.message || "Falha ao carregar conteúdos para vinculação.",
+      });
+      return null;
+    } finally {
+      setContentOptionsLoading(false);
+    }
+  }, [contentOptions, targetUserId, toast]);
+
+  useEffect(() => {
+    if (!editorOpen || hasFetchedContentOptionsRef.current) return;
+    void ensureContentOptionsLoaded();
+  }, [editorOpen, ensureContentOptionsLoaded]);
+
+  useEffect(() => {
+    if (!quickPublishAnchorScriptId) return;
+    function handleOutsideClick(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (quickPublishPopoverRef.current?.contains(target)) return;
+      setQuickPublishAnchorScriptId(null);
+      setQuickPublishQuery("");
+      setQuickPublishContentId("");
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [quickPublishAnchorScriptId]);
+
+  useEffect(() => {
+    setQuickPublishAnchorScriptId(null);
+    setQuickPublishContentId("");
+    setQuickPublishQuery("");
+  }, [postedFilter]);
+
   const unreadFeedbackScriptIds = useMemo(() => {
     const ids = new Set<string>();
     if (!scripts.length) return ids;
@@ -379,6 +537,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
       const params = new URLSearchParams();
       params.set("limit", String(PAGE_LIMIT));
+      params.set("posted", postedFilter);
       const cursor = opts?.cursor ?? nextCursorRef.current;
       if (!reset && cursor) params.set("cursor", cursor);
       if (targetUserId) params.set("targetUserId", targetUserId);
@@ -409,7 +568,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         else setLoadingMore(false);
       }
     },
-    [targetUserId]
+    [postedFilter, targetUserId]
   );
 
   const fetchPlannerSlots = useCallback(async () => {
@@ -436,7 +595,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
   useEffect(() => {
     fetchScripts({ reset: true });
-  }, [fetchScripts, targetUserId]);
+  }, [fetchScripts, postedFilter, targetUserId]);
 
   useEffect(() => {
     if (loadingList) return;
@@ -535,6 +694,13 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     resetDraftHistory({ title: "", content: "" });
     setNextCursor(null);
     setHasMore(false);
+    setContentOptions([]);
+    hasFetchedContentOptionsRef.current = false;
+    setPublicationSavingScriptId(null);
+    setQuickPublishAnchorScriptId(null);
+    setQuickPublishContentId("");
+    setQuickPublishSaving(false);
+    setQuickPublishQuery("");
   }, [targetUserId, resetDraftHistory]);
 
   const commitDraftSnapshot = useCallback((snapshot: DraftSnapshot) => {
@@ -664,6 +830,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       adminAnnotation: script.adminAnnotation || null,
       adminAnnotationDraft: script.adminAnnotation?.notes || "",
       inlineAnnotations: script.inlineAnnotations || [],
+      isPosted: Boolean(script.publication?.isPosted),
+      postedContentId: script.publication?.content?.id || "",
+      publication: script.publication || null,
       aiPrompt: "",
       saving: false,
       saved: false,
@@ -733,6 +902,110 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     setScripts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
   }, []);
 
+  const patchScriptPublication = useCallback(
+    async (script: ScriptItem, publicationPatch: { isPosted: boolean; postedContentId: string | null }) => {
+      const payload: Record<string, unknown> = {
+        title: script.title || "Roteiro sem título",
+        content: script.content || "",
+        isPosted: publicationPatch.isPosted,
+        postedContentId: publicationPatch.postedContentId,
+        targetUserId: targetUserId || undefined,
+      };
+
+      const res = await fetch(`/api/scripts/${script.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok || !data?.item) {
+        throw new Error(data?.error || "Não foi possível atualizar o status de postagem.");
+      }
+
+      const updated = data.item as ScriptItem;
+      patchScriptList(updated);
+      return updated;
+    },
+    [patchScriptList, targetUserId]
+  );
+
+  const handleCardPublicationAction = useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>, script: ScriptItem) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (publicationSavingScriptId || quickPublishSaving) return;
+
+      if (script.publication?.isPosted) {
+        try {
+          setPublicationSavingScriptId(script.id);
+          await patchScriptPublication(script, { isPosted: false, postedContentId: null });
+          toast({ variant: "success", title: "Roteiro desmarcado como postado." });
+        } catch (error: any) {
+          toast({
+            variant: "error",
+            title: error?.message || "Não foi possível desmarcar o roteiro como postado.",
+          });
+        } finally {
+          setPublicationSavingScriptId(null);
+        }
+        return;
+      }
+
+      const options = await ensureContentOptionsLoaded();
+      if (!options || options.length === 0) {
+        toast({
+          variant: "warning",
+          title: "Sem conteúdos disponíveis para vincular. Abra o roteiro para escolher depois.",
+        });
+        return;
+      }
+
+      setQuickPublishAnchorScriptId((current) => (current === script.id ? null : script.id));
+      setQuickPublishContentId(options[0]?.id || "");
+      setQuickPublishQuery("");
+    },
+    [
+      ensureContentOptionsLoaded,
+      patchScriptPublication,
+      publicationSavingScriptId,
+      quickPublishSaving,
+      toast,
+    ]
+  );
+
+  const handleConfirmQuickPublish = useCallback(async () => {
+    const targetScript = quickPublishAnchorScriptId
+      ? scripts.find((script) => script.id === quickPublishAnchorScriptId) || null
+      : null;
+    if (!targetScript) return;
+    if (!quickPublishContentId) {
+      toast({
+        variant: "warning",
+        title: "Selecione o conteúdo publicado para marcar o roteiro.",
+      });
+      return;
+    }
+
+    try {
+      setQuickPublishSaving(true);
+      await patchScriptPublication(targetScript, {
+        isPosted: true,
+        postedContentId: quickPublishContentId,
+      });
+      toast({ variant: "success", title: "Roteiro marcado como postado." });
+      setQuickPublishAnchorScriptId(null);
+      setQuickPublishContentId("");
+      setQuickPublishQuery("");
+    } catch (error: any) {
+      toast({
+        variant: "error",
+        title: error?.message || "Não foi possível marcar o roteiro como postado.",
+      });
+    } finally {
+      setQuickPublishSaving(false);
+    }
+  }, [patchScriptPublication, quickPublishAnchorScriptId, quickPublishContentId, scripts, toast]);
+
   const handleSave = useCallback(async () => {
     flushPendingDraftSnapshot();
     const title = editor.title.trim();
@@ -748,6 +1021,11 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       return;
     }
 
+    if (editor.isPosted && !editor.postedContentId) {
+      patchEditor({ error: "Selecione o conteúdo publicado para marcar este roteiro como postado." });
+      return;
+    }
+
     patchEditor({ saving: true, saved: false, error: null });
 
     try {
@@ -757,6 +1035,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           content,
           targetUserId: targetUserId || undefined,
           inlineAnnotations: editor.inlineAnnotations,
+          isPosted: editor.isPosted,
+          postedContentId: editor.isPosted ? editor.postedContentId : null,
         };
         if (isAdminViewer) {
           patchBody.adminAnnotation = editor.adminAnnotationDraft;
@@ -781,6 +1061,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           adminAnnotation: updated.adminAnnotation || null,
           adminAnnotationDraft: updated.adminAnnotation?.notes || "",
           inlineAnnotations: updated.inlineAnnotations || [],
+          isPosted: Boolean(updated.publication?.isPosted),
+          postedContentId: updated.publication?.content?.id || "",
+          publication: updated.publication || null,
           saving: false,
           saved: true,
           error: null,
@@ -792,6 +1075,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           content,
           targetUserId: targetUserId || undefined,
           inlineAnnotations: editor.inlineAnnotations,
+          isPosted: editor.isPosted,
+          postedContentId: editor.isPosted ? editor.postedContentId : null,
         };
         if (isAdminViewer) {
           body.adminAnnotation = editor.adminAnnotationDraft;
@@ -829,6 +1114,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           adminAnnotation: created.adminAnnotation || null,
           adminAnnotationDraft: created.adminAnnotation?.notes || "",
           inlineAnnotations: created.inlineAnnotations || [],
+          isPosted: Boolean(created.publication?.isPosted),
+          postedContentId: created.publication?.content?.id || "",
+          publication: created.publication || null,
           saving: false,
           saved: true,
           error: null,
@@ -902,6 +1190,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           adminAnnotation: updated.adminAnnotation || null,
           adminAnnotationDraft: updated.adminAnnotation?.notes || editor.adminAnnotationDraft,
           inlineAnnotations: updated.inlineAnnotations || [],
+          isPosted: Boolean(updated.publication?.isPosted),
+          postedContentId: updated.publication?.content?.id || "",
+          publication: updated.publication || null,
           aiPrompt: "",
           adjusting: false,
           error: null,
@@ -933,6 +1224,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           adminAnnotation: created.adminAnnotation || null,
           adminAnnotationDraft: created.adminAnnotation?.notes || editor.adminAnnotationDraft,
           inlineAnnotations: created.inlineAnnotations || [],
+          isPosted: Boolean(created.publication?.isPosted),
+          postedContentId: created.publication?.content?.id || "",
+          publication: created.publication || null,
           aiPrompt: "",
           adjusting: false,
           error: null,
@@ -1017,6 +1311,19 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
+  const selectedPostedContentOption = contentOptions.find((option) => option.id === editor.postedContentId) || null;
+  const selectedPostedContentMissing =
+    Boolean(editor.postedContentId) && !selectedPostedContentOption && Boolean(editor.publication?.content);
+  const quickPublishQueryNormalized = quickPublishQuery.trim().toLowerCase();
+  const filteredQuickPublishOptions = useMemo(() => {
+    if (!quickPublishQueryNormalized) return contentOptions;
+    return contentOptions.filter((option) => {
+      const haystack = `${option.caption} ${option.type || ""}`.toLowerCase();
+      return haystack.includes(quickPublishQueryNormalized);
+    });
+  }, [contentOptions, quickPublishQueryNormalized]);
+  const selectedQuickPublishOption =
+    contentOptions.find((option) => option.id === quickPublishContentId) || null;
 
   if (editorOpen) {
     return (
@@ -1201,6 +1508,94 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
             ) : null}
 
             <div className="shrink-0 border-t border-slate-100 py-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={editor.isPosted}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      patchEditor({
+                        isPosted: checked,
+                        postedContentId: checked ? editor.postedContentId || contentOptions[0]?.id || "" : "",
+                        publication: checked ? editor.publication : null,
+                        saved: false,
+                        error: null,
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                  />
+                  Marcar como roteiro postado
+                </label>
+                <p className="mt-1 text-xs text-slate-500">
+                  Ao marcar, selecione o conteúdo publicado para correlacionar o engajamento.
+                </p>
+
+                {editor.isPosted ? (
+                  <div className="mt-3 space-y-2">
+                    <select
+                      value={editor.postedContentId}
+                      onChange={(event) =>
+                        patchEditor({
+                          postedContentId: event.target.value,
+                          saved: false,
+                          error: null,
+                        })
+                      }
+                      disabled={contentOptionsLoading || contentOptions.length === 0}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    >
+                      {contentOptionsLoading ? (
+                        <option value="">Carregando conteúdos...</option>
+                      ) : (
+                        <option value="">Selecione o conteúdo publicado</option>
+                      )}
+                      {selectedPostedContentMissing ? (
+                        <option value={editor.postedContentId}>
+                          {getPostedContentLabel(editor.publication)} (vínculo atual)
+                        </option>
+                      ) : null}
+                      {contentOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {buildContentOptionLabel(option)}
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedPostedContentOption || selectedPostedContentMissing ? (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                        <p className="font-semibold">
+                          {selectedPostedContentOption?.caption || getPostedContentLabel(editor.publication)}
+                        </p>
+                        <p className="mt-1">
+                          Postado em{" "}
+                          {selectedPostedContentOption?.postDate
+                            ? formatDate(selectedPostedContentOption.postDate)
+                            : editor.publication?.content?.postDate
+                              ? formatDate(editor.publication.content.postDate)
+                              : "-"}{" "}
+                          · Interações{" "}
+                          {formatNumber(
+                            selectedPostedContentOption?.totalInteractions ??
+                            editor.publication?.content?.totalInteractions ??
+                            null
+                          )}{" "}
+                          · Engajamento{" "}
+                          {typeof (selectedPostedContentOption?.engagement ??
+                            editor.publication?.content?.engagement) === "number"
+                            ? `${(selectedPostedContentOption?.engagement ??
+                              editor.publication?.content?.engagement ??
+                              0).toFixed(2)}`
+                            : "-"}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-slate-100 py-4">
               <p className="mb-2 text-xs font-medium text-slate-500">Assistente IA</p>
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
                 <input
@@ -1310,6 +1705,27 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           ) : null}
         </div>
 
+        <div className="mb-4 inline-flex rounded-lg border border-slate-200 bg-white p-1">
+          {([
+            { id: "all", label: "Todos" },
+            { id: "posted", label: "Postados" },
+            { id: "unposted", label: "Não postados" },
+          ] as Array<{ id: ScriptPostedFilter; label: string }>).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setPostedFilter(option.id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
+                postedFilter === option.id
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
         {globalError ? <p className="mb-4 text-sm text-rose-600">{globalError}</p> : null}
 
         {loadingList ? (
@@ -1370,56 +1786,162 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                 const tone = getSourceCardTone(script.source);
                 const hasAdminAnnotation = Boolean(script.adminAnnotation?.notes?.trim());
                 const hasUnreadFeedback = unreadFeedbackScriptIds.has(script.id);
+                const isPosted = Boolean(script.publication?.isPosted);
+                const isPublicationSaving = publicationSavingScriptId === script.id;
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={script.id}
-                    onClick={() => openExistingEditor(script)}
-                    className={`group relative flex h-64 flex-col overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:shadow-xl ${tone.ring} sm:h-72 sm:rounded-[2rem]`}
+                    className={`group relative flex h-64 flex-col overflow-visible rounded-[1.5rem] border border-slate-200 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:shadow-xl ${tone.ring} sm:h-72 sm:rounded-[2rem]`}
                   >
-                    <div className={`flex items-center justify-between gap-2 border-b px-5 py-3 ${tone.header}`}>
-                      <span className={`text-[11px] font-bold uppercase tracking-wider ${tone.text}`}>
-                        {getSourceLabel(script.source)}
-                      </span>
-                      {script.recommendation?.isRecommended ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                          Recomendação
+                    <button type="button" onClick={() => openExistingEditor(script)} className="flex h-full w-full flex-col text-left">
+                      <div className={`flex items-center justify-between gap-2 border-b px-5 py-3 ${tone.header}`}>
+                        <span className={`text-[11px] font-bold uppercase tracking-wider ${tone.text}`}>
+                          {getSourceLabel(script.source)}
                         </span>
-                      ) : null}
-                      {hasAdminAnnotation ? (
-                        <span className="rounded-full bg-[#FFE7EF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#C3265C]">
-                          {hasUnreadFeedback ? "Novo feedback" : isAdminViewer ? "Feedback ativo" : "Feedback"}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="flex min-h-0 flex-1 flex-col p-5">
-                      <p className="line-clamp-2 text-base font-semibold leading-tight text-slate-900">
-                        {getCardTitle(script)}
-                      </p>
-
-                      <div className="mt-3 flex-1 overflow-hidden">
-                        <p className="line-clamp-7 overflow-hidden break-words text-sm leading-relaxed text-slate-500">
-                          {getCardPreview(script)}
-                        </p>
+                        {script.recommendation?.isRecommended ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            Recomendação
+                          </span>
+                        ) : null}
+                        {hasAdminAnnotation ? (
+                          <span className="rounded-full bg-[#FFE7EF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#C3265C]">
+                            {hasUnreadFeedback ? "Novo feedback" : isAdminViewer ? "Feedback ativo" : "Feedback"}
+                          </span>
+                        ) : null}
                       </div>
 
-                      <p className="mt-auto pt-4 text-[11px] font-medium text-slate-400">
-                        Atualizado em {formatDate(script.updatedAt)}
-                      </p>
-                      {script.recommendation?.isRecommended ? (
-                        <p className="pt-1 text-[11px] font-medium text-amber-700">
-                          Recomendado por{" "}
-                          {script.recommendation.recommendedByAdminName || "Admin"}
+                      <div className="flex min-h-0 flex-1 flex-col p-5">
+                        <p className="line-clamp-2 text-base font-semibold leading-tight text-slate-900">
+                          {getCardTitle(script)}
                         </p>
-                      ) : null}
-                      {hasAdminAnnotation ? (
-                        <p className="line-clamp-1 pt-1 text-[11px] font-medium text-slate-600">
-                          {hasUnreadFeedback ? "Novo: " : ""}Feedback: {script.adminAnnotation?.notes}
+
+                        <div className="mt-3 flex-1 overflow-hidden">
+                          <p className="line-clamp-7 overflow-hidden break-words text-sm leading-relaxed text-slate-500">
+                            {getCardPreview(script)}
+                          </p>
+                        </div>
+
+                        <p className="mt-auto pt-4 text-[11px] font-medium text-slate-400">
+                          Atualizado em {formatDate(script.updatedAt)}
                         </p>
-                      ) : null}
-                    </div>
-                  </button>
+                        {script.recommendation?.isRecommended ? (
+                          <p className="pt-1 text-[11px] font-medium text-amber-700">
+                            Recomendado por{" "}
+                            {script.recommendation.recommendedByAdminName || "Admin"}
+                          </p>
+                        ) : null}
+                        {hasAdminAnnotation ? (
+                          <p className="line-clamp-1 pt-1 text-[11px] font-medium text-slate-600">
+                            {hasUnreadFeedback ? "Novo: " : ""}Feedback: {script.adminAnnotation?.notes}
+                          </p>
+                        ) : null}
+                        {isPosted ? (
+                          <p className="line-clamp-1 pt-1 text-[11px] font-medium text-emerald-700">
+                            {getPostedContentLabel(script.publication)}
+                            {script.publication?.content?.postDate
+                              ? ` · ${formatDate(script.publication.content.postDate)}`
+                              : ""}
+                          </p>
+                        ) : null}
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        void handleCardPublicationAction(event, script);
+                      }}
+                      disabled={isPublicationSaving}
+                      className={`absolute right-3 top-3 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        isPosted
+                          ? "border-emerald-200 bg-emerald-500 text-white"
+                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400"
+                      }`}
+                      title={isPosted ? "Desmarcar como postado" : "Marcar como postado"}
+                      aria-label={isPosted ? "Desmarcar como postado" : "Marcar como postado"}
+                    >
+                      {isPosted ? <Check size={13} strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-current" />}
+                    </button>
+
+                    {quickPublishAnchorScriptId === script.id && !isPosted ? (
+                      <div
+                        ref={quickPublishPopoverRef}
+                        className="absolute right-2 top-12 z-20 w-[min(92vw,340px)] rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Conteúdo publicado</p>
+                        <input
+                          type="text"
+                          value={quickPublishQuery}
+                          onChange={(event) => setQuickPublishQuery(event.target.value)}
+                          placeholder="Buscar legenda ou tipo..."
+                          disabled={quickPublishSaving}
+                          className="mt-2 w-full rounded-md border border-slate-200 px-2.5 py-2 text-xs text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:bg-slate-100"
+                        />
+                        <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-1.5">
+                          {contentOptionsLoading ? (
+                            <p className="px-2 py-2 text-xs text-slate-500">Carregando conteúdos...</p>
+                          ) : filteredQuickPublishOptions.length === 0 ? (
+                            <p className="px-2 py-2 text-xs text-slate-500">Nenhum conteúdo encontrado.</p>
+                          ) : (
+                            filteredQuickPublishOptions.slice(0, 20).map((option) => {
+                              const selected = quickPublishContentId === option.id;
+                              return (
+                                <button
+                                  type="button"
+                                  key={option.id}
+                                  onClick={() => setQuickPublishContentId(option.id)}
+                                  disabled={quickPublishSaving}
+                                  className={`w-full rounded-md border bg-white px-2 py-2 text-left text-xs transition ${
+                                    selected
+                                      ? "border-emerald-300 ring-2 ring-emerald-100"
+                                      : "border-slate-200 hover:border-slate-300"
+                                  }`}
+                                >
+                                  <p className="line-clamp-2 font-semibold text-slate-700">{option.caption}</p>
+                                  <p className="mt-1 text-[11px] text-slate-500">
+                                    {option.postDate ? formatDateCompact(option.postDate) : "Sem data"} · Eng{" "}
+                                    {typeof option.engagement === "number" ? option.engagement.toFixed(2) : "-"} · Interações{" "}
+                                    {formatNumber(option.totalInteractions)}
+                                  </p>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                        {selectedQuickPublishOption ? (
+                          <p className="mt-2 line-clamp-1 text-[11px] text-emerald-700">
+                            Selecionado: {selectedQuickPublishOption.caption}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (quickPublishSaving) return;
+                              setQuickPublishAnchorScriptId(null);
+                              setQuickPublishContentId("");
+                              setQuickPublishQuery("");
+                            }}
+                            className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                            disabled={quickPublishSaving}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleConfirmQuickPublish();
+                            }}
+                            disabled={quickPublishSaving || !quickPublishContentId}
+                            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            <Check size={12} />
+                            {quickPublishSaving ? "Salvando..." : "Marcar"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
@@ -1438,6 +1960,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
             ) : null}
           </>
         )}
+
       </div>
     </div>
   );

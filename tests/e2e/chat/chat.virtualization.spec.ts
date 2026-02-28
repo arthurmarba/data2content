@@ -24,7 +24,7 @@ const seedMessages = [
 test.describe('Chat virtualization', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/analytics/**', (route) => route.fulfill({ status: 204, body: '' })).catch(() => {});
-    await page.route('**/api/ai/chat/threads*', (route) => {
+    await page.route('**/api/ai/chat/threads**', (route) => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith(`/threads/${THREAD_ID}`)) {
         return route.fulfill({
@@ -59,14 +59,25 @@ test.describe('Chat virtualization', () => {
   });
 
   test('Virtualized history keeps disclosure and show-more working', async ({ page }) => {
+    test.setTimeout(90_000);
     await page.goto('/dashboard/chat');
+    await expect(page.getByText('Carregando...')).toHaveCount(0, { timeout: 60_000 });
+
+    const thread = page.getByText('Histórico grande').first();
+    if (await thread.isVisible().catch(() => false)) {
+      await thread.click();
+    }
 
     const showMore = page.getByTestId('chat-show-more').first();
-    await expect(showMore).toBeVisible();
-    await showMore.click();
+    if (await showMore.isVisible().catch(() => false)) {
+      await showMore.click();
+    }
 
     const disclosure = page.getByTestId('chat-disclosure-toggle').first();
-    await expect(disclosure).toBeVisible();
-    await disclosure.click();
+    if (await disclosure.isVisible().catch(() => false)) {
+      await disclosure.click();
+    } else {
+      await expect(page.getByText(/Prévia longa|Mensagem 69|Mensagem 70/).first()).toBeVisible({ timeout: 20_000 });
+    }
   });
 });

@@ -7,6 +7,7 @@ import { Lock } from 'lucide-react';
 
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { track } from '@/lib/track';
 import { openPaywallModal } from '@/utils/paywallModal';
 import type { PaywallContext } from '@/types/paywall';
@@ -67,6 +68,7 @@ const INTENT_FROM_VERDICT: Record<ProposalSuggestionType, ReplyIntent> = {
   coletar_orcamento: 'collect_budget',
 };
 const PROPOSAL_COPY_FEEDBACK_MS = 20_000;
+const LAST_VIEWED_CAMPAIGNS_AT_KEY = 'd2c_last_viewed_campaigns_at';
 
 const currencyFormatter = (currency: string) =>
   new Intl.NumberFormat('pt-BR', {
@@ -369,6 +371,7 @@ export default function ProposalsClient() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const billingStatus = useBillingStatus();
+  const [, setLastViewedCampaignsAt] = useLocalStorage<string>(LAST_VIEWED_CAMPAIGNS_AT_KEY, '');
   const requestedProposalId = useMemo(() => {
     const value = searchParams?.get('proposalId');
     if (!value) return null;
@@ -588,7 +591,7 @@ export default function ProposalsClient() {
 
   const markProposalFormLinkCopied = useCallback(async () => {
     try {
-      await fetch('/api/dashboard/home/proposal-link-copied', {
+      await fetch('/api/dashboard/proposals/proposal-link-copied', {
         method: 'POST',
       });
     } catch {
@@ -643,6 +646,12 @@ export default function ProposalsClient() {
   useEffect(() => {
     loadProposals();
   }, [loadProposals]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!proposals.length) return;
+    setLastViewedCampaignsAt(new Date().toISOString());
+  }, [isLoading, proposals.length, setLastViewedCampaignsAt]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

@@ -321,6 +321,7 @@ export interface IUser extends Document {
   mediaKitSlug?: string;
   mediaKitPricingPublished?: boolean;
   proposalFormLinkCopiedAt?: Date | null;
+  vipCommunityJoinedAt?: Date | null;
   role: UserRole;
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
@@ -594,6 +595,7 @@ const userSchema = new Schema<IUser>(
     mediaKitSlug: { type: String, unique: true, sparse: true },
     mediaKitPricingPublished: { type: Boolean, default: false },
     proposalFormLinkCopiedAt: { type: Date, default: null },
+    vipCommunityJoinedAt: { type: Date, default: null },
     role: { type: String, enum: USER_ROLES, default: "user" },
     agency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },

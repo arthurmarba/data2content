@@ -14,7 +14,7 @@ test.describe("Media kit social preview metadata", () => {
 
     expect(ogTitle ?? "").toMatch(/Mídia Kit de/i);
     expect(ogDescription ?? "").toMatch(/(@|seguidores|publicações)/i);
-    expect(ogImage ?? "").toContain(`/api/mediakit/${mediaKitSlug}/og-image`);
+    expect(ogImage ?? "").toContain(`/api/mediakit/${mediaKitSlug}/avatar`);
 
     const imageResponse = await request.get(ogImage as string);
     expect(imageResponse.ok()).toBeTruthy();

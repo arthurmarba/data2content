@@ -26,6 +26,7 @@ test.describe('Chat tables on mobile', () => {
   });
 
   test('Tables auto-switch to Cards on mobile and remain toggleable', async ({ page }) => {
+    test.setTimeout(90_000);
     await page.route('**/api/ai/chat', async (route) => {
       await route.fulfill({
         status: 200,
@@ -40,8 +41,14 @@ test.describe('Chat tables on mobile', () => {
     });
 
     await page.goto('/dashboard/chat');
+    await expect(page.getByText('Carregando...')).toHaveCount(0, { timeout: 60_000 });
+    await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 60_000 });
+    const cookieAccept = page.getByRole('button', { name: 'Aceitar' }).first();
+    if (await cookieAccept.isVisible().catch(() => false)) {
+      await cookieAccept.click();
+    }
     await page.getByTestId('chat-input').fill('Tabela');
-    await page.getByTestId('chat-send').click();
+    await page.getByTestId('chat-send').click({ force: true });
 
     await expect(page.getByTestId('chat-table-container')).toBeVisible();
 

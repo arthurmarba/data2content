@@ -16,6 +16,8 @@ import {
   getComboStatsByBlock,
 } from '@/utils/metrics/blockStats';
 import { createSeededRng, softmax, softmaxSample } from '@/app/lib/planner/random';
+import { isScriptsOutcomeLearningV1Enabled } from '@/app/lib/scripts/featureFlag';
+import { getScriptOutcomeProfile, type ScriptOutcomeProfileSnapshot } from '@/app/lib/scripts/outcomeTraining';
 import { PlannerCategories, PlannerFormat, PlannerSlotStatus, ExpectedMetrics } from '@/types/planner';
 
 // === Helper para evitar problemas de tipo com a tupla readonly ===
@@ -36,6 +38,11 @@ export interface RecommendedSlot {
   isExperiment: boolean;
   expectedMetrics: ExpectedMetrics;
   score: number;              // ranking (lift relativo ao bloco)
+  scriptEvidence?: {
+    lift: number;
+    confidence: 'low' | 'medium' | 'high';
+    sampleSize: number;
+  };
   rationale?: string[];       // notas p/ debug
 }
 
@@ -60,6 +67,25 @@ const key = (d: number, h: number): BlockKey => `${d}-${h}`;
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 const safeDiv = (a: number, b: number) => (b > 0 ? a / b : 0);
 
+export function normalizeScore(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return 0;
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return 0;
+  return clamp((value - min) / (max - min), 0, 1);
+}
+
+export function combineHybridScore(params: {
+  perfNorm: number;
+  scriptLiftNorm: number;
+  isExperiment: boolean;
+}): number {
+  const perfNorm = clamp(params.perfNorm, 0, 1);
+  const scriptNorm = clamp(params.scriptLiftNorm, 0, 1);
+  if (params.isExperiment) {
+    return 0.9 * perfNorm + 0.1 * scriptNorm;
+  }
+  return 0.75 * perfNorm + 0.25 * scriptNorm;
+}
+
 function normalizeCategoryId(
   valueOrId: string | undefined,
   dim: 'context' | 'proposal' | 'reference' | 'tone'
@@ -79,6 +105,56 @@ function normalizeFormatId(v?: string): PlannerFormat | undefined {
   if (s === 'feed_image') return 'photo';
   if (s === 'longvideo' || s === 'long-video') return 'long_video';
   return (SUPPORTED_FORMATS as string[]).includes(s) ? (s as PlannerFormat) : undefined;
+}
+
+function hasOutcomeSignals(profile: ScriptOutcomeProfileSnapshot | null | undefined): boolean {
+  if (!profile) return false;
+  if (profile.sampleSizeLinked < 5) return false;
+  return profile.confidence === 'medium' || profile.confidence === 'high';
+}
+
+function getOutcomeLiftForDimension(
+  profile: ScriptOutcomeProfileSnapshot | null | undefined,
+  dimension: 'proposal' | 'context' | 'format' | 'tone' | 'references',
+  value: string | undefined
+): { lift: number; sampleSize: number } | null {
+  if (!profile || !value) return null;
+  const rows = profile.topByDimension?.[dimension];
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const found = rows.find((row) => row.id === value);
+  if (!found) return null;
+  return {
+    lift: Number(found.lift || 0),
+    sampleSize: Number(found.sampleSize || 0),
+  };
+}
+
+function computeScriptEvidenceFromOutcome(params: {
+  profile: ScriptOutcomeProfileSnapshot | null | undefined;
+  format?: string;
+  proposal?: string;
+  context?: string;
+  tone?: string;
+  references?: string;
+}) {
+  if (!hasOutcomeSignals(params.profile)) return null;
+  const signals = [
+    getOutcomeLiftForDimension(params.profile, 'format', params.format),
+    getOutcomeLiftForDimension(params.profile, 'proposal', params.proposal),
+    getOutcomeLiftForDimension(params.profile, 'context', params.context),
+    getOutcomeLiftForDimension(params.profile, 'tone', params.tone),
+    getOutcomeLiftForDimension(params.profile, 'references', params.references),
+  ].filter(Boolean) as Array<{ lift: number; sampleSize: number }>;
+  if (!signals.length) return null;
+  const lift = signals.reduce((sum, item) => sum + item.lift, 0) / signals.length;
+  const sampleSize = Math.round(
+    signals.reduce((sum, item) => sum + Math.max(0, item.sampleSize), 0) / signals.length
+  );
+  return {
+    lift,
+    sampleSize,
+    confidence: params.profile?.confidence || 'low',
+  };
 }
 
 // --------- Estatística da conta na janela (p50 real baseado em VIEWS) ----------
@@ -174,15 +250,25 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
     periodDays = WINDOW_DAYS,
   } = options;
 
-  // 0) baseline da conta (mediana de views no período)
-  const accountP50 = await getUserViewP50(userId, periodDays);
+  const resolvedUserId = typeof userId === 'string' ? userId : userId.toString();
+  const outcomeProfilePromise = (async () => {
+    const enabled = await isScriptsOutcomeLearningV1Enabled();
+    if (!enabled) return null;
+    return getScriptOutcomeProfile(resolvedUserId, {
+      rebuildIfMissing: false,
+      rebuildIfCorrupted: false,
+    });
+  })();
 
-  // 1) Agregações base (todas já em VIEWS pelo default do blockStats)
-  const [blockAvgs, comboStats, formatStats] = await Promise.all([
-    getBlockAverages(userId, periodDays),      // média do bloco
-    getComboStatsByBlock(userId, periodDays),  // média por COMBINAÇÃO no bloco
-    getFormatStatsByBlock(userId, periodDays), // (para formato no bloco)
+  // 0) baseline da conta + sinais de outcome + agregações de performance
+  const [accountP50, outcomeProfile, blockAvgs, comboStats, formatStats] = await Promise.all([
+    getUserViewP50(userId, periodDays),
+    outcomeProfilePromise,
+    getBlockAverages(userId, periodDays),
+    getComboStatsByBlock(userId, periodDays),
+    getFormatStatsByBlock(userId, periodDays),
   ]);
+  const plannerHybridApplied = hasOutcomeSignals(outcomeProfile);
 
   // Mapas rápidos por bloco
   type BlockAgg = { avg: number; count: number };
@@ -246,6 +332,10 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
     proposal: string;
     context: string;
     avgFinal: number;  // P50 previsto já com shrink
+    perfNorm?: number;
+    scriptLiftNorm?: number;
+    hybridScore?: number;
+    scriptEvidence?: { lift: number; confidence: 'low' | 'medium' | 'high'; sampleSize: number } | null;
     counts: { fmt?: number; prop?: number; ctx?: number };
     parents: { blockAvg: number; fmtAvg?: number; propAvg?: number };
     rationale: string[];
@@ -302,6 +392,12 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
 
     // P50 previsto: aproxima o nível mais granular da mediana da conta (sem piso fixo)
     const avgFinal = shrinkToParent(ctxFinal, ctxCount || 1, accountP50 || blockAvg, 1);
+    const scriptEvidence = computeScriptEvidenceFromOutcome({
+      profile: outcomeProfile,
+      format,
+      proposal,
+      context,
+    });
 
     dayCandidates.push({
       dayOfWeek: d,
@@ -310,6 +406,7 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
       proposal,
       context,
       avgFinal,
+      scriptEvidence,
       counts: { fmt: fmtCount, prop: propCount, ctx: ctxCount },
       parents: { blockAvg, fmtAvg, propAvg },
       rationale: [
@@ -319,8 +416,31 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
         `ctx=${context} ctxAvg=${ctxAvg.toFixed(1)} n=${ctxCount}`,
         `p50_account=${accountP50}`,
         `p50_final=${Math.round(avgFinal)}`,
+        `plannerHybridApplied=${plannerHybridApplied}`,
       ],
     });
+  }
+
+  const perfValues = dayCandidates.map((item) => item.avgFinal).filter((item) => Number.isFinite(item));
+  const perfMin = perfValues.length ? Math.min(...perfValues) : 0;
+  const perfMax = perfValues.length ? Math.max(...perfValues) : 1;
+  const scriptLiftValues = dayCandidates
+    .map((item) => item.scriptEvidence?.lift)
+    .filter((item): item is number => typeof item === 'number' && Number.isFinite(item));
+  const scriptLiftMin = scriptLiftValues.length ? Math.min(...scriptLiftValues) : 0;
+  const scriptLiftMax = scriptLiftValues.length ? Math.max(...scriptLiftValues) : 1;
+
+  for (const candidate of dayCandidates) {
+    const perfNorm = normalizeScore(candidate.avgFinal, perfMin, perfMax);
+    const scriptNorm =
+      candidate.scriptEvidence && plannerHybridApplied
+        ? normalizeScore(candidate.scriptEvidence.lift, scriptLiftMin, scriptLiftMax)
+        : 0;
+    candidate.perfNorm = perfNorm;
+    candidate.scriptLiftNorm = scriptNorm;
+    candidate.hybridScore = plannerHybridApplied
+      ? combineHybridScore({ perfNorm, scriptLiftNorm: scriptNorm, isExperiment: false })
+      : perfNorm;
   }
 
   // 3) Selecionar 3–5 vencedores por maior P50 previsto
@@ -332,7 +452,11 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
 
   const winners = dayCandidates
     .slice()
-    .sort((a, b) => b.avgFinal - a.avgFinal)
+    .sort((a, b) => {
+      const aScore = plannerHybridApplied ? (a.hybridScore || 0) : a.avgFinal;
+      const bScore = plannerHybridApplied ? (b.hybridScore || 0) : b.avgFinal;
+      return bScore - aScore;
+    })
     .slice(0, plannedCap);
 
   // 4) Montar slots “planned”
@@ -347,6 +471,7 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
     const p50 = Math.round(w.avgFinal);
     const blkAvg = w.parents.blockAvg || 1;
     const lift = safeDiv(p50, blkAvg);
+    const score = plannerHybridApplied ? (w.hybridScore || 0) : lift;
 
     const proposalList = Array.from(new Set([w.proposal, ...(extra.proposal || [])])).filter(Boolean).slice(0, 2);
 
@@ -366,8 +491,21 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
         viewsP50: p50,
         viewsP90: Math.round(p50 * P90_MULT),
       },
-      score: lift,
-      rationale: w.rationale,
+      score,
+      scriptEvidence:
+        plannerHybridApplied && w.scriptEvidence
+          ? {
+              lift: Number(w.scriptEvidence.lift.toFixed(3)),
+              confidence: w.scriptEvidence.confidence,
+              sampleSize: w.scriptEvidence.sampleSize,
+            }
+          : undefined,
+      rationale: [
+        ...w.rationale,
+        `perfNorm=${(w.perfNorm || 0).toFixed(3)}`,
+        `scriptLiftNorm=${(w.scriptLiftNorm || 0).toFixed(3)}`,
+        `hybridScore=${(w.hybridScore || 0).toFixed(3)}`,
+      ],
     });
   }
 
@@ -465,6 +603,26 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
 
     // previsão test (views): shrink forte para p50 da conta
     const p50 = Math.round(shrinkToParent(blkAvg, 1, accountP50 || blkAvg, 2));
+    const scriptEvidence = computeScriptEvidenceFromOutcome({
+      profile: outcomeProfile,
+      format: chosen.format,
+      proposal: chosen.proposal,
+      context: chosen.context,
+      tone: extra.tone,
+      references: extra.reference?.[0],
+    });
+    const perfNorm = normalizeScore(
+      blkAvg,
+      0,
+      Math.max(1, ...blockAvgs.map((item) => Number(item.avg || 0)))
+    );
+    const scriptLiftNorm =
+      scriptEvidence && plannerHybridApplied
+        ? normalizeScore(scriptEvidence.lift, scriptLiftMin, scriptLiftMax)
+        : 0;
+    const testScore = plannerHybridApplied
+      ? combineHybridScore({ perfNorm, scriptLiftNorm, isExperiment: true })
+      : 0.1;
 
     slots.push({
       dayOfWeek: d,
@@ -480,11 +638,23 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
         viewsP50: p50,
         viewsP90: Math.round(p50 * P90_MULT),
       },
-      score: 0.1,
+      score: testScore,
+      scriptEvidence:
+        plannerHybridApplied && scriptEvidence
+          ? {
+              lift: Number(scriptEvidence.lift.toFixed(3)),
+              confidence: scriptEvidence.confidence,
+              sampleSize: scriptEvidence.sampleSize,
+            }
+          : undefined,
       rationale: [
         'test_slot',
         `mix_from_other_days@${h}`,
         `combo=${chosen.context}/${chosen.proposal}/${chosen.format}`,
+        `perfNorm=${perfNorm.toFixed(3)}`,
+        `scriptLiftNorm=${scriptLiftNorm.toFixed(3)}`,
+        `hybridScore=${testScore.toFixed(3)}`,
+        `plannerHybridApplied=${plannerHybridApplied}`,
       ],
     });
   }

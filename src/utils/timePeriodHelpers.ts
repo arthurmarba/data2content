@@ -4,10 +4,16 @@ export function timePeriodToDays(timePeriod: TimePeriod): number {
   switch (timePeriod) {
     case 'last_7_days':
       return 7;
+    case 'last_14_days':
+      return 14;
     case 'last_30_days':
       return 30;
+    case 'last_60_days':
+      return 60;
     case 'last_90_days':
       return 90;
+    case 'last_120_days':
+      return 120;
     case 'last_180_days':
       return 180;
     case 'last_6_months':

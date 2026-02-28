@@ -107,14 +107,16 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     alertsUnreadCount,
     reviewsUnreadCount,
     scriptsUnreadCount: scriptsRecommendationsUnreadCount,
+    campaignsUnreadCount,
   } = useDashboardNotificationBadges();
   const sidebarBadges = useMemo(
     () => ({
       "planning.chat": alertsUnreadCount,
       "reviews": reviewsUnreadCount,
       "planning.scripts": scriptsRecommendationsUnreadCount,
+      "campaigns.overview": campaignsUnreadCount,
     }),
-    [alertsUnreadCount, reviewsUnreadCount, scriptsRecommendationsUnreadCount]
+    [alertsUnreadCount, reviewsUnreadCount, scriptsRecommendationsUnreadCount, campaignsUnreadCount]
   );
 
   const sections = useMemo(
