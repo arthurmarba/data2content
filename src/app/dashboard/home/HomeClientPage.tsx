@@ -60,6 +60,10 @@ const TRIAL_CTA_LABEL = "⚡ Ativar alertas no WhatsApp";
 const HOME_WELCOME_STORAGE_KEY = "home_welcome_dismissed";
 const VIP_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
 const PAID_PRO_NORMALIZED_STATUSES = new Set(["active", "non_renewing"]);
+const BRAND_POSITIONING =
+  "Data2Content: a agência estratégica que te ajuda a criar conteúdo para atrair marcas e te conecta com outros criadores para crescerem juntos.";
+const BRAND_SUPPORT_PROMISE =
+  "Fazemos reuniões semanais de revisão de roteiro e conteúdo, com acompanhamento personalizado gerido pela plataforma.";
 
 type HeroAction = {
   key: string;
@@ -125,24 +129,24 @@ const JOURNEY_STEP_COPY: Record<
   { stepHelper: string; ctaLabel: string }
 > = {
   connect_instagram: {
-    stepHelper: "Conecte seu IG via Facebook Login para liberar diagnósticos e benchmarks em tempo real.",
-    ctaLabel: "Vincular Instagram",
+    stepHelper: "Conecte seu Instagram para gerar seu diagnóstico estratégico e mapear oportunidades com marcas.",
+    ctaLabel: "Conectar Instagram",
   },
   create_media_kit: {
-    stepHelper: "Complete o mídia kit com cases, métricas e contatos para impressionar novas marcas.",
+    stepHelper: "Monte seu Mídia Kit com posicionamento, métricas e provas para negociar com marcas com clareza.",
     ctaLabel: "Criar mídia kit",
   },
   publish_media_kit_link: {
-    stepHelper: "Adicione o link do kit na bio e em propostas para provar sua autoridade automaticamente.",
+    stepHelper: "Publique o link do kit na bio e nas propostas para transformar visitas em contatos comerciais.",
     ctaLabel: "Copiar link do kit",
   },
   personalize_support: {
-    stepHelper: "Responda a pesquisa de personalização (2 min) para ajustar IA e suporte ao seu momento.",
+    stepHelper: "Responda a personalização (2 min) para orientar IA, revisão de roteiro e suporte ao seu momento.",
     ctaLabel: "Personalizar suporte",
   },
   activate_pro: {
     stepHelper:
-      "Posicione seu conteúdo para atrair marcas: alertas no WhatsApp + mentoria semanal (dúvidas com IA no Chat AI).",
+      "Ative o Plano Pro para acompanhamento contínuo: IA aplicada, reuniões semanais e revisão personalizada de conteúdo.",
     ctaLabel: "Ativar Plano Pro",
   },
 };
@@ -752,7 +756,7 @@ export default function HomeClientPage() {
         return {
           icon: "✨",
           className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-          text: "Assine o Plano Pro para liberar a IA completa",
+          text: "Ative o Plano Pro para acompanhamento estratégico completo",
         };
       }
 
@@ -770,7 +774,7 @@ export default function HomeClientPage() {
     return {
       icon: "✅",
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      text: "Plano Pro ativo",
+      text: "Plano Pro estratégico ativo",
     };
   }, [
     isInstagramConnected,
@@ -839,7 +843,7 @@ export default function HomeClientPage() {
       ctaLabel: isFreePlan ? trialLabel : microInsight.ctaLabel ?? "Ver detalhes",
       variant: isFreePlan ? "primary" : "secondary",
       footnote: isFreePlan
-        ? "Assine o Plano Pro para liberar a IA completa."
+        ? "Ative o Plano Pro para liberar acompanhamento estratégico completo."
         : "Incluído no seu plano atual.",
       teaser: highlight ? { label: highlight, blurred: isFreePlan } : undefined,
     };
@@ -1057,44 +1061,45 @@ export default function HomeClientPage() {
 
   const whatsappBanner = React.useMemo(() => {
     const previewMessages = [
-      "🔔 Alerta: pico de alcance previsto às 19h.",
-      "⏰ Lembrete: slot forte em 30 minutos.",
+      "🔔 Alerta: janela forte de alcance prevista para 19h.",
+      "⏰ Lembrete: revisar roteiro do post das 20h em 30 minutos.",
     ];
     const base = {
       previewMessages,
-      heading: "Alertas no WhatsApp",
-      subheading: "WhatsApp = notificações. Dúvidas com IA = Chat AI no app.",
-      description: "Conexão segura em menos de 30s.",
+      heading: "Execução da semana no WhatsApp",
+      subheading: "WhatsApp cuida dos alertas rápidos do plano.",
+      description: "Estratégia, revisão de roteiro e ajustes ficam na plataforma.",
       bullets: [
-        { icon: "🔔", text: "Alertas sobre horários, oportunidades e quedas de ritmo" },
-        { icon: "📊", text: "Insights rápidos baseados nos seus dados" },
-        { icon: "💬", text: "Link direto para abrir o Chat AI e tirar dúvidas" },
+        { icon: "🔔", text: "Alertas de timing e ritmo para não perder janela de alcance" },
+        { icon: "📊", text: "Sinais de oportunidade para ajustar o conteúdo antes de publicar" },
+        { icon: "💬", text: "Atalho para abrir o Chat AI e aplicar as recomendações no seu plano" },
       ],
-      footnote: "Conexão segura · 30 segundos.",
+      footnote: "Conexão segura · menos de 30 segundos.",
     };
 
     if (trialExpired) {
       return {
         ...base,
-        calloutTitle: "Continue recebendo alertas no WhatsApp.",
+        calloutTitle: "Mantenha sua execução estratégica ativa.",
         calloutSubtitle:
-          "Assine o Plano Pro para manter horários ideais, alertas e lembretes; converse com a IA pelo Chat AI.",
+          "Ative o Plano Pro para continuar com alertas, reuniões semanais e revisão personalizada de roteiro e conteúdo.",
         primary: {
-          label: "Assinar Plano Pro",
+          label: "Ativar Plano Pro",
           variant: "pro" as const,
           icon: <FaGem />,
           onClick: openSubscribeModal,
           trackingKey: "hero_trial_upgrade",
         },
-        footnote: "🔒 Assine o Plano Pro e mantenha os alertas diários no WhatsApp.",
+        footnote: "🔒 Plano Pro mantém alertas + acompanhamento semanal.",
       };
     }
 
     if (whatsappTrialActive || whatsappLinked) {
       return {
         ...base,
-        calloutTitle: "Alertas ativos no WhatsApp.",
-        calloutSubtitle: "Receba notificações sobre oportunidades e horários. Para conversar com a IA, abra o Chat AI.",
+        calloutTitle: "Execução assistida ativa.",
+        calloutSubtitle:
+          "Você recebe alertas operacionais no WhatsApp e ajusta a estratégia no Chat AI e nas revisões semanais.",
         primary: {
           label: "Abrir WhatsApp (alertas)",
           variant: "whatsapp" as const,
@@ -1102,16 +1107,16 @@ export default function HomeClientPage() {
           onClick: handleOpenWhatsApp,
           trackingKey: "hero_trial_open",
         },
-        footnote: "🔔 Alertas no WhatsApp; dúvidas no Chat AI do app.",
+        footnote: "🔔 Alertas no WhatsApp; direção estratégica no app.",
       };
     }
 
     if (!whatsappTrialStarted && whatsappTrialEligible) {
       return {
         ...base,
-        calloutTitle: "Ative os alertas no WhatsApp.",
+        calloutTitle: "Ative os alertas para executar seu plano da semana.",
         calloutSubtitle:
-          "Receba notificações rápidas sobre seus posts. As conversas com IA ficam no Chat AI dentro da plataforma.",
+          "O WhatsApp cuida dos avisos rápidos. A revisão estratégica e os roteiros ficam na plataforma.",
         primary: {
           label: TRIAL_CTA_LABEL,
           variant: "whatsapp" as const,
@@ -1129,8 +1134,8 @@ export default function HomeClientPage() {
     if (planIsPro) {
       return {
         ...base,
-        calloutTitle: "Conecte seu WhatsApp para alertas.",
-        calloutSubtitle: "Ative notificações personalizadas com horários ideais. Dúvidas vão para o Chat AI.",
+        calloutTitle: "Conecte seu WhatsApp e complete seu fluxo de execução.",
+        calloutSubtitle: "Receba alertas de timing no WhatsApp e mantenha os ajustes no Chat AI.",
         primary: {
           label: "Conectar alertas no WhatsApp",
           variant: "whatsapp" as const,
@@ -1138,15 +1143,15 @@ export default function HomeClientPage() {
           onClick: handleOpenWhatsApp,
           trackingKey: "hero_trial_connect",
         },
-        footnote: "🔒 Plano Pro ativo — conecte e receba os alertas no WhatsApp.",
+        footnote: "🔒 Plano Pro ativo com acompanhamento estratégico contínuo.",
       };
     }
 
     return {
       ...base,
-      calloutTitle: "Ative os alertas no WhatsApp.",
+      calloutTitle: "Ative os alertas para executar seu plano da semana.",
       calloutSubtitle:
-        "Receba notificações rápidas sobre oportunidades e horários. Para conversar com a IA, use o Chat AI.",
+        "Receba notificações de oportunidades e horários no WhatsApp. Para direção e ajustes, use o Chat AI.",
       primary: {
         label: TRIAL_CTA_LABEL,
         variant: "whatsapp" as const,
@@ -1231,45 +1236,45 @@ export default function HomeClientPage() {
     return [
       {
         id: "progress-pro",
-        title: "Assinar Plano Pro",
+        title: "Ativar Plano Pro",
         description: planIsPro
-          ? "IA ilimitada, alertas constantes, convites de publicidade sem comissão e relatórios automáticos já estão ativos."
-          : "Assine o Plano Pro para manter a IA ligada, liberar oportunidades com marcas e receber suporte direto da equipe.",
+          ? "Plano Pro ativo: IA aplicada, alertas de execução, reuniões semanais e revisão personalizada já liberados."
+          : "Ative o Plano Pro para ter acompanhamento estratégico contínuo e acelerar resultados com marcas.",
         icon: <FaGem />,
         status: proStatus,
-        actionLabel: planIsPro ? "Ver painel Pro" : "Assinar agora",
+        actionLabel: planIsPro ? "Ver painel estratégico" : "Ativar agora",
         action: planIsPro ? () => handleNavigate("/dashboard") : handleHeaderSubscribe,
         variant: "pro",
         disabled: planIsPro,
       },
       {
         id: "progress-instagram",
-        title: "Vincular Instagram",
+        title: "Conectar Instagram",
         description: isInstagramConnected
-          ? "Relatório gratuito renovado toda semana com horários e tendências personalizadas."
-          : "Conecte em poucos cliques para liberar diagnóstico com horários e formatos vencedores.",
+          ? "Diagnóstico estratégico atualizado com dados reais da sua conta."
+          : "Conecte em poucos cliques para mapear oportunidades e definir direção de conteúdo com base em dados.",
         icon: <FaInstagram />,
         status: instagramStatus,
-        actionLabel: isInstagramConnected ? "Conectado" : "Vincular Instagram",
+        actionLabel: isInstagramConnected ? "Instagram conectado" : "Conectar Instagram",
         action: handleHeaderConnectInstagram,
         variant: "secondary",
         disabled: isInstagramConnected,
       },
       {
         id: "progress-community-vip",
-        title: "Acessar grupo VIP (Consultoria)",
+        title: "Entrar no grupo VIP (Revisão semanal)",
         description: communityVipMember
-          ? "Participando das mentorias semanais e trocas com outros criadores."
+          ? "Você está no grupo VIP com reuniões semanais de revisão de roteiro e trocas com outros criadores."
           : communityVipHasAccess
-            ? "Entre no grupo VIP para receber links das reuniões e fazer networking com os criadores."
-          : "Entre para destravar mentorias semanais e networking exclusivo.",
+            ? "Entre no grupo VIP para receber os links das reuniões semanais e fazer networking estratégico."
+          : "Ative o Plano Pro para liberar reuniões semanais e networking com criadores.",
         icon: <FaUsers />,
         status: mentorshipStatus,
         actionLabel: communityVipMember
-          ? "Mentoria ativa"
+          ? "Grupo VIP ativo"
           : communityVipHasAccess
             ? "Entrar no grupo VIP"
-            : "Assinar para entrar",
+            : "Ativar Pro para entrar",
         action: () => {
           if (communityVipMember) {
             handleMentorshipAction("whatsapp_reminder");
@@ -1284,8 +1289,8 @@ export default function HomeClientPage() {
         id: "progress-personalize-support",
         title: "Personalizar IA e suporte",
         description: surveyCompleted
-          ? "Preferências salvas. Atualize quando seu foco ou dores mudarem."
-          : "Responda em 2 minutos para ajustar IA, UX e notificações ao seu momento.",
+          ? "Preferências salvas. A IA e o suporte seguem adaptados ao seu momento."
+          : "Responda em 2 minutos para personalizar IA, revisões e recomendações estratégicas.",
         icon: <FaRobot />,
         status: surveyStatus,
         actionLabel: surveyCompleted ? "Revisar respostas" : "Responder pesquisa",
@@ -1404,8 +1409,8 @@ export default function HomeClientPage() {
     if (!isInstagramConnected) {
       return {
         subtitle:
-          "Conecte seu Instagram para começar.",
-        helper: "Leva menos de 30s.",
+          "Conecte seu Instagram para montarmos seu diagnóstico estratégico inicial.",
+        helper: "Leva menos de 30s e já libera recomendações.",
         ctaLabel: "🔗 Conectar Instagram",
         onClick: handleHeaderConnectInstagram,
       };
@@ -1413,8 +1418,8 @@ export default function HomeClientPage() {
 
     if (!whatsappLinked && !whatsappTrialActive && !whatsappTrialStarted && whatsappTrialEligible) {
       return {
-        subtitle: "Ative sua IA no WhatsApp.",
-        helper: "Conexão segura em segundos.",
+        subtitle: "Ative os alertas no WhatsApp para executar seu plano da semana com consistência.",
+        helper: "A IA avisa o timing; os ajustes estratégicos ficam na plataforma.",
         ctaLabel: TRIAL_CTA_LABEL,
         onClick: handleHeaderStartTrial,
       };
@@ -1422,17 +1427,17 @@ export default function HomeClientPage() {
 
     if (!planIsPro) {
       return {
-        subtitle: "Ative o Plano Pro para manter a IA ligada sem limites.",
+        subtitle: "Ative o Plano Pro para acompanhamento contínuo com IA, reuniões semanais e revisão personalizada.",
         helper: null,
-        ctaLabel: "🚀 Assinar Plano Pro",
+        ctaLabel: "🚀 Ativar Plano Pro",
         onClick: handleHeaderSubscribe,
       };
     }
 
     if (!communityFreeMember && !communityVipMember) {
       return {
-        subtitle: "Entre na comunidade para avançar mais rápido.",
-        helper: "Acesso imediato.",
+        subtitle: "Entre na comunidade para trocar com outros criadores e evoluir mais rápido.",
+        helper: "Networking e repertório aplicado.",
         ctaLabel: "🌎 Entrar na comunidade",
         onClick: () => handleJoinFreeCommunity("hero"),
       };
@@ -1440,8 +1445,8 @@ export default function HomeClientPage() {
 
     if (planIsPro && !whatsappLinked) {
       return {
-        subtitle: "Conecte o WhatsApp para receber alertas.",
-        helper: "Conexão segura em segundos.",
+        subtitle: "Conecte o WhatsApp para receber alertas operacionais do seu plano de conteúdo.",
+        helper: "Diagnóstico e revisão continuam na plataforma.",
         ctaLabel: "🔔 Conectar alertas no WhatsApp",
         onClick: handleHeaderStartTrial,
       };
@@ -1449,9 +1454,9 @@ export default function HomeClientPage() {
 
     if (planIsPro) {
       return {
-        subtitle: "Abra o painel do Plano Pro para continuar.",
+        subtitle: "Tudo pronto: siga seu plano estratégico e avance para novas oportunidades com marcas.",
         helper: null,
-        ctaLabel: "📊 Abrir painel Plano Pro",
+        ctaLabel: "📊 Abrir painel estratégico",
         onClick: () => handleNavigate("/dashboard"),
       };
     }
@@ -1483,9 +1488,9 @@ export default function HomeClientPage() {
   const heroFeedbackMessage = React.useMemo(() => {
     if (!isInstagramConnected) return null;
     if (whatsappLinked || whatsappTrialActive) {
-      return "🔔 Alertas no WhatsApp ativos — confira notificações e use o Chat AI para dúvidas.";
+      return "🔔 Alertas ativos no WhatsApp. Use o Chat AI e as revisões semanais para ajustar roteiro e execução.";
     }
-    return "✅ Instagram conectado! Mobi já está analisando seus últimos posts.";
+    return "✅ Instagram conectado! Seu diagnóstico estratégico já está sendo atualizado na plataforma.";
   }, [isInstagramConnected, whatsappLinked, whatsappTrialActive]);
 
   const journeyStageInfo = React.useMemo(() => {
@@ -1509,34 +1514,34 @@ export default function HomeClientPage() {
     ? Math.round((progressCompletedCount / progressTotalCount) * 100)
     : 0;
   const progressHeading = isNewUser
-    ? "Bem-vindo! Veja o que você pode fazer primeiro 👇"
-    : "Seu progresso na Data2Content";
+    ? "Bem-vindo! Vamos ativar sua agência estratégica 👇"
+    : "Seu plano estratégico na Data2Content";
   const progressDescription = isNewUser
-    ? "Comece pelo próximo passo para liberar suas análises."
+    ? "Comece pelo próximo passo para atrair marcas com estratégia e consistência."
     : journeyStageInfo.label;
   const toolCards = React.useMemo(() => {
     const plannerMetric = !isInstagramConnected
-      ? "Conexão somente leitura em segundos."
+      ? "Conexão em modo leitura em segundos."
       : nextSlotLabel
         ? `Próximo horário sugerido: ${nextSlotLabel}`
         : weeklyGoal > 0
           ? `Progresso da semana: ${Math.min(postsSoFar, weeklyGoal)}/${weeklyGoal} posts`
-          : "Defina uma meta semanal e eu gero os horários ideais.";
+          : "Defina sua meta semanal para orientar seu plano de conteúdo.";
     const plannerActionLabel = isInstagramConnected ? "Gerar horários com IA" : "Conectar Instagram";
     const plannerLocked = planningGroupLocked && !(hasPremiumAccessPlan || planTrialActive);
     const chartsLocked = plannerLocked;
 
     const mediaKitLastUpdate = summary?.mediaKit?.lastUpdatedLabel
       ? `Atualizado ${summary.mediaKit.lastUpdatedLabel}`
-      : "Atualize com dados recentes antes de enviar.";
+      : "Atualize com dados recentes antes de enviar para marcas.";
 
     const communityStatus = communityVipMember
-      ? "Mentorias VIP ativas."
+      ? "Revisões VIP semanais ativas."
       : communityVipHasAccess
         ? "Grupo VIP liberado para você."
         : communityFreeMember
           ? "Você já está na comunidade."
-          : "Acesso gratuito e leve.";
+          : "Acesso gratuito para começar a trocar com criadores.";
 
     const cards = [
       {
@@ -1544,12 +1549,12 @@ export default function HomeClientPage() {
         icon: <FaCalendarAlt aria-hidden="true" />,
         title: plannerLocked ? "Planejamento (Plano Pro)" : "Planejar com IA",
         description: plannerLocked
-          ? "Assine o Plano Pro para liberar horários automáticos e roteiros com IA."
+          ? "Ative o Plano Pro para liberar planejamento guiado com IA e revisão semanal."
           : isInstagramConnected
-            ? "Gere horários personalizados e receba roteiros prontos."
-            : "Conecte o Instagram e destrave horários com IA.",
+            ? "Gere horários personalizados e saia com direção clara para o próximo conteúdo."
+            : "Conecte o Instagram e destrave um planejamento baseado nos seus dados.",
         status: plannerLocked ? "Recurso exclusivo Plano Pro" : plannerMetric,
-        actionLabel: plannerLocked ? "Assinar Plano Pro" : plannerActionLabel,
+        actionLabel: plannerLocked ? "Ativar Plano Pro" : plannerActionLabel,
         onAction: () => {
           if (plannerLocked) {
             openSubscribeModal();
@@ -1567,15 +1572,15 @@ export default function HomeClientPage() {
         icon: <FaChartLine aria-hidden="true" />,
         title: chartsLocked ? "Gráficos (Plano Pro)" : "Gráficos de desempenho",
         description: chartsLocked
-          ? "Assine o Plano Pro para destravar gráficos de alcance e engajamento."
-          : "Visualize picos de alcance, formatos e tons que mais engajam.",
+          ? "Ative o Plano Pro para destravar leituras estratégicas de alcance e engajamento."
+          : "Visualize picos de alcance, formatos e mensagens que mais convertem.",
         status: chartsLocked
           ? "Exclusivo Plano Pro"
           : isInstagramConnected
-            ? "Explore tendências com dados reais da sua conta."
-            : "Conecte o Instagram para popular os gráficos.",
+            ? "Explore tendências com dados reais para orientar próximos roteiros."
+            : "Conecte o Instagram para alimentar os gráficos com seus dados.",
         actionLabel: chartsLocked
-          ? "Assinar Plano Pro"
+          ? "Ativar Plano Pro"
           : isInstagramConnected
             ? "Abrir gráficos"
             : "Conectar Instagram",
@@ -1596,8 +1601,8 @@ export default function HomeClientPage() {
         icon: <FaBullhorn aria-hidden="true" />,
         title: "Kit de mídia",
         description: hasMediaKit
-          ? "Mantenha seus números atualizados antes de enviar para marcas."
-          : "Gere um link com prova social automática em minutos.",
+          ? "Mantenha seus números atualizados para negociar com marcas com confiança."
+          : "Crie um link profissional com prova social para atrair marcas em minutos.",
         status: hasMediaKit ? mediaKitLastUpdate : "Pronto para criar seu primeiro kit.",
         actionLabel: hasMediaKit ? "Abrir kit" : "Criar kit",
         onAction: () => handleMediaKitAction(hasMediaKit ? "open_brand_view" : "create_media_kit"),
@@ -1610,8 +1615,8 @@ export default function HomeClientPage() {
         icon: <FaUsers aria-hidden="true" />,
         title: "Comunidade",
         description: communityFreeMember
-          ? "Participe dos desafios e mentorias semanais."
-          : "Entre para trocar bastidores com criadores Data2Content.",
+          ? "Participe das trocas e desafios com outros criadores."
+          : "Entre para trocar bastidores e acelerar sua evolução com outros criadores.",
         status: communityStatus,
         actionLabel: isSubscriberPlan
           ? canAccessVipCommunity
@@ -1702,11 +1707,11 @@ export default function HomeClientPage() {
             <div className="space-y-1">
               <p className="font-semibold">Seu acesso promocional chegou ao fim.</p>
               <p className="text-xs text-amber-700">
-                Ative o Plano Pro e continue recebendo roteiros e alertas ilimitados no WhatsApp.
+                Ative o Plano Pro para manter alertas, revisão semanal e acompanhamento estratégico contínuo.
               </p>
             </div>
             <ActionButton
-              label="Assinar Plano Pro"
+              label="Ativar Plano Pro"
               icon={<FaGem />}
               variant="pro"
               onClick={() => {
@@ -1728,7 +1733,7 @@ export default function HomeClientPage() {
         <div>
           <p className="text-sm font-semibold text-slate-900">Conecte seu WhatsApp</p>
           <p className="text-sm text-slate-600">
-            Copie o código, abra o WhatsApp e confirme para liberar a IA direto no app.
+            Copie o código, abra o WhatsApp e confirme para ativar os alertas de execução.
           </p>
         </div>
         <button
@@ -1760,7 +1765,7 @@ export default function HomeClientPage() {
 
   const toolsLockedReason = isInstagramConnected
     ? null
-    : "Conecte seu Instagram para liberar os atalhos.";
+    : "Conecte seu Instagram para liberar atalhos com contexto real.";
 
   const creatorTools = React.useMemo<CreatorToolCardProps[]>(() => {
     const proLocked = !hasPremiumAccessPlan;
@@ -1770,7 +1775,7 @@ export default function HomeClientPage() {
     list.push({
       id: "campaigns",
       title: "Campanhas",
-      description: "Receba e responda propostas com IA",
+      description: "Receba propostas e responda com direção estratégica",
       icon: <FaBullhorn className="h-5 w-5" aria-hidden />,
       cta: "open",
       onClick: () => {
@@ -1782,7 +1787,7 @@ export default function HomeClientPage() {
     list.push({
       id: "media_kit",
       title: "Mídia Kit",
-      description: "Sua vitrine pública para marcas",
+      description: "Sua vitrine estratégica para fechar com marcas",
       icon: <FaMagic className="h-5 w-5" aria-hidden />,
       cta: "open",
       onClick: () => {
@@ -1794,7 +1799,7 @@ export default function HomeClientPage() {
     list.push({
       id: "calculator",
       title: "Calculadora Plano Pro",
-      description: "Descubra seu valor de mercado",
+      description: "Entenda seu valor comercial com clareza",
       icon: <FaCalculator className="h-5 w-5" aria-hidden />,
       badge: "Pro",
       locked: proLocked,
@@ -1812,7 +1817,7 @@ export default function HomeClientPage() {
     list.push({
       id: "calendar",
       title: "Calendário",
-      description: "Agende e organize seus posts",
+      description: "Planeje sua semana com foco em resultado",
       icon: <FaCalendarAlt className="h-5 w-5" aria-hidden />,
       badge: "Pro",
       locked: proLocked,
@@ -1830,7 +1835,7 @@ export default function HomeClientPage() {
     list.push({
       id: "discovery",
       title: "Descoberta",
-      description: "Inspirações e tendências virais",
+      description: "Inspirações com contexto para seu posicionamento",
       icon: <FaUsers className="h-5 w-5" aria-hidden />,
       badge: "Pro",
       locked: proLocked,
@@ -1845,8 +1850,8 @@ export default function HomeClientPage() {
       id: "charts",
       title: chartsLocked ? "Gráficos (Plano Pro)" : "Gráficos",
       description: chartsLocked
-        ? "Assine o Plano Pro para destravar gráficos de alcance e engajamento."
-        : "Veja horários quentes, formatos e tons que mais engajam.",
+        ? "Ative o Plano Pro para destravar leituras estratégicas de desempenho."
+        : "Veja horários quentes, formatos e mensagens que mais convertem.",
       icon: <FaChartLine className="h-5 w-5" aria-hidden />,
       badge: "Pro",
       locked: chartsLocked,
@@ -1868,7 +1873,7 @@ export default function HomeClientPage() {
     list.push({
       id: "chat",
       title: "Chat IA",
-      description: "Seu assistente de conteúdo",
+      description: "Seu copiloto para revisar roteiro e execução",
       icon: <FaRobot className="h-5 w-5" aria-hidden />,
       badge: "Pro",
       locked: proLocked,
@@ -1882,7 +1887,7 @@ export default function HomeClientPage() {
     list.push({
       id: "whatsapp",
       title: "Alertas no WhatsApp",
-      description: "Notificações rápidas; dúvidas no Chat AI",
+      description: "Alertas operacionais no WhatsApp, estratégia no app",
       icon: <FaWhatsapp className="h-5 w-5" aria-hidden />,
       badge: "Pro",
       locked: proLocked,
@@ -2005,7 +2010,7 @@ export default function HomeClientPage() {
     <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
       <div className="space-y-1 text-sm text-slate-700">
         <div className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
-          <span>✨ Mentorias semanais do Plano Pro</span>
+          <span>✨ Reuniões semanais e networking do Plano Pro</span>
           {!canAccessVipCommunity ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
               <FaLock className="h-3 w-3" />
@@ -2014,7 +2019,7 @@ export default function HomeClientPage() {
           ) : null}
         </div>
         <p className="text-slate-600">
-          Consultorias ao vivo no grupo VIP de assinantes e comunidade gratuita para networking.
+          Revisão de roteiro e conteúdo no grupo VIP de assinantes, com comunidade gratuita para troca entre criadores.
         </p>
       </div>
       <div className="mt-3 flex flex-col gap-2 sm:mt-0 sm:flex-row sm:items-center">
@@ -2029,8 +2034,8 @@ export default function HomeClientPage() {
           {resolvingVipAccess
             ? "Validando acesso..."
             : canAccessVipCommunity
-            ? "Abrir grupo VIP"
-            : "Assinar para entrar"}
+            ? "Abrir grupo de revisão"
+            : "Ativar Pro para entrar"}
           {!canAccessVipCommunity ? (
             <FaLock className="h-4 w-4" />
           ) : (
@@ -2230,7 +2235,7 @@ export default function HomeClientPage() {
                   Bem-vindo à Data2Content
                 </p>
                 <p className="text-sm font-semibold">
-                  Vamos destravar seu diagnóstico com poucos passos.
+                  Vamos configurar sua base estratégica para atrair marcas e crescer em comunidade.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -2261,16 +2266,18 @@ export default function HomeClientPage() {
                   {isNewUser ? (
                     <>
                       Bem-vindo, <span className="text-[#F6007B]">{firstName}</span>!{" "}
-                      <span className="text-slate-900">Vamos dar os primeiros passos com IA.</span>
+                      <span className="text-slate-900">Sua agência estratégica de conteúdo começa aqui.</span>
                     </>
                   ) : (
                     <>
                       Oi, <span className="text-[#F6007B]">{firstName}</span>!{" "}
-                      <span className="text-slate-900">Sua carreira de criador com IA começa aqui.</span>
+                      <span className="text-slate-900">Vamos transformar estratégia em crescimento com marcas.</span>
                     </>
                   )}
                 </h1>
                 <p className="text-base text-slate-600 sm:text-lg">{heroMessaging.subtitle}</p>
+                <p className="text-sm text-slate-500">{BRAND_POSITIONING}</p>
+                <p className="text-xs text-slate-500">{BRAND_SUPPORT_PROMISE}</p>
                 {heroFeedbackMessage ? (
                   <p className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 lg:justify-start">
                     {heroFeedbackMessage}
@@ -2464,7 +2471,7 @@ export default function HomeClientPage() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Alertas no WhatsApp</h2>
+                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Execução da semana no WhatsApp</h2>
                 <p className="text-sm text-slate-600">
                   {whatsappBanner.subheading} {whatsappBanner.description}
                 </p>
@@ -2480,7 +2487,7 @@ export default function HomeClientPage() {
               <div className="space-y-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm text-slate-600 shadow-sm">
                 <p className="flex items-center gap-2">
                   <span aria-hidden="true">💬</span>
-                  Mobi envia alertas quando surge um pico de engajamento no seu perfil.
+                  Mobi envia alertas quando detecta janelas fortes de performance no seu perfil.
                 </p>
                 <p className="flex items-center gap-2">
                   <span aria-hidden="true">🕓</span>
@@ -2525,7 +2532,7 @@ export default function HomeClientPage() {
                   </span>
                   <div>
                     <p className="text-sm font-semibold text-slate-900">Prévia do chat com a IA</p>
-                    <p className="text-xs text-slate-500">Veja como os alertas chegam pra você</p>
+                    <p className="text-xs text-slate-500">Veja como os alertas chegam para apoiar sua execução</p>
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -2564,7 +2571,7 @@ export default function HomeClientPage() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ferramentas do criador</h2>
               <p className="text-sm text-slate-500">
-                Aja quando quiser: planner, kit de mídia e comunidade em um só lugar.
+                Planejamento, Mídia Kit e comunidade para transformar estratégia em resultado.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -2606,7 +2613,7 @@ export default function HomeClientPage() {
             <div className="">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
                 <FaMagic className="h-3.5 w-3.5 text-[#F6007B]" aria-hidden />
-                Micro-insight da semana
+                Insight estratégico da semana
               </div>
               <div className="mt-3 space-y-2">
                 <p className="text-base leading-relaxed text-slate-900">{microInsightCard.message}</p>
@@ -2661,11 +2668,10 @@ export default function HomeClientPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
-                  Teste gratuito da IA em andamento
+                  Acompanhamento estratégico em teste
                 </h2>
                 <p className="text-sm text-slate-600">
-                  Aproveite os próximos {planTrialCountdownLabel ?? "dois dias"} para planejar a semana, pedir ideias e
-                  confirmar horários com a IA.
+                  Aproveite os próximos {planTrialCountdownLabel ?? "dois dias"} para validar roteiro, horário e direção com IA aplicada.
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2 sm:max-w-xs">
@@ -2674,10 +2680,10 @@ export default function HomeClientPage() {
                   onClick={handleOpenWhatsApp}
                   className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
                 >
-                  Ver alertas da IA
+                  Ver alertas e próximos passos
                 </button>
                 <span className="text-center text-xs text-slate-500">
-                  Mobi envia lembretes sempre que surge um pico de engajamento.
+                  Mobi envia lembretes sempre que surge uma janela forte de performance.
                 </span>
               </div>
             </div>
@@ -2688,9 +2694,9 @@ export default function HomeClientPage() {
           <section className="mt-10 rounded-3xl bg-gradient-to-br from-[#FFF1F8] via-white to-white px-6 py-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Gostou da IA?</h2>
+                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Continue com acompanhamento completo</h2>
                 <p className="text-sm text-slate-600">
-                  Continue com relatórios automáticos, alertas ilimitados e suporte direto da equipe D2C.
+                  Mantenha revisão semanal de roteiro, alertas operacionais e direcionamento estratégico para atrair marcas.
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2 sm:max-w-xs">
@@ -2699,10 +2705,10 @@ export default function HomeClientPage() {
                   onClick={handleHeaderSubscribe}
                   className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
                 >
-                  Assinar Plano Pro
+                  Ativar Plano Pro
                 </button>
                 <span className="text-center text-xs text-slate-500">
-                  Alertas ilimitados + relatórios semanais automáticos.
+                  Alertas de execução + acompanhamento estratégico semanal.
                 </span>
               </div>
             </div>

@@ -2421,8 +2421,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 </p>
               </div>
             ) : null}
-            {/* Sticky Filter Bar */}
-            <div className="sticky top-0 z-40 -mx-4 mb-2 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:px-4 sm:py-2.5 sm:shadow-sm">
+          </header>
+
+          {/* Sticky Filter Bar */}
+          <div className="sticky top-0 z-20 isolate -mx-4 mb-2 border-b border-slate-200 bg-white px-4 py-3 supports-[backdrop-filter]:bg-white/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:px-4 sm:py-2.5 sm:shadow-sm">
               <div className="flex items-center justify-between sm:hidden">
                 <div className="flex items-center gap-2">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
@@ -2554,7 +2556,6 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 </button>
               </div>
             </div>
-          </header>
 
           <div className="flex w-full items-center gap-2 overflow-x-auto border-b border-slate-200 pb-2 scrollbar-none">
             <button
