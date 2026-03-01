@@ -480,8 +480,8 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
     const [shouldAutoScrollDesktop, setShouldAutoScrollDesktop] = React.useState(false);
     const [shouldAutoScrollMobile, setShouldAutoScrollMobile] = React.useState(false);
     const interactionTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-    const AUTO_SCROLL_MIN_CREATORS_DESKTOP = 9;
-    const AUTO_SCROLL_MIN_CREATORS_MOBILE = 8;
+    const AUTO_SCROLL_MIN_CREATORS_DESKTOP = 6; // ativa apenas quando houver mais de 5
+    const AUTO_SCROLL_MIN_CREATORS_MOBILE = 4; // ativa apenas quando houver mais de 3
 
     const normalizedCreators = React.useMemo(() => {
         const seen = new Set<string>();

@@ -3,9 +3,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2, Check } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2, Check, Link2 } from "lucide-react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { track } from "@/lib/track";
 import {
   LAST_VIEWED_SCRIPTS_ADMIN_FEEDBACK_AT_KEY,
   LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY,
@@ -42,6 +43,31 @@ type ScriptPublication = {
   } | null;
 };
 
+type ScriptLinkingCampaignSummary = {
+  proposalId: string;
+  linkId: string;
+  campaignTitle: string;
+  brandName: string;
+  linkedAt: string | null;
+};
+
+type ScriptLinkingSummary = {
+  isLinked: boolean;
+  totalLinks: number;
+  campaigns: ScriptLinkingCampaignSummary[];
+};
+
+type CardActionFeedback = {
+  variant: "success" | "error" | "info";
+  message: string;
+  phase: "entering" | "shown" | "leaving";
+};
+
+type CardActionFeedbackInput = {
+  variant: "success" | "error" | "info";
+  message: string;
+};
+
 type ScriptItem = {
   id: string;
   title: string;
@@ -72,6 +98,7 @@ type ScriptItem = {
     createdAt: string;
   }>;
   publication?: ScriptPublication | null;
+  linkingSummary?: ScriptLinkingSummary | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -160,10 +187,22 @@ function getBlockLabel(hour?: number) {
   return `${String(hour).padStart(2, "0")}h-${String(end).padStart(2, "0")}h`;
 }
 
+function isScriptFromCalendar(script: Pick<ScriptItem, "source" | "linkType">) {
+  return script.linkType === "planner_slot" || script.source === "planner";
+}
+
+function getCalendarOriginSummary(plannerRef?: ScriptPlannerRef | null) {
+  if (!plannerRef) return "Origem: Calendário";
+  const day = getDayLabel(plannerRef.dayOfWeek);
+  const block = getBlockLabel(plannerRef.blockStartHour);
+  if (day === "Dia" || block === "Horário") return "Origem: Calendário";
+  return `Origem: Calendário • ${day} ${block}`;
+}
+
 function getSourceLabel(source: ScriptOrigin) {
   if (source === "manual") return "Manual";
   if (source === "ai") return "IA";
-  return "Planner";
+  return "Calendário";
 }
 
 function getSourceCardTone(source: ScriptOrigin) {
@@ -226,6 +265,45 @@ function buildContentOptionLabel(option: ContentOption) {
   return `${option.caption} · ${dateLabel} · Eng: ${engagementLabel}`;
 }
 
+function buildEmptyLinkingSummary(): ScriptLinkingSummary {
+  return {
+    isLinked: false,
+    totalLinks: 0,
+    campaigns: [],
+  };
+}
+
+function normalizeScriptLinkingSummary(summary?: ScriptLinkingSummary | null): ScriptLinkingSummary {
+  if (!summary) return buildEmptyLinkingSummary();
+  const campaigns = Array.isArray(summary.campaigns)
+    ? summary.campaigns
+      .filter((item) => item && typeof item.proposalId === "string" && typeof item.linkId === "string")
+      .map((item) => ({
+        proposalId: item.proposalId,
+        linkId: item.linkId,
+        campaignTitle: item.campaignTitle || "Campanha sem título",
+        brandName: item.brandName || "Marca",
+        linkedAt: item.linkedAt || null,
+      }))
+    : [];
+  const totalLinks =
+    typeof summary.totalLinks === "number" && Number.isFinite(summary.totalLinks)
+      ? Math.max(summary.totalLinks, campaigns.length)
+      : campaigns.length;
+  return {
+    isLinked: Boolean(summary.isLinked) || totalLinks > 0,
+    totalLinks,
+    campaigns,
+  };
+}
+
+function withNormalizedLinkingSummary(script: ScriptItem): ScriptItem {
+  return {
+    ...script,
+    linkingSummary: normalizeScriptLinkingSummary(script.linkingSummary),
+  };
+}
+
 function getCardTitle(script: ScriptItem) {
   const title = script.title?.trim();
   if (title) return title;
@@ -286,6 +364,13 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [linkingToCampaign, setLinkingToCampaign] = useState(false);
+  const [activeCardLinkScriptId, setActiveCardLinkScriptId] = useState<string | null>(null);
+  const [cardCampaignByScriptId, setCardCampaignByScriptId] = useState<Record<string, string>>({});
+  const [cardLinkingScriptId, setCardLinkingScriptId] = useState<string | null>(null);
+  const [cardLinkErrorByScriptId, setCardLinkErrorByScriptId] = useState<Record<string, string>>({});
+  const [cardActionFeedbackByScriptId, setCardActionFeedbackByScriptId] = useState<
+    Record<string, CardActionFeedback>
+  >({});
   const [contentOptions, setContentOptions] = useState<ContentOption[]>([]);
   const [contentOptionsLoading, setContentOptionsLoading] = useState(false);
   const [publicationSavingScriptId, setPublicationSavingScriptId] = useState<string | null>(null);
@@ -333,6 +418,17 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const latestFeedbackToastRef = useRef<string>("");
   const nextCursorRef = useRef<string | null>(null);
   const quickPublishPopoverRef = useRef<HTMLDivElement | null>(null);
+  const cardLinkPopoverRef = useRef<HTMLDivElement | null>(null);
+  const cardActionFeedbackTimersRef = useRef<
+    Map<
+      string,
+      {
+        enter?: ReturnType<typeof setTimeout>;
+        dismiss?: ReturnType<typeof setTimeout>;
+        remove?: ReturnType<typeof setTimeout>;
+      }
+    >
+  >(new Map());
 
   const isAdminViewer = viewer?.role === "admin";
   const isActingOnBehalf = Boolean(
@@ -342,6 +438,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     adminTargetUser.id !== viewer.id
   );
   const targetUserId = isActingOnBehalf ? adminTargetUser?.id ?? null : null;
+  const handleGoToCalendar = useCallback(() => {
+    router.push("/planning");
+  }, [router]);
   const handleReturnToCampaign = useCallback(() => {
     if (!requestedProposalId) return;
     router.push(`/campaigns?proposalId=${encodeURIComponent(requestedProposalId)}`);
@@ -361,65 +460,66 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     nextCursorRef.current = nextCursor;
   }, [nextCursor]);
 
-  useEffect(() => {
-    if (!editorOpen || isAdminViewer || hasFetchedCampaignOptionsRef.current) return;
-
-    let cancelled = false;
-
-    async function fetchCampaignOptions() {
-      try {
-        setCampaignsLoading(true);
-        const response = await fetch("/api/proposals?limit=200", { cache: "no-store" });
-        const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(payload?.error || "Não foi possível carregar campanhas.");
-        }
-
-        const items = Array.isArray(payload?.items) ? payload.items : [];
-        const options: CampaignOption[] = items
-          .map((item: any) => ({
-            id: String(item?.id ?? ""),
-            campaignTitle:
-              typeof item?.campaignTitle === "string" && item.campaignTitle.trim()
-                ? item.campaignTitle.trim()
-                : "Campanha sem título",
-            brandName:
-              typeof item?.brandName === "string" && item.brandName.trim()
-                ? item.brandName.trim()
-                : "Marca",
-          }))
-          .filter((item: CampaignOption) => Boolean(item.id));
-
-        if (cancelled) return;
-
-        setCampaignOptions(options);
-        hasFetchedCampaignOptionsRef.current = true;
-        setSelectedCampaignId((current) => {
-          if (current && options.some((option) => option.id === current)) {
-            return current;
-          }
-          return options[0]?.id ?? "";
-        });
-      } catch (error: any) {
-        if (cancelled) return;
-        setCampaignOptions([]);
-        setSelectedCampaignId("");
-        toast({
-          variant: "error",
-          title: error?.message || "Falha ao carregar campanhas para vinculação.",
-        });
-      } finally {
-        if (!cancelled) setCampaignsLoading(false);
-      }
+  const ensureCampaignOptionsLoaded = useCallback(async () => {
+    if (isAdminViewer) {
+      return [];
+    }
+    if (hasFetchedCampaignOptionsRef.current) {
+      return campaignOptions;
     }
 
-    fetchCampaignOptions();
+    try {
+      setCampaignsLoading(true);
+      const response = await fetch("/api/proposals?limit=200", { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
 
-    return () => {
-      cancelled = true;
-    };
-  }, [editorOpen, isAdminViewer, toast]);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Não foi possível carregar campanhas.");
+      }
+
+      const items = Array.isArray(payload?.items) ? payload.items : [];
+      const options: CampaignOption[] = items
+        .map((item: any) => ({
+          id: String(item?.id ?? ""),
+          campaignTitle:
+            typeof item?.campaignTitle === "string" && item.campaignTitle.trim()
+              ? item.campaignTitle.trim()
+              : "Campanha sem título",
+          brandName:
+            typeof item?.brandName === "string" && item.brandName.trim()
+              ? item.brandName.trim()
+              : "Marca",
+        }))
+        .filter((item: CampaignOption) => Boolean(item.id));
+
+      setCampaignOptions(options);
+      hasFetchedCampaignOptionsRef.current = true;
+      setSelectedCampaignId((current) => {
+        if (current && options.some((option) => option.id === current)) {
+          return current;
+        }
+        return options[0]?.id ?? "";
+      });
+
+      return options;
+    } catch (error: any) {
+      setCampaignOptions([]);
+      setSelectedCampaignId("");
+      hasFetchedCampaignOptionsRef.current = false;
+      toast({
+        variant: "error",
+        title: error?.message || "Falha ao carregar campanhas para vinculação.",
+      });
+      return [];
+    } finally {
+      setCampaignsLoading(false);
+    }
+  }, [campaignOptions, isAdminViewer, toast]);
+
+  useEffect(() => {
+    if (!editorOpen || isAdminViewer || hasFetchedCampaignOptionsRef.current) return;
+    void ensureCampaignOptionsLoaded();
+  }, [editorOpen, ensureCampaignOptionsLoaded, isAdminViewer]);
 
   const ensureContentOptionsLoaded = useCallback(async () => {
     if (hasFetchedContentOptionsRef.current) {
@@ -499,9 +599,24 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [quickPublishAnchorScriptId]);
 
   useEffect(() => {
+    if (!activeCardLinkScriptId) return;
+    function handleOutsideClick(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (cardLinkPopoverRef.current?.contains(target)) return;
+      setActiveCardLinkScriptId(null);
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [activeCardLinkScriptId]);
+
+  useEffect(() => {
     setQuickPublishAnchorScriptId(null);
     setQuickPublishContentId("");
     setQuickPublishQuery("");
+    setActiveCardLinkScriptId(null);
   }, [postedFilter]);
 
   const unreadFeedbackScriptIds = useMemo(() => {
@@ -549,7 +664,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           throw new Error(data?.error || "Não foi possível carregar os roteiros.");
         }
 
-        const incoming = Array.isArray(data?.items) ? (data.items as ScriptItem[]) : [];
+        const incomingRaw = Array.isArray(data?.items) ? (data.items as ScriptItem[]) : [];
+        const incoming = incomingRaw.map((item) => withNormalizedLinkingSummary(item));
         const cursor = data?.pagination?.nextCursor ?? null;
         const more = Boolean(data?.pagination?.hasMore);
 
@@ -595,7 +711,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
   useEffect(() => {
     fetchScripts({ reset: true });
-  }, [fetchScripts, postedFilter, targetUserId]);
+  }, [fetchScripts]);
 
   useEffect(() => {
     if (loadingList) return;
@@ -667,6 +783,95 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     setEditor((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  const clearCardActionFeedbackTimers = useCallback((scriptId: string) => {
+    const timers = cardActionFeedbackTimersRef.current.get(scriptId);
+    if (!timers) return;
+    if (timers.enter) clearTimeout(timers.enter);
+    if (timers.dismiss) clearTimeout(timers.dismiss);
+    if (timers.remove) clearTimeout(timers.remove);
+    cardActionFeedbackTimersRef.current.delete(scriptId);
+  }, []);
+
+  const removeCardActionFeedback = useCallback(
+    (scriptId: string) => {
+      setCardActionFeedbackByScriptId((prev) => {
+        if (!prev[scriptId]) return prev;
+        const next = { ...prev };
+        delete next[scriptId];
+        return next;
+      });
+      clearCardActionFeedbackTimers(scriptId);
+    },
+    [clearCardActionFeedbackTimers]
+  );
+
+  const startCardActionFeedbackExit = useCallback(
+    (scriptId: string) => {
+      setCardActionFeedbackByScriptId((prev) => {
+        const current = prev[scriptId];
+        if (!current || current.phase === "leaving") return prev;
+        return {
+          ...prev,
+          [scriptId]: {
+            ...current,
+            phase: "leaving",
+          },
+        };
+      });
+
+      const timers = cardActionFeedbackTimersRef.current.get(scriptId) || {};
+      if (timers.remove) clearTimeout(timers.remove);
+      timers.remove = setTimeout(() => {
+        removeCardActionFeedback(scriptId);
+      }, 220);
+      cardActionFeedbackTimersRef.current.set(scriptId, timers);
+    },
+    [removeCardActionFeedback]
+  );
+
+  const setCardActionFeedback = useCallback(
+    (
+      scriptId: string,
+      feedback: CardActionFeedbackInput | null,
+      options?: { ttlMs?: number }
+    ) => {
+      clearCardActionFeedbackTimers(scriptId);
+
+      if (!feedback) {
+        startCardActionFeedbackExit(scriptId);
+        return;
+      }
+
+      setCardActionFeedbackByScriptId((prev) => ({
+        ...prev,
+        [scriptId]: { ...feedback, phase: "entering" },
+      }));
+
+      const timers = cardActionFeedbackTimersRef.current.get(scriptId) || {};
+      timers.enter = setTimeout(() => {
+        setCardActionFeedbackByScriptId((prev) => {
+          const current = prev[scriptId];
+          if (!current) return prev;
+          if (current.message !== feedback.message || current.variant !== feedback.variant) return prev;
+          return {
+            ...prev,
+            [scriptId]: {
+              ...current,
+              phase: "shown",
+            },
+          };
+        });
+      }, 16);
+
+      const ttlMs = options?.ttlMs ?? 4500;
+      timers.dismiss = setTimeout(() => {
+        startCardActionFeedbackExit(scriptId);
+      }, ttlMs);
+      cardActionFeedbackTimersRef.current.set(scriptId, timers);
+    },
+    [clearCardActionFeedbackTimers, startCardActionFeedbackExit]
+  );
+
   const clearHistoryTimer = useCallback(() => {
     if (!historyTimerRef.current) return;
     clearTimeout(historyTimerRef.current);
@@ -701,6 +906,20 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     setQuickPublishContentId("");
     setQuickPublishSaving(false);
     setQuickPublishQuery("");
+    setActiveCardLinkScriptId(null);
+    setCardCampaignByScriptId({});
+    setCardLinkingScriptId(null);
+    setCardLinkErrorByScriptId({});
+    setCardActionFeedbackByScriptId({});
+    cardActionFeedbackTimersRef.current.forEach((timers) => {
+      if (timers.enter) clearTimeout(timers.enter);
+      if (timers.dismiss) clearTimeout(timers.dismiss);
+      if (timers.remove) clearTimeout(timers.remove);
+    });
+    cardActionFeedbackTimersRef.current.clear();
+    setCampaignOptions([]);
+    setSelectedCampaignId("");
+    hasFetchedCampaignOptionsRef.current = false;
   }, [targetUserId, resetDraftHistory]);
 
   const commitDraftSnapshot = useCallback((snapshot: DraftSnapshot) => {
@@ -806,6 +1025,18 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     return () => clearHistoryTimer();
   }, [clearHistoryTimer]);
 
+  useEffect(() => {
+    const feedbackTimers = cardActionFeedbackTimersRef.current;
+    return () => {
+      feedbackTimers.forEach((timers) => {
+        if (timers.enter) clearTimeout(timers.enter);
+        if (timers.dismiss) clearTimeout(timers.dismiss);
+        if (timers.remove) clearTimeout(timers.remove);
+      });
+      feedbackTimers.clear();
+    };
+  }, []);
+
   const openCreateEditor = useCallback(() => {
     if (!isActingOnBehalf && !plannerWeekStart && plannerSlots.length === 0) {
       void fetchPlannerSlots();
@@ -872,7 +1103,11 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
         const item = payload.item as ScriptItem;
         hasAutoOpenedQueryScriptRef.current = requestedScriptId;
-        setScripts((prev) => (prev.some((entry) => entry.id === item.id) ? prev : [item, ...prev]));
+        setScripts((prev) =>
+          prev.some((entry) => entry.id === item.id)
+            ? prev
+            : [withNormalizedLinkingSummary(item), ...prev]
+        );
         openExistingEditor(item);
       } catch (error: any) {
         if (cancelled) return;
@@ -899,7 +1134,15 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   ]);
 
   const patchScriptList = useCallback((updated: ScriptItem) => {
-    setScripts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    setScripts((prev) =>
+      prev.map((item) => {
+        if (item.id !== updated.id) return item;
+        return withNormalizedLinkingSummary({
+          ...updated,
+          linkingSummary: updated.linkingSummary ?? item.linkingSummary ?? buildEmptyLinkingSummary(),
+        });
+      })
+    );
   }, []);
 
   const patchScriptPublication = useCallback(
@@ -939,8 +1182,20 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         try {
           setPublicationSavingScriptId(script.id);
           await patchScriptPublication(script, { isPosted: false, postedContentId: null });
+          setCardActionFeedback(script.id, {
+            variant: "success",
+            message: "Roteiro desmarcado como postado.",
+          });
           toast({ variant: "success", title: "Roteiro desmarcado como postado." });
         } catch (error: any) {
+          setCardActionFeedback(
+            script.id,
+            {
+              variant: "error",
+              message: error?.message || "Não foi possível desmarcar o roteiro como postado.",
+            },
+            { ttlMs: 6000 }
+          );
           toast({
             variant: "error",
             title: error?.message || "Não foi possível desmarcar o roteiro como postado.",
@@ -953,6 +1208,14 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
       const options = await ensureContentOptionsLoaded();
       if (!options || options.length === 0) {
+        setCardActionFeedback(
+          script.id,
+          {
+            variant: "error",
+            message: "Sem conteúdos disponíveis para marcar como postado.",
+          },
+          { ttlMs: 6000 }
+        );
         toast({
           variant: "warning",
           title: "Sem conteúdos disponíveis para vincular. Abra o roteiro para escolher depois.",
@@ -963,12 +1226,17 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       setQuickPublishAnchorScriptId((current) => (current === script.id ? null : script.id));
       setQuickPublishContentId(options[0]?.id || "");
       setQuickPublishQuery("");
+      setCardActionFeedback(script.id, {
+        variant: "info",
+        message: "Selecione o conteúdo publicado para concluir.",
+      });
     },
     [
       ensureContentOptionsLoaded,
       patchScriptPublication,
       publicationSavingScriptId,
       quickPublishSaving,
+      setCardActionFeedback,
       toast,
     ]
   );
@@ -992,11 +1260,23 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         isPosted: true,
         postedContentId: quickPublishContentId,
       });
+      setCardActionFeedback(targetScript.id, {
+        variant: "success",
+        message: "Roteiro marcado como postado.",
+      });
       toast({ variant: "success", title: "Roteiro marcado como postado." });
       setQuickPublishAnchorScriptId(null);
       setQuickPublishContentId("");
       setQuickPublishQuery("");
     } catch (error: any) {
+      setCardActionFeedback(
+        targetScript.id,
+        {
+          variant: "error",
+          message: error?.message || "Não foi possível marcar o roteiro como postado.",
+        },
+        { ttlMs: 6000 }
+      );
       toast({
         variant: "error",
         title: error?.message || "Não foi possível marcar o roteiro como postado.",
@@ -1004,7 +1284,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     } finally {
       setQuickPublishSaving(false);
     }
-  }, [patchScriptPublication, quickPublishAnchorScriptId, quickPublishContentId, scripts, toast]);
+  }, [patchScriptPublication, quickPublishAnchorScriptId, quickPublishContentId, scripts, setCardActionFeedback, toast]);
 
   const handleSave = useCallback(async () => {
     flushPendingDraftSnapshot();
@@ -1105,7 +1385,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         }
 
         const created = data.item as ScriptItem;
-        setScripts((prev) => [created, ...prev]);
+        setScripts((prev) => [withNormalizedLinkingSummary(created), ...prev]);
         patchEditor({
           id: created.id,
           title: created.title,
@@ -1215,7 +1495,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         }
 
         const created = data.item as ScriptItem;
-        setScripts((prev) => [created, ...prev]);
+        setScripts((prev) => [withNormalizedLinkingSummary(created), ...prev]);
         patchEditor({
           id: created.id,
           title: created.title,
@@ -1262,52 +1542,326 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     [editor.adjusting, handleAiAdjust]
   );
 
-  const handleLinkToCampaign = useCallback(async () => {
-    if (!editor.id) {
-      toast({
-        variant: "warning",
-        title: "Salve o roteiro antes de vincular à campanha.",
-      });
-      return;
-    }
+  const patchScriptLinkingSummary = useCallback(
+    (params: {
+      scriptId: string;
+      campaignId: string;
+      campaignTitle: string;
+      brandName: string;
+      linkId?: string | null;
+      linkedAt?: string | null;
+    }) => {
+      setScripts((prev) =>
+        prev.map((item) => {
+          if (item.id !== params.scriptId) return item;
+          const currentSummary = normalizeScriptLinkingSummary(item.linkingSummary);
+          const hasCampaign = currentSummary.campaigns.some(
+            (campaign) => campaign.proposalId === params.campaignId
+          );
+          if (hasCampaign) return item;
 
-    if (!selectedCampaignId) {
-      toast({
-        variant: "warning",
-        title: "Selecione uma campanha para vincular.",
-      });
-      return;
-    }
+          const nextCampaigns = [
+            {
+              proposalId: params.campaignId,
+              linkId: params.linkId || `temp-${params.campaignId}`,
+              campaignTitle: params.campaignTitle,
+              brandName: params.brandName,
+              linkedAt: params.linkedAt || new Date().toISOString(),
+            },
+            ...currentSummary.campaigns,
+          ];
 
-    try {
-      setLinkingToCampaign(true);
-      const response = await fetch(`/api/proposals/${selectedCampaignId}/links`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityType: "script",
-          entityId: editor.id,
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
+          return {
+            ...item,
+            linkingSummary: {
+              isLinked: true,
+              totalLinks: nextCampaigns.length,
+              campaigns: nextCampaigns,
+            },
+          };
+        })
+      );
+    },
+    []
+  );
 
-      if (!response.ok) {
-        throw new Error(payload?.error || "Não foi possível vincular roteiro à campanha.");
+  const removeScriptLinkingSummaryCampaign = useCallback(
+    (params: { scriptId: string; campaignId: string }) => {
+      setScripts((prev) =>
+        prev.map((item) => {
+          if (item.id !== params.scriptId) return item;
+          const currentSummary = normalizeScriptLinkingSummary(item.linkingSummary);
+          const nextCampaigns = currentSummary.campaigns.filter(
+            (campaign) => campaign.proposalId !== params.campaignId
+          );
+          return {
+            ...item,
+            linkingSummary: {
+              isLinked: nextCampaigns.length > 0,
+              totalLinks: nextCampaigns.length,
+              campaigns: nextCampaigns,
+            },
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const linkScriptToCampaign = useCallback(
+    async (params: { scriptId: string; campaignId: string; source: "editor" | "card" }) => {
+      const { scriptId, campaignId, source } = params;
+      if (!scriptId) {
+        toast({
+          variant: "warning",
+          title: "Salve o roteiro antes de vincular à campanha.",
+        });
+        return;
       }
 
-      toast({
-        variant: "success",
-        title: payload?.created === false ? "Roteiro já estava vinculado." : "Roteiro vinculado à campanha.",
+      if (!campaignId) {
+        toast({
+          variant: "warning",
+          title: "Selecione uma campanha para vincular.",
+        });
+        return;
+      }
+
+      const script = scripts.find((item) => item.id === scriptId);
+      const campaign =
+        campaignOptions.find((option) => option.id === campaignId) ||
+        ({ id: campaignId, campaignTitle: "Campanha", brandName: "Marca" } as CampaignOption);
+
+      if (source === "editor") {
+        setLinkingToCampaign(true);
+      } else {
+        setCardLinkingScriptId(scriptId);
+        setCardLinkErrorByScriptId((prev) => ({ ...prev, [scriptId]: "" }));
+      }
+
+      if (source === "card") {
+        track("script_card_link_cta_clicked", {
+          script_id: scriptId,
+          state: script?.linkingSummary?.isLinked ? "linked" : "unlinked",
+          campaign_id: campaignId,
+          source,
+        });
+      }
+
+      try {
+        const response = await fetch(`/api/proposals/${campaignId}/links`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entityType: "script",
+            entityId: scriptId,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload?.error || "Não foi possível vincular roteiro à campanha.");
+        }
+
+        patchScriptLinkingSummary({
+          scriptId,
+          campaignId,
+          campaignTitle: campaign.campaignTitle,
+          brandName: campaign.brandName,
+          linkId: payload?.item?.id || null,
+          linkedAt: payload?.item?.updatedAt || payload?.item?.createdAt || null,
+        });
+
+        toast({
+          variant: "success",
+          title: payload?.created === false ? "Roteiro já estava vinculado." : "Roteiro vinculado à campanha.",
+        });
+
+        if (source === "card") {
+          setCardActionFeedback(scriptId, {
+            variant: "success",
+            message: payload?.created === false ? "Roteiro já estava vinculado." : "Roteiro vinculado à campanha.",
+          });
+        }
+
+        if (source === "card") {
+          track("script_card_link_success", {
+            script_id: scriptId,
+            campaign_id: campaignId,
+            created: payload?.created !== false,
+          });
+          setActiveCardLinkScriptId(null);
+        }
+      } catch (error: any) {
+        if (source === "card") {
+          setCardLinkErrorByScriptId((prev) => ({
+            ...prev,
+            [scriptId]: error?.message || "Falha ao vincular roteiro.",
+          }));
+          setCardActionFeedback(
+            scriptId,
+            {
+              variant: "error",
+              message: error?.message || "Falha ao vincular roteiro.",
+            },
+            { ttlMs: 6000 }
+          );
+          track("script_card_link_failed", {
+            script_id: scriptId,
+            campaign_id: campaignId,
+            message: error?.message || "link_failed",
+          });
+        }
+        toast({
+          variant: "error",
+          title: error?.message || "Falha ao vincular roteiro.",
+        });
+      } finally {
+        if (source === "editor") {
+          setLinkingToCampaign(false);
+        } else {
+          setCardLinkingScriptId((current) => (current === scriptId ? null : current));
+        }
+      }
+    },
+    [campaignOptions, patchScriptLinkingSummary, scripts, setCardActionFeedback, toast]
+  );
+
+  const handleLinkToCampaign = useCallback(async () => {
+    await linkScriptToCampaign({
+      scriptId: editor.id || "",
+      campaignId: selectedCampaignId,
+      source: "editor",
+    });
+  }, [editor.id, linkScriptToCampaign, selectedCampaignId]);
+
+  const handleOpenCardLinkPanel = useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>, script: ScriptItem) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (cardLinkingScriptId || linkingToCampaign) return;
+
+      const options = await ensureCampaignOptionsLoaded();
+      if (!options.length) {
+        setCardActionFeedback(
+          script.id,
+          {
+            variant: "error",
+            message: "Nenhuma campanha disponível para vínculo.",
+          },
+          { ttlMs: 6000 }
+        );
+        setCardLinkErrorByScriptId((prev) => ({
+          ...prev,
+          [script.id]: "Nenhuma campanha disponível para vínculo.",
+        }));
+        return;
+      }
+
+      const currentSelected = cardCampaignByScriptId[script.id];
+      const hasCurrent = currentSelected && options.some((option) => option.id === currentSelected);
+      const firstLinkedCampaignId = script.linkingSummary?.campaigns?.[0]?.proposalId || "";
+      const fallbackCampaignId =
+        (firstLinkedCampaignId && options.some((option) => option.id === firstLinkedCampaignId)
+          ? firstLinkedCampaignId
+          : "") || options[0]?.id || "";
+
+      setCardCampaignByScriptId((prev) => ({
+        ...prev,
+        [script.id]: hasCurrent ? currentSelected : fallbackCampaignId,
+      }));
+      setCardLinkErrorByScriptId((prev) => ({ ...prev, [script.id]: "" }));
+      setCardActionFeedback(script.id, null);
+      setActiveCardLinkScriptId((current) => (current === script.id ? null : script.id));
+
+      track("script_card_insight_opened", {
+        script_id: script.id,
+        insight: "linking",
+        state: script.linkingSummary?.isLinked ? "linked" : "unlinked",
       });
-    } catch (error: any) {
-      toast({
-        variant: "error",
-        title: error?.message || "Falha ao vincular roteiro.",
+    },
+    [
+      cardCampaignByScriptId,
+      cardLinkingScriptId,
+      ensureCampaignOptionsLoaded,
+      linkingToCampaign,
+      setCardActionFeedback,
+    ]
+  );
+
+  const handleCardLinkConfirm = useCallback(
+    async (script: ScriptItem) => {
+      const campaignId = cardCampaignByScriptId[script.id] || "";
+      await linkScriptToCampaign({
+        scriptId: script.id,
+        campaignId,
+        source: "card",
       });
-    } finally {
-      setLinkingToCampaign(false);
-    }
-  }, [editor.id, selectedCampaignId, toast]);
+    },
+    [cardCampaignByScriptId, linkScriptToCampaign]
+  );
+
+  const handleCardUnlinkConfirm = useCallback(
+    async (script: ScriptItem) => {
+      const campaignId = cardCampaignByScriptId[script.id] || "";
+      if (!campaignId) return;
+      const linkedCampaign = normalizeScriptLinkingSummary(script.linkingSummary).campaigns.find(
+        (campaign) => campaign.proposalId === campaignId
+      );
+      if (!linkedCampaign?.linkId) {
+        setCardActionFeedback(
+          script.id,
+          { variant: "error", message: "Não foi possível identificar o vínculo para remover." },
+          { ttlMs: 6000 }
+        );
+        return;
+      }
+
+      try {
+        setCardLinkingScriptId(script.id);
+        setCardLinkErrorByScriptId((prev) => ({ ...prev, [script.id]: "" }));
+        const response = await fetch(
+          `/api/proposals/${campaignId}/links/${linkedCampaign.linkId}`,
+          { method: "DELETE" }
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || "Não foi possível remover o vínculo.");
+        }
+
+        removeScriptLinkingSummaryCampaign({ scriptId: script.id, campaignId });
+        setCardActionFeedback(script.id, {
+          variant: "success",
+          message: "Vínculo removido com sucesso.",
+        });
+        toast({ variant: "success", title: "Vínculo removido." });
+        track("script_card_unlink_success", {
+          script_id: script.id,
+          campaign_id: campaignId,
+        });
+        setActiveCardLinkScriptId(null);
+      } catch (error: any) {
+        setCardLinkErrorByScriptId((prev) => ({
+          ...prev,
+          [script.id]: error?.message || "Falha ao remover vínculo.",
+        }));
+        setCardActionFeedback(
+          script.id,
+          { variant: "error", message: error?.message || "Falha ao remover vínculo." },
+          { ttlMs: 6000 }
+        );
+        toast({ variant: "error", title: error?.message || "Falha ao remover vínculo." });
+        track("script_card_unlink_failed", {
+          script_id: script.id,
+          campaign_id: campaignId,
+          message: error?.message || "unlink_failed",
+        });
+      } finally {
+        setCardLinkingScriptId((current) => (current === script.id ? null : current));
+      }
+    },
+    [cardCampaignByScriptId, removeScriptLinkingSummaryCampaign, setCardActionFeedback, toast]
+  );
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -1691,7 +2245,23 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Meus Roteiros</h1>
             {!isActingOnBehalf ? (
-              <p className="mt-1 text-slate-500">Escolha um roteiro salvo ou comece um novo.</p>
+              <>
+                <p className="mt-1 text-xs font-medium text-emerald-700">
+                  Pautas salvas no Calendário aparecem aqui automaticamente com origem destacada.
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-slate-500">
+                    Quer trazer novas pautas para cá?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleGoToCalendar}
+                    className="text-xs font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
+                  >
+                    Ir para Calendário
+                  </button>
+                </div>
+              </>
             ) : null}
           </div>
           {requestedProposalId ? (
@@ -1733,7 +2303,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
             {Array.from({ length: 10 }).map((_, idx) => (
               <div
                 key={`loading-${idx}`}
-                className="h-64 animate-pulse rounded-[1.5rem] border border-slate-200 bg-white shadow-sm sm:h-72 sm:rounded-[2rem]"
+                className="h-72 animate-pulse rounded-[1.5rem] border border-slate-200 bg-white shadow-sm sm:h-80 sm:rounded-[2rem]"
               >
                 <div className="h-11 border-b border-slate-100 bg-slate-50" />
                 <div className="p-5">
@@ -1761,6 +2331,15 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
               <Plus size={16} />
               Criar meu primeiro roteiro
             </button>
+            {!isActingOnBehalf ? (
+              <button
+                type="button"
+                onClick={handleGoToCalendar}
+                className="ml-2 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+              >
+                Ir para Calendário
+              </button>
+            ) : null}
           </div>
         ) : (
           <>
@@ -1768,7 +2347,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
               <button
                 type="button"
                 onClick={openCreateEditor}
-                className="group flex h-64 flex-col overflow-hidden rounded-[1.5rem] border border-slate-300 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl hover:ring-slate-200 sm:h-72 sm:rounded-[2rem]"
+                className="group flex h-72 flex-col overflow-hidden rounded-[1.5rem] border border-slate-300 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl hover:ring-slate-200 sm:h-80 sm:rounded-[2rem]"
               >
                 <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Novo</span>
@@ -1786,87 +2365,281 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                 const tone = getSourceCardTone(script.source);
                 const hasAdminAnnotation = Boolean(script.adminAnnotation?.notes?.trim());
                 const hasUnreadFeedback = unreadFeedbackScriptIds.has(script.id);
+                const isFromCalendar = isScriptFromCalendar(script);
+                const calendarOriginSummary = isFromCalendar
+                  ? getCalendarOriginSummary(script.plannerRef)
+                  : null;
                 const isPosted = Boolean(script.publication?.isPosted);
                 const isPublicationSaving = publicationSavingScriptId === script.id;
+                const linkingSummary = normalizeScriptLinkingSummary(script.linkingSummary);
+                const linkedCampaigns = linkingSummary.campaigns;
+                const isCardLinking = cardLinkingScriptId === script.id;
+                const isCardLinkPopoverOpen = activeCardLinkScriptId === script.id;
+                const selectedCardCampaignId = cardCampaignByScriptId[script.id] || "";
+                const isSelectedCampaignAlreadyLinked = linkedCampaigns.some(
+                  (campaign) => campaign.proposalId === selectedCardCampaignId
+                );
+                const cardLinkError = cardLinkErrorByScriptId[script.id];
+                const cardActionFeedback = cardActionFeedbackByScriptId[script.id] || null;
+                const canLinkFromCard = !isAdminViewer;
+                const headerChips = [
+                  hasAdminAnnotation
+                    ? {
+                      id: "feedback",
+                      label: hasUnreadFeedback ? "Feedback novo" : "Feedback",
+                      className:
+                        "rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-rose-800 sm:text-[10px]",
+                    }
+                    : null,
+                  script.recommendation?.isRecommended
+                    ? {
+                      id: "recommendation",
+                      label: "Recomendação",
+                      className:
+                        "rounded-full border border-amber-300 bg-amber-200/80 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-amber-900 sm:text-[10px]",
+                    }
+                    : null,
+                ].filter(Boolean) as Array<{ id: string; label: string; className: string }>;
+                const visibleHeaderChips = headerChips.slice(0, 2);
+                const hiddenHeaderChipCount = Math.max(0, headerChips.length - visibleHeaderChips.length);
                 return (
                   <div
                     key={script.id}
-                    className={`group relative flex h-64 flex-col overflow-visible rounded-[1.5rem] border border-slate-200 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:shadow-xl ${tone.ring} sm:h-72 sm:rounded-[2rem]`}
+                    className={`group relative flex h-72 flex-col overflow-visible rounded-[1.5rem] border border-slate-200 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:shadow-xl ${tone.ring} sm:h-80 sm:rounded-[2rem]`}
                   >
-                    <button type="button" onClick={() => openExistingEditor(script)} className="flex h-full w-full flex-col text-left">
-                      <div className={`flex items-center justify-between gap-2 border-b px-5 py-3 ${tone.header}`}>
-                        <span className={`text-[11px] font-bold uppercase tracking-wider ${tone.text}`}>
-                          {getSourceLabel(script.source)}
-                        </span>
-                        {script.recommendation?.isRecommended ? (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                            Recomendação
+                    <button
+                      type="button"
+                      onClick={() => openExistingEditor(script)}
+                      className="flex min-h-0 w-full flex-1 flex-col text-left"
+                    >
+                      <div className={`rounded-t-[1.5rem] border-b px-4 py-2.5 sm:rounded-t-[2rem] sm:px-5 sm:py-3 ${tone.header}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <span className={`text-[10px] font-extrabold uppercase tracking-[0.09em] sm:text-[11px] ${tone.text}`}>
+                            {getSourceLabel(script.source)}
                           </span>
-                        ) : null}
-                        {hasAdminAnnotation ? (
-                          <span className="rounded-full bg-[#FFE7EF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#C3265C]">
-                            {hasUnreadFeedback ? "Novo feedback" : isAdminViewer ? "Feedback ativo" : "Feedback"}
-                          </span>
-                        ) : null}
+                          <div className="flex max-w-[74%] flex-wrap justify-end gap-1.5">
+                            {visibleHeaderChips.map((chip) => (
+                              <span key={chip.id} className={chip.className}>
+                                {chip.label}
+                              </span>
+                            ))}
+                            {hiddenHeaderChipCount > 0 ? (
+                              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 sm:text-[10px]">
+                                +{hiddenHeaderChipCount}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex min-h-0 flex-1 flex-col p-5">
-                        <p className="line-clamp-2 text-base font-semibold leading-tight text-slate-900">
+                      <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
+                        <p className="line-clamp-2 text-[20px] font-semibold leading-[1.12] tracking-[-0.01em] text-slate-900 sm:text-base sm:leading-tight sm:tracking-normal">
                           {getCardTitle(script)}
                         </p>
 
                         <div className="mt-3 flex-1 overflow-hidden">
-                          <p className="line-clamp-7 overflow-hidden break-words text-sm leading-relaxed text-slate-500">
+                          <p className="line-clamp-7 overflow-hidden break-words text-[13px] leading-[1.45] text-slate-600 sm:text-sm sm:leading-relaxed sm:text-slate-500">
                             {getCardPreview(script)}
                           </p>
                         </div>
 
-                        <p className="mt-auto pt-4 text-[11px] font-medium text-slate-400">
-                          Atualizado em {formatDate(script.updatedAt)}
-                        </p>
-                        {script.recommendation?.isRecommended ? (
-                          <p className="pt-1 text-[11px] font-medium text-amber-700">
-                            Recomendado por{" "}
-                            {script.recommendation.recommendedByAdminName || "Admin"}
-                          </p>
-                        ) : null}
-                        {hasAdminAnnotation ? (
-                          <p className="line-clamp-1 pt-1 text-[11px] font-medium text-slate-600">
-                            {hasUnreadFeedback ? "Novo: " : ""}Feedback: {script.adminAnnotation?.notes}
-                          </p>
-                        ) : null}
-                        {isPosted ? (
-                          <p className="line-clamp-1 pt-1 text-[11px] font-medium text-emerald-700">
-                            {getPostedContentLabel(script.publication)}
-                            {script.publication?.content?.postDate
-                              ? ` · ${formatDate(script.publication.content.postDate)}`
-                              : ""}
-                          </p>
-                        ) : null}
+                        <div className="mt-3 space-y-1">
+                          {hasAdminAnnotation ? (
+                            <p
+                              className={`line-clamp-1 text-[10px] leading-[1.3] sm:text-[11px] ${
+                                hasUnreadFeedback ? "font-semibold text-rose-800" : "font-medium text-rose-700"
+                              }`}
+                            >
+                              Feedback: {hasUnreadFeedback ? "Novo - " : ""}{script.adminAnnotation?.notes}
+                            </p>
+                          ) : null}
+                          {script.recommendation?.isRecommended ? (
+                            <p className="line-clamp-1 text-[10px] font-semibold leading-[1.3] text-amber-800 sm:text-[11px]">
+                              Recomendação: {script.recommendation.recommendedByAdminName || "Admin"}
+                            </p>
+                          ) : null}
+                        </div>
+
                       </div>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        void handleCardPublicationAction(event, script);
-                      }}
-                      disabled={isPublicationSaving}
-                      className={`absolute right-3 top-3 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                        isPosted
-                          ? "border-emerald-200 bg-emerald-500 text-white"
-                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400"
-                      }`}
-                      title={isPosted ? "Desmarcar como postado" : "Marcar como postado"}
-                      aria-label={isPosted ? "Desmarcar como postado" : "Marcar como postado"}
-                    >
-                      {isPosted ? <Check size={13} strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-current" />}
-                    </button>
+                    <div className="px-4 pb-4 pt-2 sm:px-5 sm:pt-2.5">
+                      {calendarOriginSummary ? (
+                        <p className="mb-1 text-[10px] font-semibold text-emerald-700 sm:text-[11px]">
+                          {calendarOriginSummary}
+                        </p>
+                      ) : null}
+                      <p className="mb-2 text-[10px] font-medium text-slate-400 sm:text-[11px]">
+                        Atualizado em {formatDate(script.updatedAt)}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {canLinkFromCard ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              void handleOpenCardLinkPanel(event, script);
+                            }}
+                            disabled={isCardLinking || campaignsLoading}
+                            className={`inline-flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                              linkingSummary.isLinked
+                                ? "border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
+                                : "border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
+                            }`}
+                            title={
+                              linkingSummary.isLinked
+                                ? "Gerenciar vínculo com campanha"
+                                : "Vincular este roteiro a uma campanha"
+                            }
+                            aria-label={
+                              linkingSummary.isLinked
+                                ? "Gerenciar vínculo com campanha"
+                                : "Vincular este roteiro a uma campanha"
+                            }
+                          >
+                            <Link2 size={13} />
+                            {isCardLinking ? "Processando..." : linkingSummary.isLinked ? "Vínculo ativo" : "Vincular roteiro"}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            void handleCardPublicationAction(event, script);
+                          }}
+                          disabled={isPublicationSaving}
+                          className={`inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                            canLinkFromCard ? "flex-1" : "w-full"
+                          } ${
+                            isPosted
+                              ? "border-emerald-200 bg-emerald-600 text-white hover:bg-emerald-700"
+                              : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                          }`}
+                          title={isPosted ? "Desvincular do post" : "Vincular ao post"}
+                          aria-label={isPosted ? "Desvincular do post" : "Vincular ao post"}
+                        >
+                          {isPosted ? <Check size={13} strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-current" />}
+                          {isPublicationSaving ? "Salvando..." : isPosted ? "Desvincular do post" : "Vincular ao post"}
+                        </button>
+                      </div>
+                      {cardActionFeedback ? (
+                        <p
+                          className={`mt-1 text-center text-[10px] font-semibold leading-[1.25] transition-all duration-200 ease-out ${
+                            cardActionFeedback.variant === "success"
+                              ? "text-emerald-700"
+                              : cardActionFeedback.variant === "error"
+                                ? "text-rose-700"
+                                : "text-slate-600"
+                          } ${
+                            cardActionFeedback.phase === "entering"
+                              ? "translate-y-0.5 opacity-0"
+                              : cardActionFeedback.phase === "leaving"
+                                ? "-translate-y-0.5 opacity-0"
+                                : "translate-y-0 opacity-100"
+                          }`}
+                        >
+                          {cardActionFeedback.message}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {isCardLinkPopoverOpen && canLinkFromCard ? (
+                      <div
+                        ref={cardLinkPopoverRef}
+                        className="absolute inset-x-2 bottom-[4.9rem] z-20 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {linkingSummary.isLinked ? "Gerenciar vínculo" : "Vincular roteiro"}
+                        </p>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Conecte este roteiro a uma campanha para acompanhar status e contexto.
+                        </p>
+                        {linkingSummary.isLinked ? (
+                          <div className="mt-2 rounded-md border border-emerald-100 bg-emerald-50 p-2">
+                            <p className="text-[11px] font-semibold text-emerald-700">
+                              {linkingSummary.totalLinks > 1
+                                ? `${linkingSummary.totalLinks} campanhas vinculadas`
+                                : "Campanha vinculada"}
+                            </p>
+                            {linkedCampaigns.slice(0, 2).map((campaign) => (
+                              <p key={campaign.linkId} className="line-clamp-1 text-[11px] text-emerald-800">
+                                {campaign.campaignTitle} · {campaign.brandName}
+                              </p>
+                            ))}
+                          </div>
+                        ) : null}
+                        <select
+                          value={selectedCardCampaignId}
+                          onChange={(event) =>
+                            setCardCampaignByScriptId((prev) => ({
+                              ...prev,
+                              [script.id]: event.target.value,
+                            }))
+                          }
+                          disabled={campaignsLoading || isCardLinking || campaignOptions.length === 0}
+                          className="mt-2 w-full rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        >
+                          {campaignsLoading ? (
+                            <option value="">Carregando campanhas...</option>
+                          ) : campaignOptions.length === 0 ? (
+                            <option value="">Sem campanhas disponíveis</option>
+                          ) : (
+                            campaignOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.campaignTitle} · {option.brandName}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        {cardLinkError ? (
+                          <p className="mt-2 text-[11px] font-medium text-rose-600">{cardLinkError}</p>
+                        ) : null}
+                        <div className="mt-3 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isCardLinking) return;
+                              setActiveCardLinkScriptId(null);
+                            }}
+                            className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                            disabled={isCardLinking}
+                          >
+                            Fechar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isSelectedCampaignAlreadyLinked) {
+                                void handleCardUnlinkConfirm(script);
+                                return;
+                              }
+                              void handleCardLinkConfirm(script);
+                            }}
+                            disabled={
+                              isCardLinking ||
+                              campaignsLoading ||
+                              !selectedCardCampaignId
+                            }
+                            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60 ${
+                              isSelectedCampaignAlreadyLinked
+                                ? "bg-rose-600 hover:bg-rose-700"
+                                : "bg-slate-900 hover:bg-slate-800"
+                            }`}
+                          >
+                            {isCardLinking
+                              ? "Processando..."
+                              : isSelectedCampaignAlreadyLinked
+                                ? "Desvincular"
+                                : linkingSummary.isLinked
+                                  ? "Adicionar vínculo"
+                                  : "Vincular"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
 
                     {quickPublishAnchorScriptId === script.id && !isPosted ? (
                       <div
                         ref={quickPublishPopoverRef}
-                        className="absolute right-2 top-12 z-20 w-[min(92vw,340px)] rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
+                        className="absolute inset-x-2 bottom-[4.9rem] z-20 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
                       >
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Conteúdo publicado</p>
                         <input

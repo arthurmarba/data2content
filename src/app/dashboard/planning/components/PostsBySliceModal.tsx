@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { XMarkIcon, PencilSquareIcon, ChartBarIcon, HeartIcon, ChatBubbleLeftIcon, ShareIcon, BookmarkIcon } from "@heroicons/react/24/solid";
-import { EyeIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, PencilSquareIcon } from "@heroicons/react/24/solid";
 
 
 
@@ -29,12 +28,24 @@ type SortOrder = "asc" | "desc";
 const METRIC_LABELS: Record<SortMetric, string> = {
   postDate: "Data do post",
   likes: "Likes",
-  comments: "Comentarios",
+  comments: "Comentários",
   shares: "Compartilhamentos",
   saves: "Salvamentos",
-  interactions: "Interacoes",
+  interactions: "Interações",
   reach: "Alcance",
 };
+type MetricDisplayKey = Exclude<SortMetric, "postDate">;
+const METRIC_DISPLAY_ORDER: Array<{
+  key: MetricDisplayKey;
+  label: string;
+}> = [
+  { key: "reach", label: "Alcance" },
+  { key: "interactions", label: "Interações" },
+  { key: "likes", label: "Likes" },
+  { key: "comments", label: "Comentários" },
+  { key: "shares", label: "Shares" },
+  { key: "saves", label: "Salvos" },
+];
 
 const toMetricNumber = (value: unknown) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -120,17 +131,44 @@ export default function PostsBySliceModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const sortedPosts = useMemo(
+    () =>
+      posts.slice().sort((a, b) => {
+        const direction = sortOrder === "asc" ? 1 : -1;
+        const aValue = getPostMetricValue(a, sortMetric);
+        const bValue = getPostMetricValue(b, sortMetric);
+        if (aValue !== bValue) return (aValue - bValue) * direction;
+        const aDate = getPostMetricValue(a, "postDate");
+        const bDate = getPostMetricValue(b, "postDate");
+        return bDate - aDate;
+      }),
+    [posts, sortMetric, sortOrder]
+  );
+  const metricMaxByKey = useMemo(() => {
+    const maxMap = METRIC_DISPLAY_ORDER.reduce((acc, metric) => {
+      acc[metric.key] = 0;
+      return acc;
+    }, {} as Record<MetricDisplayKey, number>);
+    sortedPosts.forEach((post) => {
+      METRIC_DISPLAY_ORDER.forEach((metric) => {
+        const value = getPostMetricValue(post, metric.key);
+        if (value > maxMap[metric.key]) maxMap[metric.key] = value;
+      });
+    });
+    return maxMap;
+  }, [sortedPosts]);
 
-  const sortedPosts = posts.slice().sort((a, b) => {
-    const direction = sortOrder === "asc" ? 1 : -1;
-    const aValue = getPostMetricValue(a, sortMetric);
-    const bValue = getPostMetricValue(b, sortMetric);
-    if (aValue !== bValue) return (aValue - bValue) * direction;
-    const aDate = getPostMetricValue(a, "postDate");
-    const bDate = getPostMetricValue(b, "postDate");
-    return bDate - aDate;
-  });
+  const handleOpenPost = (post: any) => {
+    if (onPlayClick) {
+      onPlayClick(post);
+      return;
+    }
+    if (onDetailClick && post?._id) {
+      onDetailClick(post._id);
+    }
+  };
+
+  if (!isOpen) return null;
 
   const modalContent = (
     <div
@@ -146,19 +184,19 @@ export default function PostsBySliceModal({
         className="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{subtitle || "Seleção"}</p>
             <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
             <p className="text-xs text-slate-500">{posts.length} {posts.length === 1 ? "post" : "posts"} encontrados</p>
             {enableMetricSort && posts.length > 1 && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ordenar por</span>
+                <div className="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Ordenar por</span>
                   <select
                     value={sortMetric}
                     onChange={(e) => setSortMetric(e.target.value as SortMetric)}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                   >
                     <option value="postDate">{METRIC_LABELS.postDate}</option>
                     <option value="likes">{METRIC_LABELS.likes}</option>
@@ -171,7 +209,7 @@ export default function PostsBySliceModal({
                   <select
                     value={sortOrder}
                     onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
                   >
                     <option value="desc">Decrescente</option>
                     <option value="asc">Crescente</option>
@@ -198,113 +236,133 @@ export default function PostsBySliceModal({
               <p className="text-xs text-slate-500">Tente outro intervalo ou categoria.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-slate-200">
-              {sortedPosts.map((post, idx) => (
-                <li
-                  key={post._id || idx}
-                  className="flex gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors group"
-                  onClick={() => onPlayClick ? onPlayClick(post) : (onDetailClick && onDetailClick(post._id))}
-                >
+            <ul className="space-y-2 px-3 py-3 sm:px-4">
+              {sortedPosts.map((post, idx) => {
+                const formatTags = Array.isArray(post?.format)
+                  ? post.format
+                  : post?.format
+                    ? [post.format]
+                    : [];
+                const proposalTags = Array.isArray(post?.proposal)
+                  ? post.proposal
+                  : post?.proposal
+                    ? [post.proposal]
+                    : [];
+                const contextTags = Array.isArray(post?.context)
+                  ? post.context
+                  : post?.context
+                    ? [post.context]
+                    : [];
+                const visibleTags = [
+                  ...formatTags.slice(0, 1).map((value: string) => ({ value, tone: "slate" as const })),
+                  ...proposalTags.slice(0, 1).map((value: string) => ({ value, tone: "indigo" as const })),
+                  ...contextTags.slice(0, 1).map((value: string) => ({ value, tone: "blue" as const })),
+                ];
+                const hiddenTagCount =
+                  Math.max(0, formatTags.length - 1) +
+                  Math.max(0, proposalTags.length - 1) +
+                  Math.max(0, contextTags.length - 1);
 
-                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                    {post.thumbnailUrl || post.coverUrl || post.thumbnail ? (
-                      <Image
-                        src={resolveImageSrc(post.thumbnailUrl || post.coverUrl || post.thumbnail)}
-                        alt={post.caption || "Post"}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                        sizes="96px"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
-                    )}
-                  </div>
-
-
-                  <div className="min-w-0 flex-1 flex flex-col">
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 text-base font-bold text-slate-900 leading-tight mb-1">{post.caption || "Sem legenda"}</p>
-                        <p className="text-xs font-medium text-slate-500">{formatDate(post.postDate)}</p>
-                      </div>
-                      <div className="shrink-0 flex items-center gap-2">
-                        {(onDetailClick || !onPlayClick) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDetailClick ? onDetailClick(post._id) : null;
-                            }}
-                            className="flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-4 py-1.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-all active:scale-95"
-                          >
-                            <ChartBarIcon className="h-3.5 w-3.5 text-slate-400" />
-                            Analisar
-                          </button>
-                        )}
-                        {onReviewClick && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onReviewClick(post);
-                            }}
-                            className="flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-all active:scale-95"
-                          >
-                            <PencilSquareIcon className="h-3.5 w-3.5" />
-                            Review
-                          </button>
+                return (
+                  <li key={post._id || idx} className="rounded-xl border border-slate-200 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPost(post)}
+                      className="group flex w-full gap-3 p-2.5 text-left transition-colors hover:bg-slate-50/70 sm:gap-4 sm:p-3"
+                    >
+                      <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 sm:h-28 sm:w-20">
+                        {post.thumbnailUrl || post.coverUrl || post.thumbnail ? (
+                          <Image
+                            src={resolveImageSrc(post.thumbnailUrl || post.coverUrl || post.thumbnail)}
+                            alt={post.caption || "Post"}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform"
+                            sizes="(max-width: 640px) 64px, 80px"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Sem imagem</div>
                         )}
                       </div>
-                    </div>
 
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-semibold leading-tight text-slate-900 sm:text-[15px]">
+                          {post.caption || "Sem legenda"}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] leading-4">
+                          <span className="text-[11px] font-medium text-slate-500">{formatDate(post.postDate)}</span>
+                          {visibleTags.map((tag, tagIndex) => (
+                            <span
+                              key={`${tag.value}-${tagIndex}`}
+                              className={`text-[10px] font-semibold ${
+                                tag.tone === "indigo"
+                                  ? "text-indigo-700"
+                                  : tag.tone === "blue"
+                                    ? "text-blue-700"
+                                    : "text-slate-600"
+                              }`}
+                            >
+                              {tag.value}
+                            </span>
+                          ))}
+                          {hiddenTagCount > 0 ? (
+                            <span className="text-[10px] font-semibold text-slate-500">
+                              +{hiddenTagCount}
+                            </span>
+                          ) : null}
+                        </div>
 
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {post.format?.map((f: string) => (
-                        <span key={f} className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
-                          {f}
-                        </span>
-                      ))}
-                      {post.proposal?.map((p: string) => (
-                        <span key={p} className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
-                          {p}
-                        </span>
-                      ))}
-                      {post.context?.map((c: string) => (
-                        <span key={c} className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
-                          {c}
-                        </span>
-                      ))}
-                    </div>
+                        <div className="mt-2 grid grid-cols-3 overflow-hidden rounded-md border border-slate-200 bg-slate-50/50 sm:grid-cols-6">
+                          {METRIC_DISPLAY_ORDER.map((metric, metricIndex) => {
+                            const metricValue = getPostMetricValue(post, metric.key);
+                            const maxValue = metricMaxByKey[metric.key];
+                            const isTopValue = maxValue > 0 && metricValue === maxValue;
+                            const isSortedMetric = sortMetric === metric.key;
+                            const hasLeftBorderMobile = metricIndex % 3 !== 0;
+                            const hasLeftBorderDesktop = metricIndex % 6 !== 0;
+                            return (
+                              <div
+                                key={metric.key}
+                                className={`px-2 py-1.5 ${hasLeftBorderMobile ? "border-l border-slate-200" : ""} ${
+                                  hasLeftBorderDesktop ? "sm:border-l sm:border-slate-200" : ""
+                                } ${
+                                  metricIndex >= 3 ? "border-t border-slate-200 sm:border-t-0" : ""
+                                } ${isSortedMetric ? "bg-indigo-50/70" : ""}`}
+                              >
+                                <p className={`text-[9px] font-semibold uppercase tracking-[0.08em] ${isSortedMetric ? "text-indigo-700" : "text-slate-500"}`}>
+                                  {metric.label}
+                                </p>
+                                <p
+                                  className={`mt-1 text-sm font-semibold tabular-nums ${
+                                    isTopValue ? "text-emerald-700" : isSortedMetric ? "text-indigo-900" : "text-slate-900"
+                                  }`}
+                                >
+                                  {numberFormatter.format(metricValue)}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </button>
 
-                    <div className="mt-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                      <div className="flex flex-col p-2 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Alcance</span>
-                        <span className="text-sm font-black text-slate-900">{post.stats?.reach ? numberFormatter.format(post.stats.reach) : "—"}</span>
+                    {onReviewClick ? (
+                      <div className="flex justify-end border-t border-slate-100 px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReviewClick(post);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-3 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700"
+                        >
+                          <PencilSquareIcon className="h-3.5 w-3.5" />
+                          Review
+                        </button>
                       </div>
-                      <div className="flex flex-col p-2 rounded-lg bg-indigo-50/50 border border-indigo-100">
-                        <span className="text-[10px] text-indigo-600 uppercase font-bold tracking-tight mb-0.5">Interações</span>
-                        <span className="text-sm font-black text-indigo-900">{post.stats?.total_interactions ? numberFormatter.format(post.stats.total_interactions) : "—"}</span>
-                      </div>
-                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Likes</span>
-                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.likes ?? 0)}</span>
-                      </div>
-                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Comentários</span>
-                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.comments ?? 0)}</span>
-                      </div>
-                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Shares</span>
-                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.shares ?? 0)}</span>
-                      </div>
-                      <div className="flex flex-col p-2 rounded-lg bg-slate-50/50 border border-slate-100">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight mb-0.5">Salvos</span>
-                        <span className="text-sm font-bold text-slate-800">{numberFormatter.format(post.stats?.saved ?? post.stats?.saves ?? 0)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-
-
-              ))}
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

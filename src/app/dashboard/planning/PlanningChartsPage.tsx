@@ -17,7 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowUpRight, Clock3, LineChart as LineChartIcon, Sparkles, Target } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Calendar as CalendarIcon, CheckCircle2, ChevronDown as ChevronDownIcon, Clock3, Database, Filter as FilterIcon, LineChart as LineChartIcon, Sparkles, Target, TrendingUp, Zap as ZapIcon } from "lucide-react";
 import { TopDiscoveryTable } from "./components/TopDiscoveryTable";
 import Drawer from "@/components/ui/Drawer";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
@@ -145,11 +145,6 @@ const confidenceLabel: Record<PlanningRecommendationAction["confidence"], string
   medium: "Sinal moderado",
   low: "Sinal inicial",
 };
-const confidencePillLabel: Record<PlanningRecommendationAction["confidence"], string> = {
-  high: "Forte",
-  medium: "Médio",
-  low: "Inicial",
-};
 const feedbackStatusLabel: Record<RecommendationFeedbackStatus, string> = {
   applied: "Fiz isso",
   not_applied: "Não agora",
@@ -184,30 +179,22 @@ const compactImpactEstimate = (impactEstimate: string) => {
 };
 const formatExpectedResult = (impactEstimate: string) => {
   const normalized = String(impactEstimate || "").trim();
-  if (!normalized) return "O que pode acontecer: melhora neste resultado.";
+  if (!normalized) return "Melhora neste indicador";
   const percentMatch = normalized.match(/[+\-]?\d[\d.,]*%/);
   if (percentMatch) {
-    return `O que pode acontecer: variação estimada de ${percentMatch[0]}.`;
+    return `Variação estimada de ${percentMatch[0]}`;
   }
   const interactionsMatch = normalized.match(/([+\-]?\d[\d.,]*)\s*intera/i);
   if (interactionsMatch?.[1]) {
-    return `O que pode acontecer: cerca de ${interactionsMatch[1]} interações por post neste grupo.`;
+    return `Cerca de ${interactionsMatch[1]} interações por post`;
   }
-  return `O que pode acontecer: ${compactImpactEstimate(normalized)}.`;
+  return compactImpactEstimate(normalized);
 };
 const formatSampleBaseText = (sampleSize: number | null | undefined) => {
   if (typeof sampleSize === "number" && sampleSize > 0) {
-    return `Base usada: ${formatPostsCount(sampleSize)}.`;
+    return `${formatPostsCount(sampleSize)} publicações analisadas`;
   }
-  return "Poucos posts para confirmar padrão.";
-};
-const formatRecommendationMetaLine = (
-  sampleSize: number | null | undefined,
-  confidence: PlanningRecommendationAction["confidence"]
-) => {
-  const base = typeof sampleSize === "number" && sampleSize > 0 ? `Base: ${formatPostsCount(sampleSize)}` : "Base curta";
-  const signal = `Sinal ${confidencePillLabel[confidence].toLowerCase()}`;
-  return `${base} · ${signal}`;
+  return "Poucos dados (fase de descoberta)";
 };
 const formatGuardrailText = (guardrailReason: string | null | undefined) => {
   const normalized = String(guardrailReason || "").trim();
@@ -302,6 +289,9 @@ const deltaToneClassMap: Record<ExecutiveDeltaTone, string> = {
   negative: "text-amber-700",
   warning: "text-amber-700",
 };
+
+type ActiveChartTab = "content" | "format" | "audience" | "directioning";
+
 const formatDeltaSummary = (delta: DeltaInsight | null, metricLabel: string): ExecutiveDeltaSummary => {
   if (!delta) {
     return { text: "Ainda faltam dados para comparar.", tone: "warning" };
@@ -607,11 +597,11 @@ const DURATION_BUCKETS: Array<{
   minSeconds: number;
   maxSeconds: number | null;
 }> = [
-  { key: "0_15", label: "0-15s", minSeconds: 0, maxSeconds: 15 },
-  { key: "15_30", label: "15-30s", minSeconds: 15, maxSeconds: 30 },
-  { key: "30_60", label: "30-60s", minSeconds: 30, maxSeconds: 60 },
-  { key: "60_plus", label: "60s+", minSeconds: 60, maxSeconds: null },
-];
+    { key: "0_15", label: "0-15s", minSeconds: 0, maxSeconds: 15 },
+    { key: "15_30", label: "15-30s", minSeconds: 15, maxSeconds: 30 },
+    { key: "30_60", label: "30-60s", minSeconds: 30, maxSeconds: 60 },
+    { key: "60_plus", label: "60s+", minSeconds: 60, maxSeconds: null },
+  ];
 const DURATION_FETCH_CONCURRENCY = 4;
 const getDurationBucket = (seconds: number | null | undefined) => {
   if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) return null;
@@ -972,9 +962,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const activeUserId = targetUserId ?? sessionUserId;
   const isActingOnBehalf = Boolean(
     isAdminViewer &&
-      targetUserId &&
-      sessionUserId &&
-      targetUserId !== sessionUserId
+    targetUserId &&
+    sessionUserId &&
+    targetUserId !== sessionUserId
   );
   const swrOptions = useMemo(
     () => ({
@@ -991,6 +981,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const [autoPaginating, setAutoPaginating] = useState(false);
   const [showAdvancedSections, setShowAdvancedSections] = useState(false);
+  const [showMobileControls, setShowMobileControls] = useState(false);
+  const [showMobileDirectioning, setShowMobileDirectioning] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveChartTab>("content");
   const durationBucketPostsCacheRef = useRef<Map<string, any[]>>(new Map());
   const fetchedPagesRef = useRef<Set<number>>(new Set());
   const paginationScopeRef = useRef<string>("");
@@ -1605,10 +1598,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     const source =
       buckets.length > 0
         ? buckets.map(({ hour, average, count }) => ({
-            hour,
-            average: average || 0,
-            count: typeof count === "number" && count > 0 ? count : null,
-          }))
+          hour,
+          average: average || 0,
+          count: typeof count === "number" && count > 0 ? count : null,
+        }))
         : Array.isArray(postsSource)
           ? postsSource
             .filter((p) => p?.postDate)
@@ -2340,22 +2333,6 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     return backendSummary || formatDeltaSummary(commentVelocityDelta, "comentários médios");
   }, [commentVelocityDelta, strategicDeltas?.metrics?.commentsPerPost]);
 
-  const objectiveLabel = OBJECTIVE_OPTIONS.find((option) => option.value === objectiveMode)?.label || "Engajamento";
-  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === timePeriod)?.label || timePeriod;
-  const recommendationsConfidenceSummary = useMemo(() => {
-    if (!recommendationActions.length) return "n/d";
-    const scoreMap: Record<RecommendationActionView["confidenceAdjusted"], number> = {
-      low: 1,
-      medium: 2,
-      high: 3,
-    };
-    const averageScore =
-      recommendationActions.reduce((sum, action) => sum + scoreMap[action.confidenceAdjusted], 0) /
-      recommendationActions.length;
-    if (averageScore >= 2.5) return "Forte";
-    if (averageScore >= 1.75) return "Médio";
-    return "Inicial";
-  }, [recommendationActions]);
   const appliedRecommendationCount = useMemo(
     () => recommendationActions.filter((action) => action.feedbackStatus === "applied").length,
     [recommendationActions]
@@ -2367,24 +2344,35 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const strategicDecisionLine = useMemo(() => {
     if (!topStrategicAction) return "Sem prioridade definida nesta semana.";
     if (recommendationActions.length > 0 && appliedRecommendationCount >= recommendationActions.length) {
-      return "Ações da semana concluídas. Aguarde novos dados.";
+      return "Plano de ação concluído. Os dados estão amadurecendo para o próximo diagnóstico.";
     }
+
+    // Injecting the new premium wording:
+    // We prioritize the new `strategicSynopsis` field coming from the API.
+    // As a fallback, we keep a cleaner version of the old title.
+    if ((topStrategicAction as any).strategicSynopsis) {
+      return (topStrategicAction as any).strategicSynopsis;
+    }
+
     const focusTitle = RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title;
     if (topStrategicAction.hasLowSampleGuardrail) {
-      return `Foco da semana: ${focusTitle} (teste rápido).`;
+      return `Foco inicial: Explore hipóteses em ${focusTitle}.`;
     }
-    return `Foco da semana: ${focusTitle}.`;
+    return `Alavanca primária: Dedique atenção a ${focusTitle}.`;
   }, [appliedRecommendationCount, recommendationActions.length, topStrategicAction]);
+  const objectiveLabel = OBJECTIVE_OPTIONS.find((option) => option.value === objectiveMode)?.label || "Engajamento";
+  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === timePeriod)?.label || timePeriod;
+  const shouldShowDirectioningOnMobile = showMobileDirectioning;
   const selectedRecommendationView = useMemo(
     () =>
       selectedRecommendation
         ? recommendationActions.find((action) => {
-            const actionKey = String(action.feedbackKey || action.id || "").trim().toLowerCase();
-            const selectedKey = String(selectedRecommendation.feedbackKey || selectedRecommendation.id || "")
-              .trim()
-              .toLowerCase();
-            return actionKey === selectedKey;
-          }) || null
+          const actionKey = String(action.feedbackKey || action.id || "").trim().toLowerCase();
+          const selectedKey = String(selectedRecommendation.feedbackKey || selectedRecommendation.id || "")
+            .trim()
+            .toLowerCase();
+          return actionKey === selectedKey;
+        }) || null
         : null,
     [recommendationActions, selectedRecommendation]
   );
@@ -2397,14 +2385,14 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
   return (
     <>
-      <main className="w-full pb-12 pt-8">
+      <main className="w-full pb-12 pt-4 sm:pt-8">
         <div className="dashboard-page-shell space-y-5">
           <header className="flex flex-col gap-4">
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               <LineChartIcon className="h-4 w-4" />
               Gráficos do planejamento
             </div>
-            <h1 className="text-2xl font-semibold text-slate-900">Leituras com dados reais</h1>
+            <h1 className="text-2xl font-semibold leading-tight text-slate-900">Leituras com dados reais</h1>
             {isAdminViewer ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="w-full sm:max-w-md">
@@ -2433,40 +2421,63 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 </p>
               </div>
             ) : null}
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-medium text-slate-600">Leitura prática do período selecionado.</p>
-                <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
+            {/* Sticky Filter Bar */}
+            <div className="sticky top-0 z-40 -mx-4 mb-2 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:px-4 sm:py-2.5 sm:shadow-sm">
+              <div className="flex items-center justify-between sm:hidden">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                    <FilterIcon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Filtros Ativos</p>
+                    <p className="text-xs font-semibold text-slate-700">{objectiveLabel} • {periodLabel}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileControls((prev) => !prev)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 active:scale-95 transition-transform"
+                >
+                  {showMobileControls ? "Fechar" : "Ajustar"}
+                  <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform duration-200 ${showMobileControls ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+
+              <div className="hidden flex-col gap-3 sm:flex sm:flex-row sm:items-center sm:justify-between tracking-tight">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
+                    <ZapIcon className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600">Explorando seu <span className="text-indigo-600">{objectiveLabel}</span> no período.</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
                   {recommendationsFeatureEnabled ? (
-                    <label
-                      htmlFor="objectiveMode"
-                      className="flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-600 sm:text-xs"
-                    >
-                      Objetivo
-                      <select
-                        id="objectiveMode"
-                        value={objectiveMode}
-                        onChange={(e) => handleObjectiveModeChange(e.target.value as PlanningObjectiveMode)}
-                        className="min-h-[40px] min-w-[150px] rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:min-h-[36px]"
-                      >
-                        {OBJECTIVE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200/50">
+                      {OBJECTIVE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => handleObjectiveModeChange(opt.value)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${objectiveMode === opt.value
+                            ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200/50"
+                            : "text-slate-500 hover:text-slate-700"
+                            }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                   ) : null}
-                  <label
-                    htmlFor="timePeriod"
-                    className="flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-600 sm:text-xs"
-                  >
-                    Período
+
+                  <div className="h-4 w-[1px] bg-slate-200 mx-1 hidden lg:block" />
+
+                  <div className="relative group">
+                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" />
                     <select
                       id="timePeriod"
                       value={timePeriod}
                       onChange={(e) => handleTimePeriodChange(e.target.value)}
-                      className="min-h-[40px] min-w-[150px] rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:min-h-[36px]"
+                      className="min-h-[36px] min-w-[160px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-xs font-bold text-slate-700 transition-all hover:border-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/5"
                     >
                       {PERIOD_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -2474,1250 +2485,1055 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         </option>
                       ))}
                     </select>
-                  </label>
+                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none transition-transform group-focus-within:rotate-180" />
+                  </div>
+
                   {recommendationsFeatureEnabled ? (
                     <button
                       type="button"
                       onClick={() => handleGoToPlanner("recommendations_card")}
-                      className="inline-flex min-h-[40px] w-full items-center justify-center rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 sm:min-h-[36px] sm:w-auto sm:py-1.5"
+                      className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-bold text-white shadow-lg shadow-slate-200 hover:bg-slate-800 active:scale-[0.98] transition-all"
                     >
-                      Ir para planejamento
+                      Abrir Planejamento
                     </button>
                   ) : null}
                 </div>
               </div>
+
+              {/* Mobile Expanded Controls */}
+              <div className={`${showMobileControls ? "mt-4 grid gap-4 animate-in slide-in-from-top-2 duration-200" : "hidden"} sm:hidden border-t border-slate-100 pt-4 pb-1`}>
+                {recommendationsFeatureEnabled ? (
+                  <div className="grid gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Objetivo Estratégico</p>
+                    <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200/50">
+                      {OBJECTIVE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => handleObjectiveModeChange(opt.value)}
+                          className={`py-2 text-[11px] font-bold rounded-lg transition-all ${objectiveMode === opt.value
+                            ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200/50"
+                            : "text-slate-500"
+                            }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="grid gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Janela de Tempo</p>
+                  <div className="relative">
+                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <select
+                      id="timePeriodMobile"
+                      value={timePeriod}
+                      onChange={(e) => handleTimePeriodChange(e.target.value)}
+                      className="w-full min-h-[44px] appearance-none rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-bold text-slate-700"
+                    >
+                      {PERIOD_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleGoToPlanner("recommendations_card");
+                    setShowMobileControls(false);
+                  }}
+                  className="mt-2 w-full min-h-[44px] rounded-xl bg-slate-900 text-sm font-bold text-white active:scale-[0.98] transition-transform"
+                >
+                  Abrir Planejamento
+                </button>
+              </div>
             </div>
           </header>
 
-          {recommendationsFeatureEnabled ? (
-            <section className="grid gap-4">
-              <article className={cardBase}>
-                <header className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Direcionamento</p>
-                    <Target className="h-4 w-4 text-indigo-500 sm:h-5 sm:w-5" />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px]">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{objectiveLabel}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{periodLabel}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                      Sinal {recommendationsConfidenceSummary}
-                    </span>
-                    {recommendationActions.length > 0 ? (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                        Concluídas {appliedRecommendationCount}/{recommendationActions.length}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">{strategicDecisionLine}</p>
-                </header>
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                  {loadingBatch ? (
-                    <p className="text-sm text-slate-500 md:col-span-3">Carregando recomendações...</p>
-                  ) : recommendationActions.length === 0 ? (
-                    <p className="text-sm text-slate-500 md:col-span-3">Sem ação prática no momento. Volte após novos posts.</p>
-                  ) : (
-                    recommendationActions.map((item, index) => {
-                      const actionFeedbackKey = String(item.feedbackKey || item.id || "").trim().toLowerCase();
-                      const isFeedbackUpdating = Boolean(feedbackMutationByActionId[actionFeedbackKey]);
-                      return (
-                        <article
-                          key={item.feedbackKey || item.id}
-                          className={`flex h-full min-h-[206px] flex-col rounded-xl border p-3.5 sm:p-4 ${
-                            index === 0
-                              ? "border-indigo-200 bg-white shadow-sm shadow-indigo-100/70"
-                              : "border-slate-200 bg-slate-50/40"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Ação {index + 1}</p>
-                            <span className="inline-flex shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 sm:text-[11px]">
-                              {confidencePillLabel[item.confidenceAdjusted]}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-[13px] font-semibold text-slate-900 sm:text-sm">
-                            {RECOMMENDATION_TITLE_OVERRIDES[item.id] || item.title}
-                          </p>
-                          <p className="mt-1 text-[13px] font-medium text-slate-800 sm:text-sm" style={twoLineClampStyle}>
-                            {item.action}
-                          </p>
-                          <p className="mt-2 text-[11px] text-slate-500 sm:text-xs">
-                            {formatRecommendationMetaLine(item.sampleSize, item.confidenceAdjusted)}
-                          </p>
-                          {item.hasLowSampleGuardrail ? (
-                            <p className="mt-1 text-[11px] font-semibold text-amber-700 sm:text-xs">Teste em pequena escala.</p>
-                          ) : null}
-                          <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <button
-                                type="button"
-                                disabled={isFeedbackUpdating}
-                                onClick={() => submitRecommendationFeedback(item, "applied")}
-                                className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
-                                  item.feedbackStatus === "applied"
-                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
-                              >
-                                {feedbackStatusLabel.applied}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isFeedbackUpdating}
-                                onClick={() => submitRecommendationFeedback(item, "not_applied")}
-                                className={`inline-flex min-h-[28px] items-center rounded-full border px-2.5 text-[11px] font-semibold transition ${
-                                  item.feedbackStatus === "not_applied"
-                                    ? "border-amber-300 bg-amber-50 text-amber-700"
-                                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
-                              >
-                                {feedbackStatusLabel.not_applied}
-                              </button>
+          <div className="flex w-full items-center gap-2 overflow-x-auto border-b border-slate-200 pb-2 scrollbar-none">
+            <button
+              onClick={() => setActiveTab("directioning")}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${activeTab === "directioning"
+                ? "bg-slate-800 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+            >
+              Direcionamento
+            </button>
+            <button
+              onClick={() => setActiveTab("content")}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${activeTab === "content"
+                ? "bg-slate-800 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+            >
+              O que postar
+            </button>
+            <button
+              onClick={() => setActiveTab("format")}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${activeTab === "format"
+                ? "bg-slate-800 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+            >
+              Formato & Timing
+            </button>
+            <button
+              onClick={() => setActiveTab("audience")}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${activeTab === "audience"
+                ? "bg-slate-800 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+            >
+              Sua Audiência
+            </button>
+          </div>
+
+
+          <div className="mt-4 pb-12">
+            <div ref={advancedSectionsSentinelRef} className="h-px w-full" />
+            {showAdvancedSections ? (
+              <>
+
+                {activeTab === "directioning" && (
+                  <div className="space-y-4">
+                    {recommendationsFeatureEnabled ? (
+                      <section className="space-y-8">
+                        {/* HERO BANNER ESTRATÉGICO */}
+                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 p-6 shadow-xl sm:p-8">
+                          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/20 blur-3xl"></div>
+                          <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-purple-500/20 blur-3xl"></div>
+
+                          <div className="relative">
+                            <div className="mb-4 flex items-center gap-2">
+                              <Sparkles className="h-5 w-5 text-indigo-400" />
+                              <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-300">Inteligência Estratégica</span>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => openRecommendationEvidence(item)}
-                              className="inline-flex min-h-[28px] items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
-                            >
-                              Detalhes
-                              <ArrowUpRight className="h-3 w-3" />
-                            </button>
+                            <h2 className="text-xl font-medium leading-relaxed text-white sm:text-2xl">{strategicDecisionLine}</h2>
                           </div>
-                        </article>
-                      );
-                    })
-                  )}
-                </div>
-              </article>
-            </section>
-          ) : null}
+                        </div>
 
-          <section className="grid gap-4 md:grid-cols-2">
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pessoas alcançadas x respostas</p>
-                  <h2 className="text-base font-semibold text-slate-900">Evolução por semana</h2>
-                  <p className={`text-xs ${deltaToneClassMap[interactionsDeltaSummary.tone]}`}>{interactionsDeltaSummary.text}</p>
-                </div>
-                <Sparkles className="h-5 w-5 text-indigo-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingTrend ? (
-                  <p className="text-sm text-slate-500">Carregando série...</p>
-                ) : trendSeries.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados no período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={trendSeries}
-                      margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Alcance x Interações")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatWeekLabel}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        yAxisId="reach"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
-                      />
-                      <YAxis
-                        yAxisId="interactions"
-                        orientation="right"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label) => formatWeekLabel(String(label))}
-                        formatter={(value: number) => numberFormatter.format(Math.round(value))}
-                      />
-                      <Line yAxisId="reach" type="monotone" dataKey="reach" name="Pessoas alcançadas (média)" stroke="#2563eb" strokeWidth={3} dot={false} />
-                      <Line yAxisId="interactions" type="monotone" dataKey="interactions" name="Respostas por post" stroke="#7c3aed" strokeWidth={3} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
+                        {/* PLANO DE AÇÃO */}
+                        <div>
+                          <div className="mb-4 flex items-center gap-2">
+                            <Target className="h-4 w-4 text-slate-400" />
+                            <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Plano de Ação</h3>
+                          </div>
 
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Horário</p>
-                  <h2 className="text-base font-semibold text-slate-900">Melhor horário para postar</h2>
-                  {bestHour !== null && (
-                    <p className="text-xs text-emerald-700">Janela com melhor resposta: {bestHour}h</p>
-                  )}
-                </div>
-                <Clock3 className="h-5 w-5 text-emerald-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingTime ? (
-                  <p className="text-sm text-slate-500">Carregando horários...</p>
-                ) : hourBars.length === 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-slate-500">Sem dados suficientes no período selecionado.</p>
-                    {timePeriod !== "all_time" ? (
-                      <button
-                        type="button"
-                        onClick={() => handleTimePeriodChange("all_time")}
-                        className="inline-flex min-h-[36px] items-center rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Ver todo histórico
-                      </button>
+                          <div className="grid gap-5 md:grid-cols-2">
+                            {loadingBatch ? (
+                              <p className="text-sm text-slate-500 md:col-span-2">Carregando plano de ação...</p>
+                            ) : recommendationActions.length === 0 ? (
+                              <p className="text-sm text-slate-500 md:col-span-2">Sem tarefas pendentes no momento. Volte após novos posts.</p>
+                            ) : (
+                              recommendationActions.map((item, index) => {
+                                const actionFeedbackKey = String(item.feedbackKey || item.id || "").trim().toLowerCase();
+                                const isFeedbackUpdating = Boolean(feedbackMutationByActionId[actionFeedbackKey]);
+                                return (
+                                  <article
+                                    key={item.feedbackKey || item.id}
+                                    className={`flex h-auto min-h-0 flex-col rounded-2xl border p-5 transition hover:border-slate-300 hover:shadow-sm sm:h-full ${index === 0
+                                      ? "border-indigo-200 bg-white shadow-[0_2px_8px_rgba(79,70,229,0.08)]"
+                                      : "border-slate-200 bg-white"
+                                      }`}
+                                  >
+                                    <div className="mb-3 flex items-start gap-3">
+                                      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-bold text-[11px] ${index === 0 ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>
+                                        {index + 1}
+                                      </div>
+                                      <div>
+                                        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                          {RECOMMENDATION_TITLE_OVERRIDES[item.id] || item.title}
+                                        </p>
+                                        <h4 className="text-[15px] font-semibold leading-relaxed text-slate-900" style={twoLineClampStyle}>
+                                          {item.action}
+                                        </h4>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-4 pt-1 sm:mt-auto">
+                                      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <button
+                                            type="button"
+                                            disabled={isFeedbackUpdating}
+                                            onClick={() => submitRecommendationFeedback(item, "applied")}
+                                            className={`inline-flex min-h-[34px] flex-1 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition sm:flex-none ${item.feedbackStatus === "applied"
+                                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                                          >
+                                            <span className="mr-1.5 text-base leading-none">{item.feedbackStatus === "applied" ? "✅" : "👍"}</span>
+                                            {feedbackStatusLabel.applied}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={isFeedbackUpdating}
+                                            onClick={() => submitRecommendationFeedback(item, "not_applied")}
+                                            className={`inline-flex min-h-[34px] flex-1 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition sm:flex-none ${item.feedbackStatus === "not_applied"
+                                              ? "border-amber-300 bg-amber-50 text-amber-700"
+                                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                                          >
+                                            <span className="mr-1.5 text-base leading-none">{item.feedbackStatus === "not_applied" ? "❌" : "👎"}</span>
+                                            {feedbackStatusLabel.not_applied}
+                                          </button>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => openRecommendationEvidence(item)}
+                                          className="inline-flex min-h-[34px] w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:w-auto"
+                                        >
+                                          Ler análise
+                                          <ArrowUpRight className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </article>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </section>
                     ) : (
-                      <p className="text-xs text-slate-400">
-                        Publique novos conteúdos para liberar recomendações de horário.
-                      </p>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
+                        <p className="text-sm text-slate-500">O Direcionamento Estratégico não está disponível no momento.</p>
+                      </div>
                     )}
                   </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={hourBars}
-                      margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="hour"
-                        tickFormatter={(h) => `${h}h`}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                      />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label, payload: any[]) => {
-                          const postsCount = payload?.[0]?.payload?.postsCount;
-                          return typeof postsCount === "number"
-                            ? `${label}h • ${formatPostsCount(postsCount)}`
-                            : `${label}h`;
-                        }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
-                      />
-                      <Bar
-                        dataKey="average"
-                        name="Respostas por post"
-                        fill="#0ea5e9"
-                        radius={[6, 6, 0, 0]}
-                        onClick={({ payload }) => {
-                          const hour = typeof payload?.hour === "number" ? payload.hour : null;
-                          if (hour !== null) {
-                            handleHourClick(hour, "Melhor horário para postar");
-                          }
-                        }}
-                      >
-                        <LabelList
-                          dataKey="postsCount"
-                          position="top"
-                          formatter={(value: number) => numberFormatter.format(Math.max(0, Math.round(value)))}
-                          fill="#64748b"
-                          fontSize={10}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
                 )}
-              </div>
-            </article>
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração dos vídeos</p>
-                  <h2 className="text-base font-semibold text-slate-900">Quantos vídeos você tem em cada faixa de tempo</h2>
-                  {durationSummary.totalVideoPosts > 0 ? (
-                    <p className="text-xs text-slate-500">
-                      Já temos duração em {(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos (
-                      {numberFormatter.format(durationSummary.totalPostsWithDuration)}/
-                      {numberFormatter.format(durationSummary.totalVideoPosts)}).
-                    </p>
-                  ) : null}
-                </div>
-                <Clock3 className="h-5 w-5 text-cyan-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingDuration ? (
-                  <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
-                ) : durationSummary.totalVideoPosts === 0 ? (
-                  <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
-                ) : durationSummary.totalPostsWithDuration === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    Ainda não conseguimos ler a duração dos vídeos deste período.
-                  </p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={durationBuckets} margin={{ top: 20, right: 8, left: -6, bottom: 0 }} style={{ cursor: "pointer" }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label, payload: any[]) => {
-                          const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
-                          return `${label} • ${formatPostsCount(postsCount)}`;
-                        }}
-                        formatter={(value: number) => [formatPostsCount(value), "Posts"]}
-                      />
-                      <Bar
-                        dataKey="postsCount"
-                        name="Posts"
-                        fill="#06b6d4"
-                        radius={[6, 6, 0, 0]}
-                        onClick={({ payload }) => {
-                          const bucketKey = payload?.key as DurationBucketKey | undefined;
-                          if (bucketKey) handleDurationBucketClick(bucketKey, "Vídeos por faixa de duração");
-                        }}
-                      >
-                        <LabelList
-                          dataKey="postsCount"
-                          position="top"
-                          formatter={(value: number) => numberFormatter.format(Math.max(0, Math.round(value)))}
-                          fill="#64748b"
-                          fontSize={10}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração x resultado</p>
-                  <h2 className="text-base font-semibold text-slate-900">Qual duração traz mais resposta</h2>
-                  {bestDurationBucket ? (
-                    <p className="text-xs text-emerald-700">
-                      Faixa que mais respondeu: {bestDurationBucket.label} ({numberFormatter.format(Math.round(bestDurationBucket.averageInteractions))} respostas por post).
-                    </p>
-                  ) : null}
-                  {lowSampleDurationBuckets > 0 ? (
-                    <p className="text-xs text-amber-700">
-                      {lowSampleDurationBuckets} faixa(s) ainda têm poucos vídeos (menos de 5).
-                    </p>
-                  ) : null}
-                </div>
-                <LineChartIcon className="h-5 w-5 text-indigo-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingDuration ? (
-                  <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
-                ) : durationSummary.totalVideoPosts === 0 ? (
-                  <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
-                ) : durationSummary.totalPostsWithDuration === 0 ? (
-                  <p className="text-sm text-slate-500">Sem duração suficiente para comparar faixas.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={durationBuckets}
-                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => {
-                        const label = state?.activeLabel ? String(state.activeLabel) : null;
-                        if (!label) return;
-                        const bucket = DURATION_BUCKETS.find((item) => item.label === label);
-                        if (!bucket) return;
-                        handleDurationBucketClick(bucket.key, "Resposta por faixa de duração");
-                      }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="label"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label, payload: any[]) => {
-                          const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
-                          return `${label} • ${formatPostsCount(postsCount)}`;
-                        }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
-                      />
-                      <Bar
-                        dataKey="averageInteractions"
-                        name="Respostas por post"
-                        stroke="#7c3aed"
-                        fill="#7c3aed"
-                        radius={[6, 6, 0, 0]}
-                      >
-                        <LabelList
-                          dataKey="averageInteractions"
-                          position="top"
-                          formatter={(value: number) => numberFormatter.format(Math.round(value))}
-                          fill="#64748b"
-                          fontSize={10}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Salvamentos</p>
-                  <h2 className="text-base font-semibold text-slate-900">Média de salvamentos por semana</h2>
-                  <p className={`text-xs ${deltaToneClassMap[savesDeltaSummary.tone]}`}>{savesDeltaSummary.text}</p>
-                </div>
-                <LineChartIcon className="h-5 w-5 text-rose-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando série...</p>
-                ) : saveVelocitySeries.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={saveVelocitySeries}
-                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de salvamentos por semana")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatWeekLabel}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(value)}
-                        label={{ value: "Salvamentos médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label) => formatWeekLabel(String(label))}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Salvamentos médios"]}
-                      />
-                      <Line type="monotone" dataKey="avgSaves" name="Salvamentos médios" stroke="#ec4899" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Comentários</p>
-                  <h2 className="text-base font-semibold text-slate-900">Média de comentários por semana</h2>
-                  <p className={`text-xs ${deltaToneClassMap[commentsDeltaSummary.tone]}`}>{commentsDeltaSummary.text}</p>
-                </div>
-                <LineChartIcon className="h-5 w-5 text-indigo-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando série...</p>
-                ) : commentVelocitySeries.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={commentVelocitySeries}
-                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de comentários por semana")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatWeekLabel}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(value)}
-                        label={{ value: "Comentários médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label) => formatWeekLabel(String(label))}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Comentários médios"]}
-                      />
-                      <Line type="monotone" dataKey="avgComments" name="Comentários médios" stroke="#6366f1" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-          </section>
-
-          <div ref={advancedSectionsSentinelRef} className="h-px w-full" />
-          {showAdvancedSections ? (
-            <>
-          <section className="grid gap-4 md:grid-cols-2">
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Contexto</p>
-                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por contexto</h2>
-                  <p className={`text-xs ${deltaToneClassMap[contextExecutiveSummary.tone]}`}>{contextExecutiveSummary.text}</p>
-                </div>
-                <Target className="h-5 w-5 text-slate-600" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando contextos...</p>
-                ) : contextBars.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={contextBars}
-                      layout="vertical"
-                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#475569", fontSize: 12 }}
-                        width={140}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label: string, payload: any[]) => {
-                          const postsCount = payload?.[0]?.payload?.postsCount;
-                          return typeof postsCount === "number"
-                            ? `${label} • ${formatPostsCount(postsCount)}`
-                            : label;
-                        }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
-                      />
-                      <Bar
-                        dataKey="value"
-                        name="Respostas por post"
-                        fill="#0ea5e9"
-                        radius={[0, 6, 6, 0]}
-                        onClick={({ payload }) => {
-                          const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("context", value, "Resposta por post por contexto");
-                        }}
-                      >
-                        <LabelList
-                          dataKey="postsCount"
-                          position="right"
-                          formatter={(value: number) => formatPostsCount(value)}
-                          fill="#64748b"
-                          fontSize={11}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Proposta</p>
-                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por proposta</h2>
-                  <p className={`text-xs ${deltaToneClassMap[proposalExecutiveSummary.tone]}`}>{proposalExecutiveSummary.text}</p>
-                </div>
-                <Sparkles className="h-5 w-5 text-indigo-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingProposal ? (
-                  <p className="text-sm text-slate-500">Carregando propostas...</p>
-                ) : proposalBars.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={proposalBars}
-                      layout="vertical"
-                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#475569", fontSize: 12 }}
-                        width={140}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label: string, payload: any[]) => {
-                          const postsCount = payload?.[0]?.payload?.postsCount;
-                          return typeof postsCount === "number"
-                            ? `${label} • ${formatPostsCount(postsCount)}`
-                            : label;
-                        }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
-                      />
-                      <Bar
-                        dataKey="value"
-                        name="Respostas por post"
-                        fill="#6366f1"
-                        radius={[0, 6, 6, 0]}
-                        onClick={({ payload }) => {
-                          const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("proposal", value, "Resposta por post por proposta");
-                        }}
-                      >
-                        <LabelList
-                          dataKey="postsCount"
-                          position="right"
-                          formatter={(value: number) => formatPostsCount(value)}
-                          fill="#64748b"
-                          fontSize={11}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-          </section>
-
-          <section className="grid gap-4 md:grid-cols-2">
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tom</p>
-                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por tom</h2>
-                  <p className={`text-xs ${deltaToneClassMap[toneExecutiveSummary.tone]}`}>{toneExecutiveSummary.text}</p>
-                </div>
-                <Sparkles className="h-5 w-5 text-emerald-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingTone ? (
-                  <p className="text-sm text-slate-500">Carregando tons...</p>
-                ) : toneBars.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={toneBars}
-                      layout="vertical"
-                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#475569", fontSize: 12 }}
-                        width={140}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label: string, payload: any[]) => {
-                          const postsCount = payload?.[0]?.payload?.postsCount;
-                          return typeof postsCount === "number"
-                            ? `${label} • ${formatPostsCount(postsCount)}`
-                            : label;
-                        }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
-                      />
-                      <Bar
-                        dataKey="value"
-                        name="Respostas por post"
-                        fill="#10b981"
-                        radius={[0, 6, 6, 0]}
-                        onClick={({ payload }) => {
-                          const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("tone", value, "Resposta por post por tom");
-                        }}
-                      >
-                        <LabelList
-                          dataKey="postsCount"
-                          position="right"
-                          formatter={(value: number) => formatPostsCount(value)}
-                          fill="#64748b"
-                          fontSize={11}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Referência</p>
-                  <h2 className="text-base font-semibold text-slate-900">Resposta por post por referência</h2>
-                  <p className={`text-xs ${deltaToneClassMap[referenceExecutiveSummary.tone]}`}>{referenceExecutiveSummary.text}</p>
-                </div>
-                <Sparkles className="h-5 w-5 text-amber-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingReference ? (
-                  <p className="text-sm text-slate-500">Carregando referências...</p>
-                ) : referenceBars.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem referências registradas no período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={referenceBars}
-                      layout="vertical"
-                      margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#475569", fontSize: 12 }}
-                        width={140}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label: string, payload: any[]) => {
-                          const postsCount = payload?.[0]?.payload?.postsCount;
-                          return typeof postsCount === "number"
-                            ? `${label} • ${formatPostsCount(postsCount)}`
-                            : label;
-                        }}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
-                      />
-                      <Bar
-                        dataKey="value"
-                        name="Respostas por post"
-                        fill="#f59e0b"
-                        radius={[0, 6, 6, 0]}
-                        onClick={({ payload }) => {
-                          const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("references", value, "Resposta por post por referência");
-                        }}
-                      >
-                        <LabelList
-                          dataKey="postsCount"
-                          position="right"
-                          formatter={(value: number) => formatPostsCount(value)}
-                          fill="#64748b"
-                          fontSize={11}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-          </section>
-
-          <section className="grid gap-4 md:grid-cols-2">
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mapa de horários</p>
-                  <h2 className="text-base font-semibold text-slate-900">Melhores janelas por dia e hora</h2>
-                  <p className={`text-xs ${deltaToneClassMap[heatmapExecutiveSummary.tone]}`}>{heatmapExecutiveSummary.text}</p>
-                </div>
-                <Clock3 className="h-5 w-5 text-indigo-500" />
-              </header>
-              <div className="mt-4">
-                {loadingTime ? (
-                  <p className="text-sm text-slate-500">Carregando mapa de horários...</p>
-                ) : heatmap.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados para montar o mapa de horários.</p>
-                ) : (
-                  <div className="grid grid-cols-7 gap-1 text-[11px] text-slate-500">
-                    <div />
-                    {Array.from({ length: 6 }).map((_, idx) => (
-                      <div key={idx} className="text-center">{`${idx * 4}h`}</div>
-                    ))}
-                    {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
-                      <React.Fragment key={dow}>
-                        <div className="pr-2 text-right">{WEEKDAY_SHORT_SUN_FIRST[dow - 1] || `Dia ${dow}`}</div>
-                        {Array.from({ length: 6 }).map((_, hIdx) => {
-                          const h = hIdx * 4;
-                          const startHour = h;
-                          const endHour = Math.min(h + 3, 23);
-                          const windowPoints = heatmap.filter((curr) => curr.day === dow && curr.hour >= startHour && curr.hour <= endHour);
-                          const score = windowPoints.length
-                            ? windowPoints.reduce((sum, curr) => sum + curr.score, 0) / windowPoints.length
-                            : 0;
-                          const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
-                          return (
-                            <button
-                              key={hIdx}
-                              type="button"
-                              className="aspect-square rounded border border-slate-100 transition hover:border-slate-300"
-                              style={{ background: bg }}
-                              onClick={() => handleDayHourClick(dow, startHour, endHour, "Mapa de horários")}
-                              aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
-                            />
-                          );
-                        })}
-                      </React.Fragment>
-                    ))}
+                {activeTab === "content" && (
+                  <div className="space-y-4">
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Contexto</p>
+                            <h2 className="text-base font-semibold text-slate-900">Resposta por post por contexto</h2>
+                            <p className={`text-xs ${deltaToneClassMap[contextExecutiveSummary.tone]}`}>{contextExecutiveSummary.text}</p>
+                          </div>
+                          <Target className="h-5 w-5 text-slate-600" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingPosts ? (
+                            <p className="text-sm text-slate-500">Carregando contextos...</p>
+                          ) : contextBars.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={contextBars}
+                                layout="vertical"
+                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Bar dataKey="value" name="Respostas" fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("context", val, "Resposta por contexto"); }}>
+                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Intenção do Conteúdo</p>
+                            <h2 className="text-base font-semibold text-slate-900">Resposta por proposta (Vender, Educar...)</h2>
+                            <p className={`text-xs ${deltaToneClassMap[proposalExecutiveSummary.tone]}`}>{proposalExecutiveSummary.text}</p>
+                          </div>
+                          <Sparkles className="h-5 w-5 text-indigo-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingProposal ? (
+                            <p className="text-sm text-slate-500">Carregando propostas...</p>
+                          ) : proposalBars.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={proposalBars}
+                                layout="vertical"
+                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Bar dataKey="value" name="Respostas" fill="#6366f1" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("proposal", val, "Resposta por proposta"); }}>
+                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tom de Voz</p>
+                            <h2 className="text-base font-semibold text-slate-900">Resposta por tom da mensagem</h2>
+                            <p className={`text-xs ${deltaToneClassMap[toneExecutiveSummary.tone]}`}>{toneExecutiveSummary.text}</p>
+                          </div>
+                          <Sparkles className="h-5 w-5 text-emerald-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingTone ? (
+                            <p className="text-sm text-slate-500">Carregando tons...</p>
+                          ) : toneBars.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={toneBars}
+                                layout="vertical"
+                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Bar dataKey="value" name="Respostas" fill="#10b981" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("tone", val, "Resposta por tom"); }}>
+                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Referências</p>
+                            <h2 className="text-base font-semibold text-slate-900">Resposta por post por referência</h2>
+                            <p className={`text-xs ${deltaToneClassMap[referenceExecutiveSummary.tone]}`}>{referenceExecutiveSummary.text}</p>
+                          </div>
+                          <Sparkles className="h-5 w-5 text-amber-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingReference ? (
+                            <p className="text-sm text-slate-500">Carregando referências...</p>
+                          ) : referenceBars.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem referências registradas.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={referenceBars}
+                                layout="vertical"
+                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Bar dataKey="value" name="Respostas" fill="#f59e0b" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("references", val, "Resposta por referência"); }}>
+                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
                   </div>
                 )}
-              </div>
-            </article>
 
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Formato</p>
-                  <h2 className="text-base font-semibold text-slate-900">Resposta por formato</h2>
-                  <p className={`text-xs ${deltaToneClassMap[formatExecutiveSummary.tone]}`}>{formatExecutiveSummary.text}</p>
-                </div>
-                <LineChartIcon className="h-5 w-5 text-amber-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingFormat ? (
-                  <p className="text-sm text-slate-500">Carregando formatos...</p>
-                ) : formatBars.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={formatBars}
-                      margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas"]}
-                      />
-                      <Bar
-                        dataKey="value"
-                        name="Respostas"
-                        fill="#f97316"
-                        radius={[6, 6, 0, 0]}
-                        onClick={({ payload }) => {
-                          const value = payload?.name ? String(payload.name) : null;
-                          if (value) handleCategoryClick("format", value, "Resposta por formato");
-                        }}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                {activeTab === "format" && (
+                  <div className="space-y-4">
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mapa de horários</p>
+                            <h2 className="text-base font-semibold text-slate-900">Dias e horas que mais engajam</h2>
+                            <p className={`text-xs ${deltaToneClassMap[heatmapExecutiveSummary.tone]}`}>{heatmapExecutiveSummary.text}</p>
+                          </div>
+                          <Clock3 className="h-5 w-5 text-indigo-500" />
+                        </header>
+                        <div className="mt-4">
+                          {loadingTime ? (
+                            <p className="text-sm text-slate-500">Carregando mapa de horários...</p>
+                          ) : heatmap.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem dados para montar o mapa de horários.</p>
+                          ) : (
+                            <div className="grid grid-cols-7 gap-1 text-[11px] text-slate-500">
+                              <div />
+                              {Array.from({ length: 6 }).map((_, idx) => (
+                                <div key={idx} className="text-center">{`${idx * 4}h`}</div>
+                              ))}
+                              {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
+                                <React.Fragment key={dow}>
+                                  <div className="pr-2 text-right">{WEEKDAY_SHORT_SUN_FIRST[dow - 1] || `Dia ${dow}`}</div>
+                                  {Array.from({ length: 6 }).map((_, hIdx) => {
+                                    const h = hIdx * 4;
+                                    const startHour = h;
+                                    const endHour = Math.min(h + 3, 23);
+                                    const windowPoints = heatmap.filter((curr) => curr.day === dow && curr.hour >= startHour && curr.hour <= endHour);
+                                    const score = windowPoints.length
+                                      ? windowPoints.reduce((sum, curr) => sum + curr.score, 0) / windowPoints.length
+                                      : 0;
+                                    const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
+                                    return (
+                                      <button
+                                        key={hIdx}
+                                        type="button"
+                                        className="aspect-square rounded border border-slate-100 transition hover:border-slate-300"
+                                        style={{ background: bg }}
+                                        onClick={() => handleDayHourClick(dow, startHour, endHour, "Mapa de horários")}
+                                        aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
+                                      />
+                                    );
+                                  })}
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Horário</p>
+                            <h2 className="text-base font-semibold text-slate-900">Melhor horário para postar</h2>
+                            {bestHour !== null && (
+                              <p className="text-xs text-emerald-700">Janela com melhor resposta: {bestHour}h</p>
+                            )}
+                          </div>
+                          <Clock3 className="h-5 w-5 text-emerald-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingTime ? (
+                            <p className="text-sm text-slate-500">Carregando horários...</p>
+                          ) : hourBars.length === 0 ? (
+                            <div className="space-y-3">
+                              <p className="text-sm text-slate-500">Sem dados suficientes no período selecionado.</p>
+                              {timePeriod !== "all_time" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleTimePeriodChange("all_time")}
+                                  className="inline-flex min-h-[36px] items-center rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                                >
+                                  Ver todo histórico
+                                </button>
+                              ) : (
+                                <p className="text-xs text-slate-400">
+                                  Publique novos conteúdos para liberar recomendações de horário.
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={hourBars}
+                                margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis
+                                  dataKey="hour"
+                                  tickFormatter={(h) => `${h}h`}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                />
+                                <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                                <Tooltip
+                                  contentStyle={tooltipStyle}
+                                  labelFormatter={(label, payload: any[]) => {
+                                    const postsCount = payload?.[0]?.payload?.postsCount;
+                                    return typeof postsCount === "number"
+                                      ? `${label}h • ${formatPostsCount(postsCount)}`
+                                      : `${label}h`;
+                                  }}
+                                  formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
+                                />
+                                <Bar
+                                  dataKey="average"
+                                  name="Respostas por post"
+                                  fill="#0ea5e9"
+                                  radius={[6, 6, 0, 0]}
+                                  onClick={({ payload }) => {
+                                    const hour = typeof payload?.hour === "number" ? payload.hour : null;
+                                    if (hour !== null) {
+                                      handleHourClick(hour, "Melhor horário para postar");
+                                    }
+                                  }}
+                                >
+                                  <LabelList
+                                    dataKey="postsCount"
+                                    position="top"
+                                    formatter={(value: number) => numberFormatter.format(Math.max(0, Math.round(value)))}
+                                    fill="#64748b"
+                                    fontSize={10}
+                                  />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração dos vídeos</p>
+                            <h2 className="text-base font-semibold text-slate-900">Quantos vídeos você tem em cada faixa de tempo</h2>
+                            {durationSummary.totalVideoPosts > 0 ? (
+                              <p className="text-xs text-slate-500">
+                                Já temos duração em {(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos (
+                                {numberFormatter.format(durationSummary.totalPostsWithDuration)}/
+                                {numberFormatter.format(durationSummary.totalVideoPosts)}).
+                              </p>
+                            ) : null}
+                          </div>
+                          <Clock3 className="h-5 w-5 text-cyan-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingDuration ? (
+                            <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
+                          ) : durationSummary.totalVideoPosts === 0 ? (
+                            <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
+                          ) : durationSummary.totalPostsWithDuration === 0 ? (
+                            <p className="text-sm text-slate-500">
+                              Ainda não conseguimos ler a duração dos vídeos deste período.
+                            </p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={durationBuckets} margin={{ top: 20, right: 8, left: -6, bottom: 0 }} style={{ cursor: "pointer" }}>
+                                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                                <YAxis
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                  tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                                />
+                                <Tooltip
+                                  contentStyle={tooltipStyle}
+                                  labelFormatter={(label, payload: any[]) => {
+                                    const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
+                                    return `${label} • ${formatPostsCount(postsCount)}`;
+                                  }}
+                                  formatter={(value: number) => [formatPostsCount(value), "Posts"]}
+                                />
+                                <Bar
+                                  dataKey="postsCount"
+                                  name="Posts"
+                                  fill="#06b6d4"
+                                  radius={[6, 6, 0, 0]}
+                                  onClick={({ payload }) => {
+                                    const bucketKey = payload?.key as DurationBucketKey | undefined;
+                                    if (bucketKey) handleDurationBucketClick(bucketKey, "Vídeos por faixa de duração");
+                                  }}
+                                >
+                                  <LabelList
+                                    dataKey="postsCount"
+                                    position="top"
+                                    formatter={(value: number) => numberFormatter.format(Math.max(0, Math.round(value)))}
+                                    fill="#64748b"
+                                    fontSize={10}
+                                  />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Duração x resultado</p>
+                            <h2 className="text-base font-semibold text-slate-900">Qual duração traz mais resposta</h2>
+                            {bestDurationBucket ? (
+                              <p className="text-xs text-emerald-700">
+                                Faixa que mais respondeu: {bestDurationBucket.label} ({numberFormatter.format(Math.round(bestDurationBucket.averageInteractions))} respostas por post).
+                              </p>
+                            ) : null}
+                            {lowSampleDurationBuckets > 0 ? (
+                              <p className="text-xs text-amber-700">
+                                {lowSampleDurationBuckets} faixa(s) ainda têm poucos vídeos (menos de 5).
+                              </p>
+                            ) : null}
+                          </div>
+                          <LineChartIcon className="h-5 w-5 text-indigo-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingDuration ? (
+                            <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
+                          ) : durationSummary.totalVideoPosts === 0 ? (
+                            <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
+                          ) : durationSummary.totalPostsWithDuration === 0 ? (
+                            <p className="text-sm text-slate-500">Sem duração suficiente para comparar faixas.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={durationBuckets}
+                                margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                                onClick={(state) => {
+                                  const label = state?.activeLabel ? String(state.activeLabel) : null;
+                                  if (!label) return;
+                                  const bucket = DURATION_BUCKETS.find((item) => item.label === label);
+                                  if (!bucket) return;
+                                  handleDurationBucketClick(bucket.key, "Resposta por faixa de duração");
+                                }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis
+                                  dataKey="label"
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                />
+                                <YAxis
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                  tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                                />
+                                <Tooltip
+                                  contentStyle={tooltipStyle}
+                                  labelFormatter={(label, payload: any[]) => {
+                                    const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
+                                    return `${label} • ${formatPostsCount(postsCount)}`;
+                                  }}
+                                  formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Respostas por post"]}
+                                />
+                                <Bar
+                                  dataKey="averageInteractions"
+                                  name="Respostas por post"
+                                  stroke="#7c3aed"
+                                  fill="#7c3aed"
+                                  radius={[6, 6, 0, 0]}
+                                >
+                                  <LabelList
+                                    dataKey="averageInteractions"
+                                    position="top"
+                                    formatter={(value: number) => numberFormatter.format(Math.round(value))}
+                                    fill="#64748b"
+                                    fontSize={10}
+                                  />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Formato e Estilo</p>
+                            <h2 className="text-base font-semibold text-slate-900">Resposta por formato de post</h2>
+                            <p className={`text-xs ${deltaToneClassMap[formatExecutiveSummary.tone]}`}>{formatExecutiveSummary.text}</p>
+                          </div>
+                          <LineChartIcon className="h-5 w-5 text-amber-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingFormat ? (
+                            <p className="text-sm text-slate-500">Carregando formatos...</p>
+                          ) : formatBars.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={formatBars}
+                                margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+                                <YAxis hide />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Bar dataKey="value" name="Respostas" fill="#f97316" radius={[6, 6, 0, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("format", val, "Resposta por formato"); }}>
+                                  <LabelList dataKey="value" position="top" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
+                  </div>
                 )}
-              </div>
-            </article>
-          </section>
 
-          <section className="grid gap-4 md:grid-cols-2">
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Consistência</p>
-                  <h2 className="text-base font-semibold text-slate-900">Ritmo de posts x resposta por post</h2>
-                  <p className={`text-xs ${deltaToneClassMap[consistencyExecutiveSummary.tone]}`}>{consistencyExecutiveSummary.text}</p>
-                </div>
-                <LineChartIcon className="h-5 w-5 text-emerald-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando ritmo...</p>
-                ) : weeklyConsistency.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem posts suficientes no período.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={weeklyConsistency}
-                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Ritmo de posts x resposta por post")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatWeekLabel}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(value)}
-                        label={{ value: "Posts", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                        tickFormatter={(value: number) => numberFormatter.format(value)}
-                        label={{ value: "Respostas por post", angle: 90, position: "insideRight", fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label) => `Semana ${formatWeekLabel(String(label)).replace(/\sW/, " W")}`}
-                        formatter={(value: number, name) => [
-                          numberFormatter.format(Math.round(value)),
-                          name === "posts" ? "Posts por semana" : "Respostas por post",
-                        ]}
-                      />
-                      <Legend
-                        verticalAlign="top"
-                        height={28}
-                        iconType="circle"
-                        formatter={(value) => (value === "posts" ? "Posts por semana" : "Respostas por post")}
-                      />
-                      <Line yAxisId="left" type="monotone" dataKey="posts" name="posts" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="avgInteractions"
-                        name="avgInteractions"
-                        stroke="#a855f7"
-                        strokeWidth={3}
-                        dot={{ r: 2.5 }}
-                        activeDot={{ r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                {activeTab === "audience" && (
+                  <div className="space-y-4">
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pessoas alcançadas x respostas</p>
+                            <h2 className="text-base font-semibold text-slate-900">Evolução por semana</h2>
+                            <p className={`text-xs ${deltaToneClassMap[interactionsDeltaSummary.tone]}`}>{interactionsDeltaSummary.text}</p>
+                          </div>
+                          <Sparkles className="h-5 w-5 text-indigo-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingTrend ? (
+                            <p className="text-sm text-slate-500">Carregando série...</p>
+                          ) : trendSeries.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem dados no período.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart
+                                data={trendSeries}
+                                margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
+                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Alcance x Interações")}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis
+                                  dataKey="date"
+                                  tickFormatter={formatWeekLabel}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                />
+                                <YAxis
+                                  yAxisId="reach"
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                  tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                                />
+                                <YAxis
+                                  yAxisId="interactions"
+                                  orientation="right"
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                  tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                                />
+                                <Tooltip
+                                  contentStyle={tooltipStyle}
+                                  labelFormatter={(label) => formatWeekLabel(String(label))}
+                                  formatter={(value: number) => numberFormatter.format(Math.round(value))}
+                                />
+                                <Line yAxisId="reach" type="monotone" dataKey="reach" name="Pessoas alcançadas (média)" stroke="#2563eb" strokeWidth={3} dot={false} />
+                                <Line yAxisId="interactions" type="monotone" dataKey="interactions" name="Respostas por post" stroke="#7c3aed" strokeWidth={3} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Consistência</p>
+                            <h2 className="text-base font-semibold text-slate-900">Força de resposta do seu conteúdo</h2>
+                            <p className={`text-xs ${deltaToneClassMap[weeklyRateExecutiveSummary.tone]}`}>{weeklyRateExecutiveSummary.text}</p>
+                          </div>
+                          <Sparkles className="h-5 w-5 text-indigo-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingPosts ? (
+                            <p className="text-sm text-slate-500">Carregando série...</p>
+                          ) : weeklyEngagementRate.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart
+                                data={weeklyEngagementRate}
+                                margin={{ top: 20, right: 12, left: -6, bottom: 0 }}
+                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Percentual de resposta")}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis dataKey="date" tickFormatter={formatWeekLabel} tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                                <YAxis hide />
+                                <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => formatWeekLabel(String(l))} />
+                                <Line type="monotone" dataKey="avgRate" name="Resposta" stroke="#7c3aed" strokeWidth={3} dot>
+                                  <LabelList dataKey="avgRate" position="top" formatter={(v: number) => `${(v * 100).toFixed(1)}%`} fill="#64748b" fontSize={11} />
+                                </Line>
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Salvamentos</p>
+                            <h2 className="text-base font-semibold text-slate-900">Média de salvamentos por semana</h2>
+                            <p className={`text-xs ${deltaToneClassMap[savesDeltaSummary.tone]}`}>{savesDeltaSummary.text}</p>
+                          </div>
+                          <LineChartIcon className="h-5 w-5 text-rose-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingPosts ? (
+                            <p className="text-sm text-slate-500">Carregando série...</p>
+                          ) : saveVelocitySeries.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart
+                                data={saveVelocitySeries}
+                                margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de salvamentos por semana")}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis
+                                  dataKey="date"
+                                  tickFormatter={formatWeekLabel}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                />
+                                <YAxis
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                  tickFormatter={(value: number) => numberFormatter.format(value)}
+                                  label={{ value: "Salvamentos médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                                />
+                                <Tooltip
+                                  contentStyle={tooltipStyle}
+                                  labelFormatter={(label) => formatWeekLabel(String(label))}
+                                  formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Salvamentos médios"]}
+                                />
+                                <Line type="monotone" dataKey="avgSaves" name="Salvamentos médios" stroke="#ec4899" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Velocidade de Comentários</p>
+                            <h2 className="text-base font-semibold text-slate-900">Média de comentários por semana</h2>
+                            <p className={`text-xs ${deltaToneClassMap[commentsDeltaSummary.tone]}`}>{commentsDeltaSummary.text}</p>
+                          </div>
+                          <LineChartIcon className="h-5 w-5 text-indigo-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingPosts ? (
+                            <p className="text-sm text-slate-500">Carregando série...</p>
+                          ) : commentVelocitySeries.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart
+                                data={commentVelocitySeries}
+                                margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de comentários por semana")}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis
+                                  dataKey="date"
+                                  tickFormatter={formatWeekLabel}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                />
+                                <YAxis
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                  tickFormatter={(value: number) => numberFormatter.format(value)}
+                                  label={{ value: "Comentários médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                                />
+                                <Tooltip
+                                  contentStyle={tooltipStyle}
+                                  labelFormatter={(label) => formatWeekLabel(String(label))}
+                                  formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Comentários médios"]}
+                                />
+                                <Line type="monotone" dataKey="avgComments" name="Comentários médios" stroke="#6366f1" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
+                    <section className="grid gap-4 md:grid-cols-2">
+                      <article className={cardBase}>
+                        <header className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Salvos e Compartilhamentos</p>
+                            <h2 className="text-base font-semibold text-slate-900">Compartilhamentos por pessoas alcançadas</h2>
+                            <p className={`text-xs ${deltaToneClassMap[deepEngagementExecutiveSummary.tone]}`}>{deepEngagementExecutiveSummary.text}</p>
+                          </div>
+                          <Sparkles className="h-5 w-5 text-amber-500" />
+                        </header>
+                        <div className="mt-4 h-64">
+                          {loadingPosts ? (
+                            <p className="text-sm text-slate-500">Carregando dados...</p>
+                          ) : deepEngagement.length === 0 ? (
+                            <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart
+                                data={deepEngagement}
+                                layout="vertical"
+                                margin={{ top: 6, right: 12, left: 40, bottom: 0 }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="format" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Bar dataKey="sharesPerThousand" name="Compartilhamentos" fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.format ? String(payload.format) : null; if (val) handleCategoryClick("format", val, "Compartilhamentos por formato"); }}>
+                                  <LabelList dataKey="sharesPerThousand" position="right" formatter={(v: number) => v.toFixed(1)} fill="#64748b" fontSize={11} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </article>
+                    </section>
+                    <section className={cardBase}>
+                      <header className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Descoberta</p>
+                          <h3 className="text-base font-semibold text-slate-900">Posts que mais puxaram não seguidores</h3>
+                          <p className={`text-xs ${deltaToneClassMap[topDiscoveryExecutiveSummary.tone]}`}>{topDiscoveryExecutiveSummary.text}</p>
+                        </div>
+                        <Sparkles className="h-5 w-5 text-indigo-500" />
+                      </header>
+                      {loadingPosts ? (
+                        <p className="mt-3 text-sm text-slate-500">Carregando lista...</p>
+                      ) : (
+                        <TopDiscoveryTable posts={topDiscovery} isLoading={loadingPosts} />
+                      )}
+                    </section>
+                  </div>
                 )}
-              </div>
-            </article>
-
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Salvos e compartilhamentos</p>
-                  <h2 className="text-base font-semibold text-slate-900">Salvos e compartilhamentos por pessoas alcançadas</h2>
-                  <p className={`text-xs ${deltaToneClassMap[deepEngagementExecutiveSummary.tone]}`}>{deepEngagementExecutiveSummary.text}</p>
-                </div>
-                <Sparkles className="h-5 w-5 text-amber-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando salvos e compartilhamentos...</p>
-                ) : deepEngagement.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados suficientes de salvos e compartilhamentos.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={deepEngagement}
-                      layout="vertical"
-                      margin={{ top: 6, right: 12, left: 40, bottom: 0 }}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        type="category"
-                        dataKey="format"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#475569", fontSize: 12 }}
-                        width={140}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        formatter={(value: number, name: string, { payload }: any) => {
-                          const perK = (value || 0).toFixed(2);
-                          const count = payload?.postsCount ?? 0;
-                          if (name === "savesPerThousand") {
-                            return [`${perK} por 1.000 pessoas alcançadas · ${count} posts`, "Salvos"];
-                          }
-                          if (name === "sharesPerThousand") {
-                            return [`${perK} por 1.000 pessoas alcançadas · ${count} posts`, "Compartilhamentos"];
-                          }
-                          return [`${perK}`, name];
-                        }}
-                      />
-                      <Bar
-                        dataKey="savesPerThousand"
-                        name="Salvos"
-                        stackId="depth"
-                        fill="#22c55e"
-                        radius={[0, 6, 6, 0]}
-                        onClick={({ payload }) => {
-                          const value = payload?.format ? String(payload.format) : null;
-                          if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
-                        }}
-                      />
-                      <Bar
-                        dataKey="sharesPerThousand"
-                        name="Compartilhamentos"
-                        stackId="depth"
-                        fill="#0ea5e9"
-                        radius={[0, 6, 6, 0]}
-                        onClick={({ payload }) => {
-                          const value = payload?.format ? String(payload.format) : null;
-                          if (value) handleCategoryClick("format", value, "Salvos e compartilhamentos por formato");
-                        }}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-          </section>
-
-          <section className="grid gap-4 md:grid-cols-2">
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Força de resposta</p>
-                  <h2 className="text-base font-semibold text-slate-900">Percentual de resposta por semana</h2>
-                  <p className={`text-xs ${deltaToneClassMap[weeklyRateExecutiveSummary.tone]}`}>{weeklyRateExecutiveSummary.text}</p>
-                </div>
-                <Sparkles className="h-5 w-5 text-indigo-500" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando série...</p>
-                ) : weeklyEngagementRate.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={weeklyEngagementRate}
-                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Percentual de resposta por semana")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatWeekLabel}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        tickFormatter={(v) => `${(v * 100).toFixed(1)}%`}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label) => formatWeekLabel(String(label))}
-                        formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, "Percentual de resposta (interações entre pessoas alcançadas)"]}
-                      />
-                      <Line type="monotone" dataKey="avgRate" name="Resposta semanal" stroke="#7c3aed" strokeWidth={3} dot />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-
-            <article className={cardBase}>
-              <header className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Compartilhamentos e visitas</p>
-                  <h2 className="text-base font-semibold text-slate-900">Compartilhamentos x Visitas</h2>
-                  <p className="text-xs text-slate-500">Veja se compartilhar está trazendo visitas ao perfil.</p>
-                </div>
-                <LineChartIcon className="h-5 w-5 text-slate-600" />
-              </header>
-              <div className="mt-4 h-64">
-                {loadingPosts ? (
-                  <p className="text-sm text-slate-500">Carregando série...</p>
-                ) : shareVelocitySeries.length === 0 ? (
-                  <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={shareVelocitySeries}
-                      margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                      onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Compartilhamentos x Visitas")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatWeekLabel}
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        labelFormatter={(label) => formatWeekLabel(String(label))}
-                        formatter={(value: number, name) =>
-                          name === "shares"
-                            ? [numberFormatter.format(Math.round(value)), "Compartilhamentos"]
-                            : [numberFormatter.format(Math.round(value)), "Visitas ao perfil"]
-                        }
-                      />
-                      <Line yAxisId="left" type="monotone" dataKey="shares" name="Compartilhamentos" stroke="#f97316" strokeWidth={3} dot />
-                      <Line yAxisId="right" type="monotone" dataKey="visits" name="Visitas ao perfil" stroke="#0ea5e9" strokeWidth={3} dot />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </article>
-          </section>
-
-
-
-          <section className={cardBase}>
-            <header className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Top descoberta</p>
-                <h3 className="text-base font-semibold text-slate-900">Posts que mais puxam não seguidores</h3>
-                <p className={`text-xs ${deltaToneClassMap[topDiscoveryExecutiveSummary.tone]}`}>{topDiscoveryExecutiveSummary.text}</p>
-              </div>
-              <Sparkles className="h-5 w-5 text-indigo-500" />
-            </header>
-            {loadingPosts ? (
-              <p className="text-sm text-slate-500 mt-3">Carregando lista...</p>
+              </>
             ) : (
-              <TopDiscoveryTable posts={topDiscovery} isLoading={loadingPosts} />
+              <section className="grid gap-4 md:grid-cols-2">
+                {[0, 1].map((index) => (
+                  <article key={index} className={cardBase}>
+                    <div className="h-[340px] animate-pulse rounded-xl bg-slate-100/80" />
+                  </article>
+                ))}
+              </section>
             )}
-          </section>
-            </>
-          ) : (
-            <section className="grid gap-4 md:grid-cols-2">
-              {[0, 1].map((index) => (
-                <article key={index} className={cardBase}>
-                  <div className="h-[340px] animate-pulse rounded-xl bg-slate-100/80" />
-                </article>
-              ))}
-            </section>
-          )}
+          </div>
         </div>
       </main>
       <Drawer
         open={Boolean(selectedRecommendation)}
         onClose={closeRecommendationEvidence}
-        title={selectedRecommendation ? "Ação recomendada" : "Ação recomendada"}
+        title="Análise Estratégica"
       >
         {selectedRecommendation ? (
-          <div className="space-y-5">
-            <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {RECOMMENDATION_TITLE_OVERRIDES[selectedRecommendation.id] || selectedRecommendation.title}
-              </p>
-              <p className="mt-1.5 text-sm font-semibold leading-snug text-slate-900">{selectedRecommendation.action}</p>
-            </section>
+          <div className="flex h-full flex-col">
+            <div className="flex-1 space-y-6 overflow-y-auto pb-24">
+              {/* Cabeçalho Premium */}
+              <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 to-indigo-950 p-5 shadow-lg">
+                <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-indigo-500/20 blur-2xl"></div>
 
-            <section className="grid gap-3 sm:grid-cols-2">
-              <article className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">O que esperar</p>
-                <p className="mt-1 text-sm text-slate-700">{formatExpectedResult(selectedRecommendation.impactEstimate)}</p>
-              </article>
-              <article className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Base da sugestão</p>
-                <p className="mt-1 text-sm text-slate-700">{formatSampleBaseText(selectedRecommendationView?.sampleSize)}</p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">
-                  {confidenceLabel[selectedRecommendationView?.confidenceAdjusted || selectedRecommendation.confidence]}
-                </p>
-              </article>
-            </section>
-
-            {selectedRecommendationView?.hasLowSampleGuardrail ? (
-              <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-xs font-semibold text-amber-700">{formatGuardrailText(selectedRecommendationView.guardrailReason)}</p>
+                <div className="relative">
+                  <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-indigo-200 backdrop-blur-sm">
+                    <Sparkles className="h-3 w-3" />
+                    {RECOMMENDATION_TITLE_OVERRIDES[selectedRecommendation.id] || selectedRecommendation.title}
+                  </div>
+                  <h3 className="text-lg font-medium leading-snug text-white">
+                    {selectedRecommendation.action}
+                  </h3>
+                </div>
               </section>
-            ) : null}
 
-            <section>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Você vai testar?</p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  disabled={selectedRecommendationFeedbackLoading}
-                  onClick={() => submitRecommendationFeedback(selectedRecommendation, "applied")}
-                  className={`inline-flex min-h-[34px] items-center rounded-full border px-3 text-xs font-semibold transition ${
-                    selectedRecommendationView?.feedbackStatus === "applied"
+              {/* Dashboard Racional da IA */}
+              <section className="grid gap-3 sm:grid-cols-2">
+                <article className="flex max-w-full flex-col justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Potencial Estimado</p>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900 break-words">{formatExpectedResult(selectedRecommendation.impactEstimate)}</p>
+                </article>
+
+                <article className="flex max-w-full flex-col justify-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Database className="h-4 w-4 text-indigo-500" />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Volume de Dados</p>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900 break-words">{formatSampleBaseText(selectedRecommendationView?.sampleSize)}</p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-500">
+                    Sinal {confidenceLabel[selectedRecommendationView?.confidenceAdjusted || selectedRecommendation.confidence]?.toLowerCase()}
+                  </p>
+                </article>
+              </section>
+
+              {selectedRecommendationView?.hasLowSampleGuardrail ? (
+                <section className="rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <p className="text-xs font-medium leading-relaxed text-amber-800">
+                      {formatGuardrailText(selectedRecommendationView.guardrailReason)}
+                    </p>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* Racional de Decisão (Evidence List) */}
+              <section className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <Target className="h-4 w-4 text-slate-400" />
+                  <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Racional da Decisão</h4>
+                </div>
+                <ul className="space-y-4">
+                  {selectedRecommendation.evidence.map((item, index) => (
+                    <li key={`${selectedRecommendation.id}-${index}`} className="flex items-start gap-3">
+                      <div className="mt-0.5 flex shrink-0 justify-center">
+                        <CheckCircle2 className="h-4 w-4 text-indigo-400" />
+                      </div>
+                      <p className="text-sm leading-relaxed text-slate-700">{simplifyEvidenceText(item)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+
+            {/* Sticky Footer */}
+            <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+              <div className="mx-auto max-w-lg space-y-3">
+                <p className="text-center text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Decisão</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={selectedRecommendationFeedbackLoading}
+                    onClick={() => submitRecommendationFeedback(selectedRecommendation, "applied")}
+                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl border text-sm font-semibold transition ${selectedRecommendationView?.feedbackStatus === "applied"
                       ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                  } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
-                >
-                  {feedbackStatusLabel.applied}
-                </button>
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
+                  >
+                    <span className="mr-2 text-lg leading-none">{selectedRecommendationView?.feedbackStatus === "applied" ? "✅" : "👍"}</span>
+                    Vou testar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedRecommendationFeedbackLoading}
+                    onClick={() => submitRecommendationFeedback(selectedRecommendation, "not_applied")}
+                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl border text-sm font-semibold transition ${selectedRecommendationView?.feedbackStatus === "not_applied"
+                      ? "border-amber-300 bg-amber-50 text-amber-700"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
+                  >
+                    <span className="mr-2 text-lg leading-none">{selectedRecommendationView?.feedbackStatus === "not_applied" ? "❌" : "👎"}</span>
+                    Descartar
+                  </button>
+                </div>
                 <button
                   type="button"
-                  disabled={selectedRecommendationFeedbackLoading}
-                  onClick={() => submitRecommendationFeedback(selectedRecommendation, "not_applied")}
-                  className={`inline-flex min-h-[34px] items-center rounded-full border px-3 text-xs font-semibold transition ${
-                    selectedRecommendationView?.feedbackStatus === "not_applied"
-                      ? "border-amber-300 bg-amber-50 text-amber-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                  } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
+                  onClick={() => handleGoToPlanner("recommendation_drawer")}
+                  className="mt-2 flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  {feedbackStatusLabel.not_applied}
+                  Ir para roteiros
                 </button>
               </div>
-            </section>
-
-            <section>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Por que vale testar</p>
-              <ul className="mt-2 space-y-2 text-sm text-slate-700">
-                {selectedRecommendation.evidence.map((item, index) => (
-                  <li
-                    key={`${selectedRecommendation.id}-${index}`}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                  >
-                    {simplifyEvidenceText(item)}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => handleGoToPlanner("recommendation_drawer")}
-                className="inline-flex min-h-[38px] w-full items-center justify-center rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                Ir para planejamento
-              </button>
             </div>
           </div>
         ) : null}

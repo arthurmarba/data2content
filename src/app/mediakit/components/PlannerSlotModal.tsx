@@ -42,7 +42,6 @@ const toVideoProxyUrl = (raw?: string | null) => {
   return raw;
 };
 
-type GenerationStrategy = 'default' | 'strong_hook' | 'more_humor' | 'practical_imperative';
 type InspirationVideoItem = {
   id: string;
   caption?: string;
@@ -70,6 +69,15 @@ type CommunityPost = {
   postLink?: string | null;
   videoUrl?: string | null;
   reason?: string[];
+};
+
+type ModalSectionKey = 'themes' | 'kpis' | 'inspirations' | 'community';
+
+const DEFAULT_SECTIONS_OPEN: Record<ModalSectionKey, boolean> = {
+  themes: true,
+  kpis: false,
+  inspirations: false,
+  community: false,
 };
 
 type CacheEntry<T> = {
@@ -122,6 +130,10 @@ function stableListKey(values?: string[]) {
     .filter(Boolean)
     .sort()
     .join(',');
+}
+
+function normalizeThemeText(value?: string | null) {
+  return String(value || '').trim().toLowerCase();
 }
 
 function buildModalSlotKey(slot: PlannerSlotData, format: string) {
@@ -194,36 +206,59 @@ const GradientPillButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>
   </button>
 );
 
-const OutlinePillButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
-  className = '',
+type CollapsibleSectionProps = {
+  sectionKey: ModalSectionKey;
+  title: string;
+  isOpen: boolean;
+  onToggle: (key: ModalSectionKey) => void;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+};
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
+  sectionKey,
+  title,
+  isOpen,
+  onToggle,
+  action,
   children,
-  disabled,
-  ...props
-}) => (
-  <button
-    {...props}
-    disabled={disabled}
-    className={`inline-flex items-center justify-center gap-2 rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900 ${disabled ? 'cursor-not-allowed opacity-50 hover:border-neutral-300 hover:text-neutral-700' : ''
-      } ${className}`}
-  >
-    {children}
-  </button>
-);
+}) => {
+  const contentId = `planner-slot-section-${sectionKey}`;
+  return (
+    <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.035)]">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 px-3 py-2.5 sm:px-5 sm:py-3">
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          aria-controls={contentId}
+          onClick={() => onToggle(sectionKey)}
+          className="flex min-h-11 flex-1 items-center justify-between gap-3 rounded-xl px-1 text-left transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30"
+        >
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">{title}</span>
+          <span className="text-sm font-semibold text-slate-500" aria-hidden>
+            {isOpen ? '−' : '+'}
+          </span>
+        </button>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+      {isOpen ? (
+        <div id={contentId} className="space-y-3.5 px-3 py-3.5 sm:space-y-4 sm:px-5 sm:py-5">
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+};
 
 export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   open,
   onClose,
   userId,
-  targetUserId,
-  weekStartISO,
   slot,
   onSave,
   onDuplicateSlot,
   onDeleteSlot,
   readOnly = false,
-  canGenerate = true,
-  onUpgradeRequest,
-  upgradeMessage,
 }) => {
   void onDuplicateSlot;
   void onDeleteSlot;
@@ -251,8 +286,8 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   const [autoCommunityFetched, setAutoCommunityFetched] = useState(false);
   const [activeInspirationVideo, setActiveInspirationVideo] = useState<InspirationVideoItem | null>(null);
   const [nextInspirationVideo, setNextInspirationVideo] = useState<InspirationVideoItem | null>(null);
-  const [inspirationsOpen, setInspirationsOpen] = useState(true);
-  const [communityOpen, setCommunityOpen] = useState(true);
+  const [selectedThemeForSave, setSelectedThemeForSave] = useState<string | null>(null);
+  const [sectionsOpen, setSectionsOpen] = useState<Record<ModalSectionKey, boolean>>(() => ({ ...DEFAULT_SECTIONS_OPEN }));
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(open);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -285,11 +320,17 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     setCommunityExpanded(false);
     setAutoInspirationsFetched(false);
     setAutoCommunityFetched(false);
-    setInspirationsOpen(true);
-    setCommunityOpen(true);
+    setSectionsOpen({ ...DEFAULT_SECTIONS_OPEN });
+    setSelectedThemeForSave(null);
     setActiveInspirationVideo(null);
     setNextInspirationVideo(null);
   }, [open, slot, derivedTheme]);
+
+  useEffect(() => {
+    if (!selectedThemeForSave) return;
+    if (normalizeThemeText(selectedThemeForSave) === normalizeThemeText(title)) return;
+    setSelectedThemeForSave(null);
+  }, [title, selectedThemeForSave]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -561,10 +602,10 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   }, [slot, userId, format, inspirationsCacheKey]);
 
   useEffect(() => {
-    if (!open || !slot || !inspirationsOpen || autoInspirationsFetched) return;
+    if (!open || !slot || !sectionsOpen.inspirations || autoInspirationsFetched) return;
     setAutoInspirationsFetched(true);
     void fetchInspirations();
-  }, [open, slot, inspirationsOpen, autoInspirationsFetched, fetchInspirations]);
+  }, [open, slot, sectionsOpen.inspirations, autoInspirationsFetched, fetchInspirations]);
 
 
 
@@ -631,10 +672,10 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
   }, [slot, description, effectiveTheme, userId, format, communityCacheKey]);
 
   useEffect(() => {
-    if (!open || !slot || !communityOpen || autoCommunityFetched) return;
+    if (!open || !slot || !sectionsOpen.community || autoCommunityFetched) return;
     setAutoCommunityFetched(true);
     void fetchCommunityInspirations();
-  }, [open, slot, communityOpen, autoCommunityFetched, fetchCommunityInspirations]);
+  }, [open, slot, sectionsOpen.community, autoCommunityFetched, fetchCommunityInspirations]);
 
   useEffect(() => {
     if (!open || !slot) return;
@@ -658,49 +699,6 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     }
   }, [open, slot, inspirationsCacheKey, communityCacheKey]);
 
-  const handleGenerate = async (strategy: GenerationStrategy = 'default') => {
-    if (!slot) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/planner/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          weekStart: weekStartISO,
-          slot: { ...slot, format, themeKeyword: effectiveTheme },
-          targetUserId: targetUserId || undefined,
-          strategy,
-          noSignals: false,
-        }),
-      });
-      if (!res.ok) {
-        if (res.status === 401) throw new Error('Faça login para gerar roteiros com IA.');
-        if (res.status === 403) throw new Error('Plano inativo. Assine para gerar roteiros com IA.');
-        if (res.status === 429) throw new Error('Limite de geração atingido. Tente em alguns minutos.');
-        throw new Error(`Falha ao gerar roteiro (status ${res.status})`);
-      }
-      const data = await res.json();
-      const gen = data?.generated;
-      if (gen?.title) setTitle(gen.title);
-      if (gen?.script) setDescription(gen.script);
-      if (typeof gen?.recordingTimeSec === 'number') setRecordingTimeSec(gen.recordingTimeSec);
-      const newSlot = data?.slot;
-      if (newSlot && typeof newSlot.aiVersionId === 'string') {
-        setAiVersionId(newSlot.aiVersionId);
-      } else if (newSlot && newSlot?.aiVersionId === null) {
-        setAiVersionId(null);
-      }
-      if (newSlot && typeof newSlot.recordingTimeSec === 'number') {
-        setRecordingTimeSec(newSlot.recordingTimeSec);
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Erro inesperado ao gerar roteiro');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleOpenInspirationVideo = useCallback((items: InspirationVideoItem[], index: number) => {
     const current = items[index];
     if (!current) return;
@@ -715,19 +713,14 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     setNextInspirationVideo(null);
   }, []);
 
+  const toggleSection = useCallback((key: ModalSectionKey) => {
+    setSectionsOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
   if ((!open && !isMounted) || !slot) return null;
 
   const dialogLabelId = 'planner-slot-modal-title';
   const dialogDescId = 'planner-slot-modal-desc';
-
-  const requestGeneration = () => {
-    if (!slot || !canGenerate) {
-      if (!canGenerate && upgradeMessage) setError(upgradeMessage);
-      if (!canGenerate) onUpgradeRequest?.();
-      return;
-    }
-    handleGenerate('strong_hook');
-  };
 
   return (
     <>
@@ -747,107 +740,104 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         className={`relative z-10 flex h-full max-h-[95vh] w-full flex-col bg-[#F8FAFF] shadow-2xl rounded-2xl overflow-hidden sm:max-h-[90vh] sm:w-[620px] lg:w-[700px] sm:rounded-[32px] sm:border sm:border-slate-100 ${prefersReducedMotion ? '' : 'transition-transform duration-200 ease-out'
           } ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-8 scale-[0.98]'}`}
       >
-        <header
-          className="border-b border-slate-200/80 bg-white/70 px-5 pt-6 pb-4 sm:px-6 sm:pt-7 sm:pb-5 backdrop-blur"
-        >
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-1 flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-500">
-                Horário recomendado
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <p id={dialogLabelId} className="text-3xl font-semibold leading-tight text-neutral-900">
-                  {headerText}
-                </p>
-                {statusDetails && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-600">
-                    <span aria-hidden>{statusDetails.icon}</span>
-                    {statusDetails.label}
-                  </span>
-                )}
-              </div>
-            </div>
+        <header className="border-b border-slate-200/80 bg-white/85 px-4 pb-3 pt-2 backdrop-blur sm:px-6 sm:pb-4 sm:pt-3">
+          <div className="flex justify-end">
             <button
               ref={closeBtnRef}
               type="button"
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-neutral-200 text-base text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-neutral-200 text-sm text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900 sm:h-9 sm:w-9 sm:text-base"
               onClick={onClose}
               aria-label="Fechar painel"
             >
               ×
             </button>
           </div>
+          <div className="mt-2.5 flex flex-col gap-1 sm:mt-3">
+            {statusDetails ? (
+              <div className="flex">
+                <span className="inline-flex items-center gap-1 rounded-full border border-neutral-200/90 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-neutral-600 sm:px-2.5 sm:text-[10px]">
+                  <span aria-hidden>{statusDetails.icon}</span>
+                  {statusDetails.label}
+                </span>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+              <p id={dialogLabelId} className="text-[1.34rem] font-bold leading-[1.08] tracking-tight text-slate-900 sm:text-[1.72rem]">
+                {headerText}
+              </p>
+            </div>
+          </div>
         </header>
 
         <div id={dialogDescId} className="flex-1 overflow-y-auto bg-white">
-          <div className="space-y-8 px-5 py-6 sm:px-8">
-            {/* Main Content Section */}
-            <section className="space-y-6">
+          <div className="space-y-6 px-4 py-4 sm:space-y-7 sm:px-7 sm:py-6">
+            <section className="space-y-4 sm:space-y-5">
               {!readOnly ? (
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex.: Bastidores do drop de domingo"
-                  className="w-full border-b border-slate-200 px-0 py-2 text-2xl font-bold text-slate-900 placeholder-slate-400 focus:border-brand-primary focus:outline-none focus:ring-0"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[1.05rem] font-semibold leading-[1.25] text-slate-900 placeholder-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/10 sm:text-[1.22rem]"
                 />
               ) : (
-                <h2 className="text-2xl font-bold leading-tight text-slate-900">
+                <h2 className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[1.05rem] font-semibold leading-[1.25] text-slate-900 sm:text-[1.22rem]">
                   {title || effectiveTheme || 'Defina o título da pauta'}
                 </h2>
               )}
 
-              {/* 4-Column Grid Layout for Summary (2 rows) */}
-              <div className="grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-4 lg:grid-cols-4 lg:divide-x lg:divide-slate-100">
-                {/* Row 1 */}
-                <div className="flex flex-col gap-2 px-2 lg:first:pl-0">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Formato</span>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900">{formatLabel}</span>
+              {!readOnly ? (
+                <div className="space-y-2">
+                  <label htmlFor="planner-slot-script" className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">
+                    Roteiro
+                  </label>
+                  <textarea
+                    id="planner-slot-script"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Estruture abertura, desenvolvimento e CTA para salvar mais rápido."
+                    className="min-h-[112px] w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-[15px] leading-6 text-slate-800 placeholder-slate-400 focus:border-brand-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/10 sm:min-h-[132px]"
+                  />
                 </div>
-                <div className="flex flex-col gap-2 px-2">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Tema</span>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900 line-clamp-2" title={effectiveTheme}>{effectiveTheme || '—'}</span>
-                </div>
-                <div className="flex flex-col gap-2 px-2">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Proposta</span>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900 line-clamp-2" title={proposalSummary}>{proposalSummary || '—'}</span>
-                </div>
-                <div className="flex flex-col gap-2 px-2">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Contexto</span>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900 line-clamp-2" title={contextSummary}>{contextSummary || '—'}</span>
-                </div>
+              ) : (
+                <p className="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-[15px] leading-6 text-slate-700">
+                  {description || 'Sem roteiro preenchido para esta pauta.'}
+                </p>
+              )}
 
-                {/* Row 2 */}
-                <div className="flex flex-col gap-2 px-2 lg:first:pl-0 border-t border-slate-100 pt-4 lg:border-t-0 lg:pt-0">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Tom</span>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900 line-clamp-2 capitalize">{toneSummary || '—'}</span>
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+                <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Formato</p>
+                  <p className="mt-1 text-[13px] font-semibold text-slate-900 sm:text-sm">{formatLabel}</p>
                 </div>
-                <div className="flex flex-col gap-2 px-2 border-t border-slate-100 pt-4 lg:border-t-0 lg:pt-0">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Referência</span>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900 line-clamp-2">{referenceSummary || '—'}</span>
+                <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Tema</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] font-semibold text-slate-900 sm:text-sm">{effectiveTheme || '—'}</p>
                 </div>
-                <div className="flex flex-col gap-2 px-2 border-t border-slate-100 pt-4 lg:border-t-0 lg:pt-0">
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Projeção</span>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-700">{p50Compact || '—'}</span>
+                <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Projeção</p>
+                  <p className="mt-1 text-[13px] font-bold text-emerald-700 sm:text-sm">{p50Compact || '—'}</p>
                 </div>
-                {/* Empty slot for alignment if needed, or just leave 7 items */}
+                <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Proposta</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{proposalSummary || '—'}</p>
+                </div>
+                <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Contexto</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{contextSummary || '—'}</p>
+                </div>
+                <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Tom</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] capitalize text-slate-800 sm:text-sm">{toneSummary || '—'}</p>
+                </div>
+                <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:col-span-3 sm:min-h-[84px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Referência</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{referenceSummary || '—'}</p>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => title && navigator.clipboard?.writeText(title)}
@@ -859,22 +849,34 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
               </div>
             </section>
 
-            {/* Recommended Themes */}
-            <section className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Pautas recomendadas</h3>
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => handleRegenerateThemes()}
-                    disabled={themesLoading}
-                    className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
-                  >
-                    {themesLoading ? 'Atualizando…' : 'Gerar novas ideias'}
-                  </button>
-                )}
-              </div>
-
+            <CollapsibleSection
+              sectionKey="themes"
+              title="Pautas recomendadas"
+              isOpen={sectionsOpen.themes}
+              onToggle={toggleSection}
+              action={!readOnly ? (
+                <button
+                  type="button"
+                  onClick={() => handleRegenerateThemes()}
+                  disabled={themesLoading}
+                  className="rounded-full px-2 py-1 text-[11px] font-semibold text-brand-primary transition hover:bg-brand-primary/5 hover:text-brand-dark disabled:opacity-50"
+                >
+                  {themesLoading ? 'Atualizando…' : 'Gerar novas ideias'}
+                </button>
+              ) : undefined}
+            >
+              {!readOnly && selectedThemeForSave ? (
+                <div
+                  className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span aria-hidden>✓</span>
+                  <span>Pauta selecionada virou o título e está pronta para salvar.</span>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600">Selecione uma pauta para preencher o título com um toque.</p>
+              )}
               {themesLoading && !themesLocal.length ? (
                 <div className="space-y-3">
                   {[...Array(3)].map((_, idx) => (
@@ -883,258 +885,263 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                 </div>
               ) : themesLocal.length > 0 ? (
                 <div className="grid gap-2">
-                  {themesLocal.slice(0, 4).map((t, i) => (
-                    <button
-                      key={`theme-${i}`}
-                      type="button"
-                      onClick={() => {
-                        setTitle(t);
-                        setThemeKw(t);
-                      }}
-                      className="group flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm transition hover:border-brand-primary/30 hover:bg-brand-primary/5 hover:shadow-md"
-                    >
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500 group-hover:bg-white group-hover:text-brand-primary">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">
-                        {t}
-                      </span>
-                    </button>
-                  ))}
+                  {themesLocal.slice(0, 4).map((t, i) => {
+                    const isSelected = normalizeThemeText(selectedThemeForSave) === normalizeThemeText(t);
+                    return (
+                      <button
+                        key={`theme-${i}`}
+                        type="button"
+                        onClick={() => {
+                          setTitle(t);
+                          setThemeKw(t);
+                          setSelectedThemeForSave(t);
+                        }}
+                        className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left shadow-sm transition sm:px-4 sm:py-3 ${isSelected
+                            ? 'border border-emerald-300 bg-emerald-50/80 ring-1 ring-emerald-200'
+                            : 'border border-slate-100 bg-white hover:border-brand-primary/30 hover:bg-brand-primary/5 hover:shadow-md'
+                          }`}
+                      >
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isSelected
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-brand-primary'
+                            }`}
+                          aria-hidden
+                        >
+                          {isSelected ? '✓' : i + 1}
+                        </span>
+                        <span className={`text-sm font-medium ${isSelected ? 'text-emerald-900' : 'text-slate-700 group-hover:text-slate-900'}`}>
+                          {t}
+                        </span>
+                        {isSelected ? (
+                          <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-emerald-700">
+                            Selecionada
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500 italic">Nenhuma pauta disponível para este slot.</p>
+                <p className="text-sm italic text-slate-500">Nenhuma pauta disponível para este slot.</p>
               )}
-            </section>
+            </CollapsibleSection>
 
-            {/* KPIs */}
-            <section className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">KPIs projetados</h3>
-                {typeof recordingTimeSec === 'number' && (
-                  <span className="text-xs font-medium text-slate-400">⏱️ {Math.round(recordingTimeSec / 60) || 1} min de gravação</span>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-4">
+            <CollapsibleSection
+              sectionKey="kpis"
+              title="KPIs projetados"
+              isOpen={sectionsOpen.kpis}
+              onToggle={toggleSection}
+            >
+              {typeof recordingTimeSec === 'number' ? (
+                <p className="text-xs font-medium text-slate-600">⏱️ {Math.round(recordingTimeSec / 60) || 1} min de gravação</p>
+              ) : null}
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
                 {kpiCards.map((kpi) => (
-                  <div key={kpi.key} className="flex flex-col gap-1 rounded-xl bg-slate-50 p-4 text-center border border-slate-100">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{kpi.label}</span>
-                    <span className={`text-xl font-bold ${kpi.value ? 'text-slate-900' : 'text-slate-300'}`}>{kpi.value || '—'}</span>
+                  <div key={kpi.key} className="flex flex-col gap-1 rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center sm:p-3">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">{kpi.label}</span>
+                    <span className={`text-base font-bold sm:text-lg ${kpi.value ? 'text-slate-900' : 'text-slate-300'}`}>{kpi.value || '—'}</span>
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
 
-            {/* Inspirations */}
-            <section className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Conteúdos que inspiram</h3>
+            <CollapsibleSection
+              sectionKey="inspirations"
+              title="Conteúdos que inspiram"
+              isOpen={sectionsOpen.inspirations}
+              onToggle={toggleSection}
+              action={
                 <button
                   type="button"
                   onClick={() => {
-                    setInspirationsOpen(true);
+                    setSectionsOpen((prev) => ({ ...prev, inspirations: true }));
                     setAutoInspirationsFetched(true);
                     void fetchInspirations({ force: true });
                   }}
                   disabled={inspLoading}
-                  className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
+                  className="rounded-full px-2 py-1 text-[11px] font-semibold text-brand-primary transition hover:bg-brand-primary/5 hover:text-brand-dark disabled:opacity-50"
                 >
                   {inspLoading ? 'Carregando…' : 'Atualizar'}
                 </button>
-              </div>
-
-              {inspirationsOpen && (
-                <>
-                  {inspError && <p className="text-xs text-red-600">{inspError}</p>}
-                  {inspLoading && !inspPosts.length && (
-                    <div className="flex gap-4 overflow-x-auto pb-2">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={`insp-skel-${i}`} className="min-w-[200px] w-[200px] shrink-0 animate-pulse rounded-xl border border-slate-100 bg-slate-50 p-3">
-                          <div className="aspect-[4/5] w-full rounded-lg bg-slate-200" />
-                          <div className="mt-3 space-y-2">
-                            <div className="h-3 w-3/4 rounded bg-slate-200" />
-                            <div className="h-3 w-1/2 rounded bg-slate-200" />
+              }
+            >
+              {inspError ? <p className="text-xs text-red-600">{inspError}</p> : null}
+              {inspLoading && !inspPosts.length ? (
+                <div className="flex gap-4 overflow-x-auto pb-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={`insp-skel-${i}`} className="min-w-[200px] w-[200px] shrink-0 animate-pulse rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="aspect-[4/5] w-full rounded-lg bg-slate-200" />
+                      <div className="mt-3 space-y-2">
+                        <div className="h-3 w-3/4 rounded bg-slate-200" />
+                        <div className="h-3 w-1/2 rounded bg-slate-200" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {inspPosts.length > 0 ? (
+                <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-200">
+                  {(inspExpanded ? inspPosts : inspPosts.slice(0, 6)).map((p, idx, list) => {
+                    const viewsLabel = formatCompact(p.views) || p.views.toLocaleString('pt-BR');
+                    return (
+                      <button
+                        key={`insp-${p.id}`}
+                        type="button"
+                        onClick={() =>
+                          handleOpenInspirationVideo(
+                            list.map((item) => ({
+                              id: item.id,
+                              caption: item.caption,
+                              postLink: item.postLink,
+                              posterUrl: item.thumbnailUrl,
+                              videoUrl: item.videoUrl,
+                            })),
+                            idx
+                          )
+                        }
+                        className="group flex w-[200px] shrink-0 snap-start flex-col gap-3 rounded-xl transition hover:-translate-y-1"
+                      >
+                        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-slate-100 shadow-sm group-hover:shadow-md">
+                          {p.thumbnailUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={toProxyUrl(p.thumbnailUrl)}
+                              alt="Inspiracao"
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">Sem imagem</div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                          <div className="absolute bottom-3 left-3 right-3 text-white">
+                            <div className="flex items-center gap-1.5 text-[10px] font-medium">
+                              <span>👁️ {viewsLabel}</span>
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {inspPosts.length > 0 && (
-                    <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                      {(inspExpanded ? inspPosts : inspPosts.slice(0, 6)).map((p, idx, list) => {
-                        const viewsLabel = formatCompact(p.views) || p.views.toLocaleString('pt-BR');
-                        return (
-                          <button
-                            key={`insp-${p.id}`}
-                            type="button"
-                            onClick={() =>
-                              handleOpenInspirationVideo(
-                                list.map((item) => ({
-                                  id: item.id,
-                                  caption: item.caption,
-                                  postLink: item.postLink,
-                                  posterUrl: item.thumbnailUrl,
-                                  videoUrl: item.videoUrl,
-                                })),
-                                idx
-                              )
-                            }
-                            className="snap-start shrink-0 w-[200px] group flex flex-col gap-3 rounded-xl transition hover:-translate-y-1"
-                          >
-                            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-slate-100 shadow-sm group-hover:shadow-md">
-                              {p.thumbnailUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={toProxyUrl(p.thumbnailUrl)}
-                                  alt="Inspiracao"
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">Sem imagem</div>
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-                              <div className="absolute bottom-3 left-3 right-3 text-white">
-                                <div className="flex items-center gap-1.5 text-[10px] font-medium">
-                                  <span>👁️ {viewsLabel}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <p className="line-clamp-2 text-xs font-medium text-slate-700 group-hover:text-slate-900">
-                              {p.caption || 'Sem legenda'}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {!inspLoading && !inspPosts.length && !inspError && (
-                    <p className="text-sm text-slate-500 italic">Sem conteúdos similares para este horário agora.</p>
-                  )}
-                </>
-              )}
-            </section>
-
-            {/* Community Inspirations */}
-            <section className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Inspirações da comunidade</h3>
-                  <button
-                    type="button"
-                    onClick={() => setCommunityOpen((prev) => !prev)}
-                    className="text-slate-400 hover:text-slate-600"
-                  >
-                    {communityOpen ? '−' : '+'}
-                  </button>
+                        <p className="line-clamp-2 text-xs font-medium text-slate-700 group-hover:text-slate-900">
+                          {p.caption || 'Sem legenda'}
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
+              ) : null}
+              {!inspLoading && !inspPosts.length && !inspError ? (
+                <p className="text-sm italic text-slate-500">Sem conteúdos similares para este horário agora.</p>
+              ) : null}
+            </CollapsibleSection>
 
+            <CollapsibleSection
+              sectionKey="community"
+              title="Inspirações da comunidade"
+              isOpen={sectionsOpen.community}
+              onToggle={toggleSection}
+              action={
                 <button
                   type="button"
                   onClick={() => {
-                    setCommunityOpen(true);
+                    setSectionsOpen((prev) => ({ ...prev, community: true }));
                     setAutoCommunityFetched(true);
                     void fetchCommunityInspirations({ force: true });
                   }}
                   disabled={communityLoading}
-                  className="text-xs font-semibold text-brand-primary hover:text-brand-dark transition disabled:opacity-50"
+                  className="rounded-full px-2 py-1 text-[11px] font-semibold text-brand-primary transition hover:bg-brand-primary/5 hover:text-brand-dark disabled:opacity-50"
                 >
                   {communityLoading ? 'Carregando…' : 'Atualizar'}
                 </button>
-              </div>
-
-              {communityOpen && (
-                <>
-                  {communityError && <p className="text-xs text-red-600">{communityError}</p>}
-                  {communityLoading && !communityPosts.length && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {[...Array(4)].map((_, i) => (
-                        <div key={`comm-skel-${i}`} className="flex animate-pulse items-center gap-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-3">
-                          <div className="h-16 w-16 rounded-2xl bg-neutral-200" />
-                          <div className="flex-1 space-y-2">
-                            <div className="h-3 rounded bg-neutral-200" />
-                            <div className="h-3 w-2/3 rounded bg-neutral-200" />
-                          </div>
+              }
+            >
+              {communityError ? <p className="text-xs text-red-600">{communityError}</p> : null}
+              {communityLoading && !communityPosts.length ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={`comm-skel-${i}`} className="flex animate-pulse items-center gap-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-3">
+                      <div className="h-16 w-16 rounded-2xl bg-neutral-200" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 rounded bg-neutral-200" />
+                        <div className="h-3 w-2/3 rounded bg-neutral-200" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {communityPosts.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(communityExpanded ? communityPosts : communityPosts.slice(0, 4)).map((p, idx, list) => (
+                    <button
+                      key={`community-${p.id}`}
+                      type="button"
+                      onClick={() =>
+                        handleOpenInspirationVideo(
+                          list.map((item) => ({
+                            id: item.id,
+                            caption: item.caption,
+                            postLink: item.postLink,
+                            posterUrl: item.coverUrl,
+                            videoUrl: item.videoUrl,
+                          })),
+                          idx
+                        )
+                      }
+                      className="flex gap-3 rounded-2xl border border-neutral-200/80 bg-white p-3 text-left shadow-sm transition hover:border-brand-primary/30 hover:shadow-md"
+                    >
+                      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
+                        {p.coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={toProxyUrl(p.coverUrl)}
+                            alt="Post da comunidade"
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[10px] text-neutral-500">Sem capa</div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="line-clamp-2 text-sm font-semibold text-neutral-900">{p.caption || 'Post sem legenda'}</p>
+                        <div className="text-xs text-neutral-500">
+                          {formatCompact(p.views) || p.views.toLocaleString('pt-BR')} views • {p.date ? new Date(p.date).toLocaleDateString('pt-BR') : ''}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {communityPosts.length > 0 && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {(communityExpanded ? communityPosts : communityPosts.slice(0, 4)).map((p, idx, list) => (
-                        <button
-                          key={`community-${p.id}`}
-                          type="button"
-                          onClick={() =>
-                            handleOpenInspirationVideo(
-                              list.map((item) => ({
-                                id: item.id,
-                                caption: item.caption,
-                                postLink: item.postLink,
-                                posterUrl: item.coverUrl,
-                                videoUrl: item.videoUrl,
-                              })),
-                              idx
-                            )
-                          }
-                          className="flex gap-3 rounded-2xl border border-neutral-200/80 bg-white p-3 text-left shadow-sm transition hover:border-brand-primary/30 hover:shadow-md"
-                        >
-                          <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-neutral-100">
-                            {p.coverUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={toProxyUrl(p.coverUrl)}
-                                alt="Post da comunidade"
-                                loading="lazy"
-                                decoding="async"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-[10px] text-neutral-500">Sem capa</div>
-                            )}
+                        {p.reason && p.reason.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {p.reason.slice(0, 3).map((tag, idx) => (
+                              <span key={`reason-${p.id}-${idx}`} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
+                                {tag}
+                              </span>
+                            ))}
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="line-clamp-2 text-sm font-semibold text-neutral-900">{p.caption || 'Post sem legenda'}</p>
-                            <div className="text-xs text-neutral-500">
-                              {formatCompact(p.views) || p.views.toLocaleString('pt-BR')} views • {p.date ? new Date(p.date).toLocaleDateString('pt-BR') : ''}
-                            </div>
-                            {p.reason && p.reason.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {p.reason.slice(0, 3).map((tag, idx) => (
-                                  <span key={`reason-${p.id}-${idx}`} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {!communityLoading && !communityPosts.length && !communityError && (
-                    <p className="text-xs text-neutral-500 italic">Nenhuma inspiração da comunidade para este contexto.</p>
-                  )}
-                  {communityPosts.length > 4 && (
-                    <div className="pt-1 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setCommunityExpanded((v) => !v)}
-                        className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-4 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900"
-                      >
-                        {communityExpanded ? 'Ver menos' : `Ver todos (${communityPosts.length})`}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
+                        ) : null}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {!communityLoading && !communityPosts.length && !communityError ? (
+                <p className="text-xs italic text-neutral-500">Nenhuma inspiração da comunidade para este contexto.</p>
+              ) : null}
+              {communityPosts.length > 4 ? (
+                <div className="pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setCommunityExpanded((v) => !v)}
+                    className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-4 py-1.5 text-xs font-semibold text-neutral-700 transition hover:border-neutral-500 hover:text-neutral-900"
+                  >
+                    {communityExpanded ? 'Ver menos' : `Ver todos (${communityPosts.length})`}
+                  </button>
+                </div>
+              ) : null}
+            </CollapsibleSection>
           </div>
         </div>
 
         <div
-          className="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4 shadow-[0_-20px_30px_rgba(15,23,42,0.06)] sm:px-6"
+          className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-20px_30px_rgba(15,23,42,0.06)] sm:px-6 sm:py-4"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
         >
           {readOnly ? (
@@ -1146,25 +1153,19 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
               Fechar
             </button>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3">
               {error && <p className="text-xs text-red-600">{error}</p>}
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex gap-2">
-                  <OutlinePillButton
-                    type="button"
-                    disabled={loading}
-                    onClick={handleSave}
-                  >
-                    Salvar
-                  </OutlinePillButton>
-                </div>
+              <p className="text-[11px] text-slate-600 sm:text-xs">
+                Ao salvar, esta pauta também será criada em <span className="font-semibold text-slate-700">Meus Roteiros</span>.
+              </p>
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end">
                 <GradientPillButton
                   type="button"
-                  disabled={loading || !slot || !canGenerate}
-                  onClick={requestGeneration}
-                  className="w-full sm:w-auto"
+                  disabled={loading}
+                  onClick={handleSave}
+                  className="min-h-11 w-full sm:w-auto"
                 >
-                  {loading ? 'Processando…' : 'Gerar com IA'}
+                  {loading ? 'Processando…' : 'Salvar pauta'}
                 </GradientPillButton>
               </div>
             </div>

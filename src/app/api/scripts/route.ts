@@ -7,6 +7,8 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import ScriptEntry from "@/app/models/ScriptEntry";
 import AIGeneratedPost from "@/app/models/AIGeneratedPost";
 import Metric from "@/app/models/Metric";
+import CampaignLink from "@/app/models/CampaignLink";
+import BrandProposal from "@/app/models/BrandProposal";
 import { generateScriptFromPrompt } from "@/app/lib/scripts/ai";
 import { applyScriptToPlannerSlot, normalizeToMondayInTZ } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
@@ -62,6 +64,18 @@ type CursorToken = {
 
 type ScriptOriginFilter = "all" | "manual" | "ai" | "planner";
 type ScriptPostedFilter = "all" | "posted" | "unposted";
+type ScriptLinkingCampaignSummary = {
+  proposalId: string;
+  linkId: string;
+  campaignTitle: string;
+  brandName: string;
+  linkedAt: string | null;
+};
+type ScriptLinkingSummary = {
+  isLinked: boolean;
+  totalLinks: number;
+  campaigns: ScriptLinkingCampaignSummary[];
+};
 
 function parseLimit(value: string | null): number {
   const parsed = Number(value);
@@ -107,6 +121,14 @@ function isNotificationsView(value: string | null): boolean {
 function normalizePostedFilter(value: string | null): ScriptPostedFilter {
   if (value === "posted" || value === "unposted") return value;
   return "all";
+}
+
+function createEmptyLinkingSummary(): ScriptLinkingSummary {
+  return {
+    isLinked: false,
+    totalLinks: 0,
+    campaigns: [],
+  };
 }
 
 function normalizeCreateBody(body: any) {
@@ -245,12 +267,21 @@ async function resolvePostedContentForCreate(params: {
   };
 }
 
-function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boolean }) {
+function serializeScriptItem(
+  item: any,
+  options?: {
+    includeAdminAnnotation?: boolean;
+    linkingSummaryByScriptId?: Map<string, ScriptLinkingSummary>;
+  }
+) {
   const includeAdminAnnotation = Boolean(options?.includeAdminAnnotation);
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
   const hasPostedContent = Boolean(item?.postedContent?.metricId);
+  const scriptId = String(item._id);
+  const linkingSummary =
+    options?.linkingSummaryByScriptId?.get(scriptId) || createEmptyLinkingSummary();
   return {
-    id: String(item._id),
+    id: scriptId,
     title: item.title,
     content: item.content,
     source: item.source,
@@ -303,6 +334,7 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
         }
         : null,
     },
+    linkingSummary,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -324,6 +356,101 @@ function serializeScriptNotificationItem(item: any) {
       updatedAt: item.adminAnnotationUpdatedAt || null,
     },
   };
+}
+
+async function buildLinkingSummaryByScriptId(params: {
+  userId: string;
+  scriptDocs: Array<{ _id: Types.ObjectId | string }>;
+}): Promise<Map<string, ScriptLinkingSummary>> {
+  const scriptIds = params.scriptDocs
+    .map((doc) => String(doc._id))
+    .filter((id) => Types.ObjectId.isValid(id))
+    .map((id) => new Types.ObjectId(id));
+
+  if (scriptIds.length === 0) {
+    return new Map();
+  }
+
+  const links = await CampaignLink.find({
+    userId: new Types.ObjectId(params.userId),
+    entityType: "script",
+    entityId: { $in: scriptIds },
+  })
+    .select("_id proposalId entityId createdAt updatedAt")
+    .sort({ updatedAt: -1, _id: -1 })
+    .lean()
+    .exec();
+
+  if (!links.length) {
+    return new Map();
+  }
+
+  const proposalIds = links
+    .map((link: any) => String(link.proposalId))
+    .filter((id, index, all) => all.indexOf(id) === index)
+    .filter((id) => Types.ObjectId.isValid(id))
+    .map((id) => new Types.ObjectId(id));
+
+  const proposals = proposalIds.length
+    ? await BrandProposal.find({
+      _id: { $in: proposalIds },
+      userId: new Types.ObjectId(params.userId),
+    })
+      .select("_id campaignTitle brandName")
+      .lean()
+      .exec()
+    : [];
+
+  const proposalById = new Map<
+    string,
+    { campaignTitle: string; brandName: string }
+  >();
+  proposals.forEach((proposal: any) => {
+    const proposalId = String(proposal._id);
+    proposalById.set(proposalId, {
+      campaignTitle:
+        typeof proposal.campaignTitle === "string" && proposal.campaignTitle.trim()
+          ? proposal.campaignTitle.trim()
+          : "Campanha sem título",
+      brandName:
+        typeof proposal.brandName === "string" && proposal.brandName.trim()
+          ? proposal.brandName.trim()
+          : "Marca",
+    });
+  });
+
+  const campaignsByScriptId = new Map<string, ScriptLinkingCampaignSummary[]>();
+  links.forEach((link: any) => {
+    const scriptId = String(link.entityId);
+    const proposalId = String(link.proposalId);
+    const proposal = proposalById.get(proposalId);
+    if (!proposal) return;
+
+    const campaigns = campaignsByScriptId.get(scriptId) || [];
+    campaigns.push({
+      proposalId,
+      linkId: String(link._id),
+      campaignTitle: proposal.campaignTitle,
+      brandName: proposal.brandName,
+      linkedAt: link.updatedAt
+        ? new Date(link.updatedAt).toISOString()
+        : link.createdAt
+          ? new Date(link.createdAt).toISOString()
+          : null,
+    });
+    campaignsByScriptId.set(scriptId, campaigns);
+  });
+
+  const linkingSummaryByScriptId = new Map<string, ScriptLinkingSummary>();
+  campaignsByScriptId.forEach((campaigns, scriptId) => {
+    linkingSummaryByScriptId.set(scriptId, {
+      isLinked: campaigns.length > 0,
+      totalLinks: campaigns.length,
+      campaigns,
+    });
+  });
+
+  return linkingSummaryByScriptId;
 }
 
 export async function GET(request: Request) {
@@ -437,6 +564,13 @@ export async function GET(request: Request) {
   const hasMore = docs.length > limit;
   const pageItems = hasMore ? docs.slice(0, limit) : docs;
   const last = pageItems[pageItems.length - 1];
+  const linkingSummaryByScriptId =
+    notificationsView || pageItems.length === 0
+      ? new Map<string, ScriptLinkingSummary>()
+      : await buildLinkingSummaryByScriptId({
+        userId: effectiveUserId,
+        scriptDocs: pageItems,
+      });
 
   const nextCursor =
     hasMore && last
@@ -450,7 +584,9 @@ export async function GET(request: Request) {
     ok: true,
     items: notificationsView
       ? pageItems.map((item: any) => serializeScriptNotificationItem(item))
-      : pageItems.map((item: any) => serializeScriptItem(item, { includeAdminAnnotation })),
+      : pageItems.map((item: any) =>
+        serializeScriptItem(item, { includeAdminAnnotation, linkingSummaryByScriptId })
+      ),
     pagination: {
       nextCursor,
       hasMore,

@@ -10,6 +10,7 @@ import {
 import type { PlannerSlotData as PlannerSlotDataModal } from '@/app/mediakit/components/PlannerSlotModal';
 import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
 import { useBillingStatus } from '@/app/hooks/useBillingStatus';
+import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import { track } from '@/lib/track';
 import { openPaywallModal } from '@/utils/paywallModal';
 
@@ -110,6 +111,7 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const billing = useBillingStatus({ auto: !isAdminViewer });
   const isBillingLoading = isAdminViewer ? false : billing.isLoading;
 
@@ -266,8 +268,30 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
       }
 
       try {
-        await saveSlots(list);
+        const persistedSlots = await saveSlots(list);
         setSavingError(null);
+        const persisted = Array.isArray(persistedSlots)
+          ? persistedSlots.find((slot) => {
+              if (updated.slotId && slot.slotId) return slot.slotId === updated.slotId;
+              return slot.dayOfWeek === updated.dayOfWeek && slot.blockStartHour === updated.blockStartHour;
+            })
+          : null;
+        const pautaLabel = (
+          persisted?.title ||
+          updated.title ||
+          updated.themeKeyword ||
+          (Array.isArray(updated.themes) ? updated.themes[0] : '')
+        )?.trim();
+        toast({
+          variant: 'success',
+          title: 'Pauta salva e enviada para Roteiro.',
+          description: pautaLabel ? `Pauta: ${pautaLabel}` : undefined,
+          action: {
+            label: 'Ver roteiro',
+            closeOnAction: true,
+            onClick: () => router.push('/planning/roteiros?origin=planner'),
+          },
+        });
         handleCloseSlot();
       } catch (err: any) {
         const message = err?.message || 'Não foi possível salvar o planejamento.';
@@ -275,7 +299,7 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
         throw err;
       }
     },
-    [canEdit, slots, saveSlots, handleCloseSlot]
+    [canEdit, slots, saveSlots, toast, router, handleCloseSlot]
   );
 
   const handleDelete = useCallback(
@@ -346,11 +370,41 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
     if (data) void handleDelete(data);
   }, [handleDelete]);
 
-  if (status === 'loading' && !viewer) return null;
+  if (status === 'loading' && !viewer) {
+    return (
+      <div className="min-h-screen bg-white pb-20">
+        <div className="dashboard-page-shell py-4 sm:py-6">
+          <div className="mb-3 sm:mb-5">
+            <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-[30px]">Planejador de Conteúdo</h1>
+            <p className="mt-1.5 text-[15px] leading-6 text-slate-500">Carregando calendário...</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {[1, 2, 3, 4].map((row) => (
+              <div
+                key={`planner-shell-loading-${row}`}
+                className={[
+                  'animate-pulse rounded-2xl border border-slate-100 bg-white p-4',
+                  row > 2 ? 'hidden xl:block' : '',
+                ].join(' ')}
+              >
+                <div className="mb-3 h-11 w-56 rounded-xl bg-slate-100" />
+                <div className="mb-3 h-9 w-full rounded-xl bg-slate-100" />
+                <div className="grid grid-cols-2 gap-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <span key={`planner-shell-loading-${row}-${index}`} className="h-8 rounded-lg bg-slate-100" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white pb-20">
-      <div className="dashboard-page-shell py-8">
+      <div className="dashboard-page-shell py-4 sm:py-6">
         {isAdminViewer ? (
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="w-full sm:max-w-md">
@@ -370,15 +424,25 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
           </div>
         ) : null}
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Planejador de Conteúdo</h1>
-          <p className="mt-1 text-slate-500">
+        <div className="mb-3 sm:mb-5">
+          <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-[30px]">Planejador de Conteúdo</h1>
+          <p className="mt-1.5 max-w-2xl text-[15px] leading-6 text-slate-500">
             Organize sua semana e descubra os melhores horários para postar.
           </p>
+          <div className="mt-2.5 flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/85 px-3.5 py-2.5 text-[13px] leading-5 text-slate-700 sm:mt-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <span>Salvar pauta no Calendário cria automaticamente em Meus Roteiros.</span>
+            <button
+              type="button"
+              onClick={() => router.push('/planning/roteiros?origin=planner')}
+              className="inline-flex w-full items-center justify-center rounded-md bg-white px-2 py-1 font-semibold text-slate-900 underline underline-offset-2 transition hover:text-slate-700 sm:w-auto sm:justify-start"
+            >
+              Ir para Meus Roteiros
+            </button>
+          </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-12">
-          <div className="space-y-8 lg:col-span-12">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-12">
+          <div className="space-y-6 sm:space-y-8 lg:col-span-12">
             {/* Insights Simplificados */}
 
 

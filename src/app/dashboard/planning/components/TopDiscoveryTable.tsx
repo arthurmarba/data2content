@@ -103,7 +103,7 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                         <span>Post</span>
                     </div>
                     <div>Formato</div>
-                    <div>Proposta</div>
+                    <div>Intenção</div>
                     <div>Contexto</div>
                     <div>Tom</div>
                     <div>Ref</div>
@@ -186,7 +186,7 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                         ))}
                                     </div>
                                 ) : (
-                                    <span className="text-slate-400 italic text-[10px]">Sem proposta</span>
+                                    <span className="text-slate-400 italic text-[10px]">Sem intenção</span>
                                 )}
                             </div>
 

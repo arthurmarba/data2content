@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Target, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X } from 'lucide-react';
+import { Target, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X, CalendarClock } from 'lucide-react';
 import { PlannerUISlot } from '@/hooks/usePlannerData';
 import { idsToLabels } from '@/app/lib/classification';
 import { fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
@@ -50,54 +50,31 @@ function keyFor(day: number, block: number) {
   return `${day}-${block}`;
 }
 
-const DETAIL_OBSERVER_ROOT_MARGIN = '420px 0px';
-const detailObserverCallbacks = new Map<Element, () => void>();
-let detailObserver: IntersectionObserver | null = null;
+const CARD_TITLE_FALLBACK = 'Sugestão pronta do Mobi';
 
-function getDetailObserver(): IntersectionObserver | null {
-  if (typeof IntersectionObserver === 'undefined') return null;
-  if (detailObserver) return detailObserver;
-
-  detailObserver = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        const callback = detailObserverCallbacks.get(entry.target);
-        if (!callback) continue;
-        detailObserverCallbacks.delete(entry.target);
-        detailObserver?.unobserve(entry.target);
-        callback();
-      }
-    },
-    { rootMargin: DETAIL_OBSERVER_ROOT_MARGIN, threshold: 0 }
-  );
-
-  return detailObserver;
+function normalizeSlotTitle(value?: string): string {
+  if (typeof value !== 'string') return '';
+  return value.trim();
 }
 
-function observeCardDetails(node: Element, onVisible: () => void): () => void {
-  const observer = getDetailObserver();
-  if (!observer) {
-    onVisible();
-    return () => {};
+function resolveSlotTitle(slot: PlannerUISlot): string {
+  const title = normalizeSlotTitle(slot.title);
+  const keyword = normalizeSlotTitle(slot.themeKeyword);
+  const firstTheme = normalizeSlotTitle(slot.themes?.[0]);
+  const fallbackLower = CARD_TITLE_FALLBACK.toLowerCase();
+
+  if (title && title.toLowerCase() !== fallbackLower) {
+    return title;
   }
-
-  detailObserverCallbacks.set(node, onVisible);
-  observer.observe(node);
-
-  return () => {
-    detailObserverCallbacks.delete(node);
-    observer.unobserve(node);
-    if (detailObserverCallbacks.size === 0) {
-      observer.disconnect();
-      detailObserver = null;
-    }
-  };
+  if (keyword) return keyword;
+  if (firstTheme) return firstTheme;
+  if (title) return title;
+  return CARD_TITLE_FALLBACK;
 }
 
 function getSlotCardId(slot: PlannerUISlot): string {
   if (slot.slotId) return slot.slotId;
-  const fallbackTitle = slot.title?.trim() || slot.themeKeyword || slot.themes?.[0] || 'Sugestão pronta do Mobi';
+  const fallbackTitle = resolveSlotTitle(slot);
   return `${slot.dayOfWeek}-${slot.blockStartHour}-${fallbackTitle}`;
 }
 
@@ -220,6 +197,30 @@ function getStatusInfo(
     barClass: 'bg-gradient-to-r from-[#D6C9FF] to-[#6E1F93]',
     category: 'planned',
   };
+}
+
+function getRoteiroBadge(slot: PlannerUISlot): { label: string; className: string } | null {
+  if (!slot.isSaved) return null;
+  const hasBaseContent = Boolean(slot.title?.trim() || slot.themeKeyword || slot.themes?.[0]);
+  const hasScriptDraft = Boolean(slot.scriptShort?.trim());
+  if (!hasBaseContent && !hasScriptDraft) return null;
+  if (hasScriptDraft) {
+    return {
+      label: 'Já em roteiro',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    };
+  }
+  return {
+    label: 'Em roteiro',
+    className: 'border-sky-200 bg-sky-50 text-sky-700',
+  };
+}
+
+function getCompactStatusLabel(label: string): string {
+  if (label === 'Bom desempenho') return 'Bom';
+  if (label === 'Em observação') return 'Observação';
+  if (label === 'Planejado') return 'Planej.';
+  return label;
 }
 
 export interface ContentPlannerCalendarProps {
@@ -373,8 +374,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
 
       let baseFields = baseCache.get(slot);
       if (!baseFields) {
-        const title =
-          slot.title?.trim() || slot.themeKeyword || slot.themes?.[0] || 'Sugestão pronta do Mobi';
+        const title = resolveSlotTitle(slot);
         const formatLabel = formatSlotFormat(slot.format);
         const expectedMetrics = slot.expectedMetrics ?? {};
         const viewsP50 = formatViews(expectedMetrics.viewsP50) ?? '—';
@@ -460,16 +460,14 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   }
 
   return (
-    <section className="space-y-6">
-      <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-end">
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-          Lista
+    <section className="space-y-4 sm:space-y-5">
+      <div className="flex items-center border-b border-slate-100 pb-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          Calendário da semana
         </div>
       </div>
 
-      {loading && !hasSlotCards && <PlannerLoadingBanner />}
-
-      {loading && !hasSlotCards && <PlannerLoadingSkeleton />}
+      {loading && !hasSlotCards ? <PlannerLoadingState /> : null}
       {error && <div className="text-sm text-red-600">{error}</div>}
 
       {hasSlotCards ? (
@@ -491,7 +489,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
       ) : null}
 
       {!publicMode && !canEdit && (
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800">
+        <div className="mt-4 flex flex-col items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="font-semibold">Assine para editar e gerar roteiros com IA</div>
             <div className="text-sm">
@@ -501,7 +499,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
           <button
             type="button"
             onClick={handleRequestSubscribe}
-            className="ml-3 rounded-md bg-pink-600 px-4 py-2 text-sm text-white transition hover:bg-pink-700"
+            className="w-full rounded-md bg-pink-600 px-4 py-2 text-sm text-white transition hover:bg-pink-700 sm:ml-3 sm:w-auto"
           >
             Assinar
           </button>
@@ -562,7 +560,6 @@ type ListModeSlotCardProps = {
   publicMode?: boolean;
   locked?: boolean;
   onDeleteSlot?: (slot: PlannerUISlot) => void;
-  priorityRender?: boolean;
 };
 
 function formatInspirationCaption(caption?: string): string {
@@ -782,7 +779,7 @@ const SlotInspirationsPanelBase = ({
         <button
           type="button"
           onClick={onToggleInspirations}
-          className="text-[11px] font-semibold text-slate-600 underline underline-offset-2 hover:text-slate-900"
+          className="inline-flex min-h-[42px] w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-white hover:text-slate-900 sm:w-auto"
         >
           {showInspirations ? 'Ocultar inspirações' : 'Ver inspirações'}
         </button>
@@ -819,80 +816,48 @@ const SlotCardDetailsPanelBase = ({
   onToggleInspirations,
 }: SlotCardDetailsPanelProps) => (
   <>
-    {/* Mobile-Optimized Layout (Big Numbers) */}
-    <div className="flex flex-col gap-4 sm:hidden">
-      <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Projeção</span>
-          <span className="text-2xl font-bold text-emerald-700">{card.viewsP50}</span>
-        </div>
-        <div className="h-8 w-px bg-slate-200" />
-        <div className="flex flex-col gap-1 text-right">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formato</span>
-          <div className="flex items-center justify-end gap-1.5 text-slate-700">
-            <LayoutTemplate className="h-4 w-4" />
-            <span className="text-sm font-semibold">{card.formatLabel}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {card.contextLabel && card.contextLabel !== '-' && (
-          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-            {card.contextLabel}
-          </span>
-        )}
-        {card.toneLabel && card.toneLabel !== '-' && (
-          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-            {card.toneLabel}
-          </span>
-        )}
-      </div>
-    </div>
-
-    {/* Desktop Grid Layout */}
-    <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-y-4 gap-x-3 lg:gap-x-4 lg:divide-x lg:divide-slate-100">
-      <div className="flex flex-col gap-1.5 px-1 lg:px-3 lg:first:pl-0">
-        <div className="flex items-center gap-1.5 text-slate-500">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="mb-1 flex items-center gap-1.5 text-slate-600">
           <LayoutTemplate className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Formato</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Formato</span>
         </div>
-        <span className="truncate text-xs font-semibold text-slate-800" title={card.formatLabel}>{card.formatLabel}</span>
+        <span className="block truncate text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.formatLabel}>{card.formatLabel}</span>
       </div>
-      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-        <div className="flex items-center gap-1.5 text-slate-500">
+      <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="mb-1 flex items-center gap-1.5 text-slate-600">
           <Target className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Proposta</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Proposta</span>
         </div>
-        <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.proposalLabel}>{card.proposalLabel}</span>
+        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.proposalLabel}>{card.proposalLabel}</span>
       </div>
-      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-        <div className="flex items-center gap-1.5 text-slate-500">
+      <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="mb-1 flex items-center gap-1.5 text-slate-600">
           <Compass className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Contexto</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Contexto</span>
         </div>
-        <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.contextLabel}>{card.contextLabel}</span>
+        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.contextLabel}>{card.contextLabel}</span>
       </div>
-      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-        <div className="flex items-center gap-1.5 text-slate-500">
+      <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="mb-1 flex items-center gap-1.5 text-slate-600">
           <MessageCircle className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Tom</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Tom</span>
         </div>
-        <span className="truncate text-xs font-semibold text-slate-800" title={card.toneLabel}>{card.toneLabel}</span>
+        <span className="block truncate text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.toneLabel}>{card.toneLabel}</span>
       </div>
-      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-        <div className="flex items-center gap-1.5 text-slate-500">
+      <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="mb-1 flex items-center gap-1.5 text-slate-600">
           <LinkIcon className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Referência</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Referência</span>
         </div>
-        <span className="line-clamp-2 text-xs font-semibold text-slate-800" title={card.referenceLabel}>{card.referenceLabel}</span>
+        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.referenceLabel}>{card.referenceLabel}</span>
       </div>
-      <div className="flex flex-col gap-1.5 px-1 lg:px-3">
-        <div className="flex items-center gap-1.5 text-slate-500">
+      <div className="min-h-[68px] rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="mb-1 flex items-center gap-1.5 text-emerald-700">
           <TrendingUp className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Projeção</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Projeção</span>
         </div>
-        <span className="text-xs font-bold text-emerald-700">{card.viewsP50}</span>
+        <span className="text-[17px] font-bold leading-none text-emerald-700 sm:text-[19px]">{card.viewsP50}</span>
       </div>
     </div>
 
@@ -925,13 +890,12 @@ const ListModeSlotCardBase = ({
   publicMode,
   locked,
   onDeleteSlot,
-  priorityRender = false,
 }: ListModeSlotCardProps) => {
-  const cardRef = useRef<HTMLElement | null>(null);
-  const [isNearViewport, setIsNearViewport] = useState(priorityRender);
   const canShowInspirations = !publicMode && !locked;
   const [showInspirations, setShowInspirations] = useState(false);
-  const shouldRenderRichDetails = isNearViewport || showInspirations;
+  const roteiroBadge = getRoteiroBadge(card.slot);
+  const hasSecondaryBadges = Boolean(roteiroBadge || card.slot.isSaved);
+  const compactStatusLabel = getCompactStatusLabel(card.statusLabel);
 
   const handleCardActivate = React.useCallback(() => {
     if (canEdit) {
@@ -975,20 +939,6 @@ const ListModeSlotCardBase = ({
   );
 
   useEffect(() => {
-    if (priorityRender && !isNearViewport) {
-      setIsNearViewport(true);
-    }
-  }, [priorityRender, isNearViewport]);
-
-  useEffect(() => {
-    if (priorityRender || isNearViewport) return;
-    const node = cardRef.current;
-    if (!node) return;
-
-    return observeCardDetails(node, () => setIsNearViewport(true));
-  }, [priorityRender, isNearViewport]);
-
-  useEffect(() => {
     if (!canShowInspirations) {
       setShowInspirations(false);
     }
@@ -996,34 +946,59 @@ const ListModeSlotCardBase = ({
 
   return (
     <article
-      ref={cardRef}
       role={canEdit ? 'button' : undefined}
       tabIndex={canEdit ? 0 : -1}
       onClick={handleCardActivate}
       onKeyDown={handleCardKeyDown}
       className={[
-        'group relative flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+        'group relative flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:gap-3.5 sm:p-5',
         canEdit ? 'cursor-pointer' : 'cursor-default',
       ].join(' ')}
-      style={{ contentVisibility: 'auto', containIntrinsicSize: '380px' }}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '365px' }}
     >
       {/* Header with Day/Time and Status */}
-      <div className="flex items-center justify-between pb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-bold text-slate-900 sm:text-sm">{card.dayTitle}</span>
-          <span className="text-xs text-slate-400">•</span>
-          <span className="text-sm font-medium text-slate-600">{card.blockLabel}</span>
+      <div className="flex items-start justify-between gap-2 pb-2 max-[360px]:gap-1.5 sm:gap-2.5 sm:pb-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-x-2 gap-y-1">
+            <CalendarClock className="h-4 w-4 text-slate-500" />
+            <span className="text-[17px] font-extrabold leading-tight text-slate-900 max-[360px]:text-[16px] sm:text-[20px]">
+              {card.dayTitle}
+            </span>
+            <span className="text-slate-300" aria-hidden>•</span>
+            <span className="text-[17px] font-bold leading-tight text-slate-700 max-[360px]:text-[16px] sm:text-[20px]">
+              {card.blockLabel}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border border-current px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] max-[360px]:gap-0.5 max-[360px]:px-1.5 max-[360px]:text-[8px] max-[360px]:tracking-normal sm:px-2.5 sm:text-[10px] sm:tracking-wide ${card.statusClass}`}
+          >
+            <span aria-hidden className="max-[360px]:hidden">{STATUS_EMOJI[card.statusCategory]}</span>
+            <span className="max-[360px]:hidden">{card.statusLabel}</span>
+            <span className="hidden max-[360px]:inline">{compactStatusLabel}</span>
+          </span>
+        </div>
+      </div>
+
+      {hasSecondaryBadges ? (
+        <div className="flex flex-wrap items-center gap-1.5 pb-1 sm:gap-2">
+          {roteiroBadge ? (
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${roteiroBadge.className}`}
+            >
+              {roteiroBadge.label}
+            </span>
+          ) : null}
           {card.slot.isSaved && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 border border-brand-primary/20 pl-2 pr-1 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-primary">
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 pl-2 pr-1 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
               <Bookmark className="h-3 w-3" />
-              Salvo
+              Salvo em roteiro
               {onDeleteSlot && (
                 <button
                   type="button"
                   onClick={handleDeleteSaved}
-                  className="ml-1 rounded-full p-0.5 hover:bg-brand-primary/20 text-brand-primary"
+                  className="ml-1 rounded-full p-0.5 text-emerald-700 hover:bg-emerald-100"
                   title="Remover salvo"
                 >
                   <X className="h-3 w-3" />
@@ -1031,37 +1006,29 @@ const ListModeSlotCardBase = ({
               )}
             </span>
           )}
-          <span className={`inline-flex items-center gap-1 rounded-full border border-current px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${card.statusClass}`}>
-            <span aria-hidden>{STATUS_EMOJI[card.statusCategory]}</span>
-            {card.statusLabel}
-          </span>
         </div>
-      </div>
+      ) : null}
 
       {/* Title */}
-      <div className="space-y-2 border-b border-slate-100 pb-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tema</span>
-        <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-          <h3 className="line-clamp-2 text-base font-bold leading-snug text-slate-900 group-hover:text-brand-magenta transition-colors">
+      <div className="space-y-1.5 border-b border-slate-100 pb-2.5 sm:space-y-2 sm:pb-3">
+        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Tema</span>
+        <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2 sm:px-3 sm:py-2.5">
+          <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-slate-900 transition-colors group-hover:text-brand-magenta sm:text-[18px]">
             {card.title}
           </h3>
         </div>
+        {canEdit ? (
+          <p className="text-[10px] font-semibold text-slate-500 sm:text-[11px]">Toque para abrir e editar</p>
+        ) : null}
       </div>
 
-      {shouldRenderRichDetails ? (
-        <SlotCardDetailsPanel
-          card={card}
-          userId={userId}
-          canShowInspirations={canShowInspirations}
-          showInspirations={showInspirations}
-          onToggleInspirations={handleToggleInspirations}
-        />
-      ) : (
-        <div className="space-y-3">
-          <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
-          <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
-        </div>
-      )}
+      <SlotCardDetailsPanel
+        card={card}
+        userId={userId}
+        canShowInspirations={canShowInspirations}
+        showInspirations={showInspirations}
+        onToggleInspirations={handleToggleInspirations}
+      />
 
       {!canEdit && onRequestSubscribe && (
         <button
@@ -1086,8 +1053,7 @@ const ListModeSlotCard = React.memo(
     prev.userId === next.userId &&
     prev.publicMode === next.publicMode &&
     prev.locked === next.locked &&
-    prev.onDeleteSlot === next.onDeleteSlot &&
-    prev.priorityRender === next.priorityRender
+    prev.onDeleteSlot === next.onDeleteSlot
 );
 
 type PlannerSlotCardGridProps = {
@@ -1155,8 +1121,8 @@ const PlannerSlotCardGridBase = ({
 
   if (!visibleCards.length) return null;
   return (
-    <div className="grid grid-cols-1 gap-4">
-      {visibleCards.map((card, index) => (
+    <div className="grid grid-cols-1 gap-3.5 sm:gap-4 xl:grid-cols-2 xl:gap-5">
+      {visibleCards.map((card) => (
         <ListModeSlotCard
           key={card.id}
           card={card}
@@ -1167,11 +1133,13 @@ const PlannerSlotCardGridBase = ({
           publicMode={publicMode}
           locked={locked}
           onDeleteSlot={onDeleteSlot}
-          priorityRender={index < 4}
         />
       ))}
       {hasMoreCards ? (
-        <div ref={loadMoreRef} className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs text-slate-500">
+        <div
+          ref={loadMoreRef}
+          className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs text-slate-500 xl:col-span-2"
+        >
           Carregando mais pautas…
         </div>
       ) : null}
@@ -1192,33 +1160,39 @@ const PlannerSlotCardGrid = React.memo(
     prev.onDeleteSlot === next.onDeleteSlot
 );
 
-const PlannerLoadingSkeleton = () => (
-  <div className="space-y-3 rounded-2xl border border-dashed border-[#E4E4EA] bg-white p-5">
-    {[1, 2, 3].map((row) => (
-      <div key={`planner-loading-${row}`} className="animate-pulse space-y-2">
-        <div className="h-3 w-32 rounded-full bg-[#F1F1F5]" />
-        <div className="h-5 w-3/4 rounded-full bg-[#ECEAFD]" />
-        <div className="flex gap-2">
-          <span className="h-6 w-20 rounded-full bg-[#F1F1F5]" />
-          <span className="h-6 w-20 rounded-full bg-[#F1F1F5]" />
+const PlannerLoadingState = () => (
+  <div className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-5">
+    <div className="mb-4 flex items-center gap-2">
+      <span className="h-2 w-2 animate-pulse rounded-full bg-sky-500" aria-hidden />
+      <p className="text-sm font-semibold text-slate-700">Carregando seu calendário...</p>
+    </div>
+    <div className="grid grid-cols-1 gap-3.5 sm:gap-4 xl:grid-cols-2 xl:gap-5">
+      {[1, 2, 3, 4].map((row) => (
+        <div
+          key={`planner-loading-${row}`}
+          className={[
+            'animate-pulse rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-5',
+            row > 2 ? 'hidden xl:block' : '',
+          ].join(' ')}
+        >
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div className="h-12 w-52 rounded-xl bg-slate-100" />
+            <div className="h-5 w-24 rounded-full bg-slate-100" />
+          </div>
+          <div className="mb-3 space-y-2 border-b border-slate-100 pb-3">
+            <div className="h-3 w-10 rounded-full bg-slate-200" />
+            <div className="h-9 w-full rounded-xl bg-slate-100" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={`planner-loading-meta-${row}-${index}`} className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
+                <div className="mb-2 h-2.5 w-16 rounded-full bg-slate-200" />
+                <div className="h-3 w-full rounded-full bg-slate-200/90" />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    ))}
-  </div>
-);
-
-const PlannerLoadingBanner = () => (
-  <div className="rounded-xl border border-[#E0E7FF] bg-[#F5F7FF] px-4 py-3 text-sm text-[#1C1C1E]">
-    <div className="flex items-start gap-3">
-      <span className="text-lg" aria-hidden>
-        ⚙️
-      </span>
-      <div>
-        <p className="font-semibold">Calculando o melhor plano para a semana</p>
-        <p className="text-xs text-[#4B4B55]">
-          O Mobi está analisando horários quentes, formatos e KPIs recentes para atualizar seu calendário.
-        </p>
-      </div>
+      ))}
     </div>
   </div>
 );
@@ -1230,16 +1204,16 @@ const PlannerEmptyState = ({
   onRequestSubscribe?: () => void;
   loading: boolean;
 }) => (
-  <div className="rounded-2xl border border-dashed border-[#E4E4EA] bg-white p-6">
-    <p className="text-base font-semibold text-[#1C1C1E]">Prepare o terreno para novas pautas</p>
-    <ol className="mt-3 space-y-2 text-sm text-[#4B4B55]">
+  <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-5 sm:px-6 sm:py-6">
+    <p className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">Prepare o terreno para novas pautas</p>
+    <ol className="mt-2.5 space-y-2 text-[13px] leading-5 text-slate-600 sm:mt-3 sm:space-y-2.5 sm:text-sm sm:leading-6">
       {[
         'Confirme se o Instagram está conectado e liberado para IA',
         'Escolha um tema ou objetivo semanal na tela de edição',
         'Peça novas pautas e ajuste horários favoritos',
       ].map((step, index) => (
-        <li key={step} className="flex gap-3">
-          <span className="text-xs font-semibold text-[#8E8EA0]">0{index + 1}</span>
+        <li key={step} className="flex gap-2.5 sm:gap-3">
+          <span className="text-xs font-semibold text-slate-400">0{index + 1}</span>
           <span>{step}</span>
         </li>
       ))}
@@ -1248,7 +1222,7 @@ const PlannerEmptyState = ({
       <button
         type="button"
         onClick={onRequestSubscribe}
-        className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#E4E4EA] px-3 py-2 text-sm font-semibold text-[#6E1F93]"
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-[#6E1F93] transition hover:border-slate-300 sm:w-auto"
       >
         Liberar planner completo
       </button>

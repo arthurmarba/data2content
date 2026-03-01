@@ -107,6 +107,16 @@ function parseBoolParam(url: string, key: string): boolean {
   return v === "1" || v === "true" || v === "yes";
 }
 
+function parseOptionalBoolParam(url: string, key: string): boolean | undefined {
+  const { searchParams } = new URL(url);
+  const raw = searchParams.get(key);
+  if (raw === null) return undefined;
+  const v = raw.toLowerCase();
+  if (v === "1" || v === "true" || v === "yes") return true;
+  if (v === "0" || v === "false" || v === "no") return false;
+  return undefined;
+}
+
 function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -151,6 +161,7 @@ async function loadRecommendationsWithCache({
   targetSlotsPerWeek,
   freezeEnabled,
   allowMemoryCache,
+  includeThemes,
 }: {
   userId: string;
   weekStart: Date;
@@ -158,6 +169,7 @@ async function loadRecommendationsWithCache({
   targetSlotsPerWeek: number;
   freezeEnabled: boolean;
   allowMemoryCache: boolean;
+  includeThemes: boolean;
 }) {
   const startedAt = nowMs();
   const memoryKey = buildPlannerRecommendationMemoryKey({
@@ -167,6 +179,7 @@ async function loadRecommendationsWithCache({
     periodDays,
     targetSlotsPerWeek,
     freezeEnabled,
+    includeThemes,
     algoVersion: ALGO_VERSION,
   });
   if (allowMemoryCache) {
@@ -247,26 +260,33 @@ async function loadRecommendationsWithCache({
     const [recsRaw, heatmap] = await Promise.all([recommendationsRawPromise, heatmapPromise]);
     recommendMs = nowMs() - recommendStart;
 
-    const themesStart = nowMs();
-    const recommendations = await Promise.all(
-      (recsRaw || []).map(async (r) => {
-        try {
-          const { themes, keyword } = await getThemesForSlot(
-            userId,
-            periodDays,
-            r.dayOfWeek,
-            r.blockStartHour,
-            r.categories || {}
-          );
-          return { ...r, themes, themeKeyword: keyword };
-        } catch {
-          return { ...r, themes: [], themeKeyword: undefined };
-        }
-      })
-    );
-    themesMs = nowMs() - themesStart;
+    const recommendations = includeThemes
+      ? await (async () => {
+          const themesStart = nowMs();
+          try {
+            return await Promise.all(
+              (recsRaw || []).map(async (r) => {
+                try {
+                  const { themes, keyword } = await getThemesForSlot(
+                    userId,
+                    periodDays,
+                    r.dayOfWeek,
+                    r.blockStartHour,
+                    r.categories || {}
+                  );
+                  return { ...r, themes, themeKeyword: keyword };
+                } catch {
+                  return { ...r, themes: [], themeKeyword: undefined };
+                }
+              })
+            );
+          } finally {
+            themesMs = nowMs() - themesStart;
+          }
+        })()
+      : (recsRaw || []).map((r) => ({ ...r, themes: [], themeKeyword: undefined }));
 
-    if (freezeEnabled) {
+    if (freezeEnabled && includeThemes) {
       const cacheWriteStart = nowMs();
       await PlannerRecCache.findOneAndUpdate(
         { userId, weekStart },
@@ -370,6 +390,7 @@ export async function GET(request: Request) {
 
   const noCache = parseBoolParam(request.url, "nocache") || parseBoolParam(request.url, "disableFreeze");
   const freezeEnabled = FREEZE_ENABLED_ENV && !noCache;
+  const includeThemes = parseOptionalBoolParam(request.url, "includeThemes") ?? true;
   const rawWeekStart = parseWeekStartParam(request.url) ?? new Date();
   const weekStart = normalizeToMondayInTZ(rawWeekStart, PLANNER_TIMEZONE);
   const weekStartISO = weekStart.toISOString();
@@ -407,6 +428,7 @@ export async function GET(request: Request) {
         targetSlotsPerWeek,
         freezeEnabled,
         allowMemoryCache: !noCache,
+        includeThemes,
       });
       timings.push({ name: "rec", durationMs: result.totalMs ?? 0 });
       if (result.memoryHit) {
@@ -466,13 +488,17 @@ export async function GET(request: Request) {
         heatmap,
         cached,
         freezeEnabled,
+        includeThemes,
         algoVersion: ALGO_VERSION,
         frozenAt,
         partial,
       },
       200,
       timings,
-      { "X-D2C-Cache": cached ? "hit" : "miss" }
+      {
+        "X-D2C-Cache": cached ? "hit" : "miss",
+        "X-D2C-Include-Themes": includeThemes ? "1" : "0",
+      }
     );
   } catch (err) {
     console.error("[planner/batch] Error:", err);

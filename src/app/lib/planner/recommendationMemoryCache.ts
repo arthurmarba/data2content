@@ -40,6 +40,7 @@ export function buildPlannerRecommendationMemoryKey(params: {
   periodDays: number;
   targetSlotsPerWeek: number;
   freezeEnabled: boolean;
+  includeThemes?: boolean;
   algoVersion: number;
 }) {
   const weekStartISO =
@@ -51,6 +52,7 @@ export function buildPlannerRecommendationMemoryKey(params: {
     String(params.periodDays),
     String(params.targetSlotsPerWeek),
     params.freezeEnabled ? "1" : "0",
+    params.includeThemes === undefined ? "themes?" : params.includeThemes ? "themes1" : "themes0",
     `algo${params.algoVersion}`,
   ].join("|");
 }

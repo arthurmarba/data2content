@@ -31,6 +31,8 @@ const TARGET_SUGGESTIONS = 5; // regra: sugerir 3..5; usamos 5 como teto
 const PERIOD_DAYS = 90;       // janela histórica
 const PLANNER_UI_CACHE_TTL_MS = 30_000;
 const PLANNER_UI_CACHE_MAX_ENTRIES = 40;
+const PLANNER_UI_BOOT_CACHE_TTL_MS = 5 * 60_000;
+const PLANNER_UI_BOOT_CACHE_PREFIX = 'planner-ui-boot:v2:';
 
 type PlannerSnapshot = {
   slots: PlannerUISlot[] | null;
@@ -42,6 +44,10 @@ type PlannerSnapshot = {
 };
 
 const plannerUiMemoryCache = new Map<string, PlannerSnapshot>();
+
+function getPlannerUiBootCacheKey(key: string): string {
+  return `${PLANNER_UI_BOOT_CACHE_PREFIX}${key}`;
+}
 
 function buildPlannerUiMemoryKey(params: {
   userId: string;
@@ -69,11 +75,50 @@ function readPlannerUiMemory(key: string): PlannerSnapshot | null {
   return value;
 }
 
+function readPlannerUiBootCache(key: string): PlannerSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(getPlannerUiBootCacheKey(key));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PlannerSnapshot>;
+    const createdAt = Number(parsed?.createdAt);
+    if (!Number.isFinite(createdAt)) {
+      window.sessionStorage.removeItem(getPlannerUiBootCacheKey(key));
+      return null;
+    }
+    if (Date.now() - createdAt > PLANNER_UI_BOOT_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(getPlannerUiBootCacheKey(key));
+      return null;
+    }
+    return {
+      slots: Array.isArray(parsed?.slots) ? (parsed.slots as PlannerUISlot[]) : null,
+      heatmap: Array.isArray(parsed?.heatmap) ? (parsed.heatmap as TimeBlockScoreUI[]) : null,
+      recommendations: Array.isArray(parsed?.recommendations) ? (parsed.recommendations as PlannerUISlot[]) : [],
+      locked: Boolean(parsed?.locked),
+      lockedReason: typeof parsed?.lockedReason === 'string' ? parsed.lockedReason : null,
+      createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePlannerUiBootCache(key: string, snapshot: PlannerSnapshot) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(getPlannerUiBootCacheKey(key), JSON.stringify(snapshot));
+  } catch {
+    // noop
+  }
+}
+
 function writePlannerUiMemory(key: string, snapshot: Omit<PlannerSnapshot, 'createdAt'>) {
-  plannerUiMemoryCache.set(key, {
+  const nextSnapshot: PlannerSnapshot = {
     ...snapshot,
     createdAt: Date.now(),
-  });
+  };
+  plannerUiMemoryCache.set(key, nextSnapshot);
+  writePlannerUiBootCache(key, nextSnapshot);
   if (plannerUiMemoryCache.size <= PLANNER_UI_CACHE_MAX_ENTRIES) return;
   const firstKey = plannerUiMemoryCache.keys().next().value;
   if (typeof firstKey === 'string') {
@@ -252,7 +297,19 @@ export function usePlannerData(params: {
       return;
     }
 
-    const cachedSnapshot = readPlannerUiMemory(plannerUiMemoryKey);
+    let cachedSnapshot = readPlannerUiMemory(plannerUiMemoryKey);
+    if (!cachedSnapshot) {
+      cachedSnapshot = readPlannerUiBootCache(plannerUiMemoryKey);
+      if (cachedSnapshot) {
+        writePlannerUiMemory(plannerUiMemoryKey, {
+          slots: cachedSnapshot.slots,
+          heatmap: cachedSnapshot.heatmap,
+          recommendations: cachedSnapshot.recommendations,
+          locked: cachedSnapshot.locked,
+          lockedReason: cachedSnapshot.lockedReason,
+        });
+      }
+    }
     const hasWarmCache = Boolean(cachedSnapshot);
     if (cachedSnapshot) {
       applySnapshot({
