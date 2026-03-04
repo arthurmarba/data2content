@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import MediaKitPackage from '@/app/models/MediaKitPackage';
 import { logger } from '@/app/lib/logger';
@@ -27,10 +28,22 @@ const savePackagesSchema = z.object({
     packages: z.array(packageSchema).max(PACKAGE_LIMIT, `Limite de ${PACKAGE_LIMIT} pacotes excedido.`),
 });
 
+async function getAuthenticatedUserId() {
+    try {
+        const session = (await getServerSession(authOptions as any)) as any;
+        const userId = session?.user?.id;
+        return typeof userId === 'string' && userId.trim() ? userId : null;
+    } catch (error) {
+        logger.warn('[mediakit/self/packages] Sessão inválida ao autenticar usuário.', {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+    }
+}
+
 // GET: Fetch all packages for the authenticated user
 export async function GET() {
-    const session = (await getServerSession()) as any;
-    const userId = (session as any)?.user?.id;
+    const userId = await getAuthenticatedUserId();
 
     if (!userId) {
         return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
@@ -48,8 +61,7 @@ export async function GET() {
 
 // POST: Replace all packages or create new ones
 export async function POST(req: NextRequest) {
-    const session = (await getServerSession()) as any;
-    const userId = (session as any)?.user?.id;
+    const userId = await getAuthenticatedUserId();
 
     if (!userId) {
         return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
@@ -99,8 +111,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Remove all packages
 export async function DELETE() {
-    const session = (await getServerSession()) as any;
-    const userId = (session as any)?.user?.id;
+    const userId = await getAuthenticatedUserId();
 
     if (!userId) {
         return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });

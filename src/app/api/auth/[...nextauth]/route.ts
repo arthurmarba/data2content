@@ -31,6 +31,7 @@ import type {
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
 import { cookies } from "next/headers";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 
 import { fetchAvailableInstagramAccounts } from "@/app/lib/instagram";
 import type { AvailableInstagramAccount as ServiceAvailableIgAccount } from "@/app/lib/instagram/types";
@@ -1248,28 +1249,41 @@ export const authOptions: NextAuthOptions = {
       session.affiliateBalances = token.affiliateBalances || {};
 
       try {
-        await connectToDatabase();
-        const dbUserCheck = await DbUser.findById(token.id)
-          .select(
-            "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
-            "stripeCustomerId stripeSubscriptionId stripePriceId " +
-            "name role image proTrialStatus proTrialActivatedAt proTrialExpiresAt"
-          )
-          .lean<
-            Pick<
-              IUser,
-              | "planStatus"
-              | "planType"
-              | "planInterval"
-              | "planExpiresAt"
-              | "name"
-              | "role"
-              | "image"
-              | "stripeCustomerId"
-              | "stripeSubscriptionId"
-              | "stripePriceId"
-            > & { cancelAtPeriodEnd?: boolean | null }
-          >();
+        const dbUserCheck = await withMongoTransientRetry(
+          async () => {
+            await connectToDatabase();
+            return DbUser.findById(token.id)
+              .select(
+                "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
+                "stripeCustomerId stripeSubscriptionId stripePriceId " +
+                "name role image proTrialStatus proTrialActivatedAt proTrialExpiresAt"
+              )
+              .lean<
+                Pick<
+                  IUser,
+                  | "planStatus"
+                  | "planType"
+                  | "planInterval"
+                  | "planExpiresAt"
+                  | "name"
+                  | "role"
+                  | "image"
+                  | "stripeCustomerId"
+                  | "stripeSubscriptionId"
+                  | "stripePriceId"
+                > & { cancelAtPeriodEnd?: boolean | null }
+              >();
+          },
+          {
+            retries: 1,
+            onRetry: (error, retryCount) => {
+              logger.warn(
+                `${TAG_SESSION} Falha transitória ao revalidar sessão ${token.id}. Retry #${retryCount}.`,
+                { error: getErrorMessage(error) }
+              );
+            },
+          }
+        );
 
         if (dbUserCheck && session.user) {
           logger.info(`${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}.`);
@@ -1311,7 +1325,13 @@ export const authOptions: NextAuthOptions = {
           return invalidateSession();
         }
       } catch (error) {
-        logger.error(`${TAG_SESSION} Erro ao revalidar sessão ${token.id}:`, error);
+        if (isTransientMongoError(error)) {
+          logger.warn(`${TAG_SESSION} Erro transitório ao revalidar sessão ${token.id}. Mantendo dados do token.`, {
+            error: getErrorMessage(error),
+          });
+        } else {
+          logger.error(`${TAG_SESSION} Erro ao revalidar sessão ${token.id}:`, error);
+        }
       }
 
       logger.debug(

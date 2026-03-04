@@ -44,6 +44,23 @@ const SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES = (() => {
 
 const scriptsNotificationsCache = new Map<string, { expiresAt: number; payload: any }>();
 
+async function getAuthenticatedSession(context: string) {
+  try {
+    const session = (await getServerSession(authOptions as any)) as any;
+    const userId = session?.user?.id;
+    if (typeof userId !== "string" || !userId.trim()) {
+      return null;
+    }
+    return session;
+  } catch (error) {
+    logger.warn("[scripts] Sessao invalida ao autenticar requisicao.", {
+      context,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
 function pruneScriptsNotificationsCache(nowTs: number) {
   for (const [key, value] of scriptsNotificationsCache.entries()) {
     if (value.expiresAt <= nowTs) scriptsNotificationsCache.delete(key);
@@ -455,7 +472,7 @@ async function buildLinkingSummaryByScriptId(params: {
 }
 
 export async function GET(request: Request) {
-  const session = (await getServerSession(authOptions as any)) as any;
+  const session = await getAuthenticatedSession("GET /api/scripts");
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -606,7 +623,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = (await getServerSession(authOptions as any)) as any;
+  const session = await getAuthenticatedSession("POST /api/scripts");
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }

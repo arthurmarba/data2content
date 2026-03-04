@@ -12,6 +12,7 @@ import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scrip
 import { refreshScriptOutcomeProfile } from "@/app/lib/scripts/outcomeTraining";
 import { isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,23 @@ type Params = {
     id: string;
   };
 };
+
+async function getAuthenticatedSession(context: string) {
+  try {
+    const session = (await getServerSession(authOptions as any)) as any;
+    const userId = session?.user?.id;
+    if (typeof userId !== "string" || !userId.trim()) {
+      return null;
+    }
+    return session;
+  } catch (error) {
+    logger.warn("[scripts/id] Sessao invalida ao autenticar requisicao.", {
+      context,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
 
 function normalizeBody(body: any) {
   const title = typeof body?.title === "string" ? body.title.trim() : undefined;
@@ -216,7 +234,7 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
 }
 
 export async function GET(request: Request, { params }: Params) {
-  const session = (await getServerSession(authOptions as any)) as any;
+  const session = await getAuthenticatedSession("GET /api/scripts/[id]");
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -261,7 +279,7 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const session = (await getServerSession(authOptions as any)) as any;
+  const session = await getAuthenticatedSession("PATCH /api/scripts/[id]");
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -406,7 +424,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const session = (await getServerSession(authOptions as any)) as any;
+  const session = await getAuthenticatedSession("DELETE /api/scripts/[id]");
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }

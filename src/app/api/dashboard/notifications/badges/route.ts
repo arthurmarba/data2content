@@ -6,6 +6,7 @@ import type { FilterQuery, PipelineStage } from "mongoose";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import { hasScriptsAccess } from "@/app/lib/scripts/access";
 import Alert from "@/app/models/Alert";
 import BrandProposal from "@/app/models/BrandProposal";
@@ -158,6 +159,7 @@ export async function GET(request: NextRequest) {
   ].join("|");
 
   const nowTs = Date.now();
+  const staleCached = badgesCache.get(cacheKey);
   pruneBadgesCache(nowTs);
   const cached = badgesCache.get(cacheKey);
   if (cached && cached.expiresAt > nowTs) {
@@ -170,41 +172,65 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await connectToDatabase();
-    const userObjectId = new Types.ObjectId(userId);
-    const canAccessScripts = hasScriptsAccess(session?.user);
+    const { alertsUnreadCount, reviewsUnreadCount, scriptsUnreadCountRaw, campaignsUnreadCount, canAccessScripts } =
+      await withMongoTransientRetry(
+        async () => {
+          await connectToDatabase();
+          const userObjectId = new Types.ObjectId(userId);
+          const canAccessScripts = hasScriptsAccess(session?.user);
 
-    const [alertsUnreadCount, reviewsUnreadCount, scriptsUnreadCountRaw, campaignsUnreadCount] = await Promise.all([
-      Alert.countDocuments({
-        user: userId,
-        $or: [{ readAt: null }, { readAt: { $exists: false } }],
-      }),
-      countUnreadPostReviews({
-        userId: userObjectId,
-        since: reviewsSince,
-        limit: reviewsLimit,
-      }),
-      canAccessScripts
-        ? ScriptEntry.countDocuments({
-            userId: userObjectId,
-            $or: [
-              buildRecommendationCondition(scriptsRecommendationsSince),
-              buildFeedbackCondition(scriptsFeedbackSince),
-            ],
-          })
-        : Promise.resolve(0),
-      BrandProposal.countDocuments(
-        campaignsSince
-          ? {
-              userId: userObjectId,
-              createdAt: { $gt: campaignsSince },
-            }
-          : {
-              userId: userObjectId,
-              status: "novo",
-            }
-      ),
-    ]);
+          const [alertsUnreadCount, reviewsUnreadCount, scriptsUnreadCountRaw, campaignsUnreadCount] =
+            await Promise.all([
+              Alert.countDocuments({
+                user: userId,
+                $or: [{ readAt: null }, { readAt: { $exists: false } }],
+              }),
+              countUnreadPostReviews({
+                userId: userObjectId,
+                since: reviewsSince,
+                limit: reviewsLimit,
+              }),
+              canAccessScripts
+                ? ScriptEntry.countDocuments({
+                    userId: userObjectId,
+                    $or: [
+                      buildRecommendationCondition(scriptsRecommendationsSince),
+                      buildFeedbackCondition(scriptsFeedbackSince),
+                    ],
+                  })
+                : Promise.resolve(0),
+              BrandProposal.countDocuments(
+                campaignsSince
+                  ? {
+                      userId: userObjectId,
+                      createdAt: { $gt: campaignsSince },
+                    }
+                  : {
+                      userId: userObjectId,
+                      status: "novo",
+                    }
+              ),
+            ]);
+
+          return {
+            alertsUnreadCount,
+            reviewsUnreadCount,
+            scriptsUnreadCountRaw,
+            campaignsUnreadCount,
+            canAccessScripts,
+          };
+        },
+        {
+          retries: 1,
+          onRetry: (error, retryCount) => {
+            logger.warn("[api/dashboard/notifications/badges] Falha transitória de Mongo. Retry.", {
+              retryCount,
+              error: getErrorMessage(error),
+            });
+          },
+        }
+      );
+
     const scriptsUnreadCount = canAccessScripts ? scriptsUnreadCountRaw : 0;
 
     badgesCache.set(cacheKey, {
@@ -222,6 +248,26 @@ export async function GET(request: NextRequest) {
       campaignsUnreadCount,
     });
   } catch (error) {
+    if (isTransientMongoError(error)) {
+      logger.warn("[api/dashboard/notifications/badges] Falha transitória de Mongo após retry.", {
+        error: getErrorMessage(error),
+      });
+      if (staleCached) {
+        return NextResponse.json({
+          alertsUnreadCount: staleCached.alertsUnreadCount,
+          reviewsUnreadCount: staleCached.reviewsUnreadCount,
+          scriptsUnreadCount: staleCached.scriptsUnreadCount,
+          campaignsUnreadCount: staleCached.campaignsUnreadCount,
+        });
+      }
+      return NextResponse.json({
+        alertsUnreadCount: 0,
+        reviewsUnreadCount: 0,
+        scriptsUnreadCount: 0,
+        campaignsUnreadCount: 0,
+      });
+    }
+
     logger.error("[api/dashboard/notifications/badges] Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

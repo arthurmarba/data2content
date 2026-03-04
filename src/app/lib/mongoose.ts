@@ -22,7 +22,14 @@ const getCache = (): MongooseConnection => {
 
 export const connectToDatabase = async (): Promise<Mongoose> => {
   const cache = getCache();
-  if (cache.conn) return cache.conn;
+  if (cache.conn && cache.conn.connection.readyState === 1) {
+    return cache.conn;
+  }
+
+  if (cache.conn && cache.conn.connection.readyState !== 1) {
+    cache.conn = null;
+    cache.promise = null;
+  }
 
   // ❗️Pegue as envs AQUI (não no topo do arquivo)
   const uri = process.env.MONGODB_URI;
