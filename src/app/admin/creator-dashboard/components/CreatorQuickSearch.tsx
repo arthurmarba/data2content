@@ -146,7 +146,7 @@ export default function CreatorQuickSearch({
   const showResults = showDropdown && searchTerm.length >= 2;
 
   return (
-    <div className="relative w-80 sm:w-96" ref={containerRef}>
+    <div className={`relative w-80 sm:w-96 ${showResults ? "z-[80]" : "z-10"}`} ref={containerRef}>
       <SearchBar
         value={searchTerm}
         onSearchChange={(val) => {
@@ -181,7 +181,7 @@ export default function CreatorQuickSearch({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute z-20 left-0 top-full mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl p-2 max-h-80 overflow-auto"
+            className="absolute left-0 top-full z-[90] mt-2 w-full max-h-80 overflow-auto rounded-lg border border-gray-200 bg-white p-2 shadow-2xl ring-1 ring-slate-200/80"
           >
             {isLoading && <div className="p-2 text-sm text-center text-gray-500">Carregando...</div>}
             {error && <p className="p-3 text-sm text-red-600 font-medium">{error}</p>}
