@@ -61,6 +61,10 @@ CampaignLinkSchema.index(
   { unique: true, name: 'campaign_links_unique_entity_per_proposal' }
 );
 CampaignLinkSchema.index({ userId: 1, proposalId: 1, updatedAt: -1 });
+CampaignLinkSchema.index(
+  { userId: 1, entityType: 1, entityId: 1, updatedAt: -1 },
+  { name: 'campaign_links_user_entity_lookup' }
+);
 
 const CampaignLink =
   (models.CampaignLink as mongoose.Model<ICampaignLink>) ||

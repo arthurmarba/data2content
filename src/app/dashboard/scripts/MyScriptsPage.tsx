@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2, Check, Link2 } from "lucide-react";
@@ -470,7 +470,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
     try {
       setCampaignsLoading(true);
-      const response = await fetch("/api/proposals?limit=200", { cache: "no-store" });
+      const response = await fetch("/api/proposals?limit=200&view=linking", { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
@@ -1148,8 +1148,6 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const patchScriptPublication = useCallback(
     async (script: ScriptItem, publicationPatch: { isPosted: boolean; postedContentId: string | null }) => {
       const payload: Record<string, unknown> = {
-        title: script.title || "Roteiro sem título",
-        content: script.content || "",
         isPosted: publicationPatch.isPosted,
         postedContentId: publicationPatch.postedContentId,
         targetUserId: targetUserId || undefined,
@@ -1868,7 +1866,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const selectedPostedContentOption = contentOptions.find((option) => option.id === editor.postedContentId) || null;
   const selectedPostedContentMissing =
     Boolean(editor.postedContentId) && !selectedPostedContentOption && Boolean(editor.publication?.content);
-  const quickPublishQueryNormalized = quickPublishQuery.trim().toLowerCase();
+  const deferredQuickPublishQuery = useDeferredValue(quickPublishQuery);
+  const quickPublishQueryNormalized = deferredQuickPublishQuery.trim().toLowerCase();
   const filteredQuickPublishOptions = useMemo(() => {
     if (!quickPublishQueryNormalized) return contentOptions;
     return contentOptions.filter((option) => {
@@ -2371,7 +2370,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                   : null;
                 const isPosted = Boolean(script.publication?.isPosted);
                 const isPublicationSaving = publicationSavingScriptId === script.id;
-                const linkingSummary = normalizeScriptLinkingSummary(script.linkingSummary);
+                const linkingSummary = script.linkingSummary ?? buildEmptyLinkingSummary();
                 const linkedCampaigns = linkingSummary.campaigns;
                 const isCardLinking = cardLinkingScriptId === script.id;
                 const isCardLinkPopoverOpen = activeCardLinkScriptId === script.id;

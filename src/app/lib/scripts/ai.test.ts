@@ -5,6 +5,8 @@ import {
   enforceTechnicalScriptContract,
   sanitizeScriptIdentityLeakage,
   selectScriptModelForPrompt,
+  selectScriptTemperature,
+  shouldRunQualityPassForAdjustMode,
 } from "./ai";
 
 describe("scripts/ai identity leakage sanitization", () => {
@@ -140,6 +142,8 @@ describe("scripts/ai model selection", () => {
     OPENAI_MODEL_HYBRID_ENABLED: process.env.OPENAI_MODEL_HYBRID_ENABLED,
     OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED:
       process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED,
+    OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED:
+      process.env.OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED,
     OPENAI_MODEL_HYBRID_SCORE_THRESHOLD: process.env.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD,
   };
 
@@ -148,6 +152,7 @@ describe("scripts/ai model selection", () => {
     process.env.OPENAI_MODEL_ADVANCED = "gpt-4.1";
     process.env.OPENAI_MODEL_HYBRID_ENABLED = "true";
     process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED = "true";
+    process.env.OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED = "true";
     process.env.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD = "2";
   });
 
@@ -157,6 +162,8 @@ describe("scripts/ai model selection", () => {
     process.env.OPENAI_MODEL_HYBRID_ENABLED = envBackup.OPENAI_MODEL_HYBRID_ENABLED;
     process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED =
       envBackup.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED;
+    process.env.OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED =
+      envBackup.OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED;
     process.env.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD = envBackup.OPENAI_MODEL_HYBRID_SCORE_THRESHOLD;
   });
 
@@ -176,6 +183,32 @@ describe("scripts/ai model selection", () => {
     const selected = selectScriptModelForPrompt({
       userPrompt: "roteiro curto sobre produtividade",
       operation: "adjust",
+    });
+
+    expect(selected.tier).toBe("base");
+    expect(selected.model).toBe("gpt-4o-mini");
+    expect(selected.reason).toBe("operation_adjust_default");
+  });
+
+  it("selects premium model by default for rewrite adjust operation", () => {
+    const selected = selectScriptModelForPrompt({
+      userPrompt: "reescreva esse roteiro por completo com storytelling mais forte",
+      operation: "adjust",
+      adjustMode: "rewrite_full",
+    });
+
+    expect(selected.tier).toBe("premium");
+    expect(selected.model).toBe("gpt-4.1");
+    expect(selected.reason).toBe("operation_adjust_rewrite_default");
+    expect(selected.fallbackModel).toBe("gpt-4o-mini");
+  });
+
+  it("keeps base model for rewrite adjust when premium rewrite routing is disabled", () => {
+    process.env.OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED = "false";
+    const selected = selectScriptModelForPrompt({
+      userPrompt: "reescreva esse roteiro por completo com storytelling mais forte",
+      operation: "adjust",
+      adjustMode: "rewrite_full",
     });
 
     expect(selected.tier).toBe("base");
@@ -208,6 +241,65 @@ describe("scripts/ai model selection", () => {
     expect(selected.model).toBe("gpt-4.1");
     expect(selected.reason).toBe("explicit_intent");
     expect(selected.fallbackModel).toBe("gpt-4o-mini");
+  });
+});
+
+describe("scripts/ai adjust quality pass routing", () => {
+  it("enables quality pass only for rewrite/full new-script adjust modes", () => {
+    expect(shouldRunQualityPassForAdjustMode("patch")).toBe(false);
+    expect(shouldRunQualityPassForAdjustMode("rewrite_full")).toBe(true);
+    expect(shouldRunQualityPassForAdjustMode("new_script")).toBe(true);
+  });
+});
+
+describe("scripts/ai temperature selection", () => {
+  const envBackup = {
+    OPENAI_TEMP: process.env.OPENAI_TEMP,
+    OPENAI_TEMP_GENERATE: process.env.OPENAI_TEMP_GENERATE,
+    OPENAI_TEMP_ADJUST: process.env.OPENAI_TEMP_ADJUST,
+    OPENAI_TEMP_ADJUST_PATCH: process.env.OPENAI_TEMP_ADJUST_PATCH,
+    OPENAI_TEMP_ADJUST_REWRITE: process.env.OPENAI_TEMP_ADJUST_REWRITE,
+  };
+
+  beforeEach(() => {
+    delete process.env.OPENAI_TEMP;
+    delete process.env.OPENAI_TEMP_GENERATE;
+    delete process.env.OPENAI_TEMP_ADJUST;
+    delete process.env.OPENAI_TEMP_ADJUST_PATCH;
+    delete process.env.OPENAI_TEMP_ADJUST_REWRITE;
+  });
+
+  afterAll(() => {
+    process.env.OPENAI_TEMP = envBackup.OPENAI_TEMP;
+    process.env.OPENAI_TEMP_GENERATE = envBackup.OPENAI_TEMP_GENERATE;
+    process.env.OPENAI_TEMP_ADJUST = envBackup.OPENAI_TEMP_ADJUST;
+    process.env.OPENAI_TEMP_ADJUST_PATCH = envBackup.OPENAI_TEMP_ADJUST_PATCH;
+    process.env.OPENAI_TEMP_ADJUST_REWRITE = envBackup.OPENAI_TEMP_ADJUST_REWRITE;
+  });
+
+  it("uses lower default temperature for adjust patch mode", () => {
+    process.env.OPENAI_TEMP = "0.4";
+    const selected = selectScriptTemperature({ operation: "adjust", adjustMode: "patch" });
+    expect(selected).toBe(0.25);
+  });
+
+  it("uses higher default temperature for adjust rewrite mode", () => {
+    process.env.OPENAI_TEMP = "0.4";
+    const selected = selectScriptTemperature({ operation: "adjust", adjustMode: "rewrite_full" });
+    expect(selected).toBe(0.45);
+  });
+
+  it("prefers explicit env overrides for generate and adjust temperatures", () => {
+    process.env.OPENAI_TEMP = "0.33";
+    process.env.OPENAI_TEMP_GENERATE = "0.52";
+    process.env.OPENAI_TEMP_ADJUST = "0.29";
+    process.env.OPENAI_TEMP_ADJUST_PATCH = "0.18";
+    process.env.OPENAI_TEMP_ADJUST_REWRITE = "0.61";
+
+    expect(selectScriptTemperature({ operation: "generate" })).toBe(0.52);
+    expect(selectScriptTemperature({ operation: "adjust" })).toBe(0.29);
+    expect(selectScriptTemperature({ operation: "adjust", adjustMode: "patch" })).toBe(0.18);
+    expect(selectScriptTemperature({ operation: "adjust", adjustMode: "new_script" })).toBe(0.61);
   });
 });
 

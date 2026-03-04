@@ -1,6 +1,6 @@
 /**
- * @fileoverview Script para garantir que os índices corretos existam na coleção 'metrics'.
- * @version 1.0.1 - Corrigido erro de digitação na variável de log.
+ * @fileoverview Script para garantir que os índices corretos existam nas coleções críticas.
+ * @version 1.1.0 - Inclui garantia de índices em campaign_links.
  * @description Este script se conecta ao banco de dados, remove quaisquer índices compostos
  * problemáticos que contenham múltiplos arrays e garante que os índices individuais
  * para os campos de classificação existam.
@@ -52,6 +52,31 @@ async function ensureCorrectIndexes() {
     // 3. Garantir que os índices individuais e seguros existam
     logger.info(`${SCRIPT_TAG} Garantindo a existência dos índices individuais corretos...`);
     await Metric.createIndexes();
+
+    // campaign_links pode variar conforme legado/pluralização
+    const collectionCandidates = ['campaignlinks', 'campaign_links'];
+    let campaignLinksCollectionName: string | null = null;
+    const collections = await db.db?.listCollections({}, { nameOnly: true }).toArray();
+    if (Array.isArray(collections)) {
+      for (const candidate of collectionCandidates) {
+        if (collections.some((item) => item?.name === candidate)) {
+          campaignLinksCollectionName = candidate;
+          break;
+        }
+      }
+    }
+    if (!campaignLinksCollectionName) {
+      campaignLinksCollectionName = collectionCandidates[0] ?? 'campaignlinks';
+      logger.warn(
+        `${SCRIPT_TAG} Coleção de campaign links não encontrada na listagem. Usando fallback: ${campaignLinksCollectionName}`
+      );
+    }
+
+    const campaignLinksCollection = db.collection(campaignLinksCollectionName);
+    await campaignLinksCollection.createIndex(
+      { userId: 1, entityType: 1, entityId: 1, updatedAt: -1 },
+      { name: 'campaign_links_user_entity_lookup' }
+    );
     logger.info(`${SCRIPT_TAG} Processo de verificação de índices concluído.`);
 
   } catch (error) {

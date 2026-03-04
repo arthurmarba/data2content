@@ -23,8 +23,8 @@ type Params = {
 };
 
 function normalizeBody(body: any) {
-  const title = typeof body?.title === "string" ? body.title.trim() : "";
-  const content = typeof body?.content === "string" ? body.content.trim() : "";
+  const title = typeof body?.title === "string" ? body.title.trim() : undefined;
+  const content = typeof body?.content === "string" ? body.content.trim() : undefined;
   const targetUserId = typeof body?.targetUserId === "string" ? body.targetUserId.trim() : "";
   const adminAnnotation =
     typeof body?.adminAnnotation === "string" || body?.adminAnnotation === null
@@ -296,10 +296,6 @@ export async function PATCH(request: Request, { params }: Params) {
   const normalizedAdminAnnotation = canWriteAdminAnnotation
     ? normalizeAdminAnnotation(adminAnnotation)
     : undefined;
-  const finalTitle = (title || "Roteiro sem título").slice(0, 180);
-  if (!content) {
-    return NextResponse.json({ ok: false, error: "O conteúdo do roteiro não pode ficar vazio." }, { status: 400 });
-  }
 
   await connectToDatabase();
   const doc = await ScriptEntry.findOne({
@@ -308,6 +304,12 @@ export async function PATCH(request: Request, { params }: Params) {
   });
   if (!doc) {
     return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
+  }
+
+  const finalTitle = title !== undefined ? (title || "Roteiro sem título").slice(0, 180) : doc.title;
+  const finalContent = content !== undefined ? content : doc.content;
+  if (!finalContent) {
+    return NextResponse.json({ ok: false, error: "O conteúdo do roteiro não pode ficar vazio." }, { status: 400 });
   }
 
   const postedContentResolution = await resolvePostedContentForPatch({
@@ -326,8 +328,9 @@ export async function PATCH(request: Request, { params }: Params) {
   const previousPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
   const previousIsPosted = Boolean(previousPostedMetricId);
 
+  const scriptTextChanged = doc.title !== finalTitle || doc.content !== finalContent;
   doc.title = finalTitle;
-  doc.content = content;
+  doc.content = finalContent;
   if (normalizedAdminAnnotation !== undefined) {
     doc.adminAnnotation = normalizedAdminAnnotation;
     doc.adminAnnotationUpdatedById = normalizedAdminAnnotation ? new Types.ObjectId(session.user.id as string) : null;
@@ -366,19 +369,34 @@ export async function PATCH(request: Request, { params }: Params) {
     void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
   }
 
-  if (doc.linkType === "planner_slot" && doc.plannerRef?.weekStart && doc.plannerRef?.slotId) {
-    await applyScriptToPlannerSlot({
-      userId: effectiveUserId,
-      plannerRef: {
-        weekStart: doc.plannerRef.weekStart,
-        slotId: doc.plannerRef.slotId,
-        dayOfWeek: doc.plannerRef.dayOfWeek,
-        blockStartHour: doc.plannerRef.blockStartHour,
-      },
-      title: doc.title,
-      content: doc.content,
-      aiVersionId: doc.aiVersionId ?? null,
-    });
+  if (
+    scriptTextChanged &&
+    doc.linkType === "planner_slot" &&
+    doc.plannerRef?.weekStart &&
+    doc.plannerRef?.slotId
+  ) {
+    try {
+      await applyScriptToPlannerSlot({
+        userId: effectiveUserId,
+        plannerRef: {
+          weekStart: doc.plannerRef.weekStart,
+          slotId: doc.plannerRef.slotId,
+          dayOfWeek: doc.plannerRef.dayOfWeek,
+          blockStartHour: doc.plannerRef.blockStartHour,
+        },
+        title: doc.title,
+        content: doc.content,
+        aiVersionId: doc.aiVersionId ?? null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const missingPlannerTarget =
+        message === "Plano da semana não encontrado para vincular roteiro." ||
+        message === "Slot do planner não encontrado para vincular roteiro.";
+      if (!missingPlannerTarget) {
+        throw error;
+      }
+    }
   }
 
   return NextResponse.json({

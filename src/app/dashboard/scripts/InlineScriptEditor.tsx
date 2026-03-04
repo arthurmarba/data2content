@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { MessageSquarePlus, X } from "lucide-react";
 
 export type InlineAnnotation = {
@@ -105,7 +105,7 @@ export function InlineScriptEditor({
         setIsCommenting(false);
     };
 
-    const renderHighlights = () => {
+    const highlightedContent = useMemo(() => {
         const sorted = [...annotations]
             .filter((a) => !a.isOrphaned && !a.resolved)
             .sort((a, b) => a.startIndex - b.startIndex);
@@ -136,7 +136,7 @@ export function InlineScriptEditor({
         }
 
         return result;
-    };
+    }, [annotations, content]);
 
     const handleCreateComment = () => {
         if (!selection) return;
@@ -173,7 +173,7 @@ export function InlineScriptEditor({
                 className="pointer-events-none absolute inset-0 z-0 overflow-y-auto whitespace-pre-wrap break-words py-7 text-[17px] leading-9 text-transparent"
                 aria-hidden="true"
             >
-                {renderHighlights()}
+                {highlightedContent}
             </div>
 
             <textarea

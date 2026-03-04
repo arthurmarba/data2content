@@ -114,6 +114,7 @@ const metricSchema = new Schema<IMetric>(
 // --- ÍNDICES ---
 // Seguro (não envolve arrays em conjunto):
 metricSchema.index({ user: 1, postDate: -1 });
+metricSchema.index({ user: 1, postDate: -1, updatedAt: -1, _id: -1 });
 
 // Único por usuário (mantém integridade sem parallel arrays):
 metricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true, sparse: true });

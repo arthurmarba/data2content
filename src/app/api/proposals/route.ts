@@ -14,6 +14,13 @@ const resolveBudgetIntent = (proposal: any): 'provided' | 'requested' => {
   return typeof proposal?.budget === 'number' ? 'provided' : 'requested';
 };
 
+type ProposalListView = 'default' | 'linking';
+
+const resolveListView = (value: string | null): ProposalListView => {
+  if (value === 'linking') return 'linking';
+  return 'default';
+};
+
 const serializeProposal = (proposal: any) => ({
   id: proposal._id.toString(),
   brandName: proposal.brandName,
@@ -38,6 +45,12 @@ const serializeProposal = (proposal: any) => ({
   lastResponseMessage: proposal.lastResponseMessage ?? null,
 });
 
+const serializeProposalLinkingOption = (proposal: any) => ({
+  id: proposal._id.toString(),
+  campaignTitle: typeof proposal.campaignTitle === 'string' ? proposal.campaignTitle : 'Campanha sem título',
+  brandName: typeof proposal.brandName === 'string' ? proposal.brandName : 'Marca',
+});
+
 export async function GET(request: NextRequest) {
   const session = (await getServerSession({ req: request, ...authOptions })) as any;
   if (!session?.user?.id) {
@@ -49,19 +62,22 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
   const limit = Math.min(200, Number.parseInt(searchParams.get('limit') ?? '50', 10) || 50);
+  const view = resolveListView(searchParams.get('view'));
 
   const query: Record<string, any> = { userId: session.user.id };
   if (status && ['novo', 'visto', 'respondido', 'aceito', 'rejeitado'].includes(status)) {
     query.status = status;
   }
 
-  const proposals = await BrandProposal.find(query)
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean()
-    .exec();
+  let proposalsQuery = BrandProposal.find(query).sort({ createdAt: -1 }).limit(limit);
+  if (view === 'linking') {
+    proposalsQuery = proposalsQuery.select('_id campaignTitle brandName');
+  }
+  const proposals = await proposalsQuery.lean().exec();
 
   return NextResponse.json({
-    items: proposals.map(serializeProposal),
+    items: view === 'linking'
+      ? proposals.map(serializeProposalLinkingOption)
+      : proposals.map(serializeProposal),
   });
 }

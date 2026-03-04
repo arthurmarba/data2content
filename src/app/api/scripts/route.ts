@@ -26,6 +26,7 @@ import {
   logScriptsGenerationObservability,
   type ScriptOutputDiagnostics,
 } from "@/app/lib/scripts/observability";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -672,8 +673,13 @@ export async function POST(request: Request) {
           prompt,
           lookbackDays: 180,
         });
-      } catch {
+      } catch (error) {
         intelligenceContext = null;
+        logger.warn("[scripts][create][intelligence_context_failed]", {
+          userId: effectiveUserId,
+          promptLength: prompt.length,
+          error: error instanceof Error ? error.message : String(error || ""),
+        });
       }
     }
 
@@ -753,18 +759,35 @@ export async function POST(request: Request) {
   }
 
   if (normalizedLink) {
-    await applyScriptToPlannerSlot({
-      userId: effectiveUserId,
-      plannerRef: {
-        weekStart: normalizedLink.weekStart,
-        slotId: normalizedLink.slotId,
-        dayOfWeek: normalizedLink.dayOfWeek,
-        blockStartHour: normalizedLink.blockStartHour,
-      },
-      title: finalTitle,
-      content: finalContent,
-      aiVersionId,
-    });
+    try {
+      await applyScriptToPlannerSlot({
+        userId: effectiveUserId,
+        plannerRef: {
+          weekStart: normalizedLink.weekStart,
+          slotId: normalizedLink.slotId,
+          dayOfWeek: normalizedLink.dayOfWeek,
+          blockStartHour: normalizedLink.blockStartHour,
+        },
+        title: finalTitle,
+        content: finalContent,
+        aiVersionId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const missingPlannerTarget =
+        message === "Plano da semana não encontrado para vincular roteiro." ||
+        message === "Slot do planner não encontrado para vincular roteiro.";
+      if (!missingPlannerTarget) {
+        throw error;
+      }
+      logger.warn("[scripts][create][planner_sync_skipped_missing_target]", {
+        userId: effectiveUserId,
+        plannerRef: {
+          weekStart: normalizedLink.weekStart,
+          slotId: normalizedLink.slotId,
+        },
+      });
+    }
   }
 
   const query = normalizedLink

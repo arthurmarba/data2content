@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
 import { getCategoryById } from "@/app/lib/classification";
+import { logger } from "@/app/lib/logger";
 import { recordScriptsStageDuration } from "./performanceTelemetry";
 import type { ScriptIntelligenceContext } from "./intelligenceContext";
 import {
@@ -46,6 +47,7 @@ type ScriptModelOperation = "generate" | "adjust";
 type CallModelOptions = {
   userPrompt: string;
   operation: ScriptModelOperation;
+  adjustMode?: ScriptAdjustMode;
 };
 
 export type ScriptModelSelection = {
@@ -55,6 +57,7 @@ export type ScriptModelSelection = {
   | "hybrid_disabled"
   | "operation_generate_default"
   | "operation_adjust_default"
+  | "operation_adjust_rewrite_default"
   | "explicit_intent"
   | "complexity"
   | "default_base";
@@ -176,6 +179,12 @@ function parseIntWithDefault(value: string | undefined | null, defaultValue: num
   return Math.floor(parsed);
 }
 
+function parseTemperature(value: string | undefined | null, defaultValue: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return defaultValue;
+  return Math.max(0, Math.min(2, parsed));
+}
+
 function countRegexMatches(input: string, regex: RegExp): number {
   const matches = input.match(regex);
   return matches ? matches.length : 0;
@@ -215,6 +224,7 @@ function computePromptComplexityScore(prompt: string, operation: ScriptModelOper
 export function selectScriptModelForPrompt(params: {
   userPrompt: string;
   operation: ScriptModelOperation;
+  adjustMode?: ScriptAdjustMode;
 }): ScriptModelSelection {
   const baseModel = (process.env.OPENAI_MODEL || "gpt-4o-mini").trim() || "gpt-4o-mini";
   const advancedModel = (
@@ -225,6 +235,10 @@ export function selectScriptModelForPrompt(params: {
   const hybridEnabled = parseBoolean(process.env.OPENAI_MODEL_HYBRID_ENABLED, true);
   const operationRoutingEnabled = parseBoolean(
     process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED,
+    true
+  );
+  const adjustRewritePremiumEnabled = parseBoolean(
+    process.env.OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED,
     true
   );
   if (!hybridEnabled || !advancedModel || advancedModel === baseModel) {
@@ -247,6 +261,17 @@ export function selectScriptModelForPrompt(params: {
     }
 
     if (params.operation === "adjust") {
+      const shouldPreferPremiumForAdjust =
+        adjustRewritePremiumEnabled &&
+        (params.adjustMode === "rewrite_full" || params.adjustMode === "new_script");
+      if (shouldPreferPremiumForAdjust) {
+        return {
+          model: advancedModel,
+          tier: "premium",
+          reason: "operation_adjust_rewrite_default",
+          fallbackModel: baseModel,
+        };
+      }
       return {
         model: baseModel,
         tier: "base",
@@ -283,6 +308,30 @@ export function selectScriptModelForPrompt(params: {
     reason: "default_base",
     fallbackModel: null,
   };
+}
+
+export function shouldRunQualityPassForAdjustMode(mode: ScriptAdjustMode): boolean {
+  return mode === "rewrite_full" || mode === "new_script";
+}
+
+export function selectScriptTemperature(params: {
+  operation: ScriptModelOperation;
+  adjustMode?: ScriptAdjustMode;
+}): number {
+  const baseTemp = parseTemperature(process.env.OPENAI_TEMP, 0.4);
+  const generateTemp = parseTemperature(process.env.OPENAI_TEMP_GENERATE, baseTemp);
+  const adjustTemp = parseTemperature(process.env.OPENAI_TEMP_ADJUST, baseTemp);
+  const adjustPatchDefault = Math.max(0, Math.min(adjustTemp, 0.25));
+  const adjustRewriteDefault = Math.max(adjustTemp, 0.45);
+  const adjustPatchTemp = parseTemperature(process.env.OPENAI_TEMP_ADJUST_PATCH, adjustPatchDefault);
+  const adjustRewriteTemp = parseTemperature(process.env.OPENAI_TEMP_ADJUST_REWRITE, adjustRewriteDefault);
+
+  if (params.operation === "generate") return generateTemp;
+  if (params.adjustMode === "patch") return adjustPatchTemp;
+  if (params.adjustMode === "rewrite_full" || params.adjustMode === "new_script") {
+    return adjustRewriteTemp;
+  }
+  return adjustTemp;
 }
 
 function splitParagraphs(value: string) {
@@ -1212,10 +1261,11 @@ async function requestScriptDraftFromModel(params: {
   client: OpenAI;
   prompt: string;
   model: string;
+  temperature: number;
 }): Promise<ScriptDraft> {
   const completion = await params.client.chat.completions.create({
     model: params.model,
-    temperature: Number(process.env.OPENAI_TEMP || 0.4),
+    temperature: params.temperature,
     response_format: { type: "json_object" } as any,
     messages: [
       {
@@ -1241,6 +1291,11 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
   const modelSelection = selectScriptModelForPrompt({
     userPrompt: options.userPrompt,
     operation: options.operation,
+    adjustMode: options.adjustMode,
+  });
+  const temperature = selectScriptTemperature({
+    operation: options.operation,
+    adjustMode: options.adjustMode,
   });
 
   const llmStartMs = Date.now();
@@ -1250,6 +1305,7 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
         client: openAIClientCache,
         prompt,
         model: modelSelection.model,
+        temperature,
       });
     } catch (primaryError) {
       if (
@@ -1257,10 +1313,20 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
         modelSelection.fallbackModel &&
         modelSelection.fallbackModel !== modelSelection.model
       ) {
+        logger.warn("[scripts][llm][fallback_model_retry]", {
+          operation: options.operation,
+          adjustMode: options.adjustMode || null,
+          primaryModel: modelSelection.model,
+          fallbackModel: modelSelection.fallbackModel,
+          temperature,
+          reason: modelSelection.reason,
+          error: primaryError instanceof Error ? primaryError.message : String(primaryError || ""),
+        });
         return requestScriptDraftFromModel({
           client: openAIClientCache,
           prompt,
           model: modelSelection.fallbackModel,
+          temperature,
         });
       }
       throw primaryError;
@@ -1553,8 +1619,12 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
       const sanitized = sanitizeScriptIdentityLeakage(result, [userPrompt]);
       return enforceTechnicalScriptContract(sanitized, userPrompt);
     }
-  } catch {
-    // Fallback local.
+  } catch (error) {
+    logger.warn("[scripts][generate][model_failed_using_local_fallback]", {
+      promptLength: userPrompt.length,
+      hasIntelligenceContext: Boolean(input.intelligenceContext),
+      error: error instanceof Error ? error.message : String(error || ""),
+    });
   }
 
   const fallback = sanitizeScriptIdentityLeakage(fallbackGenerate(userPrompt), [userPrompt]);
@@ -1577,6 +1647,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
 
   const scope = detectScriptAdjustScope(userPrompt);
   const shouldEnforceScopedPatch = scope.mode === "patch" && scope.target.type !== "none";
+  const shouldRunQualityPassForAdjust = shouldRunQualityPassForAdjustMode(scope.mode);
   const scopedResolution = shouldEnforceScopedPatch
     ? resolveScopedSegment(baseContent, scope.target)
     : null;
@@ -1641,6 +1712,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     const result = await callModel(llmPrompt, {
       userPrompt,
       operation: "adjust",
+      adjustMode: scope.mode,
     });
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, allowedIdentitySources);
@@ -1659,7 +1731,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
           content: mergedContent,
         });
         const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt, {
-          runQualityPass: false,
+          runQualityPass: shouldRunQualityPassForAdjust,
         });
         return {
           ...technicalDraft,
@@ -1676,7 +1748,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
 
       const adjusted = sanitizeAdjustedScript(inputForAdjust, sanitized);
       let technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt, {
-        runQualityPass: false,
+        runQualityPass: shouldRunQualityPassForAdjust,
       });
       const shouldApplyConservativePatch = scope.mode === "patch" && scope.target.type === "none";
       let outOfScopeChangeRate = -1;
@@ -1703,8 +1775,14 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
         },
       };
     }
-  } catch {
-    // Fallback local.
+  } catch (error) {
+    logger.warn("[scripts][adjust][model_failed_using_local_fallback]", {
+      promptLength: userPrompt.length,
+      hasIntelligenceContext: Boolean(input.intelligenceContext),
+      adjustMode: scope.mode,
+      targetType: scope.target.type,
+      error: error instanceof Error ? error.message : String(error || ""),
+    });
   }
 
   if (shouldEnforceScopedPatch && scopedResolution) {
@@ -1715,7 +1793,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
       content: mergedContent,
     });
     const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt, {
-      runQualityPass: false,
+      runQualityPass: shouldRunQualityPassForAdjust,
     });
     return {
       ...technicalDraft,
@@ -1733,7 +1811,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
   const fallback = sanitizeScriptIdentityLeakage(fallbackAdjust(inputForAdjust), allowedIdentitySources);
   const adjusted = sanitizeAdjustedScript(inputForAdjust, fallback);
   let technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt, {
-    runQualityPass: false,
+    runQualityPass: shouldRunQualityPassForAdjust,
   });
   const shouldApplyConservativePatch = scope.mode === "patch" && scope.target.type === "none";
   let outOfScopeChangeRate = -1;

@@ -21,12 +21,13 @@ import {
   logScriptsGenerationObservability,
 } from "@/app/lib/scripts/observability";
 import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function shouldSkipIntelligenceForPartialAdjust(scope: ReturnType<typeof detectScriptAdjustScope>): boolean {
-  const envValue = String(process.env.SCRIPTS_INTELLIGENCE_SKIP_PARTIAL_ADJUST ?? "true")
+  const envValue = String(process.env.SCRIPTS_INTELLIGENCE_SKIP_PARTIAL_ADJUST ?? "false")
     .trim()
     .toLowerCase();
   const enabled = !["0", "false", "off", "disabled", "no"].includes(envValue);
@@ -163,8 +164,14 @@ export async function POST(request: Request, { params }: Params) {
         prompt,
         lookbackDays: 180,
       });
-    } catch {
+    } catch (error) {
       intelligenceContext = null;
+      logger.warn("[scripts][adjust][intelligence_context_failed]", {
+        userId: effectiveUserId,
+        scriptId: String(doc._id),
+        promptLength: prompt.length,
+        error: error instanceof Error ? error.message : String(error || ""),
+      });
     }
   }
 
@@ -247,18 +254,36 @@ export async function POST(request: Request, { params }: Params) {
   });
 
   if (doc.linkType === "planner_slot" && doc.plannerRef?.weekStart && doc.plannerRef?.slotId) {
-    await applyScriptToPlannerSlot({
-      userId: effectiveUserId,
-      plannerRef: {
-        weekStart: doc.plannerRef.weekStart,
-        slotId: doc.plannerRef.slotId,
-        dayOfWeek: doc.plannerRef.dayOfWeek,
-        blockStartHour: doc.plannerRef.blockStartHour,
-      },
-      title: doc.title,
-      content: doc.content,
-      aiVersionId: String(aiDoc._id),
-    });
+    try {
+      await applyScriptToPlannerSlot({
+        userId: effectiveUserId,
+        plannerRef: {
+          weekStart: doc.plannerRef.weekStart,
+          slotId: doc.plannerRef.slotId,
+          dayOfWeek: doc.plannerRef.dayOfWeek,
+          blockStartHour: doc.plannerRef.blockStartHour,
+        },
+        title: doc.title,
+        content: doc.content,
+        aiVersionId: String(aiDoc._id),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const missingPlannerTarget =
+        message === "Plano da semana não encontrado para vincular roteiro." ||
+        message === "Slot do planner não encontrado para vincular roteiro.";
+      if (!missingPlannerTarget) {
+        throw error;
+      }
+      logger.warn("[scripts][adjust][planner_sync_skipped_missing_target]", {
+        userId: effectiveUserId,
+        scriptId: String(doc._id),
+        plannerRef: {
+          weekStart: doc.plannerRef?.weekStart || null,
+          slotId: doc.plannerRef?.slotId || null,
+        },
+      });
+    }
   }
 
   return NextResponse.json({
