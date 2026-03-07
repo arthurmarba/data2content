@@ -5,9 +5,13 @@ import {
 } from "@/server/db/models/AffiliateIndexes";
 import AffiliateRefundProgress from "@/app/models/AffiliateRefundProgress";
 import type Stripe from "stripe";
+import { withMongoTransientRetry } from "@/app/lib/mongoTransient";
 
 export async function findUserByCustomerId(customerId: string) {
-  return User.findOne({ stripeCustomerId: customerId });
+  return withMongoTransientRetry(
+    () => User.findOne({ stripeCustomerId: customerId }),
+    { retries: 1 }
+  );
 }
 
 type MarkEventOptions = {
@@ -31,10 +35,14 @@ export async function markEventIfNew(
  * Retorna true se CRIOU o índice agora; false se já existia.
  */
 export async function ensureInvoiceIdempotent(invoiceId: string, affiliateUserId: string) {
-  const res = await AffiliateInvoiceIndex.updateOne(
-    { invoiceId, affiliateUserId },
-    { $setOnInsert: { invoiceId, affiliateUserId, createdAt: new Date() } },
-    { upsert: true }
+  const res = await withMongoTransientRetry(
+    () =>
+      AffiliateInvoiceIndex.updateOne(
+        { invoiceId, affiliateUserId },
+        { $setOnInsert: { invoiceId, affiliateUserId, createdAt: new Date() } },
+        { upsert: true }
+      ),
+    { retries: 1 }
   );
   return (res.upsertedCount ?? 0) > 0;
 }
@@ -44,10 +52,14 @@ export async function ensureInvoiceIdempotent(invoiceId: string, affiliateUserId
  * Retorna true se CRIOU o índice agora; false se já existia.
  */
 export async function ensureSubscriptionFirstTime(subscriptionId: string, affiliateUserId: string) {
-  const res = await AffiliateSubscriptionIndex.updateOne(
-    { subscriptionId, affiliateUserId },
-    { $setOnInsert: { subscriptionId, affiliateUserId, createdAt: new Date() } },
-    { upsert: true }
+  const res = await withMongoTransientRetry(
+    () =>
+      AffiliateSubscriptionIndex.updateOne(
+        { subscriptionId, affiliateUserId },
+        { $setOnInsert: { subscriptionId, affiliateUserId, createdAt: new Date() } },
+        { upsert: true }
+      ),
+    { retries: 1 }
   );
   return (res.upsertedCount ?? 0) > 0;
 }

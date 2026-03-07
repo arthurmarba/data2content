@@ -19,15 +19,25 @@ export async function POST() {
 
   await connectToDatabase();
 
-  const updated = await UserModel.findByIdAndUpdate(
-    userId,
+  const updated = await UserModel.findOneAndUpdate(
+    { _id: userId },
     {
       $set: {
         planStatus: "active",
         proTrialStatus: "active",
       },
+      $setOnInsert: {
+        _id: userId,
+        // Dev/E2E user uses a synthetic email to avoid collisions with any real seeded account.
+        email: `${userId}@data2content.test`,
+        name:
+          typeof session?.user?.name === "string" && session.user.name.trim()
+            ? session.user.name.trim()
+            : "E2E Test User",
+        role: "user",
+      },
     },
-    { new: true }
+    { new: true, upsert: true, setDefaultsOnInsert: true }
   )
     .select("_id email planStatus proTrialStatus role")
     .lean();

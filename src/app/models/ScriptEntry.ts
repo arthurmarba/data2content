@@ -34,6 +34,7 @@ export interface ScriptPostedContentRef {
 
 export interface IScriptEntry extends Document {
   userId: Types.ObjectId;
+  clientRequestId?: string | null;
   title: string;
   content: string;
   source: ScriptOrigin;
@@ -96,6 +97,7 @@ const ScriptPostedContentRefSchema = new Schema<ScriptPostedContentRef>(
 const ScriptEntrySchema = new Schema<IScriptEntry>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    clientRequestId: { type: String, trim: true, maxlength: 120, default: null },
     title: { type: String, required: true, trim: true, maxlength: 180 },
     content: { type: String, required: true, trim: true, maxlength: 20000 },
     source: {
@@ -133,6 +135,14 @@ const ScriptEntrySchema = new Schema<IScriptEntry>(
 );
 
 ScriptEntrySchema.index({ userId: 1, updatedAt: -1 }, { name: "script_entries_user_updated_at" });
+ScriptEntrySchema.index(
+  { userId: 1, clientRequestId: 1 },
+  {
+    name: "script_entries_user_client_request_unique",
+    unique: true,
+    partialFilterExpression: { clientRequestId: { $exists: true, $type: "string" } },
+  }
+);
 ScriptEntrySchema.index({ userId: 1, linkType: 1 }, { name: "script_entries_user_link_type" });
 ScriptEntrySchema.index(
   { userId: 1, postedAt: -1 },

@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import { User } from "@/server/db/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
+import { getErrorMessage, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import {
   findUserByCustomerId,
   markEventIfNew,
@@ -333,7 +334,22 @@ function isLikelyPlanChangePaymentPending(
 /* ----------------------------- Handler ----------------------------- */
 
 export async function handleStripeEvent(event: Stripe.Event) {
-  await connectToDatabase();
+  await withMongoTransientRetry(
+    async () => {
+      await connectToDatabase();
+    },
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => {
+        logger.warn("stripe_webhook_connect_retry", {
+          eventId: event.id,
+          eventType: event.type,
+          retryCount,
+          error: getErrorMessage(error),
+        });
+      },
+    }
+  );
 
   switch (event.type) {
     /* ----------------- Checkout concluído (modo subscription) ----------------- */

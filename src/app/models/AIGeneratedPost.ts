@@ -3,6 +3,7 @@ import { PlannerPlatform, PlannerFormat } from '@/types/planner';
 
 export interface IAIGeneratedPost extends Document {
   userId: Types.ObjectId;
+  clientRequestId?: string | null;
   platform: PlannerPlatform; // 'instagram'
   // Ligações opcionais para rastrear origem
   planId?: Types.ObjectId | null;
@@ -26,6 +27,7 @@ export interface IAIGeneratedPost extends Document {
 
 const AIGeneratedPostSchema = new Schema<IAIGeneratedPost>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  clientRequestId: { type: String, trim: true, maxlength: 120, default: null },
   platform: { type: String, enum: ['instagram'], default: 'instagram', index: true },
   planId: { type: Schema.Types.ObjectId, ref: 'PlannerPlan', default: null, index: true },
   slotId: { type: String, default: null, index: true },
@@ -39,6 +41,15 @@ const AIGeneratedPostSchema = new Schema<IAIGeneratedPost>({
   promptContext: { type: Schema.Types.Mixed, default: undefined },
   strategy: { type: String, default: undefined },
 }, { timestamps: true });
+
+AIGeneratedPostSchema.index(
+  { userId: 1, clientRequestId: 1 },
+  {
+    name: 'ai_generated_posts_user_client_request_unique',
+    unique: true,
+    partialFilterExpression: { clientRequestId: { $exists: true, $type: 'string' } },
+  }
+);
 
 const AIGeneratedPostModel: Model<IAIGeneratedPost> = mongoose.models.AIGeneratedPost || mongoose.model<IAIGeneratedPost>('AIGeneratedPost', AIGeneratedPostSchema);
 

@@ -1,6 +1,8 @@
 import {
+  ensurePlannerAccess,
   guardPremiumRequest,
   getPlanGuardMetrics,
+  resetPlannerAccessMemoryCache,
   resetPlanGuardMetrics,
 } from '@/app/lib/planGuard';
 import { getToken } from 'next-auth/jwt';
@@ -27,6 +29,7 @@ describe('guardPremiumRequest', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetPlanGuardMetrics();
+    resetPlannerAccessMemoryCache();
     mockConnect.mockResolvedValue(null);
   });
 
@@ -43,7 +46,7 @@ describe('guardPremiumRequest', () => {
   });
 
   it('blocks when plan is not active', async () => {
-    mockGetToken.mockResolvedValue({ id: 'u1', planStatus: 'inactive' });
+    mockGetToken.mockResolvedValue({ id: '6928899e2619c0d8776dd508', planStatus: 'inactive' });
     mockFindById.mockReturnValue({
       select: jest.fn().mockReturnValue({
         lean: jest.fn().mockResolvedValue({ planStatus: 'inactive' }),
@@ -58,7 +61,7 @@ describe('guardPremiumRequest', () => {
   });
 
   it('allows if DB shows active plan despite inactive token', async () => {
-    mockGetToken.mockResolvedValue({ id: 'u1', planStatus: 'inactive' });
+    mockGetToken.mockResolvedValue({ id: '6928899e2619c0d8776dd508', planStatus: 'inactive' });
     mockFindById.mockReturnValue({
       select: jest.fn().mockReturnValue({
         lean: jest.fn().mockResolvedValue({ planStatus: 'active' }),
@@ -66,5 +69,39 @@ describe('guardPremiumRequest', () => {
     });
     const res = await guardPremiumRequest(createRequest('/api/ai/chat'));
     expect(res).toBeNull();
+  });
+});
+
+describe('ensurePlannerAccess', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetPlanGuardMetrics();
+    resetPlannerAccessMemoryCache();
+  });
+
+  it('falls back to the active session status on transient Mongo errors', async () => {
+    mockConnect.mockRejectedValue(
+      Object.assign(new Error('tlsv1 alert internal error'), {
+        name: 'MongoNetworkError',
+      })
+    );
+
+    const result = await ensurePlannerAccess({
+      session: {
+        user: {
+          id: '6928899e2619c0d8776dd508',
+          planStatus: 'active',
+        },
+      } as any,
+      routePath: '/api/planner/plan',
+      forceReload: true,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      normalizedStatus: 'active',
+      source: 'session',
+    });
+    expect(mockConnect).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,4 +1,5 @@
 import { connectToDatabase } from '@/app/lib/mongoose';
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 import User from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
 import {
@@ -36,8 +37,6 @@ export async function matureAffiliateCommissions(
   const start = Date.now();
   const nowUtc = new Date();
 
-  await connectToDatabase();
-
   const query = {
     commissionLog: {
       $elemMatch: { status: 'pending', availableAt: { $lte: nowUtc } },
@@ -48,7 +47,21 @@ export async function matureAffiliateCommissions(
     affiliateBalances: 1,
   };
 
-  const users = await User.find(query, projection).limit(maxUsers).lean();
+  const users = await withMongoTransientRetry(
+    async () => {
+      await connectToDatabase();
+      return User.find(query, projection).limit(maxUsers).lean();
+    },
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => {
+        logger.warn(`${TAG} transient_load_retry`, {
+          retryCount,
+          error: getErrorMessage(error),
+        });
+      },
+    }
+  );
 
   let processedUsers = 0;
   let promotedCount = 0;
@@ -87,19 +100,35 @@ export async function matureAffiliateCommissions(
       }
 
       try {
-        const res = await User.updateOne(
-          {
-            _id: u._id,
-            'commissionLog._id': e._id,
-            'commissionLog.status': 'pending',
-            'commissionLog.availableAt': { $lte: nowUtc },
+        const res = await withMongoTransientRetry(
+          async () => {
+            await connectToDatabase();
+            return User.updateOne(
+              {
+                _id: u._id,
+                'commissionLog._id': e._id,
+                'commissionLog.status': 'pending',
+                'commissionLog.availableAt': { $lte: nowUtc },
+              },
+              {
+                $set: {
+                  'commissionLog.$.status': 'available',
+                  'commissionLog.$.updatedAt': nowUtc,
+                },
+                $inc: { [`affiliateBalances.${e.currency}`]: e.amountCents },
+              }
+            );
           },
           {
-            $set: {
-              'commissionLog.$.status': 'available',
-              'commissionLog.$.updatedAt': nowUtc,
+            retries: 1,
+            onRetry: (error, retryCount) => {
+              logger.warn(`${TAG} transient_update_retry`, {
+                userId: u._id,
+                entryId: e._id,
+                retryCount,
+                error: getErrorMessage(error),
+              });
             },
-            $inc: { [`affiliateBalances.${e.currency}`]: e.amountCents },
           }
         );
         if (res.modifiedCount === 1) {
@@ -119,16 +148,38 @@ export async function matureAffiliateCommissions(
         }
       } catch (err) {
         errors++;
-        logger.error(`${TAG} error_update`, {
-          userId: u._id,
-          entryId: e._id,
-          error: err,
-        });
+        if (isTransientMongoError(err)) {
+          logger.warn(`${TAG} transient_update_failed`, {
+            userId: u._id,
+            entryId: e._id,
+            error: getErrorMessage(err),
+          });
+        } else {
+          logger.error(`${TAG} error_update`, {
+            userId: u._id,
+            entryId: e._id,
+            error: err,
+          });
+        }
       }
     }
   }
 
-  const remaining = await User.countDocuments(query);
+  const remaining = await withMongoTransientRetry(
+    async () => {
+      await connectToDatabase();
+      return User.countDocuments(query);
+    },
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => {
+        logger.warn(`${TAG} transient_count_retry`, {
+          retryCount,
+          error: getErrorMessage(error),
+        });
+      },
+    }
+  );
 
   return {
     ok: true,

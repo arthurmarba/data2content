@@ -223,6 +223,51 @@ export const runtime = "nodejs";
 const DEFAULT_TERMS_VERSION = "1.0_community_included";
 const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token";
 const MAX_TOKEN_AGE_BEFORE_REFRESH_MINUTES = 60; // 1 hour
+const DEV_E2E_USER_ID = "00000000000000000000e2e1";
+
+function getDevE2EIdentity() {
+  if (process.env.NODE_ENV === "production") return null;
+  const email = process.env.E2E_EMAIL?.trim();
+  if (!email) return null;
+  return {
+    id: process.env.E2E_USER_ID?.trim() || DEV_E2E_USER_ID,
+    email,
+  };
+}
+
+function isDevE2EIdentity(params: {
+  id?: string | null;
+  email?: string | null;
+  provider?: string | null;
+}) {
+  const identity = getDevE2EIdentity();
+  if (!identity) return false;
+  if (params.provider && params.provider !== "credentials") return false;
+  return params.id === identity.id || params.email === identity.email;
+}
+
+function resolveDevE2ECredentialsUser(credentials: { email?: string | null; password?: string | null }) {
+  const identity = getDevE2EIdentity();
+  if (!identity) return null;
+  const expectedPassword = process.env.E2E_PASSWORD?.trim();
+  const providedEmail = credentials.email?.trim();
+  const providedPassword = credentials.password?.trim();
+
+  if (!expectedPassword) return null;
+  if (providedEmail !== identity.email || providedPassword !== expectedPassword) return null;
+
+  return {
+    id: identity.id,
+    name: "E2E Test User",
+    email: identity.email,
+    image: null,
+    role: "user",
+    agency: null,
+    provider: "credentials",
+    planStatus: "active",
+    proTrialStatus: "active",
+  } as NextAuthUserArg;
+}
 
 // Helpers de normalização de plano
 function isNonRenewing(v: unknown): boolean {
@@ -460,6 +505,14 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) return null;
+        const devE2EUser = resolveDevE2ECredentialsUser({
+          email: credentials.email,
+          password: credentials.password,
+        });
+        if (devE2EUser) {
+          logger.info(`[NextAuth Credentials] Login dev/E2E liberado para ${devE2EUser.email}`);
+          return devE2EUser;
+        }
         await connectToDatabase();
         const user = await DbUser.findOne({ email: credentials.email }).select("+password");
         if (!user) { logger.warn("Nenhum usuário encontrado com este e-mail."); return null; }
@@ -1038,19 +1091,31 @@ export const authOptions: NextAuthOptions = {
         if (needsDbRefresh) {
           logger.debug(`${TAG_JWT} Trigger '${trigger}' ou refresh necessário. Buscando dados frescos do DB para token ID: ${token.id}`);
           try {
-            await connectToDatabase();
-            const dbUser = await DbUser.findById(token.id)
-              .select(
-                "name email image role agency provider providerAccountId facebookProviderAccountId " +
-                "isNewUserForOnboarding onboardingCompletedAt " +
-                "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount instagramReconnectState " +
-                "instagramReconnectFlowId " +
-                "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd proTrialStatus proTrialActivatedAt proTrialExpiresAt " +
-                "stripeCustomerId stripeSubscriptionId stripePriceId " +
-                "affiliateCode availableIgAccounts affiliateBalances " +
-                "paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
-              )
-              .lean<IUser>();
+            const dbUser = await withMongoTransientRetry(
+              async () => {
+                await connectToDatabase();
+                return DbUser.findById(token.id)
+                  .select(
+                    "name email image role agency provider providerAccountId facebookProviderAccountId " +
+                    "isNewUserForOnboarding onboardingCompletedAt " +
+                    "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount instagramReconnectState " +
+                    "instagramReconnectFlowId " +
+                    "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd proTrialStatus proTrialActivatedAt proTrialExpiresAt " +
+                    "stripeCustomerId stripeSubscriptionId stripePriceId " +
+                    "affiliateCode availableIgAccounts affiliateBalances " +
+                    "paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
+                  )
+                  .lean<IUser>();
+              },
+              {
+                retries: 1,
+                onRetry: (error, retryCount) => {
+                  logger.warn(`${TAG_JWT} Falha transitória ao enriquecer token ${token.id} do DB. Retry #${retryCount}.`, {
+                    error: getErrorMessage(error),
+                  });
+                },
+              }
+            );
 
             if (dbUser) {
               const rawDbPlanStatus = dbUser.planStatus;
@@ -1142,6 +1207,14 @@ export const authOptions: NextAuthOptions = {
                 }`
               );
             } else {
+              if (isDevE2EIdentity({
+                id: ensureStringId(token.id),
+                email: token.email ?? null,
+                provider: token.provider ?? null,
+              })) {
+                logger.warn(`${TAG_JWT} Utilizador dev/E2E ${token.id} ainda não materializado no DB. Mantendo token.`);
+                return token;
+              }
               logger.warn(`${TAG_JWT} Utilizador ${token.id} não encontrado no DB. Invalidando token.`);
               delete (token as any).id;
               delete (token as any).sub;
@@ -1149,7 +1222,13 @@ export const authOptions: NextAuthOptions = {
               return token;
             }
           } catch (error) {
-            logger.error(`${TAG_JWT} Erro ao enriquecer token ${token.id} do DB:`, error);
+            if (isTransientMongoError(error)) {
+              logger.warn(`${TAG_JWT} Erro transitório ao enriquecer token ${token.id} do DB. Mantendo dados atuais do token.`, {
+                error: getErrorMessage(error),
+              });
+            } else {
+              logger.error(`${TAG_JWT} Erro ao enriquecer token ${token.id} do DB:`, error);
+            }
           }
         }
       } else {
@@ -1248,6 +1327,19 @@ export const authOptions: NextAuthOptions = {
       session.affiliateCode = token.affiliateCode ?? null;
       session.affiliateBalances = token.affiliateBalances || {};
 
+      if (
+        isDevE2EIdentity({
+          id: token.id ?? null,
+          email: token.email ?? null,
+          provider: token.provider ?? null,
+        })
+      ) {
+        logger.debug(
+          `${TAG_SESSION} Sessão dev/E2E detectada para ${token.id}. Pulando revalidação no DB.`
+        );
+        return session;
+      }
+
       try {
         const dbUserCheck = await withMongoTransientRetry(
           async () => {
@@ -1319,6 +1411,19 @@ export const authOptions: NextAuthOptions = {
           if (dbUserCheck.role) session.user.role = dbUserCheck.role;
           if (dbUserCheck.image) session.user.image = dbUserCheck.image;
         } else if (!dbUserCheck) {
+          if (isDevE2EIdentity({
+            id: token.id ?? null,
+            email: token.email ?? null,
+            provider: token.provider ?? null,
+          })) {
+            logger.warn(
+              `${TAG_SESSION} Utilizador dev/E2E ${token.id} ainda não existe no DB. Mantendo sessão baseada no token.`
+            );
+            logger.debug(
+              `${TAG_SESSION} Finalizado com fallback dev/E2E. Session.user ID: ${session.user?.id}, planStatus: ${session.user?.planStatus}`
+            );
+            return session;
+          }
           logger.warn(
             `${TAG_SESSION} Utilizador ${token.id} não encontrado no DB. Invalidando sessão.`
           );

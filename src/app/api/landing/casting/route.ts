@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { fetchCastingCreators } from "@/app/lib/landing/castingService";
+import { fetchCastingCreators, getCastingCreatorsFallback } from "@/app/lib/landing/castingService";
 import { logger } from "@/app/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +9,7 @@ export const maxDuration = 5;
 const PUBLIC_CACHE_CONTROL =
   "public, max-age=60, s-maxage=600, stale-while-revalidate=3600, stale-if-error=86400";
 const BYPASS_CACHE_CONTROL = "no-store";
+const INTERNAL_TIMEOUT_MS = 3500;
 
 export async function GET(req: NextRequest) {
   const startedAt = performance.now();
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     const offset = parseNumber(req.nextUrl.searchParams.get("offset")) ?? 0;
     const limit = parseLimit(req.nextUrl.searchParams.get("limit"), mode);
 
-    const payload = await fetchCastingCreators({
+    const requestOptions = {
       forceRefresh,
       mode,
       search,
@@ -31,7 +32,21 @@ export async function GET(req: NextRequest) {
       sort,
       offset,
       limit,
-    });
+    } as const;
+
+    const payload = await Promise.race([
+      fetchCastingCreators(requestOptions),
+      new Promise<ReturnType<typeof getCastingCreatorsFallback>>((resolve) => {
+        setTimeout(() => {
+          logger.warn("[api/landing/casting] Falling back after internal timeout.", {
+            timeoutMs: INTERNAL_TIMEOUT_MS,
+            mode,
+            forceRefresh,
+          });
+          resolve(getCastingCreatorsFallback(requestOptions));
+        }, INTERNAL_TIMEOUT_MS);
+      }),
+    ]);
 
     const durationMs = performance.now() - startedAt;
     return NextResponse.json(payload, {
@@ -42,7 +57,23 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     logger.error("[api/landing/casting] Failed to fetch casting creators:", error);
-    return NextResponse.json({ error: "failed_to_fetch_casting" }, { status: 500 });
+    return NextResponse.json(
+      getCastingCreatorsFallback({
+        mode: parseMode(req.nextUrl.searchParams.get("mode")),
+        search: req.nextUrl.searchParams.get("search") ?? null,
+        minFollowers: parseNumber(req.nextUrl.searchParams.get("minFollowers")),
+        minAvgInteractions: parseNumber(req.nextUrl.searchParams.get("minAvgInteractions")),
+        sort: parseSort(req.nextUrl.searchParams.get("sort")),
+        offset: parseNumber(req.nextUrl.searchParams.get("offset")) ?? 0,
+        limit: parseLimit(req.nextUrl.searchParams.get("limit"), parseMode(req.nextUrl.searchParams.get("mode"))),
+      }),
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": PUBLIC_CACHE_CONTROL,
+        },
+      }
+    );
   }
 }
 

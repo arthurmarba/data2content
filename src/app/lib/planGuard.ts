@@ -4,6 +4,7 @@ import { getToken } from 'next-auth/jwt';
 import { jwtVerify } from 'jose';
 import type { Session } from 'next-auth';
 import { connectToDatabase } from '@/app/lib/mongoose';
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 import DbUser from '@/app/models/User';
 import mongoose from 'mongoose';
 
@@ -92,6 +93,16 @@ function registerBlock(routePath?: string) {
   planGuardMetrics.byRoute[routePath] = (planGuardMetrics.byRoute[routePath] || 0) + 1;
 }
 
+function resolveActiveLikeFromSession(params: {
+  normalizedStatus: string;
+  sessionTrialActive: boolean;
+}): ActiveLikeStatus | null {
+  if (params.sessionTrialActive) return 'trial';
+  return isActiveLike(params.normalizedStatus)
+    ? (params.normalizedStatus as ActiveLikeStatus)
+    : null;
+}
+
 export type PlannerAccessFailureReason = 'unauthenticated' | 'inactive' | 'error';
 
 export interface EnsurePlannerAccessOptions {
@@ -131,6 +142,10 @@ type PlannerAccessCacheEntry = {
 };
 
 const plannerAccessMemoryCache = new Map<string, PlannerAccessCacheEntry>();
+
+export function resetPlannerAccessMemoryCache() {
+  plannerAccessMemoryCache.clear();
+}
 
 function prunePlannerAccessMemoryCache(nowEpochMs: number) {
   for (const [key, entry] of plannerAccessMemoryCache.entries()) {
@@ -199,23 +214,18 @@ export async function ensurePlannerAccess(
   if (allowAdmin && sessionRole === 'admin') {
     const statusCandidate = planStatus ?? sessionUser?.planStatus;
     const normalizedStatus = normalizePlanStatus(statusCandidate);
-    const activeLike = sessionTrialActive
-      ? 'trial'
-      : isActiveLike(normalizedStatus)
-      ? (normalizedStatus as ActiveLikeStatus)
-      : null;
+    const activeLike = resolveActiveLikeFromSession({ normalizedStatus, sessionTrialActive });
     return { ok: true, normalizedStatus: activeLike, source: 'session' };
   }
 
   const statusCandidate = planStatus ?? sessionUser?.planStatus;
   const normalizedStatus = normalizePlanStatus(statusCandidate);
   if (!forceReload) {
-    if (sessionTrialActive) {
-      return { ok: true, normalizedStatus: 'trial', source: 'session' };
-    }
-    const activeLike = isActiveLike(normalizedStatus) ? (normalizedStatus as ActiveLikeStatus) : null;
+    const activeLike = resolveActiveLikeFromSession({ normalizedStatus, sessionTrialActive });
     return { ok: true, normalizedStatus: activeLike, source: 'session' };
   }
+
+  const sessionFallbackStatus = resolveActiveLikeFromSession({ normalizedStatus, sessionTrialActive });
 
   const resolvedUserId = safe(userId) ?? safe((sessionUser as any)?.id) ?? safe((session as any)?.id);
   const resolvedEmail = safe(email) ?? safe(sessionUser?.email);
@@ -244,19 +254,26 @@ export async function ensurePlannerAccess(
   }
 
   try {
-    await connectToDatabase();
+    const dbUser = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
 
-    let dbUser: { planStatus?: string; role?: string; proTrialStatus?: string; proTrialExpiresAt?: Date | null } | null = null;
+        if (resolvedUserId && mongoose.isValidObjectId(resolvedUserId)) {
+          return DbUser.findById(resolvedUserId)
+            .select('planStatus role proTrialStatus proTrialExpiresAt')
+            .lean();
+        }
 
-    if (resolvedUserId && mongoose.isValidObjectId(resolvedUserId)) {
-      dbUser = await DbUser.findById(resolvedUserId)
-        .select('planStatus role proTrialStatus proTrialExpiresAt')
-        .lean();
-    } else if (resolvedEmail) {
-      dbUser = await DbUser.findOne({ email: resolvedEmail })
-        .select('planStatus role proTrialStatus proTrialExpiresAt')
-        .lean();
-    }
+        if (resolvedEmail) {
+          return DbUser.findOne({ email: resolvedEmail })
+            .select('planStatus role proTrialStatus proTrialExpiresAt')
+            .lean();
+        }
+
+        return null;
+      },
+      { retries: 1 }
+    );
 
     const dbRole = typeof dbUser?.role === 'string' ? dbUser.role.toLowerCase() : undefined;
     if (allowAdmin && dbRole === 'admin') {
@@ -278,11 +295,27 @@ export async function ensurePlannerAccess(
     if (accessCacheKey) writePlannerAccessMemory(accessCacheKey, result);
     return result;
   } catch (error) {
+    if (isTransientMongoError(error)) {
+      console.warn('[planGuard] ensurePlannerAccess() transient DB error. Falling back to session status.', {
+        routePath,
+        error: getErrorMessage(error),
+        fallbackStatus: sessionFallbackStatus,
+      });
+      const fallbackResult: EnsurePlannerAccessResult = {
+        ok: true,
+        normalizedStatus: sessionFallbackStatus,
+        source: 'session',
+      };
+      if (accessCacheKey && fallbackResult.normalizedStatus) {
+        writePlannerAccessMemory(accessCacheKey, fallbackResult);
+      }
+      return fallbackResult;
+    }
     console.error('[planGuard] ensurePlannerAccess() DB error:', error);
     return {
       ok: true,
-      normalizedStatus: null,
-      source: 'database',
+      normalizedStatus: sessionFallbackStatus,
+      source: 'session',
     };
   }
 }
@@ -354,6 +387,15 @@ export async function guardPremiumRequest(req: NextRequest): Promise<NextRespons
   }
   const tokenId = (token as any)?.id ?? (token as any)?.sub;
   const tokenEmail = (token as any)?.email as string | undefined;
+  const tokenPlanStatus = normalizePlanStatus((token as any)?.planStatus);
+  const tokenTrialActive = isProTrialActive(
+    (token as any)?.proTrialStatus,
+    (token as any)?.proTrialExpiresAt
+  );
+
+  if (tokenTrialActive || isActiveLike(tokenPlanStatus)) {
+    return null;
+  }
 
   const sessionStub = {
     user: {
@@ -361,6 +403,8 @@ export async function guardPremiumRequest(req: NextRequest): Promise<NextRespons
       email: tokenEmail,
       role: (token as any)?.role,
       planStatus: (token as any)?.planStatus,
+      proTrialStatus: (token as any)?.proTrialStatus,
+      proTrialExpiresAt: (token as any)?.proTrialExpiresAt,
     },
   } as Session;
 
@@ -377,6 +421,14 @@ export async function guardPremiumRequest(req: NextRequest): Promise<NextRespons
     return NextResponse.json(
       { error: result.message, reason: result.reason },
       { status: result.status, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
+
+  if (!result.normalizedStatus) {
+    registerBlock(req.nextUrl.pathname);
+    return NextResponse.json(
+      { error: 'Recurso disponível apenas para planos premium. Faça upgrade para continuar.' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } }
     );
   }
 

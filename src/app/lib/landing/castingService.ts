@@ -164,6 +164,38 @@ export async function fetchCastingCreators(options: CastingFilters = {}): Promis
   return payload;
 }
 
+export function getCastingCreatorsFallback(options: CastingFilters = {}): CastingPayload {
+  const filters = normalizeFilters(options);
+  const queryKey = buildQueryKey(filters);
+  const now = Date.now();
+  pruneQueryCache(now);
+
+  const exactCached = queryCache.get(queryKey);
+  if (exactCached && exactCached.expires > now) {
+    return clonePayload(exactCached.payload);
+  }
+
+  const baseCached = filters.mode === "featured" ? featuredCacheEntry : cacheEntry;
+  if (baseCached && baseCached.expires > now) {
+    let filtered = [...baseCached.creators];
+    const searchTerms = tokenizeSearch(filters.search);
+    if (searchTerms.length) {
+      filtered = filtered.filter((creator) => matchesSearchTerms(creator, searchTerms));
+    }
+    if (filters.minFollowers != null) {
+      filtered = filtered.filter((creator) => (creator.followers ?? 0) >= filters.minFollowers!);
+    }
+    if (filters.minAvgInteractions != null) {
+      filtered = filtered.filter(
+        (creator) => (creator.avgInteractionsPerPost ?? 0) >= filters.minAvgInteractions!,
+      );
+    }
+    return paginateCreators(sortCreators(filtered, filters.sort), filters.offset, filters.limit, filters.mode);
+  }
+
+  return paginateCreators([], filters.offset, filters.limit, filters.mode);
+}
+
 export function resetCastingServiceCacheForTests() {
   cacheEntry = null;
   featuredCacheEntry = null;

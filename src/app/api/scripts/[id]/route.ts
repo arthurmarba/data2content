@@ -12,6 +12,7 @@ import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scrip
 import { refreshScriptOutcomeProfile } from "@/app/lib/scripts/outcomeTraining";
 import { isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
@@ -38,6 +39,21 @@ async function getAuthenticatedSession(context: string) {
     });
     return null;
   }
+}
+
+function logScriptByIdMongoRetry(context: string, error: unknown, retryCount: number) {
+  logger.warn("[scripts/id] Retry para erro transitorio de Mongo.", {
+    context,
+    retryCount,
+    error: getErrorMessage(error),
+  });
+}
+
+function buildScriptByIdTransientResponse(error: unknown, message: string) {
+  logger.warn("[scripts/id] Erro transitorio de Mongo.", {
+    error: getErrorMessage((error as any)?.cause ?? error),
+  });
+  return NextResponse.json({ ok: false, error: message }, { status: 503 });
 }
 
 function normalizeBody(body: any) {
@@ -123,13 +139,20 @@ async function resolvePostedContentForPatch(params: {
     };
   }
 
-  const metricDoc = await Metric.findOne({
-    _id: new Types.ObjectId(normalizedPostedContentId),
-    user: new Types.ObjectId(userId),
-  })
-    .select("_id description postDate postLink type stats.engagement stats.total_interactions")
-    .lean()
-    .exec();
+  const metricDoc = await withMongoTransientRetry(
+    () =>
+      Metric.findOne({
+        _id: new Types.ObjectId(normalizedPostedContentId),
+        user: new Types.ObjectId(userId),
+      })
+        .select("_id description postDate postLink type stats.engagement stats.total_interactions")
+        .lean()
+        .exec(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptByIdMongoRetry("resolvePostedContentForPatch", error, retryCount),
+    }
+  );
 
   if (!metricDoc) {
     return {
@@ -234,167 +257,301 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
 }
 
 export async function GET(request: Request, { params }: Params) {
-  const session = await getAuthenticatedSession("GET /api/scripts/[id]");
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
-  if (!Types.ObjectId.isValid(params.id)) {
-    return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
-  }
+  try {
+    const session = await getAuthenticatedSession("GET /api/scripts/[id]");
+    if (!session?.user?.id) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    if (!Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
+    }
 
-  const access = await validateScriptsAccess({ request, session: session as any });
-  if (!access.ok) {
-    return NextResponse.json(
-      { ok: false, error: access.error, reason: access.reason },
-      { status: access.status }
+    const access = await validateScriptsAccess({ request, session: session as any });
+    if (!access.ok) {
+      return NextResponse.json(
+        { ok: false, error: access.error, reason: access.reason },
+        { status: access.status }
+      );
+    }
+
+    const url = new URL(request.url);
+    const targetResolution = resolveTargetScriptsUser({
+      session: session as any,
+      targetUserId: url.searchParams.get("targetUserId"),
+    });
+    if (!targetResolution.ok) {
+      return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+    }
+
+    const effectiveUserId = targetResolution.userId;
+    const includeAdminAnnotation = true;
+
+    const doc = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return ScriptEntry.findOne({
+          _id: new Types.ObjectId(params.id),
+          userId: new Types.ObjectId(effectiveUserId),
+        }).lean();
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptByIdMongoRetry("GET /api/scripts/[id]", error, retryCount),
+      }
     );
+
+    if (!doc) {
+      return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      item: serializeScriptItem(doc, { includeAdminAnnotation }),
+    });
+  } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      return buildScriptByIdTransientResponse(
+        error,
+        "Nao foi possivel abrir o roteiro agora. Tente novamente em instantes."
+      );
+    }
+
+    logger.error("[scripts/id] Falha ao carregar roteiro.", error);
+    return NextResponse.json({ ok: false, error: "Nao foi possivel abrir o roteiro." }, { status: 500 });
   }
-
-  const url = new URL(request.url);
-  const targetResolution = resolveTargetScriptsUser({
-    session: session as any,
-    targetUserId: url.searchParams.get("targetUserId"),
-  });
-  if (!targetResolution.ok) {
-    return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
-  }
-
-  const effectiveUserId = targetResolution.userId;
-  const includeAdminAnnotation = true;
-
-  await connectToDatabase();
-  const doc = await ScriptEntry.findOne({
-    _id: new Types.ObjectId(params.id),
-    userId: new Types.ObjectId(effectiveUserId),
-  }).lean();
-
-  if (!doc) {
-    return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    item: serializeScriptItem(doc, { includeAdminAnnotation }),
-  });
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const session = await getAuthenticatedSession("PATCH /api/scripts/[id]");
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
-  if (!Types.ObjectId.isValid(params.id)) {
-    return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
-  }
-
-  const access = await validateScriptsAccess({ request, session: session as any });
-  if (!access.ok) {
-    return NextResponse.json(
-      { ok: false, error: access.error, reason: access.reason },
-      { status: access.status }
-    );
-  }
-
-  let body: any;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
-  }
+    const session = await getAuthenticatedSession("PATCH /api/scripts/[id]");
+    if (!session?.user?.id) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    if (!Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
+    }
 
-  const { title, content, targetUserId, adminAnnotation, inlineAnnotations, isPosted, postedContentId } =
-    normalizeBody(body);
-  const targetResolution = resolveTargetScriptsUser({ session: session as any, targetUserId });
-  if (!targetResolution.ok) {
-    return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
-  }
-  const effectiveUserId = targetResolution.userId;
-  const includeAdminAnnotation = true;
-  const canWriteAdminAnnotation = targetResolution.isAdminActor;
-  const normalizedAdminAnnotation = canWriteAdminAnnotation
-    ? normalizeAdminAnnotation(adminAnnotation)
-    : undefined;
+    const access = await validateScriptsAccess({ request, session: session as any });
+    if (!access.ok) {
+      return NextResponse.json(
+        { ok: false, error: access.error, reason: access.reason },
+        { status: access.status }
+      );
+    }
 
-  await connectToDatabase();
-  const doc = await ScriptEntry.findOne({
-    _id: new Types.ObjectId(params.id),
-    userId: new Types.ObjectId(effectiveUserId),
-  });
-  if (!doc) {
-    return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
-  }
-
-  const finalTitle = title !== undefined ? (title || "Roteiro sem título").slice(0, 180) : doc.title;
-  const finalContent = content !== undefined ? content : doc.content;
-  if (!finalContent) {
-    return NextResponse.json({ ok: false, error: "O conteúdo do roteiro não pode ficar vazio." }, { status: 400 });
-  }
-
-  const postedContentResolution = await resolvePostedContentForPatch({
-    userId: effectiveUserId,
-    currentDoc: doc,
-    isPosted,
-    postedContentId,
-  });
-  if (!postedContentResolution.ok) {
-    return NextResponse.json(
-      { ok: false, error: postedContentResolution.error },
-      { status: postedContentResolution.status }
-    );
-  }
-
-  const previousPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
-  const previousIsPosted = Boolean(previousPostedMetricId);
-
-  const scriptTextChanged = doc.title !== finalTitle || doc.content !== finalContent;
-  doc.title = finalTitle;
-  doc.content = finalContent;
-  if (normalizedAdminAnnotation !== undefined) {
-    doc.adminAnnotation = normalizedAdminAnnotation;
-    doc.adminAnnotationUpdatedById = normalizedAdminAnnotation ? new Types.ObjectId(session.user.id as string) : null;
-    doc.adminAnnotationUpdatedByName = normalizedAdminAnnotation ? ((session.user as any)?.name || "Admin") : null;
-    doc.adminAnnotationUpdatedAt = normalizedAdminAnnotation ? new Date() : null;
-  }
-  if (inlineAnnotations !== undefined) {
-    doc.inlineAnnotations = inlineAnnotations.map((ann: any) => ({
-      ...ann,
-      startIndex: Number(ann.startIndex) || 0,
-      endIndex: Number(ann.endIndex) || 0,
-      quote: String(ann.quote || "").slice(0, 2000),
-      comment: String(ann.comment || "").slice(0, 2000),
-      authorName: String(ann.authorName || "Admin").slice(0, 120),
-      isOrphaned: Boolean(ann.isOrphaned),
-      resolved: Boolean(ann.resolved),
-      createdAt: ann.createdAt ? new Date(ann.createdAt) : new Date(),
-    }));
-  }
-  if (postedContentResolution.shouldUpdate) {
-    doc.postedAt = postedContentResolution.postedAt;
-    doc.postedContent = postedContentResolution.postedContent;
-  }
-  await doc.save();
-
-  const nextPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
-  const nextIsPosted = Boolean(nextPostedMetricId);
-  const publicationChanged = previousIsPosted !== nextIsPosted || previousPostedMetricId !== nextPostedMetricId;
-
-  const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
-  if (styleTrainingEnabled) {
-    void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
-  }
-  if (publicationChanged) {
-    void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
-    void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
-  }
-
-  if (
-    scriptTextChanged &&
-    doc.linkType === "planner_slot" &&
-    doc.plannerRef?.weekStart &&
-    doc.plannerRef?.slotId
-  ) {
+    let body: any;
     try {
-      await applyScriptToPlannerSlot({
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
+    }
+
+    const { title, content, targetUserId, adminAnnotation, inlineAnnotations, isPosted, postedContentId } =
+      normalizeBody(body);
+    const targetResolution = resolveTargetScriptsUser({ session: session as any, targetUserId });
+    if (!targetResolution.ok) {
+      return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+    }
+    const effectiveUserId = targetResolution.userId;
+    const includeAdminAnnotation = true;
+    const canWriteAdminAnnotation = targetResolution.isAdminActor;
+    const normalizedAdminAnnotation = canWriteAdminAnnotation
+      ? normalizeAdminAnnotation(adminAnnotation)
+      : undefined;
+
+    await withMongoTransientRetry(
+      () => connectToDatabase(),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptByIdMongoRetry("PATCH /api/scripts/[id] connect", error, retryCount),
+      }
+    );
+
+    const doc = await withMongoTransientRetry(
+      () =>
+        ScriptEntry.findOne({
+          _id: new Types.ObjectId(params.id),
+          userId: new Types.ObjectId(effectiveUserId),
+        }),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptByIdMongoRetry("PATCH /api/scripts/[id] find", error, retryCount),
+      }
+    );
+    if (!doc) {
+      return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
+    }
+
+    const finalTitle = title !== undefined ? (title || "Roteiro sem título").slice(0, 180) : doc.title;
+    const finalContent = content !== undefined ? content : doc.content;
+    if (!finalContent) {
+      return NextResponse.json({ ok: false, error: "O conteúdo do roteiro não pode ficar vazio." }, { status: 400 });
+    }
+
+    const postedContentResolution = await resolvePostedContentForPatch({
+      userId: effectiveUserId,
+      currentDoc: doc,
+      isPosted,
+      postedContentId,
+    });
+    if (!postedContentResolution.ok) {
+      return NextResponse.json(
+        { ok: false, error: postedContentResolution.error },
+        { status: postedContentResolution.status }
+      );
+    }
+
+    const previousPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
+    const previousIsPosted = Boolean(previousPostedMetricId);
+
+    const scriptTextChanged = doc.title !== finalTitle || doc.content !== finalContent;
+    doc.title = finalTitle;
+    doc.content = finalContent;
+    if (normalizedAdminAnnotation !== undefined) {
+      doc.adminAnnotation = normalizedAdminAnnotation;
+      doc.adminAnnotationUpdatedById = normalizedAdminAnnotation ? new Types.ObjectId(session.user.id as string) : null;
+      doc.adminAnnotationUpdatedByName = normalizedAdminAnnotation ? ((session.user as any)?.name || "Admin") : null;
+      doc.adminAnnotationUpdatedAt = normalizedAdminAnnotation ? new Date() : null;
+    }
+    if (inlineAnnotations !== undefined) {
+      doc.inlineAnnotations = inlineAnnotations.map((ann: any) => ({
+        ...ann,
+        startIndex: Number(ann.startIndex) || 0,
+        endIndex: Number(ann.endIndex) || 0,
+        quote: String(ann.quote || "").slice(0, 2000),
+        comment: String(ann.comment || "").slice(0, 2000),
+        authorName: String(ann.authorName || "Admin").slice(0, 120),
+        isOrphaned: Boolean(ann.isOrphaned),
+        resolved: Boolean(ann.resolved),
+        createdAt: ann.createdAt ? new Date(ann.createdAt) : new Date(),
+      }));
+    }
+    if (postedContentResolution.shouldUpdate) {
+      doc.postedAt = postedContentResolution.postedAt;
+      doc.postedContent = postedContentResolution.postedContent;
+    }
+
+    await withMongoTransientRetry(
+      () => doc.save(),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptByIdMongoRetry("PATCH /api/scripts/[id] save", error, retryCount),
+      }
+    );
+
+    const nextPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
+    const nextIsPosted = Boolean(nextPostedMetricId);
+    const publicationChanged = previousIsPosted !== nextIsPosted || previousPostedMetricId !== nextPostedMetricId;
+
+    const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
+    if (styleTrainingEnabled) {
+      void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+    }
+    if (publicationChanged) {
+      void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+      void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
+    }
+
+    if (
+      scriptTextChanged &&
+      doc.linkType === "planner_slot" &&
+      doc.plannerRef?.weekStart &&
+      doc.plannerRef?.slotId
+    ) {
+      try {
+        await applyScriptToPlannerSlot({
+          userId: effectiveUserId,
+          plannerRef: {
+            weekStart: doc.plannerRef.weekStart,
+            slotId: doc.plannerRef.slotId,
+            dayOfWeek: doc.plannerRef.dayOfWeek,
+            blockStartHour: doc.plannerRef.blockStartHour,
+          },
+          title: doc.title,
+          content: doc.content,
+          aiVersionId: doc.aiVersionId ?? null,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        const missingPlannerTarget =
+          message === "Plano da semana não encontrado para vincular roteiro." ||
+          message === "Slot do planner não encontrado para vincular roteiro.";
+        if (!missingPlannerTarget) {
+          throw error;
+        }
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      item: serializeScriptItem(doc, { includeAdminAnnotation }),
+    });
+  } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      return buildScriptByIdTransientResponse(
+        error,
+        "Nao foi possivel atualizar o roteiro agora. Tente novamente em instantes."
+      );
+    }
+
+    logger.error("[scripts/id] Falha ao atualizar roteiro.", error);
+    return NextResponse.json({ ok: false, error: "Nao foi possivel atualizar o roteiro." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, { params }: Params) {
+  try {
+    const session = await getAuthenticatedSession("DELETE /api/scripts/[id]");
+    if (!session?.user?.id) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    if (!Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
+    }
+
+    const access = await validateScriptsAccess({ request, session: session as any });
+    if (!access.ok) {
+      return NextResponse.json(
+        { ok: false, error: access.error, reason: access.reason },
+        { status: access.status }
+      );
+    }
+
+    const url = new URL(request.url);
+    const targetResolution = resolveTargetScriptsUser({
+      session: session as any,
+      targetUserId: url.searchParams.get("targetUserId"),
+    });
+    if (!targetResolution.ok) {
+      return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+    }
+    const effectiveUserId = targetResolution.userId;
+
+    await withMongoTransientRetry(
+      () => connectToDatabase(),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptByIdMongoRetry("DELETE /api/scripts/[id] connect", error, retryCount),
+      }
+    );
+
+    const doc = await withMongoTransientRetry(
+      () =>
+        ScriptEntry.findOne({
+          _id: new Types.ObjectId(params.id),
+          userId: new Types.ObjectId(effectiveUserId),
+        }),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptByIdMongoRetry("DELETE /api/scripts/[id] find", error, retryCount),
+      }
+    );
+    if (!doc) {
+      return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
+    }
+
+    if (doc.linkType === "planner_slot" && doc.plannerRef?.weekStart && doc.plannerRef?.slotId) {
+      await clearScriptFromPlannerSlot({
         userId: effectiveUserId,
         plannerRef: {
           weekStart: doc.plannerRef.weekStart,
@@ -402,86 +559,37 @@ export async function PATCH(request: Request, { params }: Params) {
           dayOfWeek: doc.plannerRef.dayOfWeek,
           blockStartHour: doc.plannerRef.blockStartHour,
         },
-        title: doc.title,
-        content: doc.content,
-        aiVersionId: doc.aiVersionId ?? null,
       });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      const missingPlannerTarget =
-        message === "Plano da semana não encontrado para vincular roteiro." ||
-        message === "Slot do planner não encontrado para vincular roteiro.";
-      if (!missingPlannerTarget) {
-        throw error;
-      }
     }
-  }
 
-  return NextResponse.json({
-    ok: true,
-    item: serializeScriptItem(doc, { includeAdminAnnotation }),
-  });
-}
-
-export async function DELETE(request: Request, { params }: Params) {
-  const session = await getAuthenticatedSession("DELETE /api/scripts/[id]");
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
-  if (!Types.ObjectId.isValid(params.id)) {
-    return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
-  }
-
-  const access = await validateScriptsAccess({ request, session: session as any });
-  if (!access.ok) {
-    return NextResponse.json(
-      { ok: false, error: access.error, reason: access.reason },
-      { status: access.status }
+    const hadPostedContent = Boolean(doc.postedContent?.metricId);
+    await withMongoTransientRetry(
+      () => doc.deleteOne(),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptByIdMongoRetry("DELETE /api/scripts/[id] delete", error, retryCount),
+      }
     );
-  }
 
-  const url = new URL(request.url);
-  const targetResolution = resolveTargetScriptsUser({
-    session: session as any,
-    targetUserId: url.searchParams.get("targetUserId"),
-  });
-  if (!targetResolution.ok) {
-    return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
-  }
-  const effectiveUserId = targetResolution.userId;
+    const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
+    if (styleTrainingEnabled) {
+      void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+    }
+    if (hadPostedContent) {
+      void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
+      void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
+    }
 
-  await connectToDatabase();
-  const doc = await ScriptEntry.findOne({
-    _id: new Types.ObjectId(params.id),
-    userId: new Types.ObjectId(effectiveUserId),
-  });
-  if (!doc) {
-    return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });
-  }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      return buildScriptByIdTransientResponse(
+        error,
+        "Nao foi possivel excluir o roteiro agora. Tente novamente em instantes."
+      );
+    }
 
-  if (doc.linkType === "planner_slot" && doc.plannerRef?.weekStart && doc.plannerRef?.slotId) {
-    await clearScriptFromPlannerSlot({
-      userId: effectiveUserId,
-      plannerRef: {
-        weekStart: doc.plannerRef.weekStart,
-        slotId: doc.plannerRef.slotId,
-        dayOfWeek: doc.plannerRef.dayOfWeek,
-        blockStartHour: doc.plannerRef.blockStartHour,
-      },
-    });
+    logger.error("[scripts/id] Falha ao excluir roteiro.", error);
+    return NextResponse.json({ ok: false, error: "Nao foi possivel excluir o roteiro." }, { status: 500 });
   }
-
-  const hadPostedContent = Boolean(doc.postedContent?.metricId);
-  await doc.deleteOne();
-
-  const styleTrainingEnabled = await isScriptsStyleTrainingV1Enabled();
-  if (styleTrainingEnabled) {
-    void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
-  }
-  if (hadPostedContent) {
-    void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
-    void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
-  }
-
-  return NextResponse.json({ ok: true });
 }

@@ -3,7 +3,13 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { logger } from "@/app/lib/logger";
 import { connectToDatabase } from "@/app/lib/mongoose";
+import {
+  getErrorMessage,
+  isTransientMongoError,
+  withMongoTransientRetry,
+} from "@/app/lib/mongoTransient";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";
 import PlannerPlan from "@/app/models/PlannerPlan";
 import PlannerRecCache from "@/app/models/PlannerRecCache";
@@ -212,6 +218,8 @@ async function loadRecommendationsWithCache({
     let themesMs = 0;
     let cacheWriteMs = 0;
 
+    await connectToDatabase();
+
     if (freezeEnabled) {
       const cacheLookupStart = nowMs();
       const cached = await PlannerRecCache.findOne({ userId, weekStart }).lean().exec();
@@ -405,77 +413,92 @@ export async function GET(request: Request) {
   const periodDays = typeof rawPeriod === "number" && rawPeriod > 0 ? rawPeriod : WINDOW_DAYS;
 
   try {
-    const dbStartedAt = nowMs();
-    await connectToDatabase();
-    timings.push({ name: "db", durationMs: nowMs() - dbStartedAt });
+    const batchResult = await withMongoTransientRetry(
+      async () => {
+        const attemptTimings: TimingEntry[] = [];
+        const planPromise = (async () => {
+          const startedAt = nowMs();
+          try {
+            await connectToDatabase();
+            return await PlannerPlan.findOne({ userId, platform: "instagram", weekStart })
+              .select(PLANNER_PLAN_READ_PROJECTION)
+              .lean()
+              .exec();
+          } finally {
+            attemptTimings.push({ name: "plan", durationMs: nowMs() - startedAt });
+          }
+        })();
+        const recommendationsPromise = (async () => {
+          const result: RecommendationBatchResult = await loadRecommendationsWithCache({
+            userId,
+            weekStart,
+            periodDays,
+            targetSlotsPerWeek,
+            freezeEnabled,
+            allowMemoryCache: !noCache,
+            includeThemes,
+          });
+          attemptTimings.push({ name: "rec", durationMs: result.totalMs ?? 0 });
+          if (result.memoryHit) {
+            attemptTimings.push({ name: "recMem", durationMs: result.totalMs ?? 0 });
+          }
+          if (result.coalesced) {
+            attemptTimings.push({ name: "recJoin", durationMs: result.totalMs ?? 0 });
+          }
+          if (typeof result.cacheLookupMs === "number" && result.cacheLookupMs > 0) {
+            attemptTimings.push({ name: "recCache", durationMs: result.cacheLookupMs });
+          }
+          if (typeof result.recommendMs === "number" && result.recommendMs > 0) {
+            attemptTimings.push({ name: "recCore", durationMs: result.recommendMs });
+          }
+          if (typeof result.recommendSlotsMs === "number" && result.recommendSlotsMs > 0) {
+            attemptTimings.push({ name: "recSlots", durationMs: result.recommendSlotsMs });
+          }
+          if (typeof result.heatmapMs === "number" && result.heatmapMs > 0) {
+            attemptTimings.push({ name: "recHeatmap", durationMs: result.heatmapMs });
+          }
+          if (typeof result.themesMs === "number" && result.themesMs > 0) {
+            attemptTimings.push({ name: "recThemes", durationMs: result.themesMs });
+          }
+          if (typeof result.cacheWriteMs === "number" && result.cacheWriteMs > 0) {
+            attemptTimings.push({ name: "recWrite", durationMs: result.cacheWriteMs });
+          }
+          return result;
+        })();
 
-    const planPromise = (async () => {
-      const startedAt = nowMs();
-      try {
-        return await PlannerPlan.findOne({ userId, platform: "instagram", weekStart })
-          .select(PLANNER_PLAN_READ_PROJECTION)
-          .lean()
-          .exec();
-      } finally {
-        timings.push({ name: "plan", durationMs: nowMs() - startedAt });
-      }
-    })();
-    const recommendationsPromise = (async () => {
-      const result: RecommendationBatchResult = await loadRecommendationsWithCache({
-        userId,
-        weekStart,
-        periodDays,
-        targetSlotsPerWeek,
-        freezeEnabled,
-        allowMemoryCache: !noCache,
-        includeThemes,
-      });
-      timings.push({ name: "rec", durationMs: result.totalMs ?? 0 });
-      if (result.memoryHit) {
-        timings.push({ name: "recMem", durationMs: result.totalMs ?? 0 });
-      }
-      if (result.coalesced) {
-        timings.push({ name: "recJoin", durationMs: result.totalMs ?? 0 });
-      }
-      if (typeof result.cacheLookupMs === "number" && result.cacheLookupMs > 0) {
-        timings.push({ name: "recCache", durationMs: result.cacheLookupMs });
-      }
-      if (typeof result.recommendMs === "number" && result.recommendMs > 0) {
-        timings.push({ name: "recCore", durationMs: result.recommendMs });
-      }
-      if (typeof result.recommendSlotsMs === "number" && result.recommendSlotsMs > 0) {
-        timings.push({ name: "recSlots", durationMs: result.recommendSlotsMs });
-      }
-      if (typeof result.heatmapMs === "number" && result.heatmapMs > 0) {
-        timings.push({ name: "recHeatmap", durationMs: result.heatmapMs });
-      }
-      if (typeof result.themesMs === "number" && result.themesMs > 0) {
-        timings.push({ name: "recThemes", durationMs: result.themesMs });
-      }
-      if (typeof result.cacheWriteMs === "number" && result.cacheWriteMs > 0) {
-        timings.push({ name: "recWrite", durationMs: result.cacheWriteMs });
-      }
-      return result;
-    })();
+        const [planResult, recResult] = await Promise.allSettled([planPromise, recommendationsPromise]);
 
-    const [planResult, recResult] = await Promise.allSettled([planPromise, recommendationsPromise]);
+        if (planResult.status === "rejected" && recResult.status === "rejected") {
+          throw recResult.reason || planResult.reason || new Error("Falha ao carregar planner.");
+        }
 
-    if (planResult.status === "rejected" && recResult.status === "rejected") {
-      throw recResult.reason || planResult.reason || new Error("Falha ao carregar planner.");
-    }
-
-    const plan = planResult.status === "fulfilled" ? (planResult.value ?? null) : null;
-    const recommendations =
-      recResult.status === "fulfilled" && Array.isArray(recResult.value.recommendations)
-        ? recResult.value.recommendations
-        : [];
-    const heatmap =
-      recResult.status === "fulfilled" && Array.isArray(recResult.value.heatmap)
-        ? recResult.value.heatmap
-        : [];
-    const cached = recResult.status === "fulfilled" ? recResult.value.cached : false;
-    const frozenAt = recResult.status === "fulfilled" ? recResult.value.frozenAt : undefined;
-    const partial = planResult.status === "rejected" || recResult.status === "rejected";
+        return {
+          attemptTimings,
+          plan: planResult.status === "fulfilled" ? (planResult.value ?? null) : null,
+          recommendations:
+            recResult.status === "fulfilled" && Array.isArray(recResult.value.recommendations)
+              ? recResult.value.recommendations
+              : [],
+          heatmap:
+            recResult.status === "fulfilled" && Array.isArray(recResult.value.heatmap)
+              ? recResult.value.heatmap
+              : [],
+          cached: recResult.status === "fulfilled" ? recResult.value.cached : false,
+          frozenAt: recResult.status === "fulfilled" ? recResult.value.frozenAt : undefined,
+          partial: planResult.status === "rejected" || recResult.status === "rejected",
+        };
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn(`[planner/batch] Transient Mongo error. Retry #${retryCount}.`, {
+            userId,
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
+    timings.push(...batchResult.attemptTimings);
     timings.push({ name: "total", durationMs: nowMs() - requestStartedAt });
 
     return jsonWithTiming(
@@ -483,25 +506,37 @@ export async function GET(request: Request) {
         ok: true,
         weekStart: weekStartISO,
         metricBase: "views",
-        plan,
-        recommendations,
-        heatmap,
-        cached,
+        plan: batchResult.plan,
+        recommendations: batchResult.recommendations,
+        heatmap: batchResult.heatmap,
+        cached: batchResult.cached,
         freezeEnabled,
         includeThemes,
         algoVersion: ALGO_VERSION,
-        frozenAt,
-        partial,
+        frozenAt: batchResult.frozenAt,
+        partial: batchResult.partial,
       },
       200,
       timings,
       {
-        "X-D2C-Cache": cached ? "hit" : "miss",
+        "X-D2C-Cache": batchResult.cached ? "hit" : "miss",
         "X-D2C-Include-Themes": includeThemes ? "1" : "0",
       }
     );
   } catch (err) {
-    console.error("[planner/batch] Error:", err);
+    if (isTransientMongoError(err)) {
+      logger.warn("[planner/batch] Planner batch unavailable after transient Mongo failure.", {
+        userId,
+        error: getErrorMessage(err),
+      });
+      timings.push({ name: "total", durationMs: nowMs() - requestStartedAt });
+      return jsonWithTiming(
+        { ok: false, error: "Planner temporariamente indisponível. Tente novamente em instantes." },
+        503,
+        timings
+      );
+    }
+    logger.error("[planner/batch] Error:", err);
     timings.push({ name: "total", durationMs: nowMs() - requestStartedAt });
     return jsonWithTiming({ ok: false, error: "Failed to load planner batch" }, 500, timings);
   }

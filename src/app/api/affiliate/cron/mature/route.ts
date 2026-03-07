@@ -1,6 +1,8 @@
 // src/app/api/affiliate/cron/mature/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import matureAffiliateCommissions from "@/cron/matureAffiliateCommissions";
+import { logger } from "@/app/lib/logger";
+import { getErrorMessage, isTransientMongoError } from "@/app/lib/mongoTransient";
 
 export const runtime = "nodejs";
 
@@ -27,7 +29,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err: any) {
-    console.error("[affiliate/cron/mature] error:", err?.message || err);
+    if (isTransientMongoError(err)) {
+      logger.warn("[affiliate/cron/mature] transient_error", {
+        error: getErrorMessage(err),
+      });
+      return NextResponse.json({ error: "cron temporarily unavailable" }, { status: 503 });
+    }
+    logger.error("[affiliate/cron/mature] error:", err);
     return NextResponse.json({ error: "cron error" }, { status: 500 });
   }
 }

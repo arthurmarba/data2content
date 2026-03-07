@@ -4,6 +4,8 @@ import { Types } from "mongoose";
 
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
+import { logger } from "@/app/lib/logger";
 import Metric from "@/app/models/Metric";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
 
@@ -67,111 +69,142 @@ function toCursorDateString(value: unknown): string {
 }
 
 export async function GET(request: Request) {
-  const session = (await getServerSession(authOptions as any)) as any;
-  if (!session?.user?.id) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = (await getServerSession(authOptions as any)) as any;
+    if (!session?.user?.id) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
 
-  const access = await validateScriptsAccess({ request, session: session as any });
-  if (!access.ok) {
+    const access = await validateScriptsAccess({ request, session: session as any });
+    if (!access.ok) {
+      return NextResponse.json(
+        { ok: false, error: access.error, reason: access.reason },
+        { status: access.status }
+      );
+    }
+
+    const url = new URL(request.url);
+    const targetResolution = resolveTargetScriptsUser({
+      session: session as any,
+      targetUserId: url.searchParams.get("targetUserId"),
+    });
+    if (!targetResolution.ok) {
+      return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
+    }
+
+    const effectiveUserId = targetResolution.userId;
+    const limit = parseLimit(url.searchParams.get("limit"));
+    const queryText = (url.searchParams.get("q") || "").trim();
+    const cursor = decodeCursor(url.searchParams.get("cursor"));
+
+    const query: Record<string, any> = {
+      user: new Types.ObjectId(effectiveUserId),
+    };
+    const andConditions: Record<string, any>[] = [];
+
+    if (queryText) {
+      const regex = new RegExp(escapeRegex(queryText), "i");
+      andConditions.push({ $or: [{ description: regex }, { type: regex }] });
+    }
+
+    if (cursor) {
+      const cursorPostDate = new Date(cursor.postDate);
+      const cursorUpdatedAt = new Date(cursor.updatedAt);
+      if (!Number.isNaN(cursorPostDate.getTime()) && !Number.isNaN(cursorUpdatedAt.getTime())) {
+        andConditions.push({
+          $or: [
+            { postDate: { $lt: cursorPostDate } },
+            {
+              postDate: cursorPostDate,
+              updatedAt: { $lt: cursorUpdatedAt },
+            },
+            {
+              postDate: cursorPostDate,
+              updatedAt: cursorUpdatedAt,
+              _id: { $lt: new Types.ObjectId(cursor.id) },
+            },
+          ],
+        });
+      }
+    }
+    if (andConditions.length) {
+      query.$and = andConditions;
+    }
+
+    const docs = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return Metric.find(query)
+          .select("_id description postDate postLink type coverUrl stats.engagement stats.total_interactions updatedAt")
+          .sort({ postDate: -1, updatedAt: -1, _id: -1 })
+          .limit(limit + 1)
+          .lean()
+          .exec();
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn("[scripts/content-options] Retry para erro transitorio de Mongo.", {
+            retryCount,
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
+
+    const hasMore = docs.length > limit;
+    const pageItems = hasMore ? docs.slice(0, limit) : docs;
+    const lastItem = pageItems[pageItems.length - 1];
+    const nextCursor =
+      hasMore && lastItem
+        ? encodeCursor({
+            postDate: toCursorDateString(lastItem.postDate),
+            updatedAt: toCursorDateString(lastItem.updatedAt),
+            id: String(lastItem._id),
+          })
+        : null;
+
+    const items = pageItems.map((doc: any) => ({
+      id: String(doc._id),
+      caption: buildCaptionPreview(doc.description),
+      postDate: doc.postDate ? new Date(doc.postDate).toISOString() : null,
+      postLink: typeof doc.postLink === "string" ? doc.postLink : null,
+      type: typeof doc.type === "string" ? doc.type : null,
+      coverUrl: typeof doc.coverUrl === "string" ? doc.coverUrl : null,
+      engagement:
+        typeof doc.stats?.engagement === "number" && Number.isFinite(doc.stats.engagement)
+          ? doc.stats.engagement
+          : null,
+      totalInteractions:
+        typeof doc.stats?.total_interactions === "number" && Number.isFinite(doc.stats.total_interactions)
+          ? doc.stats.total_interactions
+          : null,
+    }));
+
+    return NextResponse.json({
+      ok: true,
+      items,
+      pagination: {
+        nextCursor,
+        hasMore,
+        limit,
+      },
+    });
+  } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      logger.warn("[scripts/content-options] Erro transitorio de Mongo.", {
+        error: getErrorMessage((error as any)?.cause ?? error),
+      });
+      return NextResponse.json(
+        { ok: false, error: "Os conteudos publicados estao temporariamente indisponiveis. Tente novamente em instantes." },
+        { status: 503 }
+      );
+    }
+
+    logger.error("[scripts/content-options] Falha ao carregar conteudos publicados.", error);
     return NextResponse.json(
-      { ok: false, error: access.error, reason: access.reason },
-      { status: access.status }
+      { ok: false, error: "Nao foi possivel carregar os conteudos publicados." },
+      { status: 500 }
     );
   }
-
-  const url = new URL(request.url);
-  const targetResolution = resolveTargetScriptsUser({
-    session: session as any,
-    targetUserId: url.searchParams.get("targetUserId"),
-  });
-  if (!targetResolution.ok) {
-    return NextResponse.json({ ok: false, error: targetResolution.error }, { status: targetResolution.status });
-  }
-
-  const effectiveUserId = targetResolution.userId;
-  const limit = parseLimit(url.searchParams.get("limit"));
-  const queryText = (url.searchParams.get("q") || "").trim();
-  const cursor = decodeCursor(url.searchParams.get("cursor"));
-
-  const query: Record<string, any> = {
-    user: new Types.ObjectId(effectiveUserId),
-  };
-  const andConditions: Record<string, any>[] = [];
-
-  if (queryText) {
-    const regex = new RegExp(escapeRegex(queryText), "i");
-    andConditions.push({ $or: [{ description: regex }, { type: regex }] });
-  }
-
-  if (cursor) {
-    const cursorPostDate = new Date(cursor.postDate);
-    const cursorUpdatedAt = new Date(cursor.updatedAt);
-    if (!Number.isNaN(cursorPostDate.getTime()) && !Number.isNaN(cursorUpdatedAt.getTime())) {
-      andConditions.push({
-        $or: [
-          { postDate: { $lt: cursorPostDate } },
-          {
-            postDate: cursorPostDate,
-            updatedAt: { $lt: cursorUpdatedAt },
-          },
-          {
-            postDate: cursorPostDate,
-            updatedAt: cursorUpdatedAt,
-            _id: { $lt: new Types.ObjectId(cursor.id) },
-          },
-        ],
-      });
-    }
-  }
-  if (andConditions.length) {
-    query.$and = andConditions;
-  }
-
-  await connectToDatabase();
-  const docs = await Metric.find(query)
-    .select("_id description postDate postLink type coverUrl stats.engagement stats.total_interactions updatedAt")
-    .sort({ postDate: -1, updatedAt: -1, _id: -1 })
-    .limit(limit + 1)
-    .lean()
-    .exec();
-
-  const hasMore = docs.length > limit;
-  const pageItems = hasMore ? docs.slice(0, limit) : docs;
-  const lastItem = pageItems[pageItems.length - 1];
-  const nextCursor =
-    hasMore && lastItem
-      ? encodeCursor({
-          postDate: toCursorDateString(lastItem.postDate),
-          updatedAt: toCursorDateString(lastItem.updatedAt),
-          id: String(lastItem._id),
-        })
-      : null;
-
-  const items = pageItems.map((doc: any) => ({
-    id: String(doc._id),
-    caption: buildCaptionPreview(doc.description),
-    postDate: doc.postDate ? new Date(doc.postDate).toISOString() : null,
-    postLink: typeof doc.postLink === "string" ? doc.postLink : null,
-    type: typeof doc.type === "string" ? doc.type : null,
-    coverUrl: typeof doc.coverUrl === "string" ? doc.coverUrl : null,
-    engagement:
-      typeof doc.stats?.engagement === "number" && Number.isFinite(doc.stats.engagement)
-        ? doc.stats.engagement
-        : null,
-    totalInteractions:
-      typeof doc.stats?.total_interactions === "number" && Number.isFinite(doc.stats.total_interactions)
-        ? doc.stats.total_interactions
-        : null,
-  }));
-
-  return NextResponse.json({
-    ok: true,
-    items,
-    pagination: {
-      nextCursor,
-      hasMore,
-      limit,
-    },
-  });
 }

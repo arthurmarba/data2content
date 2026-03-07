@@ -1,7 +1,9 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
+import { getErrorMessage, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import ScriptEntry from "@/app/models/ScriptEntry";
 import { PLANNER_TIMEZONE } from "@/app/lib/planner/constants";
+import { logger } from "@/app/lib/logger";
 
 type PlannerSlotLike = {
   slotId?: string;
@@ -17,6 +19,11 @@ type PlannerLinkRef = {
   slotId: string;
   dayOfWeek?: number;
   blockStartHour?: number;
+};
+
+type PlannerPlanDocumentLike = {
+  slots: PlannerSlotLike[];
+  save: () => Promise<unknown>;
 };
 
 let plannerPlanModelPromise: Promise<any> | null = null;
@@ -87,6 +94,14 @@ function normalizeScriptContent(slot: PlannerSlotLike) {
   return { title, content };
 }
 
+function logScriptSyncMongoRetry(context: string, error: unknown, retryCount: number) {
+  logger.warn("[scripts][sync] Retry para erro transitorio de Mongo.", {
+    context,
+    retryCount,
+    error: getErrorMessage(error),
+  });
+}
+
 export async function upsertLinkedScriptFromPlanner(params: {
   userId: string | Types.ObjectId;
   weekStart: Date;
@@ -96,51 +111,71 @@ export async function upsertLinkedScriptFromPlanner(params: {
   const { userId, weekStart, slot, source = "planner" } = params;
   if (!slot.slotId) return null;
 
-  await connectToDatabase();
+  await withMongoTransientRetry(
+    () => connectToDatabase(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("upsertLinkedScriptFromPlanner.connect", error, retryCount),
+    }
+  );
   const uid = toObjectId(userId);
   const normalizedWeekStart = normalizeToMondayInTZ(weekStart);
 
   if (!hasScriptContent(slot)) {
-    await ScriptEntry.deleteOne({
-      userId: uid,
-      linkType: "planner_slot",
-      "plannerRef.weekStart": normalizedWeekStart,
-      "plannerRef.slotId": slot.slotId,
-    });
+    await withMongoTransientRetry(
+      () =>
+        ScriptEntry.deleteOne({
+          userId: uid,
+          linkType: "planner_slot",
+          "plannerRef.weekStart": normalizedWeekStart,
+          "plannerRef.slotId": slot.slotId,
+        }),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => logScriptSyncMongoRetry("upsertLinkedScriptFromPlanner.delete", error, retryCount),
+      }
+    );
     return null;
   }
 
   const { title, content } = normalizeScriptContent(slot);
 
-  const updated = await ScriptEntry.findOneAndUpdate(
-    {
-      userId: uid,
-      linkType: "planner_slot",
-      "plannerRef.weekStart": normalizedWeekStart,
-      "plannerRef.slotId": slot.slotId,
-    },
-    {
-      $set: {
-        title,
-        content,
-        source,
-        aiVersionId: typeof slot.aiVersionId === "string" ? slot.aiVersionId : null,
-        plannerRef: {
-          weekStart: normalizedWeekStart,
-          slotId: slot.slotId,
-          dayOfWeek: slot.dayOfWeek,
-          blockStartHour: slot.blockStartHour,
+  const updated = await withMongoTransientRetry(
+    () =>
+      ScriptEntry.findOneAndUpdate(
+        {
+          userId: uid,
+          linkType: "planner_slot",
+          "plannerRef.weekStart": normalizedWeekStart,
+          "plannerRef.slotId": slot.slotId,
         },
-      },
-      $setOnInsert: {
-        userId: uid,
-        linkType: "planner_slot",
-      },
-    },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  )
-    .lean()
-    .exec();
+        {
+          $set: {
+            title,
+            content,
+            source,
+            aiVersionId: typeof slot.aiVersionId === "string" ? slot.aiVersionId : null,
+            plannerRef: {
+              weekStart: normalizedWeekStart,
+              slotId: slot.slotId,
+              dayOfWeek: slot.dayOfWeek,
+              blockStartHour: slot.blockStartHour,
+            },
+          },
+          $setOnInsert: {
+            userId: uid,
+            linkType: "planner_slot",
+          },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      )
+        .lean()
+        .exec(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("upsertLinkedScriptFromPlanner.upsert", error, retryCount),
+    }
+  );
 
   return updated;
 }
@@ -151,7 +186,13 @@ export async function syncLinkedScriptsFromPlannerPlan(params: {
   slots: PlannerSlotLike[];
 }) {
   const { userId, weekStart, slots } = params;
-  await connectToDatabase();
+  await withMongoTransientRetry(
+    () => connectToDatabase(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("syncLinkedScriptsFromPlannerPlan.connect", error, retryCount),
+    }
+  );
   const uid = toObjectId(userId);
   const normalizedWeekStart = normalizeToMondayInTZ(weekStart);
   const slotIdsInPlan = new Set<string>();
@@ -176,7 +217,13 @@ export async function syncLinkedScriptsFromPlannerPlan(params: {
   if (keepIds.length) {
     deleteQuery["plannerRef.slotId"] = { $nin: keepIds };
   }
-  await ScriptEntry.deleteMany(deleteQuery).exec();
+  await withMongoTransientRetry(
+    () => ScriptEntry.deleteMany(deleteQuery).exec(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("syncLinkedScriptsFromPlannerPlan.deleteMany", error, retryCount),
+    }
+  );
 }
 
 export async function applyScriptToPlannerSlot(params: {
@@ -187,16 +234,29 @@ export async function applyScriptToPlannerSlot(params: {
   aiVersionId?: string | null;
 }) {
   const { userId, plannerRef, title, content, aiVersionId } = params;
-  await connectToDatabase();
+  await withMongoTransientRetry(
+    () => connectToDatabase(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("applyScriptToPlannerSlot.connect", error, retryCount),
+    }
+  );
   const PlannerPlan = await loadPlannerPlanModel();
   const uid = toObjectId(userId);
   const normalizedWeekStart = normalizeToMondayInTZ(plannerRef.weekStart);
 
-  const planDoc = await PlannerPlan.findOne({
-    userId: uid,
-    platform: "instagram",
-    weekStart: normalizedWeekStart,
-  });
+  const planDoc = await withMongoTransientRetry<PlannerPlanDocumentLike | null>(
+    () =>
+      PlannerPlan.findOne({
+        userId: uid,
+        platform: "instagram",
+        weekStart: normalizedWeekStart,
+      }),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("applyScriptToPlannerSlot.find", error, retryCount),
+    }
+  );
   if (!planDoc) {
     throw new Error("Plano da semana não encontrado para vincular roteiro.");
   }
@@ -207,6 +267,9 @@ export async function applyScriptToPlannerSlot(params: {
   }
 
   const slot = planDoc.slots[idx];
+  if (!slot) {
+    throw new Error("Slot do planner não encontrado para vincular roteiro.");
+  }
   slot.title = title.trim();
   slot.scriptShort = content.trim();
   if (typeof aiVersionId === "string") {
@@ -214,7 +277,13 @@ export async function applyScriptToPlannerSlot(params: {
   } else if (aiVersionId === null) {
     slot.aiVersionId = null;
   }
-  await planDoc.save();
+  await withMongoTransientRetry(
+    () => planDoc.save(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("applyScriptToPlannerSlot.save", error, retryCount),
+    }
+  );
 }
 
 export async function clearScriptFromPlannerSlot(params: {
@@ -222,24 +291,44 @@ export async function clearScriptFromPlannerSlot(params: {
   plannerRef: PlannerLinkRef;
 }) {
   const { userId, plannerRef } = params;
-  await connectToDatabase();
+  await withMongoTransientRetry(
+    () => connectToDatabase(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("clearScriptFromPlannerSlot.connect", error, retryCount),
+    }
+  );
   const PlannerPlan = await loadPlannerPlanModel();
   const uid = toObjectId(userId);
   const normalizedWeekStart = normalizeToMondayInTZ(plannerRef.weekStart);
 
-  const planDoc = await PlannerPlan.findOne({
-    userId: uid,
-    platform: "instagram",
-    weekStart: normalizedWeekStart,
-  });
+  const planDoc = await withMongoTransientRetry<PlannerPlanDocumentLike | null>(
+    () =>
+      PlannerPlan.findOne({
+        userId: uid,
+        platform: "instagram",
+        weekStart: normalizedWeekStart,
+      }),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("clearScriptFromPlannerSlot.find", error, retryCount),
+    }
+  );
   if (!planDoc) return;
 
   const idx = planDoc.slots.findIndex((slot: any) => slot.slotId === plannerRef.slotId);
   if (idx < 0) return;
 
   const slot = planDoc.slots[idx];
+  if (!slot) return;
   slot.title = "";
   slot.scriptShort = "";
   slot.aiVersionId = null;
-  await planDoc.save();
+  await withMongoTransientRetry(
+    () => planDoc.save(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptSyncMongoRetry("clearScriptFromPlannerSlot.save", error, retryCount),
+    }
+  );
 }

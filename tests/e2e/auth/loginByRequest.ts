@@ -5,6 +5,7 @@ type LoginOptions = {
   email: string;
   password: string;
   callbackPath?: string;
+  timeoutMs?: number;
 };
 
 function formEncode(data: Record<string, string>) {
@@ -16,8 +17,9 @@ export async function loginByRequestCredentials(
   opts: LoginOptions,
 ) {
   const callbackUrl = new URL(opts.callbackPath ?? '/dashboard/chat', opts.baseURL).toString();
+  const timeoutMs = typeof opts.timeoutMs === 'number' && opts.timeoutMs > 0 ? opts.timeoutMs : 90_000;
 
-  const csrfRes = await request.get('/api/auth/csrf');
+  const csrfRes = await request.get('/api/auth/csrf', { timeout: timeoutMs });
   if (!csrfRes.ok()) {
     throw new Error(`CSRF failed: ${csrfRes.status()} ${await csrfRes.text()}`);
   }
@@ -26,6 +28,7 @@ export async function loginByRequestCredentials(
   if (!csrfToken) throw new Error('CSRF token missing from /api/auth/csrf response');
 
   const loginRes = await request.post('/api/auth/callback/credentials', {
+    timeout: timeoutMs,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     data: formEncode({
       csrfToken,
@@ -40,7 +43,7 @@ export async function loginByRequestCredentials(
     throw new Error(`Login failed: ${loginRes.status()} ${await loginRes.text()}`);
   }
 
-  const sessionRes = await request.get('/api/auth/session');
+  const sessionRes = await request.get('/api/auth/session', { timeout: timeoutMs });
   if (!sessionRes.ok()) {
     throw new Error(`Session check failed: ${sessionRes.status()} ${await sessionRes.text()}`);
   }

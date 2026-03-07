@@ -6,6 +6,8 @@ import { Types } from 'mongoose';
 import { findUserPosts, toProxyUrl } from '@/app/lib/dataService/marketAnalysis/postsService';
 import { mapMetricToDbField } from '@/app/lib/dataService/marketAnalysis/helpers';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+import { logger } from '@/app/lib/logger';
+import { getErrorMessage, isTransientMongoError } from '@/app/lib/mongoTransient';
 
 export const dynamic = 'force-dynamic';
 
@@ -175,8 +177,17 @@ export async function GET(
       },
     });
   } catch (error) {
-    // ALTERADO: Mensagem de erro mais genérica
-    console.error('[API USER/POSTS/LIST] Error:', error);
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      logger.warn('[API USER/POSTS/LIST] Transient Mongo error.', {
+        userId,
+        error: getErrorMessage((error as any)?.cause ?? error),
+      });
+      return NextResponse.json(
+        { error: 'Serviço temporariamente indisponível. Tente novamente em instantes.' },
+        { status: 503 },
+      );
+    }
+    logger.error('[API USER/POSTS/LIST] Error:', error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
     return NextResponse.json(
       { error: 'Erro ao buscar posts.', details: message },

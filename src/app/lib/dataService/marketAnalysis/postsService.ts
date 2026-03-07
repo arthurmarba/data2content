@@ -10,6 +10,7 @@ import MetricModel from '@/app/models/Metric';
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 import { FindGlobalPostsArgs, IGlobalPostsPaginatedResult, IGlobalPostResult } from './types';
 import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
 import { createBasePipeline } from './helpers';
@@ -404,9 +405,24 @@ export async function findUserPosts({ // ALTERADO
 }: IFindUserPostsArgs): Promise<IUserPostsPaginatedResult> { // ALTERADO
   const TAG = `${SERVICE_TAG}[findUserPosts]`; // ALTERADO
   logger.info(`${TAG} Fetching posts for user ${userId} with filters: ${JSON.stringify(filters)}`); // ALTERADO
+  const runDb = <T>(operation: () => Promise<T>, operationName: string) =>
+    withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return operation();
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn(`${TAG} Transient Mongo error during ${operationName}. Retry #${retryCount}.`, {
+            userId,
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
 
   try {
-    await connectToDatabase();
     if (!Types.ObjectId.isValid(userId)) throw new DatabaseError('Invalid userId');
 
     const userObjectId = new Types.ObjectId(userId);
@@ -505,7 +521,7 @@ export async function findUserPosts({ // ALTERADO
       };
     }
 
-    const totalPosts = await MetricModel.countDocuments(matchStage); // ALTERADO
+    const totalPosts = await runDb(() => MetricModel.countDocuments(matchStage), 'countDocuments'); // ALTERADO
     if (totalPosts === 0) return { posts: [], totalPosts, page, limit }; // ALTERADO
 
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
@@ -572,9 +588,15 @@ export async function findUserPosts({ // ALTERADO
       },
     ];
 
-    let posts: IUserPostResult[] = await MetricModel.aggregate(postsPipeline); // ALTERADO
+    let posts: IUserPostResult[] = await runDb(
+      () => MetricModel.aggregate(postsPipeline),
+      'aggregatePosts'
+    ); // ALTERADO
 
-    const connectionDetails = await getInstagramConnectionDetails(userObjectId);
+    const connectionDetails = await runDb(
+      () => getInstagramConnectionDetails(userObjectId),
+      'getInstagramConnectionDetails'
+    );
     const accessToken = connectionDetails?.accessToken;
 
     if (accessToken && page === 1 && THUMBNAIL_FETCH_PER_REQUEST > 0) {
@@ -629,8 +651,15 @@ export async function findUserPosts({ // ALTERADO
       limit,
     };
   } catch (error: any) {
-    logger.error(`${TAG} Error fetching user posts:`, error); // ALTERADO
-    throw new DatabaseError(`Failed to fetch user posts: ${error.message}`); // ALTERADO
+    if (isTransientMongoError(error) || isTransientMongoError(error?.cause)) {
+      logger.warn(`${TAG} Transient error fetching user posts.`, {
+        userId,
+        error: getErrorMessage(error?.cause ?? error),
+      });
+    } else {
+      logger.error(`${TAG} Error fetching user posts:`, error); // ALTERADO
+    }
+    throw new DatabaseError(`Failed to fetch user posts: ${error.message}`, error); // ALTERADO
   }
 }
 

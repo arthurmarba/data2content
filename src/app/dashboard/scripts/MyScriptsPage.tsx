@@ -111,6 +111,7 @@ type PlannerSlotOption = {
 
 type EditorState = {
   id: string | null;
+  clientRequestId: string | null;
   title: string;
   content: string;
   slotId: string;
@@ -170,10 +171,49 @@ type ContentOption = {
 };
 
 const PAGE_LIMIT = 12;
+const CONTENT_OPTIONS_PAGE_LIMIT = 200;
 const CARD_PREVIEW_MAX_CHARS = 210;
 const HISTORY_LIMIT = 80;
 const HISTORY_TYPING_DELAY_MS = 450;
+const FETCH_RETRY_DELAYS_MS = [350, 1000];
+const INITIAL_LIST_AUTO_RETRY_DELAY_MS = 1800;
+const MAX_INITIAL_LIST_AUTO_RETRIES = 1;
 const DAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function shouldRetryFetchStatus(status: number) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function fetchJsonWithRetry(
+  input: string,
+  init?: RequestInit,
+  options?: { retries?: number }
+) {
+  const retries = Math.max(0, Math.min(options?.retries ?? FETCH_RETRY_DELAYS_MS.length, FETCH_RETRY_DELAYS_MS.length));
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch(input, init);
+      const payload = await response.json().catch(() => ({}));
+      const shouldRetry = !response.ok && shouldRetryFetchStatus(response.status) && attempt < retries;
+      if (!shouldRetry) {
+        return { response, payload };
+      }
+    } catch (error) {
+      if (attempt >= retries) {
+        throw error;
+      }
+    }
+
+    await wait(FETCH_RETRY_DELAYS_MS[attempt] ?? FETCH_RETRY_DELAYS_MS[FETCH_RETRY_DELAYS_MS.length - 1] ?? 350);
+  }
+}
 
 function getDayLabel(dayOfWeek?: number) {
   if (typeof dayOfWeek !== "number") return "Dia";
@@ -265,6 +305,30 @@ function buildContentOptionLabel(option: ContentOption) {
   return `${option.caption} · ${dateLabel} · Eng: ${engagementLabel}`;
 }
 
+function normalizeContentOption(item: any): ContentOption | null {
+  const id = String(item?.id ?? "");
+  if (!id) return null;
+  return {
+    id,
+    caption:
+      typeof item?.caption === "string" && item.caption.trim()
+        ? item.caption.trim()
+        : "Conteúdo sem legenda",
+    postDate: typeof item?.postDate === "string" ? item.postDate : null,
+    postLink: typeof item?.postLink === "string" ? item.postLink : null,
+    type: typeof item?.type === "string" ? item.type : null,
+    coverUrl: typeof item?.coverUrl === "string" ? item.coverUrl : null,
+    engagement:
+      typeof item?.engagement === "number" && Number.isFinite(item.engagement)
+        ? item.engagement
+        : null,
+    totalInteractions:
+      typeof item?.totalInteractions === "number" && Number.isFinite(item.totalInteractions)
+        ? item.totalInteractions
+        : null,
+  };
+}
+
 function buildEmptyLinkingSummary(): ScriptLinkingSummary {
   return {
     isLinked: false,
@@ -323,8 +387,13 @@ function getCardPreview(script: ScriptItem) {
 }
 
 function createInitialEditorState(): EditorState {
+  const generatedRequestId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return {
     id: null,
+    clientRequestId: generatedRequestId,
     title: "",
     content: "",
     slotId: "",
@@ -415,8 +484,13 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const hasAutoOpenedQueryScriptRef = useRef<string | null>(null);
   const hasFetchedCampaignOptionsRef = useRef(false);
   const hasFetchedContentOptionsRef = useRef(false);
+  const contentOptionsNextCursorRef = useRef<string | null>(null);
+  const contentOptionsHydratingRef = useRef(false);
   const latestFeedbackToastRef = useRef<string>("");
   const nextCursorRef = useRef<string | null>(null);
+  const scriptsRequestIdRef = useRef(0);
+  const initialListAutoRetryCountRef = useRef(0);
+  const initialListAutoRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const quickPublishPopoverRef = useRef<HTMLDivElement | null>(null);
   const cardLinkPopoverRef = useRef<HTMLDivElement | null>(null);
   const cardActionFeedbackTimersRef = useRef<
@@ -457,8 +531,29 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [requestedScriptId, targetUserId]);
 
   useEffect(() => {
+    initialListAutoRetryCountRef.current = 0;
+    if (!initialListAutoRetryTimerRef.current) return;
+    clearTimeout(initialListAutoRetryTimerRef.current);
+    initialListAutoRetryTimerRef.current = null;
+  }, [postedFilter, targetUserId]);
+
+  useEffect(() => {
     nextCursorRef.current = nextCursor;
   }, [nextCursor]);
+
+  const mergeContentOptions = useCallback((incoming: ContentOption[]) => {
+    setContentOptions((prev) => {
+      if (!incoming.length) return prev;
+      const next = [...prev];
+      const seen = new Set(prev.map((item) => item.id));
+      incoming.forEach((item) => {
+        if (seen.has(item.id)) return;
+        seen.add(item.id);
+        next.push(item);
+      });
+      return next;
+    });
+  }, []);
 
   const ensureCampaignOptionsLoaded = useCallback(async () => {
     if (isAdminViewer) {
@@ -470,8 +565,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
     try {
       setCampaignsLoading(true);
-      const response = await fetch("/api/proposals?limit=200&view=linking", { cache: "no-store" });
-      const payload = await response.json().catch(() => ({}));
+      const { response, payload } = await fetchJsonWithRetry("/api/proposals?limit=200&view=linking", {
+        cache: "no-store",
+      });
 
       if (!response.ok) {
         throw new Error(payload?.error || "Não foi possível carregar campanhas.");
@@ -521,51 +617,98 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     void ensureCampaignOptionsLoaded();
   }, [editorOpen, ensureCampaignOptionsLoaded, isAdminViewer]);
 
+  const hydrateRemainingContentOptions = useCallback(async () => {
+    if (contentOptionsHydratingRef.current) return;
+    if (!contentOptionsNextCursorRef.current) return;
+
+    contentOptionsHydratingRef.current = true;
+    const seenCursors = new Set<string>();
+
+    try {
+      while (contentOptionsNextCursorRef.current) {
+        const currentCursor = contentOptionsNextCursorRef.current;
+        if (!currentCursor || seenCursors.has(currentCursor)) break;
+        const cursor: string = currentCursor;
+        seenCursors.add(cursor);
+
+        const params = new URLSearchParams();
+        params.set("limit", String(CONTENT_OPTIONS_PAGE_LIMIT));
+        params.set("cursor", cursor);
+        if (targetUserId) params.set("targetUserId", targetUserId);
+
+        const { response, payload } = await fetchJsonWithRetry(`/api/scripts/content-options?${params.toString()}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || "Não foi possível carregar conteúdos publicados.");
+        }
+
+        const nextPageItems = (Array.isArray(payload?.items) ? payload.items : [])
+          .map((item: any) => normalizeContentOption(item))
+          .filter(Boolean) as ContentOption[];
+        mergeContentOptions(nextPageItems);
+
+        const nextCursor =
+          typeof payload?.pagination?.nextCursor === "string" && payload.pagination.nextCursor.trim()
+            ? payload.pagination.nextCursor.trim()
+            : null;
+        contentOptionsNextCursorRef.current =
+          Boolean(payload?.pagination?.hasMore) && Boolean(nextCursor) && nextCursor !== cursor
+            ? nextCursor
+            : null;
+      }
+    } catch (error: any) {
+      toast({
+        variant: "warning",
+        title: error?.message || "Falha ao carregar conteúdos adicionais para vinculação.",
+      });
+    } finally {
+      contentOptionsHydratingRef.current = false;
+    }
+  }, [mergeContentOptions, targetUserId, toast]);
+
   const ensureContentOptionsLoaded = useCallback(async () => {
     if (hasFetchedContentOptionsRef.current) {
+      if (contentOptionsNextCursorRef.current && !contentOptionsHydratingRef.current) {
+        void hydrateRemainingContentOptions();
+      }
       return contentOptions;
     }
 
     try {
       setContentOptionsLoading(true);
       const params = new URLSearchParams();
-      params.set("limit", "200");
+      params.set("limit", String(CONTENT_OPTIONS_PAGE_LIMIT));
       if (targetUserId) params.set("targetUserId", targetUserId);
-      const response = await fetch(`/api/scripts/content-options?${params.toString()}`, { cache: "no-store" });
-      const payload = await response.json().catch(() => ({}));
+
+      const { response, payload } = await fetchJsonWithRetry(`/api/scripts/content-options?${params.toString()}`, {
+        cache: "no-store",
+      });
 
       if (!response.ok || !payload?.ok) {
         throw new Error(payload?.error || "Não foi possível carregar conteúdos publicados.");
       }
 
-      const items = Array.isArray(payload?.items) ? payload.items : [];
-      const options: ContentOption[] = items
-        .map((item: any) => ({
-          id: String(item?.id ?? ""),
-          caption:
-            typeof item?.caption === "string" && item.caption.trim()
-              ? item.caption.trim()
-              : "Conteúdo sem legenda",
-          postDate: typeof item?.postDate === "string" ? item.postDate : null,
-          postLink: typeof item?.postLink === "string" ? item.postLink : null,
-          type: typeof item?.type === "string" ? item.type : null,
-          coverUrl: typeof item?.coverUrl === "string" ? item.coverUrl : null,
-          engagement:
-            typeof item?.engagement === "number" && Number.isFinite(item.engagement)
-              ? item.engagement
-              : null,
-          totalInteractions:
-            typeof item?.totalInteractions === "number" && Number.isFinite(item.totalInteractions)
-              ? item.totalInteractions
-              : null,
-        }))
-        .filter((item: ContentOption) => Boolean(item.id));
+      const options = (Array.isArray(payload?.items) ? payload.items : [])
+        .map((item: any) => normalizeContentOption(item))
+        .filter(Boolean) as ContentOption[];
 
       setContentOptions(options);
       hasFetchedContentOptionsRef.current = true;
+      const nextCursor =
+        typeof payload?.pagination?.nextCursor === "string" && payload.pagination.nextCursor.trim()
+          ? payload.pagination.nextCursor.trim()
+          : null;
+      contentOptionsNextCursorRef.current =
+        Boolean(payload?.pagination?.hasMore) && Boolean(nextCursor) ? nextCursor : null;
+      if (contentOptionsNextCursorRef.current) {
+        void hydrateRemainingContentOptions();
+      }
       return options;
     } catch (error: any) {
       setContentOptions([]);
+      contentOptionsNextCursorRef.current = null;
       hasFetchedContentOptionsRef.current = false;
       toast({
         variant: "warning",
@@ -575,7 +718,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     } finally {
       setContentOptionsLoading(false);
     }
-  }, [contentOptions, targetUserId, toast]);
+  }, [contentOptions, hydrateRemainingContentOptions, targetUserId, toast]);
 
   useEffect(() => {
     if (!editorOpen || hasFetchedContentOptionsRef.current) return;
@@ -645,6 +788,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const fetchScripts = useCallback(
     async (opts?: { reset?: boolean; cursor?: string | null }) => {
       const reset = Boolean(opts?.reset);
+      const requestId = ++scriptsRequestIdRef.current;
       setGlobalError(null);
 
       if (reset) setLoadingList(true);
@@ -658,16 +802,18 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       if (targetUserId) params.set("targetUserId", targetUserId);
 
       try {
-        const res = await fetch(`/api/scripts?${params.toString()}`, { cache: "no-store" });
-        const data = await res.json();
-        if (!res.ok || !data?.ok) {
-          throw new Error(data?.error || "Não foi possível carregar os roteiros.");
+        const { response, payload } = await fetchJsonWithRetry(`/api/scripts?${params.toString()}`, {
+          cache: "no-store",
+        });
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || "Não foi possível carregar os roteiros.");
         }
+        if (scriptsRequestIdRef.current !== requestId) return;
 
-        const incomingRaw = Array.isArray(data?.items) ? (data.items as ScriptItem[]) : [];
+        const incomingRaw = Array.isArray(payload?.items) ? (payload.items as ScriptItem[]) : [];
         const incoming = incomingRaw.map((item) => withNormalizedLinkingSummary(item));
-        const cursor = data?.pagination?.nextCursor ?? null;
-        const more = Boolean(data?.pagination?.hasMore);
+        const cursor = payload?.pagination?.nextCursor ?? null;
+        const more = Boolean(payload?.pagination?.hasMore);
 
         setScripts((prev) => {
           if (reset) return incoming;
@@ -677,9 +823,29 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         });
         setNextCursor(cursor);
         setHasMore(more);
+        initialListAutoRetryCountRef.current = 0;
+        if (initialListAutoRetryTimerRef.current) {
+          clearTimeout(initialListAutoRetryTimerRef.current);
+          initialListAutoRetryTimerRef.current = null;
+        }
       } catch (err: any) {
+        if (scriptsRequestIdRef.current !== requestId) return;
         setGlobalError(err?.message || "Erro inesperado ao carregar roteiros.");
+        if (
+          reset &&
+          initialListAutoRetryCountRef.current < MAX_INITIAL_LIST_AUTO_RETRIES
+        ) {
+          initialListAutoRetryCountRef.current += 1;
+          if (initialListAutoRetryTimerRef.current) {
+            clearTimeout(initialListAutoRetryTimerRef.current);
+          }
+          initialListAutoRetryTimerRef.current = setTimeout(() => {
+            initialListAutoRetryTimerRef.current = null;
+            void fetchScripts({ reset: true });
+          }, INITIAL_LIST_AUTO_RETRY_DELAY_MS);
+        }
       } finally {
+        if (scriptsRequestIdRef.current !== requestId) return;
         if (reset) setLoadingList(false);
         else setLoadingMore(false);
       }
@@ -689,11 +855,10 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
   const fetchPlannerSlots = useCallback(async () => {
     try {
-      const res = await fetch("/api/planner/plan", { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok || !data?.ok) return;
-      const weekStart = typeof data?.weekStart === "string" ? data.weekStart : null;
-      const slots = Array.isArray(data?.plan?.slots) ? data.plan.slots : [];
+      const { response, payload } = await fetchJsonWithRetry("/api/planner/plan", { cache: "no-store" });
+      if (!response.ok || !payload?.ok) return;
+      const weekStart = typeof payload?.weekStart === "string" ? payload.weekStart : null;
+      const slots = Array.isArray(payload?.plan?.slots) ? payload.plan.slots : [];
       setPlannerWeekStart(weekStart);
       setPlannerSlots(
         slots
@@ -901,6 +1066,8 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     setHasMore(false);
     setContentOptions([]);
     hasFetchedContentOptionsRef.current = false;
+    contentOptionsNextCursorRef.current = null;
+    contentOptionsHydratingRef.current = false;
     setPublicationSavingScriptId(null);
     setQuickPublishAnchorScriptId(null);
     setQuickPublishContentId("");
@@ -1026,6 +1193,14 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [clearHistoryTimer]);
 
   useEffect(() => {
+    return () => {
+      if (!initialListAutoRetryTimerRef.current) return;
+      clearTimeout(initialListAutoRetryTimerRef.current);
+      initialListAutoRetryTimerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const feedbackTimers = cardActionFeedbackTimersRef.current;
     return () => {
       feedbackTimers.forEach((timers) => {
@@ -1054,6 +1229,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     const initialContent = script.content || "";
     setEditor({
       id: script.id,
+      clientRequestId: null,
       title: initialTitle,
       content: initialContent,
       slotId: script.plannerRef?.slotId || "",
@@ -1094,8 +1270,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         const params = new URLSearchParams();
         if (targetUserId) params.set("targetUserId", targetUserId);
         const suffix = params.toString() ? `?${params.toString()}` : "";
-        const response = await fetch(`/api/scripts/${requestedScriptId}${suffix}`, { cache: "no-store" });
-        const payload = await response.json().catch(() => ({}));
+        const { response, payload } = await fetchJsonWithRetry(`/api/scripts/${requestedScriptId}${suffix}`, {
+          cache: "no-store",
+        });
         if (!response.ok || !payload?.ok || !payload?.item) {
           throw new Error(payload?.error || "Não foi possível abrir o roteiro da campanha.");
         }
@@ -1333,6 +1510,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         patchScriptList(updated);
         patchEditor({
           id: updated.id,
+          clientRequestId: null,
           title: updated.title,
           content: updated.content,
           recommendation: updated.recommendation || null,
@@ -1349,6 +1527,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       } else {
         const body: any = {
           mode: "manual",
+          clientRequestId: editor.clientRequestId,
           title: title || "Roteiro sem título",
           content,
           targetUserId: targetUserId || undefined,
@@ -1386,6 +1565,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         setScripts((prev) => [withNormalizedLinkingSummary(created), ...prev]);
         patchEditor({
           id: created.id,
+          clientRequestId: null,
           title: created.title,
           content: created.content,
           recommendation: created.recommendation || null,
@@ -1482,6 +1662,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             mode: "ai",
+            clientRequestId: editor.clientRequestId,
             prompt,
             title: editor.title.trim() || undefined,
             targetUserId: targetUserId || undefined,
@@ -1496,6 +1677,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         setScripts((prev) => [withNormalizedLinkingSummary(created), ...prev]);
         patchEditor({
           id: created.id,
+          clientRequestId: null,
           title: created.title,
           content: created.content,
           recommendation: created.recommendation || null,
@@ -1521,6 +1703,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     commitDraftSnapshot,
     editor.adminAnnotationDraft,
     editor.aiPrompt,
+    editor.clientRequestId,
     editor.id,
     editor.title,
     flushPendingDraftSnapshot,

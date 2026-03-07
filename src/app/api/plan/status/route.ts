@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
+import { logger } from "@/app/lib/logger";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import type Stripe from "stripe";
@@ -365,24 +367,60 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
   return { payload, updates };
 }
 
-async function respondWithPayload(user: any, options: BuildOptions = {}) {
+async function respondWithPayload(
+  user: any,
+  options: BuildOptions = {},
+  runtimeOptions?: {
+    persistUpdates?: boolean;
+    cacheKey?: string | null;
+  }
+) {
   const { payload, updates } = buildPlanStatusPayload(user, options);
-  if (updates) {
+  if (updates && runtimeOptions?.persistUpdates !== false) {
     try {
       await User.updateOne({ _id: (user as any)?._id }, { $set: updates });
     } catch {
       // ignora falha de persistência de atualização de trial
     }
   }
-  const cacheKey = String((user as any)?._id ?? "");
-  if (cacheKey) {
+  const responseCacheKey =
+    runtimeOptions?.cacheKey !== undefined
+      ? String(runtimeOptions.cacheKey ?? "")
+      : String((user as any)?._id ?? "");
+  if (responseCacheKey) {
     prunePlanStatusCache(Date.now());
-    planStatusCache.set(cacheKey, {
+    planStatusCache.set(responseCacheKey, {
       payload,
       expiresAt: Date.now() + PLAN_STATUS_CACHE_TTL_MS,
     });
   }
   return NextResponse.json(payload);
+}
+
+function buildSessionFallbackUser(session: any) {
+  const sessionUser = session?.user ?? {};
+  return {
+    _id: sessionUser.id ?? null,
+    planStatus: sessionUser.planStatus ?? null,
+    planInterval: sessionUser.planInterval ?? null,
+    stripePriceId: sessionUser.stripePriceId ?? null,
+    planExpiresAt: toDate(sessionUser.planExpiresAt),
+    cancelAtPeriodEnd: Boolean(sessionUser.cancelAtPeriodEnd),
+    proTrialStatus: sessionUser.proTrialStatus ?? null,
+    proTrialActivatedAt: toDate(sessionUser.proTrialActivatedAt),
+    proTrialExpiresAt: toDate(sessionUser.proTrialExpiresAt),
+    isInstagramConnected: Boolean(sessionUser.instagramConnected && sessionUser.instagramAccountId),
+    instagramAccountId: sessionUser.instagramAccountId ?? null,
+    instagramUsername: sessionUser.instagramUsername ?? null,
+    username: sessionUser.instagramUsername ?? null,
+    instagramSyncErrorCode: sessionUser.igConnectionErrorCode ?? null,
+    instagramSyncErrorMsg: sessionUser.igConnectionError ?? null,
+    lastInstagramSyncAttempt: toDate(sessionUser.lastInstagramSyncAttempt),
+    lastInstagramSyncSuccess:
+      typeof sessionUser.lastInstagramSyncSuccess === "boolean"
+        ? sessionUser.lastInstagramSyncSuccess
+        : null,
+  };
 }
 
 export async function GET(req: Request) {
@@ -409,8 +447,45 @@ export async function GET(req: Request) {
     }
   }
 
-  await connectToDatabase();
-  const user = await User.findById(session.user.id).lean();
+  const sessionFallbackUser = buildSessionFallbackUser(session);
+
+  let user: any = null;
+  try {
+    user = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return User.findById(session.user.id).lean();
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn(`[plan.status] Transient database error while loading plan status. Retry #${retryCount}.`, {
+            userId: session.user.id,
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
+  } catch (error) {
+    if (isTransientMongoError(error)) {
+      logger.warn("[plan.status] Falling back to session-backed plan payload after transient database failure.", {
+        userId: session.user.id,
+        error: getErrorMessage(error),
+      });
+      return respondWithPayload(
+        sessionFallbackUser,
+        {},
+        { persistUpdates: false, cacheKey }
+      );
+    }
+    logger.error("[plan.status] Failed to load plan status from database.", error);
+    return respondWithPayload(
+      sessionFallbackUser,
+      {},
+      { persistUpdates: false, cacheKey }
+    );
+  }
+
   if (!user) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
 
   const respondFromDb = () => respondWithPayload(user);
