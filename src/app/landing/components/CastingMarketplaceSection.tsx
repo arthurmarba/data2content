@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 import { UserAvatar } from "../../components/UserAvatar";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
 import { track } from "@/lib/track";
@@ -9,6 +8,7 @@ import type { UtmContext } from "@/lib/analytics/utm";
 import type { LandingCommunityMetrics, LandingCreatorHighlight } from "@/types/landing";
 import { BRAND_CAMPAIGN_ROUTE } from "@/constants/routes";
 import { motion, useAnimationControls } from "framer-motion";
+import MobileConversionFlowSection from "./MobileConversionFlowSection";
 
 const CASTING_API_ROUTE = "/api/landing/casting";
 
@@ -142,17 +142,17 @@ function buildNicheRails(sortedByContextAvg: LandingCreatorHighlight[]): Casting
             return {
                 key: `niche_${value}`,
                 title: bucket.isFallback ? "Contexto diverso" : bucket.label,
-                description: bucket.isFallback ? "Criadores com narrativas diversificadas." : `Criadores com foco em ${bucket.label}.`,
+                description: bucket.isFallback ? "Criadores com narrativas diversificadas validadas pela nossa IA." : `Narrativa estratégica com forte engajamento em ${bucket.label}.`,
                 creators: sortedCreators,
                 isFallback: bucket.isFallback,
                 avgContextInteractions,
             };
         })
         .sort((a, b) => {
-            const contextAvgDiff = (b.avgContextInteractions ?? 0) - (a.avgContextInteractions ?? 0);
-            if (contextAvgDiff !== 0) return contextAvgDiff;
             const volumeDiff = b.creators.length - a.creators.length;
             if (volumeDiff !== 0) return volumeDiff;
+            const contextAvgDiff = (b.avgContextInteractions ?? 0) - (a.avgContextInteractions ?? 0);
+            if (contextAvgDiff !== 0) return contextAvgDiff;
             return a.title.localeCompare(b.title);
         });
 }
@@ -173,6 +173,72 @@ function buildCuratedRails(creators: LandingCreatorHighlight[]): CastingRail[] {
     return buildNicheRails(sortedByContextAvg);
 }
 
+export const COMMUNITY_METRICS = [
+    { value: "50", label: "Criadores", icon: "💎", color: "text-brand-primary", glow: "shadow-[0_0_20px_rgba(255,44,126,0.12)]", bg: "bg-brand-primary/10" },
+    { value: "27M", label: "Alcance", icon: "🚀", color: "text-brand-accent", glow: "shadow-[0_0_20px_rgba(36,107,253,0.12)]", bg: "bg-brand-accent/10" },
+    { value: "7M", label: "Seguidores", icon: "👥", color: "text-brand-sun-dark", glow: "shadow-[0_0_20px_rgba(255,179,71,0.12)]", bg: "bg-brand-sun/10" },
+    { value: "12%", label: "Engajamento", icon: "⚡", color: "text-brand-primary", glow: "shadow-[0_0_20px_rgba(255,44,126,0.12)]", bg: "bg-brand-primary/10" },
+    { value: "15+", label: "Nichos", icon: "🎯", color: "text-brand-accent", glow: "shadow-[0_0_20px_rgba(36,107,253,0.12)]", bg: "bg-brand-accent/10" },
+    { value: "200+", label: "Marcas", icon: "💼", color: "text-brand-dark", glow: "shadow-[0_0_20px_rgba(20,28,47,0.08)]", bg: "bg-slate-100" },
+];
+
+export function CommunityMetricCard({ metric, index }: { metric: typeof COMMUNITY_METRICS[0]; index: number }) {
+    return (
+        <article
+            className={`group relative flex w-[140px] shrink-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-[1.6rem] border border-white/40 bg-white/60 p-4 backdrop-blur-md shadow-[0_16px_34px_rgba(20,33,61,0.04)] transition-all duration-500 hover:-translate-y-1.5 hover:bg-white/80 hover:shadow-[0_22px_44px_rgba(20,33,61,0.08)] sm:w-[195px] sm:rounded-[2rem] sm:p-7 ${metric.glow}`}
+        >
+            {/* Inner Reflection Edge */}
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] border border-white/80 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
+            <div className={`flex h-11 w-11 items-center justify-center rounded-[1.1rem] ${metric.bg} text-xl shadow-inner transition-all duration-500 group-hover:rotate-6 group-hover:scale-110 sm:h-14 sm:w-14 sm:rounded-2xl sm:text-2xl`}>
+                {metric.icon}
+            </div>
+
+            <div className="flex flex-col items-center text-center">
+                <span className={`text-2xl font-black leading-none tracking-tighter transition-transform duration-500 group-hover:scale-105 sm:text-4xl ${metric.color}`}>
+                    +{metric.value}
+                </span>
+                <span className="mt-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 sm:text-[10px]">
+                    {metric.label}
+                </span>
+            </div>
+
+            {/* Subtle pulsive glow */}
+            <div className={`absolute -bottom-4 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full blur-md transition-all duration-500 group-hover:h-3 group-hover:w-16 ${metric.color.replace('text-', 'bg-').split(' ')[0]}`} />
+        </article>
+    );
+}
+
+export function CommunityMetricsRail({ speed = 0.03 }: { speed?: number }) {
+    return (
+        <div className="relative flex w-full overflow-hidden py-2">
+            {/* Gradient Fades */}
+            <div className="pointer-events-none absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-white/95 to-white/0 sm:w-16" />
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-white/95 to-white/0 sm:w-16" />
+
+            <div className="flex animate-marquee gap-3 sm:gap-4">
+                {[...COMMUNITY_METRICS, ...COMMUNITY_METRICS, ...COMMUNITY_METRICS].map((m, i) => (
+                    <CommunityMetricCard key={`${m.label}-${i}`} metric={m} index={i} />
+                ))}
+            </div>
+            <style jsx>{`
+                @keyframes marquee {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-33.33%); }
+                }
+                .animate-marquee {
+                    display: flex;
+                    width: max-content;
+                    animation: marquee ${20 / speed}s linear infinite;
+                }
+                .animate-marquee:hover {
+                    animation-play-state: paused;
+                }
+            `}</style>
+        </div>
+    );
+}
+
 function partitionRails(rails: CastingRail[]) {
     return {
         fullRails: rails.filter(r => r.creators.length >= 2 && !r.isFallback),
@@ -180,10 +246,19 @@ function partitionRails(rails: CastingRail[]) {
     };
 }
 
+
 /**
  * MAIN COMPONENT
  */
-export default function CastingMarketplaceSection({ initialCreators = [], metrics }: { initialCreators?: LandingCreatorHighlight[]; metrics?: LandingCommunityMetrics | null }) {
+export default function CastingMarketplaceSection({
+    initialCreators = [],
+    metrics: _metrics,
+    categories,
+}: {
+    initialCreators?: LandingCreatorHighlight[];
+    metrics?: LandingCommunityMetrics | null;
+    categories?: { label?: string | null }[] | null;
+}) {
     const initialCreatorsAreFallback = React.useMemo(
         () => initialCreators.length > 0 && initialCreators.every((creator) => creator.id.startsWith("fallback-")),
         [initialCreators],
@@ -194,9 +269,24 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
     const [debouncedSearch, setDebouncedSearch] = React.useState("");
     const [minFollowers, setMinFollowers] = React.useState("");
     const [minAvgInteractions, setMinAvgInteractions] = React.useState("");
-    const [isFilterOpen, setIsFilterOpen] = React.useState(false);
+    const [isDesktopLayout, setIsDesktopLayout] = React.useState(false);
     const { appendUtm } = useUtmAttribution();
     const hasActiveFilters = Boolean(debouncedSearch || minFollowers || minAvgInteractions);
+
+    React.useEffect(() => {
+        if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+        const mediaQuery = window.matchMedia("(min-width: 768px)");
+        const sync = () => setIsDesktopLayout(mediaQuery.matches);
+        sync();
+
+        if (typeof mediaQuery.addEventListener === "function") {
+            mediaQuery.addEventListener("change", sync);
+            return () => mediaQuery.removeEventListener("change", sync);
+        }
+
+        mediaQuery.addListener(sync);
+        return () => mediaQuery.removeListener(sync);
+    }, []);
 
     React.useEffect(() => {
         const handle = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -269,199 +359,137 @@ export default function CastingMarketplaceSection({ initialCreators = [], metric
     const curatedRails = React.useMemo(() => buildCuratedRails(creators), [creators]);
     const { fullRails, microRails } = React.useMemo(() => partitionRails(curatedRails), [curatedRails]);
     const railScrollerStyle = {
-        "--market-card-width": "clamp(100px, calc((100% - 1.875rem) / 3.25), 112px)",
+        "--market-card-width": "clamp(112px, calc((100% - 2.75rem) / 2.95), 126px)",
     } as React.CSSProperties;
+    void _metrics;
 
-    void metrics;
+    const renderMarketplaceContent = (options?: { embeddedMobile?: boolean }) => {
+        const embeddedMobile = options?.embeddedMobile ?? false;
+        const wrapperClassName = embeddedMobile ? "space-y-6" : "space-y-7 sm:space-y-8";
+        const emptyStateClassName = embeddedMobile
+            ? "mx-4 rounded-[1.8rem] border border-dashed border-slate-300 bg-white/80 py-16 text-center"
+            : "rounded-[3rem] border border-dashed border-slate-300 bg-white py-32 text-center";
+
+        return (
+            <div className={wrapperClassName}>
+                {loading && creators.length === 0 ? (
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        {[1, 2, 3, 4].map(i => <div key={i} className="h-96 animate-pulse rounded-[3rem] bg-white border border-slate-100" />)}
+                    </div>
+                ) : creators.length === 0 ? (
+                    <div className={emptyStateClassName}>
+                        <p className="text-xl font-black text-slate-400">Nenhum criador com esta performance no momento.</p>
+                        <button onClick={() => { setSearch(""); setMinFollowers(""); setMinAvgInteractions(""); }} className="mt-4 font-black text-[#FF4080] hover:underline underline-offset-8">Limpar todos os filtros</button>
+                    </div>
+                ) : (
+                    <>
+                        {fullRails.map((rail, railIndex) => (
+                            <motion.div
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, margin: "-100px" }}
+                                transition={{ duration: 0.6, delay: railIndex * 0.15, ease: "easeOut" }}
+                                key={rail.key}
+                                className={railIndex === 0
+                                    ? embeddedMobile
+                                        ? "space-y-4 pt-0.5"
+                                        : "space-y-4 pt-0.5 sm:space-y-4 sm:pt-10"
+                                    : embeddedMobile
+                                        ? "space-y-4 border-t border-slate-100 pt-6"
+                                        : "space-y-4 border-t border-slate-100 pt-8 sm:space-y-4 sm:pt-10"}
+                            >
+                                <div className={embeddedMobile ? "px-4" : "mx-auto flex max-w-7xl items-end px-1.5 sm:px-4"}>
+                                    <div>
+                                        <h3 className="text-[1.4rem] font-black leading-[1.05] tracking-[-0.03em] text-[#141C2F] sm:text-3xl">{rail.title}</h3>
+                                    </div>
+                                </div>
+
+                                <AutoScrollRail creators={rail.creators} handleBrandForm={handleBrandForm} speed={0.04} style={railScrollerStyle} />
+                            </motion.div>
+                        ))}
+
+                        {microRails.length > 0 && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, margin: "-100px" }}
+                                transition={{ duration: 0.6, ease: "easeOut" }}
+                                className={embeddedMobile ? "space-y-4 border-t border-slate-100 pt-6" : "space-y-4 border-t border-slate-100 pt-8 sm:space-y-6 sm:pt-10"}
+                            >
+                                <div className={embeddedMobile ? "flex items-end justify-between px-4" : "mx-auto flex max-w-7xl items-end justify-between px-1.5 sm:px-4"}>
+                                    <div>
+                                        <h3 className="text-[1.4rem] font-black leading-[1.05] tracking-[-0.03em] text-[#141C2F] sm:text-3xl">Diversas Narrativas</h3>
+                                    </div>
+                                </div>
+
+                                <AutoScrollRail creators={microRails.flatMap(r => r.creators)} handleBrandForm={handleBrandForm} speed={0.03} style={railScrollerStyle} />
+                            </motion.div>
+                        )}
+                    </>
+                )}
+            </div>
+        );
+    };
 
     return (
-        <section id="galeria" className="landing-section landing-section--compact-top relative overflow-hidden bg-white pt-0.5 sm:pt-6 scroll-mt-[calc(var(--landing-header-h,4.5rem)+10px)]">
+        <section id="galeria" className="landing-section landing-section--compact-top relative overflow-hidden bg-white pt-2 scroll-mt-[calc(var(--landing-header-h,4.5rem)+10px)]" style={{ paddingTop: 0 }}>
             <div className="landing-section__inner landing-section__inner--wide">
-                <div className="relative mb-3 hidden sm:mb-12 sm:block">
-                    <div className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/70 p-3.5 shadow-[0_20px_44px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:rounded-[2.5rem] sm:p-8">
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#FF2C7E22,transparent_45%),radial-gradient(circle_at_80%_10%,#246BFD18,transparent_50%)]" />
-                        <div className="relative space-y-2 sm:space-y-6">
-                            <header className="flex flex-col items-center gap-1.5 text-center sm:gap-3">
-                                <h2 className="text-[1.9rem] font-black tracking-tight text-brand-dark text-balance sm:text-5xl lg:text-6xl">
-                                    Membros d2c
-                                </h2>
-                            </header>
+                {!isDesktopLayout ? (
+                    <div
+                        data-testid="marketplace-mobile-integrated-layout"
+                        className="px-4 pb-0 pt-2"
+                    >
+                        <MobileConversionFlowSection categories={categories as any} creators={creators} embedded />
+                        <div className="pt-4">
+                            {renderMarketplaceContent({ embeddedMobile: true })}
                         </div>
                     </div>
-                </div>
-
-                {/* FILTERS */}
-                <div className="sticky top-[calc(var(--landing-header-h,4.5rem)+8px)] z-30 mb-2.5 hidden rounded-[1.25rem] border border-slate-100 bg-white p-1.5 shadow-[0_18px_40px_rgba(20,33,61,0.08)] backdrop-blur-2xl sm:mb-6 sm:block sm:rounded-[1.75rem] sm:p-3">
-                    <div className="hidden md:grid gap-2 md:grid-cols-3">
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Buscar por nicho ou @"
-                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3.5 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15 placeholder:text-slate-400"
-                        />
-                        <select
-                            value={minFollowers}
-                            onChange={(e) => setMinFollowers(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3.5 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15"
+                ) : (
+                    <>
+                        <div
+                            data-testid="marketplace-filter-bar"
+                            className="sticky top-[calc(var(--landing-header-h,4.5rem)+4px)] z-30 mb-5 rounded-[1.25rem] border border-slate-100 bg-white/95 p-2 shadow-[0_18px_40px_rgba(20,33,61,0.08)] backdrop-blur-2xl md:mb-7 md:rounded-[1.75rem] md:p-4"
                         >
-                            {followerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                        <select
-                            value={minAvgInteractions}
-                            onChange={(e) => setMinAvgInteractions(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3.5 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15"
-                        >
-                            {interactionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                    </div>
-                    <div className="md:hidden relative">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">
-                            🔍
-                        </span>
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Buscar"
-                            className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 py-2.5 pl-9 pr-12 text-[11px] font-semibold text-slate-700 shadow-inner outline-none transition focus:border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#FF4080]/15 placeholder:text-slate-400"
-                        />
-                        <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 h-3.5 w-px bg-slate-200/70" />
-                        <button
-                            type="button"
-                            aria-label="Filtros"
-                            onClick={() => setIsFilterOpen(true)}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-lg border border-slate-200/70 bg-white p-1.5 text-slate-600 shadow-sm transition hover:bg-slate-50"
-                        >
-                            <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-                </div>
-
-                {isFilterOpen && (
-                    <div className="fixed inset-0 z-[70] md:hidden">
-                        <button
-                            type="button"
-                            aria-label="Fechar filtros"
-                            className="absolute inset-0 bg-black/40"
-                            onClick={() => setIsFilterOpen(false)}
-                        />
-                        <div className="absolute inset-x-0 bottom-0 rounded-t-[2rem] border border-white/70 bg-white/95 p-4 shadow-[0_-18px_40px_rgba(20,33,61,0.2)] backdrop-blur-xl">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-black text-brand-dark">Filtros</span>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsFilterOpen(false)}
-                                    className="text-xs font-bold text-slate-500"
-                                >
-                                    Fechar
-                                </button>
-                            </div>
-                            <div className="mt-4 grid gap-3">
-                                <div className="grid gap-2">
-                                    <span className="text-[11px] font-semibold text-slate-500">Seguidores</span>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-3 md:gap-3">
+                                <div className="relative">
+                                    <input
+                                        type="search"
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        placeholder="Buscar por nicho ou @"
+                                        className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 py-2.5 pl-9 pr-3.5 text-[12px] font-bold text-slate-700 outline-none transition focus:border-brand-primary/30 focus:bg-white focus:ring-4 focus:ring-brand-primary/5 placeholder:text-slate-400 md:py-3 md:text-[11px]"
+                                    />
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div className="flex gap-2 md:contents">
                                     <select
                                         value={minFollowers}
                                         onChange={(e) => setMinFollowers(e.target.value)}
-                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"
+                                        className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-brand-primary/30 focus:bg-white focus:ring-4 focus:ring-brand-primary/5 md:py-3"
                                     >
-                                        {followerOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        {followerOptions.map(o => <option key={o.value} value={o.value}>{o.label === "Todos os seguidores" ? "Seguidores" : o.label}</option>)}
                                     </select>
-                                </div>
-                                <div className="grid gap-2">
-                                    <span className="text-[11px] font-semibold text-slate-500">Interações/post</span>
                                     <select
                                         value={minAvgInteractions}
                                         onChange={(e) => setMinAvgInteractions(e.target.value)}
-                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"
+                                        className="w-full rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2.5 text-[11px] font-bold text-slate-700 outline-none transition focus:border-brand-primary/30 focus:bg-white focus:ring-4 focus:ring-brand-primary/5 md:py-3"
                                     >
-                                        {interactionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        {interactionOptions.map(o => <option key={o.value} value={o.value}>{o.label === "Todas interações/post" ? "Performance" : o.label}</option>)}
                                     </select>
                                 </div>
                             </div>
-                            <div className="mt-4 flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setMinFollowers("");
-                                        setMinAvgInteractions("");
-                                    }}
-                                    className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600"
-                                >
-                                    Limpar
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsFilterOpen(false)}
-                                    className="flex-1 rounded-xl bg-brand-primary px-3 py-2 text-xs font-bold text-white"
-                                >
-                                    Aplicar
-                                </button>
-                            </div>
                         </div>
-                    </div>
+
+                        <div className="mb-5 hidden border-t border-slate-200/80 sm:mb-6 sm:block" />
+                        <div className="md:pt-1">
+                            {renderMarketplaceContent()}
+                        </div>
+                    </>
                 )}
-
-                <div className="-mt-10 mb-1 border-t border-slate-200/80 sm:mt-0 sm:mb-4" />
-
-                {/* CONTENT */}
-                <div className="space-y-2 sm:space-y-8">
-                    {loading && creators.length === 0 ? (
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                            {[1, 2, 3, 4].map(i => <div key={i} className="h-96 animate-pulse rounded-[3rem] bg-white border border-slate-100" />)}
-                        </div>
-                    ) : creators.length === 0 ? (
-                        <div className="rounded-[3rem] border border-dashed border-slate-300 bg-white py-32 text-center">
-                            <p className="text-xl font-black text-slate-400">Nenhum criador com esta performance no momento.</p>
-                            <button onClick={() => { setSearch(""); setMinFollowers(""); setMinAvgInteractions(""); }} className="mt-4 font-black text-[#FF4080] hover:underline underline-offset-8">Limpar todos os filtros</button>
-                        </div>
-                    ) : (
-                        <>
-                            {fullRails.map((rail, railIndex) => (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 30 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true, margin: "-100px" }}
-                                    transition={{ duration: 0.6, delay: railIndex * 0.15, ease: "easeOut" }}
-                                    key={rail.key}
-                                    className={railIndex === 0
-                                        ? "space-y-3 pt-5 sm:space-y-4 sm:pt-10"
-                                        : "space-y-3 border-t border-slate-100 pt-7 sm:space-y-4 sm:pt-10"}
-                                >
-                                    <div className="flex items-end px-2 sm:px-4 max-w-7xl mx-auto">
-                                        <div>
-                                            <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">{rail.title}</h3>
-                                        </div>
-                                    </div>
-
-                                    {/* Auto-Marquee Wrapper */}
-                                    <AutoScrollRail creators={rail.creators} handleBrandForm={handleBrandForm} speed={0.04} style={railScrollerStyle} />
-
-                                </motion.div>
-                            ))}
-
-                            {microRails.length > 0 && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 30 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true, margin: "-100px" }}
-                                    transition={{ duration: 0.6, ease: "easeOut" }}
-                                    className="space-y-4 pt-8 border-t border-slate-100 sm:space-y-6 sm:pt-10"
-                                >
-                                    <div className="flex items-end justify-between px-2 sm:px-4 max-w-7xl mx-auto">
-                                        <div>
-                                            <h3 className="text-2xl font-black text-[#141C2F] tracking-tight sm:text-3xl">Várias Narrativas</h3>
-                                        </div>
-                                    </div>
-
-                                    {/* Auto-Marquee Wrapper */}
-                                    <AutoScrollRail creators={microRails.flatMap(r => r.creators)} handleBrandForm={handleBrandForm} speed={0.03} style={railScrollerStyle} />
-                                </motion.div>
-                            )}
-
-                        </>
-                    )}
-                </div>
             </div>
             <style jsx global>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -700,8 +728,9 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
         return (
             <div className="relative flex overflow-hidden w-full">
                 <div
+                    data-testid="marketplace-mobile-rail"
                     ref={scrollerRef}
-                    className="flex gap-2 overflow-x-auto pb-4 pt-1 hide-scrollbar touch-pan-x px-3"
+                    className="flex gap-3 overflow-x-auto px-4 pb-3 pt-1.5 hide-scrollbar touch-pan-x snap-x snap-mandatory"
                     style={style}
                     onMouseEnter={handleInteractionStart}
                     onMouseLeave={handleInteractionEnd}
@@ -724,8 +753,9 @@ function AutoScrollRail({ creators, handleBrandForm, speed = 0.04, style }: { cr
 
     return (
         <div className="relative flex overflow-hidden group w-full" style={style}>
-            <div className="absolute left-0 top-0 bottom-0 w-24 z-10 bg-gradient-to-r from-white to-transparent pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-24 z-10 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+            {/* Gradient Fades */}
+            <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 z-10 bg-gradient-to-r from-white to-white/0 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 z-10 bg-gradient-to-l from-white to-white/0 pointer-events-none" />
 
             <div
                 ref={scrollerRef}
@@ -791,15 +821,15 @@ function CastingRankCard({
 
     return (
         <article
-            className={`relative flex-shrink-0 overflow-hidden rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 bg-white shadow-[0_14px_30px_rgba(20,33,61,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(20,33,61,0.12)] ${cardWidthClass}`}
+            className={`relative flex-shrink-0 overflow-hidden rounded-[1.45rem] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] shadow-[0_12px_28px_rgba(20,33,61,0.05)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_18px_36px_rgba(20,33,61,0.08)] sm:rounded-[1.5rem] ${cardWidthClass}`}
         >
             <div className="relative p-2 sm:p-3">
                 <div className="flex items-center justify-between">
-                    <p className="truncate text-[10px] sm:text-[11px] font-semibold text-[#727C8F]">@{creator.username || creator.name || "Criador"}</p>
+                    <p className="max-w-full truncate rounded-full bg-slate-100/90 px-2 py-1 text-[8px] font-bold tracking-[-0.01em] text-[#6F7890] sm:bg-transparent sm:px-0 sm:py-0 sm:text-[11px]">@{creator.username || creator.name || "Criador"}</p>
                 </div>
 
                 <div>
-                    <div className="mt-2.5 sm:mt-3 overflow-hidden rounded-[0.95rem] sm:rounded-[1.15rem] bg-[#F7F8FB] ring-1 ring-slate-100/80">
+                    <div className="mt-2.5 overflow-hidden rounded-[1.1rem] bg-[linear-gradient(180deg,#f8f9fd_0%,#eef2f9_100%)] ring-1 ring-slate-100/80 sm:mt-3 sm:rounded-[1.15rem]">
                         <div className="relative w-full pb-[100%]">
                             <UserAvatar
                                 name={creator.name || creator.username || "Criador"}
@@ -807,45 +837,41 @@ function CastingRankCard({
                                 size={96}
                                 fit="contain"
                                 fillContainer
-                                className="absolute inset-0 h-full w-full rounded-[0.95rem] sm:rounded-[1.15rem] grayscale-[0.1] hover:grayscale-0 transition-all duration-500"
+                                className="absolute inset-0 h-full w-full rounded-[1.05rem] grayscale-[0.1] transition-all duration-500 hover:grayscale-0 sm:rounded-[1.15rem]"
                             />
                         </div>
                     </div>
 
                     <div className="mt-2.5 sm:mt-3.5">
-                        <p className="line-clamp-1 text-[12px] sm:text-sm font-black text-[#141C2F] leading-tight">{creator.name}</p>
+                        <p className="line-clamp-2 min-h-[2rem] text-[12.5px] font-black leading-[1.18] tracking-[-0.02em] text-[#141C2F] sm:text-sm">{creator.name}</p>
                     </div>
 
-                    <div className="mt-2.5 sm:mt-3.5 space-y-1.5 sm:space-y-2 border-t border-slate-100/70 pt-2 sm:pt-3 pb-0.5 sm:pb-1 text-[8px] sm:text-[9px] font-black text-[#A3A9B6] tracking-[0.02em] sm:tracking-[0.16em] sm:uppercase">
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
-                            <span className="pr-1">
-                                <span className="sm:hidden">Seg.</span>
-                                <span className="hidden sm:inline">Seguidores</span>
-                            </span>
-                            <span className="text-right text-[#141C2F] whitespace-nowrap tabular-nums">{followersText}</span>
-                        </div>
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
-                            <span className="pr-1 text-[#FF4080]">
-                                <span className="sm:hidden">Eng.</span>
-                                <span className="hidden sm:inline">Engajamento</span>
-                            </span>
-                            <span className="text-right text-[#FF4080] whitespace-nowrap tabular-nums">{engagementRate ? `${engagementRate.toFixed(1)}%` : "–"}</span>
-                        </div>
-                        <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
-                            <span className="truncate pr-1">Alcance M</span>
-                            <span className="text-right text-[#141C2F] whitespace-nowrap tabular-nums">{avgReachText}</span>
+                    <div className="mt-2.5 border-t border-slate-100/80 pt-2.5 sm:mt-3.5 sm:pb-1 sm:pt-3">
+                        <div className="grid grid-cols-1 gap-1.5 sm:block sm:space-y-2">
+                            <div className="grid grid-cols-1 gap-0.5 rounded-[0.9rem] border border-slate-100 bg-slate-50/85 px-2 py-1.5 text-[8px] font-black tracking-[0.02em] text-[#A3A9B6] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-2 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-[9px] sm:tracking-[0.16em] sm:uppercase">
+                                <span className="pr-1 text-slate-400">Seguidores</span>
+                                <span className="text-left text-[10px] text-brand-dark tabular-nums sm:text-right sm:text-[9px] sm:whitespace-nowrap">{followersText}</span>
+                            </div>
+                            <div className="grid grid-cols-1 gap-0.5 rounded-[0.9rem] border border-brand-primary/10 bg-brand-primary/[0.04] px-2 py-1.5 text-[8px] font-black tracking-[0.02em] text-[#A3A9B6] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-2 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-[9px] sm:tracking-[0.16em] sm:uppercase">
+                                <span className="pr-1 text-brand-primary/60">Taxa de Eng.</span>
+                                <span className="text-left text-[10px] text-brand-primary tabular-nums sm:text-right sm:text-[9px] sm:whitespace-nowrap">{engagementRate ? `${engagementRate.toFixed(1)}%` : "–"}</span>
+                            </div>
+                            <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 text-[9px] font-black tracking-[0.16em] text-[#A3A9B6] uppercase">
+                                <span className="truncate pr-1">Alcance M</span>
+                                <span className="text-right text-[#141C2F] whitespace-nowrap tabular-nums">{avgReachText}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="pt-2 sm:pt-3">
+                <div className="pt-3 sm:pt-3">
                     {mediaKitHref ? (
-                        <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#141C2F] py-2 sm:py-2.5 text-[11px] leading-none sm:text-xs font-black text-white transition-transform hover:scale-[1.02] active:scale-[0.98]">
+                        <a href={mediaKitHref} className="flex w-full items-center justify-center gap-2 rounded-[1rem] bg-[#141C2F] py-2.5 text-[11px] font-black leading-none text-white transition-transform hover:scale-[1.02] active:scale-[0.98] sm:rounded-2xl sm:py-2.5 sm:text-xs">
                             <span className="whitespace-nowrap sm:hidden">Conhecer</span>
                             <span className="hidden sm:inline">Ver Mídia Kit →</span>
                         </a>
                     ) : (
-                        <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl border-2 border-[#141C2F] py-1.5 text-[11px] leading-none sm:text-[11px] font-black text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white">
+                        <button onClick={onRequestMediaKit} className="flex w-full items-center justify-center gap-2 rounded-[1rem] border-2 border-[#141C2F] py-2.5 text-[11px] font-black leading-none text-[#141C2F] transition-all hover:bg-[#141C2F] hover:text-white sm:rounded-2xl sm:text-[11px]">
                             <span className="whitespace-nowrap sm:hidden">Solicitar</span>
                             <span className="hidden sm:inline">Solicitar Acesso</span>
                         </button>

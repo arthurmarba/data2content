@@ -19,6 +19,7 @@ import HeroModern from "./landing/components/HeroModern";
 import CastingMarketplaceSection from "./landing/components/CastingMarketplaceSection";
 import PlansComparisonSection from "./landing/components/PlansComparisonSection";
 import MobileStickyCta from "./landing/components/MobileStickyCta";
+import { getLandingPrimaryCtaLabel } from "./landing/copy";
 
 const FALLBACK_METRICS = {
   activeCreators: 130,
@@ -513,7 +514,9 @@ export default function LandingPageClient() {
     };
   }, []);
 
-  const metrics = stats?.metrics ?? (loadingStats ? null : fallbackStats.metrics);
+  const metrics = stats?.metrics ?? fallbackStats.metrics;
+  const categories = stats?.categories ?? (loadingStats ? null : fallbackStats.categories);
+  const isAuthenticated = Boolean(session?.user);
   const rankingForGallery = React.useMemo(() => {
     const baseRanking = stats?.ranking ?? fallbackStats.ranking ?? [];
     const uniqueBaseRanking = baseRanking.filter(
@@ -540,22 +543,26 @@ export default function LandingPageClient() {
       >
         <HeroModern
           onCreatorCta={handleCreatorCta}
-          isAuthenticated={Boolean(session?.user)}
+          isAuthenticated={isAuthenticated}
           metrics={metrics}
         />
 
         <CastingMarketplaceSection
           initialCreators={rankingForGallery}
           metrics={metrics}
+          categories={categories}
         />
 
-        <PlansComparisonSection onCreateAccount={handleCreatorCta} />
+        <PlansComparisonSection
+          onCreateAccount={handleCreatorCta}
+          isAuthenticated={isAuthenticated}
+        />
       </main>
 
       <footer className="border-t border-[var(--landing-border)] bg-[var(--landing-surface-muted)] text-[var(--landing-text-muted)]">
-        <div className="landing-section__inner landing-section__inner--wide flex flex-col gap-8 py-10 md:gap-12">
-          <div className="grid gap-8 md:grid-cols-[1.2fr_0.9fr_0.9fr]">
-            <div className="flex flex-col gap-4 max-w-md">
+        <div className="landing-section__inner landing-section__inner--wide flex flex-col gap-8 py-9 md:gap-12 md:py-10">
+          <div className="grid gap-4 md:grid-cols-[1.2fr_0.9fr_0.9fr] md:gap-8">
+            <div className="flex max-w-md flex-col gap-4 rounded-[1.5rem] border border-white/80 bg-white/70 p-4 shadow-[0_12px_30px_rgba(20,33,61,0.05)] md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
               <div className="flex items-center gap-3">
                 <div className="relative h-11 w-11 overflow-hidden rounded-full border border-[var(--landing-border)] bg-white">
                   <Image
@@ -568,28 +575,28 @@ export default function LandingPageClient() {
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.25em]">Data2Content</p>
-                  <p className="text-sm text-[var(--landing-text)]/80">Inteligência viva para a sua carreira. O parceiro estratégico que revisa conteúdo e conecta marcas.</p>
+                  <p className="text-[13px] leading-[1.4] text-[var(--landing-text)]/80 md:text-sm">Inteligência viva para a sua carreira. O parceiro estratégico que revisa conteúdo e conecta marcas.</p>
                 </div>
               </div>
-              <p className="text-sm text-[var(--landing-text-muted)]/90 leading-relaxed">
+              <p className="text-[13px] leading-[1.65] text-[var(--landing-text-muted)]/90 md:text-sm">
                 Insights confiáveis, mídia kit vivo, suporte estratégico e oportunidades reais — tudo em um único ecossistema.
               </p>
             </div>
 
-            <nav className="grid grid-cols-2 gap-3 text-sm md:grid-cols-1">
+            <nav className="grid grid-cols-2 gap-2 rounded-[1.5rem] border border-white/80 bg-white/70 p-4 text-[13px] font-medium shadow-[0_12px_30px_rgba(20,33,61,0.05)] md:grid-cols-1 md:gap-3 md:rounded-none md:border-0 md:bg-transparent md:p-0 md:text-sm md:shadow-none">
               {FOOTER_LINKS.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="transition-colors duration-200 hover:text-brand-primary"
+                  className="rounded-full px-2 py-1 transition-colors duration-200 hover:text-brand-primary md:px-0 md:py-0"
                 >
                   {item.label}
                 </Link>
               ))}
             </nav>
 
-            <div className="flex flex-col gap-3 text-sm">
-              <p className="text-eyebrow text-[var(--landing-text-muted)]">Contato direto</p>
+            <div className="flex flex-col gap-3 rounded-[1.5rem] border border-white/80 bg-white/70 p-4 text-[13px] shadow-[0_12px_30px_rgba(20,33,61,0.05)] md:rounded-none md:border-0 md:bg-transparent md:p-0 md:text-sm md:shadow-none">
+              <p className="text-eyebrow text-[10px] text-[var(--landing-text-muted)] md:text-[var(--landing-text-muted)]">Contato direto</p>
               <Link
                 href="mailto:arthur@data2content.ai"
                 className="text-brand-primary underline-offset-4 hover:underline"
@@ -602,7 +609,7 @@ export default function LandingPageClient() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 border-t border-[var(--landing-border)] pt-4 text-[11px] text-[var(--landing-text-muted)] md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 border-t border-[var(--landing-border)] pt-4 text-[10px] leading-relaxed text-[var(--landing-text-muted)] md:flex-row md:items-center md:justify-between md:text-[11px]">
             <span>© {new Date().getFullYear()} Data2Content. Todos os direitos reservados.</span>
             <span>Construída do Brasil para o mercado criativo.</span>
           </div>
@@ -610,11 +617,12 @@ export default function LandingPageClient() {
       </footer>
 
       <MobileStickyCta
-        label={session?.user ? "Acessar minha conta" : "Quero entrar na D2C"}
+        label={getLandingPrimaryCtaLabel(isAuthenticated)}
         onClick={handleCreatorCta}
-        showAfterTargetId="galeria"
-        scrollOffset={320}
-        intersectionThreshold={0.45}
+        description="Consultoria e direcao estrategica toda semana."
+        scrollOffset={180}
+        showAfterTargetId="planos"
+        intersectionThreshold={0.15}
       />
     </div>
   );

@@ -3,9 +3,9 @@ import {
   AffiliateInvoiceIndex,
   AffiliateSubscriptionIndex,
 } from "@/server/db/models/AffiliateIndexes";
-import AffiliateRefundProgress from "@/app/models/AffiliateRefundProgress";
 import type Stripe from "stripe";
 import { withMongoTransientRetry } from "@/app/lib/mongoTransient";
+import { calcCommissionCents as calcAffiliateCommissionCents } from "@/app/services/affiliate/calcCommissionCents";
 
 export async function findUserByCustomerId(customerId: string) {
   return withMongoTransientRetry(
@@ -64,14 +64,8 @@ export async function ensureSubscriptionFirstTime(subscriptionId: string, affili
   return (res.upsertedCount ?? 0) > 0;
 }
 
-export function cents(n: number) {
-  return Math.round(n ?? 0);
-}
-
 export function calcCommissionCents(invoice: Stripe.Invoice) {
-  const rate = Number(process.env.COMMISSION_RATE_BPS ?? "1000") / 10000; // default 10%
-  const paid = Number(invoice.amount_paid ?? 0);
-  return cents(paid * rate);
+  return calcAffiliateCommissionCents(invoice);
 }
 
 export function addDays(date: Date, days: number) {

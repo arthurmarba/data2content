@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Crown, Check, ArrowRight, ArrowUpRight, Loader2, Lock } from "lucide-react";
+import { FaLock } from "react-icons/fa";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
@@ -50,61 +51,61 @@ type PaywallCopy = {
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
-    title: "Plano Pro: tudo para negociar direto com marcas",
+    title: "Ativar Consultoria Estratégica (D2C)",
     subtitle:
-      "Mídia kit auditado, mentorias e IA aplicada para precificar, responder e fechar publis.",
+      "Acesso ao Motor IA para narrativa, revisões semanais em grupo e radar de talentos Destaque.",
     bullets: FEATURES,
-    ctaLabel: "Ativar Plano Pro",
+    ctaLabel: "Ativar Acesso VIP",
   },
   reply_email: {
-    title: "Responder propostas é Plano Pro",
+    title: "Negociação Assistida (IA)",
     subtitle:
-      "Receba campanhas no seu nome e responda com IA usando a faixa justa automática.",
+      "Use a inteligência da agência para responder marcas com o tom de voz e precificação certa.",
     bullets: [
-      "Inbox direto com marcas (sem exclusividade)",
-      "Resposta assistida por IA em 1 clique",
-      "Faixa justa automática para negociar",
+      "Inbox estratégico (foco em conversão)",
+      "Resposta assistida por IA (Narrativa D2C)",
+      "Faixa justa auditada pela agência",
     ],
-    ctaLabel: "Ativar Plano Pro",
+    ctaLabel: "Ativar Acesso VIP",
   },
   ai_analysis: {
-    title: "Análise com IA é Plano Pro",
-    subtitle: "Descubra a faixa justa ideal e a recomendação em segundos.",
+    title: "Mapeamento IA + Agência",
+    subtitle: "Descubra seu valor real de mercado e como atrair marcas de alto ticket.",
     bullets: [
-      "Faixa justa baseada nas suas métricas",
-      "Sugestão objetiva (aceitar/ajustar/extra)",
+      "Faixa justa baseada em performance real",
+      "Recomendação tática (Narrativa vs Mercado)",
     ],
-    ctaLabel: "Ativar Plano Pro",
+    ctaLabel: "Ativar Acesso VIP",
   },
   calculator: {
-    title: "Precificação inteligente é Plano Pro",
-    subtitle: "Faixas estratégicas geradas com base nas suas métricas reais.",
+    title: "Precificação Inteligente (Radar Destaque)",
+    subtitle: "Valores calibrados para atrair as marcas que você realmente quer.",
     bullets: [
-      "Faixa estratégica, justa e premium automática",
-      "Multiplicadores calibrados pelo seu desempenho",
+      "Faixas estratégicas (Justo, Influencer e Premium)",
+      "Multiplicadores auditados pelo time D2C",
     ],
-    ctaLabel: "Ativar Plano Pro",
+    ctaLabel: "Ativar Acesso VIP",
   },
   planning: {
-    title: "Planejamento com IA é Plano Pro",
+    title: "Planejamento Estratégico & Narrative",
     subtitle:
-      "Planeje com previsões, receba alertas no WhatsApp e aplique benchmarks da comunidade.",
+      "Mantenha a pauta alinhada com as revisões semanais e atraia marcas organicamente.",
     bullets: [
-      "Planner com horários, formatos e previsões otimizadas",
-      "Benchmarks e referências da comunidade Pro",
-      "Alertas no WhatsApp para manter consistência",
+      "Planner com horários e pautas estratégicas",
+      "Alertas de timing no WhatsApp",
+      "Sincronização com revisões de Terça/Quinta",
     ],
-    ctaLabel: "Ativar Plano Pro",
+    ctaLabel: "Ativar Acesso VIP",
   },
   whatsapp: {
-    title: "Alertas no WhatsApp fazem parte do Pro",
-    subtitle: "Receba lembretes e prioridades para executar seu plano de conteúdo.",
+    title: "Execução Assistida (WhatsApp)",
+    subtitle: "Alertas táticos para você nunca perder o timing da sua narrativa.",
     bullets: [
-      "Alertas com horários, campanhas e oportunidades",
-      "Diagnóstico automático do Instagram",
-      "Acesso a Meus Roteiros e Review de Post no app",
+      "Alertas de pautas, reuniões e oportunidades",
+      "Diagnóstico contínuo do Instagram pela IA",
+      "Acesso rápido às notas de revisão",
     ],
-    ctaLabel: "Ativar Plano Pro",
+    ctaLabel: "Ativar Acesso VIP",
   },
 };
 
@@ -619,7 +620,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   if (prices) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md px-3 sm:px-4 py-4 overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="subscribe-modal-title"
@@ -627,71 +628,77 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       >
         <div
           ref={dialogRef}
-          className="w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          className="w-full max-w-lg rounded-[2.5rem] bg-[#0A0F1A] text-white shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
           tabIndex={-1}
         >
-          {/* Header sticky: X sempre visível */}
-          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur">
-            <div className="relative border-b border-gray-200/70">
-              <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-indigo-500" />
-              <div className="relative flex items-start gap-3 p-5 sm:p-6">
-                <div className="shrink-0 rounded-xl bg-pink-50 p-2.5 ring-1 ring-pink-100">
-                  <Crown className="w-5 h-5 text-pink-600" />
+          {/* Header sticky */}
+          <div className="sticky top-0 z-10 bg-[#0A0F1A]/95 backdrop-blur-xl">
+            <div className="relative border-b border-white/5">
+              <div className="absolute inset-0 opacity-20 bg-gradient-to-r from-[#6E1F93] via-[#F6007B] to-[#6E1F93] blur-3xl -z-10" />
+              <div className="relative flex items-start gap-4 p-6 sm:p-8">
+                <div className="shrink-0 rounded-2xl bg-brand-primary/10 p-3 border border-brand-primary/20">
+                  <Crown className="w-6 h-6 text-brand-primary" />
                 </div>
                 <div className="flex-1">
-                  <span className="inline-flex items-center rounded-full border border-pink-200/60 bg-pink-50/70 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-pink-600">
-                    Plano Pro
-                  </span>
-                  <h2 id="subscribe-modal-title" className="text-lg sm:text-xl font-bold text-gray-900">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="inline-flex items-center rounded-full bg-brand-primary/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-brand-primary">
+                      Acesso Consultivo
+                    </span>
+                    <span className="bg-emerald-500/10 text-emerald-500 text-[9px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      ÚLTIMAS VAGAS
+                    </span>
+                  </div>
+                  <h2 id="subscribe-modal-title" className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
                     {paywallCopy.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-700">{paywallCopy.subtitle}</p>
+                  <p className="mt-2 text-sm text-slate-400 leading-relaxed font-medium">
+                    {paywallCopy.subtitle}
+                  </p>
                 </div>
                 <button
                   onClick={onClose}
                   aria-label="Fechar"
-                  className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  className="rounded-full p-2 text-slate-500 hover:text-white hover:bg-white/5 transition-all"
                   data-autofocus="true"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Conteúdo rolável */}
           <div className="flex-1 overflow-y-auto">
             {/* Seletores */}
-            <div className="px-5 sm:px-6 pt-4 sm:pt-5 border-t border-gray-100/70">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
-                <div className="inline-flex rounded-full p-1 bg-slate-100">
+            <div className="px-6 sm:px-8 pt-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="inline-flex rounded-2xl p-1 bg-white/5 border border-white/5">
                   <button
                     onClick={() => setPeriod("monthly")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${period === "monthly" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
+                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${period === "monthly" ? "bg-white text-slate-900 shadow-xl" : "text-slate-500 hover:text-slate-300"}`}
                     disabled={loadingRedirect}
                   >
                     Mensal
                   </button>
                   <button
                     onClick={() => setPeriod("annual")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${period === "annual" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
+                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${period === "annual" ? "bg-white text-slate-900 shadow-xl" : "text-slate-500 hover:text-slate-300"}`}
                     disabled={loadingRedirect}
                   >
-                    Anual {savingsPct > 0 && <span className="ml-1 text-emerald-600 font-semibold">- {savingsPct}%</span>}
+                    Anual {savingsPct > 0 && <span className="ml-1 text-emerald-400">-{savingsPct}%</span>}
                   </button>
                 </div>
 
-                <div className="inline-flex rounded-full p-1 bg-slate-100">
+                <div className="inline-flex rounded-2xl p-1 bg-white/5 border border-white/5">
                   <button
                     onClick={() => setCurrency("brl")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${currency === "brl" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
+                    className={`px-3 py-2 text-[10px] font-black rounded-xl transition-all ${currency === "brl" ? "bg-white/10 text-white" : "text-slate-500"}`}
                     disabled={loadingRedirect}
                   >
                     BRL
                   </button>
                   <button
                     onClick={() => setCurrency("usd")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-full ${currency === "usd" ? "bg-white shadow-sm text-gray-900" : "text-gray-600"}`}
+                    className={`px-3 py-2 text-[10px] font-black rounded-xl transition-all ${currency === "usd" ? "bg-white/10 text-white" : "text-slate-500"}`}
                     disabled={loadingRedirect}
                   >
                     USD
@@ -701,85 +708,95 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
             </div>
 
             {/* Preço */}
-            <div className="px-5 sm:px-6 pt-3">
-              <div className="rounded-2xl border border-slate-200/70 p-4 bg-white shadow-sm">
-                <div className="flex items-end gap-2">
-                  <div className="text-3xl font-extrabold text-gray-900 leading-none">
+            <div className="px-6 sm:px-8 pt-5 text-center sm:text-left">
+              <div className="rounded-[2rem] border border-white/5 p-6 bg-gradient-to-br from-white/[0.03] to-transparent shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <FaLock className="w-12 h-12 text-white" />
+                </div>
+                <div className="flex items-end gap-2 justify-center sm:justify-start">
+                  <div className="text-4xl font-black text-white leading-none tracking-tighter">
                     {formatMoney(activePrice)}
                   </div>
-                  <span className="text-sm text-gray-600 mb-1">
+                  <span className="text-sm text-slate-500 mb-1 font-bold">
                     /{period === "monthly" ? "mês" : "ano"}
                   </span>
                 </div>
 
                 {period === "annual" && (
-                  <div className="mt-1 text-xs text-gray-700">
-                    Equivale a <span className="font-semibold">{formatMoney(monthlyEquivalent)}</span> por mês
+                  <div className="mt-2 text-xs text-slate-400 font-medium">
+                    Investimento de <span className="text-white font-bold">{formatMoney(monthlyEquivalent)}</span>/mês para sua imagem.
                   </div>
                 )}
 
-                {period === "annual" && savingsPct > 0 && (
-                  <div className="mt-1 text-xs text-emerald-700">
-                    Economize ~{savingsPct}% comparado ao plano mensal
-                  </div>
-                )}
-
-                <div className="mt-1 text-xs text-gray-600">
-                  Pagamento seguro via Stripe. Cancele quando quiser.
+                <div className="mt-2 text-[10px] text-slate-500 uppercase font-black tracking-widest flex items-center justify-center sm:justify-start gap-2">
+                  <Check className="w-3 h-3 text-emerald-500" />
+                  Cancelamento instantâneo via Stripe
                 </div>
               </div>
             </div>
 
             {/* Benefícios */}
-            <div className="px-5 sm:px-6 py-4">
+            <div className="px-6 sm:px-8 py-6">
               {!!error && (
-                <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-400">
                   <p>{error}</p>
                   {errorAction && (
-                    <Link href={errorAction.href} className="mt-1 inline-flex text-xs font-semibold text-pink-600">
+                    <Link href={errorAction.href} className="mt-2 inline-flex border-b border-red-400">
                       {errorAction.label}
                     </Link>
                   )}
                 </div>
               )}
 
-              <ul
-                className={`grid grid-cols-1 ${bulletItems.length > 2 ? "sm:grid-cols-2" : ""} gap-2.5`}
-              >
+              <ul className="grid grid-cols-1 gap-3">
                 {bulletItems.map((feat) => (
-                  <li key={feat} className="flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm">
-                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-200">
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  <li key={feat} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3 text-sm group hover:border-brand-primary/20 transition-all">
+                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-brand-primary/10 border border-brand-primary/20 group-hover:scale-110 transition-transform">
+                      <Check className="h-4 w-4 text-brand-primary" />
                     </span>
-                    <span className="text-gray-700">{feat}</span>
+                    <span className="text-slate-300 font-medium">{feat}</span>
                   </li>
                 ))}
               </ul>
-
             </div>
           </div>
 
-          {/* Rodapé sticky (CTA sempre visível) */}
-          <div className="sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-gray-200">
-            <div className="px-5 sm:px-6 pb-4 pt-3">
+          {/* Rodapé sticky */}
+          <div className="sticky bottom-0 z-10 bg-[#0A0F1A]/95 backdrop-blur-xl border-t border-white/5">
+            <div className="px-6 sm:px-8 pb-8 pt-5">
               <button
                 type="button"
                 onClick={handleSubscribe}
                 disabled={loadingRedirect || billingStatusLoading || shouldBlockSubscribe}
-                className="w-full inline-flex items-center justify-center rounded-md bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full relative overflow-hidden group/btn inline-flex items-center justify-center rounded-2xl bg-white text-[#0A0F1A] px-6 py-4 text-sm font-black uppercase tracking-widest shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/5 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
                 {loadingRedirect ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Redirecionando…
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Estabelecendo Conexão...
                   </>
                 ) : (
                   <>
                     {primaryCtaLabel}
-                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-5 w-5" />
                   </>
                 )}
               </button>
+
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                  <Lock className="w-3 h-3" />
+                  Ambiente Seguro SSL-Criptografado
+                </p>
+                <div className="flex items-center gap-3 opacity-30 grayscale contrast-125">
+                  {/* Simplified representation of payment logos */}
+                  <div className="w-8 h-5 bg-slate-500 rounded-sm" />
+                  <div className="w-8 h-5 bg-slate-500 rounded-sm" />
+                  <div className="w-8 h-5 bg-slate-500 rounded-sm" />
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => {
@@ -791,68 +808,26 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                   });
                   window.open("/pro", "_blank", "noopener,noreferrer");
                 }}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/5 bg-white/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 transition hover:text-white"
               >
-                Conhecer o Plano Pro
-                <ArrowUpRight className="h-3.5 w-3.5" />
+                Conhecer a Narrativa D2C
+                <ArrowUpRight className="h-4 w-4" />
               </button>
 
-              <p className="mt-3 text-center text-[11px] text-gray-500">
-                Dúvidas? Fale com a gente em{" "}
-                <a
-                  href="mailto:arthur@data2content.ai"
-                  className="font-medium text-gray-700 underline decoration-gray-300 underline-offset-2 hover:text-gray-900"
-                >
-                  arthur@data2content.ai
-                </a>
+              <p className="mt-4 text-center text-[10px] text-slate-600 font-medium">
+                © 2024 Data2Content & Destaque Imagem. Todos os direitos reservados.
               </p>
-              <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-gray-500">
-                <Lock className="h-3 w-3" aria-hidden />
-                Só leitura: conectamos para analisar, não publicamos por você e você pode revogar quando quiser.
-              </p>
-              {(hasPremiumAccess || isTrialActive) && !billingStatusLoading && (
-                <p className="mt-2 text-center text-xs text-gray-600">
-                  Você já possui um plano ativo ou em período de teste.
-                </p>
-              )}
-              {needsPaymentUpdate && !billingStatusLoading && (
-                <p className="mt-2 text-center text-xs text-amber-700">
-                  Existe um pagamento pendente. Atualize o método de pagamento em Billing.
-                </p>
-              )}
-              {needsCheckout && !billingStatusLoading && (
-                <p className="mt-2 text-center text-xs text-amber-700">
-                  Existe um checkout pendente. Retome ou aborte a tentativa em Billing.
-                </p>
-              )}
-              {needsAbort && !billingStatusLoading && (
-                <p className="mt-2 text-center text-xs text-amber-700">
-                  Tentativa expirada. Voce pode iniciar um novo checkout agora.
-                </p>
-              )}
-              {billingStatusError && !billingStatusLoading && (
-                <p className="mt-2 text-center text-xs text-amber-700">
-                  Nao foi possivel validar seu status.{" "}
-                  <button
-                    type="button"
-                    onClick={() => billingStatus.refetch?.()}
-                    className="underline underline-offset-2"
-                  >
-                    Atualizar status
-                  </button>
-                </p>
-              )}
             </div>
           </div>
         </div>
 
         <style jsx global>{`
-          @keyframes fadeIn { from{opacity:0;transform:translateY(8px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+          @keyframes fadeIn { from{opacity:0;transform:translateY(15px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+          @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
         `}</style>
       </div>
     );
   }
 
-  // fallback defensivo
   return null;
 }

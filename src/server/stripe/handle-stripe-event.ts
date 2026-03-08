@@ -15,6 +15,7 @@ import {
 } from "./webhook-helpers";
 import { adjustBalance } from "@/server/affiliate/balance";
 import { processAffiliateRefund } from "@/server/affiliate/refund";
+import { getCommissionRateBps } from "@/app/services/affiliate/calcCommissionCents";
 import {
   sendProWelcomeEmail,
   sendPaymentFailureEmail,
@@ -585,6 +586,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
                   buyerUserId: user._id,
                   currency: String(invoice.currency || "brl").toLowerCase(),
                   amountCents,
+                  commissionRateBps: getCommissionRateBps(),
                   availableAt: addDays(new Date(), HOLD_DAYS),
                   createdAt: new Date(),
                 });
@@ -781,7 +783,9 @@ export async function handleStripeEvent(event: Stripe.Event) {
         }
         entry.status = "reversed";
         (entry as any).reversedAt = new Date();
+        (entry as any).reasonCode = "invoice_voided";
         (entry as any).reversalReason = "invoice.voided";
+        (entry as any).updatedAt = new Date();
         await withRetries(
           () => owner.save(),
           {

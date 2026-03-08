@@ -104,20 +104,20 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({
       aria-hidden={!isVisible}
     >
       <div
-        className="pointer-events-auto bg-gradient-to-t from-white via-white/95 to-transparent px-3 pb-0 pt-2"
+        className="pointer-events-auto bg-gradient-to-t from-white via-white/92 to-transparent px-4 pb-0 pt-3"
         style={{ paddingBottom }}
       >
-        <div className="mx-auto flex max-w-content-sm flex-col gap-1.5 rounded-xl border border-brand-glass bg-white/95 px-2.5 py-2.5 text-center text-brand-dark shadow-[0_12px_28px_rgba(15,23,42,0.14)] backdrop-blur-lg">
+        <div className="mx-auto flex max-w-[23rem] flex-col gap-1.5 rounded-[1.35rem] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.86),rgba(255,255,255,0.96))] px-2 py-2 shadow-[0_14px_34px_rgba(15,23,42,0.12)] backdrop-blur-2xl">
           <button
             type="button"
             onClick={onClick}
             aria-label={label}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-bold text-white transition-transform duration-200 hover:bg-brand-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary active:scale-[0.99]"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-[1rem] bg-brand-primary px-4 py-3 text-[0.95rem] font-black text-white shadow-[0_10px_24px_rgba(245,43,106,0.28)] transition-transform duration-200 hover:bg-brand-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary active:scale-[0.99]"
           >
             {label}
           </button>
           {description ? (
-            <p className="line-clamp-1 text-[11px] font-medium leading-tight text-brand-text-secondary/80">
+            <p className="line-clamp-1 px-2 text-center text-[10px] font-medium leading-tight tracking-[0.01em] text-brand-text-secondary/75">
               {description}
             </p>
           ) : null}

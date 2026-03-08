@@ -113,8 +113,8 @@ function normalizeAnalysisPricingMeta(value: {
 } | null | undefined): AnalysisPricingMeta {
   const consistency =
     value?.pricingConsistency === 'alta' ||
-    value?.pricingConsistency === 'media' ||
-    value?.pricingConsistency === 'baixa'
+      value?.pricingConsistency === 'media' ||
+      value?.pricingConsistency === 'baixa'
       ? value.pricingConsistency
       : null;
   const source =
@@ -1606,8 +1606,13 @@ export default function ProposalsClient() {
       <div className="dashboard-page-shell py-8">
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Campanhas</h1>
-            <p className="mt-1 text-slate-500">Gerencie propostas e receba novas oportunidades.</p>
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              Radar Destaque
+              <span className="bg-[#141C2F]/10 text-[#141C2F] text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
+                Faturamento
+              </span>
+            </h1>
+            <p className="mt-1 text-slate-500">Gerencie suas publis com IA. O seu faturamento aqui atrai o convite para representação comercial na Destaque.</p>
           </div>
           <button
             type="button"
@@ -1615,11 +1620,10 @@ export default function ProposalsClient() {
               void handleCopyProposalFormLink('campaigns_header');
             }}
             disabled={proposalHeaderCtaDisabled}
-            className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${
-              hasProAccess
+            className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${hasProAccess
                 ? 'border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
                 : 'bg-pink-600 text-white hover:bg-pink-700'
-            } disabled:cursor-not-allowed disabled:opacity-60`}
+              } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             {proposalHeaderCtaLabel}
           </button>
@@ -1699,9 +1703,9 @@ export default function ProposalsClient() {
           </div>
         ) : filteredProposals.length === 0 ? (
           <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
-            <p className="text-slate-900 font-semibold">Nenhuma campanha nesta etapa.</p>
+            <p className="text-slate-900 font-semibold">Seu radar está sem faturamento nesta etapa.</p>
             <p className="text-slate-500 text-sm mt-1">
-              Copie o formulário de proposta e coloque na bio. As respostas chegam aqui.
+              Copie o link da sua proposta e coloque na bio. As campanhas fechadas viram faturamento para a agência ficar de olho.
             </p>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <button
@@ -1710,11 +1714,10 @@ export default function ProposalsClient() {
                   void handleCopyProposalFormLink('campaigns_empty_state');
                 }}
                 disabled={proposalHeaderCtaDisabled}
-                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${
-                  hasProAccess
+                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${hasProAccess
                     ? 'bg-slate-900 text-white hover:bg-slate-800'
                     : 'bg-pink-600 text-white hover:bg-pink-700'
-                } disabled:cursor-not-allowed disabled:opacity-60`}
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
               >
                 {!hasProAccess
                   ? 'Ativar assinatura'

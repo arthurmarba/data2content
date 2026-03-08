@@ -14,9 +14,12 @@ export type TimePeriod = typeof ALLOWED_TIME_PERIODS[number];
 
 export const ALLOWED_ENGAGEMENT_METRICS = [
   'stats.total_interactions',
+  'stats.reach',
   'stats.views',
   'stats.likes',
   'stats.comments',
   'stats.shares',
+  'stats.profile_visits',
+  'proxy.lead_intent',
 ] as const;
 export type EngagementMetricField = typeof ALLOWED_ENGAGEMENT_METRICS[number];

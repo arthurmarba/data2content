@@ -26,6 +26,7 @@ interface ReachInteractionDataPoint {
   date: string;
   reach: number | null;
   totalInteractions: number | null;
+  postsCount: number;
 }
 
 interface ReachInteractionChartResponse {
@@ -88,32 +89,52 @@ export async function getUserReachInteractionTrendChartData(
               ]
             }
           },
-          totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } }
+          totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } },
+          postsCount: { $sum: 1 },
         }
       },
       { $sort: { _id: 1 } }
     ]);
     
-    const dataMap = new Map<string, { reach: number; totalInteractions: number }>(aggregatedData.map(item => [item._id, { reach: item.totalReach, totalInteractions: item.totalInteractions }]));
+    const dataMap = new Map<string, { reach: number; totalInteractions: number; postsCount: number }>(
+      aggregatedData.map(item => [item._id, {
+        reach: item.totalReach,
+        totalInteractions: item.totalInteractions,
+        postsCount: item.postsCount || 0,
+      }])
+    );
     let cursor = new Date(startDate);
     const dailyChartData: ReachInteractionDataPoint[] = [];
     while (cursor <= endDate) {
       const dayKey = formatDateYYYYMMDD(cursor);
       const entry = dataMap.get(dayKey);
-      dailyChartData.push({ date: dayKey, reach: entry?.reach ?? 0, totalInteractions: entry?.totalInteractions ?? 0 });
+      dailyChartData.push({
+        date: dayKey,
+        reach: entry?.reach ?? 0,
+        totalInteractions: entry?.totalInteractions ?? 0,
+        postsCount: entry?.postsCount ?? 0,
+      });
       cursor = addDays(cursor, 1);
     }
 
     if (granularity === 'weekly') {
-        const weeklyMap = new Map<string, { reachValues: number[], interactionValues: number[] }>();
+        const weeklyMap = new Map<string, { reach: number; totalInteractions: number; postsCount: number }>();
         for (const dailyPoint of dailyChartData) {
             const weekKey = getYearWeek(new Date(dailyPoint.date));
-            const weekData = weeklyMap.get(weekKey) || { reachValues: [], interactionValues: [] };
-            if (dailyPoint.reach !== null) weekData.reachValues.push(dailyPoint.reach);
-            if (dailyPoint.totalInteractions !== null) weekData.interactionValues.push(dailyPoint.totalInteractions);
+            const weekData = weeklyMap.get(weekKey) || { reach: 0, totalInteractions: 0, postsCount: 0 };
+            if (dailyPoint.reach !== null) weekData.reach += dailyPoint.reach;
+            if (dailyPoint.totalInteractions !== null) weekData.totalInteractions += dailyPoint.totalInteractions;
+            weekData.postsCount += dailyPoint.postsCount || 0;
             weeklyMap.set(weekKey, weekData);
         }
-        response.chartData = Array.from(weeklyMap.entries()).map(([weekKey, data]) => ({ date: weekKey, reach: data.reachValues.reduce((a, b) => a + b, 0), totalInteractions: data.interactionValues.reduce((a, b) => a + b, 0) })).sort((a,b) => a.date.localeCompare(b.date));
+        response.chartData = Array.from(weeklyMap.entries())
+          .map(([weekKey, data]) => ({
+            date: weekKey,
+            reach: data.reach,
+            totalInteractions: data.totalInteractions,
+            postsCount: data.postsCount,
+          }))
+          .sort((a,b) => a.date.localeCompare(b.date));
     } else {
         response.chartData = dailyChartData;
     }
@@ -183,6 +204,7 @@ export async function getPlatformReachEngagementTrendChartData(
             date: dayKey,
             reach: dayData?.reach ?? null, // Usa null para dados ausentes da plataforma
             totalInteractions: dayData?.totalInteractions ?? null,
+            postsCount: 0,
         });
         cursor = addDays(cursor, 1);
     }
@@ -201,7 +223,7 @@ export async function getPlatformReachEngagementTrendChartData(
         response.chartData = Array.from(weeklyMap.entries()).map(([weekKey, data]) => {
             const avgReach = data.reachValues.length > 0 ? data.reachValues.reduce((a, b) => a + b, 0) / data.reachValues.length : null;
             const avgInteractions = data.interactionValues.length > 0 ? data.interactionValues.reduce((a, b) => a + b, 0) / data.interactionValues.length : null;
-            return { date: weekKey, reach: avgReach, totalInteractions: avgInteractions };
+            return { date: weekKey, reach: avgReach, totalInteractions: avgInteractions, postsCount: 0 };
         }).sort((a,b) => a.date.localeCompare(b.date));
     } else {
         response.chartData = dailyChartData;

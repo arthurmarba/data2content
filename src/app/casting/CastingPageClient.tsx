@@ -573,7 +573,7 @@ export default function CastingPageClient({ initialCreators }: CastingPageClient
   return (
     <div className="bg-white font-sans">
       <div ref={headerWrapRef}>
-        <LandingHeader showLoginButton hideBrandCta />
+        <LandingHeader showLoginButton />
       </div>
 
       <main

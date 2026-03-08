@@ -462,9 +462,9 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     : "N/A";
 
   // CTA principal
-  let mainButtonText = "Conectar com Facebook";
+  let mainButtonText = "Iniciar Mapeamento de Perfil";
   let mainButtonIcon = <FaFacebook className="w-5 h-5" />;
-  let mainButtonStyles = "bg-blue-600 hover:bg-blue-700 text-white";
+  let mainButtonStyles = "bg-[#141C2F] hover:bg-slate-800 text-white rounded-xl shadow-xl border border-white/10";
   let mainButtonDisabled =
     !canAccessFeatures ||
     isLinking ||
@@ -506,7 +506,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
   if (isLoadingSession && !session) {
     return (
       <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Automação de Métricas</h2>
+        <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Preparação do Diagnóstico</h2>
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg text-center text-gray-500 flex items-center justify-center min-h-[150px]">
           <FaSpinner className="animate-spin w-6 h-6 mr-3" aria-hidden /> Carregando dados da
           conexão...
@@ -605,8 +605,8 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                         {account.username
                           ? `@${account.username}`
                           : account.pageName
-                          ? `Página: ${account.pageName}`
-                          : `ID: ${account.igAccountId}`}
+                            ? `Página: ${account.pageName}`
+                            : `ID: ${account.igAccountId}`}
                       </span>
                     </div>
                   </div>
@@ -628,8 +628,20 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     <>
       {renderAccountSelectorModal()}
       <motion.section initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-        <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Automação de Métricas</h2>
-        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg relative">
+        <h2 className="text-xl font-black text-slate-900 tracking-tight mb-5 ml-1 flex items-center gap-2">
+          Mapeamento de Perfil
+          <span className="bg-brand-primary/10 text-brand-primary text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
+            Motor IA
+          </span>
+        </h2>
+        <div className="bg-[#0A0F1A] p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden border border-white/5">
+          {/* Scanning Animation Background */}
+          {!isEffectivelyInstagramConnected && (
+            <div className="absolute inset-0 pointer-events-none opacity-20">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-brand-primary/20 animate-ping" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full border border-brand-primary/30 animate-[ping_3s_linear_infinite]" />
+            </div>
+          )}
           <AnimatePresence>
             {showSuccessToastFromCard && (
               <motion.div
@@ -646,14 +658,17 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
           </AnimatePresence>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <FaInstagram className="w-10 h-10 text-pink-600" aria-hidden />
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-brand-primary/20 blur-xl rounded-full" />
+                <FaInstagram className="w-12 h-12 text-white relative z-10" aria-hidden />
+              </div>
               <div>
-                <h3 className="font-semibold text-lg text-gray-800">Instagram Insights</h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <h3 className="font-black text-xl text-white tracking-tight">Análise de Narrativa</h3>
+                <p className="text-sm text-slate-400 mt-1 max-w-[280px]">
                   {isEffectivelyInstagramConnected
-                    ? `Conectado como: @${user?.instagramUsername || user?.instagramAccountId || "Conta Vinculada"}`
-                    : "Conecte sua conta profissional do Instagram."}
+                    ? `IA mapeando dados de: @${user?.instagramUsername || user?.instagramAccountId || "Conta Vinculada"}`
+                    : "A IA precisa escanear seu perfil para gerar o diagnóstico e a pauta da próxima reunião."}
                 </p>
               </div>
             </div>
@@ -748,10 +763,10 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
             </motion.div>
           )}
 
-          <p className={`text-xs text-gray-500 mt-4 ${isEffectivelyInstagramConnected ? "" : "border-t pt-3"}`}>
+          <p className={`text-xs text-slate-500 mt-6 ${isEffectivelyInstagramConnected ? "" : "border-t border-white/5 pt-5"}`}>
             {isEffectivelyInstagramConnected
-              ? "Piloto automático ativado! Seus novos posts serão cadastrados e analisados pelo Mobi sem esforço."
-              : "Conecte seu Instagram e ative o piloto automático! O Mobi passa a cadastrar e analisar seus posts para você, sem esforço."}
+              ? "Mapeamento em tempo real ativado. Os insights da IA serão discutidos na próxima reunião de Terça/Quinta."
+              : "Conexão criptografada (SSL). Seus dados são usados exclusivamente para extração de métricas de performance e sugestão estratégica de conteúdo."}
           </p>
         </div>
       </motion.section>

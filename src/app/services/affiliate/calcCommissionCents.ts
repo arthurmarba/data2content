@@ -1,5 +1,5 @@
 import type { Stripe } from 'stripe';
-import { COMMISSION_RATE, COMMISSION_BASE } from '@/config/affiliates';
+import { COMMISSION_RATE, COMMISSION_BASE, COMMISSION_RATE_BPS } from '@/config/affiliates';
 
 /**
  * Calculate commission amount in cents based on a Stripe invoice.
@@ -21,4 +21,8 @@ export function calcCommissionCents(invoice: Stripe.Invoice): number {
   }
   if (baseCents <= 0) return 0;
   return Math.round(baseCents * COMMISSION_RATE);
+}
+
+export function getCommissionRateBps(): number {
+  return COMMISSION_RATE_BPS;
 }

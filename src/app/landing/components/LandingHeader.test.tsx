@@ -6,22 +6,26 @@ import LandingHeader from "./LandingHeader";
 const mockUseSession = jest.fn();
 const mockSignIn = jest.fn();
 const mockTrack = jest.fn();
-const mockAppendUtm = jest.fn((path: string) => path);
 
 jest.mock("next-auth/react", () => ({
   useSession: () => mockUseSession(),
   signIn: (...args: unknown[]) => mockSignIn(...args),
 }));
 
-jest.mock("@/lib/track", () => ({
-  track: (...args: unknown[]) => mockTrack(...args),
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: ({
+    fill,
+    priority,
+    ...props
+  }: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; priority?: boolean }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img {...props} alt={props.alt ?? ""} />
+  ),
 }));
 
-jest.mock("@/hooks/useUtmAttribution", () => ({
-  useUtmAttribution: () => ({
-    appendUtm: mockAppendUtm,
-    utm: {},
-  }),
+jest.mock("@/lib/track", () => ({
+  track: (...args: unknown[]) => mockTrack(...args),
 }));
 
 jest.mock("framer-motion", () => {
@@ -68,7 +72,6 @@ describe("LandingHeader", () => {
   beforeEach(() => {
     mockSignIn.mockReset();
     mockTrack.mockReset();
-    mockAppendUtm.mockClear();
   });
 
   it("shows login and signup actions in mobile menu for unauthenticated users", () => {
@@ -82,8 +85,8 @@ describe("LandingHeader", () => {
     expect(mobileMenu).not.toBeNull();
     const menu = within(mobileMenu as HTMLElement);
 
-    expect(menu.getByRole("button", { name: /entrar/i })).toBeInTheDocument();
-    expect(menu.getByRole("button", { name: /criar conta gratuita/i })).toBeInTheDocument();
+    expect(menu.getByRole("button", { name: /^login$/i })).toBeInTheDocument();
+    expect(menu.getByRole("button", { name: /quero entrar na d2c/i })).toBeInTheDocument();
   });
 
   it("shows dashboard access and hides login action for authenticated users", () => {
@@ -100,22 +103,8 @@ describe("LandingHeader", () => {
     expect(mobileMenu).not.toBeNull();
     const menu = within(mobileMenu as HTMLElement);
 
-    expect(menu.getByRole("button", { name: /ir para o painel/i })).toBeInTheDocument();
-    expect(menu.queryByRole("button", { name: /entrar/i })).not.toBeInTheDocument();
-  });
-
-  it("hides brand CTA when hideBrandCta is enabled", () => {
-    mockUseSession.mockReturnValue({ data: null, status: "unauthenticated" });
-
-    render(<LandingHeader hideBrandCta />);
-
-    fireEvent.click(screen.getByRole("button", { name: /menu/i }));
-
-    const mobileMenu = document.getElementById("mobile-menu");
-    expect(mobileMenu).not.toBeNull();
-    const menu = within(mobileMenu as HTMLElement);
-
-    expect(menu.queryByRole("button", { name: /sou marca/i })).not.toBeInTheDocument();
+    expect(menu.getByRole("button", { name: /acessar consultoria/i })).toBeInTheDocument();
+    expect(menu.queryByRole("button", { name: /login/i })).not.toBeInTheDocument();
   });
 
   it("disables primary action while session is loading", () => {
@@ -131,6 +120,6 @@ describe("LandingHeader", () => {
 
     const loadingButton = menu.getByRole("button", { name: /carregando/i });
     expect(loadingButton).toBeDisabled();
-    expect(menu.queryByRole("button", { name: /entrar/i })).not.toBeInTheDocument();
+    expect(menu.queryByRole("button", { name: /login/i })).not.toBeInTheDocument();
   });
 });

@@ -1,9 +1,12 @@
 "use client";
 
 import React from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
+
+import { getLandingPrimaryCtaLabel, LANDING_PRICE_SUPPORT } from "@/app/landing/copy";
 import type { LandingCommunityMetrics } from "@/types/landing";
+
 import ButtonPrimary from "./ButtonPrimary";
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 
 type HeroModernProps = {
   onCreatorCta: () => void;
@@ -11,283 +14,261 @@ type HeroModernProps = {
   metrics?: LandingCommunityMetrics | null;
 };
 
-function easeOutCubic(x: number) {
-  return 1 - Math.pow(1 - x, 3);
-}
-
-function useCountUp(targetValue: number, duration = 1100) {
-  const [value, setValue] = React.useState(0);
-
-  React.useEffect(() => {
-    if (targetValue <= 0) {
-      setValue(0);
-      return;
-    }
-
-    let frame: number;
-    const start = performance.now();
-    const animate = (timestamp: number) => {
-      const elapsed = timestamp - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = easeOutCubic(progress);
-      setValue(Math.round(targetValue * eased));
-      if (progress < 1) {
-        frame = requestAnimationFrame(animate);
-      }
-    };
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
-  }, [targetValue, duration]);
-
-  return value;
-}
-
-function useClientNumberFormatter() {
-  const [formatter, setFormatter] = React.useState<Intl.NumberFormat | null>(null);
-
-  React.useEffect(() => {
-    setFormatter(
-      new Intl.NumberFormat("pt-BR", {
-        notation: "compact",
-        maximumFractionDigits: 1,
-      }),
-    );
-  }, []);
-
-  return formatter;
-}
-
 type AccentVariant = "primary" | "accent" | "sun";
+
+type MobileValuePillar = {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+};
 
 type HighlightCardProps = {
   metricValue: number;
   metricLabel: string;
+  mobileLabel?: string;
   prefix?: string;
   index: number;
   accent?: AccentVariant;
 };
 
-const HighlightCard: React.FC<HighlightCardProps> = ({
+const MOBILE_VALUE_PILLARS: MobileValuePillar[] = [
+  {
+    id: "positioning",
+    icon: "✦",
+    title: "Reunião de Roteiro",
+    description: "Toda terça, 19h, para revisar se seu roteiro esta no caminho certo.",
+  },
+  {
+    id: "direction",
+    icon: "↗",
+    title: "Reunião de Conteúdo",
+    description: "Toda quinta, 19h, para revisar sua edição, captação e conteúdo.",
+  },
+  {
+    id: "opportunities",
+    icon: "◆",
+    title: "Banco de Talentos",
+    description: "Nossos criadores são avalidados para representação comercial pela Destaque;",
+  },
+  {
+    id: "platform",
+    icon: "⚡",
+    title: "Nossa Plataforma",
+    description: "Diagnósticos de conteúdo por IA, ferramentas para organizar seu planejamento e notificações de revisão de conteúdo/roteiro.",
+  },
+  {
+    id: "networking",
+    icon: "🤝",
+    title: "Networking Ativo",
+    description: "Conexão com outros criadores para crescer juntos com collab.",
+  },
+];
+
+const COMPACT_NUMBER_FORMATTER = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function formatCompactMetric(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  return COMPACT_NUMBER_FORMATTER.format(value);
+}
+
+const HeroProofCard: React.FC<HighlightCardProps> = ({
   metricValue,
   metricLabel,
+  mobileLabel,
   prefix = "+",
   index,
   accent = "primary",
 }) => {
-  const formatter = useClientNumberFormatter();
-  const countedValue = useCountUp(metricValue, 900 + index * 120);
-  const formatted = formatter
-    ? formatter.format(countedValue || 0)
-    : `${Math.round(countedValue || 0)}`;
+  const formatted = formatCompactMetric(metricValue);
 
-  const accentClasses: Record<
-    AccentVariant,
-    { border: string; shadow: string; tag: string; divider: string; iconBg: string; glow: string }
-  > = {
+  const accentClasses: Record<AccentVariant, { border: string; value: string; tag: string; bg: string }> = {
     primary: {
-      border: "border-brand-primary/20",
-      shadow: "shadow-[20px_20px_40px_-15px_rgba(255,44,126,0.15)]",
-      tag: "text-brand-primary",
-      divider: "bg-brand-primary/20",
-      iconBg: "bg-brand-primary/10",
-      glow: "group-hover:shadow-[0_0_20px_rgba(255,44,126,0.2)]",
+      border: "border-brand-primary/15",
+      value: "text-brand-primary",
+      tag: "text-brand-primary/70",
+      bg: "bg-brand-primary/[0.05]",
     },
     accent: {
-      border: "border-brand-accent/20",
-      shadow: "shadow-[20px_20px_40px_-15px_rgba(36,107,253,0.15)]",
-      tag: "text-brand-accent",
-      divider: "bg-brand-accent/20",
-      iconBg: "bg-brand-accent/10",
-      glow: "group-hover:shadow-[0_0_20px_rgba(36,107,253,0.2)]",
+      border: "border-brand-accent/15",
+      value: "text-brand-accent",
+      tag: "text-brand-accent/70",
+      bg: "bg-brand-accent/[0.05]",
     },
     sun: {
       border: "border-brand-sun/20",
-      shadow: "shadow-[20px_20px_40px_-15px_rgba(255,179,71,0.15)]",
-      tag: "text-brand-sun-dark",
-      divider: "bg-brand-sun/25",
-      iconBg: "bg-brand-sun/10",
-      glow: "group-hover:shadow-[0_0_20px_rgba(255,179,71,0.2)]",
+      value: "text-brand-sun-dark",
+      tag: "text-brand-sun-dark/70",
+      bg: "bg-brand-sun/[0.08]",
     },
   };
   const accentStyle = accentClasses[accent];
 
   return (
     <motion.article
-      initial={{ opacity: 0, scale: 0.95 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.1, duration: 0.5, ease: "circOut" }}
-      className={`group flex h-full flex-col justify-between gap-3 rounded-[2rem] border ${accentStyle.border} bg-white/40 p-4 text-left backdrop-blur-md transition-all duration-500 hover:-translate-y-2 hover:bg-white/60 sm:gap-4 sm:rounded-[2.5rem] sm:p-6 lg:p-7 ${accentStyle.shadow} ${accentStyle.glow}`}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: 0.52 + index * 0.08, ease: [0.21, 0.47, 0.32, 0.98] }}
+      className={`rounded-[1.1rem] border ${accentStyle.border} ${accentStyle.bg} px-3 py-2.5 text-left shadow-[0_10px_24px_rgba(20,33,61,0.04)] backdrop-blur-sm md:rounded-[1.6rem] md:px-5 md:py-4 md:shadow-[0_18px_36px_rgba(20,33,61,0.05)]`}
     >
-      <div className="flex items-center gap-3">
-        <span
-          className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-base font-semibold text-brand-dark transition-transform duration-300 group-hover:rotate-12 sm:h-10 sm:w-10 sm:rounded-2xl sm:text-lg ${accentStyle.iconBg}`}
-        >
-          ✦
-        </span>
-        <span className={`text-[0.55rem] font-black uppercase tracking-[0.18em] sm:text-[0.75rem] sm:tracking-[0.2em] ${accentStyle.tag}`}>
-          {metricLabel}
-        </span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-[clamp(1.7rem,6vw,2.4rem)] font-black leading-none tracking-tight text-brand-dark sm:text-[clamp(2.4rem,4vw,3.2rem)]">
-          {metricValue > 0 ? `${prefix}${formatted}` : "—"}
-        </span>
-        <span className={`mt-2 h-0.5 w-8 rounded-full transition-all duration-300 group-hover:w-14 sm:h-1 sm:w-12 sm:group-hover:w-20 ${accentStyle.divider}`} />
-      </div>
+      <p className={`text-[0.52rem] font-black uppercase tracking-[0.12em] ${accentStyle.tag} md:text-[0.68rem] md:tracking-[0.18em]`}>
+        {mobileLabel ?? metricLabel}
+      </p>
+      <p className={`mt-1 text-[1rem] font-black leading-none tracking-[-0.03em] ${accentStyle.value} md:mt-2 md:text-[1.8rem]`}>
+        {metricValue > 0 ? `${prefix}${formatted}` : "—"}
+      </p>
     </motion.article>
   );
 };
 
+const HeroValuePillarCard: React.FC<{ pillar: MobileValuePillar; index: number }> = ({ pillar, index }) => (
+  <motion.article
+    initial={{ opacity: 0, y: 24 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.7, delay: 0.58 + index * 0.05, ease: [0.21, 0.47, 0.32, 0.98] }}
+    className="rounded-[1.15rem] border border-slate-200/80 bg-white/92 px-3.5 py-3 text-left shadow-[0_10px_18px_rgba(20,33,61,0.04)] transition-all hover:border-brand-primary/20 md:rounded-[1.8rem] md:px-5 md:py-5 md:shadow-[0_18px_36px_rgba(20,33,61,0.05)]"
+  >
+    <div className="flex items-start gap-3 md:gap-4">
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-[0.9rem] bg-brand-primary text-[0.9rem] font-black text-white shadow-lg shadow-brand-primary/20 md:h-11 md:w-11 md:rounded-[1rem] md:text-[1rem]">
+        {pillar.icon}
+      </span>
+      <div>
+        <h2 className="text-[0.96rem] font-black leading-[1.1] text-brand-dark md:text-[1.05rem]">{pillar.title}</h2>
+        <p className="mt-1.5 text-[12px] leading-[1.55] text-slate-600 md:text-[13px] md:leading-[1.65]">{pillar.description}</p>
+      </div>
+    </div>
+  </motion.article>
+);
+
 const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated = false, metrics }) => {
   const { scrollY } = useScroll();
-  const y1 = useTransform(scrollY, [0, 500], [0, 100]);
-  const y2 = useTransform(scrollY, [0, 500], [0, -150]);
-  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
-  const [isInfoExpanded, setIsInfoExpanded] = React.useState(false);
+  const y1 = useTransform(scrollY, [0, 500], [0, 90]);
+  const y2 = useTransform(scrollY, [0, 500], [0, -120]);
+  const opacity = useTransform(scrollY, [0, 280], [1, 0]);
+  const primaryLabel = getLandingPrimaryCtaLabel(isAuthenticated);
 
   const highlights = React.useMemo(
     () => [
       {
         metricValue: metrics?.activeCreators ?? 0,
         metricLabel: "criadores ativos",
+        mobileLabel: "Criadores",
         prefix: "+",
         accent: "primary" as AccentVariant,
       },
       {
         metricValue: metrics?.reachLast30Days ?? 0,
         metricLabel: "contas alcançadas",
+        mobileLabel: "Alcance 30d",
         prefix: "+",
         accent: "accent" as AccentVariant,
       },
       {
         metricValue: metrics?.combinedFollowers ?? 0,
         metricLabel: "seguidores totais",
+        mobileLabel: "Seguidores",
         prefix: "+",
         accent: "sun" as AccentVariant,
       },
     ],
     [metrics],
   );
-  const heroCtaLabel = isAuthenticated ? "Acessar minha conta" : "Quero entrar na D2C";
 
   return (
     <section
       id="inicio"
-      className="landing-section relative overflow-x-clip overflow-y-visible bg-white pb-6 pt-5 sm:min-h-[88vh] sm:pb-12 sm:pt-6 md:min-h-[90vh] md:pb-16 md:pt-0"
+      className="landing-section relative overflow-x-clip overflow-y-visible bg-white pb-6 md:pb-4 md:!pt-[calc(var(--space-fluid-1,2rem)+var(--sat,0px)+var(--landing-header-h,4rem)+clamp(1.75rem,4vw,3.5rem))]"
       style={{
-        paddingTop: `calc(var(--space-fluid-4, 5.5rem) + var(--sat, 0px) + var(--landing-header-h, 4.5rem))`,
+        paddingTop: `calc(var(--sat, 0px) + var(--landing-header-h, 4rem) + 0.1rem)`,
       }}
     >
-      {/* Premium Mesh Background */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-40"
+        className="pointer-events-none absolute inset-0 opacity-35"
         style={{
           WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 52%, transparent 100%)",
           maskImage: "linear-gradient(180deg, #000 0%, #000 52%, transparent 100%)",
         }}
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,#FF2C7E22_0%,transparent_50%),radial-gradient(circle_at_80%_20%,#246BFD22_0%,transparent_50%),radial-gradient(circle_at_50%_80%,#FFB34722_0%,transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_24%,#FF2C7E16_0%,transparent_42%),radial-gradient(circle_at_84%_18%,#246BFD16_0%,transparent_44%),radial-gradient(circle_at_50%_78%,#FFB34714_0%,transparent_54%)]" />
         <div className="absolute inset-0 hidden bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay sm:block" />
       </div>
 
-      <div className="absolute -top-16 -left-14 h-56 w-56 rounded-full bg-brand-primary/10 blur-[72px] sm:hidden" />
-      <div className="absolute top-24 -right-10 h-52 w-52 rounded-full bg-brand-accent/10 blur-[64px] sm:hidden" />
+      <div className="absolute -top-14 -left-10 h-48 w-48 rounded-full bg-brand-primary/10 blur-[60px] sm:hidden" />
+      <div className="absolute top-28 -right-10 h-44 w-44 rounded-full bg-brand-accent/10 blur-[54px] sm:hidden" />
 
       <motion.div
         style={{ y: y1, opacity, willChange: "transform, opacity" }}
-        animate={{
-          scale: [1, 1.1, 1],
-          rotate: [0, 5, 0]
-        }}
-        transition={{
-          duration: 15,
-          repeat: Infinity,
-          ease: "linear"
-        }}
+        animate={{ scale: [1, 1.08, 1], rotate: [0, 4, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
         className="absolute -top-20 -left-20 hidden h-[600px] w-[600px] rounded-full bg-brand-primary/10 blur-[140px] sm:block"
       />
       <motion.div
         style={{ y: y2, opacity, willChange: "transform, opacity" }}
-        animate={{
-          scale: [1, 1.15, 1],
-          rotate: [0, -5, 0]
-        }}
-        transition={{
-          duration: 18,
-          repeat: Infinity,
-          ease: "linear",
-          delay: 2
-        }}
+        animate={{ scale: [1, 1.12, 1], rotate: [0, -4, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 2 }}
         className="absolute top-40 -right-20 hidden h-[500px] w-[500px] rounded-full bg-brand-accent/10 blur-[120px] sm:block"
       />
 
-      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-7 sm:gap-14 md:gap-24">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:gap-8 md:gap-10">
-
-          <div className="relative z-10 mb-3 mx-auto group flex items-center justify-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3.5 py-2 text-center transition-all hover:bg-brand-primary/15 sm:mb-0 sm:gap-2 sm:px-5 sm:py-2.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
+      <div className="landing-section__inner relative z-10 flex w-full flex-col gap-5 sm:gap-8 md:gap-9">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 text-center sm:gap-7 md:gap-9">
+          <div className="relative z-10 mx-auto flex items-center justify-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-2 py-0.5 text-center sm:gap-2 sm:px-5 sm:py-2.5">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-primary opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-primary" />
             </span>
-            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-brand-primary sm:text-xs sm:tracking-[0.25em]">
-              IA na Creator Economy
+            <span className="text-[7.5px] font-black uppercase tracking-[0.1em] text-brand-primary sm:text-xs sm:tracking-[0.25em]">
+              Banco de Talentos da Agência Destaque
             </span>
           </div>
 
-          <div className="flex flex-col items-center gap-6 px-4 sm:gap-4 sm:px-6 md:gap-10 md:px-4">
+          <div className="mt-2 flex flex-col items-center gap-2.5 px-2.5 sm:mt-1 sm:gap-4 sm:px-6 md:mt-2 md:gap-6 md:px-4">
             <h1 className="font-black tracking-[-0.04em] text-brand-dark">
-              <span className="mx-auto flex max-w-[13ch] flex-col items-center text-[3.85rem] leading-[1.03] sm:hidden">
+              <span className="mx-auto flex max-w-[12ch] flex-col items-center text-[clamp(2.65rem,11.8vw,3rem)] leading-[0.93] sm:hidden">
                 <motion.span
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, ease: [0.21, 0.47, 0.32, 0.98] }}
-                  className="block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
+                  transition={{ duration: 0.65, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="block pb-[0.05em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
                 >
-                  Agência
+                  Direção
                 </motion.span>
                 <motion.span
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.1, ease: [0.21, 0.47, 0.32, 0.98] }}
-                  className="mt-0.5 block pb-[0.07em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
+                  transition={{ duration: 0.65, delay: 0.1, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="mt-0.5 block pb-[0.05em] text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
                 >
-                  estratégica
+                  estratégica de
                 </motion.span>
                 <motion.span
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
-                  className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]"
+                  transition={{ duration: 0.65, delay: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent"
                 >
-                  para creators
-                </motion.span>
-                <motion.span
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.3, ease: [0.21, 0.47, 0.32, 0.98] }}
-                  className="mt-0.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)]"
-                >
-                  via IA.
+                  conteúdo.
                 </motion.span>
               </span>
 
-              <span className="hidden max-w-[14ch] text-balance text-[3rem] leading-[1.03] sm:block md:max-w-[15.5ch] md:text-[5.4rem] md:leading-[0.96] lg:text-[6.3rem]">
+              <span className="hidden max-w-[14ch] text-balance text-[3rem] leading-[1.03] sm:block md:max-w-[16.5ch] md:text-[5rem] md:leading-[0.96] lg:text-[5.5rem]">
                 <motion.span
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] }}
                   className="block text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800"
                 >
-                  Agência estratégica
+                  Direção estratégica
                 </motion.span>
                 <motion.span
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.15, ease: [0.21, 0.47, 0.32, 0.98] }}
-                  className="mt-2.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent drop-shadow-[0_0_32px_rgba(255,44,126,0.28)] md:mt-3 md:drop-shadow-[0_0_40px_rgba(255,44,126,0.3)]"
+                  className="mt-2.5 block bg-gradient-to-br from-brand-primary via-[#FF4080] to-brand-accent bg-clip-text text-transparent md:mt-3"
                 >
-                  para creators via IA.
+                  de conteúdo.
                 </motion.span>
               </span>
             </h1>
@@ -296,9 +277,21 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.35, ease: [0.21, 0.47, 0.32, 0.98] }}
-              className="mt-2 max-w-[34ch] px-1 text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:mt-0 sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-3xl md:px-0 md:text-2xl md:leading-[1.4]"
+              className="max-w-[34ch] text-[0.95rem] font-medium leading-[1.5] text-slate-600 text-balance sm:max-w-2xl sm:px-2 sm:text-base sm:leading-[1.48] md:max-w-[44ch] md:px-0 md:text-[1.18rem] md:leading-[1.5] lg:max-w-[48ch]"
             >
-              Revisão de posts em reuniões semanais. Plataforma para gestão de conteúdo e publicidade para <span className="font-bold text-slate-700">negociar com marcas.</span>
+              <span
+                data-testid="hero-mobile-subtitle"
+                className="mx-auto block max-w-[18.2rem] text-[14px] leading-[1.58] tracking-[-0.012em] text-slate-600 sm:hidden"
+              >
+                Estratégia para você focar na criação. Pare de caçar marcas e{" "}
+                <span className="font-bold text-slate-900">comece a ser encontrado pela oportunidade ideal.</span>
+              </span>
+              <span className="hidden sm:inline">
+                Focamos na estratégia para você focar em criar. Não se desvalorize indo atrás de marcas.{" "}
+                <span className="font-bold text-slate-700">
+                  Se posicione para que a oportunidade ideal venha ate a sua narrativa.
+                </span>
+              </span>
             </motion.p>
           </div>
 
@@ -306,94 +299,50 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
-            className="mt-4 flex w-full flex-row items-center justify-center gap-2.5 px-4 sm:mt-3 sm:gap-3 sm:px-6 sm:justify-center md:mt-2 md:px-0"
+            className="mt-1 flex w-full flex-col items-center justify-center gap-2 px-4 sm:mt-2 sm:gap-3 sm:px-6 md:mt-1 md:px-0"
           >
-            <ButtonPrimary
-              onClick={onCreatorCta}
-              size="lg"
-              variant="brand"
-              className="group relative w-auto min-w-[220px] overflow-hidden rounded-2xl px-4 py-3.5 text-[0.95rem] shadow-2xl shadow-brand-primary/30 transition-all hover:scale-[1.03] active:scale-[0.98] sm:min-w-[260px] sm:px-8 sm:py-5 sm:text-lg"
-            >
-              <span className="relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.95rem] font-black sm:gap-2 sm:text-lg">
-                {heroCtaLabel} <span className="transition-transform group-hover:translate-x-1">→</span>
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            </ButtonPrimary>
-          </motion.div>
-
-          {/* New Integrated Media Kit Info Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6, ease: [0.21, 0.47, 0.32, 0.98] }}
-            className="relative mt-4 hidden w-full max-w-3xl overflow-hidden rounded-[1.75rem] border border-white/80 bg-gradient-to-b from-white/60 to-white/20 p-px shadow-2xl backdrop-blur-2xl group sm:mt-8 sm:block sm:rounded-[2.5rem] md:mt-8 md:rounded-[3rem]"
-          >
-            <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/40 to-transparent" />
-            <div className="relative bg-white/40 p-3.5 transition-all group-hover:bg-white/50 sm:p-6 md:p-10">
-              <div className="mb-2 inline-flex rounded-2xl bg-[#141C2F] px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-white sm:mb-6 sm:px-4 sm:py-2 sm:text-[9px] md:text-[10px] md:tracking-[0.3em]">
-                Networking & Curadoria
-              </div>
-              <h3 className="text-[1.15rem] font-black tracking-tight text-brand-dark sm:text-[1.45rem] md:text-3xl">
-                Seu portal direto para o mercado.
-              </h3>
-              <p className="mt-2 text-[13px] font-bold leading-[1.45] text-slate-500/80 sm:mt-4 sm:text-[0.98rem] md:mt-6 md:text-lg md:leading-relaxed">
-                <span className="sm:hidden block">
-                  Crie seu mídia kit auditado e receba suporte para fechar publis melhores.
-                  <AnimatePresence>
-                    {isInfoExpanded && (
-                      <motion.span
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="block overflow-hidden"
-                      >
-                        Se bater insegurança na hora de precificar ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA.
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </span>
-                <span className="hidden sm:inline">
-                  Crie seu mídia kit auditado para fechar publis melhores. Se bater insegurança na hora de <span className="text-brand-dark">precificar</span> ou entender por que não cresce, a D2C te orienta com suporte estratégico humano e via IA.
-                </span>
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsInfoExpanded((value) => !value)}
-                className="mt-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-brand-primary sm:hidden"
+            <div className="relative group">
+              <div className="absolute -inset-1 rounded-[1.35rem] bg-gradient-to-r from-brand-primary/30 via-brand-accent/30 to-brand-primary/30 opacity-70 blur-md transition duration-700 group-hover:opacity-100" />
+              <ButtonPrimary
+                onClick={onCreatorCta}
+                size="lg"
+                variant="brand"
+                magnetic={false}
+                className="relative min-w-[14.75rem] overflow-hidden rounded-[1.25rem] px-5 py-3.5 text-[0.98rem] shadow-[0_16px_30px_rgba(245,43,106,0.22)] transition-transform hover:scale-[1.01] active:scale-[0.98] sm:min-w-[280px] sm:rounded-2xl sm:px-8 sm:py-5 sm:text-lg"
               >
-                {isInfoExpanded ? "Ver menos" : "Saiba mais"}
-              </button>
-
-              <div className="mt-3.5 grid grid-cols-3 gap-2.5 border-t border-brand-dark/5 pt-3.5 sm:mt-8 sm:gap-4 sm:pt-8 md:mt-12 md:flex md:flex-wrap md:justify-center md:gap-10 md:pt-12">
-                {[
-                  { label: "Mídia Kit Vivo", icon: "💎" },
-                  { label: "Suporte 1:1", icon: "🤝" },
-                  { label: "Jobs Auditados", icon: "🛡️" }
-                ].map(item => (
-                  <div key={item.label} className="group/item flex flex-col items-center gap-1.5 md:flex-row md:gap-3">
-                    <span className="text-base transition-transform duration-300 group-hover/item:scale-125 sm:text-xl md:text-2xl">{item.icon}</span>
-                    <span className="text-center text-[8px] font-black uppercase tracking-[0.1em] text-brand-dark sm:text-[10px] sm:tracking-[0.15em] md:text-left md:text-xs md:tracking-[0.2em]">{item.label}</span>
-                  </div>
-                ))}
-              </div>
+                <span className="relative z-10 flex items-center justify-center gap-2 whitespace-nowrap text-[0.98rem] font-black sm:text-lg">
+                  {primaryLabel}
+                  <span className="transition-transform group-hover:translate-x-1">→</span>
+                </span>
+              </ButtonPrimary>
             </div>
-          </motion.div>
-        </div>
 
-        <div className="hidden md:grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {highlights.map((item, index) => (
-            <HighlightCard key={item.metricLabel} index={index} {...item} />
-          ))}
+            {!isAuthenticated ? (
+              <p className="mt-3 text-center text-[11px] font-semibold leading-tight text-slate-500 md:mt-3.5">
+                {LANDING_PRICE_SUPPORT}
+              </p>
+            ) : null}
+          </motion.div>
+
+          <div
+            data-testid="hero-mobile-proof"
+            className="mt-4 grid w-full max-w-[22rem] grid-cols-3 gap-2 sm:mt-5 sm:max-w-[34rem] sm:gap-3 md:mt-6 md:max-w-5xl md:gap-5"
+          >
+            {highlights.map((item, index) => (
+              <HeroProofCard key={item.metricLabel} index={index} {...item} />
+            ))}
+          </div>
+
+          <div
+            data-testid="hero-mobile-value-pillars"
+            className="mt-4 grid w-full gap-2.5 md:mt-5 md:grid-cols-2 md:gap-3.5 lg:grid-cols-3"
+          >
+            {MOBILE_VALUE_PILLARS.map((pillar, index) => (
+              <HeroValuePillarCard key={pillar.id} pillar={pillar} index={index} />
+            ))}
+          </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </section>
   );
 };

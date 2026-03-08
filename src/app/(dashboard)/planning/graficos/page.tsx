@@ -24,6 +24,10 @@ export default async function PlanningChartsRoutePage() {
         id: session.user.id,
         role: session.user.role ?? null,
         name: session.user.name ?? null,
+        affiliateCode:
+          (session.user as { affiliateCode?: string | null }).affiliateCode ??
+          (session as { affiliateCode?: string | null }).affiliateCode ??
+          null,
       }}
     />
   );

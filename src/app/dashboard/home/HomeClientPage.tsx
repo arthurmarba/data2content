@@ -7,6 +7,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import {
   FaBullhorn,
@@ -31,6 +32,9 @@ import {
   FaTimes,
   FaCheckCircle,
   FaChevronRight,
+  FaVideo,
+  FaRegEdit,
+  FaRegChartBar,
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import { INSTAGRAM_READ_ONLY_COPY } from "@/app/constants/trustCopy";
@@ -931,23 +935,23 @@ export default function HomeClientPage() {
           ...prev,
           plan: prev.plan
             ? {
-                ...prev.plan,
-                normalizedStatus: normalizedStatus || prev.plan.normalizedStatus,
-                hasPremiumAccess: true,
-                isPro: true,
-              }
+              ...prev.plan,
+              normalizedStatus: normalizedStatus || prev.plan.normalizedStatus,
+              hasPremiumAccess: true,
+              isPro: true,
+            }
             : prev.plan,
           community: prev.community
             ? {
-                ...prev.community,
-                vip: {
-                  ...prev.community.vip,
-                  hasAccess: true,
-                  isMember: prev.community.vip.isMember ?? false,
-                  inviteUrl,
-                  needsJoinReminder: true,
-                },
-              }
+              ...prev.community,
+              vip: {
+                ...prev.community.vip,
+                hasAccess: true,
+                isMember: prev.community.vip.isMember ?? false,
+                inviteUrl,
+                needsJoinReminder: true,
+              },
+            }
             : prev.community,
         };
       });
@@ -1017,22 +1021,22 @@ export default function HomeClientPage() {
           ...prev,
           community: prev.community
             ? {
-                ...prev.community,
-                vip: {
-                  ...prev.community.vip,
-                  hasAccess: true,
-                  isMember: true,
-                  inviteUrl: prev.community.vip.inviteUrl ?? communityVipInviteUrl ?? defaultCommunityVipUrl,
-                  joinedAt: joinedAtIso,
-                  needsJoinReminder: false,
-                },
-              }
+              ...prev.community,
+              vip: {
+                ...prev.community.vip,
+                hasAccess: true,
+                isMember: true,
+                inviteUrl: prev.community.vip.inviteUrl ?? communityVipInviteUrl ?? defaultCommunityVipUrl,
+                joinedAt: joinedAtIso,
+                needsJoinReminder: false,
+              },
+            }
             : prev.community,
           mentorship: prev.mentorship
             ? {
-                ...prev.mentorship,
-                isMember: true,
-              }
+              ...prev.mentorship,
+              isMember: true,
+            }
             : prev.mentorship,
         };
       });
@@ -1229,8 +1233,8 @@ export default function HomeClientPage() {
     const mentorshipStatus: StepStatus = communityVipMember
       ? "done"
       : communityVipHasAccess
-      ? "in-progress"
-      : "todo";
+        ? "in-progress"
+        : "todo";
     const surveyStatus: StepStatus = surveyCompleted ? "done" : "todo";
 
     return [
@@ -1267,7 +1271,7 @@ export default function HomeClientPage() {
           ? "Você está no grupo VIP com reuniões semanais de revisão de roteiro e trocas com outros criadores."
           : communityVipHasAccess
             ? "Entre no grupo VIP para receber os links das reuniões semanais e fazer networking estratégico."
-          : "Ative o Plano Pro para liberar reuniões semanais e networking com criadores.",
+            : "Ative o Plano Pro para liberar reuniões semanais e networking com criadores.",
         icon: <FaUsers />,
         status: mentorshipStatus,
         actionLabel: communityVipMember
@@ -1409,80 +1413,53 @@ export default function HomeClientPage() {
     if (!isInstagramConnected) {
       return {
         subtitle:
-          "Conecte seu Instagram para montarmos seu diagnóstico estratégico inicial.",
-        helper: "Leva menos de 30s e já libera recomendações.",
-        ctaLabel: "🔗 Conectar Instagram",
+          "Para participarmos da sua estratégia, conecte seu Instagram. A IA precisa mastigar seus dados antes de nós.",
+        helper: "Seguro. Rápido. Libera nosso suporte estratégico.",
+        ctaLabel: "🔗 Conectar Instagram p/ Revisão",
         onClick: handleHeaderConnectInstagram,
-      };
-    }
-
-    if (!whatsappLinked && !whatsappTrialActive && !whatsappTrialStarted && whatsappTrialEligible) {
-      return {
-        subtitle: "Ative os alertas no WhatsApp para executar seu plano da semana com consistência.",
-        helper: "A IA avisa o timing; os ajustes estratégicos ficam na plataforma.",
-        ctaLabel: TRIAL_CTA_LABEL,
-        onClick: handleHeaderStartTrial,
       };
     }
 
     if (!planIsPro) {
       return {
-        subtitle: "Ative o Plano Pro para acompanhamento contínuo com IA, reuniões semanais e revisão personalizada.",
-        helper: null,
-        ctaLabel: "🚀 Ativar Plano Pro",
+        subtitle: "Seu diagnóstico prévio está rodando. Assine o Plano Pro para acessar a revisão humana nas nossas próximas reuniões.",
+        helper: "Agenda: Segundas (Boas-vindas), Terças (Roteiro), Quintas (Conteúdo).",
+        ctaLabel: "🔒 Liberar Acesso à Consultoria (R$ 49,90)",
         onClick: handleHeaderSubscribe,
       };
     }
 
-    if (!communityFreeMember && !communityVipMember) {
+    if (!communityVipMember) {
       return {
-        subtitle: "Entre na comunidade para trocar com outros criadores e evoluir mais rápido.",
-        helper: "Networking e repertório aplicado.",
-        ctaLabel: "🌎 Entrar na comunidade",
-        onClick: () => handleJoinFreeCommunity("hero"),
+        subtitle: "Finalize seu acesso entrando no nosso grupo fechado VIP para os links das reuniões.",
+        helper: "É lá que enviamos o link do Zoom às 19h.",
+        ctaLabel: "💎 Entrar no Grupo VIP",
+        onClick: () => handleJoinVip("hero"),
       };
     }
 
-    if (planIsPro && !whatsappLinked) {
-      return {
-        subtitle: "Conecte o WhatsApp para receber alertas operacionais do seu plano de conteúdo.",
-        helper: "Diagnóstico e revisão continuam na plataforma.",
-        ctaLabel: "🔔 Conectar alertas no WhatsApp",
-        onClick: handleHeaderStartTrial,
-      };
-    }
+    // Default Pro State
+    const today = new Date().getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+    let meetingFocus = "Nossa equipe está acompanhando suas métricas.";
+    if (today === 1) meetingFocus = "Hoje às 19h: Networking & Boas-Vindas.";
+    if (today === 2) meetingFocus = "Hoje às 19h: Revisão e Estruturação de Roteiros.";
+    if (today === 4) meetingFocus = "Hoje às 19h: Revisão de Conteúdo e Performance.";
 
-    if (planIsPro) {
-      return {
-        subtitle: "Tudo pronto: siga seu plano estratégico e avance para novas oportunidades com marcas.",
-        helper: null,
-        ctaLabel: "📊 Abrir painel estratégico",
-        onClick: () => handleNavigate("/dashboard"),
-      };
-    }
     return {
-      subtitle: whatsappLinked
-        ? "Abra o WhatsApp para acompanhar alertas."
-        : "Entre na comunidade para acompanhar desafios.",
-      helper: null,
-      ctaLabel: whatsappLinked ? "📱 Abrir WhatsApp (alertas)" : "🌎 Ver comunidade",
-      onClick: whatsappLinked ? handleOpenWhatsApp : () => handleJoinFreeCommunity("hero"),
+      subtitle: `${meetingFocus} Confira abaixo as análises mastigadas pela IA antes da nossa reunião.`,
+      helper: whatsappLinked ? "Seus alertas rápidos estão on no WhatsApp." : "",
+      ctaLabel: whatsappLinked ? "📱 Abrir WhatsApp" : "🔔 Ativar Alertas no Zap",
+      onClick: whatsappLinked ? handleOpenWhatsApp : () => setShowWhatsAppConnect(true),
     };
   }, [
-    communityFreeMember,
     communityVipMember,
     handleHeaderConnectInstagram,
-    handleNavigate,
-    handleHeaderStartTrial,
     handleHeaderSubscribe,
-    handleJoinFreeCommunity,
+    handleJoinVip,
     handleOpenWhatsApp,
     isInstagramConnected,
     planIsPro,
     whatsappLinked,
-    whatsappTrialActive,
-    whatsappTrialEligible,
-    whatsappTrialStarted,
   ]);
 
   const heroFeedbackMessage = React.useMemo(() => {
@@ -1628,8 +1605,8 @@ export default function HomeClientPage() {
         onAction:
           isSubscriberPlan && communityVipInviteUrl
             ? () => {
-                void handleJoinVip();
-              }
+              void handleJoinVip();
+            }
             : () => handleJoinFreeCommunity("tool_card"),
       });
     }
@@ -2034,8 +2011,8 @@ export default function HomeClientPage() {
           {resolvingVipAccess
             ? "Validando acesso..."
             : canAccessVipCommunity
-            ? "Abrir grupo de revisão"
-            : "Ativar Pro para entrar"}
+              ? "Abrir grupo de revisão"
+              : "Ativar Pro para entrar"}
           {!canAccessVipCommunity ? (
             <FaLock className="h-4 w-4" />
           ) : (
@@ -2339,92 +2316,52 @@ export default function HomeClientPage() {
               </p>
             </div>
           </div>
-          <div className="mt-4 h-2 w-full rounded-full bg-slate-200">
-            <div
-              className="h-full rounded-full bg-[#F6007B] transition-[width]"
-              style={{ width: `${stageProgressPercent}%` }}
-            />
-          </div>
-          <div className="mt-5 flex flex-col gap-3">
-            {progressItems.map((item) => {
-              const statusEmoji = STEP_STATUS_ICONS[item.status];
-              const statusLabel = STEP_STATUS_LABELS[item.status];
-              const disabled = item.disabled || item.status === "loading";
-              const isHighlighted = highlightedJourneyId === item.id;
-
-              // Media Kit inspired card style
-              const cardClassName = [
-                "group relative flex w-full items-center gap-4 rounded-3xl border p-5 text-left transition-all duration-200",
-                isHighlighted
-                  ? "border-[#F6007B]/30 bg-white shadow-[0_8px_30px_rgba(246,0,123,0.12)] ring-1 ring-[#F6007B]/20"
-                  : "border-slate-100 bg-white shadow-sm hover:border-slate-200 hover:shadow-md",
-                disabled
-                  ? "cursor-not-allowed opacity-60 bg-slate-50"
-                  : "hover:-translate-y-0.5",
-              ].join(" ");
-
-              const iconContainerClass = [
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl transition-colors",
-                item.status === "done"
-                  ? "bg-emerald-50 text-emerald-600"
-                  : isHighlighted
-                    ? "bg-[#F6007B]/10 text-[#F6007B]"
-                    : "bg-slate-100 text-slate-500 group-hover:bg-slate-200",
-              ].join(" ");
-
-              return (
-                <button
-                  key={`${item.id}-summary`}
-                  type="button"
-                  onClick={() => {
-                    if (disabled) return;
-                    item.action();
-                  }}
-                  disabled={disabled}
-                  className={cardClassName}
-                  data-highlight={isHighlighted ? "true" : undefined}
-                >
-                  <div className={iconContainerClass}>
-                    {item.status === "done" ? <FaCheckCircle className="h-5 w-5" /> : item.icon}
+          <div className="mt-8 flex flex-col gap-4">
+            <div className="rounded-3xl border border-[#F6007B] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6 shadow-[0_8px_30px_rgba(246,0,123,0.12)]">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#F6007B]">
+                    <FaVideo className="h-3.5 w-3.5" aria-hidden="true" />
+                    Saguão da Consultoria
                   </div>
-
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-slate-900">{item.title}</p>
-                      {item.status === "done" && (
-                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                          Concluído
-                        </span>
-                      )}
-                      {isHighlighted && item.status !== "done" && (
-                        <span className="inline-flex items-center rounded-full bg-[#F6007B]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#F6007B]">
-                          Próximo passo
-                        </span>
-                      )}
+                  <h3 className="text-xl font-bold text-slate-900">
+                    Agenda Semanal de Reuniões
+                  </h3>
+                  <p className="text-sm font-medium text-slate-600">
+                    Traga seus conteúdos. Nossa inteligência artificial já pré-analisou seus dados mensais.
+                  </p>
+                </div>
+                {!planIsPro && (
+                  <button
+                    onClick={handleHeaderSubscribe}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
+                  >
+                    <FaLock className="h-3 w-3" />
+                    Ativar Acesso (R$ 49,90)
+                  </button>
+                )}
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {[
+                  { title: "Boas-Vindas & Networking", day: "Segundas", time: "19h", icon: <FaUsers /> },
+                  { title: "Revisão e Estruturação de Roteiros", day: "Terças", time: "19h", icon: <FaRobot /> },
+                  { title: "Revisão de Conteúdo e Performance", day: "Quintas", time: "19h", icon: <FaChartLine /> }
+                ].map((mtg, i) => (
+                  <div key={i} className={`flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-300 ${planIsPro ? "border-slate-200 bg-white hover:border-[#F6007B]/30 hover:shadow-md cursor-pointer" : "border-slate-100 bg-slate-50/50 opacity-80 cursor-not-allowed"}`}>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      {mtg.icon}
+                      <span className="text-[11px] font-bold uppercase tracking-widest">{mtg.day} • {mtg.time}</span>
                     </div>
-                    <p className="text-sm text-slate-500 leading-relaxed max-w-2xl">
-                      {item.description}
-                    </p>
+                    <p className="font-semibold text-slate-900">{mtg.title}</p>
+                    {planIsPro ? (
+                      <span className="mt-auto text-xs font-bold text-[#F6007B]">Acessar Link Zoom →</span>
+                    ) : (
+                      <span className="mt-auto text-xs font-medium text-slate-400">Bloqueado</span>
+                    )}
                   </div>
-
-                  <div className="hidden sm:block">
-                    <span
-                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${disabled
-                        ? "bg-slate-100 text-slate-400"
-                        : isHighlighted
-                          ? "bg-[#F6007B] text-white shadow-sm hover:bg-[#e2006f]"
-                          : "bg-slate-50 text-slate-700 group-hover:bg-slate-100"
-                        }`}
-                    >
-                      {item.actionLabel}
-                      {!disabled && (
-                        <FaChevronRight className="h-3 w-3" aria-hidden="true" />
-                      )}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -2466,148 +2403,99 @@ export default function HomeClientPage() {
           </section>
         ) : null}
 
+        {/* --- SEUS DIAGNÓSTICOS (Fase 4: Agência Consultiva) --- */}
+        <section className="mt-8 sm:mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              Seus Diagnósticos
+              <span className="bg-[#6E1F93]/10 text-[#6E1F93] text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
+                Prontuário
+              </span>
+            </h2>
+          </div>
+          <p className="text-sm text-slate-600 mb-6 max-w-2xl">
+            Acompanhe as anotações feitas pela nossa equipe nas reuniões semanais. Nós avaliamos o seu conteúdo para que <strong className="font-bold text-slate-800">você atraia as marcas certas e aumente o seu valor</strong>, sem precisar ir atrás delas.
+          </p>
 
-        <section className="mt-6 rounded-3xl border border-[#FCD6EA] bg-gradient-to-br from-[#FFF6FB] via-white to-white px-6 py-6">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Execução da semana no WhatsApp</h2>
-                <p className="text-sm text-slate-600">
-                  {whatsappBanner.subheading} {whatsappBanner.description}
-                </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Review de Roteiros Card */}
+            <div className={`relative flex flex-col p-6 rounded-[2rem] border overflow-hidden transition-all ${planIsPro ? 'border-slate-200 bg-white hover:border-[#6E1F93]/30 hover:shadow-lg group' : 'border-slate-200 bg-white'}`}>
+              {!planIsPro && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[5px] p-8 text-center">
+                  <div className="bg-white/90 p-3 rounded-2xl shadow-xl mb-4">
+                    <FaLock className="text-[#6E1F93] w-5 h-5" />
+                  </div>
+                  <h4 className="text-slate-900 font-extrabold text-sm mb-4 leading-snug">
+                    O diagnóstico desta semana <br />está disponível para você.
+                  </h4>
+                  <button
+                    onClick={handleHeaderSubscribe}
+                    className="group/btn relative overflow-hidden bg-[#141C2F] text-white font-black py-3 px-6 rounded-2xl text-[11px] uppercase tracking-wider hover:scale-105 transition-all shadow-2xl"
+                  >
+                    <span className="relative z-10">Desbloquear Acesso VIP</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
+                  </button>
+                </div>
+              )}
+              <div className="flex items-start justify-between mb-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${planIsPro ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-400'}`}>
+                  <FaRegEdit className="w-6 h-6" />
+                </div>
               </div>
-              <ul className="space-y-2 text-sm text-slate-700">
-                {whatsappBanner.bullets.map((item) => (
-                  <li key={item.text} className="flex items-start gap-2">
-                    <span aria-hidden="true">{item.icon}</span>
-                    <span>{item.text}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="space-y-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-sm text-slate-600 shadow-sm">
-                <p className="flex items-center gap-2">
-                  <span aria-hidden="true">💬</span>
-                  Mobi envia alertas quando detecta janelas fortes de performance no seu perfil.
-                </p>
-                <p className="flex items-center gap-2">
-                  <span aria-hidden="true">🕓</span>
-                  Conexão segura em menos de 30 segundos.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-900">{whatsappBanner.calloutTitle}</h3>
-                <p className="text-xs text-slate-600">{whatsappBanner.calloutSubtitle}</p>
-                <ActionButton
-                  label={whatsappBanner.primary.label}
-                  icon={whatsappBanner.primary.icon}
-                  variant={whatsappBanner.primary.variant}
-                  onClick={() => {
-                    trackHeroAction(whatsappBanner.primary.trackingKey, {
-                      stage: heroStage,
-                      whatsapp_linked: whatsappLinked,
-                      plan_is_pro: planIsPro,
-                      community_free_member: communityFreeMember,
-                      community_vip_member: communityVipMember,
-                    });
-                    whatsappBanner.primary.onClick();
-                  }}
-                  disabled={isInitialLoading}
-                  className={[
-                    "w-full justify-center rounded-full px-6 py-3 text-sm font-semibold sm:w-auto",
-                    whatsappBanner.primary.className ?? null,
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                />
-                {whatsappBanner.footnote ? (
-                  <p className="text-xs text-slate-500">{whatsappBanner.footnote}</p>
-                ) : null}
-              </div>
+              <h3 className={`text-lg font-black tracking-tight mb-2 ${planIsPro ? 'text-slate-900 group-hover:text-[#6E1F93] transition-colors' : 'text-slate-500'}`}>
+                Revisão de Roteiros
+              </h3>
+              <p className="text-sm text-slate-500 mb-6 flex-1">
+                Acesse as anotações técnicas e direcionamentos da equipe para que o seu conteúdo chame a atenção de marcas.
+              </p>
+              {planIsPro && (
+                <Link href="/dashboard/scripts" className="inline-flex items-center justify-center w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl transition text-sm">
+                  Abrir Meus Roteiros
+                </Link>
+              )}
             </div>
-            <div className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-[0_20px_55px_rgba(15,23,42,0.12)] backdrop-blur-sm">
-              <div className="flex flex-col gap-5">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F6007B]/10 text-[#F6007B]">
-                    <FaRobot className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Prévia do chat com a IA</p>
-                    <p className="text-xs text-slate-500">Veja como os alertas chegam para apoiar sua execução</p>
+
+            {/* Review de Conteúdo Card */}
+            <div className={`relative flex flex-col p-6 rounded-[2rem] border overflow-hidden transition-all ${planIsPro ? 'border-slate-200 bg-white hover:border-[#F6007B]/30 hover:shadow-lg group' : 'border-slate-200 bg-white'}`}>
+              {!planIsPro && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[5px] p-8 text-center">
+                  <div className="bg-white/90 p-3 rounded-2xl shadow-xl mb-4">
+                    <FaLock className="text-[#F6007B] w-5 h-5" />
                   </div>
+                  <h4 className="text-slate-900 font-extrabold text-sm mb-4 leading-snug">
+                    Feedback tático da IA <br />disponível para posts recentes.
+                  </h4>
+                  <button
+                    onClick={handleHeaderSubscribe}
+                    className="group/btn relative overflow-hidden bg-[#141C2F] text-white font-black py-3 px-6 rounded-2xl text-[11px] uppercase tracking-wider hover:scale-105 transition-all shadow-2xl"
+                  >
+                    <span className="relative z-10">Desbloquear Acesso VIP</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
+                  </button>
                 </div>
-                <div className="space-y-3">
-                  {whatsappBanner.previewMessages.slice(0, 3).map((message, index) => (
-                    <div key={message} className="flex items-start gap-2">
-                      <span aria-hidden="true" className="mt-1 text-[#F6007B]">
-                        🤖
-                      </span>
-                      <div
-                        className={`max-w-[240px] rounded-2xl px-4 py-2 text-[13px] leading-relaxed shadow-sm ${index % 2 === 0 ? "bg-white text-slate-700" : "bg-slate-50 text-slate-700"
-                          }`}
-                      >
-                        {message}
-                      </div>
-                    </div>
-                  ))}
-                  <div className="flex items-start gap-2 text-slate-400">
-                    <span aria-hidden="true" className="mt-1 text-[#F6007B]">
-                      🤖
-                    </span>
-                    <div className="flex items-center gap-1 rounded-2xl bg-slate-50 px-4 py-2 text-[13px]">
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B]" />
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:120ms]" />
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-[#F6007B] [animation-delay:240ms]" />
-                    </div>
-                  </div>
+              )}
+              <div className="flex items-start justify-between mb-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${planIsPro ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'}`}>
+                  <FaRegChartBar className="w-6 h-6" />
                 </div>
               </div>
+              <h3 className={`text-lg font-black tracking-tight mb-2 ${planIsPro ? 'text-slate-900 group-hover:text-[#F6007B] transition-colors' : 'text-slate-500'}`}>
+                Review de Posts
+              </h3>
+              <p className="text-sm text-slate-500 mb-6 flex-1">
+                Feedbacks táticos sobre os seus posts (o que continuar fazendo e o que parar) visando criar a narrativa certa para as campanhas que você quer fechar.
+              </p>
+              {planIsPro && (
+                <Link href="/dashboard/post-analysis" className="inline-flex items-center justify-center w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl transition text-sm">
+                  Ver Diagnósticos
+                </Link>
+              )}
             </div>
           </div>
         </section>
 
 
-        {showCreatorToolsSection ? (
-          <section className="mt-6 space-y-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ferramentas do criador</h2>
-              <p className="text-sm text-slate-500">
-                Planejamento, Mídia Kit e comunidade para transformar estratégia em resultado.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {toolCards.map((card) => (
-                <button
-                  key={card.key}
-                  type="button"
-                  onClick={card.onAction}
-                  className="group relative flex flex-col items-start justify-between gap-4 rounded-3xl border border-slate-100 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 focus-visible:ring-offset-2"
-                >
-                  <div className="w-full space-y-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-xl text-[#F6007B] transition-colors group-hover:bg-[#F6007B]/10">
-                        {card.icon}
-                      </span>
-                      <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                        {card.status}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-semibold text-slate-900">{card.title}</h3>
-                      <p className="text-sm text-slate-600 leading-relaxed">{card.description}</p>
-                    </div>
-                  </div>
 
-                  <div className="mt-2 w-full">
-                    <span className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors group-hover:bg-slate-100 group-hover:text-slate-900">
-                      {card.actionLabel}
-                      <FaChevronRight className="h-3 w-3 text-slate-400 transition-colors group-hover:text-slate-600" />
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        ) : null}
         {microInsightCard ? (
           <section className="mt-8">
             <div className="">
@@ -2663,57 +2551,6 @@ export default function HomeClientPage() {
           </section>
         ) : null}
 
-        {showTrialMessageCard ? (
-          <section className="mt-10 rounded-3xl bg-white px-6 py-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
-                  Acompanhamento estratégico em teste
-                </h2>
-                <p className="text-sm text-slate-600">
-                  Aproveite os próximos {planTrialCountdownLabel ?? "dois dias"} para validar roteiro, horário e direção com IA aplicada.
-                </p>
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:max-w-xs">
-                <button
-                  type="button"
-                  onClick={handleOpenWhatsApp}
-                  className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-                >
-                  Ver alertas e próximos passos
-                </button>
-                <span className="text-center text-xs text-slate-500">
-                  Mobi envia lembretes sempre que surge uma janela forte de performance.
-                </span>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {showProUpsellCard ? (
-          <section className="mt-10 rounded-3xl bg-gradient-to-br from-[#FFF1F8] via-white to-white px-6 py-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Continue com acompanhamento completo</h2>
-                <p className="text-sm text-slate-600">
-                  Mantenha revisão semanal de roteiro, alertas operacionais e direcionamento estratégico para atrair marcas.
-                </p>
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:max-w-xs">
-                <button
-                  type="button"
-                  onClick={handleHeaderSubscribe}
-                  className="inline-flex w-full items-center justify-center rounded-full bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e2006f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/40 focus-visible:ring-offset-2"
-                >
-                  Ativar Plano Pro
-                </button>
-                <span className="text-center text-xs text-slate-500">
-                  Alertas de execução + acompanhamento estratégico semanal.
-                </span>
-              </div>
-            </div>
-          </section>
-        ) : null}
 
       </div>
     </>

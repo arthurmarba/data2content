@@ -269,7 +269,7 @@ export default function AffiliateCard() {
                 Ganhe 50% da primeira fatura de cada criador indicado.
               </h1>
               <p className="mt-3 max-w-xl text-sm text-brand-text-secondary">
-                Compartilhe seu link exclusivo e acompanhe quanto já foi liberado aqui mesmo.
+                Seu link dá 10% de desconto na primeira fatura para o indicado, e você acompanha quanto já foi liberado aqui mesmo.
               </p>
             </div>
             <button

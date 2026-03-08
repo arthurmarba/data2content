@@ -11,9 +11,9 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     id: 'bio',
     emoji: '🔗',
     title: 'Bio do Instagram',
-    description: 'Deixe o link do mídia kit na bio explicando que o indicado ganha 10% de desconto na entrada.',
+    description: 'Deixe o link do mídia kit na bio explicando que o indicado ganha 10% de desconto na primeira fatura.',
     buildCopy: (link) =>
-      `Atualizei minha bio com meu mídia kit do Mobi: ${link}. Quem ativa por ali entra com 10% de desconto e já vê como uso o painel.`,
+      `Atualizei minha bio com meu mídia kit do Mobi: ${link}. Quem ativa por ali entra com 10% de desconto na primeira fatura e já vê como uso o painel.`,
   },
   {
     id: 'stories',
@@ -21,7 +21,7 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     title: 'Stories com contexto',
     description: 'Mostre seus resultados nos stories e em seguida compartilhe o link com o benefício.',
     buildCopy: (link) =>
-      `Mostrando como planejo meus conteúdos no Mobi. Se quiser testar com 10% off e ter mídia kit pronto, usa meu link: ${link}. Te ajudo no onboarding!`,
+      `Mostrando como planejo meus conteúdos no Mobi. Se quiser testar com 10% off na primeira fatura e ter mídia kit pronto, usa meu link: ${link}. Te ajudo no onboarding!`,
   },
   {
     id: 'groups',
@@ -29,7 +29,7 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     title: 'Grupos e comunidades',
     description: 'Envie o link pronto quando alguém pedir ferramenta para métricas/mídia kit.',
     buildCopy: (link) =>
-      `Pra quem queria uma ferramenta completa de mídia kit + análises: eu uso o Mobi. Pelo meu link ${link} você ativa com 10% de desconto e já recebe meu kit de referência.`,
+      `Pra quem queria uma ferramenta completa de mídia kit + análises: eu uso o Mobi. Pelo meu link ${link} você ativa com 10% de desconto na primeira fatura e já recebe meu kit de referência.`,
   },
   {
     id: 'mentoria',

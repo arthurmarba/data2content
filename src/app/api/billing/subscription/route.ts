@@ -6,6 +6,11 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import Stripe from "stripe";
+import {
+  applyStaleStripeBillingPatch,
+  isStripeResourceMissingError,
+  persistStaleStripeBillingPatch,
+} from "@/utils/stripeHelpers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,10 +107,13 @@ export async function GET(_req: NextRequest) {
         sub = (await stripe.subscriptions.retrieve(user.stripeSubscriptionId, {
           expand: subscriptionExpand,
         })) as Stripe.Subscription;
-        if (!customerId && typeof sub.customer === "string") {
+        if (typeof sub.customer === "string") {
           customerId = sub.customer;
         }
-      } catch {
+      } catch (error) {
+        if (isStripeResourceMissingError(error, "subscription")) {
+          user.stripeSubscriptionId = null;
+        }
         sub = null;
       }
     }
@@ -131,7 +139,11 @@ export async function GET(_req: NextRequest) {
             expand: subscriptionExpand,
           })) as Stripe.Subscription;
         }
-      } catch {
+      } catch (error) {
+        if (isStripeResourceMissingError(error, "customer")) {
+          await persistStaleStripeBillingPatch(user as any);
+          return new NextResponse(null, { status: 204, headers: cacheHeader });
+        }
         // fallback: mantém a assinatura original
       }
     }
@@ -146,20 +158,18 @@ export async function GET(_req: NextRequest) {
         } as any);
         listedSuccessfully = true;
         sub = pickBestSubscription(listed.data ?? []);
-      } catch {
+      } catch (error) {
+        if (isStripeResourceMissingError(error, "customer")) {
+          await persistStaleStripeBillingPatch(user as any);
+          return new NextResponse(null, { status: 204, headers: cacheHeader });
+        }
         listedSuccessfully = false;
       }
     }
 
     if (!sub) {
       if (listedSuccessfully) {
-        user.stripeSubscriptionId = null;
-        user.planStatus = "inactive" as any;
-        user.stripePriceId = null;
-        user.planInterval = null as any;
-        user.planExpiresAt = null;
-        user.cancelAtPeriodEnd = false;
-        (user as any).currentPeriodEnd = null;
+        applyStaleStripeBillingPatch(user as any, { clearCustomerId: false });
         await user.save();
       }
       return new NextResponse(null, { status: 204, headers: cacheHeader });

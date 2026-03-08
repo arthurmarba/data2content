@@ -89,6 +89,8 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
 
     // Sucesso → marque como 'paid' (valor permitido no union) e ajuste o saldo
     entry.status = 'paid';
+    entry.paidAt = new Date();
+    entry.transferId = transfer.id;
     entry.transactionId = transfer.id;
 
     affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];

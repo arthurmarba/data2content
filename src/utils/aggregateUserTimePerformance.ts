@@ -12,13 +12,20 @@ import { PipelineStage, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
-// --- INÍCIO DA ALTERAÇÃO ---
-// Adicionada a importação de 'getCategoryById' para traduzir IDs em Labels.
 import { getCategoryWithSubcategoryIds, getCategoryById } from "@/app/lib/classification";
-// --- FIM DA ALTERAÇÃO ---
+import { isProxyMetricField, resolvePerformanceMetricValue } from "./performanceMetricResolver";
 
 // Define o fuso horário alvo para garantir consistência
 const TARGET_TIMEZONE = 'America/Sao_Paulo';
+const WEEKDAY_TO_MONGO_INDEX: Record<string, number> = {
+  Sun: 1,
+  Mon: 2,
+  Tue: 3,
+  Wed: 4,
+  Thu: 5,
+  Fri: 6,
+  Sat: 7,
+};
 
 export interface TimeBucket {
   dayOfWeek: number;
@@ -78,24 +85,18 @@ export async function aggregateUserTimePerformance(
       },
     };
 
-    // --- INÍCIO DA ALTERAÇÃO ---
-    // A lógica de filtragem foi completamente corrigida para usar Labels.
-
     if (filters.format) {
       const formatIds = getCategoryWithSubcategoryIds(filters.format, 'format');
-      // CORREÇÃO: Converte a lista de IDs para a lista de Labels correspondentes.
       const formatLabels = formatIds.map(id => getCategoryById(id, 'format')?.label || id);
       (matchStage.$match as any).format = { $in: formatLabels };
     }
     if (filters.proposal) {
       const proposalIds = getCategoryWithSubcategoryIds(filters.proposal, 'proposal');
-      // CORREÇÃO: Converte a lista de IDs para a lista de Labels correspondentes.
       const proposalLabels = proposalIds.map(id => getCategoryById(id, 'proposal')?.label || id);
       (matchStage.$match as any).proposal = { $in: proposalLabels };
     }
     if (filters.context) {
       const contextIds = getCategoryWithSubcategoryIds(filters.context, 'context');
-      // CORREÇÃO: Converte a lista de IDs para a lista de Labels correspondentes.
       const contextLabels = contextIds.map(id => getCategoryById(id, 'context')?.label || id);
       (matchStage.$match as any).context = { $in: contextLabels };
     }
@@ -109,7 +110,56 @@ export async function aggregateUserTimePerformance(
       const referenceLabels = referenceIds.map(id => getCategoryById(id, 'reference')?.label || id);
       (matchStage.$match as any).references = { $in: referenceLabels };
     }
-    // --- FIM DA ALTERAÇÃO ---
+
+    if (isProxyMetricField(metricField)) {
+      const posts = await MetricModel.find(matchStage.$match)
+        .select("postDate stats")
+        .lean();
+
+      const buckets = new Map<string, { dayOfWeek: number; hour: number; total: number; count: number }>();
+      for (const post of posts) {
+        const date = post?.postDate instanceof Date ? post.postDate : new Date(post?.postDate);
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) continue;
+        const metricValue = resolvePerformanceMetricValue(post, metricField);
+        if (typeof metricValue !== "number") continue;
+
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: TARGET_TIMEZONE,
+          weekday: "short",
+          hour: "numeric",
+          hourCycle: "h23",
+        }).formatToParts(date);
+        const weekdayLabel = parts.find((part) => part.type === "weekday")?.value || "";
+        const weekdayPart = WEEKDAY_TO_MONGO_INDEX[weekdayLabel];
+        const hourPart = Number(parts.find((part) => part.type === "hour")?.value || "");
+        if (weekdayPart === undefined || !Number.isFinite(hourPart)) continue;
+        const dayOfWeek = weekdayPart;
+
+        const key = `${dayOfWeek}-${hourPart}`;
+        const bucket = buckets.get(key) || {
+          dayOfWeek,
+          hour: hourPart,
+          total: 0,
+          count: 0,
+        };
+        bucket.total += metricValue;
+        bucket.count += 1;
+        buckets.set(key, bucket);
+      }
+
+      result.buckets = Array.from(buckets.values())
+        .map((bucket) => ({
+          dayOfWeek: bucket.dayOfWeek,
+          hour: bucket.hour,
+          average: bucket.count > 0 ? bucket.total / bucket.count : 0,
+          count: bucket.count,
+        }))
+        .sort((a, b) => b.average - a.average);
+
+      result.bestSlots = result.buckets.slice(0, 3);
+      result.worstSlots = result.buckets.slice(-3).reverse();
+      return result;
+    }
 
     const pipeline: PipelineStage[] = [
       matchStage,

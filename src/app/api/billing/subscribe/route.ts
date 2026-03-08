@@ -1,6 +1,5 @@
 // src/app/api/billing/subscribe/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
@@ -8,9 +7,14 @@ import { stripe } from "@/app/lib/stripe";
 import Stripe from "stripe";
 import crypto from "crypto";
 import { checkRateLimit } from "@/utils/rateLimit";
-import { getOrCreateStripeCustomerId } from "@/utils/stripeHelpers";
+import {
+  getOrCreateStripeCustomerId,
+  isStripeResourceMissingError,
+  persistStaleStripeBillingPatch,
+} from "@/utils/stripeHelpers";
 import { resolveAffiliateCode as resolveAffiliateCodeHelper } from "@/app/lib/affiliate";
 import { logger } from "@/app/lib/logger";
+import { getAffiliateCouponValidationError } from "@/app/lib/affiliateCouponRules";
 
 export const runtime = "nodejs";
 
@@ -87,11 +91,21 @@ async function resolveManualDiscountFields(
   return null;
 }
 
+async function assertAffiliateCouponCompliance(couponId: string): Promise<string | null> {
+  const coupon = await stripe.coupons.retrieve(couponId);
+  return getAffiliateCouponValidationError(coupon);
+}
+
 type ResolvedAffiliate =
   | { code: string | null; source: "typed" | "url" | "cookie" | null }
   | { code: undefined; source: undefined };
 
-function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string): ResolvedAffiliate {
+async function readAffiliateCookie(): Promise<string> {
+  const mod = await import('next/headers');
+  return normalizeCode(mod.cookies().get('d2c_ref')?.value || '');
+}
+
+async function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string): Promise<ResolvedAffiliate> {
   const typed = normalizeCode(bodyCode);
   if (typed) return { code: typed, source: "typed" };
 
@@ -99,8 +113,7 @@ function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string): Reso
   const fromUrl = normalizeCode(url.searchParams.get("ref") || url.searchParams.get("aff"));
   if (fromUrl) return { code: fromUrl, source: "url" };
 
-  const cookieStore = cookies();
-  const fromCookie = normalizeCode(cookieStore.get("d2c_ref")?.value || "");
+  const fromCookie = await readAffiliateCookie();
   if (fromCookie) return { code: fromCookie, source: "cookie" };
 
   return { code: undefined, source: undefined };
@@ -228,7 +241,11 @@ export async function POST(req: NextRequest) {
               shouldSave = true;
             }
           }
-        } catch {
+        } catch (error) {
+          if (isStripeResourceMissingError(error, "subscription")) {
+            (user as any).stripeSubscriptionId = null;
+            shouldSave = true;
+          }
           stripeStatus = null;
         }
       }
@@ -345,7 +362,7 @@ export async function POST(req: NextRequest) {
       : { code: undefined, source: undefined };
 
     if (!resolved?.code) {
-      resolved = resolveAffiliateCodeFallback(req, body.affiliateCode);
+      resolved = await resolveAffiliateCodeFallback(req, body.affiliateCode);
     }
 
     const affiliateCode: string | undefined = normalizeCode(resolved.code || undefined) || undefined;
@@ -355,13 +372,27 @@ export async function POST(req: NextRequest) {
     const typedCode = source === "typed" ? affiliateCode : undefined;
     const priceId = getPriceId(plan, currency);
 
-    const customerId = await getOrCreateStripeCustomerId(user);
+    let customerId = await getOrCreateStripeCustomerId(user);
+    let subsList: Stripe.ApiList<Stripe.Subscription>;
+    try {
+      subsList = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 10,
+      });
+    } catch (error) {
+      if (!isStripeResourceMissingError(error, "customer")) {
+        throw error;
+      }
 
-    const subsList = await stripe.subscriptions.list({
-      customer: customerId!,
-      status: "all",
-      limit: 10,
-    });
+      await persistStaleStripeBillingPatch(user as any);
+      customerId = await getOrCreateStripeCustomerId(user);
+      subsList = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 10,
+      });
+    }
 
     const activeSub = subsList.data.find((s) => ["active", "trialing"].includes(s.status));
     const nonRenewingSub = subsList.data.find(
@@ -482,14 +513,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // --- INÍCIO DA CORREÇÃO 1 (COMISSÃO) ---
-      // Atribui e salva a afiliação ANTES de criar a assinatura no Stripe
-      if (!user.affiliateUsed) {
-        user.affiliateUsed = affiliateCode!;
-        await user.save(); // Garante que o dado esteja no DB para o webhook
-      }
-      // --- FIM DA CORREÇÃO 1 ---
-
       const couponEnv =
         currency === "BRL"
           ? process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL
@@ -503,6 +526,23 @@ export async function POST(req: NextRequest) {
           },
           { status: 500 }
         );
+      }
+      const couponError = await assertAffiliateCouponCompliance(couponEnv);
+      if (couponError) {
+        return NextResponse.json(
+          {
+            code: "AFFILIATE_COUPON_INVALID",
+            message: couponError,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Salva a afiliação apenas depois de validar o cupom e antes de criar a assinatura,
+      // para que o webhook encontre o vínculo correto sem persistir estado inválido.
+      if (!user.affiliateUsed) {
+        user.affiliateUsed = affiliateCode!;
+        await user.save();
       }
       discounts = [{ coupon: couponEnv }];
     } else if (typedCode) {

@@ -113,11 +113,24 @@ export async function GET(
       acc[actionId] = status;
       return acc;
     }, {});
+    const feedbackMetaByActionId = rows.reduce<
+      Record<string, { status: "applied" | "not_applied"; updatedAt: string | null }>
+    >((acc, row: any) => {
+      const actionId = normalizeActionId(row?.actionId);
+      const status = row?.status;
+      if (!actionId || (status !== "applied" && status !== "not_applied")) return acc;
+      acc[actionId] = {
+        status,
+        updatedAt: row?.updatedAt instanceof Date ? row.updatedAt.toISOString() : row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+      };
+      return acc;
+    }, {});
 
     return NextResponse.json({
       objectiveMode,
       timePeriod,
       feedbackByActionId,
+      feedbackMetaByActionId,
     });
   } catch (error: any) {
     logger.error(`${SERVICE_TAG} GET error for user ${userId}:`, error);

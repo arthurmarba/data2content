@@ -1,9 +1,9 @@
 import { Types } from 'mongoose';
 import getAverageEngagementByGrouping, { GroupingType } from './getAverageEngagementByGrouping'; // Ajuste
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric'; // Ajuste
-import { getNestedValue } from "./dataAccessHelpers"; // Importar para mock ou referência
-import { getStartDateFromTimePeriod } from "./dateHelpers"; // Para referência de datas
 import { isValidCategoryId } from '@/app/lib/classification';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import { logger } from '@/app/lib/logger';
 
 enum FormatType {
   REEL = 'reel',
@@ -16,10 +16,11 @@ enum FormatType {
 jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
 }));
-
-// Mock do getNestedValue, pois ele é usado internamente
-jest.mock('./dataAccessHelpers', () => ({
-  getNestedValue: jest.fn(),
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
+}));
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn() },
 }));
 
 describe('getAverageEngagementByGrouping', () => {
@@ -29,11 +30,7 @@ describe('getAverageEngagementByGrouping', () => {
 
   beforeEach(() => {
     (MetricModel.find as jest.Mock).mockReset();
-    (getNestedValue as jest.Mock).mockReset();
-    jest.spyOn(console, 'error').mockImplementation(() => { });
-  });
-  afterEach(() => {
-    (console.error as jest.Mock).mockRestore();
+    (connectToDatabase as jest.Mock).mockResolvedValue(undefined);
   });
 
   const mockMetric = (
@@ -49,7 +46,7 @@ describe('getAverageEngagementByGrouping', () => {
       stats.total_interactions = interactions; // Assumindo que este é o metricField
     }
     return {
-      _id: new Types.ObjectId(id),
+      _id: new Types.ObjectId(),
       user: new Types.ObjectId(userId),
       postDate: postDate || new Date(),
       format: [format as string], // Cast para array
@@ -70,16 +67,13 @@ describe('getAverageEngagementByGrouping', () => {
         mockMetric('p5', FormatType.IMAGE, "c2", 100), // IMAGE: sum=200+100=300, count=2, avg=150
       ];
       (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-      (getNestedValue as jest.Mock).mockImplementation((obj, path) => {
-        return obj.stats?.total_interactions !== undefined ? obj.stats.total_interactions : null;
-      });
 
       const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
 
       expect(result.length).toBe(2); // REEL e IMAGE. VIDEO não tem interações válidas.
       result.sort((a, b) => a.name.localeCompare(b.name)); // Ordenar para teste consistente
 
-      expect(result[0]!.name).toBe("Image"); // DEFAULT_FORMAT_MAPPING não aplicado no mock, usa nome padrão
+      expect(result[0]!.name).toBe("Foto");
       expect(result[0]!.value).toBe(150); // 300/2
       expect(result[0]!.postsCount).toBe(2);
 
@@ -94,13 +88,12 @@ describe('getAverageEngagementByGrouping', () => {
         mockMetric('p2', "CUSTOM_FORMAT" as FormatType, "c1", 50),
       ];
       (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-      (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
 
       const formatMapping = { [FormatType.CAROUSEL_ALBUM]: "My Carousel" };
       const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy, formatMapping);
       result.sort((a, b) => a.name.localeCompare(b.name));
 
-      expect(result.find(r => r.name === "Custom Format")?.value).toBe(50); // Default formatting
+      expect(result.find(r => r.name === "CUSTOM_FORMAT")?.value).toBe(50);
       expect(result.find(r => r.name === "My Carousel")?.value).toBe(100); // Mapped
     });
   });
@@ -115,7 +108,6 @@ describe('getAverageEngagementByGrouping', () => {
         mockMetric('p4', FormatType.VIDEO, null, 100),       // Contexto null, não deve ser agrupado
       ];
       (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-      (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
 
       const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
       expect(result.length).toBe(2); // Educational e Entertainment
@@ -140,7 +132,6 @@ describe('getAverageEngagementByGrouping', () => {
         mockMetric('p3', FormatType.IMAGE, 'Entertainment', 50, undefined, 'Review'),
       ];
       (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-      (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
 
       const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
       expect(result.length).toBeGreaterThan(0);
@@ -159,7 +150,6 @@ describe('getAverageEngagementByGrouping', () => {
   test('Retorna array vazio se nenhum post tiver a métrica de performance válida', async () => {
     const posts = [mockMetric('p1', FormatType.IMAGE, "c1", null)];
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-    (getNestedValue as jest.Mock).mockReturnValue(null); // Todos os posts retornam null para a métrica
 
     const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, "format");
     expect(result).toEqual([]);
@@ -168,7 +158,6 @@ describe('getAverageEngagementByGrouping', () => {
   test('Retorna array vazio se nenhum post tiver groupKey válido', async () => {
     const posts = [mockMetric('p1', "" as FormatType, null, 100)]; // Formato vazio e contexto nulo
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-    (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
 
     const resultFormat = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, "format");
     expect(resultFormat).toEqual([]); // Nenhum groupKey "format" válido (string vazia é ignorada)
@@ -185,7 +174,6 @@ describe('getAverageEngagementByGrouping', () => {
       mockMetric('p3', FormatType.VIDEO, "c3", 100), // Avg 100
     ];
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-    (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
 
     const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, "format");
     expect(result.length).toBe(3);
@@ -198,7 +186,30 @@ describe('getAverageEngagementByGrouping', () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.reject(new Error("DB Error")) });
     const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, "format");
     expect(result).toEqual([]);
-    expect(console.error).toHaveBeenCalled();
+    expect((logger as any).error).toHaveBeenCalled();
+  });
+
+  test('Crédito fracionado reduz superatribuição em posts com múltiplas propostas', async () => {
+    const posts = [
+      {
+        ...mockMetric('p1', FormatType.REEL, 'Educational', 100),
+        proposal: ['News', 'Review'],
+      },
+      mockMetric('p2', FormatType.REEL, 'Educational', 40, undefined, 'Review'),
+    ];
+    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+
+    const result = await getAverageEngagementByGrouping(
+      userId,
+      timePeriod,
+      performanceMetricField,
+      'proposal',
+      undefined,
+      { creditMode: 'fractional' }
+    );
+
+    expect(result.find((row) => row.name === 'News')?.value).toBeCloseTo(50);
+    expect(result.find((row) => row.name === 'Review')?.value).toBeCloseTo(45);
   });
 
   test('Valores de formato por label continuam válidos', () => {

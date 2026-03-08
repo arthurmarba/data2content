@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 
 import CastingMarketplaceSection from "./CastingMarketplaceSection";
 import type { LandingCreatorHighlight } from "@/types/landing";
@@ -122,7 +122,7 @@ describe("CastingMarketplaceSection", () => {
     expect(screen.queryByRole("button", { name: /ver mais criadores/i })).not.toBeInTheDocument();
   });
 
-  it("does not render mobile marketplace metrics cards at the top", async () => {
+  it("renders the marketplace integrated into the mobile free-flow section", async () => {
     const initialCreators = Array.from({ length: 4 }, (_, index) =>
       makeCreator(`creator-${index + 1}`, `Creator ${index + 1}`),
     );
@@ -139,16 +139,22 @@ describe("CastingMarketplaceSection", () => {
     }) as unknown as typeof fetch;
 
     render(<CastingMarketplaceSection initialCreators={initialCreators} metrics={null} />);
-
-    expect(screen.queryByText("Ativos")).not.toBeInTheDocument();
-    expect(screen.queryByText("Alcance")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
+
+    const integratedLayout = screen.getByTestId("marketplace-mobile-integrated-layout");
+    const mobileBridge = within(integratedLayout).getByTestId("mobile-gallery-bridge");
+    expect(integratedLayout).toBeInTheDocument();
+    expect(integratedLayout.className).not.toContain("rounded-[1.7rem]");
+    expect(integratedLayout.className).not.toContain("shadow-[0_18px_38px_rgba(20,33,61,0.05)]");
+    expect(within(integratedLayout).queryByText(/nossa comunidade/i)).not.toBeInTheDocument();
+    expect(within(mobileBridge).queryByText("Beleza")).not.toBeInTheDocument();
+    expect(within(integratedLayout).queryByText(/nosso banco de talentos/i)).not.toBeInTheDocument();
   });
 
-  it("keeps filter container configured as hidden on mobile breakpoint", async () => {
+  it("does not render the filter bar on the mobile integrated marketplace", async () => {
     const initialCreators = Array.from({ length: 4 }, (_, index) =>
       makeCreator(`creator-${index + 1}`, `Creator ${index + 1}`),
     );
@@ -166,11 +172,7 @@ describe("CastingMarketplaceSection", () => {
 
     render(<CastingMarketplaceSection initialCreators={initialCreators} metrics={null} />);
 
-    const mobileSearch = screen.getByPlaceholderText("Buscar");
-    const filterContainer = mobileSearch.closest("div.sticky");
-    expect(filterContainer).toBeTruthy();
-    expect(filterContainer?.className).toContain("hidden");
-    expect(filterContainer?.className).toContain("sm:block");
+    expect(screen.queryByTestId("marketplace-filter-bar")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -219,16 +221,20 @@ describe("CastingMarketplaceSection", () => {
 
     render(<CastingMarketplaceSection initialCreators={initialCreators} metrics={null} />);
 
+    expect(screen.getByTestId("marketplace-mobile-integrated-layout")).toBeInTheDocument();
+    expect(screen.queryByText(/nosso banco de talentos/i)).not.toBeInTheDocument();
+
     const firstCard = screen.getByText("Creator 1").closest("article");
     expect(firstCard).toBeTruthy();
     expect(firstCard?.className).toContain("w-[var(--market-card-width)]");
     expect(firstCard?.className).toContain("min-w-[var(--market-card-width)]");
-    expect(screen.getAllByText("Seg.").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Eng.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Seguidores").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Taxa de Eng.").length).toBeGreaterThan(0);
 
-    const railScroller = firstCard?.parentElement;
+    const railScroller = screen.getByTestId("marketplace-mobile-rail");
     expect(railScroller).toBeTruthy();
-    expect(railScroller?.getAttribute("style")).toContain("clamp(100px, calc((100% - 1.875rem) / 3.25), 112px)");
+    expect(railScroller.className).toContain("snap-mandatory");
+    expect(railScroller.getAttribute("style")).toContain("clamp(112px, calc((100% - 2.75rem) / 2.95), 126px)");
 
     const mobileCtas = screen.getAllByText("Conhecer");
     expect(mobileCtas.length).toBeGreaterThan(0);

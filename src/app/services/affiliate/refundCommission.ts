@@ -77,7 +77,7 @@ export async function processAffiliateRefund(
   });
   if (delta === 0) return;
 
-  // Usa commissionRateBps se existir no entry; senão cai no COMMISSION_RATE global
+  // Usa a taxa persistida na comissão quando existir para manter o histórico imutável.
   const commissionRateBps = typeof entry.commissionRateBps === 'number' ? entry.commissionRateBps : undefined;
   const rate = commissionRateBps != null ? commissionRateBps / 10000 : COMMISSION_RATE;
   let reverse = Math.round(delta * rate);
@@ -141,6 +141,9 @@ export async function processAffiliateRefund(
       affiliateUserId,
       currency: cur,
       amountCents: -reverse,
+      commissionRateBps: commissionRateBps,
+      reversedAt: new Date(),
+      reasonCode: 'refund',
       note: 'refund partial/total',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -157,6 +160,9 @@ export async function processAffiliateRefund(
       affiliateUserId,
       currency: cur,
       amountCents: -reverse,
+      commissionRateBps: commissionRateBps,
+      reversedAt: new Date(),
+      reasonCode: 'refund',
       note: 'refund partial/total',
       createdAt: new Date(),
       updatedAt: new Date(),

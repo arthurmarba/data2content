@@ -9,6 +9,11 @@ import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import type Stripe from "stripe";
 import { getPlanAccessMeta, normalizePlanStatus } from "@/utils/planStatus";
+import {
+  applyStaleStripeBillingPatch,
+  buildStaleStripeBillingPatch,
+  isStripeResourceMissingError,
+} from "@/utils/stripeHelpers";
 import type {
   InstagramAccessInfo,
   PlanStatusResponse,
@@ -515,7 +520,13 @@ export async function GET(req: Request) {
         sub = await stripe.subscriptions.retrieve((user as any).stripeSubscriptionId, {
           expand: ["items.data.price", "latest_invoice.payment_intent"],
         } as any);
-      } catch {
+        if (typeof sub.customer === "string") {
+          (user as any).stripeCustomerId = sub.customer;
+        }
+      } catch (error) {
+        if (isStripeResourceMissingError(error, "subscription")) {
+          (user as any).stripeSubscriptionId = null;
+        }
         // cai para list()
       }
     }
@@ -529,11 +540,29 @@ export async function GET(req: Request) {
       } as any);
       sub = pickBestSubscription(listed.data ?? []);
     }
-  } catch {
+  } catch (error) {
+    if (isStripeResourceMissingError(error, "customer")) {
+      const reset = buildStaleStripeBillingPatch();
+      applyStaleStripeBillingPatch(user as any);
+      try {
+        await User.updateOne({ _id: (user as any)._id }, { $set: reset });
+      } catch {
+        // ignora falha de persistência
+      }
+    }
     return respondFromDb();
   }
 
-  if (!sub) return respondFromDb();
+  if (!sub) {
+    const reset = buildStaleStripeBillingPatch({ clearCustomerId: false });
+    applyStaleStripeBillingPatch(user as any, { clearCustomerId: false });
+    try {
+      await User.updateOne({ _id: (user as any)._id }, { $set: reset });
+    } catch {
+      // ignora falha de persistência
+    }
+    return respondFromDb();
+  }
 
   // ---------- Normaliza e aplica heurística anti-past_due ----------
   const n = normalizeFromSubscription(sub);

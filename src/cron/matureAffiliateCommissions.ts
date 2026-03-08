@@ -113,6 +113,7 @@ export async function matureAffiliateCommissions(
               {
                 $set: {
                   'commissionLog.$.status': 'available',
+                  'commissionLog.$.maturedAt': nowUtc,
                   'commissionLog.$.updatedAt': nowUtc,
                 },
                 $inc: { [`affiliateBalances.${e.currency}`]: e.amountCents },

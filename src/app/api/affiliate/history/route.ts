@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     availableAt: c.availableAt ?? null,
     invoiceId: c.invoiceId ?? null,
     subscriptionId: c.subscriptionId ?? null,
-    transferId: null,
+    transferId: c.transferId ?? c.transactionId ?? null,
     reasonCode: c.reasonCode ?? null,
     notes: c.note ?? null,
   }));

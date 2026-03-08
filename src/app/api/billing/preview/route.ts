@@ -1,21 +1,28 @@
 // /src/app/api/billing/preview/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { getOrCreateStripeCustomerId } from "@/utils/stripeHelpers";
+import { getAffiliateCouponValidationError } from "@/app/lib/affiliateCouponRules";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
+
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === "test") {
+    return {} as any;
+  }
+  const mod = await import("@/app/api/auth/[...nextauth]/route");
+  return mod.authOptions as any;
+}
 
 // --- Tipos para clareza ---
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 type AffiliateCheckResult = {
   couponId?: string;
-  error?: "invalid_code" | "coupon_not_configured" | "self_referral";
+  error?: "invalid_code" | "coupon_not_configured" | "coupon_not_compliant" | "self_referral";
   source?: "typed" | "url" | "cookie" | "session";
   code?: string;
 };
@@ -40,11 +47,16 @@ function getPriceId(plan: Plan, currency: Currency): string {
  * 3) Cookie d2c_ref
  * 4) Session.user.affiliateUsed (fallback)
  */
-function resolveAffiliateFromRequest(
+async function readAffiliateCookie(): Promise<string> {
+  const mod = await import('next/headers');
+  return normalizeCode(mod.cookies().get('d2c_ref')?.value || '');
+}
+
+async function resolveAffiliateFromRequest(
   req: NextRequest,
   bodyAffiliateCode?: string,
   sessionAffiliateUsed?: string
-): { code?: string; source?: "typed" | "url" | "cookie" | "session" } {
+): Promise<{ code?: string; source?: "typed" | "url" | "cookie" | "session" }> {
   const typed = normalizeCode(bodyAffiliateCode);
   if (typed) return { code: typed, source: "typed" };
 
@@ -54,8 +66,7 @@ function resolveAffiliateFromRequest(
   if (fromUrl) return { code: fromUrl, source: "url" };
 
   // Cookie
-  const cookieStore = cookies();
-  const fromCookie = normalizeCode(cookieStore.get("d2c_ref")?.value || "");
+  const fromCookie = await readAffiliateCookie();
   if (fromCookie) return { code: fromCookie, source: "cookie" };
 
   // Session
@@ -98,6 +109,13 @@ async function checkAffiliateCode(
     return { error: "coupon_not_configured", code };
   }
 
+  const coupon = await stripe.coupons.retrieve(couponId);
+  const couponError = getAffiliateCouponValidationError(coupon);
+  if (couponError) {
+    console.error(`[billing/preview] CRITICAL: ${couponError} CouponId=${couponId}`);
+    return { error: "coupon_not_compliant", code };
+  }
+
   return { couponId, code };
 }
 
@@ -111,6 +129,7 @@ function sumDiscounts(inv: any): number {
 
 export async function POST(req: NextRequest) {
   try {
+    const authOptions = await loadAuthOptions();
     const session = (await getServerSession(authOptions)) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401, headers: noStoreHeaders });
@@ -126,7 +145,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400, headers: noStoreHeaders });
     }
 
-    const { code: resolvedCode, source } = resolveAffiliateFromRequest(
+    const { code: resolvedCode, source } = await resolveAffiliateFromRequest(
       req,
       bodyAffiliateCode,
       (session.user as any)?.affiliateUsed
@@ -153,6 +172,12 @@ export async function POST(req: NextRequest) {
     if (affiliateCheck.error === "coupon_not_configured") {
       return NextResponse.json(
         { code: "COUPON_NOT_CONFIGURED", error: "O sistema de cupons não está configurado corretamente." },
+        { status: 500, headers: noStoreHeaders }
+      );
+    }
+    if (affiliateCheck.error === "coupon_not_compliant") {
+      return NextResponse.json(
+        { code: "COUPON_NOT_COMPLIANT", error: "O cupom de afiliado não respeita as regras da oferta." },
         { status: 500, headers: noStoreHeaders }
       );
     }

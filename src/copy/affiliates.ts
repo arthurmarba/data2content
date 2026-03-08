@@ -17,6 +17,6 @@ export const REDEEM_ERROR_MESSAGES: Record<string, string> = {
 };
 
 export const RULES_COPY = [
-  'Pagamos 10% apenas no 1º pagamento real do indicado (trial/descontos 100% não contam).',
+  'Pagamos 50% apenas no 1º pagamento real do indicado; quem entra pelo link recebe 10% de desconto só na 1ª fatura.',
   'Mantemos por 7 dias para cobrir reembolsos.',
 ];

@@ -3,9 +3,11 @@
 import React, { useRef, useState } from "react";
 import ButtonPrimary from "./ButtonPrimary";
 import { motion, useMotionValue, useSpring, useMotionTemplate, useTransform } from "framer-motion";
+import { getLandingPrimaryCtaLabel } from "@/app/landing/copy";
 
 type PlansComparisonSectionProps = {
   onCreateAccount: () => void;
+  isAuthenticated?: boolean;
 };
 
 const CheckIcon = () => (
@@ -98,7 +100,7 @@ const PlanCard = ({
           rotateY,
           transformStyle: "preserve-3d",
         }}
-        className={`relative flex flex-col overflow-hidden rounded-[3rem] border p-10 transition-shadow duration-500 shadow-2xl ${isPro
+        className={`relative flex flex-col overflow-hidden rounded-[2.15rem] border p-5 sm:p-10 transition-shadow duration-500 shadow-2xl ${isPro
           ? "border-brand-primary/30 bg-white shadow-brand-primary/10 ring-1 ring-brand-primary/20"
           : "border-white bg-white shadow-slate-200/50"
           } backdrop-blur-xl`}
@@ -110,8 +112,9 @@ const PlanCard = ({
         />
 
         {isPro && (
-          <div className="absolute top-8 right-8" style={{ transform: "translateZ(40px)" }}>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-brand-primary/30">
+          <div className="absolute right-5 top-5 sm:right-8 sm:top-8" style={{ transform: "translateZ(40px)" }}>
+            <span className="relative inline-flex items-center gap-1.5 rounded-full bg-brand-primary px-3 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-brand-primary/30 sm:px-4 sm:py-1.5 sm:text-[10px] sm:tracking-[0.2em]">
+              <span className="absolute -inset-1 rounded-full bg-brand-primary/20 animate-pulse" />
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
@@ -121,46 +124,63 @@ const PlanCard = ({
           </div>
         )}
 
-        <div className="mb-10" style={{ transform: "translateZ(50px)" }}>
-          <h3 className={`text-2xl font-black tracking-tight ${isPro ? "text-brand-primary" : "text-brand-dark"}`}>
+        <div className="mb-8 sm:mb-10" style={{ transform: "translateZ(50px)" }}>
+          <h3 className={`text-[1.65rem] font-black tracking-tight ${isPro ? "text-brand-primary" : "text-brand-dark"} sm:text-2xl`}>
             {title}
           </h3>
-          <div className="mt-6 flex items-baseline gap-1">
-            <span className="text-5xl font-black text-brand-dark tracking-tighter">{price}</span>
-            {price !== "Investimento" && <span className="text-lg font-bold text-slate-400">/ mês</span>}
+          <div className="mt-4 flex items-baseline gap-1 sm:mt-6">
+            <span className="text-[2.6rem] font-black tracking-tighter text-brand-dark sm:text-5xl">{price}</span>
+            {price !== "Investimento" && <span className="text-[0.95rem] font-bold text-slate-400 sm:text-lg">/ mês</span>}
           </div>
-          <p className="mt-4 text-base font-bold text-slate-500/80 leading-relaxed">
+          <p className="mt-3 text-[14px] font-semibold leading-[1.6] text-slate-500/85 sm:mt-4 sm:text-base sm:font-bold">
             {description}
           </p>
         </div>
 
         <div className="flex-1" style={{ transform: "translateZ(30px)" }}>
-          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-6">
+          <p className="mb-4 text-[9px] font-black uppercase tracking-[0.22em] text-slate-400 sm:mb-6 sm:text-[10px] sm:tracking-[0.25em]">
             O que está incluído:
           </p>
-          <ul className="grid gap-4 sm:grid-cols-1">
+          <ul className="grid gap-2.5 sm:grid-cols-1 sm:gap-3">
             {features.map((feature, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isPro ? "bg-brand-primary/10 text-brand-primary" : "bg-slate-100 text-slate-400"}`}>
+              <li key={i} className="flex items-start gap-2.5 rounded-[1rem] border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:gap-3 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isPro ? "bg-brand-primary/10 text-brand-primary" : "bg-slate-100 text-slate-400"}`}>
                   <CheckIcon />
                 </span>
-                <span className="text-base font-bold text-brand-dark/90 leading-tight">{feature}</span>
+                <span className="text-[13px] font-bold leading-[1.35] text-brand-dark/90 sm:text-sm">{feature}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="mt-12 space-y-4" style={{ transform: "translateZ(60px)" }}>
-          <ButtonPrimary
-            onClick={onCta}
-            variant={isPro ? "brand" : "outline"}
-            size="lg"
-            className={`w-full py-6 text-lg font-black shadow-xl ring-2 ${isPro ? "ring-brand-primary/10" : "ring-slate-100"}`}
-          >
-            {ctaText}
-          </ButtonPrimary>
+        <div className="mt-8 space-y-3 sm:mt-12 sm:space-y-4" style={{ transform: "translateZ(60px)" }}>
+          <div className="relative group">
+            <div className="absolute -inset-1 rounded-[1.25rem] bg-gradient-to-r from-brand-primary/40 via-brand-accent/40 to-brand-primary/40 opacity-70 blur-md group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse-slow"></div>
+            <ButtonPrimary
+              onClick={onCta}
+              variant={isPro ? "brand" : "outline"}
+              size="lg"
+              className={`relative w-full py-4 text-[1rem] font-black shadow-xl ring-2 sm:py-6 sm:text-lg ${isPro ? "ring-brand-primary/10" : "ring-slate-100"} overflow-hidden`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+              {ctaText}
+            </ButtonPrimary>
+          </div>
+
+          {isPro && (
+            <div className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-rose-50/50 py-2 sm:mt-4 sm:bg-transparent sm:py-0">
+              <div className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.12em] text-rose-600 sm:text-[10px] sm:tracking-[0.2em]">
+                Só restam 4 vagas p/ mentoria de Terça
+              </span>
+            </div>
+          )}
+
           {note && (
-            <p className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <p className="text-center text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 sm:text-[10px] sm:tracking-widest">
               {note}
             </p>
           )}
@@ -174,51 +194,51 @@ const PlanCard = ({
   );
 };
 
-export default function PlansComparisonSection({ onCreateAccount }: PlansComparisonSectionProps) {
+export default function PlansComparisonSection({
+  onCreateAccount,
+  isAuthenticated = false,
+}: PlansComparisonSectionProps) {
+  const primaryCtaLabel = getLandingPrimaryCtaLabel(isAuthenticated);
+
   return (
-    <section id="planos" className="landing-section relative overflow-hidden bg-[#FBFBFC] py-32">
+    <section id="planos" className="landing-section relative overflow-hidden bg-[#FBFBFC] py-8 sm:py-20 lg:py-24">
       {/* Background Ornaments */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
       <div className="absolute top-[20%] left-[5%] w-[40%] h-[40%] bg-brand-primary/5 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[10%] right-[10%] w-[30%] h-[30%] bg-brand-accent/5 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="landing-section__inner landing-section__inner--wide relative z-10">
-        <header className="mx-auto max-w-2xl text-center mb-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 shadow-sm">
+        <header className="mx-auto mb-8 max-w-[21rem] text-center sm:mb-10 sm:max-w-2xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[9px] font-black uppercase tracking-[0.26em] text-slate-400 shadow-sm sm:px-4 sm:py-2 sm:text-[10px] sm:tracking-[0.3em]">
             Investimento Estratégico
           </span>
-          <h2 className="mt-8 text-4xl md:text-6xl font-black text-brand-dark tracking-tight">
-            O seu novo parceiro <br className="hidden md:block" />
-            <span className="bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent">estratégico.</span>
+          <h2 className="mt-4 text-[2rem] font-black leading-[1.02] tracking-tight text-brand-dark sm:mt-8 sm:text-4xl md:text-6xl">
+            O método que te leva <br className="hidden md:block" />
+            <span className="bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent">à representação comercial.</span>
           </h2>
         </header>
 
-        <div className="mx-auto grid w-full max-w-3xl gap-8">
+        <div className="mx-auto grid w-full max-w-3xl gap-5 sm:gap-6">
           <PlanCard
-            title="Plano Pro ⭐"
+            title="Plano Consultivo"
             price="R$ 49,90"
             isPro
-            description="A suíte completa de ferramentas e estratégia para monetizar sua audiência profissionalmente."
+            description="Mentorias estratégicas e tecnologia para acelerar sua representação comercial."
             features={[
-              "Reuniões Estratégicas Semanais",
-              "Mídia Kit Completo (Auditado)",
-              "Exposição Hero em Membros d2c",
-              "Meus Roteiros com IA (Planejamento)",
-              "Review de Post (Vereditos)",
-              "Descoberta de referências da comunidade",
-              "Calculadora de Publis e CRM",
-              "Captação Direta de Propostas",
-              "50% de Comissão (1ª fatura afiliados)",
-              "Dashboard Avançado de Métricas"
+              "3 Mentorias Semanais de Conteúdo e Roteiro",
+              "Anotações Inteligentes d2c",
+              "Calculadora de Precificação Comercial",
+              "Radar de Faturamento p/ Representação",
+              "Mídia Kit Auditado em Tempo Real"
             ]}
-            ctaText="Assinar Plano Pro"
+            ctaText={primaryCtaLabel}
             onCta={onCreateAccount}
-            note="Acelere sua carreira hoje"
+            note="Valor sofre reajuste nos próximos meses."
           />
         </div>
 
-        <p className="mt-20 text-center text-sm font-bold text-slate-400">
-          Precisa de uma solução para empresas ou marcas? <button className="text-brand-primary hover:underline underline-offset-4">Fale com um consultor →</button>
+        <p className="mt-7 text-center text-[13px] font-semibold leading-relaxed text-slate-400 sm:mt-12 sm:text-sm sm:font-bold">
+          Você foca 100% na criação e nós te direcionamos. <button className="text-brand-primary hover:underline underline-offset-4">Fale no WhatsApp se tiver dúvidas →</button>
         </p>
       </div>
       <style jsx global>{`

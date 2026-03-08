@@ -173,8 +173,16 @@ export interface ICommissionEntry {
   buyerUserId?: Types.ObjectId;
   currency: string;
   amountCents: number;
+  commissionRateBps?: number;
   availableAt?: Date;
+  maturedAt?: Date;
+  paidAt?: Date;
+  reversedAt?: Date;
+  redeemId?: Types.ObjectId;
+  transferId?: string;
   transactionId?: string;
+  reasonCode?: string;
+  reversalReason?: string;
   note?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -451,8 +459,16 @@ const commissionLogEntrySchema = new Schema<ICommissionEntry>(
     buyerUserId: { type: Schema.Types.ObjectId, ref: 'User' },
     currency: { type: String, lowercase: true, required: true },
     amountCents: { type: Number, required: true },
+    commissionRateBps: { type: Number },
     availableAt: { type: Date },
+    maturedAt: { type: Date },
+    paidAt: { type: Date },
+    reversedAt: { type: Date },
+    redeemId: { type: Schema.Types.ObjectId, ref: 'Redemption' },
+    transferId: { type: String },
     transactionId: { type: String },
+    reasonCode: { type: String },
+    reversalReason: { type: String },
     note: { type: String },
   },
   { timestamps: true }

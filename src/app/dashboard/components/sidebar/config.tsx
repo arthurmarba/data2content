@@ -88,8 +88,8 @@ type SidebarSectionDefinition = {
 const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
   {
     key: "core",
-    title: "Principal",
-    description: "Visão geral e vitrine para marcas",
+    title: "Saguão Principal",
+    description: "Sua portaria e vitrine pública",
     items: [
       {
         type: "item",
@@ -170,8 +170,8 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
   },
   {
     key: "monetization",
-    title: "Monetização",
-    description: "Campanhas, calculadora e afiliados",
+    title: "Acesso Comercial",
+    description: "Campanhas, parcerias e radar",
     items: [
       {
         type: "item",
@@ -213,8 +213,8 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
   },
   {
     key: "account",
-    title: "Conta",
-    description: "Gerencie assinatura e suporte",
+    title: "Sua Conta",
+    description: "Acesso e suporte",
     items: [
       {
         type: "item",

@@ -1,46 +1,46 @@
 export const navigationLabels = {
   dashboard: {
-    menu: "Dashboard",
+    menu: "Saguão da Agência",
   },
   campaigns: {
-    menu: "Campanhas",
-    tooltip: "Propostas, Análise com IA e Respostas",
+    menu: "Gestão de Publi",
+    tooltip: "Suas propostas e análise de perfil para marcas",
   },
   mediaKit: {
     menu: "Mídia Kit",
     tooltip: "Sua vitrine pública para marcas",
   },
   planning: {
-    menu: "Planejamento",
-    tooltip: "Organize seu conteúdo com IA",
+    menu: "Seu Diagnóstico (IA)",
+    tooltip: "Dados preparados para sua próxima reunião",
   },
   planningDiscover: {
     menu: "Descoberta",
-    tooltip: "Monitore formatos e temas em alta",
+    tooltip: "Referências do mercado preparadas pela IA",
   },
   planningChat: {
-    menu: "Chat IA",
-    tooltip: "Peça análises e pautas dentro do Planejamento",
+    menu: "Central de Suporte (IA)",
+    tooltip: "Converse com seu assistente para ajustes rápidos",
   },
   planningCharts: {
-    menu: "Gráficos",
-    tooltip: "Visualize interações e benchmarks com IA",
+    menu: "Análise de Perfil",
+    tooltip: "Seus resultados comparados com o mercado",
   },
   planningPlanner: {
-    menu: "Calendário",
-    tooltip: "Monte seu calendário com IA",
+    menu: "Planejamento",
+    tooltip: "Sugestões da IA para seus próximos posts",
   },
   planningScripts: {
     menu: "Meus Roteiros",
-    tooltip: "Salve, edite e ajuste roteiros com IA",
+    tooltip: "Traga para a revisão de terças-feiras",
   },
   pro: {
-    menu: "Plano Pro",
-    tooltip: "Desbloquear Plano Pro",
+    menu: "Acesso à Consultoria",
+    tooltip: "Desbloquear o Acesso VIP",
   },
   affiliates: {
-    menu: "Afiliado",
-    tooltip: "Comissão por novas assinaturas",
+    menu: "Programa de Indicação",
+    tooltip: "Convide colegas",
   },
   settings: {
     menu: "Perfil & Ajuda",

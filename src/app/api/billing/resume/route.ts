@@ -6,6 +6,10 @@ import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import type Stripe from "stripe";
 import { logger } from "@/app/lib/logger";
+import {
+  isStripeResourceMissingError,
+  persistStaleStripeBillingPatch,
+} from "@/utils/stripeHelpers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -128,11 +132,14 @@ export async function POST() {
           expand: ["latest_invoice.payment_intent", "items.data.price"],
         } as any)) as Stripe.Subscription;
         subscription = sub;
-        if (!customerId && typeof sub.customer === "string") {
+        if (typeof sub.customer === "string") {
           customerId = sub.customer;
         }
         stripeRequestId = getStripeRequestId(sub);
-      } catch {
+      } catch (error) {
+        if (isStripeResourceMissingError(error, "subscription")) {
+          user.stripeSubscriptionId = null;
+        }
         subscription = null;
       }
     }
@@ -198,12 +205,24 @@ export async function POST() {
     }
 
     if (!subscription) {
-      const list = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "all",
-        limit: 10,
-        expand: ["data.latest_invoice.payment_intent", "data.items.data.price"],
-      } as any);
+      let list: Stripe.ApiList<Stripe.Subscription>;
+      try {
+        list = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "all",
+          limit: 10,
+          expand: ["data.latest_invoice.payment_intent", "data.items.data.price"],
+        } as any);
+      } catch (error) {
+        if (isStripeResourceMissingError(error, "customer")) {
+          await persistStaleStripeBillingPatch(user as any);
+          return NextResponse.json(
+            { ok: false, code: "NO_STRIPE_CUSTOMER", message: "Cliente Stripe não encontrado." },
+            { status: 400, headers: cacheHeader }
+          );
+        }
+        throw error;
+      }
 
       const active = list.data.find((s) => s.status === "active" || s.status === "trialing");
       const delinquent = list.data.find((s) => s.status === "past_due" || s.status === "unpaid");

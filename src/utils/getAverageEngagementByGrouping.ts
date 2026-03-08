@@ -2,9 +2,9 @@ import MetricModel, { IMetric } from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
-import { getNestedValue } from './dataAccessHelpers';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 import { getCategoryById, getCategoryByValue } from '@/app/lib/classification';
+import { resolvePerformanceMetricValue } from './performanceMetricResolver';
 
 export type GroupingType = 'format' | 'context' | 'proposal' | 'tone' | 'references';
 
@@ -13,6 +13,8 @@ export interface AverageResult {
   value: number;
   postsCount: number;
 }
+
+type CreditMode = 'full' | 'fractional';
 
 type GroupingResults = Partial<Record<GroupingType, AverageResult[]>>;
 
@@ -69,34 +71,45 @@ function aggregatePostsByGrouping(
   posts: IMetric[],
   performanceMetricField: string,
   groupBy: GroupingType,
-  formatMapping?: Record<string, string>
+  formatMapping?: Record<string, string>,
+  creditMode: CreditMode = 'full'
 ): AverageResult[] {
   const aggregation: Record<string, { sum: number; count: number; originalKey: string }> = {};
 
-  const pushKey = (rawKey: string, metricValue: number) => {
+  const pushKey = (rawKey: string, metricValue: number, weight = 1) => {
     if (!rawKey) return;
     const canonicalLabel = resolveCanonicalLabel(rawKey, groupBy);
     const groupingKey = normalize(canonicalLabel);
     if (!groupingKey) return;
+    const displayLabel =
+      groupBy === 'format'
+        ? formatMapping?.[rawKey] || canonicalLabel
+        : canonicalLabel;
 
-    const current = aggregation[groupingKey] || { sum: 0, count: 0, originalKey: canonicalLabel };
-    current.sum += metricValue;
+    const current = aggregation[groupingKey] || { sum: 0, count: 0, originalKey: displayLabel };
+    current.sum += metricValue * weight;
     current.count += 1;
     aggregation[groupingKey] = current;
   };
 
   for (const post of posts) {
-    const metricValue = getNestedValue(post, performanceMetricField);
+    const metricValue = resolvePerformanceMetricValue(post, performanceMetricField);
     if (typeof metricValue !== 'number') continue;
 
     const keys = (post as any)?.[groupBy] as unknown;
     if (Array.isArray(keys)) {
-      for (const key of keys) {
-        pushKey(String(key), metricValue);
+      const normalizedKeys = keys
+        .map((key) => String(key).trim())
+        .filter(Boolean);
+      if (!normalizedKeys.length) continue;
+
+      const weight = creditMode === 'fractional' ? 1 / normalizedKeys.length : 1;
+      for (const key of normalizedKeys) {
+        pushKey(key, metricValue, weight);
       }
     } else if (typeof keys === 'string') {
       const safeKey = keys.trim();
-      if (safeKey) pushKey(safeKey, metricValue);
+      if (safeKey) pushKey(safeKey, metricValue, 1);
     }
   }
 
@@ -104,14 +117,10 @@ function aggregatePostsByGrouping(
   for (const [key, data] of Object.entries(aggregation)) {
     if (!data.count) continue;
     const displayKey = data.originalKey || key;
-    const name =
-      groupBy === 'format'
-        ? formatMapping?.[displayKey] || displayKey
-        : displayKey;
     results.push({
-      name,
+      name: displayKey,
       value: data.sum / data.count,
-      postsCount: data.count,
+      postsCount: Math.max(1, Math.round(data.count)),
     });
   }
 
@@ -124,7 +133,8 @@ export async function getAverageEngagementByGroupings(
   timePeriod: string,
   performanceMetricField: string,
   groupByList: GroupingType[],
-  formatMapping?: Record<string, string>
+  formatMapping?: Record<string, string>,
+  options?: { creditMode?: CreditMode }
 ): Promise<GroupingResults> {
   const uniqueGroupings = Array.from(new Set(groupByList));
   const emptyResults: GroupingResults = {};
@@ -161,7 +171,13 @@ export async function getAverageEngagementByGroupings(
 
     const aggregated: GroupingResults = {};
     uniqueGroupings.forEach((groupBy) => {
-      aggregated[groupBy] = aggregatePostsByGrouping(posts, performanceMetricField, groupBy, formatMapping);
+      aggregated[groupBy] = aggregatePostsByGrouping(
+        posts,
+        performanceMetricField,
+        groupBy,
+        formatMapping,
+        options?.creditMode
+      );
     });
 
     return aggregated;
@@ -179,14 +195,16 @@ async function getAverageEngagementByGrouping(
   timePeriod: string,
   performanceMetricField: string,
   groupBy: GroupingType,
-  formatMapping?: Record<string, string>
+  formatMapping?: Record<string, string>,
+  options?: { creditMode?: CreditMode }
 ): Promise<AverageResult[]> {
   const grouped = await getAverageEngagementByGroupings(
     userId,
     timePeriod,
     performanceMetricField,
     [groupBy],
-    formatMapping
+    formatMapping,
+    options
   );
   return grouped[groupBy] || [];
 }

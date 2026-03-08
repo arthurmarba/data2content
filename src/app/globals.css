@@ -90,14 +90,71 @@
   color: #f8fafc;
 }
 
-.landing-section__inner {
-  width: min(100%, 1200px);
-  margin-inline: auto;
-  padding-inline: clamp(1.25rem, 4vw, 3rem);
-}
+@layer components {
+  .landing-section {
+    padding-block: clamp(3rem, 5vw, 4.5rem);
+  }
 
-.landing-section__inner--wide {
-  width: min(100%, 1280px);
+  .landing-section--compact-top {
+    padding-top: clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .landing-section--compact-bottom {
+    padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .landing-section--plain {
+    background-color: var(--landing-surface);
+  }
+
+  .landing-section--muted {
+    background-color: var(--landing-surface-muted);
+  }
+
+  .landing-section--sunrise {
+    background:
+      radial-gradient(120% 150% at 50% -30%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 60%),
+      radial-gradient(80% 120% at 20% -10%, rgba(255, 44, 126, 0.1) 0%, rgba(255, 44, 126, 0) 60%),
+      radial-gradient(90% 110% at 80% 0%, rgba(36, 107, 253, 0.08) 0%, rgba(36, 107, 253, 0) 55%),
+      linear-gradient(180deg, #fffefe 0%, #fdf9fd 45%, #f5f7fb 100%);
+  }
+
+  .landing-section--ink {
+    background-color: #0f172a;
+    color: #f8fafc;
+  }
+
+  .landing-section__inner {
+    width: min(100%, 1200px);
+    margin-inline: auto;
+    padding-inline: clamp(1.25rem, 4vw, 3rem);
+  }
+
+  .landing-section__inner--wide {
+    width: min(100%, 1280px);
+  }
+
+  @media (max-width: 639px) {
+    .landing-section {
+      padding-block: 2.2rem;
+    }
+
+    .landing-section--compact-top {
+      padding-top: 0.75rem;
+    }
+
+    .landing-section--compact-bottom {
+      padding-bottom: 1.25rem;
+    }
+
+    .landing-section__inner {
+      padding-inline: 0.875rem;
+    }
+
+    .text-eyebrow {
+      letter-spacing: 0.18em;
+    }
+  }
 }
 
 .dashboard-page-shell {
@@ -169,18 +226,32 @@
 }
 
 /* Altura baseada em 100svh para evitar jumps no mobile */
-.h-svh { height: 100svh; }
-.min-h-svh { min-height: 100svh; }
+.h-svh {
+  height: 100svh;
+}
+
+.min-h-svh {
+  min-height: 100svh;
+}
 
 /* Padding-top padrão do header fixo */
-.pt-header { padding-top: var(--header-h); }
+.pt-header {
+  padding-top: var(--header-h);
+}
 
 /* Padding-bottom que respeita a home bar (ótimo pro composer do chat) */
-.pb-safe { padding-bottom: calc(0.5rem + var(--sab, 0px)); }
+.pb-safe {
+  padding-bottom: calc(0.5rem + var(--sab, 0px));
+}
 
 /* === Utilitárias para o chat === */
-.scroll-pt-header { scroll-padding-top: var(--header-h, 56px); }
-.scroll-pb-composer { scroll-padding-bottom: calc(var(--composer-h, 80px) + var(--sab, 0px)); }
+.scroll-pt-header {
+  scroll-padding-top: var(--header-h, 56px);
+}
+
+.scroll-pb-composer {
+  scroll-padding-bottom: calc(var(--composer-h, 80px) + var(--sab, 0px));
+}
 
 /* =========================
    Scrollbar helpers
@@ -188,11 +259,15 @@
 
 /* Esconde scrollbar mantendo scroll (cross-browser) */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE/Edge legacy */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge legacy */
+  scrollbar-width: none;
+  /* Firefox */
 }
+
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;             /* Chrome/Safari/Edge */
+  display: none;
+  /* Chrome/Safari/Edge */
 }
 
 /* Mantida por compat (se houver uso legado) */
@@ -200,7 +275,10 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.no-scrollbar::-webkit-scrollbar { display: none; }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 /* =========================
    Estilos existentes
@@ -210,13 +288,16 @@
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: #c1c1c1;
   border-radius: 3px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #a8a8a8;
 }
@@ -241,14 +322,21 @@ a {
 */
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
 }
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -261,12 +349,14 @@ a {
 }
 
 @keyframes typing-indicator-bounce {
+
   0%,
   80%,
   100% {
     transform: translateY(0);
     opacity: 0.35;
   }
+
   40% {
     transform: translateY(-3px);
     opacity: 1;
@@ -329,10 +419,10 @@ a {
     padding-bottom: var(--space-fluid-3);
   }
 
-.section-padding-lg {
-  padding-top: var(--space-fluid-4);
-  padding-bottom: var(--space-fluid-4);
-}
+  .section-padding-lg {
+    padding-top: var(--space-fluid-4);
+    padding-bottom: var(--space-fluid-4);
+  }
 }
 
 .sticky-cta-bar {
@@ -354,10 +444,13 @@ a {
 }
 
 @keyframes pulseSoft {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: translateY(0);
   }
+
   50% {
     opacity: 0.8;
     transform: translateY(-1px);
