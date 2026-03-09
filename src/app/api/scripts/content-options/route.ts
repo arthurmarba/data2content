@@ -14,12 +14,59 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const CONTENT_OPTIONS_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.SCRIPTS_CONTENT_OPTIONS_CACHE_TTL_MS ?? 20_000);
+  return Number.isFinite(parsed) && parsed >= 2_000 ? Math.floor(parsed) : 20_000;
+})();
+const CONTENT_OPTIONS_CACHE_STALE_WHILE_ERROR_MS = (() => {
+  const parsed = Number(process.env.SCRIPTS_CONTENT_OPTIONS_CACHE_STALE_WHILE_ERROR_MS ?? 300_000);
+  return Number.isFinite(parsed) && parsed >= 10_000 ? Math.floor(parsed) : 300_000;
+})();
+const CONTENT_OPTIONS_CACHE_MAX_ENTRIES = (() => {
+  const parsed = Number(process.env.SCRIPTS_CONTENT_OPTIONS_CACHE_MAX_ENTRIES ?? 4_000);
+  return Number.isFinite(parsed) && parsed >= 200 ? Math.floor(parsed) : 4_000;
+})();
+
+const contentOptionsCache = new Map<
+  string,
+  { expiresAt: number; staleUntil: number; payload: any }
+>();
 
 type CursorToken = {
   postDate: string;
   updatedAt: string;
   id: string;
 };
+
+function buildContentOptionsCacheKey(params: {
+  effectiveUserId: string;
+  limit: number;
+  queryText: string;
+  cursor: CursorToken | null;
+}) {
+  return [
+    params.effectiveUserId,
+    params.limit,
+    params.queryText,
+    params.cursor?.postDate ?? "",
+    params.cursor?.updatedAt ?? "",
+    params.cursor?.id ?? "",
+  ].join("|");
+}
+
+function pruneContentOptionsCache(nowTs: number) {
+  for (const [key, value] of contentOptionsCache.entries()) {
+    if (value.staleUntil <= nowTs) contentOptionsCache.delete(key);
+  }
+  if (contentOptionsCache.size <= CONTENT_OPTIONS_CACHE_MAX_ENTRIES) return;
+  const overflow = contentOptionsCache.size - CONTENT_OPTIONS_CACHE_MAX_ENTRIES;
+  const keys = Array.from(contentOptionsCache.keys());
+  for (let index = 0; index < overflow; index += 1) {
+    const key = keys[index];
+    if (!key) break;
+    contentOptionsCache.delete(key);
+  }
+}
 
 function parseLimit(value: string | null): number {
   const parsed = Number(value);
@@ -96,6 +143,19 @@ export async function GET(request: Request) {
     const limit = parseLimit(url.searchParams.get("limit"));
     const queryText = (url.searchParams.get("q") || "").trim();
     const cursor = decodeCursor(url.searchParams.get("cursor"));
+    const cacheKey = buildContentOptionsCacheKey({
+      effectiveUserId,
+      limit,
+      queryText,
+      cursor,
+    });
+    const nowTs = Date.now();
+    pruneContentOptionsCache(nowTs);
+    const cachedEntry = contentOptionsCache.get(cacheKey);
+
+    if (cachedEntry && cachedEntry.expiresAt > nowTs) {
+      return NextResponse.json(cachedEntry.payload);
+    }
 
     const query: Record<string, any> = {
       user: new Types.ObjectId(effectiveUserId),
@@ -181,7 +241,7 @@ export async function GET(request: Request) {
           : null,
     }));
 
-    return NextResponse.json({
+    const responsePayload = {
       ok: true,
       items,
       pagination: {
@@ -189,12 +249,53 @@ export async function GET(request: Request) {
         hasMore,
         limit,
       },
+      meta: {
+        servedFromCache: false,
+        stale: false,
+      },
+    };
+
+    contentOptionsCache.set(cacheKey, {
+      payload: responsePayload,
+      expiresAt: nowTs + CONTENT_OPTIONS_CACHE_TTL_MS,
+      staleUntil: nowTs + CONTENT_OPTIONS_CACHE_STALE_WHILE_ERROR_MS,
     });
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
       logger.warn("[scripts/content-options] Erro transitorio de Mongo.", {
         error: getErrorMessage((error as any)?.cause ?? error),
       });
+      try {
+        const session = (await getServerSession(authOptions as any)) as any;
+        const targetUrl = new URL(request.url);
+        const targetResolution = resolveTargetScriptsUser({
+          session,
+          targetUserId: targetUrl.searchParams.get("targetUserId"),
+        });
+        if (targetResolution.ok) {
+          const cacheKey = buildContentOptionsCacheKey({
+            effectiveUserId: targetResolution.userId,
+            limit: parseLimit(targetUrl.searchParams.get("limit")),
+            queryText: (targetUrl.searchParams.get("q") || "").trim(),
+            cursor: decodeCursor(targetUrl.searchParams.get("cursor")),
+          });
+          const cachedEntry = contentOptionsCache.get(cacheKey);
+          if (cachedEntry && cachedEntry.staleUntil > Date.now()) {
+            return NextResponse.json({
+              ...cachedEntry.payload,
+              meta: {
+                ...(cachedEntry.payload?.meta ?? {}),
+                servedFromCache: true,
+                stale: true,
+              },
+            });
+          }
+        }
+      } catch {
+        // noop: fall back to structured 503 below
+      }
       return NextResponse.json(
         { ok: false, error: "Os conteudos publicados estao temporariamente indisponiveis. Tente novamente em instantes." },
         { status: 503 }

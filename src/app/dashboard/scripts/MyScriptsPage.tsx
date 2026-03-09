@@ -215,6 +215,21 @@ async function fetchJsonWithRetry(
   }
 }
 
+function getReadableFetchErrorMessage(error: unknown, fallback: string) {
+  const rawMessage = error instanceof Error ? error.message.trim() : "";
+  if (!rawMessage) return fallback;
+  const normalized = rawMessage.toLowerCase();
+  if (
+    normalized === "failed to fetch" ||
+    normalized === "load failed" ||
+    normalized.includes("networkerror") ||
+    normalized.includes("network request failed")
+  ) {
+    return fallback;
+  }
+  return rawMessage;
+}
+
 function getDayLabel(dayOfWeek?: number) {
   if (typeof dayOfWeek !== "number") return "Dia";
   if (dayOfWeek === 7) return DAYS_SHORT[0];
@@ -486,6 +501,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const hasFetchedContentOptionsRef = useRef(false);
   const contentOptionsNextCursorRef = useRef<string | null>(null);
   const contentOptionsHydratingRef = useRef(false);
+  const contentOptionsLoadErrorRef = useRef<string | null>(null);
   const latestFeedbackToastRef = useRef<string>("");
   const nextCursorRef = useRef<string | null>(null);
   const scriptsRequestIdRef = useRef(0);
@@ -659,9 +675,13 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
             : null;
       }
     } catch (error: any) {
+      const title = getReadableFetchErrorMessage(
+        error,
+        "Falha ao carregar conteúdos adicionais para vinculação."
+      );
       toast({
         variant: "warning",
-        title: error?.message || "Falha ao carregar conteúdos adicionais para vinculação.",
+        title,
       });
     } finally {
       contentOptionsHydratingRef.current = false;
@@ -696,6 +716,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
       setContentOptions(options);
       hasFetchedContentOptionsRef.current = true;
+      contentOptionsLoadErrorRef.current = null;
       const nextCursor =
         typeof payload?.pagination?.nextCursor === "string" && payload.pagination.nextCursor.trim()
           ? payload.pagination.nextCursor.trim()
@@ -707,12 +728,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       }
       return options;
     } catch (error: any) {
-      setContentOptions([]);
+      const title = getReadableFetchErrorMessage(
+        error,
+        "Falha ao carregar conteúdos para vinculação. Tente novamente em instantes."
+      );
       contentOptionsNextCursorRef.current = null;
       hasFetchedContentOptionsRef.current = false;
+      contentOptionsLoadErrorRef.current = title;
       toast({
         variant: "warning",
-        title: error?.message || "Falha ao carregar conteúdos para vinculação.",
+        title,
       });
       return null;
     } finally {
@@ -1068,6 +1093,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     hasFetchedContentOptionsRef.current = false;
     contentOptionsNextCursorRef.current = null;
     contentOptionsHydratingRef.current = false;
+    contentOptionsLoadErrorRef.current = null;
     setPublicationSavingScriptId(null);
     setQuickPublishAnchorScriptId(null);
     setQuickPublishContentId("");
@@ -1382,7 +1408,19 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       }
 
       const options = await ensureContentOptionsLoaded();
-      if (!options || options.length === 0) {
+      if (options === null) {
+        setCardActionFeedback(
+          script.id,
+          {
+            variant: "error",
+            message: contentOptionsLoadErrorRef.current || "Não foi possível carregar os conteúdos publicados agora.",
+          },
+          { ttlMs: 6000 }
+        );
+        return;
+      }
+
+      if (options.length === 0) {
         setCardActionFeedback(
           script.id,
           {
