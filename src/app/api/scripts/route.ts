@@ -34,16 +34,23 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
-const SCRIPTS_NOTIFICATIONS_CACHE_TTL_MS = (() => {
+const SCRIPTS_LIST_CACHE_TTL_MS = (() => {
   const parsed = Number(process.env.SCRIPTS_NOTIFICATIONS_CACHE_TTL_MS ?? 20_000);
   return Number.isFinite(parsed) && parsed >= 2_000 ? Math.floor(parsed) : 20_000;
 })();
-const SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES = (() => {
+const SCRIPTS_LIST_CACHE_STALE_WHILE_ERROR_MS = (() => {
+  const parsed = Number(process.env.SCRIPTS_LIST_CACHE_STALE_WHILE_ERROR_MS ?? 300_000);
+  return Number.isFinite(parsed) && parsed >= 10_000 ? Math.floor(parsed) : 300_000;
+})();
+const SCRIPTS_LIST_CACHE_MAX_ENTRIES = (() => {
   const parsed = Number(process.env.SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES ?? 10_000);
   return Number.isFinite(parsed) && parsed >= 500 ? Math.floor(parsed) : 10_000;
 })();
 
-const scriptsNotificationsCache = new Map<string, { expiresAt: number; payload: any }>();
+const scriptsListCache = new Map<
+  string,
+  { expiresAt: number; staleUntil: number; payload: any }
+>();
 
 function logScriptsMongoRetry(context: string, error: unknown, retryCount: number) {
   logger.warn("[scripts] Retry para erro transitorio de Mongo.", {
@@ -77,17 +84,17 @@ async function getAuthenticatedSession(context: string) {
   }
 }
 
-function pruneScriptsNotificationsCache(nowTs: number) {
-  for (const [key, value] of scriptsNotificationsCache.entries()) {
-    if (value.expiresAt <= nowTs) scriptsNotificationsCache.delete(key);
+function pruneScriptsListCache(nowTs: number) {
+  for (const [key, value] of scriptsListCache.entries()) {
+    if (value.staleUntil <= nowTs) scriptsListCache.delete(key);
   }
-  if (scriptsNotificationsCache.size <= SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES) return;
-  const overflow = scriptsNotificationsCache.size - SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES;
-  const keys = Array.from(scriptsNotificationsCache.keys());
+  if (scriptsListCache.size <= SCRIPTS_LIST_CACHE_MAX_ENTRIES) return;
+  const overflow = scriptsListCache.size - SCRIPTS_LIST_CACHE_MAX_ENTRIES;
+  const keys = Array.from(scriptsListCache.keys());
   for (let i = 0; i < overflow; i += 1) {
     const key = keys[i];
     if (!key) break;
-    scriptsNotificationsCache.delete(key);
+    scriptsListCache.delete(key);
   }
 }
 
@@ -163,6 +170,27 @@ function createEmptyLinkingSummary(): ScriptLinkingSummary {
     totalLinks: 0,
     campaigns: [],
   };
+}
+
+function buildScriptsListCacheKey(params: {
+  effectiveUserId: string;
+  limit: number;
+  cursor: CursorToken | null;
+  q: string;
+  origin: ScriptOriginFilter;
+  posted: ScriptPostedFilter;
+  notificationsView: boolean;
+}) {
+  return [
+    params.effectiveUserId,
+    params.limit,
+    params.cursor?.updatedAt ?? "",
+    params.cursor?.id ?? "",
+    params.q,
+    params.origin,
+    params.posted,
+    params.notificationsView ? "notifications" : "list",
+  ].join("|");
 }
 
 function normalizeCreateBody(body: any) {
@@ -297,29 +325,6 @@ async function resolvePostedContentForCreate(params: {
       ok: false as const,
       status: 404,
       error: "Conteúdo não encontrado para este usuário.",
-    };
-  }
-
-  const existingLinkedScript = await withMongoTransientRetry(
-    () =>
-      ScriptEntry.findOne({
-        userId: new Types.ObjectId(userId),
-        "postedContent.metricId": metricDoc._id,
-      })
-        .select("_id")
-        .lean()
-        .exec(),
-    {
-      retries: 1,
-      onRetry: (error, retryCount) => logScriptsMongoRetry("resolvePostedContentForCreate existing_link", error, retryCount),
-    }
-  );
-
-  if (existingLinkedScript) {
-    return {
-      ok: false as const,
-      status: 409,
-      error: "Esse conteúdo já está vinculado a outro roteiro.",
     };
   }
 
@@ -610,54 +615,75 @@ export async function GET(request: Request) {
       query.$and = andConditions;
     }
 
-    const cacheKey = notificationsView
-      ? [
-        effectiveUserId,
-        limit,
-        cursor?.updatedAt ?? "",
-        cursor?.id ?? "",
-        q,
-        origin,
-        posted,
-      ].join("|")
-      : null;
+    const cacheKey = buildScriptsListCacheKey({
+      effectiveUserId,
+      limit,
+      cursor,
+      q,
+      origin,
+      posted,
+      notificationsView,
+    });
     const nowTs = Date.now();
-    if (cacheKey) {
-      pruneScriptsNotificationsCache(nowTs);
-      const cached = scriptsNotificationsCache.get(cacheKey);
-      if (cached && cached.expiresAt > nowTs) {
-        return NextResponse.json(cached.payload);
-      }
+    pruneScriptsListCache(nowTs);
+    const cached = scriptsListCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowTs) {
+      return NextResponse.json(cached.payload);
     }
 
-    const { docs, linkingSummaryByScriptId } = await withMongoTransientRetry(
-      async () => {
-        await connectToDatabase();
+    let docs: any[] = [];
+    let linkingSummaryByScriptId = new Map<string, ScriptLinkingSummary>();
+    try {
+      const result = await withMongoTransientRetry(
+        async () => {
+          await connectToDatabase();
 
-        let docsQuery = ScriptEntry.find(query);
-        if (notificationsView) {
-          docsQuery = docsQuery.select(
-            "_id updatedAt isAdminRecommendation recommendedAt adminAnnotation adminAnnotationUpdatedAt"
-          );
+          let docsQuery = ScriptEntry.find(query);
+          if (notificationsView) {
+            docsQuery = docsQuery.select(
+              "_id updatedAt isAdminRecommendation recommendedAt adminAnnotation adminAnnotationUpdatedAt"
+            );
+          }
+          const docs = await docsQuery.sort({ updatedAt: -1, _id: -1 }).limit(limit + 1).lean().exec();
+
+          const pageItems = docs.length > limit ? docs.slice(0, limit) : docs;
+          const linkingSummaryByScriptId =
+            notificationsView || pageItems.length === 0
+              ? new Map<string, ScriptLinkingSummary>()
+              : await buildLinkingSummaryByScriptId({
+                  userId: effectiveUserId,
+                  scriptDocs: pageItems,
+                });
+
+          return { docs, linkingSummaryByScriptId };
+        },
+        {
+          retries: 1,
+          onRetry: (error, retryCount) => logScriptsMongoRetry("GET /api/scripts", error, retryCount),
         }
-        const docs = await docsQuery.sort({ updatedAt: -1, _id: -1 }).limit(limit + 1).lean().exec();
-
-        const pageItems = docs.length > limit ? docs.slice(0, limit) : docs;
-        const linkingSummaryByScriptId =
-          notificationsView || pageItems.length === 0
-            ? new Map<string, ScriptLinkingSummary>()
-            : await buildLinkingSummaryByScriptId({
-                userId: effectiveUserId,
-                scriptDocs: pageItems,
-              });
-
-        return { docs, linkingSummaryByScriptId };
-      },
-      {
-        retries: 1,
-        onRetry: (error, retryCount) => logScriptsMongoRetry("GET /api/scripts", error, retryCount),
+      );
+      docs = result.docs;
+      linkingSummaryByScriptId = result.linkingSummaryByScriptId;
+    } catch (error) {
+      if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+        const staleCached = scriptsListCache.get(cacheKey);
+        if (staleCached && staleCached.staleUntil > nowTs) {
+          logger.warn("[scripts] Servindo cache stale por erro transitorio de Mongo.", {
+            cacheKey,
+            error: getErrorMessage((error as any)?.cause ?? error),
+          });
+          return NextResponse.json({
+            ...staleCached.payload,
+            meta: {
+              ...(staleCached.payload?.meta || {}),
+              servedFromCache: true,
+              stale: true,
+            },
+          });
+        }
       }
-    );
+      throw error;
+    }
 
     const hasMore = docs.length > limit;
     const pageItems = hasMore ? docs.slice(0, limit) : docs;
@@ -684,12 +710,11 @@ export async function GET(request: Request) {
       },
     };
 
-    if (cacheKey) {
-      scriptsNotificationsCache.set(cacheKey, {
-        payload,
-        expiresAt: nowTs + SCRIPTS_NOTIFICATIONS_CACHE_TTL_MS,
-      });
-    }
+    scriptsListCache.set(cacheKey, {
+      payload,
+      expiresAt: nowTs + SCRIPTS_LIST_CACHE_TTL_MS,
+      staleUntil: nowTs + SCRIPTS_LIST_CACHE_TTL_MS + SCRIPTS_LIST_CACHE_STALE_WHILE_ERROR_MS,
+    });
 
     return NextResponse.json(payload);
   } catch (error) {
