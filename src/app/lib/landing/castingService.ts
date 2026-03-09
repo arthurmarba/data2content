@@ -491,47 +491,113 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     .filter((creator) => !pickUserAvatar(creator))
     .map((creator) => creator._id)
     .filter((id): id is Types.ObjectId => Boolean(id));
-
-  const formatAgg = await MetricModel.aggregate<{
-    _id: { user: Types.ObjectId; format: string };
-    postCount: number;
-    totalInteractions: number;
-  }>([
-    {
-      $match: {
-        user: { $in: subscriberIds },
-        postDate: { $gte: since },
-        format: { $exists: true, $ne: [] },
+  const [
+    formatAgg,
+    topContextAgg,
+    insightAvatars,
+  ] = await Promise.all([
+    MetricModel.aggregate<{
+      _id: { user: Types.ObjectId; format: string };
+      postCount: number;
+      totalInteractions: number;
+    }>([
+      {
+        $match: {
+          user: { $in: subscriberIds },
+          postDate: { $gte: since },
+          format: { $exists: true, $ne: [] },
+        },
       },
-    },
-    {
-      $project: {
-        user: 1,
-        format: { $ifNull: ["$format", []] },
-        totalInteractions: { $ifNull: ["$stats.total_interactions", 0] },
+      {
+        $project: {
+          user: 1,
+          format: { $ifNull: ["$format", []] },
+          totalInteractions: { $ifNull: ["$stats.total_interactions", 0] },
+        },
       },
-    },
-    { $unwind: "$format" },
-    {
-      $project: {
-        user: 1,
-        format: { $toLower: "$format" },
-        totalInteractions: 1,
+      { $unwind: "$format" },
+      {
+        $project: {
+          user: 1,
+          format: { $toLower: "$format" },
+          totalInteractions: 1,
+        },
       },
-    },
-    {
-      $match: {
-        format: { $nin: FORMAT_DISALLOWED },
+      {
+        $match: {
+          format: { $nin: FORMAT_DISALLOWED },
+        },
       },
-    },
-    {
-      $group: {
-        _id: { user: "$user", format: "$format" },
-        postCount: { $sum: 1 },
-        totalInteractions: { $sum: "$totalInteractions" },
+      {
+        $group: {
+          _id: { user: "$user", format: "$format" },
+          postCount: { $sum: 1 },
+          totalInteractions: { $sum: "$totalInteractions" },
+        },
       },
-    },
-  ]).exec();
+    ]).exec(),
+    MetricModel.aggregate<{
+      _id: Types.ObjectId;
+      topContext: { name: string; avg: number; count: number } | null;
+    }>([
+      {
+        $match: {
+          user: { $in: subscriberIds },
+          postDate: { $gte: since },
+          context: { $exists: true, $ne: [], $nin: [null] },
+          [TOP_CONTEXT_METRIC.replace(/^\$/, "")]: { $ne: null },
+        },
+      },
+      {
+        $project: {
+          user: 1,
+          context: { $ifNull: ["$context", []] },
+          metricValue: TOP_CONTEXT_METRIC,
+        },
+      },
+      { $unwind: "$context" },
+      {
+        $group: {
+          _id: { user: "$user", context: "$context" },
+          avg: { $avg: "$metricValue" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.user": 1, avg: -1 } },
+      {
+        $group: {
+          _id: "$_id.user",
+          topContext: {
+            $first: {
+              name: "$_id.context",
+              avg: "$avg",
+              count: "$count",
+            },
+          },
+        },
+      },
+    ]).exec(),
+    missingAvatarIds.length
+      ? AccountInsightModel.aggregate<{
+          _id: Types.ObjectId;
+          profilePicture?: string | null;
+        }>([
+          {
+            $match: {
+              user: { $in: missingAvatarIds },
+              "accountDetails.profile_picture_url": { $exists: true, $nin: [null, ""] },
+            },
+          },
+          { $sort: { recordedAt: -1 } },
+          {
+            $group: {
+              _id: "$user",
+              profilePicture: { $first: "$accountDetails.profile_picture_url" },
+            },
+          },
+        ]).exec()
+      : Promise.resolve([] as Array<{ _id: Types.ObjectId; profilePicture?: string | null }>),
+  ]);
 
   const formatByUser = new Map<
     string,
@@ -549,48 +615,6 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     formatByUser.set(userId, current);
   });
 
-  const topContextAgg = await MetricModel.aggregate<{
-    _id: Types.ObjectId;
-    topContext: { name: string; avg: number; count: number } | null;
-  }>([
-    {
-      $match: {
-        user: { $in: subscriberIds },
-        postDate: { $gte: since },
-        context: { $exists: true, $ne: [], $nin: [null] },
-        [TOP_CONTEXT_METRIC.replace(/^\$/, "")]: { $ne: null },
-      },
-    },
-    {
-      $project: {
-        user: 1,
-        context: { $ifNull: ["$context", []] },
-        metricValue: TOP_CONTEXT_METRIC,
-      },
-    },
-    { $unwind: "$context" },
-    {
-      $group: {
-        _id: { user: "$user", context: "$context" },
-        avg: { $avg: "$metricValue" },
-        count: { $sum: 1 },
-      },
-    },
-    { $sort: { "_id.user": 1, avg: -1 } },
-    {
-      $group: {
-        _id: "$_id.user",
-        topContext: {
-          $first: {
-            name: "$_id.context",
-            avg: "$avg",
-            count: "$count",
-          },
-        },
-      },
-    },
-  ]).exec();
-
   const topContextByUser = new Map<string, { name: string; avgInteractions: number | null }>();
   topContextAgg.forEach((doc) => {
     const userId = doc._id?.toString();
@@ -604,33 +628,11 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     topContextByUser.set(userId, { name: String(contextName), avgInteractions });
   });
 
-  let avatarByUserId: Record<string, string> = {};
-  if (missingAvatarIds.length) {
-    const insightAvatars = await AccountInsightModel.aggregate<{
-      _id: Types.ObjectId;
-      profilePicture?: string | null;
-    }>([
-      {
-        $match: {
-          user: { $in: missingAvatarIds },
-          "accountDetails.profile_picture_url": { $exists: true, $nin: [null, ""] },
-        },
-      },
-      { $sort: { recordedAt: -1 } },
-      {
-        $group: {
-          _id: "$user",
-          profilePicture: { $first: "$accountDetails.profile_picture_url" },
-        },
-      },
-    ]).exec();
-
-    avatarByUserId = Object.fromEntries(
-      insightAvatars
-        .map((doc) => [doc._id.toString(), normalizeAvatarCandidate(doc.profilePicture ?? null)] as const)
-        .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
-    );
-  }
+  const avatarByUserId = Object.fromEntries(
+    insightAvatars
+      .map((doc) => [doc._id.toString(), normalizeAvatarCandidate(doc.profilePicture ?? null)] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+  );
 
   const creators = subscribers.map((creator) => {
     const userId = creator._id.toString();

@@ -19,9 +19,6 @@ test.describe("Planning graficos - duração real", () => {
       callbackPath: "/planning/graficos",
     });
 
-    const ensureAccessRes = await page.request.post("/api/dev/e2e/ensure-planner-access");
-    expect(ensureAccessRes.ok(), `ensure-planner-access failed with status ${ensureAccessRes.status()}`).toBeTruthy();
-
     let chartsBatchInterceptCount = 0;
     let nextAssets404Count = 0;
     page.on("console", (message) => {
@@ -131,26 +128,13 @@ test.describe("Planning graficos - duração real", () => {
     ).toBeTruthy();
     expect(chartsBatchInterceptCount).toBeGreaterThan(0);
     await expect(page.getByText("Carregando duração real...")).toHaveCount(0);
+    await page.getByRole("button", { name: "Formato & Timing" }).click();
 
-    await expect(
-      page
-        .getByRole("heading")
-        .filter({ hasText: /Quantos vídeos você tem em cada faixa de tempo|Duração do Vídeo \(Real\)/ })
-        .first()
-    ).toBeVisible();
-    await expect(
-      page
-        .getByText(/Quantidade de posts por faixa de duração real|Duração dos vídeos/)
-        .first()
-    ).toBeVisible();
-    await expect(
-      page
-        .getByText(/Cobertura de duração real:\s*100% dos vídeos\s*\(3\/3\)\.|Já temos duração em 100% dos vídeos \(3\/3\)\./)
-        .first()
-    ).toBeVisible();
-
-    await expect(page.getByText("0-15s").first()).toBeVisible();
-    await expect(page.getByText("15-30s").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Duração", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Cobertura de duração" })).toBeVisible();
+    await expect(page.getByText(/100% dos vídeos com duração\./).first()).toBeVisible();
+    await expect(page.getByText(/Repita vídeos em 15-30s\./).first()).toBeVisible();
+    await expect(page.getByText(/Faixa 15-30s/).first()).toBeVisible();
 
     await expect(page.getByText("Os vídeos deste período ainda não possuem duração real")).toHaveCount(0);
     await expect(page.getByText("Sem dados de duração real para calcular interações por faixa.")).toHaveCount(0);

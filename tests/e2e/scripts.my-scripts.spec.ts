@@ -60,12 +60,21 @@ test.describe("Meus Roteiros", () => {
 
     mark("enable posted and wait content select");
     await page.getByLabel("Marcar como roteiro postado").check();
-    const contentSelect = page.locator("select").filter({ has: page.locator("option", { hasText: "Selecione o conteúdo publicado" }) }).first();
+    const contentSelect = page.locator("select.w-full").first();
     await expect(contentSelect).toBeVisible();
     mark("wait seeded content option");
-    await expect.poll(async () => {
-      return contentSelect.locator(`option[value="${seededContentId}"]`).count();
-    }).toBeGreaterThan(0);
+    await expect
+      .poll(
+        async () => {
+          const optionCount = await contentSelect.locator(`option[value="${seededContentId}"]`).count();
+          if (optionCount > 0) return "ready";
+          const loadingCount = await contentSelect.locator("option", { hasText: "Carregando conteúdos..." }).count();
+          if (loadingCount > 0) return "loading";
+          return "empty";
+        },
+        { timeout: 30_000, intervals: [500, 1000, 2000] }
+      )
+      .toBe("ready");
     mark("select seeded content");
     await contentSelect.selectOption(seededContentId);
 

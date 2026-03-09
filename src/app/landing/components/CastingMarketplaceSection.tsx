@@ -312,7 +312,12 @@ export default function CastingMarketplaceSection({
             const res = await fetch(`${CASTING_API_ROUTE}?${params.toString()}`, { signal });
             if (res.ok) {
                 const data = (await res.json()) as CastingApiPayload;
-                setCreators(data.creators ?? []);
+                setCreators((current) => {
+                    const nextCreators = data.creators ?? [];
+                    if (nextCreators.length > 0) return nextCreators;
+                    if (hasActiveFilters) return [];
+                    return current.length > 0 ? current : nextCreators;
+                });
             }
         } catch (err) {
             if (!signal?.aborted) console.error("Marketplace sort fetch error", err);
@@ -321,7 +326,7 @@ export default function CastingMarketplaceSection({
                 setLoading(false);
             }
         }
-    }, [debouncedSearch, minFollowers, minAvgInteractions]);
+    }, [debouncedSearch, hasActiveFilters, minFollowers, minAvgInteractions]);
 
     React.useEffect(() => {
         if (hasActiveFilters) return;

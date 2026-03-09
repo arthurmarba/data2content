@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Types } from "mongoose";
 import { dashboardCache, DEFAULT_DASHBOARD_TTL_MS } from "@/app/lib/cache/dashboardCache";
 import { logger } from "@/app/lib/logger";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import { getUserReachInteractionTrendChartData } from "@/charts/getReachInteractionTrendChartData";
 import getEngagementDistributionByFormatChartData from "@/charts/getEngagementDistributionByFormatChartData";
 import { aggregateUserTimePerformance } from "@/utils/aggregateUserTimePerformance";
@@ -50,6 +51,7 @@ const MIN_BENCHMARK_POSTS = 18;
 const MAX_BENCHMARK_CREATORS = 60;
 const MAX_SIMILAR_CREATORS_VISIBLE = 6;
 const WINDOW_BLOCK_HOURS = 4;
+const CHARTS_BATCH_FALLBACK_TTL_MS = 10 * 60_000;
 
 const DEFAULT_FORMAT_MAPPING: Record<string, string> = {
   IMAGE: "Imagem",
@@ -320,6 +322,99 @@ function buildSimilarCreatorsPlaceholder(
   };
 }
 
+function buildChartsBatchCacheKey(params: {
+  userId: string;
+  timePeriod: TimePeriod;
+  objectiveMode: PlanningObjectiveMode;
+  granularity: "daily" | "weekly";
+  metricField: string;
+  engagementMetricField: EngagementMetricField;
+  maxSlices: number;
+  page: number;
+  limit: number;
+}) {
+  return `${SERVICE_TAG}:${JSON.stringify({
+    v: CACHE_SCHEMA_VERSION,
+    ...params,
+  })}`;
+}
+
+function buildChartsBatchFallbackPayload(params: {
+  objectiveMode: PlanningObjectiveMode;
+  engagementMetricField: EngagementMetricField;
+  page: number;
+  reason: string;
+}) {
+  const {
+    objectiveMode,
+    engagementMetricField,
+    page,
+    reason,
+  } = params;
+
+  return {
+    trendData: {
+      chartData: [],
+    },
+    timeData: {
+      buckets: [],
+    },
+    durationData: {
+      buckets: [],
+      totalVideoPosts: 0,
+      totalPostsWithDuration: 0,
+      totalPostsWithoutDuration: 0,
+      durationCoverageRate: 0,
+    },
+    timingBenchmark: buildBenchmarkPlaceholder(reason),
+    similarCreators: buildSimilarCreatorsPlaceholder(reason),
+    formatData: {
+      chartData: [],
+      metricUsed: engagementMetricField,
+      aggregationMode: "average",
+    },
+    proposalData: {
+      chartData: [],
+      metricUsed: engagementMetricField,
+      groupBy: "proposal",
+    },
+    toneData: {
+      chartData: [],
+      metricUsed: engagementMetricField,
+      groupBy: "tone",
+    },
+    referenceData: {
+      chartData: [],
+      metricUsed: engagementMetricField,
+      groupBy: "references",
+    },
+    contextData: {
+      chartData: [],
+      metricUsed: engagementMetricField,
+      groupBy: "context",
+    },
+    postsData: {
+      posts: [],
+      pagination: {
+        currentPage: page,
+        totalPages: 1,
+        totalPosts: 0,
+      },
+    },
+    strategicDeltas: null,
+    metricMeta: {
+      field: engagementMetricField,
+      ...getMetricMeta(engagementMetricField),
+    },
+    objectiveMode,
+    recommendations: {
+      actions: [],
+    },
+    directioningSummary: null,
+    topActions: [],
+  };
+}
+
 function buildSimilarCreatorsPayload(params: {
   strategy: {
     strategy: TimingBenchmarkPayload["cohort"]["strategy"];
@@ -489,33 +584,55 @@ async function getRecommendationFeedbackByAction(
   feedbackByActionId: Record<string, RecommendationFeedbackStatus>;
   feedbackMetaByActionId: Record<string, RecommendationFeedbackMeta>;
 }> {
-  await connectToDatabase();
-  const rows = await PlanningRecommendationFeedbackModel.find({
-    userId: new Types.ObjectId(userId),
-    objectiveMode,
-    timePeriod,
-  })
-    .select("actionId status updatedAt")
-    .lean();
+  try {
+    const rows = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return PlanningRecommendationFeedbackModel.find({
+          userId: new Types.ObjectId(userId),
+          objectiveMode,
+          timePeriod,
+        })
+          .select("actionId status updatedAt")
+          .lean();
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn(`${SERVICE_TAG} Falha transitória ao buscar feedback para ${userId}. Retry #${retryCount}.`, {
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
 
-  return rows.reduce<{
-    feedbackByActionId: Record<string, RecommendationFeedbackStatus>;
-    feedbackMetaByActionId: Record<string, RecommendationFeedbackMeta>;
-  }>(
-    (acc, row: any) => {
-      const actionId = normalizeActionId(row?.actionId);
-      const status = row?.status;
-      if (!actionId) return acc;
-      if (status !== "applied" && status !== "not_applied") return acc;
-      acc.feedbackByActionId[actionId] = status;
-      acc.feedbackMetaByActionId[actionId] = {
-        status,
-        updatedAt: row?.updatedAt instanceof Date ? row.updatedAt.toISOString() : row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
-      };
-      return acc;
-    },
-    { feedbackByActionId: {}, feedbackMetaByActionId: {} }
-  );
+    return rows.reduce<{
+      feedbackByActionId: Record<string, RecommendationFeedbackStatus>;
+      feedbackMetaByActionId: Record<string, RecommendationFeedbackMeta>;
+    }>(
+      (acc, row: any) => {
+        const actionId = normalizeActionId(row?.actionId);
+        const status = row?.status;
+        if (!actionId) return acc;
+        if (status !== "applied" && status !== "not_applied") return acc;
+        acc.feedbackByActionId[actionId] = status;
+        acc.feedbackMetaByActionId[actionId] = {
+          status,
+          updatedAt: row?.updatedAt instanceof Date ? row.updatedAt.toISOString() : row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+        };
+        return acc;
+      },
+      { feedbackByActionId: {}, feedbackMetaByActionId: {} }
+    );
+  } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      logger.warn(`${SERVICE_TAG} Erro transitório ao buscar feedback para ${userId}. Seguindo com feedback vazio.`, {
+        error: getErrorMessage(error),
+      });
+      return { feedbackByActionId: {}, feedbackMetaByActionId: {} };
+    }
+    throw error;
+  }
 }
 
 function extractThumbnail(v: any): string | undefined {
@@ -1826,20 +1943,30 @@ async function enrichRecommendationsWithExperimentImpact(params: {
   const needsImpact = actions.some((action) => action.feedbackStatus === "applied" && action.feedbackUpdatedAt);
   if (!needsImpact) return recommendations;
 
-  const comparablePosts = await fetchComparableExperimentPosts(userId, timePeriod);
-  const nextActions = actions.map((action) => ({
-    ...action,
-    experimentImpact: buildExperimentImpactSummary({
-      action,
-      posts: comparablePosts,
-      objectiveMode,
-    }),
-  }));
+  try {
+    const comparablePosts = await fetchComparableExperimentPosts(userId, timePeriod);
+    const nextActions = actions.map((action) => ({
+      ...action,
+      experimentImpact: buildExperimentImpactSummary({
+        action,
+        posts: comparablePosts,
+        objectiveMode,
+      }),
+    }));
 
-  return {
-    ...recommendations,
-    actions: nextActions,
-  };
+    return {
+      ...recommendations,
+      actions: nextActions,
+    };
+  } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      logger.warn(`${SERVICE_TAG} Erro transitório ao enriquecer impacto experimental para ${userId}. Mantendo recomendações sem impacto.`, {
+        error: getErrorMessage(error),
+      });
+      return recommendations;
+    }
+    throw error;
+  }
 }
 
 export async function GET(
@@ -1912,8 +2039,7 @@ export async function GET(
 
   try {
     const cacheWrapStartedAt = nowMs();
-    const cacheKey = `${SERVICE_TAG}:${JSON.stringify({
-      v: CACHE_SCHEMA_VERSION,
+    const cacheKey = buildChartsBatchCacheKey({
       userId,
       timePeriod,
       objectiveMode,
@@ -1923,7 +2049,8 @@ export async function GET(
       maxSlices,
       page,
       limit,
-    })}`;
+    });
+    const fallbackCacheKey = `${cacheKey}:fallback`;
 
     const { value, hit } = await dashboardCache.wrap(
       cacheKey,
@@ -2045,6 +2172,7 @@ export async function GET(
       },
       DEFAULT_DASHBOARD_TTL_MS
     );
+    dashboardCache.set(fallbackCacheKey, value, CHARTS_BATCH_FALLBACK_TTL_MS);
     timings.push({ name: "cacheWrap", durationMs: nowMs() - cacheWrapStartedAt });
 
     const perfData = (value as any)?.__perf as ChartsBatchComputeTimings | undefined;
@@ -2107,6 +2235,39 @@ export async function GET(
     const response = NextResponse.json(responsePayloadWithRecommendations, { status: 200 });
     return withServerTiming(response, timings, { "X-D2C-Cache": hit ? "hit" : "miss" });
   } catch (error: any) {
+    const cacheKey = buildChartsBatchCacheKey({
+      userId,
+      timePeriod,
+      objectiveMode,
+      granularity,
+      metricField,
+      engagementMetricField,
+      maxSlices,
+      page,
+      limit,
+    });
+    const fallbackCacheKey = `${cacheKey}:fallback`;
+    const cachedFallback = dashboardCache.get<any>(fallbackCacheKey)?.value;
+    if (isTransientMongoError(error) || isTransientMongoError(error?.cause)) {
+      logger.warn(`${SERVICE_TAG} Transient error for user ${userId}. Returning fallback payload.`, {
+        error: getErrorMessage(error),
+        hasCachedFallback: Boolean(cachedFallback),
+      });
+      timings.push({ name: "total", durationMs: nowMs() - startedAt });
+      const response = NextResponse.json(
+        cachedFallback ??
+          buildChartsBatchFallbackPayload({
+            objectiveMode,
+            engagementMetricField,
+            page,
+            reason: "Estamos reprocessando os dados agora. Tente novamente em alguns instantes.",
+          }),
+        { status: 200 }
+      );
+      return withServerTiming(response, timings, {
+        "X-D2C-Fallback": cachedFallback ? "cached-charts-batch" : "empty-charts-batch",
+      });
+    }
     logger.error(`${SERVICE_TAG} Error for user ${userId}:`, error);
     timings.push({ name: "total", durationMs: nowMs() - startedAt });
     const response = NextResponse.json(

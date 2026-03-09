@@ -1,7 +1,6 @@
-import { chromium, type FullConfig } from '@playwright/test';
+import { request, type FullConfig } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { loginByRequestCredentials } from './auth/loginByRequest';
 
 export default async function globalSetup(_config: FullConfig) {
@@ -20,22 +19,9 @@ export default async function globalSetup(_config: FullConfig) {
   const storagePath = path.join(authDir, 'user.json');
   fs.mkdirSync(authDir, { recursive: true });
 
-  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_BIN;
-  const launchArgs = process.env.PLAYWRIGHT_EXTRA_ARGS
-    ? process.env.PLAYWRIGHT_EXTRA_ARGS.split(/\s+/).filter(Boolean)
-    : [
-        '--disable-crash-reporter',
-        '--disable-features=Crashpad',
-      ];
+  const context = await request.newContext({ baseURL });
 
-  const browser = await chromium.launch(
-    executablePath
-      ? { executablePath, args: launchArgs }
-      : { args: launchArgs }
-  );
-  const context = await browser.newContext({ baseURL });
-
-  await loginByRequestCredentials(context.request, {
+  await loginByRequestCredentials(context, {
     baseURL,
     email,
     password,
@@ -43,7 +29,5 @@ export default async function globalSetup(_config: FullConfig) {
   });
 
   await context.storageState({ path: storagePath });
-
-  await context.close();
-  await browser.close();
+  await context.dispose();
 }

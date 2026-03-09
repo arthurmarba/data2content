@@ -43,8 +43,8 @@ export function Providers({ children, session }: ProvidersProps) {
   return (
     <SessionProvider
       session={session}
-      refetchInterval={5 * 60}
-      refetchOnWindowFocus
+      refetchInterval={0}
+      refetchOnWindowFocus={false}
       basePath="/api/auth"
     >
       <FeatureFlagProvider>

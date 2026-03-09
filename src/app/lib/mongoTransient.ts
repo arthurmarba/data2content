@@ -3,6 +3,7 @@ const TRANSIENT_MONGO_ERROR_NAMES = new Set([
   "MongoNetworkTimeoutError",
   "MongoServerSelectionError",
   "MongoPoolClearedError",
+  "MongoNotConnectedError",
   "MongoTopologyClosedError",
   "MongooseServerSelectionError",
 ]);
@@ -16,6 +17,7 @@ const TRANSIENT_MONGO_MESSAGE_PATTERNS = [
   /econnreset/i,
   /socket hang up/i,
   /connection .* closed/i,
+  /client must be connected before running operations/i,
 ];
 
 const RETRY_DELAYS_MS = [250, 1000, 2500];

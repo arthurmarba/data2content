@@ -9,6 +9,7 @@ import Metric from "@/app/models/Metric";
 import { invalidatePlannerRecommendationMemory } from "@/app/lib/planner/recommendationMemoryCache";
 import { applyScriptToPlannerSlot, clearScriptFromPlannerSlot } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
+import { invalidateScriptsListCacheForUser } from "@/app/lib/scripts/scriptsListCache";
 import { refreshScriptOutcomeProfile } from "@/app/lib/scripts/outcomeTraining";
 import { isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
@@ -451,6 +452,7 @@ export async function PATCH(request: Request, { params }: Params) {
       void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
       void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
     }
+    invalidateScriptsListCacheForUser(effectiveUserId);
 
     if (
       scriptTextChanged &&
@@ -579,6 +581,7 @@ export async function DELETE(request: Request, { params }: Params) {
       void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
       void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
     }
+    invalidateScriptsListCacheForUser(effectiveUserId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

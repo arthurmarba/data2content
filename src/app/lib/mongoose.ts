@@ -9,10 +9,18 @@ interface MongooseConnection {
   promise: Promise<Mongoose> | null;
 }
 
+interface MongooseRuntimeState {
+  listenersRegistered: boolean;
+  lastConnectedAt: number;
+  lastInvalidatedAt: number;
+}
+
 // Evita recriar conexão em dev / serverless
 declare global {
   // eslint-disable-next-line no-var
   var __mongooseConn: MongooseConnection | undefined;
+  // eslint-disable-next-line no-var
+  var __mongooseRuntimeState: MongooseRuntimeState | undefined;
 }
 
 const getCache = (): MongooseConnection => {
@@ -22,30 +30,116 @@ const getCache = (): MongooseConnection => {
   return global.__mongooseConn;
 };
 
+const getRuntimeState = (): MongooseRuntimeState => {
+  if (!global.__mongooseRuntimeState) {
+    global.__mongooseRuntimeState = {
+      listenersRegistered: false,
+      lastConnectedAt: 0,
+      lastInvalidatedAt: 0,
+    };
+  }
+  return global.__mongooseRuntimeState;
+};
+
 const DEFAULT_SERVER_SELECTION_TIMEOUT_MS = 30000;
 const DEFAULT_SOCKET_TIMEOUT_MS = 60000;
 const DEFAULT_MAX_POOL_SIZE = 10;
-const CONNECT_RETRY_ATTEMPTS = 1;
+const CONNECT_RETRY_ATTEMPTS = 2;
+
+function invalidateConnectionCache(reason: string, error?: unknown) {
+  const cache = getCache();
+  const runtimeState = getRuntimeState();
+  cache.conn = null;
+  if (mongoose.connection.readyState !== 2) {
+    cache.promise = null;
+  }
+  runtimeState.lastInvalidatedAt = Date.now();
+
+  logger.warn('[mongoose] Invalidating cached Mongo connection.', {
+    reason,
+    readyState: mongoose.connection.readyState,
+    error: error ? getErrorMessage(error) : undefined,
+  });
+}
+
+async function disconnectStaleConnection(reason: string, error?: unknown) {
+  invalidateConnectionCache(reason, error);
+
+  if (mongoose.connection.readyState !== 1) {
+    return;
+  }
+
+  try {
+    await mongoose.disconnect();
+    logger.warn('[mongoose] Disconnected stale Mongo connection.', {
+      reason,
+    });
+  } catch (disconnectError) {
+    logger.warn('[mongoose] Failed to disconnect stale Mongo connection cleanly.', {
+      reason,
+      error: getErrorMessage(disconnectError),
+    });
+  }
+}
+
+function registerConnectionListeners() {
+  const runtimeState = getRuntimeState();
+  if (runtimeState.listenersRegistered) {
+    return;
+  }
+
+  mongoose.connection.on('connected', () => {
+    getRuntimeState().lastConnectedAt = Date.now();
+    logger.info('[mongoose] MongoDB connection event: connected.', {
+      dbName: mongoose.connection.name,
+      host: mongoose.connection.host,
+    });
+  });
+
+  mongoose.connection.on('disconnected', () => {
+    invalidateConnectionCache('connection_disconnected');
+  });
+
+  mongoose.connection.on('error', (error) => {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      invalidateConnectionCache('connection_error', error);
+      return;
+    }
+
+    logger.error('[mongoose] MongoDB connection emitted a non-transient error.', {
+      error: getErrorMessage(error),
+    });
+  });
+
+  runtimeState.listenersRegistered = true;
+}
 
 export const connectToDatabase = async (): Promise<Mongoose> => {
   const cache = getCache();
-
-  if (cache.conn && cache.conn.connection.readyState === 1) {
-    return cache.conn;
-  }
+  const runtimeState = getRuntimeState();
+  registerConnectionListeners();
 
   if (cache.promise) {
     return cache.promise;
   }
 
+  const hasStaleConnectedState = runtimeState.lastInvalidatedAt > runtimeState.lastConnectedAt;
+
+  if (cache.conn && cache.conn.connection.readyState === 1 && !hasStaleConnectedState) {
+    return cache.conn;
+  }
+
+  if (hasStaleConnectedState) {
+    await disconnectStaleConnection('stale_connected_state_detected');
+  }
+
   if (cache.conn && cache.conn.connection.readyState !== 1) {
-    cache.conn = null;
-    cache.promise = null;
+    await disconnectStaleConnection('cache_ready_state_not_connected');
   }
 
   // ❗️Pegue as envs AQUI (não no topo do arquivo)
   const uri = process.env.MONGODB_URI;
-  const dbName = process.env.DB_NAME || 'data2content';
+  const dbName = process.env.MONGODB_DB_NAME || process.env.DB_NAME || 'data2content';
 
   if (!uri) {
     // Só falha quando a função é chamada de fato
@@ -84,12 +178,20 @@ export const connectToDatabase = async (): Promise<Mongoose> => {
 
   cache.promise = withMongoTransientRetry(
     async () => {
-      const connection = await mongoose.connect(uri, opts);
-      logger.info('[mongoose] MongoDB connected.', {
-        dbName: connection.connection.name,
-        host: connection.connection.host,
-      });
-      return connection;
+      try {
+        const connection = await mongoose.connect(uri, opts);
+        runtimeState.lastConnectedAt = Date.now();
+        logger.info('[mongoose] MongoDB connected.', {
+          dbName: connection.connection.name,
+          host: connection.connection.host,
+        });
+        return connection;
+      } catch (error) {
+        if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+          await disconnectStaleConnection('connect_attempt_failed', error);
+        }
+        throw error;
+      }
     },
     {
       retries: CONNECT_RETRY_ATTEMPTS,

@@ -194,6 +194,18 @@ export async function fetchCoverageData(options?: {
   return payload;
 }
 
+export function getCoverageDataFallback(): CoverageCachePayload {
+  const cacheEntry = (global as any).__landingCoverageCache as CoverageCache | null;
+  if (cacheEntry?.payload) {
+    return cacheEntry.payload;
+  }
+
+  return {
+    segments: [],
+    regions: [],
+  };
+}
+
 function humanizeSegmentId(raw: string): string {
   return raw
     .split(/[_\-.]+/)
@@ -370,6 +382,13 @@ export async function fetchCoverageSegments(options?: {
   return segments;
 }
 
+export function getCoverageSegmentsFallback(options?: {
+  limit?: number;
+}): LandingCoverageSegment[] {
+  const limit = options?.limit ?? DEFAULT_SEGMENT_LIMIT;
+  return getCoverageDataFallback().segments.slice(0, limit);
+}
+
 export async function fetchCoverageRegions(options?: {
   limit?: number;
 }): Promise<LandingCoverageRegion[]> {
@@ -378,4 +397,11 @@ export async function fetchCoverageRegions(options?: {
     regionLimit: options?.limit ?? DEFAULT_REGION_LIMIT,
   });
   return regions;
+}
+
+export function getCoverageRegionsFallback(options?: {
+  limit?: number;
+}): LandingCoverageRegion[] {
+  const limit = options?.limit ?? DEFAULT_REGION_LIMIT;
+  return getCoverageDataFallback().regions.slice(0, limit);
 }

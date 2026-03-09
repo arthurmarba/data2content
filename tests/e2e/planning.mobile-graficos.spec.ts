@@ -60,11 +60,6 @@ for (const deviceName of targetDevices) {
     const { defaultBrowserType: _ignoredBrowser, ...mobileDevice } = devices[deviceName];
     test.use(mobileDevice);
 
-    test.beforeEach(async ({ page }) => {
-      const ensureAccessRes = await page.request.post("/api/dev/e2e/ensure-planner-access");
-      expect(ensureAccessRes.ok(), `ensure-planner-access failed with status ${ensureAccessRes.status()}`).toBeTruthy();
-    });
-
     test("mantém cards dentro da viewport e sem erros de runtime", async ({ page }) => {
       test.setTimeout(120_000);
       const collector = attachRuntimeIssueCollector(page);

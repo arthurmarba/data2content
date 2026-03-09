@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
+const DEV_E2E_USER_ID = "00000000000000000000e2e1";
+const ALLOW_LOCAL_E2E_ROUTES = process.env.ALLOW_LOCAL_E2E_ROUTES === "1";
 const CONTENT_OPTIONS_CACHE_TTL_MS = (() => {
   const parsed = Number(process.env.SCRIPTS_CONTENT_OPTIONS_CACHE_TTL_MS ?? 20_000);
   return Number.isFinite(parsed) && parsed >= 2_000 ? Math.floor(parsed) : 20_000;
@@ -52,6 +54,13 @@ function buildContentOptionsCacheKey(params: {
     params.cursor?.updatedAt ?? "",
     params.cursor?.id ?? "",
   ].join("|");
+}
+
+function isDevE2EUser(session: any) {
+  if (process.env.NODE_ENV === "production" && !ALLOW_LOCAL_E2E_ROUTES) return false;
+  const userId = typeof session?.user?.id === "string" ? session.user.id.trim() : "";
+  const email = typeof session?.user?.email === "string" ? session.user.email.trim() : "";
+  return userId === DEV_E2E_USER_ID || email.endsWith("@data2content.test");
 }
 
 function pruneContentOptionsCache(nowTs: number) {
@@ -150,8 +159,9 @@ export async function GET(request: Request) {
       cursor,
     });
     const nowTs = Date.now();
+    const shouldBypassCache = isDevE2EUser(session);
     pruneContentOptionsCache(nowTs);
-    const cachedEntry = contentOptionsCache.get(cacheKey);
+    const cachedEntry = shouldBypassCache ? null : contentOptionsCache.get(cacheKey);
 
     if (cachedEntry && cachedEntry.expiresAt > nowTs) {
       return NextResponse.json(cachedEntry.payload);
@@ -255,11 +265,13 @@ export async function GET(request: Request) {
       },
     };
 
-    contentOptionsCache.set(cacheKey, {
-      payload: responsePayload,
-      expiresAt: nowTs + CONTENT_OPTIONS_CACHE_TTL_MS,
-      staleUntil: nowTs + CONTENT_OPTIONS_CACHE_STALE_WHILE_ERROR_MS,
-    });
+    if (!shouldBypassCache) {
+      contentOptionsCache.set(cacheKey, {
+        payload: responsePayload,
+        expiresAt: nowTs + CONTENT_OPTIONS_CACHE_TTL_MS,
+        staleUntil: nowTs + CONTENT_OPTIONS_CACHE_STALE_WHILE_ERROR_MS,
+      });
+    }
 
     return NextResponse.json(responsePayload);
   } catch (error) {
@@ -274,7 +286,7 @@ export async function GET(request: Request) {
           session,
           targetUserId: targetUrl.searchParams.get("targetUserId"),
         });
-        if (targetResolution.ok) {
+        if (targetResolution.ok && !isDevE2EUser(session)) {
           const cacheKey = buildContentOptionsCacheKey({
             effectiveUserId: targetResolution.userId,
             limit: parseLimit(targetUrl.searchParams.get("limit")),

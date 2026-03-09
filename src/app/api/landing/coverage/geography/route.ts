@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { fetchCoverageRegions } from '@/app/lib/landing/coverageService';
+import {
+  fetchCoverageRegions,
+  getCoverageRegionsFallback,
+} from '@/app/lib/landing/coverageService';
+import {
+  executeWithLandingTimeout,
+  resolveLandingInternalTimeoutMs,
+} from '@/app/lib/landing/routeTimeout';
 import { logger } from '@/app/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -17,12 +24,26 @@ export async function GET(req: NextRequest) {
   );
 
   try {
-    const regions = await fetchCoverageRegions({ limit });
+    const fallbackItems = getCoverageRegionsFallback({ limit });
+    const timeoutMs = resolveLandingInternalTimeoutMs(fallbackItems.length > 0);
+    const result = await executeWithLandingTimeout({
+      task: fetchCoverageRegions({ limit }),
+      fallbackValue: fallbackItems,
+      timeoutMs,
+      onTimeout: () => {
+        logger.warn('[landing][coverage][geography] Falling back after internal timeout.', {
+          timeoutMs,
+          limit,
+          hasWarmFallbackData: fallbackItems.length > 0,
+        });
+      },
+    });
     return NextResponse.json(
-      { items: regions },
+      { items: result.value },
       {
         headers: {
           'Cache-Control': PUBLIC_CACHE_CONTROL,
+          'X-Landing-Data-Source': result.source,
         },
       },
     );
@@ -31,8 +52,13 @@ export async function GET(req: NextRequest) {
       error,
     });
     return NextResponse.json(
-      { error: 'Failed to fetch coverage regions' },
-      { status: 500 },
+      { items: getCoverageRegionsFallback({ limit }) },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': PUBLIC_CACHE_CONTROL,
+        },
+      },
     );
   }
 }

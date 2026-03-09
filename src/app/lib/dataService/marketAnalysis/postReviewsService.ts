@@ -6,6 +6,7 @@ import { IGlobalPostResult } from '@/app/lib/dataService/marketAnalysis/types';
 import { createBasePipeline } from './helpers';
 import { getCategoryById, getCategoryWithSubcategoryIds } from '@/app/lib/classification';
 import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
+import { getErrorMessage, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 
 const SERVICE_TAG = '[dataService][postReviewsService]';
 
@@ -56,7 +57,7 @@ export async function upsertPostReview(args: {
     ).lean<IPostReviewWithPost>();
     return review;
   } catch (error: any) {
-    throw new DatabaseError(`${TAG} Falha ao salvar review: ${error.message}`);
+    throw new DatabaseError(`${TAG} Falha ao salvar review: ${getErrorMessage(error)}`, error);
   }
 }
 
@@ -71,7 +72,7 @@ export async function deletePostReview(postId: string): Promise<{ success: boole
     await PostReviewModel.deleteOne({ postId: new Types.ObjectId(postId) });
     return { success: true };
   } catch (error: any) {
-    throw new DatabaseError(`${TAG} Falha ao excluir review: ${error.message}`);
+    throw new DatabaseError(`${TAG} Falha ao excluir review: ${getErrorMessage(error)}`, error);
   }
 }
 
@@ -82,7 +83,7 @@ export async function fetchPostReviewByPostId(postId: string): Promise<IPostRevi
     await connectToDatabase();
     return await PostReviewModel.findOne({ postId: new Types.ObjectId(postId) }).lean<IPostReviewWithPost | null>();
   } catch (error: any) {
-    throw new DatabaseError(`${TAG} Falha ao buscar review: ${error.message}`);
+    throw new DatabaseError(`${TAG} Falha ao buscar review: ${getErrorMessage(error)}`, error);
   }
 }
 
@@ -122,156 +123,160 @@ export async function fetchPostReviews(args: IFetchPostReviewsArgs): Promise<{
   } = args;
 
   try {
-    await connectToDatabase();
+    return await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
 
-    const reviewMatch: PipelineStage.Match['$match'] = {};
-    if (status) reviewMatch.status = status;
-    if (reviewPeriodDays) {
-      const periodStart = new Date(Date.now() - reviewPeriodDays * 24 * 60 * 60 * 1000);
-      reviewMatch.createdAt = { $gte: periodStart } as any;
-    }
+        const reviewMatch: PipelineStage.Match['$match'] = {};
+        if (status) reviewMatch.status = status;
+        if (reviewPeriodDays) {
+          const periodStart = new Date(Date.now() - reviewPeriodDays * 24 * 60 * 60 * 1000);
+          reviewMatch.createdAt = { $gte: periodStart } as any;
+        }
 
-    const postMatchClauses: PipelineStage.Match['$match'][] = [];
+        const postMatchClauses: PipelineStage.Match['$match'][] = [];
 
-    // Filtro direto por userId (Post.user)
-    if (userId) {
-      if (Types.ObjectId.isValid(userId)) {
-        postMatchClauses.push({ 'post.user': new Types.ObjectId(userId) } as any);
-      } else {
-        return { items: [], total: 0, page, limit };
-      }
-    }
+        if (userId) {
+          if (Types.ObjectId.isValid(userId)) {
+            postMatchClauses.push({ 'post.user': new Types.ObjectId(userId) } as any);
+          } else {
+            return { items: [], total: 0, page, limit };
+          }
+        }
 
-    const ctxVals = normalizeValues(context);
-    if (ctxVals.length) postMatchClauses.push({ $or: ctxVals.map(v => buildClassFilter(v, 'context')) } as any);
-    const propVals = normalizeValues(proposal);
-    if (propVals.length) postMatchClauses.push({ $or: propVals.map(v => buildClassFilter(v, 'proposal')) } as any);
+        const ctxVals = normalizeValues(context);
+        if (ctxVals.length) postMatchClauses.push({ $or: ctxVals.map(v => buildClassFilter(v, 'context')) } as any);
+        const propVals = normalizeValues(proposal);
+        if (propVals.length) postMatchClauses.push({ $or: propVals.map(v => buildClassFilter(v, 'proposal')) } as any);
 
-    if (creatorContext) {
-      const contextIds = await resolveCreatorIdsByContext(creatorContext);
-      if (!contextIds.length) {
-        return { items: [], total: 0, page, limit };
-      }
-      const objectIds = contextIds.map((id) => new Types.ObjectId(id));
-      postMatchClauses.push({ 'post.user': { $in: objectIds } } as any);
-    }
+        if (creatorContext) {
+          const contextIds = await resolveCreatorIdsByContext(creatorContext);
+          if (!contextIds.length) {
+            return { items: [], total: 0, page, limit };
+          }
+          const objectIds = contextIds.map((id) => new Types.ObjectId(id));
+          postMatchClauses.push({ 'post.user': { $in: objectIds } } as any);
+        }
 
-    const basePipeline: PipelineStage[] = [
-      { $match: reviewMatch },
-      {
-        $lookup: {
-          from: 'metrics',
-          localField: 'postId',
-          foreignField: '_id',
-          as: 'post',
-        },
-      },
-      { $unwind: '$post' },
-    ];
-
-    if (postMatchClauses.length) {
-      basePipeline.push({ $match: { $and: postMatchClauses } });
-    }
-
-    const creatorPipeline = createBasePipeline('post.user');
-    const computedInteractionsStage: PipelineStage.AddFields = {
-      $addFields: {
-        computedTotalInteractions: {
-          $ifNull: [
-            '$post.stats.total_interactions',
-            {
-              $add: [
-                { $ifNull: ['$post.stats.likes', 0] },
-                { $ifNull: ['$post.stats.comments', 0] },
-                { $ifNull: ['$post.stats.shares', 0] },
-                { $ifNull: ['$post.stats.saved', 0] },
-              ],
-            },
-          ],
-        },
-      },
-    };
-
-    const sortDirection = sortOrder === 'asc' ? 1 : -1;
-    const sortFieldMap: Record<string, string> = {
-      updatedAt: 'updatedAt',
-      createdAt: 'createdAt',
-      postDate: 'post.postDate',
-      total_interactions: 'computedTotalInteractions',
-    };
-    const sortField = sortFieldMap[sortBy] || 'updatedAt';
-
-    const itemsPipeline: PipelineStage[] = [
-      ...basePipeline,
-      ...creatorPipeline,
-      computedInteractionsStage,
-      { $addFields: { creatorName: '$creatorInfo.name', creatorAvatarUrl: '$creatorInfo.profile_picture_url', creatorContextId: '$creatorInfo.creatorContext.id' } },
-      { $project: { creatorInfo: 0 } },
-      { $sort: { [sortField]: sortDirection } },
-      { $skip: (page - 1) * limit },
-      { $limit: limit },
-      {
-        $project: {
-          _id: 1,
-          postId: 1,
-          status: 1,
-          note: 1,
-          reviewedBy: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          post: {
-            _id: '$post._id',
-            text_content: '$post.text_content',
-            description: '$post.description',
-            creatorName: '$creatorName',
-            creatorAvatarUrl: '$creatorAvatarUrl',
-            creatorId: '$post.user',
-            creatorContextId: '$creatorContextId',
-            postDate: '$post.postDate',
-            coverUrl: '$post.coverUrl',
-            thumbnailUrl: '$post.thumbnailUrl',
-            thumbnail_url: '$post.thumbnail_url',
-            mediaUrl: '$post.mediaUrl',
-            media_url: '$post.media_url',
-            postLink: '$post.postLink',
-            instagramMediaId: '$post.instagramMediaId',
-            type: '$post.type',
-            format: '$post.format',
-            proposal: '$post.proposal',
-            context: '$post.context',
-            tone: '$post.tone',
-            references: '$post.references',
-            stats: {
-              total_interactions: '$computedTotalInteractions',
-              likes: '$post.stats.likes',
-              comments: '$post.stats.comments',
-              shares: '$post.stats.shares',
-              saved: '$post.stats.saved',
-              reach: '$post.stats.reach',
-              views: '$post.stats.views',
-              impressions: '$post.stats.impressions',
+        const basePipeline: PipelineStage[] = [
+          { $match: reviewMatch },
+          {
+            $lookup: {
+              from: 'metrics',
+              localField: 'postId',
+              foreignField: '_id',
+              as: 'post',
             },
           },
-        },
+          { $unwind: '$post' },
+        ];
+
+        if (postMatchClauses.length) {
+          basePipeline.push({ $match: { $and: postMatchClauses } });
+        }
+
+        const creatorPipeline = createBasePipeline('post.user');
+        const computedInteractionsStage: PipelineStage.AddFields = {
+          $addFields: {
+            computedTotalInteractions: {
+              $ifNull: [
+                '$post.stats.total_interactions',
+                {
+                  $add: [
+                    { $ifNull: ['$post.stats.likes', 0] },
+                    { $ifNull: ['$post.stats.comments', 0] },
+                    { $ifNull: ['$post.stats.shares', 0] },
+                    { $ifNull: ['$post.stats.saved', 0] },
+                  ],
+                },
+              ],
+            },
+          },
+        };
+
+        const sortDirection = sortOrder === 'asc' ? 1 : -1;
+        const sortFieldMap: Record<string, string> = {
+          updatedAt: 'updatedAt',
+          createdAt: 'createdAt',
+          postDate: 'post.postDate',
+          total_interactions: 'computedTotalInteractions',
+        };
+        const sortField = sortFieldMap[sortBy] || 'updatedAt';
+
+        const itemsPipeline: PipelineStage[] = [
+          ...basePipeline,
+          ...creatorPipeline,
+          computedInteractionsStage,
+          { $addFields: { creatorName: '$creatorInfo.name', creatorAvatarUrl: '$creatorInfo.profile_picture_url', creatorContextId: '$creatorInfo.creatorContext.id' } },
+          { $project: { creatorInfo: 0 } },
+          { $sort: { [sortField]: sortDirection } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 1,
+              postId: 1,
+              status: 1,
+              note: 1,
+              reviewedBy: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              post: {
+                _id: '$post._id',
+                text_content: '$post.text_content',
+                description: '$post.description',
+                creatorName: '$creatorName',
+                creatorAvatarUrl: '$creatorAvatarUrl',
+                creatorId: '$post.user',
+                creatorContextId: '$creatorContextId',
+                postDate: '$post.postDate',
+                coverUrl: '$post.coverUrl',
+                thumbnailUrl: '$post.thumbnailUrl',
+                thumbnail_url: '$post.thumbnail_url',
+                mediaUrl: '$post.mediaUrl',
+                media_url: '$post.media_url',
+                postLink: '$post.postLink',
+                instagramMediaId: '$post.instagramMediaId',
+                type: '$post.type',
+                format: '$post.format',
+                proposal: '$post.proposal',
+                context: '$post.context',
+                tone: '$post.tone',
+                references: '$post.references',
+                stats: {
+                  total_interactions: '$computedTotalInteractions',
+                  likes: '$post.stats.likes',
+                  comments: '$post.stats.comments',
+                  shares: '$post.stats.shares',
+                  saved: '$post.stats.saved',
+                  reach: '$post.stats.reach',
+                  views: '$post.stats.views',
+                  impressions: '$post.stats.impressions',
+                },
+              },
+            },
+          },
+        ];
+
+        const countPipeline: PipelineStage[] = [...basePipeline, { $count: 'total' }];
+
+        const [result] = await PostReviewModel.aggregate([
+          {
+            $facet: {
+              items: itemsPipeline as PipelineStage[],
+              totalCount: countPipeline as PipelineStage[],
+            },
+          },
+        ] as PipelineStage[]);
+
+        const items = (result?.items || []) as IPostReviewWithPost[];
+        const total = result?.totalCount?.[0]?.total || 0;
+
+        return { items, total, page, limit };
       },
-    ];
-
-    const countPipeline: PipelineStage[] = [...basePipeline, { $count: 'total' }];
-
-    const [result] = await PostReviewModel.aggregate([
-      {
-        $facet: {
-          items: itemsPipeline as PipelineStage[],
-          totalCount: countPipeline as PipelineStage[],
-        },
-      },
-    ] as PipelineStage[]);
-
-    const items = (result?.items || []) as IPostReviewWithPost[];
-    const total = result?.totalCount?.[0]?.total || 0;
-
-    return { items, total, page, limit };
+      { retries: 1 },
+    );
   } catch (error: any) {
-    throw new DatabaseError(`${TAG} Falha ao buscar reviews: ${error.message}`);
+    throw new DatabaseError(`${TAG} Falha ao buscar reviews: ${getErrorMessage(error)}`, error);
   }
 }

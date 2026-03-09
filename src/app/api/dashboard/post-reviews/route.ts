@@ -5,6 +5,7 @@ import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { fetchPostReviews } from '@/app/lib/dataService/marketAnalysis/postReviewsService';
+import { getErrorMessage, isTransientMongoError } from '@/app/lib/mongoTransient';
 
 const SERVICE_TAG = '[api/dashboard/post-reviews]';
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,13 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(result, { status: 200 });
     } catch (error: any) {
         logger.error(`${TAG} Error:`, error);
+        const rootCause = error?.cause ?? error;
+        if (isTransientMongoError(rootCause) || isTransientMongoError(error)) {
+            logger.warn(`${TAG} Transient Mongo failure. Returning empty review payload.`, {
+                error: getErrorMessage(rootCause),
+            });
+            return NextResponse.json({ items: [], total: 0, page: 1, limit: 20 }, { status: 200 });
+        }
         if (error instanceof DatabaseError) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }

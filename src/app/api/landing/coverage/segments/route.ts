@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { fetchCoverageSegments } from '@/app/lib/landing/coverageService';
+import {
+  fetchCoverageSegments,
+  getCoverageSegmentsFallback,
+} from '@/app/lib/landing/coverageService';
+import {
+  executeWithLandingTimeout,
+  resolveLandingInternalTimeoutMs,
+} from '@/app/lib/landing/routeTimeout';
 import { logger } from '@/app/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -17,12 +24,26 @@ export async function GET(req: NextRequest) {
   );
 
   try {
-    const segments = await fetchCoverageSegments({ limit });
+    const fallbackItems = getCoverageSegmentsFallback({ limit });
+    const timeoutMs = resolveLandingInternalTimeoutMs(fallbackItems.length > 0);
+    const result = await executeWithLandingTimeout({
+      task: fetchCoverageSegments({ limit }),
+      fallbackValue: fallbackItems,
+      timeoutMs,
+      onTimeout: () => {
+        logger.warn('[landing][coverage][segments] Falling back after internal timeout.', {
+          timeoutMs,
+          limit,
+          hasWarmFallbackData: fallbackItems.length > 0,
+        });
+      },
+    });
     return NextResponse.json(
-      { items: segments },
+      { items: result.value },
       {
         headers: {
           'Cache-Control': PUBLIC_CACHE_CONTROL,
+          'X-Landing-Data-Source': result.source,
         },
       },
     );
@@ -31,8 +52,13 @@ export async function GET(req: NextRequest) {
       error,
     });
     return NextResponse.json(
-      { error: 'Failed to fetch coverage segments' },
-      { status: 500 },
+      { items: getCoverageSegmentsFallback({ limit }) },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': PUBLIC_CACHE_CONTROL,
+        },
+      },
     );
   }
 }

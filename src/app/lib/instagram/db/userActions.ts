@@ -2,8 +2,64 @@
 import mongoose, { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 import DbUser, { IUser } from '@/app/models/User';
 import { InstagramConnectionDetails } from '../types';
+
+type InstagramConnectionCacheEntry = {
+  expiresAt: number;
+  staleUntil: number;
+  value: InstagramConnectionDetails | null;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __instagramConnectionDetailsCache: Map<string, InstagramConnectionCacheEntry> | undefined;
+}
+
+const INSTAGRAM_CONNECTION_CACHE_TTL_MS = 60_000;
+const INSTAGRAM_CONNECTION_CACHE_STALE_MS = 5 * 60_000;
+
+function getInstagramConnectionCache() {
+  if (!global.__instagramConnectionDetailsCache) {
+    global.__instagramConnectionDetailsCache = new Map();
+  }
+
+  return global.__instagramConnectionDetailsCache;
+}
+
+function getCachedInstagramConnectionDetails(userId: string, allowStale = false) {
+  const cache = getInstagramConnectionCache();
+  const entry = cache.get(userId);
+  if (!entry) return null;
+
+  const now = Date.now();
+  if (entry.expiresAt > now) {
+    return {
+      value: entry.value,
+      stale: false,
+    };
+  }
+
+  if (allowStale && entry.staleUntil > now) {
+    return {
+      value: entry.value,
+      stale: true,
+    };
+  }
+
+  cache.delete(userId);
+  return null;
+}
+
+function setCachedInstagramConnectionDetails(userId: string, value: InstagramConnectionDetails | null) {
+  const now = Date.now();
+  getInstagramConnectionCache().set(userId, {
+    value,
+    expiresAt: now + INSTAGRAM_CONNECTION_CACHE_TTL_MS,
+    staleUntil: now + INSTAGRAM_CONNECTION_CACHE_STALE_MS,
+  });
+}
 
 /**
  * Busca os detalhes da conexão Instagram (token de acesso e ID da conta) para um usuário.
@@ -14,7 +70,7 @@ import { InstagramConnectionDetails } from '../types';
 export async function getInstagramConnectionDetails(
   userId: string | mongoose.Types.ObjectId
 ): Promise<InstagramConnectionDetails | null> {
-  const TAG = '[getInstagramConnectionDetails v2.0.1]'; // Version bump for clarity
+  const TAG = '[getInstagramConnectionDetails v2.1.0]';
   logger.debug(`${TAG} Buscando detalhes de conexão IG para User ${userId}...`);
 
   if (!mongoose.isValidObjectId(userId)) {
@@ -22,28 +78,60 @@ export async function getInstagramConnectionDetails(
     return null;
   }
 
+  const normalizedUserId = String(userId);
+  const cached = getCachedInstagramConnectionDetails(normalizedUserId);
+  if (cached) {
+    logger.debug(`${TAG} Retornando detalhes de conexão IG do cache para User ${userId}.`);
+    return cached.value;
+  }
+
   try {
-    await connectToDatabase();
-    const user = await DbUser.findById(userId)
-      .select('instagramAccessToken instagramAccountId isInstagramConnected')
-      .lean<IUser>();
+    const user = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return DbUser.findById(userId)
+          .select('instagramAccessToken instagramAccountId isInstagramConnected')
+          .lean<IUser>();
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn(`${TAG} Falha transitória ao buscar conexão IG para User ${userId}. Retry #${retryCount}.`, {
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
 
     if (!user) {
       logger.warn(`${TAG} Usuário ${userId} não encontrado no DB.`);
+      setCachedInstagramConnectionDetails(normalizedUserId, null);
       return null;
     }
 
     if (!user.isInstagramConnected || !user.instagramAccountId) {
       logger.warn(`${TAG} Conexão Instagram inativa ou ID da conta ausente para User ${userId}. isConnected: ${user.isInstagramConnected}, accountId: ${user.instagramAccountId}`);
+      setCachedInstagramConnectionDetails(normalizedUserId, null);
       return null;
     }
 
-    logger.debug(`${TAG} Detalhes de conexão IG encontrados para User ${userId}. Token ${user.instagramAccessToken ? 'existe' : 'NÃO existe'}. AccountId: ${user.instagramAccountId}`);
-    return {
+    const details = {
       accessToken: user.instagramAccessToken ?? null,
       accountId: user.instagramAccountId,
     };
+    setCachedInstagramConnectionDetails(normalizedUserId, details);
+    logger.debug(`${TAG} Detalhes de conexão IG encontrados para User ${userId}. Token ${user.instagramAccessToken ? 'existe' : 'NÃO existe'}. AccountId: ${user.instagramAccountId}`);
+    return details;
   } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      const staleCached = getCachedInstagramConnectionDetails(normalizedUserId, true);
+      if (staleCached) {
+        logger.warn(`${TAG} Erro transitório no Mongo para User ${userId}. Retornando cache stale da conexão IG.`, {
+          error: getErrorMessage(error),
+        });
+        return staleCached.value;
+      }
+    }
     logger.error(`${TAG} Erro ao buscar detalhes de conexão IG para User ${userId}:`, error);
     return null;
   }

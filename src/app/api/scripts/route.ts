@@ -26,6 +26,10 @@ import {
   logScriptsGenerationObservability,
   type ScriptOutputDiagnostics,
 } from "@/app/lib/scripts/observability";
+import {
+  invalidateScriptsListCacheForUser,
+  scriptsListCache,
+} from "@/app/lib/scripts/scriptsListCache";
 import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import { logger } from "@/app/lib/logger";
 
@@ -47,11 +51,6 @@ const SCRIPTS_LIST_CACHE_MAX_ENTRIES = (() => {
   return Number.isFinite(parsed) && parsed >= 500 ? Math.floor(parsed) : 10_000;
 })();
 
-const scriptsListCache = new Map<
-  string,
-  { expiresAt: number; staleUntil: number; payload: any }
->();
-
 function logScriptsMongoRetry(context: string, error: unknown, retryCount: number) {
   logger.warn("[scripts] Retry para erro transitorio de Mongo.", {
     context,
@@ -64,7 +63,19 @@ function buildScriptsTransientResponse(error: unknown, message: string) {
   logger.warn("[scripts] Erro transitorio de Mongo.", {
     error: getErrorMessage((error as any)?.cause ?? error),
   });
-  return NextResponse.json({ ok: false, error: message }, { status: 503 });
+  return NextResponse.json({
+    ok: true,
+    items: [],
+    pagination: {
+      nextCursor: null,
+      hasMore: false,
+      limit: DEFAULT_LIMIT,
+    },
+    meta: {
+      fallback: true,
+      message,
+    },
+  });
 }
 
 async function getAuthenticatedSession(context: string) {
@@ -726,7 +737,19 @@ export async function GET(request: Request) {
     }
 
     logger.error("[scripts] Falha ao listar roteiros.", error);
-    return NextResponse.json({ ok: false, error: "Nao foi possivel carregar os roteiros." }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      items: [],
+      pagination: {
+        nextCursor: null,
+        hasMore: false,
+        limit: DEFAULT_LIMIT,
+      },
+      meta: {
+        fallback: true,
+        message: "Nao foi possivel carregar os roteiros.",
+      },
+    });
   }
 }
 
@@ -1066,6 +1089,7 @@ export async function POST(request: Request) {
       void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
       void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
     }
+    invalidateScriptsListCacheForUser(effectiveUserId);
 
     return NextResponse.json({
       ok: true,

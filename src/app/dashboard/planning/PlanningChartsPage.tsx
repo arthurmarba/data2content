@@ -5,6 +5,23 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { AlertCircle, ArrowUpRight, Calendar as CalendarIcon, CheckCircle2, ChevronDown as ChevronDownIcon, Clock3, Copy, Database, ExternalLink, Filter as FilterIcon, Gift, LineChart as LineChartIcon, Sparkles, Target, Users, Zap as ZapIcon } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
+  LabelList,
+  Legend,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import Drawer from "@/components/ui/Drawer";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { track } from "@/lib/track";
@@ -19,27 +36,6 @@ const PostsBySliceModal = dynamic(() => import("./components/PostsBySliceModal")
   ssr: false,
   loading: () => null,
 });
-const loadRecharts = () => import("recharts");
-const dynamicRecharts = (selector: (mod: Awaited<ReturnType<typeof loadRecharts>>) => React.ComponentType<any>) =>
-  dynamic(() => loadRecharts().then((mod) => selector(mod) as any), {
-    ssr: false,
-    loading: () => null,
-  }) as React.ComponentType<any>;
-const ResponsiveContainer = dynamicRecharts((mod) => mod.ResponsiveContainer as any);
-const BarChart = dynamicRecharts((mod) => mod.BarChart as any);
-const Bar = dynamicRecharts((mod) => mod.Bar as any);
-const CartesianGrid = dynamicRecharts((mod) => mod.CartesianGrid as any);
-const ComposedChart = dynamicRecharts((mod) => mod.ComposedChart as any);
-const LabelList = dynamicRecharts((mod) => mod.LabelList as any);
-const Legend = dynamicRecharts((mod) => mod.Legend as any);
-const Line = dynamicRecharts((mod) => mod.Line as any);
-const LineChart = dynamicRecharts((mod) => mod.LineChart as any);
-const ReferenceLine = dynamicRecharts((mod) => mod.ReferenceLine as any);
-const Scatter = dynamicRecharts((mod) => mod.Scatter as any);
-const ScatterChart = dynamicRecharts((mod) => mod.ScatterChart as any);
-const Tooltip = dynamicRecharts((mod) => mod.Tooltip as any);
-const XAxis = dynamicRecharts((mod) => mod.XAxis as any);
-const YAxis = dynamicRecharts((mod) => mod.YAxis as any);
 const DiscoverVideoModal = dynamic(() => import("@/app/discover/components/DiscoverVideoModal"), {
   ssr: false,
   loading: () => null,

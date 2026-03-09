@@ -55,13 +55,15 @@ function buildSessionFallbackPayload(session: any) {
 }
 
 export async function GET(_req: NextRequest) {
+  let session: any = null;
+  let sessionFallbackPayload = buildSessionFallbackPayload(null);
   try {
-    const session = (await getServerSession(authOptions)) as any;
+    session = (await getServerSession(authOptions)) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sessionFallbackPayload = buildSessionFallbackPayload(session);
+    sessionFallbackPayload = buildSessionFallbackPayload(session);
 
     const user = await withMongoTransientRetry(
       async () => {
@@ -98,7 +100,7 @@ export async function GET(_req: NextRequest) {
     }
 
     if (!user) {
-      return NextResponse.json({ ok: false, error: 'User not found' }, { status: 404 });
+      return NextResponse.json(sessionFallbackPayload);
     }
 
     const resolvedUser = user as InstagramStatusUser;
@@ -123,6 +125,6 @@ export async function GET(_req: NextRequest) {
     });
   } catch (error) {
     logger.error('[api/instagram/status] failed', error);
-    return NextResponse.json({ ok: false, error: 'Unable to retrieve Instagram status' }, { status: 503 });
+    return NextResponse.json(sessionFallbackPayload);
   }
 }

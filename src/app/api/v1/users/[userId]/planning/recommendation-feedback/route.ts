@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { Types } from "mongoose";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { dashboardCache } from "@/app/lib/cache/dashboardCache";
 import { connectToDatabase } from "@/app/lib/dataService/connection";
 import { logger } from "@/app/lib/logger";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import PlanningRecommendationFeedbackModel from "@/app/models/PlanningRecommendationFeedback";
 import { ALLOWED_PLANNING_OBJECTIVES, PlanningObjectiveMode } from "@/utils/buildPlanningRecommendations";
 import { ALLOWED_TIME_PERIODS, TimePeriod } from "@/app/lib/constants/timePeriods";
@@ -12,6 +14,37 @@ type FeedbackStatus = "applied" | "not_applied" | "clear";
 
 const SERVICE_TAG = "[api/v1/users/planning/recommendation-feedback]";
 const DEFAULT_TIME_PERIOD: TimePeriod = "last_90_days";
+const FEEDBACK_CACHE_TTL_MS = 60_000;
+const FEEDBACK_FALLBACK_TTL_MS = 10 * 60_000;
+
+type RecommendationFeedbackResponse = {
+  objectiveMode: PlanningObjectiveMode;
+  timePeriod: TimePeriod;
+  feedbackByActionId: Record<string, "applied" | "not_applied">;
+  feedbackMetaByActionId: Record<string, { status: "applied" | "not_applied"; updatedAt: string | null }>;
+};
+
+function buildFeedbackCacheKey(userId: string, objectiveMode: PlanningObjectiveMode, timePeriod: TimePeriod) {
+  return `${SERVICE_TAG}:${userId}:${objectiveMode}:${timePeriod}`;
+}
+
+function buildEmptyFeedbackResponse(
+  objectiveMode: PlanningObjectiveMode,
+  timePeriod: TimePeriod
+): RecommendationFeedbackResponse {
+  return {
+    objectiveMode,
+    timePeriod,
+    feedbackByActionId: {},
+    feedbackMetaByActionId: {},
+  };
+}
+
+function clearFeedbackCaches(userId: string, objectiveMode: PlanningObjectiveMode, timePeriod: TimePeriod) {
+  const cacheKey = buildFeedbackCacheKey(userId, objectiveMode, timePeriod);
+  dashboardCache.clear(cacheKey);
+  dashboardCache.clear(`${cacheKey}:fallback`);
+}
 
 function isAllowedPlanningObjective(value: unknown): value is PlanningObjectiveMode {
   return ALLOWED_PLANNING_OBJECTIVES.includes(value as PlanningObjectiveMode);
@@ -96,43 +129,61 @@ export async function GET(
   }
 
   try {
-    await connectToDatabase();
+    const cacheKey = buildFeedbackCacheKey(userId, objectiveMode, timePeriod);
+    const rows = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return PlanningRecommendationFeedbackModel.find({
+          userId: new Types.ObjectId(userId),
+          objectiveMode,
+          timePeriod,
+        })
+          .select("actionId status updatedAt")
+          .lean();
+      },
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn(`${SERVICE_TAG} GET falha transitória ao buscar feedback de ${userId}. Retry #${retryCount}.`, {
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
 
-    const rows = await PlanningRecommendationFeedbackModel.find({
-      userId: new Types.ObjectId(userId),
-      objectiveMode,
-      timePeriod,
-    })
-      .select("actionId status updatedAt")
-      .lean();
-
-    const feedbackByActionId = rows.reduce<Record<string, "applied" | "not_applied">>((acc, row: any) => {
+    const payload = rows.reduce<RecommendationFeedbackResponse>((acc, row: any) => {
       const actionId = normalizeActionId(row?.actionId);
       const status = row?.status;
       if (!actionId || (status !== "applied" && status !== "not_applied")) return acc;
-      acc[actionId] = status;
-      return acc;
-    }, {});
-    const feedbackMetaByActionId = rows.reduce<
-      Record<string, { status: "applied" | "not_applied"; updatedAt: string | null }>
-    >((acc, row: any) => {
-      const actionId = normalizeActionId(row?.actionId);
-      const status = row?.status;
-      if (!actionId || (status !== "applied" && status !== "not_applied")) return acc;
-      acc[actionId] = {
+      acc.feedbackByActionId[actionId] = status;
+      acc.feedbackMetaByActionId[actionId] = {
         status,
         updatedAt: row?.updatedAt instanceof Date ? row.updatedAt.toISOString() : row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
       };
       return acc;
-    }, {});
+    }, buildEmptyFeedbackResponse(objectiveMode, timePeriod));
 
-    return NextResponse.json({
-      objectiveMode,
-      timePeriod,
-      feedbackByActionId,
-      feedbackMetaByActionId,
-    });
+    const fallbackCacheKey = `${cacheKey}:fallback`;
+    dashboardCache.set(cacheKey, payload, FEEDBACK_CACHE_TTL_MS);
+    dashboardCache.set(fallbackCacheKey, payload, FEEDBACK_FALLBACK_TTL_MS);
+
+    return NextResponse.json(payload);
   } catch (error: any) {
+    const cacheKey = buildFeedbackCacheKey(userId, objectiveMode, timePeriod);
+    const fallbackCacheKey = `${cacheKey}:fallback`;
+    const fallback = dashboardCache.get<RecommendationFeedbackResponse>(fallbackCacheKey)?.value;
+    if (isTransientMongoError(error) || isTransientMongoError(error?.cause)) {
+      logger.warn(`${SERVICE_TAG} GET erro transitório para user ${userId}. Retornando fallback.`, {
+        error: getErrorMessage(error),
+        hasCachedFallback: Boolean(fallback),
+      });
+      const response = NextResponse.json(
+        fallback ?? buildEmptyFeedbackResponse(objectiveMode, timePeriod),
+        { status: 200 }
+      );
+      response.headers.set("X-D2C-Fallback", fallback ? "cached-feedback" : "empty-feedback");
+      return response;
+    }
     logger.error(`${SERVICE_TAG} GET error for user ${userId}:`, error);
     return NextResponse.json(
       { error: "Erro ao buscar feedback das recomendações.", details: error?.message || "Erro desconhecido" },
@@ -190,8 +241,6 @@ export async function POST(
       return NextResponse.json({ error: "status inválido. Permitidos: applied, not_applied, clear." }, { status: 400 });
     }
 
-    await connectToDatabase();
-
     const filter = {
       userId: new Types.ObjectId(userId),
       objectiveMode: objectiveModeRaw,
@@ -200,7 +249,21 @@ export async function POST(
     };
 
     if (status === "clear") {
-      await PlanningRecommendationFeedbackModel.deleteOne(filter);
+      await withMongoTransientRetry(
+        async () => {
+          await connectToDatabase();
+          await PlanningRecommendationFeedbackModel.deleteOne(filter);
+        },
+        {
+          retries: 1,
+          onRetry: (error, retryCount) => {
+            logger.warn(`${SERVICE_TAG} POST falha transitória ao limpar feedback de ${userId}. Retry #${retryCount}.`, {
+              error: getErrorMessage(error),
+            });
+          },
+        }
+      );
+      clearFeedbackCaches(userId, objectiveModeRaw, timePeriodRaw);
       return NextResponse.json({
         ok: true,
         removed: true,
@@ -222,23 +285,37 @@ export async function POST(
         ? Math.max(0, Math.round(body.sampleSize))
         : null;
 
-    const updated = await PlanningRecommendationFeedbackModel.findOneAndUpdate(
-      filter,
-      {
-        $set: {
-          status,
-          actionBaseId,
-          actionVariant,
-          actionTitle,
-          confidence,
-          opportunityScore,
-          sampleSize,
-        },
+    const updated = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return PlanningRecommendationFeedbackModel.findOneAndUpdate(
+          filter,
+          {
+            $set: {
+              status,
+              actionBaseId,
+              actionVariant,
+              actionTitle,
+              confidence,
+              opportunityScore,
+              sampleSize,
+            },
+          },
+          { new: true, upsert: true, setDefaultsOnInsert: true }
+        )
+          .select("actionId status updatedAt")
+          .lean();
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    )
-      .select("actionId status updatedAt")
-      .lean();
+      {
+        retries: 1,
+        onRetry: (error, retryCount) => {
+          logger.warn(`${SERVICE_TAG} POST falha transitória ao salvar feedback de ${userId}. Retry #${retryCount}.`, {
+            error: getErrorMessage(error),
+          });
+        },
+      }
+    );
+    clearFeedbackCaches(userId, objectiveModeRaw, timePeriodRaw);
 
     return NextResponse.json({
       ok: true,

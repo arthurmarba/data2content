@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "sh -c 'NODE_OPTIONS=\"--dns-result-order=ipv4first ${NODE_OPTIONS:-}\" NEXT_DISABLE_SERVER_IPC=1 NEXTAUTH_URL=\"${NEXTAUTH_URL:-http://localhost:${PORT:-3000}}\" next dev -H 127.0.0.1 -p ${PORT:-3000}'",
     "build": "npm run playwright:install-chromium && NEXT_DISABLE_SERVER_IPC=1 next build",
-    "start": "next start",
+    "start": "sh -c 'NODE_OPTIONS=\"--dns-result-order=ipv4first ${NODE_OPTIONS:-}\" NEXTAUTH_URL=\"${NEXTAUTH_URL:-http://localhost:${PORT:-3000}}\" next start -H 127.0.0.1 -p ${PORT:-3000}'",
     "playwright:install-chromium": "node scripts/install-playwright-chromium.mjs",
     "lint": "next lint",
     "typecheck": "npm run smoke:types",

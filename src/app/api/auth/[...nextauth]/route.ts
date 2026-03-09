@@ -51,7 +51,7 @@ import {
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
-  interface User extends DefaultUser {
+interface User extends DefaultUser {
     id: string;
     role?: string | null;
     provider?: string | null;
@@ -217,6 +217,28 @@ declare module "next-auth/jwt" {
 }
 // --- END AUGMENT NEXT-AUTH TYPES ---
 
+type SessionRevalidationSnapshot = {
+  planStatus?: string | null;
+  planType?: string | null;
+  planInterval?: string | null;
+  planExpiresAt?: Date | string | null;
+  cancelAtPeriodEnd?: boolean | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripePriceId?: string | null;
+  proTrialStatus?: ProTrialState | null;
+  proTrialActivatedAt?: Date | string | null;
+  proTrialExpiresAt?: Date | string | null;
+  name?: string | null;
+  role?: string | null;
+  image?: string | null;
+};
+
+type SessionRevalidationCacheEntry = {
+  expiresAt: number;
+  snapshot: SessionRevalidationSnapshot;
+};
+
 console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
 
@@ -224,9 +246,86 @@ const DEFAULT_TERMS_VERSION = "1.0_community_included";
 const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token";
 const MAX_TOKEN_AGE_BEFORE_REFRESH_MINUTES = 60; // 1 hour
 const DEV_E2E_USER_ID = "00000000000000000000e2e1";
+const ALLOW_LOCAL_E2E_CREDENTIALS = process.env.ALLOW_LOCAL_E2E_CREDENTIALS === "1";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const IS_LOCAL_E2E_HTTP =
+  ALLOW_LOCAL_E2E_CREDENTIALS &&
+  /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(process.env.NEXTAUTH_URL ?? "");
+const USE_SECURE_AUTH_COOKIES = IS_PRODUCTION && !IS_LOCAL_E2E_HTTP;
+const NEXTAUTH_OAUTH_COOKIE_MAX_AGE_SECONDS = 15 * 60;
+const SESSION_DB_REVALIDATION_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.NEXTAUTH_SESSION_DB_REVALIDATION_CACHE_TTL_MS ?? 60_000);
+  return Number.isFinite(parsed) && parsed >= 5_000 ? Math.floor(parsed) : 60_000;
+})();
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __nextAuthSessionRevalidationCache: Map<string, SessionRevalidationCacheEntry> | undefined;
+}
+
+function buildAuthCookieName(baseName: string, prefix: "__Secure-" | "__Host-" | "") {
+  return `${USE_SECURE_AUTH_COOKIES ? prefix : ""}next-auth.${baseName}`;
+}
+
+function getSessionRevalidationCache() {
+  if (!global.__nextAuthSessionRevalidationCache) {
+    global.__nextAuthSessionRevalidationCache = new Map<string, SessionRevalidationCacheEntry>();
+  }
+  return global.__nextAuthSessionRevalidationCache;
+}
+
+function pruneSessionRevalidationCache(nowTs: number) {
+  const cache = getSessionRevalidationCache();
+  for (const [key, entry] of cache.entries()) {
+    if (entry.expiresAt <= nowTs) {
+      cache.delete(key);
+    }
+  }
+}
+
+function applySessionRevalidationSnapshot(
+  session: Session,
+  snapshot: SessionRevalidationSnapshot,
+) {
+  if (!session.user) return;
+
+  session.user.planStatus = normalizePlanStatusValue(snapshot.planStatus) ?? session.user.planStatus ?? "inactive";
+  session.user.planType = snapshot.planType ?? session.user.planType ?? null;
+  session.user.planInterval = snapshot.planInterval ?? session.user.planInterval ?? null;
+
+  if (snapshot.planExpiresAt instanceof Date) session.user.planExpiresAt = snapshot.planExpiresAt.toISOString();
+  else if (typeof snapshot.planExpiresAt === "string") session.user.planExpiresAt = new Date(snapshot.planExpiresAt).toISOString();
+  else if (snapshot.planExpiresAt === null) session.user.planExpiresAt = null;
+
+  session.user.cancelAtPeriodEnd =
+    typeof snapshot.cancelAtPeriodEnd === "boolean"
+      ? snapshot.cancelAtPeriodEnd
+      : session.user.cancelAtPeriodEnd ?? false;
+
+  session.user.stripeCustomerId = snapshot.stripeCustomerId ?? session.user.stripeCustomerId ?? null;
+  session.user.stripeSubscriptionId = snapshot.stripeSubscriptionId ?? session.user.stripeSubscriptionId ?? null;
+  session.user.stripePriceId = snapshot.stripePriceId ?? session.user.stripePriceId ?? null;
+  session.user.proTrialStatus = snapshot.proTrialStatus ?? session.user.proTrialStatus ?? null;
+  session.user.proTrialActivatedAt =
+    snapshot.proTrialActivatedAt instanceof Date
+      ? snapshot.proTrialActivatedAt.toISOString()
+      : typeof snapshot.proTrialActivatedAt === "string"
+        ? new Date(snapshot.proTrialActivatedAt).toISOString()
+        : session.user.proTrialActivatedAt ?? null;
+  session.user.proTrialExpiresAt =
+    snapshot.proTrialExpiresAt instanceof Date
+      ? snapshot.proTrialExpiresAt.toISOString()
+      : typeof snapshot.proTrialExpiresAt === "string"
+        ? new Date(snapshot.proTrialExpiresAt).toISOString()
+        : session.user.proTrialExpiresAt ?? null;
+
+  if (snapshot.name) session.user.name = snapshot.name;
+  if (snapshot.role) session.user.role = snapshot.role;
+  if (snapshot.image) session.user.image = snapshot.image;
+}
 
 function getDevE2EIdentity() {
-  if (process.env.NODE_ENV === "production") return null;
+  if (process.env.NODE_ENV === "production" && !ALLOW_LOCAL_E2E_CREDENTIALS) return null;
   const email = process.env.E2E_EMAIL?.trim();
   if (!email) return null;
   return {
@@ -449,25 +548,56 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
   }
 }
 
-export const authOptions: NextAuthOptions = {
-  useSecureCookies: process.env.NODE_ENV === "production",
+const authOptionsConfig = {
+  useSecureCookies: USE_SECURE_AUTH_COOKIES,
+  trustHost: true,
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      name: buildAuthCookieName("session-token", "__Secure-"),
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: USE_SECURE_AUTH_COOKIES,
       },
     },
     callbackUrl: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.callback-url" : "next-auth.callback-url",
-      options: { sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" },
+      name: buildAuthCookieName("callback-url", "__Secure-"),
+      options: { sameSite: "lax", path: "/", secure: USE_SECURE_AUTH_COOKIES },
     },
     csrfToken: {
-      name: process.env.NODE_ENV === "production" ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
-      options: { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" },
+      name: buildAuthCookieName("csrf-token", "__Host-"),
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: USE_SECURE_AUTH_COOKIES },
+    },
+    state: {
+      name: buildAuthCookieName("state", "__Secure-"),
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: USE_SECURE_AUTH_COOKIES,
+        maxAge: NEXTAUTH_OAUTH_COOKIE_MAX_AGE_SECONDS,
+      },
+    },
+    nonce: {
+      name: buildAuthCookieName("nonce", "__Secure-"),
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: USE_SECURE_AUTH_COOKIES,
+        maxAge: NEXTAUTH_OAUTH_COOKIE_MAX_AGE_SECONDS,
+      },
+    },
+    pkceCodeVerifier: {
+      name: buildAuthCookieName("pkce.code_verifier", "__Secure-"),
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: USE_SECURE_AUTH_COOKIES,
+        maxAge: NEXTAUTH_OAUTH_COOKIE_MAX_AGE_SECONDS,
+      },
     },
   },
   providers: [
@@ -1327,6 +1457,9 @@ export const authOptions: NextAuthOptions = {
       session.affiliateCode = token.affiliateCode ?? null;
       session.affiliateBalances = token.affiliateBalances || {};
 
+      const nowTs = Date.now();
+      pruneSessionRevalidationCache(nowTs);
+
       if (
         isDevE2EIdentity({
           id: token.id ?? null,
@@ -1337,6 +1470,13 @@ export const authOptions: NextAuthOptions = {
         logger.debug(
           `${TAG_SESSION} Sessão dev/E2E detectada para ${token.id}. Pulando revalidação no DB.`
         );
+        return session;
+      }
+
+      const cachedSessionSnapshot = getSessionRevalidationCache().get(token.id);
+      if (cachedSessionSnapshot && cachedSessionSnapshot.expiresAt > nowTs) {
+        applySessionRevalidationSnapshot(session, cachedSessionSnapshot.snapshot);
+        logger.debug(`${TAG_SESSION} Reutilizando cache de revalidação para ${token.id}.`);
         return session;
       }
 
@@ -1379,37 +1519,30 @@ export const authOptions: NextAuthOptions = {
 
         if (dbUserCheck && session.user) {
           logger.info(`${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}.`);
-          // ⚠️ Usar status normalizado para não reintroduzir 'trialing' ou 'non_renewing'
-          session.user.planStatus = normalizePlanStatusValue(dbUserCheck.planStatus) ?? session.user.planStatus ?? "inactive";
-          session.user.planType = dbUserCheck.planType ?? session.user.planType ?? null;
-          session.user.planInterval = dbUserCheck.planInterval ?? session.user.planInterval ?? null;
-
-          if (dbUserCheck.planExpiresAt instanceof Date) session.user.planExpiresAt = dbUserCheck.planExpiresAt.toISOString();
-          else if (dbUserCheck.planExpiresAt === null) session.user.planExpiresAt = null;
-
-          session.user.cancelAtPeriodEnd =
-            typeof dbUserCheck.cancelAtPeriodEnd === "boolean"
-              ? dbUserCheck.cancelAtPeriodEnd
-              : (session.user.cancelAtPeriodEnd ?? false) || isNonRenewing(dbUserCheck.planStatus);
-
-          // Stripe IDs
-          session.user.stripeCustomerId = (dbUserCheck as any).stripeCustomerId ?? session.user.stripeCustomerId ?? null;
-          session.user.stripeSubscriptionId = (dbUserCheck as any).stripeSubscriptionId ?? session.user.stripeSubscriptionId ?? null;
-          session.user.stripePriceId = (dbUserCheck as any).stripePriceId ?? session.user.stripePriceId ?? null;
-          session.user.proTrialStatus =
-            (dbUserCheck as any).proTrialStatus ?? session.user.proTrialStatus ?? null;
-          session.user.proTrialActivatedAt =
-            (dbUserCheck as any).proTrialActivatedAt instanceof Date
-              ? (dbUserCheck as any).proTrialActivatedAt.toISOString()
-              : session.user.proTrialActivatedAt ?? null;
-          session.user.proTrialExpiresAt =
-            (dbUserCheck as any).proTrialExpiresAt instanceof Date
-              ? (dbUserCheck as any).proTrialExpiresAt.toISOString()
-              : session.user.proTrialExpiresAt ?? null;
-
-          if (dbUserCheck.name) session.user.name = dbUserCheck.name;
-          if (dbUserCheck.role) session.user.role = dbUserCheck.role;
-          if (dbUserCheck.image) session.user.image = dbUserCheck.image;
+          const snapshot: SessionRevalidationSnapshot = {
+            planStatus: dbUserCheck.planStatus ?? session.user.planStatus ?? null,
+            planType: dbUserCheck.planType ?? session.user.planType ?? null,
+            planInterval: dbUserCheck.planInterval ?? session.user.planInterval ?? null,
+            planExpiresAt: dbUserCheck.planExpiresAt ?? session.user.planExpiresAt ?? null,
+            cancelAtPeriodEnd:
+              typeof dbUserCheck.cancelAtPeriodEnd === "boolean"
+                ? dbUserCheck.cancelAtPeriodEnd
+                : (session.user.cancelAtPeriodEnd ?? false) || isNonRenewing(dbUserCheck.planStatus),
+            stripeCustomerId: (dbUserCheck as any).stripeCustomerId ?? session.user.stripeCustomerId ?? null,
+            stripeSubscriptionId: (dbUserCheck as any).stripeSubscriptionId ?? session.user.stripeSubscriptionId ?? null,
+            stripePriceId: (dbUserCheck as any).stripePriceId ?? session.user.stripePriceId ?? null,
+            proTrialStatus: (dbUserCheck as any).proTrialStatus ?? session.user.proTrialStatus ?? null,
+            proTrialActivatedAt: (dbUserCheck as any).proTrialActivatedAt ?? session.user.proTrialActivatedAt ?? null,
+            proTrialExpiresAt: (dbUserCheck as any).proTrialExpiresAt ?? session.user.proTrialExpiresAt ?? null,
+            name: dbUserCheck.name ?? session.user.name ?? null,
+            role: dbUserCheck.role ?? session.user.role ?? null,
+            image: dbUserCheck.image ?? session.user.image ?? null,
+          };
+          applySessionRevalidationSnapshot(session, snapshot);
+          getSessionRevalidationCache().set(token.id, {
+            snapshot,
+            expiresAt: nowTs + SESSION_DB_REVALIDATION_CACHE_TTL_MS,
+          });
         } else if (!dbUserCheck) {
           if (isDevE2EIdentity({
             id: token.id ?? null,
@@ -1448,8 +1581,13 @@ export const authOptions: NextAuthOptions = {
     async redirect({ url, baseUrl }) {
       const requestedUrl = new URL(url, baseUrl);
       const base = new URL(baseUrl);
+      const isEquivalentLocalOrigin =
+        process.env.NODE_ENV !== "production" &&
+        requestedUrl.port === base.port &&
+        ((requestedUrl.hostname === "127.0.0.1" && base.hostname === "localhost") ||
+          (requestedUrl.hostname === "localhost" && base.hostname === "127.0.0.1"));
 
-      if (requestedUrl.origin === base.origin) {
+      if (requestedUrl.origin === base.origin || isEquivalentLocalOrigin) {
         // Se o provider recusar consentimento e o NextAuth tentar enviar para /login?error=...
         if (requestedUrl.pathname === "/login" && requestedUrl.searchParams.has("error")) {
           logger.warn(`[NextAuth Redirect Callback] Interceptando redirecionamento para /login com erro (${requestedUrl.searchParams.get("error")}). Enviando para página inicial.`);
@@ -1473,7 +1611,9 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
-};
+} satisfies NextAuthOptions & { trustHost?: boolean };
+
+export const authOptions: NextAuthOptions = authOptionsConfig as NextAuthOptions;
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

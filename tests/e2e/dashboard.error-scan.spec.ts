@@ -79,7 +79,12 @@ test.describe("Dashboard runtime smoke", () => {
     await page.goto("/planning/graficos");
     await dismissCookieBanner(page);
     await expect(page.getByText("Planejamento faz parte do Plano Pro")).toHaveCount(0, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "Leituras com dados reais" })).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page
+        .getByRole("heading")
+        .filter({ hasText: /O que seu perfil está mostrando agora|Leituras com dados reais/ })
+        .first()
+    ).toBeVisible({ timeout: 30_000 });
     await page.waitForTimeout(1200);
     await expectNoRuntimeIssues(collector, "Gráficos");
   });

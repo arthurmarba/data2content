@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { fetchCastingCreators, getCastingCreatorsFallback } from "@/app/lib/landing/castingService";
+import {
+  executeWithLandingTimeout,
+  resolveLandingInternalTimeoutMs,
+} from "@/app/lib/landing/routeTimeout";
 import { logger } from "@/app/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +13,6 @@ export const maxDuration = 5;
 const PUBLIC_CACHE_CONTROL =
   "public, max-age=60, s-maxage=600, stale-while-revalidate=3600, stale-if-error=86400";
 const BYPASS_CACHE_CONTROL = "no-store";
-const INTERNAL_TIMEOUT_MS = 3500;
 
 export async function GET(req: NextRequest) {
   const startedAt = performance.now();
@@ -33,26 +36,29 @@ export async function GET(req: NextRequest) {
       offset,
       limit,
     } as const;
+    const fallbackPayload = getCastingCreatorsFallback(requestOptions);
+    const timeoutMs = resolveLandingInternalTimeoutMs(fallbackPayload.creators.length > 0);
 
-    const payload = await Promise.race([
-      fetchCastingCreators(requestOptions),
-      new Promise<ReturnType<typeof getCastingCreatorsFallback>>((resolve) => {
-        setTimeout(() => {
-          logger.warn("[api/landing/casting] Falling back after internal timeout.", {
-            timeoutMs: INTERNAL_TIMEOUT_MS,
-            mode,
-            forceRefresh,
-          });
-          resolve(getCastingCreatorsFallback(requestOptions));
-        }, INTERNAL_TIMEOUT_MS);
-      }),
-    ]);
+    const result = await executeWithLandingTimeout({
+      task: fetchCastingCreators(requestOptions),
+      fallbackValue: fallbackPayload,
+      timeoutMs,
+      onTimeout: () => {
+        logger.warn("[api/landing/casting] Falling back after internal timeout.", {
+          timeoutMs,
+          mode,
+          forceRefresh,
+          hasWarmFallbackData: fallbackPayload.creators.length > 0,
+        });
+      },
+    });
 
     const durationMs = performance.now() - startedAt;
-    return NextResponse.json(payload, {
+    return NextResponse.json(result.value, {
       headers: {
         "Cache-Control": forceRefresh ? BYPASS_CACHE_CONTROL : PUBLIC_CACHE_CONTROL,
         "Server-Timing": `casting;dur=${durationMs.toFixed(1)}`,
+        "X-Landing-Data-Source": result.source,
       },
     });
   } catch (error: any) {

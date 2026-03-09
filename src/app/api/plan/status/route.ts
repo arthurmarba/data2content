@@ -491,7 +491,16 @@ export async function GET(req: Request) {
     );
   }
 
-  if (!user) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+  if (!user) {
+    logger.warn("[plan.status] User not found in database. Falling back to session-backed payload.", {
+      userId: session.user.id,
+    });
+    return respondWithPayload(
+      sessionFallbackUser,
+      {},
+      { persistUpdates: false, cacheKey }
+    );
+  }
 
   const respondFromDb = () => respondWithPayload(user);
 

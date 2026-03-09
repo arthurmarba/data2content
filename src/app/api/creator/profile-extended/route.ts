@@ -6,6 +6,7 @@ import UserModel, { type ICreatorProfileExtended, type PlatformReason, type Lear
 import { logger } from "@/app/lib/logger";
 import * as stateService from "@/app/lib/stateService";
 import { SUMMARY_GENERATION_INTERVAL } from "@/app/lib/constants";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 
 const TAG = "[api/creator/profile-extended]";
 
@@ -141,13 +142,24 @@ export async function GET() {
   }
 
   try {
-    await connectToDatabase();
-    const user = await UserModel.findById(session.user.id, { creatorProfileExtended: 1 }).lean();
+    const user = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
+        return UserModel.findById(session.user.id, { creatorProfileExtended: 1 }).lean();
+      },
+      { retries: 1 },
+    );
     const profile = user?.creatorProfileExtended
       ? sanitizeProfile(user.creatorProfileExtended, user.creatorProfileExtended)
       : null;
     return NextResponse.json({ profile }, { status: 200 });
   } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      logger.warn(`${TAG} GET transient failure. Returning empty profile.`, {
+        error: getErrorMessage((error as any)?.cause ?? error),
+      });
+      return NextResponse.json({ profile: null }, { status: 200 });
+    }
     logger.error(`${TAG} GET failed`, error);
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
   }

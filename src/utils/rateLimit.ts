@@ -4,29 +4,84 @@ import { createClient, RedisClientType } from 'redis';
 import { logger } from '@/app/lib/logger';
 
 let client: RedisClientType | null = null;
-let connectionAttempted = false; // Flag para evitar múltiplas tentativas de conexão
+let connectionAttempted = false;
+let redisUnavailable = false;
+let disabledReasonLogged = false;
+let notReadyLogged = false;
+let connectionErrorLogged = false;
+
+function logDisabledReason(message: string, meta?: Record<string, unknown>) {
+  if (disabledReasonLogged) return;
+  disabledReasonLogged = true;
+  logger.warn(message, meta ?? {});
+}
+
+function isRedisUrlUsable(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      process.env.NODE_ENV === 'production' &&
+      (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '::1')
+    ) {
+      logDisabledReason('[rateLimit] REDIS_URL points to a local address in production. Rate limiting disabled.', {
+        hostname,
+      });
+      return false;
+    }
+    return true;
+  } catch {
+    logDisabledReason('[rateLimit] REDIS_URL is invalid. Rate limiting disabled.');
+    return false;
+  }
+}
 
 function getClient(): RedisClientType | null {
+  if (redisUnavailable) return null;
   if (client) return client;
 
   const url = process.env.REDIS_URL;
   if (!url) {
-    logger.warn('[rateLimit] REDIS_URL not configured. Rate limiting disabled.');
+    logDisabledReason('[rateLimit] REDIS_URL not configured. Rate limiting disabled.');
     return null;
   }
-  
-  // Evita criar múltiplos clientes se a primeira tentativa já ocorreu
-  if (connectionAttempted) return client; 
 
-  client = createClient({ url });
-  connectionAttempted = true; // Marca que a tentativa de conexão foi feita
+  if (!isRedisUrlUsable(url)) {
+    redisUnavailable = true;
+    return null;
+  }
 
-  client.on('error', (err) => logger.error('[rateLimit] Redis Client Error', err));
-  
-  client.connect().catch((err) => {
-    // O 'error' event já cobre isso, mas mantemos um log inicial para clareza.
-    logger.error('[rateLimit] Initial connection to Redis failed', err);
-    // Não precisa fazer mais nada, o status 'isReady' cuidará do resto.
+  if (connectionAttempted) return client;
+
+  client = createClient({
+    url,
+    socket: {
+      reconnectStrategy: false,
+    },
+  });
+  connectionAttempted = true;
+
+  client.on('ready', () => {
+    notReadyLogged = false;
+    connectionErrorLogged = false;
+  });
+
+  client.on('error', (err: any) => {
+    if (connectionErrorLogged) return;
+    connectionErrorLogged = true;
+    logger.warn('[rateLimit] Redis unavailable. Rate limiting disabled for this runtime.', {
+      error: err?.message ?? String(err),
+      code: err?.code,
+    });
+  });
+
+  client.connect().catch((err: any) => {
+    redisUnavailable = true;
+    client = null;
+    logger.warn('[rateLimit] Initial connection to Redis failed. Rate limiting disabled for this runtime.', {
+      error: err?.message ?? String(err),
+      code: err?.code,
+    });
   });
 
   return client;
@@ -44,29 +99,29 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const redis = getClient();
   if (!redis) {
-    // Rate limit desativado por falta de URL
     return { allowed: true, remaining: limit };
   }
-  
-  // <<< ALTERAÇÃO PRINCIPAL: Verificamos se o cliente está pronto >>>
-  // Se o cliente não estiver pronto (não conectado), pulamos o rate limit.
-  // Isso evita que a aplicação trave ao tentar usar uma conexão indisponível.
+
   if (!redis.isReady) {
-    logger.warn(`[rateLimit] Redis not ready. Skipping rate limit check for key: ${key}`);
+    if (!notReadyLogged) {
+      notReadyLogged = true;
+      logger.warn('[rateLimit] Redis not ready. Skipping rate limit checks until connection recovers.');
+    }
     return { allowed: true, remaining: limit };
   }
 
   try {
-    // O restante da lógica só executa se o Redis estiver pronto.
     const count = await redis.incr(key);
     if (count === 1) {
       await redis.expire(key, windowSeconds);
     }
     return { allowed: count <= limit, remaining: Math.max(0, limit - count) };
   } catch (err) {
-    // Este catch agora só vai pegar erros de comando, não de conexão.
-    logger.error(`[rateLimit] Error during Redis command for key ${key}`, err);
-    return { allowed: true, remaining: limit }; // Permite a passagem em caso de erro
+    logger.warn('[rateLimit] Error during Redis command. Skipping rate limit check.', {
+      key,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { allowed: true, remaining: limit };
   }
 }
 

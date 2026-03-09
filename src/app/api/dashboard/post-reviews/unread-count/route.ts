@@ -6,6 +6,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import PostReviewModel from "@/app/models/PostReview";
 import { logger } from "@/app/lib/logger";
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 
 export const dynamic = "force-dynamic";
 
@@ -68,31 +69,36 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    await connectToDatabase();
+    const [agg] = await withMongoTransientRetry(
+      async () => {
+        await connectToDatabase();
 
-    const userObjectId = new Types.ObjectId(userId);
-    const pipeline: PipelineStage[] = [
-      {
-        $lookup: {
-          from: "metrics",
-          localField: "postId",
-          foreignField: "_id",
-          as: "post",
-        },
+        const userObjectId = new Types.ObjectId(userId);
+        const pipeline: PipelineStage[] = [
+          {
+            $lookup: {
+              from: "metrics",
+              localField: "postId",
+              foreignField: "_id",
+              as: "post",
+            },
+          },
+          { $unwind: "$post" },
+          { $match: { "post.user": userObjectId } },
+          { $sort: { updatedAt: -1 } },
+          { $limit: limit },
+        ];
+
+        if (since) {
+          pipeline.push({ $match: { updatedAt: { $gt: since } } });
+        }
+
+        pipeline.push({ $count: "unreadCount" });
+
+        return PostReviewModel.aggregate(pipeline).exec();
       },
-      { $unwind: "$post" },
-      { $match: { "post.user": userObjectId } },
-      { $sort: { updatedAt: -1 } },
-      { $limit: limit },
-    ];
-
-    if (since) {
-      pipeline.push({ $match: { updatedAt: { $gt: since } } });
-    }
-
-    pipeline.push({ $count: "unreadCount" });
-
-    const [agg] = await PostReviewModel.aggregate(pipeline).exec();
+      { retries: 1 },
+    );
     const unreadCount = typeof agg?.unreadCount === "number" ? agg.unreadCount : 0;
 
     unreadCache.set(cacheKey, {
@@ -102,6 +108,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ unreadCount }, { status: 200 });
   } catch (error) {
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      logger.warn("[api/dashboard/post-reviews/unread-count] Transient Mongo failure. Returning zero.", {
+        error: getErrorMessage((error as any)?.cause ?? error),
+      });
+      return NextResponse.json({ unreadCount: 0 }, { status: 200 });
+    }
     logger.error("[api/dashboard/post-reviews/unread-count] Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

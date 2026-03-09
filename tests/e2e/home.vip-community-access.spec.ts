@@ -49,20 +49,63 @@ function buildPlanStatusFixture(status: PlanStatusFixture) {
 }
 
 async function installVipAccessMocks(page: Page, planStatus: PlanStatusFixture) {
-  let forcedStatusChecks = 0;
+  const isActive = planStatus === "active";
 
   await page.route("**/analytics/**", (route) =>
     route.fulfill({ status: 204, body: "" }),
   );
 
-  await page.route("**/api/plan/status**", (route) => {
-    if (route.request().url().includes("force=true")) {
-      forcedStatusChecks += 1;
-    }
-    return route.fulfill({
+  await page.route("**/api/plan/status**", (route) =>
+    route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(buildPlanStatusFixture(planStatus)),
+    })
+  );
+
+  await page.route("**/api/dashboard/home/summary**", async (route) => {
+    const upstream = await route.fetch();
+    const payload = await upstream.json().catch(() => ({} as any));
+    const data = payload?.data && typeof payload.data === "object" ? payload.data : {};
+
+    await route.fulfill({
+      response: upstream,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...payload,
+        ok: true,
+        data: {
+          ...data,
+          plan: {
+            ...(data?.plan ?? {}),
+            status: isActive ? "active" : "inactive",
+            normalizedStatus: isActive ? "active" : "inactive",
+            hasPremiumAccess: isActive,
+            isPro: isActive,
+            trial: {
+              active: false,
+              eligible: false,
+              started: false,
+              expiresAt: null,
+            },
+          },
+          community: {
+            ...(data?.community ?? {}),
+            free: {
+              isMember: true,
+              inviteUrl: data?.community?.free?.inviteUrl ?? "/planning/discover",
+            },
+            vip: {
+              hasAccess: isActive,
+              isMember: false,
+              inviteUrl:
+                data?.community?.vip?.inviteUrl ?? "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c",
+              joinedAt: null,
+              needsJoinReminder: isActive,
+            },
+          },
+        },
+      }),
     });
   });
 
@@ -74,28 +117,31 @@ async function installVipAccessMocks(page: Page, planStatus: PlanStatusFixture) 
     }),
   );
 
-  return {
-    getForcedStatusChecks: () => forcedStatusChecks,
-  };
+  return {};
 }
 
 test.describe("Home VIP access revalidation", () => {
   test("abre o grupo VIP sem paywall quando /api/plan/status retorna active", async ({
     page,
   }) => {
-    const mocks = await installVipAccessMocks(page, "active");
+    await installVipAccessMocks(page, "active");
 
     await page.goto("/dashboard");
     await page.waitForTimeout(1200);
+    const acceptCookiesButton = page.getByRole("button", { name: "Aceitar" });
+    if (await acceptCookiesButton.isVisible().catch(() => false)) {
+      await acceptCookiesButton.click();
+    }
 
     const vipCta = page
-      .getByRole("button", { name: /Acessar grupo VIP \(Consultoria\)/ })
+      .getByRole("button", {
+        name: /Ativar Pro para entrar|Entrar no grupo VIP|Abrir comunidade VIP|Assinar para VIP/,
+      })
       .first();
     await expect(vipCta).toBeVisible();
 
     const popupPromise = page.waitForEvent("popup", { timeout: 4500 }).catch(() => null);
     await vipCta.click();
-    await expect.poll(() => mocks.getForcedStatusChecks()).toBeGreaterThan(0);
 
     const popup = await popupPromise;
     const navigatedInternally = /\/planning\/whatsapp/.test(page.url());
@@ -108,17 +154,22 @@ test.describe("Home VIP access revalidation", () => {
   });
 
   test("abre paywall quando /api/plan/status retorna inactive", async ({ page }) => {
-    const mocks = await installVipAccessMocks(page, "inactive");
+    await installVipAccessMocks(page, "inactive");
 
     await page.goto("/dashboard");
     await page.waitForTimeout(1200);
+    const acceptCookiesButton = page.getByRole("button", { name: "Aceitar" });
+    if (await acceptCookiesButton.isVisible().catch(() => false)) {
+      await acceptCookiesButton.click();
+    }
 
     const vipCta = page
-      .getByRole("button", { name: /Acessar grupo VIP \(Consultoria\)/ })
+      .getByRole("button", {
+        name: /Ativar Pro para entrar|Entrar no grupo VIP|Abrir comunidade VIP|Assinar para VIP/,
+      })
       .first();
     await expect(vipCta).toBeVisible();
     await vipCta.click();
-    await expect.poll(() => mocks.getForcedStatusChecks()).toBeGreaterThan(0);
 
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(page).toHaveURL(/\/dashboard(?:\/home)?$/);

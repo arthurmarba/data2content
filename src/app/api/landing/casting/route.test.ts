@@ -3,10 +3,21 @@
 import { NextRequest } from "next/server";
 
 import { GET } from "./route";
-import { fetchCastingCreators } from "@/app/lib/landing/castingService";
+import {
+  fetchCastingCreators,
+  getCastingCreatorsFallback,
+} from "@/app/lib/landing/castingService";
 
 jest.mock("@/app/lib/landing/castingService", () => ({
   fetchCastingCreators: jest.fn(),
+  getCastingCreatorsFallback: jest.fn(() => ({
+    creators: [],
+    total: 0,
+    offset: 0,
+    limit: 12,
+    hasMore: false,
+    mode: "featured",
+  })),
 }));
 
 jest.mock("@/app/lib/logger", () => ({
@@ -14,6 +25,7 @@ jest.mock("@/app/lib/logger", () => ({
 }));
 
 const mockFetchCastingCreators = fetchCastingCreators as jest.Mock;
+const mockGetCastingCreatorsFallback = getCastingCreatorsFallback as jest.Mock;
 
 function makeCreator(id: string) {
   return {
@@ -33,6 +45,14 @@ function makeCreator(id: string) {
 describe("GET /api/landing/casting", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetCastingCreatorsFallback.mockImplementation((options?: { mode?: "featured" | "full" }) => ({
+      creators: [],
+      total: 0,
+      offset: 0,
+      limit: options?.mode === "full" ? 0 : 12,
+      hasMore: false,
+      mode: options?.mode === "featured" ? "featured" : "full",
+    }));
   });
 
   it("parses featured mode defaults and returns pagination metadata", async () => {
@@ -93,4 +113,3 @@ describe("GET /api/landing/casting", () => {
     expect(res.status).toBe(200);
   });
 });
-
