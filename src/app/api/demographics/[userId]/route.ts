@@ -5,6 +5,7 @@ import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import AudienceDemographicSnapshot from '@/app/models/demographics/AudienceDemographicSnapshot';
 import { logger } from '@/app/lib/logger';
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 
 export async function GET(request: Request, { params }: { params: { userId: string } }) {
   const TAG = '[API_GET_DEMOGRAPHICS]';
@@ -16,7 +17,16 @@ export async function GET(request: Request, { params }: { params: { userId: stri
   }
 
   try {
-    await connectToDatabase();
+    await withMongoTransientRetry(() => connectToDatabase(), {
+      retries: 1,
+      onRetry: (error, retryCount) => {
+        logger.warn(`${TAG} Retry para erro transitorio de Mongo ao conectar.`, {
+          userId,
+          retryCount,
+          error: getErrorMessage(error),
+        });
+      },
+    });
     logger.info(`${TAG} Buscando dados demográficos para o usuário: ${userId}`);
 
     // Busca o snapshot mais recente para o usuário
@@ -34,6 +44,16 @@ export async function GET(request: Request, { params }: { params: { userId: stri
     return NextResponse.json(snapshot.demographics, { status: 200 });
 
   } catch (error: any) {
+    if (isTransientMongoError(error) || isTransientMongoError(error?.cause)) {
+      logger.warn(`${TAG} Erro transitorio de Mongo ao buscar dados demográficos para o usuário ${userId}.`, {
+        error: getErrorMessage(error?.cause ?? error),
+      });
+      return NextResponse.json(
+        { error: 'Dados demográficos temporariamente indisponíveis.' },
+        { status: 503 }
+      );
+    }
+
     logger.error(`${TAG} Erro ao buscar dados demográficos para o usuário ${userId}:`, error);
     return NextResponse.json({ error: 'Erro interno do servidor ao buscar dados.' }, { status: 500 });
   }

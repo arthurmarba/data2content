@@ -76,4 +76,27 @@ describe('GET /api/mediakit/[token]/og-image', () => {
     expect(res.headers.get('content-type')).toContain('image/png');
     expect(mockUserFindById).not.toHaveBeenCalled();
   });
+
+  it('sanitiza caracteres inválidos antes de montar a imagem OG', async () => {
+    mockResolveMediaKitToken.mockResolvedValue({ userId: 'user-1', canonicalSlug: 'criador-x' });
+    mockUserFindById.mockReturnValue({
+      select: () => ({
+        lean: () =>
+          Promise.resolve({
+            name: 'Clara \uFFFDe',
+            mediaKitDisplayName: 'Clara \uD83D',
+            username: 'clara\uFFFDok',
+            followers_count: 1200,
+            media_count: 15,
+            biography: 'Bio com caractere quebrado \uFFFD e surrogate \uD83D',
+          }),
+      }),
+    });
+
+    const req = new NextRequest('http://localhost/api/mediakit/criador-x/og-image');
+    const res = await GET(req, { params: { token: 'criador-x' } });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('image/png');
+  });
 });

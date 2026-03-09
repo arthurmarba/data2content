@@ -21,9 +21,21 @@ const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
 const OG_CACHE_CONTROL = 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400';
 
+function sanitizeOgText(raw: unknown, fallback = '') {
+  if (typeof raw !== 'string') return fallback;
+  const normalized = raw
+    .replace(/\uFFFD/g, '')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '')
+    .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalized || fallback;
+}
+
 function normalizeMetaValue(raw?: string | null) {
   if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
+  const trimmed = sanitizeOgText(raw);
   if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
   return trimmed;
 }
@@ -91,7 +103,7 @@ function toDataUri(body: Uint8Array, contentType: string) {
 }
 
 function initialsFrom(displayName: string, username?: string | null) {
-  const source = displayName || username || 'MK';
+  const source = sanitizeOgText(displayName || username || 'MK', 'MK');
   const parts = source
     .split(/\s+/)
     .map((part) => part.trim())
@@ -108,9 +120,9 @@ function createOgImageResponse(options: {
   description?: string | null;
   avatarDataUri?: string | null;
 }) {
-  const displayName = options.displayName?.trim() || 'Criador';
-  const normalizedUsername = normalizePreviewUsername(options.username ?? null);
-  const description = options.description?.trim() || `Mídia Kit oficial de ${displayName}`;
+  const displayName = sanitizeOgText(options.displayName, 'Criador');
+  const normalizedUsername = normalizePreviewUsername(sanitizeOgText(options.username ?? null, '')) || null;
+  const description = sanitizeOgText(options.description, `Mídia Kit oficial de ${displayName}`);
   const followersLabel = options.followersCount !== null && options.followersCount !== undefined
     ? `${formatCompactCount(options.followersCount)} seguidores`
     : 'Seguidores em atualização';
@@ -386,17 +398,17 @@ export async function GET(
     return fallbackResponse;
   }
 
-  const displayName = String((user as any)?.mediaKitDisplayName || (user as any)?.name || 'Criador').trim();
-  const username = normalizePreviewUsername((user as any)?.username ?? null);
+  const displayName = sanitizeOgText((user as any)?.mediaKitDisplayName || (user as any)?.name || 'Criador', 'Criador');
+  const username = normalizePreviewUsername(sanitizeOgText((user as any)?.username ?? null, '')) || null;
   const followersCount = toNonNegativeInt((user as any)?.followers_count);
   const mediaCount = toNonNegativeInt((user as any)?.media_count);
-  const description = buildMediaKitMetaDescription({
+  const description = sanitizeOgText(buildMediaKitMetaDescription({
     displayName,
     username,
     followersCount,
     mediaCount,
     biography: (user as any)?.biography,
-  });
+  }));
 
   const avatarDataUri = await resolveAvatarDataUri(user, req.nextUrl.origin);
 

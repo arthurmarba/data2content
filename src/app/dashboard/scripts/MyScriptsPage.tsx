@@ -329,6 +329,27 @@ function normalizeContentOption(item: any): ContentOption | null {
   };
 }
 
+function getReusableContentOptions(params: {
+  options: ContentOption[];
+  scripts: ScriptItem[];
+  scriptId?: string | null;
+  currentPostedContentId?: string | null;
+}) {
+  const occupiedIds = new Set(
+    params.scripts
+      .filter((item) => item.id !== params.scriptId)
+      .map((item) => item.publication?.content?.id || "")
+      .filter(Boolean)
+  );
+
+  return params.options.filter((option) => {
+    if (params.currentPostedContentId && option.id === params.currentPostedContentId) {
+      return true;
+    }
+    return !occupiedIds.has(option.id);
+  });
+}
+
 function buildEmptyLinkingSummary(): ScriptLinkingSummary {
   return {
     isLinked: false,
@@ -1382,28 +1403,36 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       }
 
       const options = await ensureContentOptionsLoaded();
-      if (!options || options.length === 0) {
+      const reusableOptions = options
+        ? getReusableContentOptions({
+            options,
+            scripts,
+            scriptId: script.id,
+            currentPostedContentId: script.publication?.content?.id || null,
+          })
+        : [];
+      if (reusableOptions.length === 0) {
         setCardActionFeedback(
           script.id,
           {
             variant: "error",
-            message: "Sem conteúdos disponíveis para marcar como postado.",
+            message: "Nenhum conteúdo livre para vincular a este roteiro.",
           },
           { ttlMs: 6000 }
         );
         toast({
           variant: "warning",
-          title: "Sem conteúdos disponíveis para vincular. Abra o roteiro para escolher depois.",
+          title: "Todos os conteúdos já vinculados estão em uso por outros roteiros.",
         });
         return;
       }
 
       setQuickPublishAnchorScriptId((current) => (current === script.id ? null : script.id));
-      setQuickPublishContentId(options[0]?.id || "");
+      setQuickPublishContentId("");
       setQuickPublishQuery("");
       setCardActionFeedback(script.id, {
         variant: "info",
-        message: "Selecione o conteúdo publicado para concluir.",
+        message: "Selecione um conteúdo ainda não vinculado para concluir.",
       });
     },
     [
@@ -1411,6 +1440,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       patchScriptPublication,
       publicationSavingScriptId,
       quickPublishSaving,
+      scripts,
       setCardActionFeedback,
       toast,
     ]
@@ -2049,15 +2079,34 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const selectedPostedContentOption = contentOptions.find((option) => option.id === editor.postedContentId) || null;
   const selectedPostedContentMissing =
     Boolean(editor.postedContentId) && !selectedPostedContentOption && Boolean(editor.publication?.content);
+  const reusableEditorContentOptions = useMemo(
+    () =>
+      getReusableContentOptions({
+        options: contentOptions,
+        scripts,
+        scriptId: editor.id,
+        currentPostedContentId: editor.postedContentId || editor.publication?.content?.id || null,
+      }),
+    [contentOptions, editor.id, editor.postedContentId, editor.publication?.content?.id, scripts]
+  );
   const deferredQuickPublishQuery = useDeferredValue(quickPublishQuery);
   const quickPublishQueryNormalized = deferredQuickPublishQuery.trim().toLowerCase();
   const filteredQuickPublishOptions = useMemo(() => {
-    if (!quickPublishQueryNormalized) return contentOptions;
-    return contentOptions.filter((option) => {
+    const currentScript = quickPublishAnchorScriptId
+      ? scripts.find((script) => script.id === quickPublishAnchorScriptId) || null
+      : null;
+    const reusableOptions = getReusableContentOptions({
+      options: contentOptions,
+      scripts,
+      scriptId: currentScript?.id || null,
+      currentPostedContentId: currentScript?.publication?.content?.id || null,
+    });
+    if (!quickPublishQueryNormalized) return reusableOptions;
+    return reusableOptions.filter((option) => {
       const haystack = `${option.caption} ${option.type || ""}`.toLowerCase();
       return haystack.includes(quickPublishQueryNormalized);
     });
-  }, [contentOptions, quickPublishQueryNormalized]);
+  }, [contentOptions, quickPublishAnchorScriptId, quickPublishQueryNormalized, scripts]);
   const selectedQuickPublishOption =
     contentOptions.find((option) => option.id === quickPublishContentId) || null;
 
@@ -2253,7 +2302,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                       const checked = event.target.checked;
                       patchEditor({
                         isPosted: checked,
-                        postedContentId: checked ? editor.postedContentId || contentOptions[0]?.id || "" : "",
+                        postedContentId: checked ? editor.postedContentId || "" : "",
                         publication: checked ? editor.publication : null,
                         saved: false,
                         error: null,
@@ -2278,20 +2327,24 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                           error: null,
                         })
                       }
-                      disabled={contentOptionsLoading || contentOptions.length === 0}
+                      disabled={contentOptionsLoading || reusableEditorContentOptions.length === 0}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                     >
                       {contentOptionsLoading ? (
                         <option value="">Carregando conteúdos...</option>
                       ) : (
-                        <option value="">Selecione o conteúdo publicado</option>
+                        <option value="">
+                          {reusableEditorContentOptions.length === 0
+                            ? "Nenhum conteúdo disponível"
+                            : "Selecione o conteúdo publicado"}
+                        </option>
                       )}
                       {selectedPostedContentMissing ? (
                         <option value={editor.postedContentId}>
                           {getPostedContentLabel(editor.publication)} (vínculo atual)
                         </option>
                       ) : null}
-                      {contentOptions.map((option) => (
+                      {reusableEditorContentOptions.map((option) => (
                         <option key={option.id} value={option.id}>
                           {buildContentOptionLabel(option)}
                         </option>

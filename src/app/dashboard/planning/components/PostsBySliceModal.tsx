@@ -126,6 +126,15 @@ export default function PostsBySliceModal({
   }, [isOpen, onClose]);
 
   useEffect(() => {
+    if (!isOpen || typeof document === "undefined") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     if (isOpen && dialogRef.current) {
       dialogRef.current.focus();
     }
@@ -172,7 +181,7 @@ export default function PostsBySliceModal({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] flex w-screen items-start justify-center bg-slate-900/70 px-4 py-8 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[9999] flex w-screen items-end justify-center bg-slate-900/70 px-0 pt-8 backdrop-blur-[2px] sm:items-start sm:px-4 sm:py-8"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -181,22 +190,24 @@ export default function PostsBySliceModal({
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl outline-none"
+        className="flex max-h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-200 bg-white shadow-2xl outline-none sm:max-h-[84vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
+        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5 sm:py-4">
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden" aria-hidden />
+          <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{subtitle || "Seleção"}</p>
             <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
             <p className="text-xs text-slate-500">{posts.length} {posts.length === 1 ? "post" : "posts"} encontrados</p>
             {enableMetricSort && posts.length > 1 && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <div className="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 sm:inline-flex sm:flex-row sm:flex-wrap sm:items-center">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Ordenar por</span>
                   <select
                     value={sortMetric}
                     onChange={(e) => setSortMetric(e.target.value as SortMetric)}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:w-auto"
                   >
                     <option value="postDate">{METRIC_LABELS.postDate}</option>
                     <option value="likes">{METRIC_LABELS.likes}</option>
@@ -209,7 +220,7 @@ export default function PostsBySliceModal({
                   <select
                     value={sortOrder}
                     onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-700 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200 sm:w-auto"
                   >
                     <option value="desc">Decrescente</option>
                     <option value="asc">Crescente</option>
@@ -226,9 +237,10 @@ export default function PostsBySliceModal({
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
+          </div>
         </header>
 
-        <div className="max-h-[70vh] overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
           {posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center text-slate-500">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">–</div>

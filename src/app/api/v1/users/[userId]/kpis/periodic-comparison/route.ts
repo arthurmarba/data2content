@@ -14,6 +14,8 @@ import calculateWeeklyPostingFrequency from '@/utils/calculateWeeklyPostingFrequ
 import MetricModel from '@/app/models/Metric';
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
 import { triggerDataRefresh } from '@/app/lib/instagram';
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
+import { logger } from '@/app/lib/logger';
 
 // Períodos de comparação permitidos
 const ALLOWED_COMPARISON_PERIODS: {
@@ -81,10 +83,40 @@ export async function GET(
   previousEndDate.setHours(23, 59, 59, 999);
   const previousStartDate = addDays(new Date(previousEndDate), -(currentPeriodDays - 1));
   previousStartDate.setHours(0, 0, 0, 0);
+  const buildErrorKpi = (): KPIComparisonData => ({
+    currentValue: null,
+    previousValue: null,
+    percentageChange: null,
+    chartData: [],
+  });
+  const buildErrorPayload = (message: string) => {
+    const errorKpi = buildErrorKpi();
+    return {
+      error: message,
+      followerGrowth: errorKpi,
+      engagementRate: errorKpi,
+      totalEngagement: errorKpi,
+      postingFrequency: errorKpi,
+      avgViewsPerPost: errorKpi,
+      avgCommentsPerPost: errorKpi,
+      avgSharesPerPost: errorKpi,
+      avgSavesPerPost: errorKpi,
+      avgLikesPerPost: errorKpi,
+      avgReachPerPost: errorKpi,
+    };
+  };
 
   try {
-    // ✅ Garante conexão ANTES de qualquer consulta (aggregate/find)
-    await connectToDatabase();
+    await withMongoTransientRetry(() => connectToDatabase(), {
+      retries: 1,
+      onRetry: (error, retryCount) => {
+        logger.warn('[API USER KPIS/PERIODIC] Retry para erro transitorio de Mongo na conexao.', {
+          userId,
+          retryCount,
+          error: getErrorMessage(error),
+        });
+      },
+    });
 
     const resolvedUserId = new Types.ObjectId(userId);
 
@@ -258,24 +290,26 @@ export async function GET(
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error(`[API USER KPIS/PERIODIC] Error for userId ${userId}:`, error);
+    if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
+      logger.warn('[API USER KPIS/PERIODIC] Erro transitorio de Mongo.', {
+        userId,
+        error: getErrorMessage((error as any)?.cause ?? error),
+      });
+      return NextResponse.json(
+        {
+          ...buildErrorPayload('Os KPIs estao temporariamente indisponiveis. Tente novamente em instantes.'),
+          details: getErrorMessage((error as any)?.cause ?? error),
+        },
+        { status: 503 }
+      );
+    }
+
+    logger.error(`[API USER KPIS/PERIODIC] Error for userId ${userId}:`, error);
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    const errorKpi: KPIComparisonData = { currentValue: null, previousValue: null, percentageChange: null, chartData: [] };
     return NextResponse.json(
       {
-        error: 'Erro ao processar sua solicitação de KPIs.',
+        ...buildErrorPayload('Erro ao processar sua solicitação de KPIs.'),
         details: errorMessage,
-        followerGrowth: errorKpi,
-        engagementRate: errorKpi,
-        totalEngagement: errorKpi,
-        postingFrequency: errorKpi,
-        avgViewsPerPost: errorKpi,
-        avgCommentsPerPost: errorKpi,
-        avgSharesPerPost: errorKpi,
-        avgSavesPerPost: errorKpi,
-        avgLikesPerPost: errorKpi,
-        // NOVO: Adicionando o campo de alcance à resposta de erro
-        avgReachPerPost: errorKpi,
       },
       { status: 500 }
     );

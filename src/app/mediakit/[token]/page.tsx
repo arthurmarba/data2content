@@ -17,6 +17,7 @@ import {
   buildMediaKitMetaTitle,
   normalizePreviewUsername,
 } from '@/app/lib/mediakit/socialPreview';
+import { logger } from '@/app/lib/logger';
 
 import MediaKitView from './MediaKitView';
 
@@ -62,6 +63,10 @@ function normalizeProfileCandidate(raw?: string | null) {
   const trimmed = raw.trim();
   if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
   return trimmed;
+}
+
+function logMediaKitDependencyFailure(resource: string, detail: string, level: 'warn' | 'error' = 'warn') {
+  logger[level](`[MediaKitPage] Falha ao buscar ${resource}: ${detail}`);
 }
 
 // Gera metadados dinâmicos para que o link do mídia kit apresente informações
@@ -152,12 +157,12 @@ async function fetchSummary(baseUrl: string, userId: string): Promise<Performanc
   try {
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/highlights/performance-summary`, { cache: 'no-store' });
     if (!res.ok) {
-      console.error(`[MediaKitPage] Falha ao buscar summary: ${res.status}`);
+      logMediaKitDependencyFailure('summary', String(res.status));
       return null;
     }
     return await res.json();
   } catch (error) {
-    console.error('[MediaKitPage] Erro de rede ao buscar summary:', error);
+    logMediaKitDependencyFailure('summary', error instanceof Error ? error.message : String(error), 'error');
     return null;
   }
 }
@@ -167,13 +172,13 @@ async function fetchTopPosts(baseUrl: string, userId: string): Promise<VideoList
   try {
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=10`, { cache: 'no-store' });
     if (!res.ok) {
-      console.error(`[MediaKitPage] Falha ao buscar top posts: ${res.status}`); // ALTERADO
+      logMediaKitDependencyFailure('top posts', String(res.status));
       return [];
     }
     const data = await res.json();
     return data.posts || []; // ALTERADO: AQUI ESTAVA O PROBLEMA
   } catch (error) {
-    console.error('[MediaKitPage] Erro de rede ao buscar top posts:', error); // ALTERADO
+    logMediaKitDependencyFailure('top posts', error instanceof Error ? error.message : String(error), 'error');
     return [];
   }
 }
@@ -193,12 +198,12 @@ async function fetchKpis(
       { cache: 'no-store' }
     );
     if (!res.ok) {
-      console.error(`[MediaKitPage] Falha ao buscar kpis: ${res.status}`);
+      logMediaKitDependencyFailure('kpis', String(res.status));
       return null;
     }
     return await res.json();
   } catch (error) {
-    console.error('[MediaKitPage] Erro de rede ao buscar kpis:', error);
+    logMediaKitDependencyFailure('kpis', error instanceof Error ? error.message : String(error), 'error');
     return null;
   }
 }
@@ -208,12 +213,12 @@ async function fetchDemographics(baseUrl: string, userId: string): Promise<Demog
   try {
     const res = await fetch(`${baseUrl}/api/demographics/${userId}`, { cache: 'no-store' });
     if (!res.ok) {
-      console.error(`[MediaKitPage] Falha ao buscar demographics: ${res.status}`);
+      logMediaKitDependencyFailure('demographics', String(res.status));
       return null;
     }
     return await res.json();
   } catch (error) {
-    console.error('[MediaKitPage] Erro de rede ao buscar demographics:', error);
+    logMediaKitDependencyFailure('demographics', error instanceof Error ? error.message : String(error), 'error');
     return null;
   }
 }
@@ -223,12 +228,12 @@ async function fetchEngagementTrend(baseUrl: string, userId: string) {
     const url = `${baseUrl}/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
-      console.error(`[MediaKitPage] Falha ao buscar engagement trend: ${res.status}`);
+      logMediaKitDependencyFailure('engagement trend', String(res.status));
       return null;
     }
     return await res.json();
   } catch (error) {
-    console.error('[MediaKitPage] Erro de rede ao buscar engagement trend:', error);
+    logMediaKitDependencyFailure('engagement trend', error instanceof Error ? error.message : String(error), 'error');
     return null;
   }
 }

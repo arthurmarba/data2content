@@ -1,5 +1,7 @@
 // src/app/lib/mongoose.ts
 import mongoose, { Mongoose } from 'mongoose';
+import { logger } from '@/app/lib/logger';
+import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 
 // Tipagem do cache de conexão
 interface MongooseConnection {
@@ -20,10 +22,20 @@ const getCache = (): MongooseConnection => {
   return global.__mongooseConn;
 };
 
+const DEFAULT_SERVER_SELECTION_TIMEOUT_MS = 30000;
+const DEFAULT_SOCKET_TIMEOUT_MS = 60000;
+const DEFAULT_MAX_POOL_SIZE = 10;
+const CONNECT_RETRY_ATTEMPTS = 1;
+
 export const connectToDatabase = async (): Promise<Mongoose> => {
   const cache = getCache();
+
   if (cache.conn && cache.conn.connection.readyState === 1) {
     return cache.conn;
+  }
+
+  if (cache.promise) {
+    return cache.promise;
   }
 
   if (cache.conn && cache.conn.connection.readyState !== 1) {
@@ -42,31 +54,65 @@ export const connectToDatabase = async (): Promise<Mongoose> => {
     );
   }
 
+  const parsedMaxPoolSize = Number(process.env.MONGODB_MAX_POOL_SIZE);
+  const parsedServerSelectionTimeoutMs = Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS);
+  const parsedSocketTimeoutMs = Number(process.env.MONGODB_SOCKET_TIMEOUT_MS);
   const opts: Parameters<typeof mongoose.connect>[1] = {
     bufferCommands: true,
     dbName,
-    maxPoolSize: 10,
-    serverSelectionTimeoutMS: 30000,
-    socketTimeoutMS: 60000,
+    maxPoolSize:
+      Number.isFinite(parsedMaxPoolSize) && parsedMaxPoolSize > 0
+        ? Math.floor(parsedMaxPoolSize)
+        : DEFAULT_MAX_POOL_SIZE,
+    serverSelectionTimeoutMS:
+      Number.isFinite(parsedServerSelectionTimeoutMs) && parsedServerSelectionTimeoutMs > 0
+        ? Math.floor(parsedServerSelectionTimeoutMs)
+        : DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
+    socketTimeoutMS:
+      Number.isFinite(parsedSocketTimeoutMs) && parsedSocketTimeoutMs > 0
+        ? Math.floor(parsedSocketTimeoutMs)
+        : DEFAULT_SOCKET_TIMEOUT_MS,
   };
 
-  if (!cache.promise) {
-    // opcional: logs úteis
-    if (process.env.NODE_ENV !== 'test') {
-      console.log('=> opening new MongoDB connection');
-    }
-    cache.promise = mongoose
-      .connect(uri, opts)
-      .then((m) => {
-        if (process.env.NODE_ENV !== 'test') console.log('MongoDB connected');
-        return m;
-      })
-      .catch((err) => {
-        // Libera o slot da promise para permitir nova tentativa depois
-        global.__mongooseConn = { conn: null, promise: null };
-        throw err;
+  logger.info('[mongoose] Opening MongoDB connection.', {
+    dbName,
+    readyState: cache.conn?.connection.readyState ?? mongoose.connection.readyState,
+    maxPoolSize: opts.maxPoolSize,
+    serverSelectionTimeoutMS: opts.serverSelectionTimeoutMS,
+    socketTimeoutMS: opts.socketTimeoutMS,
+  });
+
+  cache.promise = withMongoTransientRetry(
+    async () => {
+      const connection = await mongoose.connect(uri, opts);
+      logger.info('[mongoose] MongoDB connected.', {
+        dbName: connection.connection.name,
+        host: connection.connection.host,
       });
-  }
+      return connection;
+    },
+    {
+      retries: CONNECT_RETRY_ATTEMPTS,
+      onRetry: (error, retryCount) => {
+        logger.warn('[mongoose] Retrying transient Mongo connection error.', {
+          retryCount,
+          error: getErrorMessage(error),
+        });
+      },
+    }
+  ).catch((err) => {
+    global.__mongooseConn = { conn: null, promise: null };
+    const payload = {
+      dbName,
+      error: getErrorMessage(err),
+    };
+    if (isTransientMongoError(err) || isTransientMongoError((err as any)?.cause)) {
+      logger.warn('[mongoose] Transient failure while connecting to MongoDB.', payload);
+    } else {
+      logger.error('[mongoose] Failed to connect to MongoDB.', payload);
+    }
+    throw err;
+  });
 
   cache.conn = await cache.promise;
   return cache.conn;

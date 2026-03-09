@@ -165,6 +165,32 @@ async function resolvePostedContentForPatch(params: {
   const currentMetricId = currentDoc?.postedContent?.metricId
     ? String(currentDoc.postedContent.metricId)
     : null;
+  if (currentMetricId !== normalizedPostedContentId) {
+    const existingLinkedScript = await withMongoTransientRetry(
+      () =>
+        ScriptEntry.findOne({
+          userId: new Types.ObjectId(userId),
+          _id: { $ne: currentDoc._id },
+          "postedContent.metricId": metricDoc._id,
+        })
+          .select("_id")
+          .lean()
+          .exec(),
+      {
+        retries: 1,
+        onRetry: (error, retryCount) =>
+          logScriptByIdMongoRetry("resolvePostedContentForPatch existing_link", error, retryCount),
+      }
+    );
+
+    if (existingLinkedScript) {
+      return {
+        ok: false as const,
+        status: 409,
+        error: "Esse conteúdo já está vinculado a outro roteiro.",
+      };
+    }
+  }
   const keepPostedAt =
     currentDoc?.postedAt && currentMetricId === normalizedPostedContentId
       ? currentDoc.postedAt

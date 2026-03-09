@@ -4,26 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ComposedChart,
-  LabelList,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { AlertCircle, ArrowUpRight, Calendar as CalendarIcon, CheckCircle2, ChevronDown as ChevronDownIcon, Clock3, Copy, Database, ExternalLink, Filter as FilterIcon, Gift, LineChart as LineChartIcon, Sparkles, Target, Users, Zap as ZapIcon } from "lucide-react";
-import { UserAvatar } from "@/app/components/UserAvatar";
-import { TopDiscoveryTable } from "./components/TopDiscoveryTable";
 import Drawer from "@/components/ui/Drawer";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { track } from "@/lib/track";
@@ -38,7 +19,36 @@ const PostsBySliceModal = dynamic(() => import("./components/PostsBySliceModal")
   ssr: false,
   loading: () => null,
 });
+const loadRecharts = () => import("recharts");
+const dynamicRecharts = (selector: (mod: Awaited<ReturnType<typeof loadRecharts>>) => React.ComponentType<any>) =>
+  dynamic(() => loadRecharts().then((mod) => selector(mod) as any), {
+    ssr: false,
+    loading: () => null,
+  }) as React.ComponentType<any>;
+const ResponsiveContainer = dynamicRecharts((mod) => mod.ResponsiveContainer as any);
+const BarChart = dynamicRecharts((mod) => mod.BarChart as any);
+const Bar = dynamicRecharts((mod) => mod.Bar as any);
+const CartesianGrid = dynamicRecharts((mod) => mod.CartesianGrid as any);
+const ComposedChart = dynamicRecharts((mod) => mod.ComposedChart as any);
+const LabelList = dynamicRecharts((mod) => mod.LabelList as any);
+const Legend = dynamicRecharts((mod) => mod.Legend as any);
+const Line = dynamicRecharts((mod) => mod.Line as any);
+const LineChart = dynamicRecharts((mod) => mod.LineChart as any);
+const ReferenceLine = dynamicRecharts((mod) => mod.ReferenceLine as any);
+const Scatter = dynamicRecharts((mod) => mod.Scatter as any);
+const ScatterChart = dynamicRecharts((mod) => mod.ScatterChart as any);
+const Tooltip = dynamicRecharts((mod) => mod.Tooltip as any);
+const XAxis = dynamicRecharts((mod) => mod.XAxis as any);
+const YAxis = dynamicRecharts((mod) => mod.YAxis as any);
 const DiscoverVideoModal = dynamic(() => import("@/app/discover/components/DiscoverVideoModal"), {
+  ssr: false,
+  loading: () => null,
+});
+const UserAvatar = dynamic(() => import("@/app/components/UserAvatar").then((mod) => mod.UserAvatar), {
+  ssr: false,
+  loading: () => <div className="h-11 w-11 rounded-full bg-slate-100" />,
+});
+const TopDiscoveryTable = dynamic(() => import("./components/TopDiscoveryTable").then((mod) => mod.TopDiscoveryTable), {
   ssr: false,
   loading: () => null,
 });
@@ -47,7 +57,7 @@ const CreatorQuickSearch = dynamic(
   { ssr: false, loading: () => null }
 );
 
-const cardBase = "rounded-2xl border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm sm:px-4 sm:py-4";
+const cardBase = "min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm sm:px-4 sm:py-4";
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
 const DEFAULT_TIME_PERIOD = "last_90_days";
 const PERIOD_OPTIONS: Array<{ label: string; value: string }> = [
@@ -943,9 +953,9 @@ const twoLineClampStyle: React.CSSProperties = {
   overflow: "hidden",
 };
 const chartHeaderTextClassName = "min-h-[40px] space-y-1 sm:min-h-[52px]";
-const chartHeightClassName = "mt-3 h-48 sm:h-56";
-const chartTallHeightClassName = "mt-3 h-56 sm:h-64";
-const chartCompactHeightClassName = "mt-3 h-40 sm:h-44";
+const chartHeightClassName = "mt-3 h-56 sm:h-56";
+const chartTallHeightClassName = "mt-3 h-64 sm:h-64";
+const chartCompactHeightClassName = "mt-3 h-44 sm:h-44";
 type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
 type CategoryBarDatum = { name: string; value: number; postsCount?: number };
 type TabBrief = {
@@ -1088,6 +1098,80 @@ const EMPTY_DURATION_FALLBACK: DurationFallbackData = {
     durationCoverageRate: 0,
   },
 };
+
+type MobileBarListItem = {
+  id: string;
+  label: string;
+  value: number;
+  postsCount?: number | null;
+  helper?: string | null;
+};
+
+function MobileBarList({
+  items,
+  emptyText,
+  accentClassName,
+  valueFormatter,
+  onSelect,
+}: {
+  items: MobileBarListItem[];
+  emptyText: string;
+  accentClassName: string;
+  valueFormatter: (value: number) => string;
+  onSelect?: (item: MobileBarListItem) => void;
+}) {
+  if (!items.length) {
+    return <p className="text-sm text-slate-500">{emptyText}</p>;
+  }
+
+  const maxValue = items.reduce((currentMax, item) => Math.max(currentMax, item.value), 0);
+
+  return (
+    <div className="space-y-2.5">
+      {items.map((item, index) => {
+        const width = maxValue > 0 ? Math.max(12, (item.value / maxValue) * 100) : 12;
+        const content = (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  {index + 1}. {item.label}
+                </p>
+                {item.helper ? <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.helper}</p> : null}
+              </div>
+              <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">{valueFormatter(item.value)}</p>
+            </div>
+            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div className={`h-full rounded-full ${accentClassName}`} style={{ width: `${width}%` }} />
+            </div>
+            {typeof item.postsCount === "number" && item.postsCount > 0 ? (
+              <p className="mt-1 text-[11px] text-slate-500">{formatPostsCount(item.postsCount)}</p>
+            ) : null}
+          </>
+        );
+
+        if (!onSelect) {
+          return (
+            <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              {content}
+            </div>
+          );
+        }
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelect(item)}
+            className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            {content}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const buildDurationFallbackFromPosts = (posts: any[]): DurationFallbackData => {
   const bucketTotals = new Map<DurationBucketKey, { postsCount: number; totalInteractions: number }>(
@@ -1643,8 +1727,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const [autoPaginating, setAutoPaginating] = useState(false);
   const [showAdvancedSections, setShowAdvancedSections] = useState(false);
   const [showMobileControls, setShowMobileControls] = useState(false);
-  const [showMobileDirectioning, setShowMobileDirectioning] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveChartTab>("content");
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [mobileAudienceTrendMetric, setMobileAudienceTrendMetric] = useState<"reach" | "interactions" | "response">("reach");
+  const [mobileDepthMetric, setMobileDepthMetric] = useState<"saves" | "comments">("saves");
   const durationBucketPostsCacheRef = useRef<Map<string, any[]>>(new Map());
   const fetchedPagesRef = useRef<Set<number>>(new Set());
   const paginationScopeRef = useRef<string>("");
@@ -1672,6 +1758,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const handleTimePeriodChange = (value: string) => {
     setTimePeriod(value);
     resetPaginationState();
+    setShowMobileControls(false);
   };
 
   const handleObjectiveModeChange = React.useCallback(
@@ -1684,6 +1771,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         time_period: timePeriod,
       });
       setObjectiveMode(nextObjective);
+      setShowMobileControls(false);
     },
     [activeUserId, objectiveMode, timePeriod]
   );
@@ -1723,6 +1811,20 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   useEffect(() => {
     durationBucketPostsCacheRef.current.clear();
   }, [activeUserId, timePeriod]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const syncViewport = () => setIsMobileViewport(mediaQuery.matches);
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (isMobileViewport) return;
+    setShowMobileControls(false);
+  }, [isMobileViewport]);
 
   useEffect(() => {
     if (!recommendationsFeatureEnabled) {
@@ -3793,7 +3895,6 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   ]);
   const objectiveLabel = OBJECTIVE_OPTIONS.find((option) => option.value === objectiveMode)?.label || "Engajamento";
   const periodLabel = PERIOD_OPTIONS.find((option) => option.value === timePeriod)?.label || timePeriod;
-  const shouldShowDirectioningOnMobile = showMobileDirectioning;
   const selectedRecommendationView = useMemo(
     () =>
       selectedRecommendation
@@ -3818,6 +3919,112 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const selectedRecommendationFeedbackLoading = selectedRecommendationFeedbackKey
     ? Boolean(feedbackMutationByActionId[selectedRecommendationFeedbackKey])
     : false;
+  const handleTabChange = React.useCallback((nextTab: ActiveChartTab) => {
+    setActiveTab(nextTab);
+    setShowMobileControls(false);
+  }, []);
+  const mobileStrategyHighlights = useMemo(() => {
+    const quadrantLabel: Record<string, string> = {
+      winner: "Equilíbrio forte",
+      attracts: "Puxa alcance",
+      nurtures: "Puxa resposta",
+      low_priority: "Prioridade baixa",
+    };
+    return [...strategyMatrix.points]
+      .sort((a: any, b: any) => {
+        const scoreA = (a.quadrant === "winner" ? 3 : a.quadrant === "nurtures" ? 2 : a.quadrant === "attracts" ? 1 : 0) * 100000 + a.depth;
+        const scoreB = (b.quadrant === "winner" ? 3 : b.quadrant === "nurtures" ? 2 : b.quadrant === "attracts" ? 1 : 0) * 100000 + b.depth;
+        return scoreB - scoreA;
+      })
+      .slice(0, 3)
+      .map((point: any) => ({
+        id: point.id,
+        label: point.label,
+        value: point.depth,
+        helper: `${quadrantLabel[point.quadrant] || "Leitura"} • ${numberFormatter.format(Math.round(point.reach))} de alcance`,
+        post: point.post,
+      }));
+  }, [strategyMatrix.points]);
+  const mobileHourItems = useMemo<MobileBarListItem[]>(
+    () =>
+      hourBenchmarkSeries
+        .slice()
+        .sort((a, b) => (b.average || 0) - (a.average || 0))
+        .slice(0, 4)
+        .map((item) => ({
+          id: `hour-${item.hour}`,
+          label: `${item.hour}h`,
+          value: item.average,
+          postsCount: item.postsCount,
+          helper:
+            timingBenchmarkEnabled && typeof item.benchmarkAverage === "number"
+              ? `Grupo parecido: ${numberFormatter.format(Math.round(item.benchmarkAverage))}`
+              : null,
+        })),
+    [hourBenchmarkSeries, timingBenchmarkEnabled]
+  );
+  const mobileDurationItems = useMemo<MobileBarListItem[]>(
+    () =>
+      durationBenchmarkSeries
+        .filter((item) => item.postsCount > 0)
+        .slice()
+        .sort((a, b) => (b.averageInteractions || 0) - (a.averageInteractions || 0))
+        .map((item) => ({
+          id: `duration-${item.key}`,
+          label: item.label,
+          value: item.averageInteractions,
+          postsCount: item.postsCount,
+          helper:
+            timingBenchmarkEnabled && typeof item.benchmarkAverage === "number"
+              ? `Grupo parecido: ${numberFormatter.format(Math.round(item.benchmarkAverage))}`
+              : null,
+        })),
+    [durationBenchmarkSeries, timingBenchmarkEnabled]
+  );
+  const mobileDurationCoverageItems = useMemo<MobileBarListItem[]>(
+    () =>
+      durationCoverageBenchmarkSeries
+        .filter((item) => item.usageSharePct > 0)
+        .slice()
+        .sort((a, b) => (b.usageSharePct || 0) - (a.usageSharePct || 0))
+        .map((item) => ({
+          id: `coverage-${item.key}`,
+          label: item.label,
+          value: item.usageSharePct,
+          postsCount: item.postsCount,
+          helper:
+            timingBenchmarkEnabled && typeof item.benchmarkUsageSharePct === "number"
+              ? `Grupo parecido: ${formatPercentLabel(item.benchmarkUsageSharePct)}`
+              : null,
+        })),
+    [durationCoverageBenchmarkSeries, timingBenchmarkEnabled]
+  );
+  const mobileWeekWindowItems = useMemo<MobileBarListItem[]>(() => {
+    if (!heatmap.length) return [];
+    const windowMap = new Map<string, { day: number; startHour: number; endHour: number; scoreSum: number; count: number }>();
+    heatmap.forEach((row) => {
+      const startHour = Math.floor(row.hour / 4) * 4;
+      const endHour = Math.min(startHour + 3, 23);
+      const key = `${row.day}-${startHour}`;
+      const current = windowMap.get(key) || { day: row.day, startHour, endHour, scoreSum: 0, count: 0 };
+      current.scoreSum += row.score;
+      current.count += 1;
+      windowMap.set(key, current);
+    });
+    return Array.from(windowMap.values())
+      .map((window) => {
+        const avgScore = window.count > 0 ? window.scoreSum / window.count : 0;
+        const benchmarkHit = benchmarkTopWindowKeys.has(`${window.day}:${window.startHour}`);
+        return {
+          id: `week-${window.day}-${window.startHour}`,
+          label: `${WEEKDAY_SHORT_SUN_FIRST[window.day - 1] || `Dia ${window.day}`} ${window.startHour}h-${window.endHour}h`,
+          value: avgScore * 100,
+          helper: benchmarkHit ? "Janela também forte no grupo parecido" : null,
+        };
+      })
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  }, [benchmarkTopWindowKeys, heatmap]);
 
   return (
     <>
@@ -3859,158 +4066,167 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             ) : null}
           </header>
 
-          {/* Sticky Filter Bar */}
-          <div className="sticky top-0 z-20 isolate -mx-4 mb-2 border-b border-slate-200 bg-white px-4 py-3 supports-[backdrop-filter]:bg-white/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:px-4 sm:py-2.5 sm:shadow-sm">
-              <div className="flex items-center justify-between sm:hidden">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                    <FilterIcon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Filtros Ativos</p>
-                    <p className="text-xs font-semibold text-slate-700">{objectiveLabel} • {periodLabel}</p>
-                  </div>
+          <div className="sticky top-0 z-20 isolate -mx-4 mb-2 border-b border-slate-200 bg-white/95 px-4 py-3 supports-[backdrop-filter]:backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:bg-white sm:px-4 sm:py-2.5 sm:shadow-sm">
+            <div className="sm:hidden">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Leitura atual</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{objectiveLabel}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{periodLabel}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowMobileControls((prev) => !prev)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 active:scale-95 transition-transform"
+                  onClick={() => setShowMobileControls(true)}
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm"
                 >
-                  {showMobileControls ? "Fechar" : "Ajustar"}
-                  <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform duration-200 ${showMobileControls ? "rotate-180" : ""}`} />
+                  <FilterIcon className="h-4 w-4" />
+                  Filtros
                 </button>
               </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                  {primaryMetricLabel}
+                </span>
+                {metricMeta?.isProxy && (
+                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                    Métrica proxy
+                  </span>
+                )}
+              </div>
+            </div>
 
-              <div className="hidden flex-col gap-3 sm:flex sm:flex-row sm:items-center sm:justify-between tracking-tight">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
-                    <ZapIcon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-600">Objetivo: <span className="text-indigo-600">{objectiveLabel}</span></p>
-                    <p className="text-[11px] text-slate-500">
-                      Base: {primaryMetricLabel}
-                      {metricMeta?.isProxy && metricMeta?.description ? ` • ${metricMeta.description}` : ""}
-                    </p>
-                  </div>
+            <div className="hidden flex-col gap-3 sm:flex sm:flex-row sm:items-center sm:justify-between tracking-tight">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
+                  <ZapIcon className="h-4 w-4" />
                 </div>
-
-                <div className="flex flex-wrap items-center gap-4">
-                  {recommendationsFeatureEnabled ? (
-                    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200/50">
-                      {OBJECTIVE_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => handleObjectiveModeChange(opt.value)}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${objectiveMode === opt.value
-                            ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200/50"
-                            : "text-slate-500 hover:text-slate-700"
-                            }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div className="h-4 w-[1px] bg-slate-200 mx-1 hidden lg:block" />
-
-                  <div className="relative group">
-                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" />
-                    <select
-                      id="timePeriod"
-                      value={timePeriod}
-                      onChange={(e) => handleTimePeriodChange(e.target.value)}
-                      className="min-h-[36px] min-w-[160px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-xs font-bold text-slate-700 transition-all hover:border-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/5"
-                    >
-                      {PERIOD_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none transition-transform group-focus-within:rotate-180" />
-                  </div>
-
-                  {recommendationsFeatureEnabled ? (
-                    <button
-                      type="button"
-                      onClick={() => handleGoToPlanner("recommendations_card")}
-                      className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-bold text-white shadow-lg shadow-slate-200 hover:bg-slate-800 active:scale-[0.98] transition-all"
-                    >
-                      Abrir Planejamento
-                    </button>
-                  ) : null}
+                <div>
+                  <p className="text-xs font-semibold text-slate-600">Objetivo: <span className="text-indigo-600">{objectiveLabel}</span></p>
+                  <p className="text-[11px] text-slate-500">
+                    Base: {primaryMetricLabel}
+                    {metricMeta?.isProxy && metricMeta?.description ? ` • ${metricMeta.description}` : ""}
+                  </p>
                 </div>
               </div>
 
-              {/* Mobile Expanded Controls */}
-              <div className={`${showMobileControls ? "mt-4 grid gap-4 animate-in slide-in-from-top-2 duration-200" : "hidden"} sm:hidden border-t border-slate-100 pt-4 pb-1`}>
+              <div className="flex flex-wrap items-center gap-4">
                 {recommendationsFeatureEnabled ? (
-                  <div className="grid gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Objetivo Estratégico</p>
-                    <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200/50">
-                      {OBJECTIVE_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => handleObjectiveModeChange(opt.value)}
-                          className={`py-2 text-[11px] font-bold rounded-lg transition-all ${objectiveMode === opt.value
-                            ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200/50"
-                            : "text-slate-500"
-                            }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/50 bg-slate-100/80 p-1">
+                    {OBJECTIVE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleObjectiveModeChange(opt.value)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${objectiveMode === opt.value
+                          ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200/50"
+                          : "text-slate-500 hover:text-slate-700"
+                          }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
                 ) : null}
 
-                <div className="grid gap-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Janela de Tempo</p>
-                  <div className="relative">
-                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <select
-                      id="timePeriodMobile"
-                      value={timePeriod}
-                      onChange={(e) => handleTimePeriodChange(e.target.value)}
-                      className="w-full min-h-[44px] appearance-none rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-bold text-slate-700"
-                    >
-                      {PERIOD_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <div className="relative group">
+                  <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" />
+                  <select
+                    id="timePeriod"
+                    value={timePeriod}
+                    onChange={(e) => handleTimePeriodChange(e.target.value)}
+                    className="min-h-[36px] min-w-[160px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-xs font-bold text-slate-700 transition-all hover:border-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/5"
+                  >
+                    {PERIOD_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 transition-transform group-focus-within:rotate-180" />
+                </div>
+
+                {recommendationsFeatureEnabled ? (
+                  <button
+                    type="button"
+                    onClick={() => handleGoToPlanner("recommendations_card")}
+                    className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-[0.98]"
+                  >
+                    Abrir Planejamento
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <Drawer open={showMobileControls} onClose={() => setShowMobileControls(false)} title="Ajustar análise">
+            <div className="space-y-4 sm:hidden">
+              {recommendationsFeatureEnabled ? (
+                <section className="space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Objetivo estratégico</p>
+                  <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+                    {OBJECTIVE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => handleObjectiveModeChange(opt.value)}
+                        className={`rounded-xl px-2 py-2.5 text-[11px] font-bold transition ${objectiveMode === opt.value
+                          ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
+                          : "text-slate-500"
+                          }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
-                </div>
+                </section>
+              ) : null}
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Métrica-base</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-800">{primaryMetricLabel}</p>
-                  {metricMeta?.isProxy && metricMeta?.description ? (
-                    <p className="mt-1 text-xs leading-relaxed text-slate-500">{metricMeta.description}</p>
-                  ) : null}
+              <section className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Janela de tempo</p>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <select
+                    id="timePeriodMobile"
+                    value={timePeriod}
+                    onChange={(e) => handleTimePeriodChange(e.target.value)}
+                    className="w-full min-h-[46px] appearance-none rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm font-bold text-slate-700"
+                  >
+                    {PERIOD_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 </div>
+              </section>
 
+              <section className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Métrica-base</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{primaryMetricLabel}</p>
+                {metricMeta?.isProxy && metricMeta?.description ? (
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">{metricMeta.description}</p>
+                ) : null}
+              </section>
+
+              {recommendationsFeatureEnabled ? (
                 <button
                   type="button"
                   onClick={() => {
                     handleGoToPlanner("recommendations_card");
                     setShowMobileControls(false);
                   }}
-                  className="mt-2 w-full min-h-[44px] rounded-xl bg-slate-900 text-sm font-bold text-white active:scale-[0.98] transition-transform"
+                  className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
                 >
                   Abrir Planejamento
                 </button>
-              </div>
+              ) : null}
             </div>
+          </Drawer>
 
-	          <div className="flex w-full items-center gap-2 overflow-x-auto border-b border-slate-200 pb-1.5 scrollbar-none">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:w-full sm:items-center sm:gap-2 sm:overflow-x-auto sm:border-b sm:border-slate-200 sm:pb-1.5 sm:scrollbar-none">
             <button
-              onClick={() => setActiveTab("directioning")}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:px-4 sm:text-sm ${activeTab === "directioning"
+              onClick={() => handleTabChange("directioning")}
+              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "directioning"
                 ? "bg-slate-800 text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
@@ -4018,8 +4234,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               Direcionamento
             </button>
             <button
-              onClick={() => setActiveTab("content")}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:px-4 sm:text-sm ${activeTab === "content"
+              onClick={() => handleTabChange("content")}
+              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "content"
                 ? "bg-slate-800 text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
@@ -4027,8 +4243,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               O que postar
             </button>
             <button
-              onClick={() => setActiveTab("format")}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:px-4 sm:text-sm ${activeTab === "format"
+              onClick={() => handleTabChange("format")}
+              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "format"
                 ? "bg-slate-800 text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
@@ -4036,15 +4252,15 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               Formato & Timing
             </button>
             <button
-              onClick={() => setActiveTab("audience")}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:px-4 sm:text-sm ${activeTab === "audience"
+              onClick={() => handleTabChange("audience")}
+              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "audience"
                 ? "bg-slate-800 text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
             >
               Sua Audiência
-	            </button>
-	          </div>
+            </button>
+          </div>
 
 	          <div className="mt-4 pb-12">
 	            <div ref={advancedSectionsSentinelRef} className="h-px w-full" />
@@ -4242,11 +4458,24 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                           <Sparkles className="h-5 w-5 text-indigo-500" />
                         </header>
-                        <div className={chartHeightClassName}>
+                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
                           {loadingProposal ? (
                             <p className="text-sm text-slate-500">Carregando propostas...</p>
                           ) : proposalBars.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={proposalBars.map((item) => ({
+                                id: item.name,
+                                label: item.name,
+                                value: item.value,
+                                postsCount: item.postsCount,
+                              }))}
+                              emptyText="Sem propostas registradas no período."
+                              accentClassName="bg-indigo-500"
+                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              onSelect={(item) => handleCategoryClick("proposal", item.label, `${primaryMetricShortLabel} por proposta`)}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart
@@ -4258,7 +4487,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 <XAxis type="number" hide />
                                 <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#6366f1" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("proposal", val, `${primaryMetricShortLabel} por proposta`); }}>
+                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#6366f1" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("proposal", val, `${primaryMetricShortLabel} por proposta`); }}>
                                   <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
                                 </Bar>
                               </BarChart>
@@ -4273,11 +4502,24 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                           <Target className="h-5 w-5 text-slate-600" />
                         </header>
-                        <div className={chartHeightClassName}>
+                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
                           {loadingPosts ? (
                             <p className="text-sm text-slate-500">Carregando contextos...</p>
                           ) : contextBars.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={contextBars.map((item) => ({
+                                id: item.name,
+                                label: item.name,
+                                value: item.value,
+                                postsCount: item.postsCount,
+                              }))}
+                              emptyText="Sem contextos registrados no período."
+                              accentClassName="bg-sky-500"
+                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              onSelect={(item) => handleCategoryClick("context", item.label, `${primaryMetricShortLabel} por contexto`)}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart
@@ -4289,7 +4531,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 <XAxis type="number" hide />
                                 <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("context", val, `${primaryMetricShortLabel} por contexto`); }}>
+                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("context", val, `${primaryMetricShortLabel} por contexto`); }}>
                                   <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
                                 </Bar>
                               </BarChart>
@@ -4308,11 +4550,24 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                           <Sparkles className="h-5 w-5 text-emerald-500" />
                         </header>
-                        <div className={chartHeightClassName}>
+                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
                           {loadingTone ? (
                             <p className="text-sm text-slate-500">Carregando tons...</p>
                           ) : toneBars.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={toneBars.map((item) => ({
+                                id: item.name,
+                                label: item.name,
+                                value: item.value,
+                                postsCount: item.postsCount,
+                              }))}
+                              emptyText="Sem tons registrados no período."
+                              accentClassName="bg-emerald-500"
+                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              onSelect={(item) => handleCategoryClick("tone", item.label, `${primaryMetricShortLabel} por tom`)}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart
@@ -4324,7 +4579,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 <XAxis type="number" hide />
                                 <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#10b981" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("tone", val, `${primaryMetricShortLabel} por tom`); }}>
+                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#10b981" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("tone", val, `${primaryMetricShortLabel} por tom`); }}>
                                   <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
                                 </Bar>
                               </BarChart>
@@ -4339,11 +4594,24 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                           <Sparkles className="h-5 w-5 text-amber-500" />
                         </header>
-                        <div className={chartHeightClassName}>
+                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
                           {loadingReference ? (
                             <p className="text-sm text-slate-500">Carregando referências...</p>
                           ) : referenceBars.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem referências registradas.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={referenceBars.map((item) => ({
+                                id: item.name,
+                                label: item.name,
+                                value: item.value,
+                                postsCount: item.postsCount,
+                              }))}
+                              emptyText="Sem referências registradas."
+                              accentClassName="bg-amber-500"
+                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              onSelect={(item) => handleCategoryClick("references", item.label, `${primaryMetricShortLabel} por referência`)}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart
@@ -4355,7 +4623,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 <XAxis type="number" hide />
                                 <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f59e0b" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("references", val, `${primaryMetricShortLabel} por referência`); }}>
+                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f59e0b" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("references", val, `${primaryMetricShortLabel} por referência`); }}>
                                   <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
                                 </Bar>
                               </BarChart>
@@ -4371,7 +4639,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 	                {activeTab === "format" && (
                     <div className="space-y-4">
 	                  <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                      <div className="space-y-4">
+                      <div className="min-w-0 space-y-4">
                       <article className={cardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
@@ -4399,14 +4667,17 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 {bestHourBenchmarkStatus.label}
                               </span>
                             ) : null}
-                            {benchmarkMetaLine ? (
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            {benchmarkMetaLine && !isMobileViewport ? (
+                              <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                 {benchmarkMetaLine}
                               </span>
                             ) : null}
                           </div>
                         ) : null}
-                        <div className={chartHeightClassName}>
+                        {isMobileViewport && benchmarkMetaLine ? (
+                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
+                        ) : null}
+                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
                           {loadingTime ? (
                             <p className="text-sm text-slate-500">Carregando horários...</p>
                           ) : hourBars.length === 0 ? (
@@ -4426,6 +4697,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 </p>
                               )}
                             </div>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={mobileHourItems}
+                              emptyText="Sem dados suficientes no período selecionado."
+                              accentClassName="bg-sky-500"
+                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              onSelect={(item) => {
+                                const hour = Number(item.label.replace("h", ""));
+                                if (Number.isFinite(hour)) {
+                                  handleHourClick(hour, `Melhor horário para ${primaryMetricShortLabel.toLowerCase()}`);
+                                }
+                              }}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <ComposedChart
@@ -4435,7 +4719,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               >
                                 <XAxis
                                   dataKey="hour"
-                                  tickFormatter={(h) => `${h}h`}
+                                  tickFormatter={(h: number) => `${h}h`}
                                   tickLine={false}
                                   axisLine={false}
                                   tick={{ fill: "#94a3b8", fontSize: 12 }}
@@ -4443,7 +4727,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
                                 <Tooltip
                                   contentStyle={tooltipStyle}
-                                  labelFormatter={(label, payload: any[]) => {
+                                  labelFormatter={(label: string | number, payload: any[]) => {
                                     const postsCount = payload?.[0]?.payload?.postsCount;
                                     const benchmarkPostsCount = payload?.[0]?.payload?.benchmarkPostsCount;
                                     const benchmarkInfo =
@@ -4464,8 +4748,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                   name={primaryMetricTooltipLabel}
                                   fill="#0ea5e9"
                                   radius={[6, 6, 0, 0]}
-                                  onClick={({ payload }) => {
-                                    const hour = typeof payload?.hour === "number" ? payload.hour : null;
+                                  onClick={(state: any) => {
+                                    const hour = typeof state?.payload?.hour === "number" ? state.payload.hour : null;
                                     if (hour !== null) {
                                       handleHourClick(hour, `Melhor horário para ${primaryMetricShortLabel.toLowerCase()}`);
                                     }
@@ -4526,26 +4810,42 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             >
                               {bestDurationBenchmarkStatus.label}
                             </span>
-                            {benchmarkMetaLine ? (
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            {benchmarkMetaLine && !isMobileViewport ? (
+                              <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                 {benchmarkMetaLine}
                               </span>
                             ) : null}
                           </div>
                         ) : null}
-                        <div className={chartHeightClassName}>
+                        {isMobileViewport && benchmarkMetaLine ? (
+                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
+                        ) : null}
+                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
                           {loadingDuration ? (
                             <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
                           ) : durationSummary.totalVideoPosts === 0 ? (
                             <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
                           ) : durationSummary.totalPostsWithDuration === 0 ? (
                             <p className="text-sm text-slate-500">Sem duração suficiente para comparar faixas.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={mobileDurationItems}
+                              emptyText="Sem duração suficiente para comparar faixas."
+                              accentClassName="bg-violet-500"
+                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              onSelect={(item) => {
+                                const bucket = DURATION_BUCKETS.find((entry) => entry.label === item.label);
+                                if (bucket) {
+                                  handleDurationBucketClick(bucket.key, `${primaryMetricShortLabel} por faixa de duração`);
+                                }
+                              }}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <ComposedChart
                                 data={durationBenchmarkSeries}
                                 margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                                onClick={(state) => {
+                                onClick={(state: any) => {
                                   const label = state?.activeLabel ? String(state.activeLabel) : null;
                                   if (!label) return;
                                   const bucket = DURATION_BUCKETS.find((item) => item.label === label);
@@ -4568,7 +4868,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 />
                                 <Tooltip
                                   contentStyle={tooltipStyle}
-                                  labelFormatter={(label, payload: any[]) => {
+                                  labelFormatter={(label: string | number, payload: any[]) => {
                                     const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
                                     const benchmarkPostsCount = payload?.[0]?.payload?.benchmarkPostsCount ?? 0;
                                     return `${label} • ${formatPostsCount(postsCount)}${
@@ -4655,7 +4955,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                   return (
                                     <li
                                       key={creator.id}
-                                      className="flex items-center gap-3 rounded-[1.1rem] bg-white px-3 py-3 shadow-sm ring-1 ring-slate-100"
+                                      className="flex min-w-0 flex-wrap items-center gap-3 rounded-[1.1rem] bg-white px-3 py-3 shadow-sm ring-1 ring-slate-100 sm:flex-nowrap"
                                     >
                                       <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
                                         #{creator.rankByFollowers}
@@ -4684,13 +4984,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                               rank: creator.rankByFollowers,
                                             })
                                           }
-                                          className="inline-flex min-h-[36px] shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                                          className="inline-flex min-h-[36px] w-full items-center justify-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 sm:w-auto sm:shrink-0"
                                         >
                                           Mídia kit
                                           <ExternalLink className="h-3.5 w-3.5" />
                                         </a>
                                       ) : (
-                                        <span className="inline-flex min-h-[36px] shrink-0 items-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500">
+                                        <span className="inline-flex min-h-[36px] w-full items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 sm:w-auto sm:shrink-0">
                                           Sem mídia kit
                                         </span>
                                       )}
@@ -4749,7 +5049,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         </div>
                       </article>
                       </div>
-                      <div className="space-y-4">
+                      <div className="min-w-0 space-y-4">
                     <article className={cardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
@@ -4763,9 +5063,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                           <Clock3 className="h-5 w-5 text-indigo-500" />
                         </header>
-                        {timingBenchmarkEnabled && benchmarkMetaLine ? (
+                        {timingBenchmarkEnabled && benchmarkMetaLine && !isMobileViewport ? (
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                               {benchmarkMetaLine}
                             </span>
                             <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700">
@@ -4773,45 +5073,67 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             </span>
                           </div>
                         ) : null}
+                        {isMobileViewport ? (
+                          <div className="mt-2 space-y-1 text-xs leading-relaxed text-slate-500">
+                            {benchmarkMetaLine ? <p>{benchmarkMetaLine}</p> : null}
+                            <p>{heatmapExecutiveSummary.text}</p>
+                          </div>
+                        ) : null}
                         <div className="mt-3">
                           {loadingTime ? (
                             <p className="text-sm text-slate-500">Carregando mapa de horários...</p>
                           ) : heatmap.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem dados para montar o mapa de horários.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={mobileWeekWindowItems}
+                              emptyText="Sem dados para montar o mapa de horários."
+                              accentClassName="bg-indigo-500"
+                              valueFormatter={(value) => `${Math.round(value)} pts`}
+                              onSelect={(item) => {
+                                const match = item.id.match(/^week-(\d+)-(\d+)$/);
+                                if (!match) return;
+                                const dow = Number(match[1]);
+                                const startHour = Number(match[2]);
+                                handleDayHourClick(dow, startHour, Math.min(startHour + 3, 23), "Mapa de horários");
+                              }}
+                            />
                           ) : (
-                            <div className="grid grid-cols-7 gap-1 text-[11px] text-slate-500">
-                              <div />
-                              {Array.from({ length: 6 }).map((_, idx) => (
-                                <div key={idx} className="text-center">{`${idx * 4}h`}</div>
-                              ))}
-                              {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
-                                <React.Fragment key={dow}>
-                                  <div className="pr-2 text-right">{WEEKDAY_SHORT_SUN_FIRST[dow - 1] || `Dia ${dow}`}</div>
-                                  {Array.from({ length: 6 }).map((_, hIdx) => {
-                                    const h = hIdx * 4;
-                                    const startHour = h;
-                                    const endHour = Math.min(h + 3, 23);
-                                    const windowPoints = heatmap.filter((curr) => curr.day === dow && curr.hour >= startHour && curr.hour <= endHour);
-                                    const score = windowPoints.length
-                                      ? windowPoints.reduce((sum, curr) => sum + curr.score, 0) / windowPoints.length
-                                      : 0;
-                                    const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
-                                    const isBenchmarkWindow = benchmarkTopWindowKeys.has(`${dow}:${startHour}`);
-                                    return (
-                                      <button
-                                        key={hIdx}
-                                        type="button"
-                                        className={`aspect-square rounded border transition hover:border-slate-300 ${
-                                          isBenchmarkWindow ? "border-indigo-300 ring-1 ring-indigo-200" : "border-slate-100"
-                                        }`}
-                                        style={{ background: bg }}
-                                        onClick={() => handleDayHourClick(dow, startHour, endHour, "Mapa de horários")}
-                                        aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
-                                      />
-                                    );
-                                  })}
-                                </React.Fragment>
-                              ))}
+                            <div className="overflow-x-auto">
+                              <div className="grid min-w-[320px] grid-cols-7 gap-1 text-[11px] text-slate-500">
+                                <div />
+                                {Array.from({ length: 6 }).map((_, idx) => (
+                                  <div key={idx} className="text-center">{`${idx * 4}h`}</div>
+                                ))}
+                                {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
+                                  <React.Fragment key={dow}>
+                                    <div className="pr-2 text-right">{WEEKDAY_SHORT_SUN_FIRST[dow - 1] || `Dia ${dow}`}</div>
+                                    {Array.from({ length: 6 }).map((_, hIdx) => {
+                                      const h = hIdx * 4;
+                                      const startHour = h;
+                                      const endHour = Math.min(h + 3, 23);
+                                      const windowPoints = heatmap.filter((curr) => curr.day === dow && curr.hour >= startHour && curr.hour <= endHour);
+                                      const score = windowPoints.length
+                                        ? windowPoints.reduce((sum, curr) => sum + curr.score, 0) / windowPoints.length
+                                        : 0;
+                                      const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
+                                      const isBenchmarkWindow = benchmarkTopWindowKeys.has(`${dow}:${startHour}`);
+                                      return (
+                                        <button
+                                          key={hIdx}
+                                          type="button"
+                                          className={`aspect-square rounded border transition hover:border-slate-300 ${
+                                            isBenchmarkWindow ? "border-indigo-300 ring-1 ring-indigo-200" : "border-slate-100"
+                                          }`}
+                                          style={{ background: bg }}
+                                          onClick={() => handleDayHourClick(dow, startHour, endHour, "Mapa de horários")}
+                                          aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
+                                        />
+                                      );
+                                    })}
+                                  </React.Fragment>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -4836,7 +5158,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                           <Clock3 className="h-5 w-5 text-cyan-500" />
                         </header>
-                            {timingBenchmarkEnabled && benchmarkMetaLine ? (
+                            {timingBenchmarkEnabled && benchmarkMetaLine && !isMobileViewport ? (
                           <div className="mt-3 flex flex-wrap gap-2">
                             <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                               {benchmarkMetaLine}
@@ -4846,7 +5168,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             </span>
                           </div>
                         ) : null}
-                        <div className={chartCompactHeightClassName}>
+                        {isMobileViewport && benchmarkMetaLine ? (
+                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
+                        ) : null}
+                        <div className={isMobileViewport ? "mt-3" : chartCompactHeightClassName}>
                           {loadingDuration ? (
                             <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
                           ) : durationSummary.totalVideoPosts === 0 ? (
@@ -4855,6 +5180,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             <p className="text-sm text-slate-500">
                               Ainda não conseguimos ler a duração dos vídeos deste período.
                             </p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={mobileDurationCoverageItems}
+                              emptyText="Ainda não conseguimos ler a duração dos vídeos deste período."
+                              accentClassName="bg-cyan-500"
+                              valueFormatter={(value) => formatPercentLabel(value)}
+                              onSelect={(item) => {
+                                const bucket = DURATION_BUCKETS.find((entry) => entry.label === item.label);
+                                if (bucket) {
+                                  handleDurationBucketClick(bucket.key, "Vídeos por faixa de duração");
+                                }
+                              }}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <ComposedChart data={durationCoverageBenchmarkSeries} margin={{ top: 20, right: 8, left: -6, bottom: 0 }} style={{ cursor: "pointer" }}>
@@ -4867,7 +5205,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 />
                                 <Tooltip
                                   contentStyle={tooltipStyle}
-                                  labelFormatter={(label, payload: any[]) => {
+                                  labelFormatter={(label: string | number, payload: any[]) => {
                                     const postsCount = payload?.[0]?.payload?.postsCount ?? 0;
                                     const benchmarkPostsCount = payload?.[0]?.payload?.benchmarkUsagePosts ?? 0;
                                     return `${label} • ${formatPostsCount(postsCount)}${
@@ -4886,8 +5224,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                   name="usageSharePct"
                                   fill="#06b6d4"
                                   radius={[6, 6, 0, 0]}
-                                  onClick={({ payload }) => {
-                                    const bucketKey = payload?.key as DurationBucketKey | undefined;
+                                  onClick={(state: any) => {
+                                    const bucketKey = state?.payload?.key as DurationBucketKey | undefined;
                                     if (bucketKey) handleDurationBucketClick(bucketKey, "Vídeos por faixa de duração");
                                   }}
                                 >
@@ -4941,18 +5279,37 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 {bestFormatBenchmarkStatus.label}
                               </span>
                             ) : null}
-                            {benchmarkMetaLine ? (
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            {benchmarkMetaLine && !isMobileViewport ? (
+                              <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                 {benchmarkMetaLine}
                               </span>
                             ) : null}
                           </div>
                         ) : null}
-                        <div className={chartHeightClassName}>
+                        {isMobileViewport && benchmarkMetaLine ? (
+                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
+                        ) : null}
+                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
                           {loadingFormat ? (
                             <p className="text-sm text-slate-500">Carregando formatos...</p>
                           ) : formatBars.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={formatBars.map((item: CategoryBarDatum) => ({
+                                id: item.name,
+                                label: item.name,
+                                value: item.value,
+                                postsCount: item.postsCount,
+                                helper: timingBenchmarkEnabled
+                                  ? `Grupo: ${numberFormatter.format(Math.round((formatBenchmarkSeries.find((entry) => entry.name === item.name)?.benchmarkAverage ?? 0)))}`
+                                  : null,
+                              }))}
+                              emptyText="Sem dados de formato neste período."
+                              accentClassName="bg-orange-500"
+                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              onSelect={(item) => handleCategoryClick("format", item.label, `${primaryMetricShortLabel} por formato`)}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <ComposedChart
@@ -4964,7 +5321,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 <YAxis hide />
                                 <Tooltip
                                   contentStyle={tooltipStyle}
-                                  labelFormatter={(label, payload: any[]) => {
+                                  labelFormatter={(label: string | number, payload: any[]) => {
                                     const benchmarkPostsCount = payload?.[0]?.payload?.benchmarkPostsCount ?? 0;
                                     return `${label}${
                                       timingBenchmarkEnabled && benchmarkPostsCount > 0
@@ -4977,7 +5334,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                     name === "benchmarkAverage" ? "Linha pontilhada: média de contas parecidas com a sua" : primaryMetricUnitLabel,
                                   ]}
                                 />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f97316" radius={[6, 6, 0, 0]} onClick={({ payload }) => { const val = payload?.name ? String(payload.name) : null; if (val) handleCategoryClick("format", val, `${primaryMetricShortLabel} por formato`); }}>
+                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f97316" radius={[6, 6, 0, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("format", val, `${primaryMetricShortLabel} por formato`); }}>
                                   <LabelList dataKey="value" position="top" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
                                 </Bar>
                                 {canShowFormatBenchmarkLine ? (
@@ -5051,7 +5408,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 		                                        : value.toFixed(value >= 10 ? 1 : 2),
 		                                      name,
 		                                    ]}
-		                                    labelFormatter={(_, payload: any[]) => payload?.[0]?.payload?.label || "Post"}
+		                                    labelFormatter={(_label: string | number, payload: any[]) => payload?.[0]?.payload?.label || "Post"}
 		                                  />
 		                                  <ReferenceLine x={strategyMatrix.reachMedian} stroke="#cbd5e1" strokeDasharray="4 4" />
 		                                  <ReferenceLine y={strategyMatrix.depthMedian} stroke="#cbd5e1" strokeDasharray="4 4" />
@@ -5062,7 +5419,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 		                                      <circle
 		                                        cx={props.cx}
 		                                        cy={props.cy}
-		                                        r={5}
+		                                        r={isMobileViewport ? 8 : 5}
 		                                        fill={props.payload.fill}
 		                                        fillOpacity={0.9}
 		                                        stroke="#ffffff"
@@ -5083,6 +5440,22 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 </div>
 		                          )}
 		                        </div>
+                            {isMobileViewport && mobileStrategyHighlights.length > 0 ? (
+                              <div className="mt-3 space-y-2">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Posts que merecem atenção</p>
+                                {mobileStrategyHighlights.map((item) => (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => handlePlayVideo(item.post)}
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left"
+                                  >
+                                    <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                                    <p className="mt-1 text-xs text-slate-500">{item.helper}</p>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
 		                      </article>
 		                      <div className="space-y-3">
                           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -5124,17 +5497,100 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                           <Sparkles className="h-5 w-5 text-indigo-500" />
                         </header>
+                        {isMobileViewport ? (
+                          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                            <button
+                              type="button"
+                              onClick={() => setMobileAudienceTrendMetric("reach")}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "reach" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                            >
+                              Alcance
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMobileAudienceTrendMetric("interactions")}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "interactions" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                            >
+                              Interações
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMobileAudienceTrendMetric("response")}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "response" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                            >
+                              Resposta
+                            </button>
+                          </div>
+                        ) : null}
                         <div className={chartHeightClassName}>
-                          {loadingTrend ? (
+                          {loadingTrend || (isMobileViewport && mobileAudienceTrendMetric === "response" && loadingPosts) ? (
                             <p className="text-sm text-slate-500">Carregando série...</p>
+                          ) : isMobileViewport && mobileAudienceTrendMetric === "response" ? (
+                            weeklyEngagementRate.length === 0 ? (
+                              <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                            ) : (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart
+                                  data={weeklyEngagementRate}
+                                  margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
+                                  onClick={(state: any) => handleWeekClick(state?.activeLabel ?? null, "Percentual de resposta")}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <XAxis dataKey="date" tickFormatter={formatWeekLabel} tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                                  <YAxis hide />
+                                  <Tooltip contentStyle={tooltipStyle} labelFormatter={(l: string | number) => formatWeekLabel(String(l))} />
+                                  <Line type="monotone" dataKey="avgRate" name="Resposta" stroke="#7c3aed" strokeWidth={3} dot>
+                                    <LabelList dataKey="avgRate" position="top" formatter={(v: number) => `${(v * 100).toFixed(1)}%`} fill="#64748b" fontSize={11} />
+                                  </Line>
+                                </LineChart>
+                              </ResponsiveContainer>
+                            )
                           ) : trendSeries.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem dados no período.</p>
+                          ) : isMobileViewport ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart
+                                data={trendSeries}
+                                margin={{ top: 8, right: 8, left: -6, bottom: 0 }}
+                                onClick={(state: any) =>
+                                  handleWeekClick(
+                                    state?.activeLabel ?? null,
+                                    mobileAudienceTrendMetric === "interactions" ? "Interações por post" : "Pessoas alcançadas por post"
+                                  )
+                                }
+                                style={{ cursor: "pointer" }}
+                              >
+                                <XAxis dataKey="date" tickFormatter={formatWeekLabel} tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                                <YAxis
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                  tickFormatter={(value: number) => numberFormatter.format(Math.round(value))}
+                                />
+                                <Tooltip
+                                  contentStyle={tooltipStyle}
+                                  labelFormatter={(label: string | number) => formatWeekLabel(String(label))}
+                                  formatter={(value: number) => [
+                                    numberFormatter.format(Math.round(value)),
+                                    mobileAudienceTrendMetric === "interactions" ? "Interações por post" : "Pessoas alcançadas por post",
+                                  ]}
+                                />
+                                <Line
+                                  type="monotone"
+                                  dataKey={mobileAudienceTrendMetric === "interactions" ? "interactions" : "reach"}
+                                  name={mobileAudienceTrendMetric === "interactions" ? "Interações por post" : "Pessoas alcançadas por post"}
+                                  stroke={mobileAudienceTrendMetric === "interactions" ? "#7c3aed" : "#2563eb"}
+                                  strokeWidth={3}
+                                  dot={false}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <LineChart
                                 data={trendSeries}
                                 margin={{ top: 6, right: 8, left: -6, bottom: 0 }}
-                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Alcance x Interações")}
+                                onClick={(state: any) => handleWeekClick(state?.activeLabel ?? null, "Alcance x Interações")}
                                 style={{ cursor: "pointer" }}
                               >
                                 <XAxis
@@ -5161,7 +5617,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 />
                                 <Tooltip
                                   contentStyle={tooltipStyle}
-                                  labelFormatter={(label) => formatWeekLabel(String(label))}
+                                  labelFormatter={(label: string | number) => formatWeekLabel(String(label))}
                                   formatter={(value: number, name: string) => [numberFormatter.format(Math.round(value)), name]}
                                 />
                                 <Line yAxisId="reach" type="monotone" dataKey="reach" name="Pessoas alcançadas por post" stroke="#2563eb" strokeWidth={3} dot={false} />
@@ -5171,7 +5627,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           )}
                         </div>
                       </article>
-                      <article className={cardBase}>
+                      <article className={`${cardBase} ${isMobileViewport ? "hidden" : ""}`}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
                             <h2 className="text-base font-semibold text-slate-900">Resposta</h2>
@@ -5188,12 +5644,12 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               <LineChart
                                 data={weeklyEngagementRate}
                                 margin={{ top: 20, right: 12, left: -6, bottom: 0 }}
-                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Percentual de resposta")}
+                                onClick={(state: any) => handleWeekClick(state?.activeLabel ?? null, "Percentual de resposta")}
                                 style={{ cursor: "pointer" }}
                               >
                                 <XAxis dataKey="date" tickFormatter={formatWeekLabel} tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
                                 <YAxis hide />
-                                <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => formatWeekLabel(String(l))} />
+                                <Tooltip contentStyle={tooltipStyle} labelFormatter={(l: string | number) => formatWeekLabel(String(l))} />
                                 <Line type="monotone" dataKey="avgRate" name="Resposta" stroke="#7c3aed" strokeWidth={3} dot>
                                   <LabelList dataKey="avgRate" position="top" formatter={(v: number) => `${(v * 100).toFixed(1)}%`} fill="#64748b" fontSize={11} />
                                 </Line>
@@ -5204,24 +5660,77 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       </article>
                     </section>
                     <section className="grid gap-3 lg:grid-cols-3">
-                      <article className={cardBase}>
-                        <header className="flex items-center justify-between gap-3">
-                          <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Salvamentos</h2>
+	                      <article className={cardBase}>
+	                        <header className="flex items-center justify-between gap-3">
+	                          <div className={chartHeaderTextClassName}>
+	                            <h2 className="text-base font-semibold text-slate-900">
+                                {isMobileViewport ? (mobileDepthMetric === "saves" ? "Salvamentos" : "Comentários") : "Salvamentos"}
+                              </h2>
+	                          </div>
+	                          <LineChartIcon className={`h-5 w-5 ${isMobileViewport && mobileDepthMetric === "comments" ? "text-indigo-500" : "text-rose-500"}`} />
+	                        </header>
+                        {isMobileViewport ? (
+                          <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                            <button
+                              type="button"
+                              onClick={() => setMobileDepthMetric("saves")}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileDepthMetric === "saves" ? "bg-white text-rose-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                            >
+                              Salvamentos
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMobileDepthMetric("comments")}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileDepthMetric === "comments" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                            >
+                              Comentários
+                            </button>
                           </div>
-                          <LineChartIcon className="h-5 w-5 text-rose-500" />
-                        </header>
-                        <div className={chartCompactHeightClassName}>
-                          {loadingPosts ? (
-                            <p className="text-sm text-slate-500">Carregando série...</p>
+                        ) : null}
+	                        <div className={isMobileViewport ? "mt-3" : chartCompactHeightClassName}>
+	                          {loadingPosts ? (
+	                            <p className="text-sm text-slate-500">Carregando série...</p>
+	                          ) : isMobileViewport && mobileDepthMetric === "comments" ? (
+                            commentVelocitySeries.length === 0 ? (
+                              <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                            ) : (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart
+                                  data={commentVelocitySeries}
+                                  margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
+                                  onClick={(state: any) => handleWeekClick(state?.activeLabel ?? null, "Média de comentários por semana")}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <XAxis
+                                    dataKey="date"
+                                    tickFormatter={formatWeekLabel}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                  />
+                                  <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: "#94a3b8", fontSize: 12 }}
+                                    tickFormatter={(value: number) => numberFormatter.format(value)}
+                                  />
+                                  <Tooltip
+                                    contentStyle={tooltipStyle}
+                                    labelFormatter={(label: string | number) => formatWeekLabel(String(label))}
+                                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Comentários médios"]}
+                                  />
+                                  <Line type="monotone" dataKey="avgComments" name="Comentários médios" stroke="#6366f1" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            )
                           ) : saveVelocitySeries.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sem dados suficientes.</p>
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+	                            <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+	                          ) : (
+	                            <ResponsiveContainer width="100%" height="100%">
                               <LineChart
                                 data={saveVelocitySeries}
                                 margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de salvamentos por semana")}
+                                onClick={(state: any) => handleWeekClick(state?.activeLabel ?? null, "Média de salvamentos por semana")}
                                 style={{ cursor: "pointer" }}
                               >
                                 <XAxis
@@ -5236,27 +5745,27 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                   axisLine={false}
                                   tick={{ fill: "#94a3b8", fontSize: 12 }}
                                   tickFormatter={(value: number) => numberFormatter.format(value)}
-                                  label={{ value: "Salvamentos médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                                  label={isMobileViewport ? undefined : { value: "Salvamentos médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
                                 />
                                 <Tooltip
                                   contentStyle={tooltipStyle}
-                                  labelFormatter={(label) => formatWeekLabel(String(label))}
+                                  labelFormatter={(label: string | number) => formatWeekLabel(String(label))}
                                   formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Salvamentos médios"]}
                                 />
                                 <Line type="monotone" dataKey="avgSaves" name="Salvamentos médios" stroke="#ec4899" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
-                              </LineChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </article>
-                      <article className={cardBase}>
+	                              </LineChart>
+	                            </ResponsiveContainer>
+	                          )}
+	                        </div>
+	                      </article>
+	                      <article className={`${cardBase} ${isMobileViewport ? "hidden" : ""}`}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
                             <h2 className="text-base font-semibold text-slate-900">Comentários</h2>
                           </div>
                           <LineChartIcon className="h-5 w-5 text-indigo-500" />
                         </header>
-                        <div className={chartCompactHeightClassName}>
+                        <div className={isMobileViewport ? "mt-3" : chartCompactHeightClassName}>
                           {loadingPosts ? (
                             <p className="text-sm text-slate-500">Carregando série...</p>
                           ) : commentVelocitySeries.length === 0 ? (
@@ -5266,7 +5775,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               <LineChart
                                 data={commentVelocitySeries}
                                 margin={{ top: 6, right: 12, left: -6, bottom: 0 }}
-                                onClick={(state) => handleWeekClick(state?.activeLabel ?? null, "Média de comentários por semana")}
+                                onClick={(state: any) => handleWeekClick(state?.activeLabel ?? null, "Média de comentários por semana")}
                                 style={{ cursor: "pointer" }}
                               >
                                 <XAxis
@@ -5281,11 +5790,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                   axisLine={false}
                                   tick={{ fill: "#94a3b8", fontSize: 12 }}
                                   tickFormatter={(value: number) => numberFormatter.format(value)}
-                                  label={{ value: "Comentários médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
+                                  label={isMobileViewport ? undefined : { value: "Comentários médios", angle: -90, position: "insideLeft", fill: "#94a3b8", fontSize: 11 }}
                                 />
                                 <Tooltip
                                   contentStyle={tooltipStyle}
-                                  labelFormatter={(label) => formatWeekLabel(String(label))}
+                                  labelFormatter={(label: string | number) => formatWeekLabel(String(label))}
                                   formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Comentários médios"]}
                                 />
                                 <Line type="monotone" dataKey="avgComments" name="Comentários médios" stroke="#6366f1" strokeWidth={3} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
@@ -5306,6 +5815,18 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             <p className="text-sm text-slate-500">Carregando dados...</p>
                           ) : deepEngagement.length === 0 ? (
                             <p className="text-sm text-slate-500">Sem dados suficientes.</p>
+                          ) : isMobileViewport ? (
+                            <MobileBarList
+                              items={deepEngagement.map((item: any) => ({
+                                id: item.format,
+                                label: item.format,
+                                value: item.sharesPerThousand,
+                              }))}
+                              emptyText="Sem dados suficientes."
+                              accentClassName="bg-sky-500"
+                              valueFormatter={(value) => value.toFixed(1)}
+                              onSelect={(item) => handleCategoryClick("format", item.label, "Compartilhamentos por formato")}
+                            />
                           ) : (
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart
@@ -5317,7 +5838,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 <XAxis type="number" hide />
                                 <YAxis type="category" dataKey="format" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="sharesPerThousand" name="Compartilhamentos" fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={({ payload }) => { const val = payload?.format ? String(payload.format) : null; if (val) handleCategoryClick("format", val, "Compartilhamentos por formato"); }}>
+                                <Bar dataKey="sharesPerThousand" name="Compartilhamentos" fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.format ? String(state.payload.format) : null; if (val) handleCategoryClick("format", val, "Compartilhamentos por formato"); }}>
                                   <LabelList dataKey="sharesPerThousand" position="right" formatter={(v: number) => v.toFixed(1)} fill="#64748b" fontSize={11} />
                                 </Bar>
                               </BarChart>

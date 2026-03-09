@@ -300,6 +300,29 @@ async function resolvePostedContentForCreate(params: {
     };
   }
 
+  const existingLinkedScript = await withMongoTransientRetry(
+    () =>
+      ScriptEntry.findOne({
+        userId: new Types.ObjectId(userId),
+        "postedContent.metricId": metricDoc._id,
+      })
+        .select("_id")
+        .lean()
+        .exec(),
+    {
+      retries: 1,
+      onRetry: (error, retryCount) => logScriptsMongoRetry("resolvePostedContentForCreate existing_link", error, retryCount),
+    }
+  );
+
+  if (existingLinkedScript) {
+    return {
+      ok: false as const,
+      status: 409,
+      error: "Esse conteúdo já está vinculado a outro roteiro.",
+    };
+  }
+
   return {
     ok: true as const,
     postedAt: new Date(),
