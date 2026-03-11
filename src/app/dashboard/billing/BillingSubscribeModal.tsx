@@ -11,6 +11,7 @@ import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
 import { buildCheckoutUrl } from "@/app/lib/checkoutRedirect";
 import { mapSubscribeError } from "@/app/lib/billing/errors";
+import { useBodyScrollLock } from "@/lib/a11y";
 
 interface BillingSubscribeModalProps {
   open: boolean;
@@ -167,6 +168,8 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     !billingStatusError && (hasPremiumAccess || isTrialActive || needsPaymentAction);
   const didRefetchRef = useRef(false);
 
+  useBodyScrollLock(open);
+
   // Fecha com ESC
   useEffect(() => {
     if (!open) return;
@@ -174,16 +177,6 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-
-  // Trava o scroll da página quando o modal está aberto
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   // Ajusta moeda padrão pelo locale do usuário
   useEffect(() => {

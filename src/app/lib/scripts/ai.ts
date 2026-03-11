@@ -11,6 +11,7 @@ import {
   type ScriptAdjustTarget,
 } from "./adjustScope";
 import { mergeScopedSegment, resolveScopedSegment } from "./scriptSegmentation";
+import { parsePromptForScriptIntelligence } from "./promptParser";
 
 type ScriptDraft = {
   title: string;
@@ -96,7 +97,7 @@ const FLOW_VISUAL_REGEX = /^(?:visual|texto na tela|texto|imagem|mostre|enquadra
 const FLOW_FALA_REGEX = /^fala(?: \(literal\))?\s*:\s*(.+)$/i;
 const FLOW_DIRECAO_REGEX = /^(?:tom|dire[cç][aã]o|performance|nota)\s*:\s*(.+)$/i;
 const FLOW_TEMPO_IN_HEADING_REGEX = /\(([^)]+)\)\s*$/;
-const CTA_LITERAL_REGEX = /\b(comente|coment[aá]rio|salve|salvar|compartilhe|compartilha|direct|dm|me chama|segue|seguir|link)\b/i;
+const CTA_LITERAL_REGEX = /\b(comente|coment[aá]rio|salve|salvar|compartilhe|compartilha|direct|dm|me chama|segue|seguir|link|me conta|me diz|responde aqui|qual foi|e voc[eê])\b/i;
 const CTA_HEADING_REGEX = /\b(CTA|CALL TO ACTION|CHAMADA)\b/i;
 const CTA_OVERLAY_REGEX = /\b(comente|salve|compartilhe|cta|link|direct|dm|segue)\b/i;
 const INSTRUCTIONAL_LITERAL_REGEX =
@@ -110,6 +111,15 @@ const PATCH_VISUAL_INTENT_REGEX =
   /(visual|imagem|enquadramento|b-roll|broll|texto na tela|cen[aá]rio|mostre|mostra)/i;
 const PATCH_DIRECAO_INTENT_REGEX =
   /(dire[cç][aã]o|tom|entona[cç][aã]o|cad[êe]ncia|ritmo|performance|gesto|postura)/i;
+const SCRIPT_NARRATIVE_QUALITY_RULES = [
+  "Abra com observação vivida, confissão, contraste ou opinião concreta; evite promessa genérica.",
+  "Construa arco humano: gancho -> dor/tensão real -> mudança prática -> motivo humano/prova -> CTA conversacional.",
+  "Na Fala, escreva como alguém falaria de verdade para a câmera; nunca como manual, palestra ou apresentação.",
+  "Use detalhes concretos e cotidianos em vez de abstrações: ritual, objeto, cenário, sensação, hábito ou reação.",
+  "Quando fizer sentido, inclua vulnerabilidade, contradição ou ironia leve para gerar identificação.",
+  "O CTA final deve parecer continuação da conversa e convidar resposta real; evite CTA robótico e genérico.",
+  "Evite clichês como 'nesse vídeo', 'hoje eu vou te mostrar', 'você precisa' e 'aprenda isso', salvo pedido explícito.",
+].map((rule) => `- ${rule}`).join("\n");
 
 // Legacy fallbacks for parsers
 const FLOW_ENQUADRAMENTO_REGEX = /^enquadramento\s*:\s*(.+)$/i;
@@ -685,57 +695,57 @@ function buildDefaultTechnicalRow(
   if (sceneIndex === 1) {
     return {
       tempo: "00-03s",
-      visual: `Texto na tela: PARE DE ERRAR: ${safeTopic.toUpperCase()}. Close no rosto, entrada rápida.`,
-      fala: `Se você quer destravar ${safeTopic}, não desliza essa tela.`,
-      direcao: "Ritmo alto, olhar direto na lente e tom instigante.",
+      visual: `Texto na tela: FOI ISSO QUE DESTRAVOU ${safeTopic.toUpperCase()}. Close no rosto com micro-pausa antes da frase final.`,
+      fala: `Eu só consegui destravar ${safeTopic} quando parei de fazer do jeito óbvio.`,
+      direcao: "Tom de confissão segura, ritmo firme e olhar direto na lente.",
     };
   }
   if (sceneIndex === 2) {
     return {
       tempo: "03-10s",
-      visual: `Texto na tela: O MAIOR ERRO. Corte dinâmico demonstrando o problema.`,
-      fala: `Sempre que alguém ignora esse ponto em ${safeTopic}, as coisas desandam rápido.`,
-      direcao: "Tom de alerta, revelação.",
+      visual: `Texto na tela: A PARTE QUE TE DERRUBA. Corte mostrando o atrito, a pressa ou a frustração do processo.`,
+      fala: `Porque quando ${safeTopic} vira só obrigação, a consistência vai embora primeiro.`,
+      direcao: "Tom íntimo e direto, como quem explica uma verdade desconfortável.",
     };
   }
   if (sceneIndex === 3) {
     return {
       tempo: "10-20s",
-      visual: `Texto na tela: AJUSTE PRÁTICO. B-roll ou demonstração visual da solução.`,
-      fala: `O que você precisa fazer é muito simples: focar na fundação primeiro.`,
-      direcao: "Cadência progressiva, didático.",
+      visual: `Texto na tela: O AJUSTE QUE FACILITOU TUDO. B-roll da rotina, do ritual ou da ação concreta acontecendo.`,
+      fala: `Então eu criei um ritual simples pra deixar ${safeTopic} mais leve e repetível no dia a dia.`,
+      direcao: "Cadência natural, didática e sem cara de aula.",
     };
   }
   if (!isLast && sceneIndex === 4) {
     return {
       tempo: totalScenes >= 6 ? "20-28s" : "20-30s",
-      visual: `Texto na tela: A PROVA. Mostre resultado ou print.`,
-      fala: "Com essa pequena mudança, o resultado começou a aparecer em dias.",
-      direcao: "Assertivo, demonstrando valor.",
+      visual: `Texto na tela: QUANDO VIROU RITUAL. Mostre resultado, sensação de alívio ou mudança concreta na rotina.`,
+      fala: `Quando isso virou ritual, parou de depender de motivação e começou a acontecer de verdade.`,
+      direcao: "Tom de realização, mais calmo e convincente.",
     };
   }
   if (!isLast && sceneIndex === 5) {
     return {
       tempo: "28-36s",
-      visual: `Texto na tela: VIRADA FINAL. Retorno para o rosto (A-roll).`,
-      fala: "O segredo oculto é repetir o método sem pular as etapas essenciais.",
-      direcao: "Contato visual forte, reforçando a mensagem.",
+      visual: `Texto na tela: O MOTIVO REAL. Retorno para o rosto, com pausa curta antes da conclusão.`,
+      fala: `No fim, nem era sobre força de vontade. Era sobre facilitar o processo certo.`,
+      direcao: "Tom conclusivo, contato visual forte e pausa curta na virada.",
     };
   }
   const ctaTempo = totalScenes <= 4 ? "20-30s" : totalScenes === 5 ? "30-38s" : "36-45s";
   if (objective === "converter") {
     return {
       tempo: ctaTempo,
-      visual: `Texto na tela: COMENTE "QUERO". Gesto apontando para os comentários.`,
-      fala: "Se quiser que eu te mostre o passo a passo no seu perfil, comenta 'quero' aqui embaixo.",
-      direcao: "Confiante, amigável, sorriso curto.",
+      visual: `Texto na tela: COMENTA "QUERO". Gesto apontando para os comentários como continuação natural da conversa.`,
+      fala: `Se quiser, eu continuo essa lógica no seu caso. Comenta "quero" aqui embaixo que eu trago a próxima parte.`,
+      direcao: "Amigável, sorriso curto e sensação de conversa em andamento.",
     };
   }
   return {
     tempo: ctaTempo,
-    visual: `Texto na tela: SALVE. Gesto fechando a ideia.`,
-    fala: "Se essa dica evitou uma dor de cabeça, salva pra lembrar depois.",
-    direcao: "Conclusivo, entrega de valor.",
+    visual: `Texto na tela: E VOCÊ?. Gesto leve com a mão, encerrando sem parecer anúncio.`,
+    fala: `E você, qual foi o ajuste que mais te ajudou com ${safeTopic}? Me conta aqui embaixo.`,
+    direcao: "Tom conversacional, curioso e com sorriso leve no final.",
   };
 }
 
@@ -787,6 +797,7 @@ function scoreHookStrength(row?: TechnicalSceneRow): number {
   if (words >= 6 && words <= 22) score += 0.25;
   // Personal connection
   if (/\b(voc[eê]|seu|sua|te|se voc[eê])\b/i.test(speech)) score += 0.2;
+  if (/\b(eu|pra mim|comigo|s[oó] consegui|confesso|parece loucura|na verdade|foi quando)\b/i.test(speech)) score += 0.1;
   // Urgency / Actionable
   if (/\b(hoje|agora|pare|n[aã]o fa[cç]a|imediata)\b/i.test(speech)) score += 0.2;
   // Curiosity & Agitation
@@ -839,10 +850,14 @@ function scoreCtaStrength(lastScene?: TechnicalSceneRow): number {
   let score = 0;
   const speech = sanitizeTableCell(lastScene.fala, "");
   const overlay = sanitizeTableCell(lastScene.visual, "");
+  const wordCount = countWords(speech);
   if (CTA_LITERAL_REGEX.test(speech)) score += 0.65;
   if (/\b(comenta|salva|compartilha|direct|dm|link|segue)\b/i.test(speech)) score += 0.2;
+  if (/\b(e voc[eê]|qual foi|me conta|me diz|qual tem sido|como voc[eê])\b/i.test(speech) || speech.includes("?")) score += 0.2;
   if (/\b(agora|hoje|neste|nesse)\b/i.test(speech)) score += 0.05;
   if (/\b(comente|salve|compartilhe|cta|link|direct|dm)\b/i.test(overlay)) score += 0.1;
+  if (wordCount <= 4) score -= 0.25;
+  if (/^(comente|salve|compartilhe|segue)\b/i.test(speech.trim())) score -= 0.15;
   return roundScore(score);
 }
 
@@ -1106,6 +1121,102 @@ function fallbackAdjustScoped(segmentText: string, prompt: string): string {
   if (!normalizedSegment) return convertLegacyScriptToTechnical("", prompt);
   if (isTechnicalScript(normalizedSegment)) return normalizedSegment;
   return convertLegacyScriptToTechnical(normalizedSegment, prompt);
+}
+
+export function buildGenerateScriptPrompt(input: GenerateInput): string {
+  const userPrompt = input.prompt.trim();
+  const intelligenceBlock =
+    input.intelligenceContext && input.intelligenceContext.resolvedCategories
+      ? buildIntelligencePromptBlock(input.intelligenceContext)
+      : "";
+  const parsedPrompt = parsePromptForScriptIntelligence(userPrompt);
+  const intent = input.intelligenceContext?.intent ?? parsedPrompt.intent;
+  const subjectHint = intent?.subjectHint?.trim() || "";
+  const winnerBasedGuidance = intent?.wantsWinnerBasedScript
+    ? `Instrução de alinhamento com perfil:\n` +
+      `- Use como espinha dorsal o que já mais performa no perfil do criador.\n` +
+      `- Priorize padrões vencedores de abertura, cadência, vulnerabilidade, desenvolvimento e CTA observados no histórico.\n` +
+      `- Se houver conflito entre uma ideia nova e o repertório vencedor do criador, prefira o repertório vencedor.\n\n`
+    : "";
+  const topicGuidance = subjectHint
+    ? `Instrução de assunto central:\n` +
+      `- O tema principal deste roteiro é: ${subjectHint}\n` +
+      `- Não trate o assunto de forma genérica; deixe o tema explícito já nas primeiras cenas e mantenha coerência até o final.\n` +
+      `- Sempre que possível, conecte o assunto a uma experiência, hábito, dor ou situação concreta.\n\n`
+    : "";
+
+  return (
+    `Crie um roteiro técnico profissional em português do Brasil para creator.\n` +
+    `Pedido do usuário: ${userPrompt}\n` +
+    `${intelligenceBlock}\n\n` +
+    `${winnerBasedGuidance}` +
+    `${topicGuidance}` +
+    `Qualidade narrativa obrigatória:\n` +
+    `${SCRIPT_NARRATIVE_QUALITY_RULES}\n\n` +
+    `Preferência de progressão por cena:\n` +
+    `- Cena 1: gancho forte com confissão, contraste, opinião ou observação impossível de ignorar\n` +
+    `- Cena 2: dor, frustração, tensão ou contexto real que sustenta o tema\n` +
+    `- Cena 3: virada prática, ritual, ajuste concreto ou demonstração viva\n` +
+    `- Cena 4 em diante: prova, motivo humano, consequência ou aprofundamento antes do CTA\n` +
+    `- Última cena: CTA natural, conversacional e específico\n\n` +
+    `Regras obrigatórias:\n` +
+    `- Retornar APENAS JSON válido com os campos title e content\n` +
+    `- Entregar roteiro pronto para gravação, sem explicar raciocínio\n` +
+    `- content deve seguir EXATAMENTE o formato técnico abaixo:\n` +
+    `${TECHNICAL_SCRIPT_START}\n` +
+    `CENA 1: O GANCHO (0:00 - 0:06)\n` +
+    `Visual: ...\n\n` +
+    `Fala: "..."\n\n` +
+    `Direção: ...\n\n` +
+    `CENA 2: CONTEXTO (0:07 - 0:15)\n` +
+    `Visual: ...\n\n` +
+    `Fala: "..."\n\n` +
+    `Direção: ...\n\n` +
+    `CENA 3: DEMONSTRAÇÃO (0:16 - 0:25)\n` +
+    `Visual: ...\n\n` +
+    `Fala: "..."\n\n` +
+    `Direção: ...\n\n` +
+    `CENA 4: CHAMADA PARA AÇÃO (0:26 - 0:35)\n` +
+    `Visual: ...\n\n` +
+    `Fala: "..."\n\n` +
+    `Direção: ...\n` +
+    `${TECHNICAL_SCRIPT_END}\n` +
+    `- Cada cena deve conter obrigatoriamente os campos: Visual, Fala e Direção\n` +
+    `- Mínimo 4 e máximo 6 cenas\n` +
+    `- Somente a ÚLTIMA cena pode ter heading CTA\n` +
+    `- Se tiver 5 cenas: Cena 4 é PROVA e Cena 5 é CHAMADA PARA AÇÃO\n` +
+    `- Se tiver 6 cenas: Cena 4 é PROVA, Cena 5 é VIRADA e Cena 6 é CHAMADA PARA AÇÃO\n` +
+    `- Fala (literal): copy persuasivo, específico, humano e pronto para câmera\n` +
+    `- Direção: orientação objetiva de tom/ritmo/entonação/gesto\n` +
+    `- Última cena obrigatoriamente com CTA explícito\n` +
+    `- Imitar o estilo do criador sem copiar frases literalmente\n` +
+    `- Linguagem natural, de creator para humano\n` +
+    `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
+    `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente`
+  );
+}
+
+export function extractAdjustIntentGuidance(userPrompt: string): string {
+  const normalized = userPrompt.trim();
+  if (!normalized) return "";
+
+  const moreMatch = normalized.match(/(?:pra|para)?\s*ser\s+mais\s+(.{3,80})/i) || normalized.match(/\bmais\s+(.{3,80})/i);
+  const requestedAttribute = moreMatch?.[1]
+    ?.replace(/[.,;:!?]+$/g, "")
+    .trim();
+
+  if (!requestedAttribute) {
+    return (
+      `- Se o pedido parecer amplo, preserve a espinha dorsal do roteiro e ajuste apenas o atributo solicitado pelo usuário\n` +
+      `- Evite reescrever tudo do zero quando o comando for incremental\n`
+    );
+  }
+
+  return (
+    `- O atributo principal pedido pelo usuário é: ${requestedAttribute}\n` +
+    `- Intensifique esse atributo sem descaracterizar o restante do roteiro\n` +
+    `- Preserve gancho, lógica e progressão sempre que isso não entrar em conflito com o pedido\n`
+  );
 }
 
 function resolveCategoryLabel(dimension: keyof NonNullable<ScriptIntelligenceContext["resolvedCategories"]>, id: string): string {
@@ -1569,46 +1680,7 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     throw new Error("Informe um prompt para gerar o roteiro.");
   }
 
-  const intelligenceBlock = buildIntelligencePromptBlock(input.intelligenceContext);
-
-  const llmPrompt =
-    `Crie um roteiro técnico profissional em português do Brasil para creator.\n` +
-    `Pedido do usuário: ${userPrompt}\n` +
-    `${intelligenceBlock}\n\n` +
-    `Regras obrigatórias:\n` +
-    `- Retornar APENAS JSON válido com os campos title e content\n` +
-    `- Entregar roteiro pronto para gravação, sem explicar raciocínio\n` +
-    `- content deve seguir EXATAMENTE o formato técnico abaixo:\n` +
-    `${TECHNICAL_SCRIPT_START}\n` +
-    `CENA 1: O GANCHO (0:00 - 0:06)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n\n` +
-    `CENA 2: CONTEXTO (0:07 - 0:15)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n\n` +
-    `CENA 3: DEMONSTRAÇÃO (0:16 - 0:25)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n\n` +
-    `CENA 4: CHAMADA PARA AÇÃO (0:26 - 0:35)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n` +
-    `${TECHNICAL_SCRIPT_END}\n` +
-    `- Cada cena deve conter obrigatoriamente os campos: Visual, Fala e Direção\n` +
-    `- Mínimo 4 e máximo 6 cenas\n` +
-    `- Somente a ÚLTIMA cena pode ter heading CTA\n` +
-    `- Se tiver 5 cenas: Cena 4 é PROVA e Cena 5 é CHAMADA PARA AÇÃO\n` +
-    `- Se tiver 6 cenas: Cena 4 é PROVA, Cena 5 é VIRADA e Cena 6 é CHAMADA PARA AÇÃO\n` +
-    `- Fala (literal): copy persuasivo e focado em retenção, texto corrido e pronto para uso dinâmico\n` +
-    `- Direção: orientação objetiva de tom/ritmo/entonação/gesto\n` +
-    `- Última cena obrigatoriamente com CTA explícito\n` +
-    `- Imitar o estilo do criador sem copiar frases literalmente\n` +
-    `- Linguagem natural, de creator para humano\n` +
-    `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
-    `- Não incluir @menções ou hashtags, exceto se o usuário pedir explicitamente`;
+  const llmPrompt = buildGenerateScriptPrompt(input);
 
   try {
     const result = await callModel(llmPrompt, {
@@ -1658,12 +1730,17 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     );
   }
 
-  const intelligenceBlock = buildIntelligencePromptBlock(input.intelligenceContext);
+  const intelligenceBlock =
+    input.intelligenceContext && input.intelligenceContext.resolvedCategories
+      ? buildIntelligencePromptBlock(input.intelligenceContext)
+      : "";
+  const adjustIntentGuidance = extractAdjustIntentGuidance(userPrompt);
   const technicalFormatRules =
     `Formato técnico obrigatório:\n` +
     `- Manter bloco ${TECHNICAL_SCRIPT_START} ... ${TECHNICAL_SCRIPT_END}\n` +
     `- Cada cena deve seguir: CENA N: TITULO (tempo) + Visual + Fala + Direção\n` +
     `- Fala sempre literal (frase pronta para câmera), fluida e focada em retenção\n` +
+    `- Mantenha qualidade narrativa humana: confissão/opinião concreta, dor real, virada prática, motivo humano e CTA conversacional quando fizer sentido\n` +
     `- Direção de Performance sempre acionável (tom de voz, velocidade)\n` +
     `- Somente a última cena pode ter heading CTA\n` +
     `- Se houver 5 cenas, use CENA 4: A PROVA e CENA 5: CHAMADA PARA AÇÃO\n` +
@@ -1676,6 +1753,8 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     `Título atual: ${inputForAdjust.title}\n` +
     `Roteiro atual:\n${inputForAdjust.content}\n\n` +
     `${intelligenceBlock}\n\n` +
+    `Regras de interpretação do pedido:\n` +
+    `${adjustIntentGuidance}\n` +
     `Trecho alvo: ${describeScriptAdjustTarget(scope.target)}\n` +
     `Conteúdo atual do trecho alvo:\n${scopedResolution?.segment.text || ""}\n\n` +
     `Ajuste solicitado: ${userPrompt}\n\n` +
@@ -1693,6 +1772,8 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     `Título atual: ${inputForAdjust.title}\n` +
     `Roteiro atual:\n${inputForAdjust.content}\n\n` +
     `${intelligenceBlock}\n\n` +
+    `Regras de interpretação do pedido:\n` +
+    `${adjustIntentGuidance}\n` +
     `Ajuste solicitado: ${userPrompt}\n\n` +
     `Regras obrigatórias:\n` +
     `- Preserve integralmente o que não foi pedido para mudar\n` +

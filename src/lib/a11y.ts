@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
 
+let bodyScrollLockCount = 0
+let bodyOriginalOverflow: string | null = null
+
 export function useEscapeToClose(onClose?: () => void) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -52,4 +55,28 @@ export function useFocusTrap(containerRef: React.RefObject<HTMLElement>) {
     el.addEventListener('keydown', onKey)
     return () => el.removeEventListener('keydown', onKey)
   }, [containerRef])
+}
+
+export function useBodyScrollLock(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || typeof document === 'undefined') return
+
+    const body = document.body
+
+    if (bodyScrollLockCount === 0) {
+      bodyOriginalOverflow = body.style.overflow
+      body.style.overflow = 'hidden'
+    }
+
+    bodyScrollLockCount += 1
+
+    return () => {
+      bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1)
+
+      if (bodyScrollLockCount === 0) {
+        body.style.overflow = bodyOriginalOverflow ?? ''
+        bodyOriginalOverflow = null
+      }
+    }
+  }, [enabled])
 }

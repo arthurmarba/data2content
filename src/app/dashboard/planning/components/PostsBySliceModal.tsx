@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { XMarkIcon, PencilSquareIcon } from "@heroicons/react/24/solid";
+import { useBodyScrollLock } from "@/lib/a11y";
 
 
 
@@ -112,6 +113,8 @@ export default function PostsBySliceModal({
   const [sortMetric, setSortMetric] = useState<SortMetric>("postDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -124,15 +127,6 @@ export default function PostsBySliceModal({
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (!isOpen || typeof document === "undefined") return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && dialogRef.current) {

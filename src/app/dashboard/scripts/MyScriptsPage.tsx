@@ -1356,19 +1356,33 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         targetUserId: targetUserId || undefined,
       };
 
-      const res = await fetch(`/api/scripts/${script.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.ok || !data?.item) {
-        throw new Error(data?.error || "Não foi possível atualizar o status de postagem.");
-      }
+      try {
+        const { response, payload: data } = await fetchJsonWithRetry(
+          `/api/scripts/${script.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            cache: "no-store",
+          },
+          { retries: 2 }
+        );
 
-      const updated = data.item as ScriptItem;
-      patchScriptList(updated);
-      return updated;
+        if (!response.ok || !data?.ok || !data?.item) {
+          throw new Error(data?.error || "Não foi possível atualizar o status de postagem.");
+        }
+
+        const updated = data.item as ScriptItem;
+        patchScriptList(updated);
+        return updated;
+      } catch (error) {
+        throw new Error(
+          getReadableFetchErrorMessage(
+            error,
+            "Não foi possível vincular o conteúdo ao roteiro agora. Tente novamente em instantes."
+          )
+        );
+      }
     },
     [patchScriptList, targetUserId]
   );

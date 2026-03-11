@@ -48,6 +48,25 @@ describe("scripts/promptParser", () => {
     expect(intent.wantsHumor).toBe(true);
     expect(intent.wantsEngagement).toBe(true);
     expect(intent.subjectHint).toContain("criadores iniciantes");
+    expect(intent.wantsTopicDrivenScript).toBe(true);
+  });
+
+  it("detects winner-based script requests from profile-performance wording", () => {
+    const intent = detectNarrativeIntent(
+      "escreva um roteiro com base no que mais engaja no meu perfil"
+    );
+
+    expect(intent.wantsWinnerBasedScript).toBe(true);
+    expect(intent.wantsTopicDrivenScript).toBe(false);
+  });
+
+  it("detects topic-driven script requests for explicit subject prompts", () => {
+    const intent = detectNarrativeIntent(
+      "quero um roteiro sobre manter frequência na academia"
+    );
+
+    expect(intent.subjectHint).toContain("manter frequência na academia");
+    expect(intent.wantsTopicDrivenScript).toBe(true);
   });
 
   it("parses prompt in one shot with explicit categories and mode", () => {

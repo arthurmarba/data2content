@@ -1,7 +1,9 @@
 import {
+  buildGenerateScriptPrompt,
   buildIntelligencePromptBlock,
   convertLegacyScriptToTechnical,
   evaluateTechnicalScriptQuality,
+  extractAdjustIntentGuidance,
   enforceTechnicalScriptContract,
   sanitizeScriptIdentityLeakage,
   selectScriptModelForPrompt,
@@ -303,6 +305,67 @@ describe("scripts/ai temperature selection", () => {
   });
 });
 
+describe("scripts/ai prompt quality guidance", () => {
+  it("builds generation prompt with human narrative guidance", () => {
+    const prompt = buildGenerateScriptPrompt({
+      prompt: "roteiro sobre manter frequência na academia",
+      intelligenceContext: null,
+    });
+
+    expect(prompt).toContain("Qualidade narrativa obrigatória");
+    expect(prompt).toContain("confissão");
+    expect(prompt).toContain("dor/tensão real");
+    expect(prompt).toContain("motivo humano/prova");
+    expect(prompt).toContain("CTA natural, conversacional e específico");
+  });
+
+  it("builds generation prompt with explicit winner-based guidance", () => {
+    const prompt = buildGenerateScriptPrompt({
+      prompt: "escreva um roteiro com base no que mais engaja no meu perfil",
+      intelligenceContext: {
+        intent: {
+          wantsHumor: false,
+          wantsEngagement: true,
+          subjectHint: null,
+          wantsWinnerBasedScript: true,
+          wantsTopicDrivenScript: false,
+        },
+      } as any,
+    });
+
+    expect(prompt).toContain("Use como espinha dorsal o que já mais performa no perfil do criador");
+    expect(prompt).toContain("prefira o repertório vencedor");
+  });
+
+  it("builds generation prompt with explicit topic guidance", () => {
+    const prompt = buildGenerateScriptPrompt({
+      prompt: "quero um roteiro sobre manter frequência na academia",
+      intelligenceContext: {
+        intent: {
+          wantsHumor: false,
+          wantsEngagement: false,
+          subjectHint: "manter frequência na academia",
+          wantsWinnerBasedScript: false,
+          wantsTopicDrivenScript: true,
+        },
+      } as any,
+    });
+
+    expect(prompt).toContain("O tema principal deste roteiro é: manter frequência na academia");
+    expect(prompt).toContain("Não trate o assunto de forma genérica");
+  });
+
+  it("extracts incremental adjust guidance for 'ser mais...'", () => {
+    const guidance = extractAdjustIntentGuidance(
+      "quero que voce ajuste esse roteiro pra ser mais humano e menos publicitário"
+    );
+
+    expect(guidance).toContain("O atributo principal pedido pelo usuário é");
+    expect(guidance).toContain("humano e menos publicitário");
+    expect(guidance).toContain("Intensifique esse atributo");
+  });
+});
+
 describe("scripts/ai technical contract", () => {
   it("repairs incomplete generation into technical script format", () => {
     const repaired = enforceTechnicalScriptContract(
@@ -348,7 +411,7 @@ describe("scripts/ai technical contract", () => {
 
     const lastSceneStart = repaired.content.search(/^CENA 4:/im);
     const lastScene = lastSceneStart >= 0 ? repaired.content.slice(lastSceneStart) : repaired.content;
-    expect(lastScene).toMatch(/comente|salv[ae]|compartilhe|direct|dm|me chama|segue|link/i);
+    expect(lastScene).toMatch(/comente|salv[ae]|compartilhe|direct|dm|me chama|segue|link|me conta|e voc[eê]|qual foi/i);
   });
 
   it("rewrites instructional speech into literal camera speech", () => {
@@ -423,6 +486,78 @@ describe("scripts/ai technical contract", () => {
 
     expect(polishedScore.perceivedQuality).toBeGreaterThan(weakScore.perceivedQuality);
     expect(polishedScore.ctaStrength).toBeGreaterThan(weakScore.ctaStrength);
+  });
+
+  it("rewards conversational CTA over robotic CTA", () => {
+    const robotic = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto.",
+      "",
+      'Fala: "Eu só consegui manter consistência quando parei de complicar o processo."',
+      "",
+      "Direção: Tom direto e humano.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostra a rotina corrida.",
+      "",
+      'Fala: "Quando tudo vira obrigação, a frequência some primeiro."',
+      "",
+      "Direção: Tom íntimo.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Mostra o ritual antes de treinar.",
+      "",
+      'Fala: "Então eu criei um ritual simples pra facilitar a ida pra academia."',
+      "",
+      "Direção: Didático e leve.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Texto na tela: COMENTE.",
+      "",
+      'Fala: "Comente aqui agora."',
+      "",
+      "Direção: Final objetivo.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const conversational = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto.",
+      "",
+      'Fala: "Eu só consegui manter consistência quando parei de complicar o processo."',
+      "",
+      "Direção: Tom direto e humano.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostra a rotina corrida.",
+      "",
+      'Fala: "Quando tudo vira obrigação, a frequência some primeiro."',
+      "",
+      "Direção: Tom íntimo.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Mostra o ritual antes de treinar.",
+      "",
+      'Fala: "Então eu criei um ritual simples pra facilitar a ida pra academia."',
+      "",
+      "Direção: Didático e leve.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Texto na tela: E VOCÊ?",
+      "",
+      'Fala: "E você, qual foi o truque que mais te ajudou a manter frequência? Me conta aqui embaixo."',
+      "",
+      "Direção: Curioso e conversacional.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const roboticScore = evaluateTechnicalScriptQuality(robotic, "roteiro sobre manter frequência na academia");
+    const conversationalScore = evaluateTechnicalScriptQuality(conversational, "roteiro sobre manter frequência na academia");
+
+    expect(conversationalScore.ctaStrength).toBeGreaterThan(roboticScore.ctaStrength);
+    expect(conversationalScore.perceivedQuality).toBeGreaterThan(roboticScore.perceivedQuality);
   });
 
   it("prevents duplicate CTA headings when script has 5 scenes", () => {

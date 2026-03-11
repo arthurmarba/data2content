@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
+import { useBodyScrollLock as useSharedBodyScrollLock } from "@/lib/a11y";
 
 type PaywallViewedContext = "planning" | "reply_email" | "ai_analysis" | "calculator" | "whatsapp_ai" | "other";
 
@@ -41,28 +42,7 @@ export const useSidebarViewport = () => {
 };
 
 export const useBodyScrollLock = (enabled: boolean) => {
-  const previousOverflow = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const body = document.body;
-
-    if (previousOverflow.current === null) {
-      previousOverflow.current = body.style.overflow;
-    }
-
-    if (enabled) {
-      body.style.overflow = "hidden";
-      return () => {
-        body.style.overflow = previousOverflow.current || "";
-      };
-    }
-
-    body.style.overflow = previousOverflow.current || "";
-    return () => {
-      body.style.overflow = previousOverflow.current || "";
-    };
-  }, [enabled]);
+  useSharedBodyScrollLock(enabled);
 };
 
 export const useMobileAutoClose = ({

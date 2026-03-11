@@ -20,6 +20,8 @@ export type ScriptNarrativeIntent = {
   wantsHumor: boolean;
   wantsEngagement: boolean;
   subjectHint: string | null;
+  wantsWinnerBasedScript?: boolean;
+  wantsTopicDrivenScript?: boolean;
 };
 
 type FlatCategory = {
@@ -32,6 +34,10 @@ type DimClassificationType = "proposal" | "context" | "format" | "tone" | "refer
 const HUMOR_REGEX = /(humor|com[eé]dia|engra[cç]|piada|c[oô]mico|sketch|esquete|par[oó]dia)/i;
 const ENGAGEMENT_REGEX =
   /(engaja|engajar|engajamento|engage|viral|viralizar|alcance|coment[áa]rio|compartilha|salvamento)/i;
+const WINNER_BASED_SCRIPT_REGEX =
+  /(com base no que mais engaja|baseado no que mais engaja|no que mais engaja no meu perfil|no que performa melhor no meu perfil|com base no meu perfil|no meu estilo e no que mais engaja)/i;
+const TOPIC_DRIVEN_SCRIPT_REGEX =
+  /(quero um roteiro sobre|roteiro sobre|sobre o assunto|tema\s*:|assunto\s*:)/i;
 
 function flattenCategories(list: Category[]): FlatCategory[] {
   const output: FlatCategory[] = [];
@@ -144,10 +150,13 @@ export function extractExplicitCategories(prompt: string): ScriptCategorySelecti
 
 export function detectNarrativeIntent(prompt: string): ScriptNarrativeIntent {
   const normalized = prompt || "";
+  const subjectHint = extractSubjectHint(normalized);
   return {
     wantsHumor: HUMOR_REGEX.test(normalized),
     wantsEngagement: ENGAGEMENT_REGEX.test(normalized),
-    subjectHint: extractSubjectHint(normalized),
+    subjectHint,
+    wantsWinnerBasedScript: WINNER_BASED_SCRIPT_REGEX.test(normalized),
+    wantsTopicDrivenScript: TOPIC_DRIVEN_SCRIPT_REGEX.test(normalized) || Boolean(subjectHint),
   };
 }
 
