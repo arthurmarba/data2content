@@ -16,6 +16,7 @@ import {
   ChevronRightIcon,
   PencilSquareIcon,
   MegaphoneIcon,
+  RectangleStackIcon,
 } from '@heroicons/react/24/outline';
 
 // --- Itens do Menu ---
@@ -49,6 +50,11 @@ const menuItems: MenuItem[] = [
     label: 'Insights Criadores',
     href: '/admin/creators-insights',
     icon: ChartBarIcon,
+  },
+  {
+    label: 'Carrosséis',
+    href: '/admin/carousels/case-generator',
+    icon: RectangleStackIcon,
   },
   { label: 'Afiliados', href: '/admin/affiliates', icon: UserGroupIcon },
   { label: 'Parceiros', href: '/admin/agencies', icon: UserGroupIcon },

@@ -1,0 +1,310 @@
+
+> d2c-frontend@0.1.0 dev
+> sh -c 'NODE_OPTIONS="--dns-result-order=ipv4first ${NODE_OPTIONS:-}" NEXT_DISABLE_SERVER_IPC=1 NEXTAUTH_URL="${NEXTAUTH_URL:-http://localhost:${PORT:-3000}}" ./scripts/with-preferred-node.sh next dev -H 127.0.0.1 -p ${PORT:-3000}'
+
+- info Loaded env from /Users/arthurmarba/d2c-frontend/.env.local
+--- Lendo next.config.js (ESM) --- 2026-03-11T19:47:37.678Z
+--- Configuração de images (ESM): {
+  "unoptimized": true,
+  "formats": [
+    "image/webp"
+  ],
+  "minimumCacheTTL": 2678400,
+  "deviceSizes": [
+    360,
+    640,
+    768,
+    1024,
+    1280,
+    1536
+  ],
+  "imageSizes": [
+    16,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    384
+  ],
+  "remotePatterns": [
+    {
+      "protocol": "https",
+      "hostname": "lh3.googleusercontent.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "placehold.co",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-1.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-2.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.cdninstagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.instagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "platform-lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "i.ibb.co",
+      "pathname": "/**"
+    }
+  ]
+}
+- warn You have enabled experimental features (serverActions, outputFileTracingIncludes) in next.config.js.
+- warn Experimental features are not covered by semver, and may cause unexpected or broken application behavior. Use at your own risk.
+
+- [32mready[39m started server on 127.0.0.1:3000, url: http://127.0.0.1:3000
+(node:53577) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+--- Lendo next.config.js (ESM) --- 2026-03-11T19:47:38.121Z
+--- Configuração de images (ESM): {
+  "unoptimized": true,
+  "formats": [
+    "image/webp"
+  ],
+  "minimumCacheTTL": 2678400,
+  "deviceSizes": [
+    360,
+    640,
+    768,
+    1024,
+    1280,
+    1536
+  ],
+  "imageSizes": [
+    16,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    384
+  ],
+  "remotePatterns": [
+    {
+      "protocol": "https",
+      "hostname": "lh3.googleusercontent.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "placehold.co",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-1.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-2.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.cdninstagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.instagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "platform-lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "i.ibb.co",
+      "pathname": "/**"
+    }
+  ]
+}
+- [35mevent[39m compiled client and server successfully in 317 ms (20 modules)
+- [36mwait[39m compiling...
+- [35mevent[39m compiled client and server successfully in 97 ms (20 modules)
+- [36minfo[39m Loaded env from /Users/arthurmarba/d2c-frontend/.env.local
+(node:53597) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+- [36minfo[39m Loaded env from /Users/arthurmarba/d2c-frontend/.env.local
+(node:53598) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+- [36mwait[39m compiling /src/middleware (client and server)...
+- [35mevent[39m compiled successfully in 56 ms (53 modules)
+- [36mwait[39m compiling /page (client and server)...
+- [35mevent[39m compiled client and server successfully in 5.7s (2703 modules)
+- [36mwait[39m compiling...
+- [35mevent[39m compiled successfully in 716 ms (655 modules)
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:47:48.361Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+(node:53616) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:47:48.900Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+{"env":"development","level":"warn","message":"[NextAuth Redirect Callback] URL solicitada (http://localhost:3202/) é externa/ inválida. Redirecionando para baseUrl: http://127.0.0.1:3000.","service":"affiliates","timestamp":"2026-03-11T19:48:19.306Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Iniciado. Trigger: undefined. UserID(signIn): undefined. TokenInID: 00000000000000000000e2e1. Token.planStatus(in): active, Token.affiliateCode(in): null","service":"affiliates","timestamp":"2026-03-11T19:48:19.310Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token com 62 min de idade. Forçando refresh do DB.","service":"affiliates","timestamp":"2026-03-11T19:48:19.310Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Trigger 'undefined' ou refresh necessário. Buscando dados frescos do DB para token ID: 00000000000000000000e2e1","service":"affiliates","timestamp":"2026-03-11T19:48:19.310Z","version":"local"}
+{"dbName":"data2content","env":"development","level":"info","maxPoolSize":10,"message":"[mongoose] Opening MongoDB connection.","readyState":0,"serverSelectionTimeoutMS":30000,"service":"affiliates","socketTimeoutMS":60000,"timestamp":"2026-03-11T19:48:19.311Z","version":"local"}
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:20.032Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+(node:53711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"dbName":"data2content","env":"development","host":"data2content-shard-00-02.wgmwh.mongodb.net","level":"info","message":"[mongoose] MongoDB connection event: connected.","service":"affiliates","timestamp":"2026-03-11T19:48:20.687Z","version":"local"}
+{"dbName":"data2content","env":"development","host":"data2content-shard-00-02.wgmwh.mongodb.net","level":"info","message":"[mongoose] MongoDB connected.","service":"affiliates","timestamp":"2026-03-11T19:48:20.691Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token atualizado do DB. ID: 00000000000000000000e2e1, Provider: credentials, planStatus: active, igAccounts: 0, reconnectState: idle, flowId: none, igErr: Não","service":"affiliates","timestamp":"2026-03-11T19:48:22.316Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] FINAL jwt. Token id: '00000000000000000000e2e1', provider: 'credentials', planStatus: active, agencyPlanStatus: null, affiliateCode: null, agencyId: null, flowId: none","service":"affiliates","timestamp":"2026-03-11T19:48:22.317Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Iniciado. Token ID: 00000000000000000000e2e1, Token.Provider: credentials, Token.planStatus: active","service":"affiliates","timestamp":"2026-03-11T19:48:22.318Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Sessão dev/E2E detectada para 00000000000000000000e2e1. Pulando revalidação no DB.","service":"affiliates","timestamp":"2026-03-11T19:48:22.318Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth customEncode v2.3.0] availableIgAccounts serializado para JWT.","service":"affiliates","timestamp":"2026-03-11T19:48:22.319Z","version":"local"}
+[1mnull[22m
+[1mnull[22m
+[1mnull[22m
+[1mnull[22m
+- [36mwait[39m compiling /api/landing/community-stats/route (client and server)...
+- [36mwait[39m compiling /api/feature-flags/route (client and server)...
+- [36mwait[39m compiling /api/analytics/context/route (client and server)...
+- [36mwait[39m compiling /api/plan/status/route (client and server)...
+- [36mwait[39m compiling /api/auth/[...nextauth]/route (client and server)...
+- [35mevent[39m compiled client and server successfully in 1375 ms (2908 modules)
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:24.851Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+{"env":"development","level":"info","message":"[landing][communityStatsService][buildCommunityStats] Building landing stats payload.","service":"affiliates","timestamp":"2026-03-11T19:48:26.153Z","version":"local"}
+{"env":"development","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Solicitada conexão. Estado Mongoose: connected (1). Conexão atual: data2content. DB esperado: data2content","service":"affiliates","timestamp":"2026-03-11T19:48:26.154Z","version":"local"}
+{"env":"development","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Conexão reutilizada com sucesso para o DB 'data2content'.","service":"affiliates","timestamp":"2026-03-11T19:48:26.155Z","version":"local"}
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:26.208Z","version":"local"}
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:26.210Z","version":"local"}
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:26.216Z","version":"local"}
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:26.217Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+{"env":"development","level":"warn","message":"[NextAuth Redirect Callback] URL solicitada (http://localhost:3202/) é externa/ inválida. Redirecionando para baseUrl: http://127.0.0.1:3000.","service":"affiliates","timestamp":"2026-03-11T19:48:26.236Z","version":"local"}
+(node:53730) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:53727) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+{"env":"development","level":"warn","message":"[NextAuth Redirect Callback] URL solicitada (http://localhost:3202/) é externa/ inválida. Redirecionando para baseUrl: http://127.0.0.1:3000.","service":"affiliates","timestamp":"2026-03-11T19:48:26.242Z","version":"local"}
+(node:53726) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Iniciado. Trigger: undefined. UserID(signIn): undefined. TokenInID: 00000000000000000000e2e1. Token.planStatus(in): active, Token.affiliateCode(in): null","service":"affiliates","timestamp":"2026-03-11T19:48:26.243Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token com 62 min de idade. Forçando refresh do DB.","service":"affiliates","timestamp":"2026-03-11T19:48:26.243Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Trigger 'undefined' ou refresh necessário. Buscando dados frescos do DB para token ID: 00000000000000000000e2e1","service":"affiliates","timestamp":"2026-03-11T19:48:26.243Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Iniciado. Trigger: undefined. UserID(signIn): undefined. TokenInID: 00000000000000000000e2e1. Token.planStatus(in): active, Token.affiliateCode(in): null","service":"affiliates","timestamp":"2026-03-11T19:48:26.244Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token com 62 min de idade. Forçando refresh do DB.","service":"affiliates","timestamp":"2026-03-11T19:48:26.245Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Trigger 'undefined' ou refresh necessário. Buscando dados frescos do DB para token ID: 00000000000000000000e2e1","service":"affiliates","timestamp":"2026-03-11T19:48:26.245Z","version":"local"}
+{"env":"development","level":"warn","message":"[NextAuth Redirect Callback] URL solicitada (http://localhost:3202/) é externa/ inválida. Redirecionando para baseUrl: http://127.0.0.1:3000.","service":"affiliates","timestamp":"2026-03-11T19:48:26.253Z","version":"local"}
+(node:53729) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Iniciado. Trigger: undefined. UserID(signIn): undefined. TokenInID: 00000000000000000000e2e1. Token.planStatus(in): active, Token.affiliateCode(in): null","service":"affiliates","timestamp":"2026-03-11T19:48:26.253Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token com 62 min de idade. Forçando refresh do DB.","service":"affiliates","timestamp":"2026-03-11T19:48:26.253Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Trigger 'undefined' ou refresh necessário. Buscando dados frescos do DB para token ID: 00000000000000000000e2e1","service":"affiliates","timestamp":"2026-03-11T19:48:26.253Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token atualizado do DB. ID: 00000000000000000000e2e1, Provider: credentials, planStatus: active, igAccounts: 0, reconnectState: idle, flowId: none, igErr: Não","service":"affiliates","timestamp":"2026-03-11T19:48:26.383Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] FINAL jwt. Token id: '00000000000000000000e2e1', provider: 'credentials', planStatus: active, agencyPlanStatus: null, affiliateCode: null, agencyId: null, flowId: none","service":"affiliates","timestamp":"2026-03-11T19:48:26.383Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Iniciado. Token ID: 00000000000000000000e2e1, Token.Provider: credentials, Token.planStatus: active","service":"affiliates","timestamp":"2026-03-11T19:48:26.383Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Sessão dev/E2E detectada para 00000000000000000000e2e1. Pulando revalidação no DB.","service":"affiliates","timestamp":"2026-03-11T19:48:26.383Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth customEncode v2.3.0] availableIgAccounts serializado para JWT.","service":"affiliates","timestamp":"2026-03-11T19:48:26.384Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token atualizado do DB. ID: 00000000000000000000e2e1, Provider: credentials, planStatus: active, igAccounts: 0, reconnectState: idle, flowId: none, igErr: Não","service":"affiliates","timestamp":"2026-03-11T19:48:26.385Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] FINAL jwt. Token id: '00000000000000000000e2e1', provider: 'credentials', planStatus: active, agencyPlanStatus: null, affiliateCode: null, agencyId: null, flowId: none","service":"affiliates","timestamp":"2026-03-11T19:48:26.385Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Iniciado. Token ID: 00000000000000000000e2e1, Token.Provider: credentials, Token.planStatus: active","service":"affiliates","timestamp":"2026-03-11T19:48:26.385Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Sessão dev/E2E detectada para 00000000000000000000e2e1. Pulando revalidação no DB.","service":"affiliates","timestamp":"2026-03-11T19:48:26.385Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth customEncode v2.3.0] availableIgAccounts serializado para JWT.","service":"affiliates","timestamp":"2026-03-11T19:48:26.385Z","version":"local"}
+- [36mwait[39m compiling /api/landing/casting/route (client and server)...
+- [35mevent[39m compiled successfully in 293 ms (2270 modules)
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:27.154Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+{"env":"development","level":"debug","message":"[NextAuth Redirect Callback] URL solicitada (http://127.0.0.1:3000/) é interna. Permitindo.","service":"affiliates","timestamp":"2026-03-11T19:48:27.168Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] Iniciado. Trigger: undefined. UserID(signIn): undefined. TokenInID: 00000000000000000000e2e1. Token.planStatus(in): active, Token.affiliateCode(in): null","service":"affiliates","timestamp":"2026-03-11T19:48:27.172Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] FINAL jwt. Token id: '00000000000000000000e2e1', provider: 'credentials', planStatus: active, agencyPlanStatus: null, affiliateCode: null, agencyId: null, flowId: none","service":"affiliates","timestamp":"2026-03-11T19:48:27.172Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Iniciado. Token ID: 00000000000000000000e2e1, Token.Provider: credentials, Token.planStatus: active","service":"affiliates","timestamp":"2026-03-11T19:48:27.172Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Sessão dev/E2E detectada para 00000000000000000000e2e1. Pulando revalidação no DB.","service":"affiliates","timestamp":"2026-03-11T19:48:27.172Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth customEncode v2.3.0] availableIgAccounts serializado para JWT.","service":"affiliates","timestamp":"2026-03-11T19:48:27.173Z","version":"local"}
+{"env":"development","level":"info","message":"[NextAuth JWT v2.3.0] Token atualizado do DB. ID: 00000000000000000000e2e1, Provider: credentials, planStatus: active, igAccounts: 0, reconnectState: idle, flowId: none, igErr: Não","service":"affiliates","timestamp":"2026-03-11T19:48:27.314Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth JWT v2.3.0] FINAL jwt. Token id: '00000000000000000000e2e1', provider: 'credentials', planStatus: active, agencyPlanStatus: null, affiliateCode: null, agencyId: null, flowId: none","service":"affiliates","timestamp":"2026-03-11T19:48:27.314Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Iniciado. Token ID: 00000000000000000000e2e1, Token.Provider: credentials, Token.planStatus: active","service":"affiliates","timestamp":"2026-03-11T19:48:27.314Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth Session v2.3.0] Sessão dev/E2E detectada para 00000000000000000000e2e1. Pulando revalidação no DB.","service":"affiliates","timestamp":"2026-03-11T19:48:27.314Z","version":"local"}
+{"env":"development","level":"debug","message":"[NextAuth customEncode v2.3.0] availableIgAccounts serializado para JWT.","service":"affiliates","timestamp":"2026-03-11T19:48:27.315Z","version":"local"}
+{"env":"development","level":"info","message":"[landing][castingService][buildCastingCreators] Building casting creators list.","service":"affiliates","timestamp":"2026-03-11T19:48:27.425Z","version":"local"}
+{"env":"development","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Solicitada conexão. Estado Mongoose: connected (1). Conexão atual: data2content. DB esperado: data2content","service":"affiliates","timestamp":"2026-03-11T19:48:27.425Z","version":"local"}
+{"env":"development","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Conexão reutilizada com sucesso para o DB 'data2content'.","service":"affiliates","timestamp":"2026-03-11T19:48:27.426Z","version":"local"}
+{"env":"development","level":"info","message":"[landing][communityStatsService][buildCommunityStats] Payload ready with 59 active creators.","service":"affiliates","timestamp":"2026-03-11T19:48:27.464Z","version":"local"}
+- [36mwait[39m compiling /api/proxy/thumbnail/[...path]/route (client and server)...
+{"env":"development","level":"info","message":"[landing][castingService][buildCastingCreators] Building casting creators list.","service":"affiliates","timestamp":"2026-03-11T19:48:27.599Z","version":"local"}
+{"env":"development","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Solicitada conexão. Estado Mongoose: connected (1). Conexão atual: data2content. DB esperado: data2content","service":"affiliates","timestamp":"2026-03-11T19:48:27.600Z","version":"local"}
+{"env":"development","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Conexão reutilizada com sucesso para o DB 'data2content'.","service":"affiliates","timestamp":"2026-03-11T19:48:27.600Z","version":"local"}
+- [35mevent[39m compiled successfully in 236 ms (2273 modules)
+{"env":"development","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-03-11T19:48:27.848Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://127.0.0.1:3000
+(node:53739) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"env":"development","host":"scontent-iad3-1.xx.fbcdn.net","level":"warn","message":"[thumbnail-proxy] Upstream fetch failed for https://scontent-iad3-1.xx.fbcdn.net/v/t51.2885-15/461509961_380066075037069_2179484276307514889_n.jpg: 403","service":"affiliates","strict":true,"timestamp":"2026-03-11T19:48:28.987Z","version":"local"}
+{"env":"development","host":"scontent-iad3-1.xx.fbcdn.net","level":"warn","message":"[thumbnail-proxy] Upstream fetch failed for https://scontent-iad3-1.xx.fbcdn.net/v/t51.2885-15/464674525_9384134944936486_5629089252101817663_n.jpg: 403","service":"affiliates","strict":true,"timestamp":"2026-03-11T19:48:29.378Z","version":"local"}
+{"env":"development","host":"scontent-iad3-2.xx.fbcdn.net","level":"warn","message":"[thumbnail-proxy] Upstream fetch failed for https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/504375014_18491712652064113_5775632862292612001_n.jpg: 403","service":"affiliates","strict":true,"timestamp":"2026-03-11T19:48:29.450Z","version":"local"}
+{"env":"development","host":"scontent-iad3-2.xx.fbcdn.net","level":"warn","message":"[thumbnail-proxy] Upstream fetch failed for https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/627954807_18560119201018882_2105795938986284889_n.jpg: 403","service":"affiliates","strict":true,"timestamp":"2026-03-11T19:48:29.585Z","version":"local"}
+[?25h

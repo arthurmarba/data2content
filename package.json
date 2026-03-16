@@ -36,6 +36,8 @@
     "refresh:metrics:user": "tsx --env-file=.env.local ./scripts/refreshMetricsByUser.ts",
     "refresh:metrics:all-users": "tsx --env-file=.env.local ./scripts/refreshMetricsAllConnectedUsers.ts",
     "audit:video-postdates": "node ./scripts/auditVideoPostDates.mjs",
+    "sales:tutorial": "tsx --env-file=.env.local ./scripts/createSalesTutorial.ts",
+    "sales:tutorial:auth": "tsx --env-file=.env.local ./scripts/createTutorialStorageState.ts",
     "smoke:types": "tsc -p tsconfig.smoke.json",
     "compliance:whatsapp": "node scripts/compliance-whatsapp.mjs"
   },

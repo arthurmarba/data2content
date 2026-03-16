@@ -35,6 +35,11 @@ test.describe("Meus Roteiros", () => {
     }
     const createCardButton = page.getByRole("button", { name: /Novo Roteiro/i }).first();
     const createEmptyStateButton = page.getByRole("button", { name: /Criar meu primeiro roteiro/i }).first();
+    const existingScriptCard = page
+      .locator("button")
+      .filter({ has: page.locator("p") })
+      .filter({ hasText: /E2E roteiro/i })
+      .first();
     const loadingSkeletons = page.locator(".animate-pulse");
     mark("wait create CTA");
     await expect(loadingSkeletons.first()).toBeHidden({ timeout: 30_000 }).catch(() => undefined);
@@ -42,12 +47,17 @@ test.describe("Meus Roteiros", () => {
       .poll(async () => {
         if (await createCardButton.isVisible().catch(() => false)) return "card";
         if (await createEmptyStateButton.isVisible().catch(() => false)) return "empty";
+        if (await existingScriptCard.isVisible().catch(() => false)) return "list";
         return "pending";
       }, { timeout: 30_000, intervals: [500, 1000, 2000] })
-      .toMatch(/card|empty/);
+      .toMatch(/card|empty|list/);
 
     if (await createCardButton.isVisible().catch(() => false)) {
       mark("open create card");
+      await createCardButton.click();
+    } else if (await existingScriptCard.isVisible().catch(() => false)) {
+      mark("open create card from populated list");
+      await createCardButton.scrollIntoViewIfNeeded();
       await createCardButton.click();
     } else {
       mark("open empty state");

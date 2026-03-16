@@ -193,22 +193,43 @@ function shouldRetryFetchStatus(status: number) {
 async function fetchJsonWithRetry(
   input: string,
   init?: RequestInit,
-  options?: { retries?: number }
+  options?: { retries?: number; timeoutMs?: number }
 ) {
   const retries = Math.max(0, Math.min(options?.retries ?? FETCH_RETRY_DELAYS_MS.length, FETCH_RETRY_DELAYS_MS.length));
+  const timeoutMs =
+    typeof options?.timeoutMs === "number" && Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+      ? Math.floor(options.timeoutMs)
+      : 20_000;
 
   for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort(new Error("Request timeout"));
+    }, timeoutMs);
+
     try {
-      const response = await fetch(input, init);
+      const response = await fetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
       const payload = await response.json().catch(() => ({}));
       const shouldRetry = !response.ok && shouldRetryFetchStatus(response.status) && attempt < retries;
       if (!shouldRetry) {
         return { response, payload };
       }
     } catch (error) {
+      const isAbortError =
+        error instanceof DOMException
+          ? error.name === "AbortError"
+          : error instanceof Error
+            ? error.name === "AbortError"
+            : false;
+      const timeoutError = isAbortError ? new Error("Request timeout") : error;
       if (attempt >= retries) {
-        throw error;
+        throw timeoutError;
       }
+    } finally {
+      window.clearTimeout(timeoutId);
     }
 
     await wait(FETCH_RETRY_DELAYS_MS[attempt] ?? FETCH_RETRY_DELAYS_MS[FETCH_RETRY_DELAYS_MS.length - 1] ?? 350);
@@ -827,9 +848,13 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       if (targetUserId) params.set("targetUserId", targetUserId);
 
       try {
-        const { response, payload } = await fetchJsonWithRetry(`/api/scripts?${params.toString()}`, {
-          cache: "no-store",
-        });
+        const { response, payload } = await fetchJsonWithRetry(
+          `/api/scripts?${params.toString()}`,
+          {
+            cache: "no-store",
+          },
+          { retries: 1, timeoutMs: 12_000 }
+        );
         if (!response.ok || !payload?.ok) {
           throw new Error(payload?.error || "Não foi possível carregar os roteiros.");
         }
@@ -1549,12 +1574,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           patchBody.adminAnnotation = editor.adminAnnotationDraft;
         }
 
-        const res = await fetch(`/api/scripts/${editor.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patchBody),
-        });
-        const data = await res.json();
+        const { response: res, payload: data } = await fetchJsonWithRetry(
+          `/api/scripts/${editor.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patchBody),
+            cache: "no-store",
+          },
+          { retries: 2 }
+        );
         if (!res.ok || !data?.ok) {
           throw new Error(data?.error || "Não foi possível salvar o roteiro.");
         }
@@ -1603,12 +1632,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           }
         }
 
-        const res = await fetch("/api/scripts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
+        const { response: res, payload: data } = await fetchJsonWithRetry(
+          "/api/scripts",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            cache: "no-store",
+          },
+          { retries: 2 }
+        );
         if (!res.ok || !data?.ok) {
           throw new Error(data?.error || "Não foi possível criar o roteiro.");
         }
@@ -1633,13 +1666,21 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         });
       }
     } catch (err: any) {
+      const title = getReadableFetchErrorMessage(
+        err,
+        "Não foi possível salvar o roteiro agora. Tente novamente em instantes."
+      );
       patchEditor({
         saving: false,
         saved: false,
-        error: err?.message || "Erro ao salvar roteiro.",
+        error: title,
+      });
+      toast({
+        variant: "error",
+        title,
       });
     }
-  }, [editor, flushPendingDraftSnapshot, isAdminViewer, patchEditor, patchScriptList, plannerWeekStart, slotOptions, targetUserId]);
+  }, [editor, flushPendingDraftSnapshot, isAdminViewer, patchEditor, patchScriptList, plannerWeekStart, slotOptions, targetUserId, toast]);
 
   const handleDelete = useCallback(async () => {
     if (!editor.id) {

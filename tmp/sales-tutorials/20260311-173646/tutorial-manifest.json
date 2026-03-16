@@ -1,0 +1,120 @@
+{
+  "requestedMode": "sales",
+  "effectiveMode": "sales",
+  "baseUrl": "http://127.0.0.1:3000",
+  "authAvailable": true,
+  "outputDir": "/Users/arthurmarba/d2c-frontend/tmp/sales-tutorials/20260311-173646",
+  "generatedAt": "2026-03-11T20:36:46.308Z",
+  "startedServer": true,
+  "artifacts": {
+    "rawVideo": "/Users/arthurmarba/d2c-frontend/tmp/sales-tutorials/20260311-173646/screen-recording.mp4",
+    "narrationAudio": null,
+    "finalVideo": null,
+    "captions": "/Users/arthurmarba/d2c-frontend/tmp/sales-tutorials/20260311-173646/captions.vtt",
+    "script": "/Users/arthurmarba/d2c-frontend/tmp/sales-tutorials/20260311-173646/tutorial-script.md"
+  },
+  "steps": [
+    {
+      "id": "sales-intro",
+      "title": "Abertura comercial",
+      "route": "http://127.0.0.1:3000/",
+      "narration": "A Data2Content organiza a jornada do criador do diagnostico ate a monetizacao. Agora voce vai ver como analise de perfil, planejamento, roteiros, review, descoberta e operacao comercial se conectam dentro da mesma conta.",
+      "startedAtMs": 0,
+      "endedAtMs": 5040,
+      "requiresAuth": false
+    },
+    {
+      "id": "platform-profile-analysis",
+      "title": "Analise de perfil",
+      "route": "http://127.0.0.1:3000/planning/graficos",
+      "narration": "O fluxo comeca pela analise de perfil. Aqui a plataforma interpreta o que o criador vem publicando, cruza sinais de narrativa com desempenho e mostra quais direcoes devem orientar posicionamento, estrategia e proximas decisoes de conteudo.",
+      "startedAtMs": 5040,
+      "endedAtMs": 10040,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-planner",
+      "title": "Planejador de conteudo",
+      "route": "http://127.0.0.1:3000/planning/planner",
+      "narration": "Com essa leitura, o planejador transforma diagnostico em execucao. O criador organiza a semana, escolhe melhores janelas e salva pautas que entram direto no seu fluxo de producao.",
+      "startedAtMs": 10040,
+      "endedAtMs": 14800,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-scripts",
+      "title": "Meus roteiros",
+      "route": "http://127.0.0.1:3000/planning/roteiros",
+      "narration": "Tudo o que sai do planner pode virar roteiro salvo. Isso cria organizacao, memoria estrategica e material concreto para ser levado para a reuniao de revisao de roteiro, em vez de depender de ideia solta ou improviso.",
+      "startedAtMs": 14800,
+      "endedAtMs": 19400,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-content-review",
+      "title": "Revisao de conteudo",
+      "route": "http://127.0.0.1:3000/dashboard/post-analysis",
+      "narration": "Depois, review de roteiro e review de conteudo ganham continuidade dentro da plataforma. O criador registra o que manter, o que parar e o que ajustar, conectando reuniao, historico e aprendizado direto na conta.",
+      "startedAtMs": 19400,
+      "endedAtMs": 24080,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-discovery",
+      "title": "Descoberta de conteudos",
+      "route": "http://127.0.0.1:3000/planning/discover",
+      "narration": "A descoberta entra para abastecer esse processo com referencias reais. O criador encontra ideias, observa padroes da comunidade e leva isso de volta para o planner com mais repertorio narrativo e mais contexto de mercado.",
+      "startedAtMs": 24080,
+      "endedAtMs": 28360,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-calculator",
+      "title": "Calculadora de publis",
+      "route": "http://127.0.0.1:3000/dashboard/calculator",
+      "narration": "Para quem quer publicidade, a calculadora ajuda a transformar percepcao em valor defendido. Ela apoia a precificacao antes da proposta chegar e deixa a negociacao muito mais segura.",
+      "startedAtMs": 28360,
+      "endedAtMs": 32920,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-media-kit",
+      "title": "Midia kit e formulario",
+      "route": "http://127.0.0.1:3000/mediakit/livia-linhares?proposal=form",
+      "narration": "O midia kit e a vitrine comercial do criador. E e por ele que a marca entende o perfil, avalia a proposta de valor e envia a proposta por formulario, iniciando a negociacao dentro da plataforma.",
+      "startedAtMs": 32920,
+      "endedAtMs": 37680,
+      "requiresAuth": false
+    },
+    {
+      "id": "platform-campaigns",
+      "title": "Campanhas e resposta por IA",
+      "route": "http://127.0.0.1:3000/campaigns",
+      "narration": "Quando a proposta chega, ela cai em campanhas. Aqui a IA ajuda a analisar o contexto, organizar os ativos e montar a resposta por email, acelerando a negociacao com muito mais clareza.",
+      "startedAtMs": 37680,
+      "endedAtMs": 42640,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-publis",
+      "title": "Minhas publis",
+      "route": "http://127.0.0.1:3000/dashboard/publis",
+      "narration": "Depois, a operacao continua em Minhas Publis. E aqui que o criador acompanha resultado, organiza entregas e compartilha o desempenho com a marca em tempo real, fechando a experiencia comercial dentro da conta.",
+      "startedAtMs": 42640,
+      "endedAtMs": 47120,
+      "requiresAuth": true
+    },
+    {
+      "id": "platform-affiliates",
+      "title": "Programa de afiliados",
+      "route": "http://127.0.0.1:3000/afiliados",
+      "narration": "Por fim, a plataforma ainda abre uma frente adicional de monetizacao com afiliados. O criador compartilha seu link, acompanha saldo e gera receita tambem por indicacao, sem depender apenas de publi.",
+      "startedAtMs": 47120,
+      "endedAtMs": 51400,
+      "requiresAuth": true
+    }
+  ],
+  "warnings": [
+    "Narracao em audio pulada por --skip-tts."
+  ]
+}
