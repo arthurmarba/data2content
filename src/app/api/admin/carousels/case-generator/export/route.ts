@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "fs";
 import { mkdtemp, readFile, rm } from "fs/promises";
+import { createRequire } from "module";
 import { tmpdir } from "os";
 import path from "path";
 import { spawn, spawnSync } from "child_process";
@@ -13,6 +14,7 @@ import { getAdminSession } from "@/lib/getAdminSession";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const require = createRequire(import.meta.url);
 const SERVICE_TAG = "[api/admin/carousels/case-generator/export]";
 const DEFAULT_CHROMIUM_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
 const VIDEO_FRAME_READY_TIMEOUT_MS = 2_500;
@@ -56,6 +58,15 @@ const ensureLocalPlaywrightBrowsersPath = () => {
   }
 };
 
+const resolveBundledFfmpegPath = () => {
+  try {
+    const resolved = require("ffmpeg-static");
+    return typeof resolved === "string" ? resolved.trim() : "";
+  } catch {
+    return "";
+  }
+};
+
 const resolveExecutableCandidates = () => {
   const envCandidates = [
     process.env.PLAYWRIGHT_CHROMIUM_BIN,
@@ -94,6 +105,42 @@ const isMissingBrowserBinaryError = (error: unknown) => {
     message.includes("download new browsers") ||
     message.includes("Please run the following command to download new browsers")
   );
+};
+
+let cachedFfmpegBinary: string | null | undefined;
+
+const resolveFfmpegBinary = () => {
+  if (cachedFfmpegBinary !== undefined) return cachedFfmpegBinary;
+
+  const bundledFfmpegPath = resolveBundledFfmpegPath();
+  const envCandidates = [process.env.FFMPEG_BIN, process.env.FFMPEG_PATH];
+  const platformCandidates =
+    process.platform === "linux"
+      ? ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"]
+      : process.platform === "darwin"
+        ? ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"]
+        : process.platform === "win32"
+          ? ["ffmpeg.exe"]
+          : [];
+
+  const candidates = Array.from(
+    new Set(
+      [...envCandidates, bundledFfmpegPath, ...platformCandidates, "ffmpeg"]
+        .map((candidate) => (typeof candidate === "string" ? candidate.trim() : ""))
+        .filter(Boolean),
+    ),
+  );
+
+  for (const candidate of candidates) {
+    const result = spawnSync(candidate, ["-version"], { stdio: "ignore" });
+    if (result.status === 0) {
+      cachedFfmpegBinary = candidate;
+      return candidate;
+    }
+  }
+
+  cachedFfmpegBinary = null;
+  return null;
 };
 
 async function launchChromium() {
@@ -234,11 +281,6 @@ function toEvenSize(value: number) {
   return value % 2 === 0 ? value : value - 1;
 }
 
-function hasFfmpeg() {
-  const result = spawnSync("ffmpeg", ["-version"], { stdio: "ignore" });
-  return result.status === 0;
-}
-
 async function transcodeTrimmedVideo(args: {
   inputPath: string;
   outputPath: string;
@@ -246,7 +288,8 @@ async function transcodeTrimmedVideo(args: {
   trimStartMs: number;
   durationMs: number;
 }) {
-  if (!hasFfmpeg()) {
+  const ffmpegBinary = resolveFfmpegBinary();
+  if (!ffmpegBinary) {
     throw new Error("ffmpeg nao esta disponivel para finalizar o video exportado.");
   }
 
@@ -310,7 +353,7 @@ async function transcodeTrimmedVideo(args: {
         ];
 
   await new Promise<void>((resolve, reject) => {
-    const child = spawn("ffmpeg", ffmpegArgs, {
+    const child = spawn(ffmpegBinary, ffmpegArgs, {
       stdio: ["ignore", "ignore", "pipe"],
     });
 
@@ -474,6 +517,7 @@ export async function POST(req: NextRequest) {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       missingBrowserBinary,
+      ffmpegBinary: resolveFfmpegBinary(),
       playwrightBrowsersPath: process.env.PLAYWRIGHT_BROWSERS_PATH || null,
       chromiumBin:
         process.env.PLAYWRIGHT_CHROMIUM_BIN ||

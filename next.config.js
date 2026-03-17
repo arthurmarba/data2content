@@ -1,6 +1,16 @@
 // next.config.js
 console.log('--- Lendo next.config.js (ESM) ---', new Date().toISOString());
 
+const PLAYWRIGHT_LOCAL_BROWSER_TRACE_GLOBS = [
+  './node_modules/playwright-core/.local-browsers/**/*',
+  './node_modules/playwright/.local-browsers/**/*',
+];
+
+const CAROUSEL_EXPORT_RUNTIME_TRACE_GLOBS = [
+  ...PLAYWRIGHT_LOCAL_BROWSER_TRACE_GLOBS,
+  './node_modules/ffmpeg-static/**/*',
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -94,10 +104,8 @@ const nextConfig = {
     serverActions: true,
     outputFileTracingIncludes: {
       '/app/**/*': ['./src/app/lib/**/*.md'],
-      '/api/mediakit/[token]/pdf': [
-        './node_modules/playwright-core/.local-browsers/**/*',
-        './node_modules/playwright/.local-browsers/**/*',
-      ],
+      '/api/mediakit/[token]/pdf': PLAYWRIGHT_LOCAL_BROWSER_TRACE_GLOBS,
+      '/api/admin/carousels/case-generator/export': CAROUSEL_EXPORT_RUNTIME_TRACE_GLOBS,
     },
   },
 
