@@ -30,6 +30,7 @@ import {
   MediaKitPremiumAccessConfig,
 } from '@/types/mediakit';
 import { isPlanActiveLike } from '@/utils/planStatus';
+import { canonicalizeCategoryValues, type CategoryType } from '@/app/lib/classification';
 
 async function loadAuthOptions() {
   if (process.env.NODE_ENV === 'test') {
@@ -301,32 +302,16 @@ export default async function MediaKitPage(
     MediaKitPackage.find({ userId: (user as any)._id }).sort({ order: 1, createdAt: 1 }).lean().exec(),
   ]);
 
-  const normalizeCategoryField = (value: unknown): string[] => {
-    const collected: string[] = [];
-    const collect = (entry: unknown) => {
-      if (entry == null) return;
-      if (Array.isArray(entry)) {
-        entry.forEach(collect);
-        return;
-      }
-      if (typeof entry === 'string') {
-        const trimmed = entry.trim();
-        if (trimmed) collected.push(trimmed);
-        return;
-      }
-      collected.push(String(entry));
-    };
-    collect(value);
-    return collected;
-  };
+  const normalizeCategoryField = (value: unknown, type: CategoryType): string[] =>
+    canonicalizeCategoryValues(value, type, { includeUnknown: true });
 
   let compatibleVideos = (videos || []).map((video: any) => ({
     ...video,
-    format: normalizeCategoryField(video.format),
-    proposal: normalizeCategoryField(video.proposal),
-    context: normalizeCategoryField(video.context),
-    tone: normalizeCategoryField(video.tone),
-    references: normalizeCategoryField(video.references),
+    format: normalizeCategoryField(video.format, 'format'),
+    proposal: normalizeCategoryField(video.proposal, 'proposal'),
+    context: normalizeCategoryField(video.context, 'context'),
+    tone: normalizeCategoryField(video.tone, 'tone'),
+    references: normalizeCategoryField(video.references, 'reference'),
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));

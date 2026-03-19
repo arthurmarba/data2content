@@ -390,9 +390,14 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
 
-    Object.entries(debouncedFilters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
-    });
+    if (debouncedFilters.proposal) params.set('proposal', debouncedFilters.proposal);
+    if (debouncedFilters.context) params.set('context', debouncedFilters.context);
+    if (debouncedFilters.format) params.set('format', debouncedFilters.format);
+    if (debouncedFilters.tone) params.set('tone', debouncedFilters.tone);
+    if (debouncedFilters.references) params.set('reference', debouncedFilters.references);
+    if (debouncedFilters.linkSearch) params.set('linkSearch', debouncedFilters.linkSearch);
+    if (debouncedFilters.minViews) params.set('minViews', debouncedFilters.minViews);
+    if (debouncedFilters.types) params.set('types', debouncedFilters.types);
 
     try {
       const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`, {

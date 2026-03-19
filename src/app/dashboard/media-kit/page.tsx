@@ -20,6 +20,7 @@ import { notFound } from 'next/navigation';
 import { openPaywallModal } from '@/utils/paywallModal';
 import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 import { startInstagramReconnect } from '@/app/lib/instagram/client/startInstagramReconnect';
+import { canonicalizeCategoryValues } from '@/app/lib/classification';
 
 type Summary = any;
 type VideoListItem = any;
@@ -279,16 +280,18 @@ function SelfMediaKitContent({
       if (cancelled) return;
 
       const videosList = Array.isArray(videosPayload?.posts) ? videosPayload.posts : [];
+      const normalizeVideoCategories = (value: unknown, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') =>
+        canonicalizeCategoryValues(value, type, { includeUnknown: true });
 
       setSummary(summaryData);
       setVideos(
         videosList.map((video: any) => ({
           ...video,
-          format: video.format ? [video.format] : [],
-          proposal: video.proposal ? [video.proposal] : [],
-          context: video.context ? [video.context] : [],
-          tone: video.tone ? [video.tone] : [],
-          references: video.references ? [video.references] : [],
+          format: normalizeVideoCategories(video.format, 'format'),
+          proposal: normalizeVideoCategories(video.proposal, 'proposal'),
+          context: normalizeVideoCategories(video.context, 'context'),
+          tone: normalizeVideoCategories(video.tone, 'tone'),
+          references: normalizeVideoCategories(video.references, 'reference'),
         }))
       );
       setKpis(kpisData);

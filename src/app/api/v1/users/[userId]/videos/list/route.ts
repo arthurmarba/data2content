@@ -93,12 +93,14 @@ export async function GET(
       ? typesParam.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean)
       : undefined;
 
+    const referenceParam = searchParams.get('reference') || searchParams.get('references');
+
     const filters = {
       proposal: searchParams.get('proposal') || undefined,
       context: searchParams.get('context') || undefined,
       format: searchParams.get('format') || undefined,
       tone: searchParams.get('tone') || undefined,
-      references: searchParams.get('reference') || undefined,
+      references: referenceParam || undefined,
       source: searchParams.get('source') || undefined,
       linkSearch: searchParams.get('linkSearch') || undefined,
       minViews: searchParams.has('minViews') ? toInt(searchParams.get('minViews'), 0) : undefined,

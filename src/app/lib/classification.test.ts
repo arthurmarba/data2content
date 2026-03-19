@@ -71,6 +71,8 @@ describe('classification canonicalization', () => {
     ).toEqual(['fashion_style']);
 
     expect(canonicalizeCategoryValues(['announcement', 'Reel'], 'format')).toEqual(['reel']);
+    expect(canonicalizeCategoryValues(['geography', 'city'], 'reference')).toEqual(['city']);
+    expect(canonicalizeCategoryValues(['personal_and_professional', 'relationships_family'], 'context')).toEqual(['relationships_family']);
   });
 
   it('maps legacy stored values back to canonical labels during reads', () => {

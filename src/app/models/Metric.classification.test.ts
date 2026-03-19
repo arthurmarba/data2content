@@ -16,7 +16,7 @@ describe("Metric classification validation", () => {
       proposal: ["Chamada"],
       context: ["Moda/Estilo"],
       tone: ["promotional (Promocional/Comercial)"],
-      references: ["geography.city"],
+      references: ["geography", "geography.city"],
     });
 
     await expect(metric.validate()).resolves.toBeUndefined();

@@ -1,8 +1,9 @@
 import MetricModel from "@/app/models/Metric";
-import { Types, PipelineStage } from "mongoose";
+import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
+import { canonicalizeCategoryValues, type CategoryType } from "@/app/lib/classification";
 
 export interface AggregatedHighlight {
   name: string | null;
@@ -53,152 +54,91 @@ async function aggregateUserPerformanceHighlights(
 
   try {
     await connectToDatabase();
+    const projection: Record<string, 1> = {
+      format: 1,
+      context: 1,
+      proposal: 1,
+      tone: 1,
+      references: 1,
+    };
+    projection[metricField] = 1;
 
-    const matchStage: PipelineStage.Match = {
-      $match: {
+    const posts = await MetricModel.find(
+      {
         user: resolvedUserId,
         postDate: { $gte: startDate, $lte: endDate },
       },
+      projection
+    ).lean().exec();
+
+    type CategoryField = "format" | "context" | "proposal" | "tone" | "references";
+    const fieldToType: Record<CategoryField, CategoryType> = {
+      format: "format",
+      context: "context",
+      proposal: "proposal",
+      tone: "tone",
+      references: "reference",
     };
 
-    const projectStage: PipelineStage.Project = {
-      $project: {
-        format: { $ifNull: ["$format", null] },
-        context: { $ifNull: ["$context", null] },
-        proposal: { $ifNull: ["$proposal", null] },
-        tone: { $ifNull: ["$tone", null] },
-        references: { $ifNull: ["$references", null] },
-        metricValue: `$${metricField}`,
-      },
+    const aggregates: Record<CategoryField, Map<string, { sum: number; count: number }>> = {
+      format: new Map(),
+      context: new Map(),
+      proposal: new Map(),
+      tone: new Map(),
+      references: new Map(),
     };
 
-    const metricFilterStage: PipelineStage.Match = {
-      $match: { metricValue: { $ne: null } },
+    const resolveMetricValue = (source: Record<string, any>, path: string): number | null => {
+      const value = path.split(".").reduce<any>((current, part) => current?.[part], source);
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
     };
 
-    const pipeline: PipelineStage[] = [
-      matchStage,
-      projectStage,
-      metricFilterStage,
-      {
-        $facet: {
-          byFormat: [
-            { $unwind: "$format" },
-            {
-              $group: {
-                _id: "$format",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byContext: [
-            { $unwind: "$context" },
-            {
-              $group: {
-                _id: "$context",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byProposal: [
-            { $unwind: "$proposal" },
-            {
-              $group: {
-                _id: "$proposal",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byTone: [
-            { $unwind: "$tone" },
-            {
-              $group: {
-                _id: "$tone",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byReference: [
-            { $unwind: "$references" },
-            {
-              $group: {
-                _id: "$references",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-        },
-      },
-    ];
-
-    const [agg] = await MetricModel.aggregate(pipeline);
-
-    if (agg?.byFormat?.length) {
-      const topF = agg.byFormat[0];
-      const lowF = agg.byFormat[agg.byFormat.length - 1];
-      const topFormatName = Array.isArray(topF._id) ? topF._id.join(',') : topF._id;
-      const lowFormatName = Array.isArray(lowF._id) ? lowF._id.join(',') : lowF._id;
-      initial.topFormat = {
-        name: topFormatName ?? null,
-        average: topF.avg ?? 0,
-        count: topF.count ?? 0,
+    const toHighlight = (
+      entries: Array<[string, { sum: number; count: number }]>,
+      index: number
+    ): AggregatedHighlight | null => {
+      const entry = entries[index];
+      if (!entry) return null;
+      const [name, data] = entry;
+      return {
+        name,
+        average: data.count > 0 ? data.sum / data.count : 0,
+        count: data.count,
       };
-      initial.lowFormat = {
-        name: lowFormatName ?? null,
-        average: lowF.avg ?? 0,
-        count: lowF.count ?? 0,
-      };
+    };
+
+    for (const post of posts as Array<Record<string, any>>) {
+      const metricValue = resolveMetricValue(post, metricField);
+      if (metricValue === null) continue;
+
+      (Object.keys(aggregates) as CategoryField[]).forEach((field) => {
+        const values = canonicalizeCategoryValues(post[field], fieldToType[field], { includeUnknown: true });
+        values.forEach((value) => {
+          const bucket = aggregates[field].get(value) ?? { sum: 0, count: 0 };
+          bucket.sum += metricValue;
+          bucket.count += 1;
+          aggregates[field].set(value, bucket);
+        });
+      });
     }
 
-    if (agg?.byContext?.length) {
-      const topC = agg.byContext[0];
-      const topContextName = Array.isArray(topC._id) ? topC._id.join(',') : topC._id;
-      initial.topContext = {
-        name: topContextName ?? null,
-        average: topC.avg ?? 0,
-        count: topC.count ?? 0,
-      };
-    }
+    const sortEntries = (
+      map: Map<string, { sum: number; count: number }>,
+      direction: "desc" | "asc" = "desc"
+    ) =>
+      Array.from(map.entries()).sort((left, right) => {
+        const leftAverage = left[1].count > 0 ? left[1].sum / left[1].count : 0;
+        const rightAverage = right[1].count > 0 ? right[1].sum / right[1].count : 0;
+        if (leftAverage === rightAverage) return right[1].count - left[1].count;
+        return direction === "desc" ? rightAverage - leftAverage : leftAverage - rightAverage;
+      });
 
-    if (agg?.byProposal?.length) {
-      const topP = agg.byProposal[0];
-      const topProposalName = Array.isArray(topP._id) ? topP._id.join(',') : topP._id;
-      initial.topProposal = {
-        name: topProposalName ?? null,
-        average: topP.avg ?? 0,
-        count: topP.count ?? 0,
-      };
-    }
-
-    if (agg?.byTone?.length) {
-      const topT = agg.byTone[0];
-      const topToneName = Array.isArray(topT._id) ? topT._id.join(',') : topT._id;
-      initial.topTone = {
-        name: topToneName ?? null,
-        average: topT.avg ?? 0,
-        count: topT.count ?? 0,
-      };
-    }
-
-    if (agg?.byReference?.length) {
-      const topR = agg.byReference[0];
-      const topReferenceName = Array.isArray(topR._id) ? topR._id.join(',') : topR._id;
-      initial.topReference = {
-        name: topReferenceName ?? null,
-        average: topR.avg ?? 0,
-        count: topR.count ?? 0,
-      };
-    }
+    initial.topFormat = toHighlight(sortEntries(aggregates.format), 0);
+    initial.lowFormat = toHighlight(sortEntries(aggregates.format, "asc"), 0);
+    initial.topContext = toHighlight(sortEntries(aggregates.context), 0);
+    initial.topProposal = toHighlight(sortEntries(aggregates.proposal), 0);
+    initial.topTone = toHighlight(sortEntries(aggregates.tone), 0);
+    initial.topReference = toHighlight(sortEntries(aggregates.references), 0);
 
     return initial;
   } catch (error) {

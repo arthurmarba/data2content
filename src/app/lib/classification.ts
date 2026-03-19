@@ -435,7 +435,7 @@ export function canonicalizeCategoryValues(
     normalized.push(nextValue);
   }
 
-  return normalized;
+  return collapseHierarchicalCategoryValues(normalized, type);
 }
 
 export function idsToLabels(ids: string[] | undefined, type: CategoryType): string[] {
@@ -499,6 +499,26 @@ export const getCategoryWithSubcategoryIds = (
   // Se encontrou a categoria, retorna todos os seus IDs descendentes
   return getAllCategoryIds(rootCategory);
 };
+
+export function collapseHierarchicalCategoryValues(
+  values: string[],
+  type: CategoryType
+): string[] {
+  if (values.length <= 1) return values;
+
+  const normalizedValues = values
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (normalizedValues.length <= 1) return normalizedValues;
+
+  const selectedSet = new Set(normalizedValues);
+
+  return normalizedValues.filter((value) => {
+    const descendants = getCategoryWithSubcategoryIds(value, type);
+    return !descendants.some((descendant) => descendant !== value && selectedSet.has(descendant));
+  });
+}
 
 export function getStoredCategoryFilterValues(
   value: string,

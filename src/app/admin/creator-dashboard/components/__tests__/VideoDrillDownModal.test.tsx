@@ -127,4 +127,22 @@ describe('VideoDrillDownModal', () => {
     expect(await screen.findByText('Erro: Internal error')).toBeInTheDocument();
     expect(screen.queryByText('Carregando vídeos...')).not.toBeInTheDocument();
   });
+
+  test('serializes reference filter using the singular query param expected by the route', async () => {
+    render(
+      <VideoDrillDownModal
+        {...defaultProps}
+        initialFilters={{ references: 'city' }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('reference=city'),
+        expect.objectContaining({ cache: 'no-store' }),
+      );
+    });
+
+    expect((fetch as jest.Mock).mock.calls[0][0]).not.toContain('references=city');
+  });
 });

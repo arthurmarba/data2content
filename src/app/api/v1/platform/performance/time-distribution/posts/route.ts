@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
-import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { getStoredCategoryFilterValues } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import UserModel from '@/app/models/User';
 
@@ -18,6 +18,8 @@ export async function GET(request: Request) {
   const format = searchParams.get('format') || undefined;
   const proposal = searchParams.get('proposal') || undefined;
   const context = searchParams.get('context') || undefined;
+  const tone = searchParams.get('tone') || undefined;
+  const reference = searchParams.get('reference') || searchParams.get('references') || undefined;
   const metric = searchParams.get('metric') || 'stats.total_interactions';
   const dayOfWeek = parseInt(searchParams.get('dayOfWeek') || '', 10);
   const timeBlock = searchParams.get('timeBlock');
@@ -51,19 +53,19 @@ export async function GET(request: Request) {
       match.user = { $in: activeUserIds };
     }
     if (format) {
-      const ids = getCategoryWithSubcategoryIds(format, 'format');
-      const labels = ids.map(id => getCategoryById(id, 'format')?.label || id);
-      match.format = { $in: [...ids, ...labels] };
+      match.format = { $in: getStoredCategoryFilterValues(format, 'format') };
     }
     if (proposal) {
-      const ids = getCategoryWithSubcategoryIds(proposal, 'proposal');
-      const labels = ids.map(id => getCategoryById(id, 'proposal')?.label || id);
-      match.proposal = { $in: [...ids, ...labels] };
+      match.proposal = { $in: getStoredCategoryFilterValues(proposal, 'proposal') };
     }
     if (context) {
-      const ids = getCategoryWithSubcategoryIds(context, 'context');
-      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
-      match.context = { $in: [...ids, ...labels] };
+      match.context = { $in: getStoredCategoryFilterValues(context, 'context') };
+    }
+    if (tone) {
+      match.tone = { $in: getStoredCategoryFilterValues(tone, 'tone') };
+    }
+    if (reference) {
+      match.references = { $in: getStoredCategoryFilterValues(reference, 'reference') };
     }
 
     const pipeline: any[] = [

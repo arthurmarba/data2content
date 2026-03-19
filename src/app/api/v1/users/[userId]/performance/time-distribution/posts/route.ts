@@ -28,6 +28,8 @@ export async function GET(
   const format = searchParams.get('format') || undefined;
   const proposal = searchParams.get('proposal') || undefined;
   const context = searchParams.get('context') || undefined;
+  const tone = searchParams.get('tone') || undefined;
+  const reference = searchParams.get('reference') || searchParams.get('references') || undefined;
   const metric = searchParams.get('metric') || 'stats.total_interactions';
   const dayOfWeek = parseInt(searchParams.get('dayOfWeek') || '', 10);
   const timeBlock = searchParams.get('timeBlock');
@@ -64,6 +66,12 @@ export async function GET(
     }
     if (context) {
       match.context = { $in: getStoredCategoryFilterValues(context, 'context') };
+    }
+    if (tone) {
+      match.tone = { $in: getStoredCategoryFilterValues(tone, 'tone') };
+    }
+    if (reference) {
+      match.references = { $in: getStoredCategoryFilterValues(reference, 'reference') };
     }
 
     const pipeline: any[] = [

@@ -43,7 +43,7 @@ import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
 import { MediaKitViewProps, VideoListItem, MediaKitPricing, MediaKitPackage } from '@/types/mediakit';
 import { useGlobalTimePeriod, GlobalTimePeriodProvider } from '@/app/admin/creator-dashboard/components/filters/GlobalTimePeriodContext';
-import { getCategoryById, commaSeparatedIdsToLabels } from '@/app/lib/classification';
+import { getCategoryById, commaSeparatedIdsToLabels, type CategoryType } from '@/app/lib/classification';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
 import ButtonPrimary from '@/app/landing/components/ButtonPrimary';
 import DemographicBarList from '@/app/components/DemographicBarList';
@@ -857,15 +857,17 @@ interface RankItem {
   value: number;
 }
 type CategoryKey = 'format' | 'proposal' | 'context' | 'tone' | 'references';
+const toClassificationCategoryType = (type: CategoryKey): CategoryType => (type === 'references' ? 'reference' : type);
 
 // Fallback robusto: tenta classification -> commaSeparatedIdsToLabels -> Title Case do id
 const idToLabel = (id: string | number, type: CategoryKey) => {
   const rawId = String(id ?? '').trim();
   if (!rawId) return '—';
+  const classificationType = toClassificationCategoryType(type);
 
   // Tenta encontrar pelo ID exato
   try {
-    const found = (getCategoryById as any)?.(rawId, type);
+    const found = (getCategoryById as any)?.(rawId, classificationType);
     if (found?.label) return String(found.label);
   } catch { }
 
@@ -874,13 +876,13 @@ const idToLabel = (id: string | number, type: CategoryKey) => {
     const parts = rawId.split('.');
     const lastPart = parts[parts.length - 1];
     try {
-      const foundSub = (getCategoryById as any)?.(lastPart, type);
+      const foundSub = (getCategoryById as any)?.(lastPart, classificationType);
       if (foundSub?.label) return String(foundSub.label);
     } catch { }
   }
 
   try {
-    const viaComma = (commaSeparatedIdsToLabels as any)?.(rawId, type);
+    const viaComma = (commaSeparatedIdsToLabels as any)?.(rawId, classificationType);
     if (viaComma && String(viaComma).length > 0) return String(viaComma);
   } catch { }
 
@@ -3665,7 +3667,7 @@ export default function MediaKitView({
                                             key={`${video._id}-${type}-${value}`}
                                             className={`text-[10px] uppercase tracking-[0.08em] ${textMutedClass}`}
                                           >
-                                            {value}
+                                            {idToLabel(value, type)}
                                           </p>
                                         ))}
                                       </div>

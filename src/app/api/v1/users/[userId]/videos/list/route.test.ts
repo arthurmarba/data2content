@@ -93,6 +93,24 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     }));
   });
 
+  it('accepts references filter with the plural query param used by older callers', async () => {
+    mockFindUserPosts.mockResolvedValueOnce({
+      posts: [],
+      totalPosts: 0,
+      page: 1,
+      limit: 10,
+    });
+
+    const req = createRequest(userId, '?references=city');
+    await GET(req, { params: { userId } });
+
+    expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
+      filters: expect.objectContaining({
+        references: 'city',
+      }),
+    }));
+  });
+
   it('forwards duration bucket filter when provided', async () => {
     mockFindUserPosts.mockResolvedValueOnce({
       posts: [],

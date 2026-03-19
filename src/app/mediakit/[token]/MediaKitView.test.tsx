@@ -7,10 +7,29 @@ jest.mock('next-auth/react', () => ({ useSession: jest.fn() }));
 
 jest.mock('framer-motion', () => {
   const React = require('react');
+  const createMotionValue = (initial: any) => {
+    let current = initial;
+    return {
+      get: () => current,
+      set: (next: any) => {
+        current = next;
+      },
+    };
+  };
   return {
     motion: new Proxy({}, {
-      get: (_, prop) => (props: any) => React.createElement(prop as any, props, props.children),
+      get: (_, prop) => {
+        const MockMotionComponent = React.forwardRef(function MockMotionComponent(props: any, ref) {
+          return React.createElement(prop as any, { ...props, ref }, props.children);
+        });
+        MockMotionComponent.displayName = `MockMotion(${String(prop)})`;
+        return MockMotionComponent;
+      },
     }),
+    useMotionValue: (initial: any) => createMotionValue(initial),
+    useSpring: (value: any) => value,
+    useMotionTemplate: (strings: TemplateStringsArray, ...values: any[]) =>
+      strings.reduce((acc, part, index) => acc + part + (values[index] ?? ''), ''),
   };
 });
 
@@ -46,6 +65,10 @@ describe('MediaKitView ownership visibility', () => {
   afterEach(() => {
     cleanup();
     jest.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    global.fetch = jest.fn(() => new Promise(() => {})) as any;
   });
 
   it('hides cards for visitors', () => {
@@ -90,6 +113,6 @@ describe('MediaKitView ownership visibility', () => {
         showOwnerCtas={true}
       />
     );
-    expect(screen.getByText(/Destaques de performance disponíveis no modo Pro/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ative o modo Pro para ver os formatos, propostas e contextos que mais puxam crescimento/i)).toBeInTheDocument();
   });
 });

@@ -24,6 +24,7 @@ import PostsBySliceModal from "@/app/dashboard/planning/components/PostsBySliceM
 import PostReviewModal from "./PostReviewModal";
 import PostDetailModal from "../PostDetailModal";
 import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
+import { normalizePlanningPost } from "./adminPlanningPostUtils";
 
 
 
@@ -123,36 +124,6 @@ const toVideoProxyUrl = (raw?: string | null) => {
   if (raw.startsWith("/api/proxy/video/")) return raw;
   if (/^https?:\/\//i.test(raw)) return `/api/proxy/video/${encodeURIComponent(raw)}`;
   return raw;
-};
-
-const normalizePost = (post: any) => {
-  const formatRaw = toArray(post?.format).length ? toArray(post?.format) : toArray(post?.mediaType);
-  const format = formatRaw.map((f) => f.trim());
-  const proposal = toArray(post?.proposal);
-  const context = toArray(post?.context);
-  const tone = toArray(post?.tone);
-  const references = toArray(post?.references ?? post?.reference);
-  const metaLabel = [
-    format.length ? `Formato: ${format.join(", ")}` : null,
-    proposal.length ? `Proposta: ${proposal.join(", ")}` : null,
-    context.length ? `Contexto: ${context.join(", ")}` : null,
-    tone.length ? `Tom: ${tone.join(", ")}` : null,
-    references.length ? `Ref: ${references.join(", ")}` : null,
-  ]
-    .filter(Boolean)
-    .join(" • ");
-
-  return {
-    ...post,
-    format,
-    proposal,
-    context,
-    tone,
-    references,
-    metaLabel,
-    postDate: post?.postDate,
-    stats: post?.stats ?? {},
-  };
 };
 
 const filterPostsByWeek = (posts: any[], weekKey: string | null) => {
@@ -387,7 +358,7 @@ export default function AdminPlanningCharts({
   const postsSource = postsCache;
 
   const normalizedPosts = useMemo(
-    () => (Array.isArray(postsSource) ? postsSource.map((p) => normalizePost(p)) : []),
+    () => (Array.isArray(postsSource) ? postsSource.map((p) => normalizePlanningPost(p)) : []),
     [postsSource]
   );
 

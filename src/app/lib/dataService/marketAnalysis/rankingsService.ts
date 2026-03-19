@@ -17,7 +17,7 @@ import {
   RankableCategory,
   CategoryRankingMetric
 } from './types';
-import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { canonicalizeCategoryValues, getCategoryWithSubcategoryIds, getCategoryById, type CategoryType } from '@/app/lib/classification';
 import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
 
 const SERVICE_TAG = '[dataService][rankingsService]';
@@ -950,6 +950,56 @@ export async function fetchTopCategories(params: {
     const metricAccumulator = metricField
       ? (agg === '$avg' ? { $avg: metricField } : { $sum: metricField })
       : { $sum: 1 };
+
+    if (userId) {
+      const projection: Record<string, 1> = {
+        format: 1,
+        proposal: 1,
+        context: 1,
+        tone: 1,
+        references: 1,
+        stats: 1,
+      };
+
+      const posts = await MetricModel.find(matchFilter, projection).lean().exec();
+      const categoryType: CategoryType = category === 'references' ? 'reference' : category;
+      const buckets = new Map<string, { sum: number; count: number }>();
+
+      const resolveMetricValueFromPost = (post: Record<string, any>): number | null => {
+        if (metric === 'posts') return 1;
+        const stats = post?.stats ?? {};
+        if (metric.startsWith('avg_')) {
+          const metricKey = metric.replace(/^avg_/, '');
+          const value = stats?.[metricKey];
+          return typeof value === 'number' && Number.isFinite(value) ? value : null;
+        }
+        const value = stats?.[metric];
+        return typeof value === 'number' && Number.isFinite(value) ? value : null;
+      };
+
+      for (const post of posts as Array<Record<string, any>>) {
+        const metricValue = resolveMetricValueFromPost(post);
+        if (metricValue === null) continue;
+
+        const values = canonicalizeCategoryValues(post[category], categoryType, { includeUnknown: true });
+        values.forEach((value) => {
+          const bucket = buckets.get(value) ?? { sum: 0, count: 0 };
+          bucket.sum += metricValue;
+          bucket.count += 1;
+          buckets.set(value, bucket);
+        });
+      }
+
+      return Array.from(buckets.entries())
+        .map(([categoryValue, data]) => ({
+          category: categoryValue,
+          value: metric.startsWith('avg_')
+            ? Math.round((data.sum / Math.max(1, data.count)) * 10) / 10
+            : Math.round(data.sum),
+        }))
+        .sort((left, right) => right.value - left.value)
+        .slice(0, limit);
+    }
 
     const pipeline: PipelineStage[] = [
       {
