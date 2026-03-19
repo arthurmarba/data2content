@@ -3,7 +3,12 @@
 
 import React, { useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { formatCategories, proposalCategories, contextCategories } from '@/app/lib/classification';
+import { formatCategories, proposalCategories, contextCategories, toneCategories, referenceCategories } from '@/app/lib/classification';
+import {
+  buildDiscoverSelectedFromParams,
+  canonicalizeDiscoverFilterValues,
+  type DiscoverFilterCategoryId,
+} from './discoverFilterState';
 
 type Cat = { id: string; label: string; subcategories?: Cat[] };
 
@@ -36,16 +41,22 @@ export default function DiscoverFilters() {
   );
   const proposals = useMemo(() => flatten(proposalCategories as any), []);
   const contexts = useMemo(() => flatten(contextCategories as any), []);
+  const tones = useMemo(() => flatten(toneCategories as any), []);
+  const references = useMemo(() => flatten(referenceCategories as any), []);
+  const currentState = useMemo(() => buildDiscoverSelectedFromParams(params), [params]);
 
-  const current = (k: string) => params.get(k) || '';
+  const current = (k: DiscoverFilterCategoryId) => currentState[k]?.[0] || '';
 
-  const setParam = (key: string, value: string) => {
+  const setParam = (key: DiscoverFilterCategoryId, value: string) => {
     const sp = new URLSearchParams(params.toString());
-    if (!value) sp.delete(key); else sp.set(key, value);
+    const normalized = canonicalizeDiscoverFilterValues(key, value ? [value] : []);
+    const normalizedValue = normalized[0];
+    if (!normalizedValue) sp.delete(key);
+    else sp.set(key, normalizedValue);
     router.replace(`${pathname}?${sp.toString()}`);
   };
 
-  const Select = ({ label, name, options }: { label: string; name: string; options: {id:string;label:string}[] }) => (
+  const Select = ({ label, name, options }: { label: string; name: DiscoverFilterCategoryId; options: {id:string;label:string}[] }) => (
     <label className="text-sm text-gray-700">
       <span className="mr-2">{label}</span>
       <select
@@ -66,7 +77,9 @@ export default function DiscoverFilters() {
       <Select label="Formato" name="format" options={formats} />
       <Select label="Proposta" name="proposal" options={proposals} />
       <Select label="Contexto" name="context" options={contexts} />
-      {(current('format') || current('proposal') || current('context')) && (
+      <Select label="Tom" name="tone" options={tones} />
+      <Select label="Referências" name="references" options={references} />
+      {(current('format') || current('proposal') || current('context') || current('tone') || current('references')) && (
         <button
           type="button"
           className="text-sm text-gray-600 underline"

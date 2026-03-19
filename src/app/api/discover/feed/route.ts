@@ -550,6 +550,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           const fmtCsv = mergeCsv(toCsv(spec.include?.format), formatFilter);
           const propCsv = mergeCsv(toCsv(spec.include?.proposal), proposalFilter);
           const ctxCsv = mergeCsv(toCsv(spec.include?.context), contextFilter);
+          const toneCsv = mergeCsv(toCsv(spec.include?.tone), toneFilter);
+          const refCsv = mergeCsv(toCsv(spec.include?.references), referencesFilter);
           const res = await findGlobalPostsByCriteria({
             dateRange: { startDate, endDate },
             sortBy: spec.sortBy || 'stats.total_interactions',
@@ -562,8 +564,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             format: fmtCsv,
             proposal: propCsv,
             context: ctxCsv,
-            tone: toneFilter,
-            references: referencesFilter,
+            tone: toneCsv,
+            references: refCsv,
             mediaType: mediaTypeFilter,
           });
           let items: PostCard[] = (res.posts || []).map((p: any) => ({
@@ -730,8 +732,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               format: formatFilter || expFilters.format,
               proposal: proposalFilter || expFilters.proposal,
               context: contextFilter || expFilters.context,
-              tone: toneFilter,
-              references: referencesFilter,
+              tone: toneFilter || expFilters.tone,
+              references: referencesFilter || expFilters.references,
               mediaType: mediaTypeFilter,
             });
             items = (trending.posts || []).map((p: any) => ({
@@ -802,8 +804,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               format: formatFilter || expFilters.format,
               proposal: proposalFilter || expFilters.proposal,
               context: contextFilter || expFilters.context,
-              tone: toneFilter,
-              references: referencesFilter,
+              tone: toneFilter || expFilters.tone,
+              references: referencesFilter || expFilters.references,
               mediaType: mediaTypeFilter,
             });
             items = (rising.posts || []).map((p: any) => ({
@@ -864,11 +866,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           limit: limitPerRow * 2,
           skipCount: true,
           onlyOptIn: true,
-          format: formatFilter,
-          proposal: proposalFilter,
-          context: contextFilter,
-          tone: toneFilter,
-          references: referencesFilter,
+          format: formatFilter || expFilters.format,
+          proposal: proposalFilter || expFilters.proposal,
+          context: contextFilter || expFilters.context,
+          tone: toneFilter || expFilters.tone,
+          references: referencesFilter || expFilters.references,
           mediaType: mediaTypeFilter,
         });
         let items: PostCard[] = (res.posts || []).map((p: any) => ({
@@ -927,11 +929,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             limit: limitPerRow * 2,
             skipCount: true,
             onlyOptIn: true,
-            format: formatFilter,
-            proposal: proposalFilter,
-            context: contextFilter,
-            tone: toneFilter,
-            references: referencesFilter,
+            format: formatFilter || expFilters.format,
+            proposal: proposalFilter || expFilters.proposal,
+            context: contextFilter || expFilters.context,
+            tone: toneFilter || expFilters.tone,
+            references: referencesFilter || expFilters.references,
             mediaType: mediaTypeFilter,
           });
           let items: PostCard[] = (res.posts || []).map((p: any) => ({
@@ -990,11 +992,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             limit: limitPerRow * 2,
             skipCount: true,
             onlyOptIn: true,
-            format: formatFilter,
-            proposal: proposalFilter,
-            context: contextFilter,
-            tone: toneFilter,
-            references: referencesFilter,
+            format: formatFilter || expFilters.format,
+            proposal: proposalFilter || expFilters.proposal,
+            context: contextFilter || expFilters.context,
+            tone: toneFilter || expFilters.tone,
+            references: referencesFilter || expFilters.references,
             mediaType: mediaTypeFilter,
           });
           let items: PostCard[] = (res.posts || []).map((p: any) => ({
@@ -1055,8 +1057,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             format: formatFilter || expFilters.format,
             proposal: proposalFilter || expFilters.proposal,
             context: contextFilter || expFilters.context,
-            tone: toneFilter,
-            references: referencesFilter,
+            tone: toneFilter || expFilters.tone,
+            references: referencesFilter || expFilters.references,
             minInteractions: 0,
             mediaType: mediaTypeFilter,
           });
@@ -1143,8 +1145,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           format: formatFilter || expFilters.format,
           proposal: proposalFilter || expFilters.proposal,
           context: contextFilter || expFilters.context,
-          tone: toneFilter,
-          references: referencesFilter,
+          tone: toneFilter || expFilters.tone,
+          references: referencesFilter || expFilters.references,
           mediaType: mediaTypeFilter,
         });
         let weekendItems: PostCard[] = (raw.posts || [])
@@ -1240,8 +1242,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 format: mergeCsv(formatFilter, expFilters.format),
                 context: mergeCsv(isProposal ? contextFilter : [String((c as any).category)].join(','), expFilters.context),
                 proposal: mergeCsv(isProposal ? [String((c as any).category)].join(',') : proposalFilter, expFilters.proposal),
-                tone: toneFilter,
-                references: referencesFilter,
+                tone: mergeCsv(toneFilter, expFilters.tone),
+                references: mergeCsv(referencesFilter, expFilters.references),
                 minInteractions: 5,
                 mediaType: mediaTypeFilter,
               });
@@ -1329,8 +1331,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 format: mergeCsv([fmt, formatFilter].filter(Boolean).join(',') || fmt, expFilters.format),
                 proposal: mergeCsv(proposalFilter, expFilters.proposal),
                 context: mergeCsv(contextFilter, expFilters.context),
-                tone: toneFilter,
-                references: referencesFilter,
+                tone: mergeCsv(toneFilter, expFilters.tone),
+                references: mergeCsv(referencesFilter, expFilters.references),
                 minInteractions: 5,
                 mediaType: mediaTypeFilter,
               });
@@ -1398,11 +1400,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             const fCsvC = mergeCsv(formatFilter, expFilters.format);
             const pCsvC = mergeCsv(proposalFilter, expFilters.proposal);
             const cCsvC = mergeCsv(contextFilter, expFilters.context);
+            const tCsvC = mergeCsv(toneFilter, expFilters.tone);
+            const rCsvC = mergeCsv(referencesFilter, expFilters.references);
             if (fCsvC) match.format = { $in: fCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (pCsvC) match.proposal = { $in: pCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (cCsvC) match.context = { $in: cCsvC.split(',').map(s => s.trim()).filter(Boolean) };
-            if (toneFilter) match.tone = { $in: toneFilter.split(',').map(s => s.trim()).filter(Boolean) };
-            if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(s => s.trim()).filter(Boolean) };
+            if (tCsvC) match.tone = { $in: tCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (rCsvC) match.references = { $in: rCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (mediaTypeFilter) match.type = { $in: mediaTypeFilter };
             const rows = await MetricModel.aggregate([
               { $match: match },

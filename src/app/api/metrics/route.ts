@@ -11,7 +11,7 @@ import { processMultipleImages } from "@/app/lib/parseMetrics";
 import mongoose from "mongoose";
 import { logger } from '@/app/lib/logger';
 import { Client } from "@upstash/qstash";
-import { getCategoryByValue } from "@/app/lib/classification";
+import { canonicalizeCategoryValues } from "@/app/lib/classification";
 
 export const runtime = "nodejs"; 
 
@@ -33,10 +33,10 @@ function mapFormatToMediaType(formatValue?: string | string[]): IMetric['type'] 
     if (!primaryFormat) return 'UNKNOWN';
 
     const lowerFormat = primaryFormat.toLowerCase().trim();
-    if (lowerFormat.includes('reel')) return 'REEL';
-    if (lowerFormat.includes('foto') || lowerFormat.includes('imagem') || lowerFormat.includes('feed')) return 'IMAGE';
+    if (lowerFormat === 'reel' || lowerFormat.includes('reel')) return 'REEL';
+    if (lowerFormat === 'photo' || lowerFormat.includes('foto') || lowerFormat.includes('imagem') || lowerFormat.includes('feed')) return 'IMAGE';
     if (lowerFormat.includes('vídeo') || lowerFormat.includes('video')) return 'VIDEO';
-    if (lowerFormat.includes('carrossel') || lowerFormat.includes('carousel')) return 'CAROUSEL_ALBUM';
+    if (lowerFormat === 'carousel' || lowerFormat.includes('carrossel') || lowerFormat.includes('carousel')) return 'CAROUSEL_ALBUM';
     if (lowerFormat.includes('story')) return 'STORY';
     return 'UNKNOWN';
 }
@@ -55,17 +55,6 @@ const ensureStringArray = (value: unknown): string[] => {
     }
     return [];
 };
-
-const mapToCategoryIds = (
-    value: unknown,
-    type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
-): string[] => {
-    return ensureStringArray(value).map(v => {
-        const match = getCategoryByValue(v, type);
-        return match?.id ?? v;
-    });
-};
-
 
 export async function POST(request: NextRequest) {
   const TAG = '[API Metrics POST v2.0.0]'; 
@@ -107,7 +96,8 @@ export async function POST(request: NextRequest) {
     const descriptionToUse = (consolidatedTopLevel.description as string || initialDescription || '').trim();
     const postLinkToUse = (consolidatedTopLevel.postLink as string || initialPostLink || '').trim();
     
-    const mediaType = mapFormatToMediaType(consolidatedTopLevel.format as string | string[] | undefined);
+    const formatIds = canonicalizeCategoryValues(consolidatedTopLevel.format, 'format');
+    const mediaType = mapFormatToMediaType(formatIds.length > 0 ? formatIds : ensureStringArray(consolidatedTopLevel.format));
 
     logger.info(`${TAG} Criando documento Metric com source 'document_ai'...`);
     const newMetric = new Metric({
@@ -118,11 +108,11 @@ export async function POST(request: NextRequest) {
       
       // ATUALIZADO: Campos de classificação salvos como arrays de strings
       type: mediaType, 
-      format: mapToCategoryIds(consolidatedTopLevel.format, 'format'),
-      proposal: mapToCategoryIds(consolidatedTopLevel.proposal, 'proposal'),
-      context: mapToCategoryIds(consolidatedTopLevel.context, 'context'),
-      tone: mapToCategoryIds(consolidatedTopLevel.tone, 'tone'),
-      references: mapToCategoryIds(consolidatedTopLevel.references, 'reference'),
+      format: formatIds,
+      proposal: canonicalizeCategoryValues(consolidatedTopLevel.proposal, 'proposal'),
+      context: canonicalizeCategoryValues(consolidatedTopLevel.context, 'context'),
+      tone: canonicalizeCategoryValues(consolidatedTopLevel.tone, 'tone'),
+      references: canonicalizeCategoryValues(consolidatedTopLevel.references, 'reference'),
       
       theme: consolidatedTopLevel.theme,
       collab: consolidatedTopLevel.collab, 

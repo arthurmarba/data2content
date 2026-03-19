@@ -8,7 +8,12 @@ import { Receiver } from "@upstash/qstash";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
 import { logger } from "@/app/lib/logger";
-import { idsToLabels } from "@/app/lib/classification";
+import {
+  buildDeferredClassificationErrorMessage,
+  classifyAiFailureMessage,
+  type ClassificationAiFailureKind,
+} from "@/app/lib/classificationAiErrors";
+import { canonicalizeCategoryValues } from "@/app/lib/classification";
 import mongoose from "mongoose";
 
 // Importando as categorias definitivas para construir o prompt da IA
@@ -50,23 +55,74 @@ const resolveFormatForMetric = (
     switch (metric.type) {
       case 'REEL':
       case 'VIDEO':
-        return ['Reel'];
+        return ['reel'];
       case 'IMAGE':
-        return ['Foto'];
+        return ['photo'];
       case 'CAROUSEL_ALBUM':
-        return ['Carrossel'];
+        return ['carousel'];
       default:
         return [];
     }
   }
-  return idsToLabels(classification.format, 'format').filter(
-    (label) => label !== 'Story' && label !== 'Live'
-  );
+  return canonicalizeCategoryValues(classification.format, 'format');
 };
 
 // --- Função de Classificação Otimizada com OpenAI ---
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+class ClassificationApiError extends Error {
+  kind: ClassificationAiFailureKind;
+  retryAfterMs?: number;
+
+  constructor(kind: ClassificationAiFailureKind, message: string, retryAfterMs?: number) {
+    super(message);
+    this.name = "ClassificationApiError";
+    this.kind = kind;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+function parseRetryAfterMs(retryAfterHeader: string | null): number | undefined {
+  if (!retryAfterHeader) return undefined;
+  const retryAfterSeconds = Number.parseFloat(retryAfterHeader);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return retryAfterSeconds * 1000;
+  }
+  return undefined;
+}
+
+async function extractOpenAiError(response: Response): Promise<{
+  message: string;
+  kind: ClassificationAiFailureKind;
+  retryAfterMs?: number;
+}> {
+  const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+
+  let rawMessage = `${response.status} ${response.statusText}`;
+  const contentType = response.headers.get("content-type") ?? "";
+
+  try {
+    if (contentType.includes("application/json")) {
+      const errorBody = await response.json();
+      rawMessage =
+        errorBody?.error?.message ||
+        errorBody?.message ||
+        JSON.stringify(errorBody);
+    } else {
+      const errorBody = await response.text();
+      if (errorBody.trim()) rawMessage = errorBody;
+    }
+  } catch (error) {
+    logger.warn("[classifyContent_Final_Optimized] Falha ao ler corpo de erro da OpenAI.", error);
+  }
+
+  return {
+    message: rawMessage,
+    kind: classifyAiFailureMessage(rawMessage),
+    retryAfterMs,
+  };
+}
 
 const buildCategoryDescriptions = (categories: Category[]): string => {
   return categories.map(cat => {
@@ -167,14 +223,15 @@ async function classifyContent(description: string): Promise<ClassificationResul
     });
 
     if (!response.ok) {
-        if (response.status === 429) {
-            const errorBody = await response.json();
-            const customError = new Error(errorBody.error.message);
-            customError.name = 'RateLimitError';
-            throw customError;
+        const openAiError = await extractOpenAiError(response);
+        if (openAiError.kind !== "other" || response.status === 429) {
+            throw new ClassificationApiError(
+                openAiError.kind === "other" ? "rate_limit" : openAiError.kind,
+                openAiError.message,
+                openAiError.retryAfterMs
+            );
         }
-        const errorBody = await response.text();
-        throw new Error(`A API da OpenAI retornou um erro: ${response.status} ${response.statusText} - ${errorBody}`);
+        throw new Error(`A API da OpenAI retornou um erro: ${response.status} ${response.statusText} - ${openAiError.message}`);
     }
 
     const result = await response.json();
@@ -195,6 +252,7 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
     const TAG = '[Worker Classify Content v5.0.1]';
 
     let metricId: string | undefined;
+    let lastRateLimitError: ClassificationApiError | null = null;
 
     try {
         const body = await request.json();
@@ -239,10 +297,10 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
 
                 const updateData: Partial<IMetric> = {
                     format: resolveFormatForMetric(metricDoc, classification),
-                    proposal: idsToLabels(classification.proposal, 'proposal'),
-                    context: idsToLabels(classification.context, 'context'),
-                    tone: idsToLabels(classification.tone, 'tone'),
-                    references: idsToLabels(classification.references, 'reference'),
+                    proposal: canonicalizeCategoryValues(classification.proposal, 'proposal'),
+                    context: canonicalizeCategoryValues(classification.context, 'context'),
+                    tone: canonicalizeCategoryValues(classification.tone, 'tone'),
+                    references: canonicalizeCategoryValues(classification.references, 'reference'),
                     classificationStatus: 'completed',
                     classificationError: null,
                 };
@@ -253,9 +311,13 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
                 return NextResponse.json({ message: "Classificação concluída e métrica atualizada." }, { status: 200 });
 
             } catch (classError: any) {
-                if (classError.name === 'RateLimitError') {
-                    const waitMatch = classError.message.match(/Please try again in ([\d.]+)s/);
-                    const waitTime = waitMatch ? (parseFloat(waitMatch[1]) + 0.5) * 1000 : 60000;
+                if (classError instanceof ClassificationApiError && classError.kind === 'rate_limit') {
+                    lastRateLimitError = classError;
+                    const waitMatch = classError.message.match(/Please try again in ([\d.]+)s/i);
+                    const retryAfterSeconds = waitMatch?.[1];
+                    const waitTime =
+                        classError.retryAfterMs ??
+                        (retryAfterSeconds ? (parseFloat(retryAfterSeconds) + 0.5) * 1000 : 60000);
                     logger.warn(`${TAG} Rate limit atingido para Metric ${metricId}. Aguardando ${waitTime / 1000} segundos para tentar novamente...`);
                     await sleep(waitTime);
                     retries--;
@@ -268,14 +330,42 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
         // CORREÇÃO: Se o loop terminar após todas as retentativas falharem, lança um erro.
         // Isso garante que este caminho também seja tratado pelo bloco catch principal,
         // cobrindo todos os caminhos de código e resolvendo o erro do TypeScript.
-        throw new Error(`Não foi possível classificar o post ${metricId} após múltiplas tentativas de rate limit.`);
+        throw lastRateLimitError ?? new ClassificationApiError(
+            'rate_limit',
+            `Não foi possível classificar o post ${metricId} após múltiplas tentativas de rate limit.`
+        );
 
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
         const finalMetricId = metricId || 'ID_DESCONHECIDO';
+        const failureKind =
+            error instanceof ClassificationApiError ? error.kind : classifyAiFailureMessage(errorMessage);
         logger.error(`${TAG} Falha final ao processar Metric ${finalMetricId}: ${errorMessage}`, error);
         
         if (mongoose.isValidObjectId(finalMetricId)) {
+            if (failureKind !== "other") {
+                const deferredMessage = buildDeferredClassificationErrorMessage(failureKind);
+                await Metric.updateOne(
+                    { _id: finalMetricId },
+                    {
+                        $set: {
+                            classificationStatus: 'pending',
+                            classificationError: deferredMessage,
+                            format: [],
+                            proposal: [],
+                            context: [],
+                            tone: [],
+                            references: [],
+                        },
+                    }
+                );
+
+                return NextResponse.json(
+                    { message: deferredMessage, retryable: true, kind: failureKind },
+                    { status: 503 }
+                );
+            }
+
             await Metric.updateOne(
                 { _id: finalMetricId },
                 { $set: { classificationStatus: 'failed', classificationError: `Erro na IA: ${errorMessage}` } }

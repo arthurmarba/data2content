@@ -6,6 +6,10 @@ import { useBodyScrollLock as useSharedBodyScrollLock } from "@/lib/a11y";
 
 type PaywallViewedContext = "planning" | "reply_email" | "ai_analysis" | "calculator" | "whatsapp_ai" | "other";
 
+const SIDEBAR_PREFETCH_BLOCKED_PREFIXES = ["/planning/discover", "/dashboard/discover"];
+
+const normalizeSidebarPrefetchHref = (href: string) => href.split("#", 1)[0]?.split("?", 1)[0] ?? href;
+
 const normalizePaywallContextForTracking = (value: PaywallContext): PaywallViewedContext => {
   switch (value) {
     case "planning":
@@ -107,7 +111,7 @@ export const useSidebarIntentPrefetch = () => {
 
   return useCallback(
     (href: string) => {
-      if (!href || !href.startsWith("/") || !canPrefetch()) return;
+      if (!shouldSidebarIntentPrefetch(href) || !canPrefetch()) return;
       if (prefetchedRef.current.has(href)) return;
       prefetchedRef.current.add(href);
       try {
@@ -117,5 +121,13 @@ export const useSidebarIntentPrefetch = () => {
       }
     },
     [canPrefetch, router]
+  );
+};
+
+export const shouldSidebarIntentPrefetch = (href: string) => {
+  if (!href || !href.startsWith("/")) return false;
+  const normalizedHref = normalizeSidebarPrefetchHref(href);
+  return !SIDEBAR_PREFETCH_BLOCKED_PREFIXES.some(
+    (prefix) => normalizedHref === prefix || normalizedHref.startsWith(`${prefix}/`)
   );
 };

@@ -3,7 +3,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric'; // IMetric não é mais necessário aqui
 import { getStartDateFromTimePeriod } from './dateHelpers';
-import { getCategoryWithSubcategoryIds, getCategoryById } from "@/app/lib/classification";
+import { getStoredCategoryFilterValues } from "@/app/lib/classification";
 
 interface AverageVideoMetricsData {
   numberOfVideoPosts: number;
@@ -76,29 +76,19 @@ async function calculateAverageVideoMetrics(
         }, (function () {
           const match: any = {};
           if (filters.format) {
-            const ids = getCategoryWithSubcategoryIds(filters.format, 'format');
-            const labels = ids.map(id => getCategoryById(id, 'format')?.label || id);
-            match.format = { $in: labels };
+            match.format = { $in: getStoredCategoryFilterValues(filters.format, 'format') };
           }
           if (filters.proposal) {
-            const ids = getCategoryWithSubcategoryIds(filters.proposal, 'proposal');
-            const labels = ids.map(id => getCategoryById(id, 'proposal')?.label || id);
-            match.proposal = { $in: labels };
+            match.proposal = { $in: getStoredCategoryFilterValues(filters.proposal, 'proposal') };
           }
           if (filters.context) {
-            const ids = getCategoryWithSubcategoryIds(filters.context, 'context');
-            const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
-            match.context = { $in: labels };
+            match.context = { $in: getStoredCategoryFilterValues(filters.context, 'context') };
           }
           if (filters.tone) {
-            const ids = getCategoryWithSubcategoryIds(filters.tone, 'tone');
-            const labels = ids.map(id => getCategoryById(id, 'tone')?.label || id);
-            match.tone = { $in: labels };
+            match.tone = { $in: getStoredCategoryFilterValues(filters.tone, 'tone') };
           }
           if (filters.reference) {
-            const ids = getCategoryWithSubcategoryIds(filters.reference, 'reference');
-            const labels = ids.map(id => getCategoryById(id, 'reference')?.label || id);
-            match.references = { $in: labels };
+            match.references = { $in: getStoredCategoryFilterValues(filters.reference, 'reference') };
           }
           return match;
         })())

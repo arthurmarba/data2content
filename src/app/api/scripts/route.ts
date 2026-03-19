@@ -30,6 +30,7 @@ import {
   invalidateScriptsListCacheForUser,
   scriptsListCache,
 } from "@/app/lib/scripts/scriptsListCache";
+import { getNormalizedScriptEntryMetadata } from "@/app/lib/scripts/scriptEntryMetadata";
 import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
 import { logger } from "@/app/lib/logger";
 
@@ -372,14 +373,15 @@ function serializeScriptItem(
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
   const hasPostedContent = Boolean(item?.postedContent?.metricId);
   const scriptId = String(item._id);
+  const normalizedMetadata = getNormalizedScriptEntryMetadata(item);
   const linkingSummary =
     options?.linkingSummaryByScriptId?.get(scriptId) || createEmptyLinkingSummary();
   return {
     id: scriptId,
     title: item.title,
     content: item.content,
-    source: item.source,
-    linkType: item.linkType,
+    source: normalizedMetadata.source,
+    linkType: normalizedMetadata.linkType,
     plannerRef: item.plannerRef || null,
     aiVersionId: item.aiVersionId ?? null,
     recommendation: hasRecommendation

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
-import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import { getStoredCategoryFilterValues } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { Types } from 'mongoose';
 
@@ -57,19 +57,13 @@ export async function GET(
       postDate: { $gte: startDate, $lte: endDate },
     };
     if (format) {
-      const ids = getCategoryWithSubcategoryIds(format, 'format');
-      const labels = ids.map(id => getCategoryById(id, 'format')?.label || id);
-      match.format = { $in: labels };
+      match.format = { $in: getStoredCategoryFilterValues(format, 'format') };
     }
     if (proposal) {
-      const ids = getCategoryWithSubcategoryIds(proposal, 'proposal');
-      const labels = ids.map(id => getCategoryById(id, 'proposal')?.label || id);
-      match.proposal = { $in: labels };
+      match.proposal = { $in: getStoredCategoryFilterValues(proposal, 'proposal') };
     }
     if (context) {
-      const ids = getCategoryWithSubcategoryIds(context, 'context');
-      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
-      match.context = { $in: labels };
+      match.context = { $in: getStoredCategoryFilterValues(context, 'context') };
     }
 
     const pipeline: any[] = [

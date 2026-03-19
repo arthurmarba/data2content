@@ -26,7 +26,24 @@ export async function POST() {
 
   const now = new Date();
   const label = `E2E roteiro ${now.toISOString()}`;
-  const instagramMediaId = `e2e-script-${userId}-${now.getTime()}`;
+  const fixtureContents = [
+    {
+      key: "primary",
+      instagramMediaId: `e2e-script-${userId}-${now.getTime()}-a`,
+      description: `${label} conteudo publicado principal para vinculo.`,
+      postDate: now,
+      engagement: 7.89,
+      totalInteractions: 321,
+    },
+    {
+      key: "alternate",
+      instagramMediaId: `e2e-script-${userId}-${now.getTime()}-b`,
+      description: `${label} conteudo publicado alternativo para troca de vinculo.`,
+      postDate: new Date(now.getTime() - 60 * 60 * 1000),
+      engagement: 6.54,
+      totalInteractions: 287,
+    },
+  ] as const;
 
   try {
     await withMongoTransientRetry(
@@ -62,46 +79,50 @@ export async function POST() {
       }
     );
 
-    const metric = await withMongoTransientRetry(
+    const metrics = await withMongoTransientRetry(
       async () => {
         await connectToDatabase();
-        return Metric.findOneAndUpdate(
-          {
-            user: new Types.ObjectId(userId),
-            instagramMediaId,
-          },
-          {
-            $setOnInsert: {
-              user: new Types.ObjectId(userId),
-              instagramMediaId,
-              postLink: `https://instagram.com/p/${instagramMediaId}`,
-              description: `${label} conteudo publicado para vinculo.`,
-              postDate: now,
-              type: "REEL",
-              format: ["reel"],
-              proposal: [],
-              context: [],
-              tone: [],
-              references: [],
-              source: "manual",
-              classificationStatus: "completed",
-              rawData: [],
-              stats: {
-                total_interactions: 321,
-                engagement: 7.89,
+        return Promise.all(
+          fixtureContents.map((content) =>
+            Metric.findOneAndUpdate(
+              {
+                user: new Types.ObjectId(userId),
+                instagramMediaId: content.instagramMediaId,
               },
-              isPubli: false,
-            },
-          },
-          {
-            new: true,
-            upsert: true,
-            setDefaultsOnInsert: true,
-          }
-        )
-          .select("_id description postLink postDate stats.total_interactions stats.engagement")
-          .lean()
-          .exec();
+              {
+                $setOnInsert: {
+                  user: new Types.ObjectId(userId),
+                  instagramMediaId: content.instagramMediaId,
+                  postLink: `https://instagram.com/p/${content.instagramMediaId}`,
+                  description: content.description,
+                  postDate: content.postDate,
+                  type: "REEL",
+                  format: ["reel"],
+                  proposal: [],
+                  context: [],
+                  tone: [],
+                  references: [],
+                  source: "manual",
+                  classificationStatus: "completed",
+                  rawData: [],
+                  stats: {
+                    total_interactions: content.totalInteractions,
+                    engagement: content.engagement,
+                  },
+                  isPubli: false,
+                },
+              },
+              {
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true,
+              }
+            )
+              .select("_id description postLink postDate stats.total_interactions stats.engagement")
+              .lean()
+              .exec()
+          )
+        );
       },
       {
         retries: 1,
@@ -113,14 +134,18 @@ export async function POST() {
       }
     );
 
+    const items = metrics.map((metric) => ({
+      id: String(metric?._id),
+      caption: metric?.description || label,
+      postLink: metric?.postLink || null,
+      postDate: metric?.postDate ? new Date(metric.postDate).toISOString() : null,
+    }));
+
     return NextResponse.json({
       ok: true,
-      content: {
-        id: String(metric?._id),
-        caption: metric?.description || label,
-        postLink: metric?.postLink || null,
-        postDate: metric?.postDate ? new Date(metric.postDate).toISOString() : null,
-      },
+      content: items[0],
+      alternateContent: items[1] ?? null,
+      contents: items,
     });
   } catch (error) {
     if (isTransientMongoError(error) || isTransientMongoError((error as any)?.cause)) {
@@ -135,11 +160,23 @@ export async function POST() {
       ok: true,
       fallback: true,
       content: {
-        id: instagramMediaId,
-        caption: `${label} conteudo publicado para vinculo.`,
-        postLink: `https://instagram.com/p/${instagramMediaId}`,
-        postDate: now.toISOString(),
+        id: fixtureContents[0].instagramMediaId,
+        caption: fixtureContents[0].description,
+        postLink: `https://instagram.com/p/${fixtureContents[0].instagramMediaId}`,
+        postDate: fixtureContents[0].postDate.toISOString(),
       },
+      alternateContent: {
+        id: fixtureContents[1].instagramMediaId,
+        caption: fixtureContents[1].description,
+        postLink: `https://instagram.com/p/${fixtureContents[1].instagramMediaId}`,
+        postDate: fixtureContents[1].postDate.toISOString(),
+      },
+      contents: fixtureContents.map((content) => ({
+        id: content.instagramMediaId,
+        caption: content.description,
+        postLink: `https://instagram.com/p/${content.instagramMediaId}`,
+        postDate: content.postDate.toISOString(),
+      })),
     });
   }
 }

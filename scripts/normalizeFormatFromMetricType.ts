@@ -1,6 +1,6 @@
 /**
  * @fileoverview Normalize format field based on metric.type for API-sourced posts.
- * @description Removes "Story" from format and sets a deterministic format label
+ * @description Removes unsupported legacy format values and sets a deterministic canonical format
  * using the metric.type when available.
  *
  * @run `npm run normalize-format`
@@ -17,11 +17,11 @@ const mapTypeToFormat = (type?: string | null): string | null => {
   switch (type) {
     case 'REEL':
     case 'VIDEO':
-      return 'Reel';
+      return 'reel';
     case 'IMAGE':
-      return 'Foto';
+      return 'photo';
     case 'CAROUSEL_ALBUM':
-      return 'Carrossel';
+      return 'carousel';
     default:
       return null;
   }
@@ -35,7 +35,7 @@ async function normalizeFormatFromMetricType() {
     logger.info(`${SCRIPT_TAG} Database connection established.`);
 
     const cursor = Metric.find({
-      format: { $in: ['Story', 'Live'] },
+      format: { $in: ['Story', 'Live', 'story', 'live'] },
     })
       .select('_id format type')
       .cursor();
@@ -43,7 +43,7 @@ async function normalizeFormatFromMetricType() {
     let updated = 0;
     for await (const metric of cursor) {
       const current = Array.isArray(metric.format) ? metric.format : [];
-      const withoutUnsupported = current.filter((f) => f !== 'Story' && f !== 'Live');
+      const withoutUnsupported = current.filter((f) => !['Story', 'Live', 'story', 'live'].includes(f));
       const mapped = mapTypeToFormat(metric.type);
       const nextFormat =
         withoutUnsupported.length > 0 ? withoutUnsupported : mapped ? [mapped] : [];

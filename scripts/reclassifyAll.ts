@@ -12,18 +12,35 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric, { IMetric } from '@/app/models/Metric';
 import { logger } from '@/app/lib/logger';
 import {
+  buildDeferredClassificationErrorMessage,
+  classifyAiFailureMessage,
+  type ClassificationAiFailureKind,
+} from '@/app/lib/classificationAiErrors';
+import {
   formatCategories,
   proposalCategories,
   contextCategories,
   toneCategories,
   referenceCategories,
-  Category
+  Category,
+  canonicalizeCategoryValues,
 } from '@/app/lib/classification';
-import { idsToLabels } from '@/app/lib/classification';
 
 const SCRIPT_TAG = '[MIGRATION_SCRIPT_RECLASSIFY_ALL_OPENAI_FINAL]';
 const OPENAI_CLASSIFICATION_MODEL =
   process.env.OPENAI_CLASSIFIER_MODEL?.trim() || 'gpt-4o-mini';
+
+class ClassificationApiError extends Error {
+  kind: ClassificationAiFailureKind;
+  retryAfterMs?: number;
+
+  constructor(kind: ClassificationAiFailureKind, message: string, retryAfterMs?: number) {
+    super(message);
+    this.name = 'ClassificationApiError';
+    this.kind = kind;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 // --- Lógica de Classificação Otimizada ---
 
@@ -43,21 +60,55 @@ const resolveFormatForMetric = (
     switch (metric.type) {
       case 'REEL':
       case 'VIDEO':
-        return ['Reel'];
+        return ['reel'];
       case 'IMAGE':
-        return ['Foto'];
+        return ['photo'];
       case 'CAROUSEL_ALBUM':
-        return ['Carrossel'];
+        return ['carousel'];
       default:
         return [];
     }
   }
-  return idsToLabels(classification.format, 'format').filter(
-    (label) => label !== 'Story' && label !== 'Live'
-  );
+  return canonicalizeCategoryValues(classification.format, 'format');
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+function parseRetryAfterMs(retryAfterHeader: string | null): number | undefined {
+  if (!retryAfterHeader) return undefined;
+  const retryAfterSeconds = Number.parseFloat(retryAfterHeader);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return retryAfterSeconds * 1000;
+  }
+  return undefined;
+}
+
+async function extractOpenAiError(response: Response): Promise<{
+  message: string;
+  kind: ClassificationAiFailureKind;
+  retryAfterMs?: number;
+}> {
+  const retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'));
+  let rawMessage = `${response.status} ${response.statusText}`;
+  const contentType = response.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    const errorBody = await response.json();
+    rawMessage =
+      errorBody?.error?.message ||
+      errorBody?.message ||
+      JSON.stringify(errorBody);
+  } else {
+    const errorBody = await response.text();
+    if (errorBody.trim()) rawMessage = errorBody;
+  }
+
+  return {
+    message: rawMessage,
+    kind: classifyAiFailureMessage(rawMessage),
+    retryAfterMs,
+  };
+}
 
 const buildCategoryDescriptions = (categories: Category[]): string => {
   return categories.map(cat => {
@@ -160,14 +211,15 @@ async function classifyContent(description: string): Promise<ClassificationResul
     });
 
     if (!response.ok) {
-        if (response.status === 429) {
-            const errorBody = await response.json();
-            const customError = new Error(errorBody.error.message);
-            customError.name = 'RateLimitError';
-            throw customError;
+        const openAiError = await extractOpenAiError(response);
+        if (openAiError.kind !== 'other' || response.status === 429) {
+            throw new ClassificationApiError(
+                openAiError.kind === 'other' ? 'rate_limit' : openAiError.kind,
+                openAiError.message,
+                openAiError.retryAfterMs
+            );
         }
-        const errorBody = await response.text();
-        throw new Error(`A API da OpenAI retornou um erro: ${response.status} ${response.statusText} - ${errorBody}`);
+        throw new Error(`A API da OpenAI retornou um erro: ${response.status} ${response.statusText} - ${openAiError.message}`);
     }
 
     const result = await response.json();
@@ -210,6 +262,8 @@ async function reclassifyAllMetrics() {
     for (const metric of pendingMetrics) {
       let retries = 3;
       let classified = false;
+      let lastRateLimitError: ClassificationApiError | null = null;
+      let failureCounted = false;
 
       while (retries > 0 && !classified) {
         try {
@@ -217,10 +271,10 @@ async function reclassifyAllMetrics() {
 
           const updateData: Partial<IMetric> = {
             format: resolveFormatForMetric(metric as IMetric, classificationResult),
-            proposal: idsToLabels(classificationResult.proposal, 'proposal'),
-            context: idsToLabels(classificationResult.context, 'context'),
-            tone: idsToLabels(classificationResult.tone, 'tone'),
-            references: idsToLabels(classificationResult.references, 'reference'),
+            proposal: canonicalizeCategoryValues(classificationResult.proposal, 'proposal'),
+            context: canonicalizeCategoryValues(classificationResult.context, 'context'),
+            tone: canonicalizeCategoryValues(classificationResult.tone, 'tone'),
+            references: canonicalizeCategoryValues(classificationResult.references, 'reference'),
             classificationStatus: 'completed',
             classificationError: null,
           };
@@ -233,28 +287,65 @@ async function reclassifyAllMetrics() {
           await sleep(500);
 
         } catch (error: any) {
-          if (error.name === 'RateLimitError') {
-            const waitMatch = error.message.match(/Please try again in ([\d.]+)s/);
-            const waitTime = waitMatch ? (parseFloat(waitMatch[1]) + 0.5) * 1000 : 60000;
+          if (error instanceof ClassificationApiError && error.kind === 'rate_limit') {
+            lastRateLimitError = error;
+            const waitMatch = error.message.match(/Please try again in ([\d.]+)s/i);
+            const retryAfterSeconds = waitMatch?.[1];
+            const waitTime =
+              error.retryAfterMs ??
+              (retryAfterSeconds ? (parseFloat(retryAfterSeconds) + 0.5) * 1000 : 60000);
             logger.warn(`${SCRIPT_TAG} Rate limit atingido. Aguardando ${waitTime / 1000} segundos para tentar novamente...`);
             await sleep(waitTime);
             retries--;
           } else {
-            logger.error(`${SCRIPT_TAG} Falha ao classificar o post ${metric._id}: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido durante a reclassificação.';
+            const failureKind =
+              error instanceof ClassificationApiError ? error.kind : classifyAiFailureMessage(errorMessage);
+
+            logger.error(`${SCRIPT_TAG} Falha ao classificar o post ${metric._id}: ${errorMessage}`);
             await Metric.updateOne({ _id: metric._id }, {
               $set: {
-                classificationStatus: 'failed',
-                classificationError: error.message || 'Erro desconhecido durante a reclassificação.',
+                classificationStatus: failureKind === 'other' ? 'failed' : 'pending',
+                classificationError:
+                  failureKind === 'other'
+                    ? errorMessage
+                    : buildDeferredClassificationErrorMessage(failureKind),
+                ...(failureKind === 'other'
+                  ? {}
+                  : {
+                      format: [],
+                      proposal: [],
+                      context: [],
+                      tone: [],
+                      references: [],
+                    }),
               }
             });
             failCount++;
+            failureCounted = true;
             break;
           }
         }
       }
       if (!classified) {
+        if (lastRateLimitError) {
+          await Metric.updateOne(
+            { _id: metric._id },
+            {
+              $set: {
+                classificationStatus: 'pending',
+                classificationError: buildDeferredClassificationErrorMessage('rate_limit'),
+                format: [],
+                proposal: [],
+                context: [],
+                tone: [],
+                references: [],
+              },
+            }
+          );
+        }
         logger.error(`${SCRIPT_TAG} Não foi possível classificar o post ${metric._id} após múltiplas tentativas.`);
-        failCount++;
+        if (!failureCounted) failCount++;
       }
     }
 

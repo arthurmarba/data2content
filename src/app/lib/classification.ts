@@ -17,6 +17,9 @@ export interface Category {
   conflictsWith?: string[];
 }
 
+export type CategoryType = 'format' | 'proposal' | 'context' | 'tone' | 'reference';
+export const CATEGORY_TYPES: CategoryType[] = ['format', 'proposal', 'context', 'tone', 'reference'];
+
 // --- Dimensão 1: Format ---
 export const formatCategories: Category[] = [
   { id: 'reel', label: 'Reel', description: 'Vídeo curto e vertical, geralmente com música ou áudio em alta.', keywords: ['reel', 'vídeo curto', 'dança', 'trend'], examples: ["Meu novo reel com a trend do momento!", "Vídeo rápido mostrando 3 dicas de..."] },
@@ -73,7 +76,6 @@ export const contextCategories: Category[] = [
       { id: 'finance', label: 'Finanças', description: 'Investimentos, finanças pessoais, economia.', keywords: ['dinheiro', 'investimento', 'finanças', 'economia'], examples: ["Onde investir 1000 reais em 2025.", "Como organizar suas finanças pessoais."] },
       { id: 'personal_development', label: 'Desenvolvimento Pessoal', description: 'Autoconhecimento, produtividade, habilidades.', keywords: ['desenvolvimento', 'hábito', 'leitura', 'autoconhecimento'], examples: ["Livros que mudaram minha vida.", "Como criar um novo hábito."] },
       { id: 'education', label: 'Educação/Estudos', description: 'Conteúdo focado em aprendizado, vida acadêmica, dicas de estudo.', keywords: ['estudos', 'vestibular', 'faculdade', 'aprender idioma', 'concurso'], examples: ["Minha rotina de estudos para o vestibular.", "Como aprender inglês sozinho."] },
-      { id: 'personal_and_professional_relationships_family', label: 'Relacionamentos e Família', description: 'Tópicos sobre família e relacionamentos.', keywords: ['família', 'relacionamento'] },
     ]
   },
   {
@@ -160,10 +162,27 @@ export const referenceCategories: Category[] = [
 
 // --- Funções Auxiliares (Existentes) ---
 
-const flattenCategories = (categories: Category[]): Category[] => {
-  return categories.flatMap(cat => {
-    const { subcategories, ...parent } = cat;
-    return [parent, ...(subcategories ? flattenCategories(subcategories) : [])];
+type FlatCategory = Category & {
+  parentIds: string[];
+  parentLabels: string[];
+};
+
+const flattenCategories = (
+  categories: Category[],
+  parentIds: string[] = [],
+  parentLabels: string[] = []
+): FlatCategory[] => {
+  return categories.flatMap((cat) => {
+    const { subcategories, ...node } = cat;
+    const flatNode: FlatCategory = {
+      ...node,
+      parentIds,
+      parentLabels,
+    };
+    return [
+      flatNode,
+      ...(subcategories ? flattenCategories(subcategories, [...parentIds, cat.id], [...parentLabels, cat.label]) : []),
+    ];
   });
 };
 
@@ -173,14 +192,75 @@ const flatContextCategories = flattenCategories(contextCategories);
 const flatToneCategories = flattenCategories(toneCategories);
 const flatReferenceCategories = flattenCategories(referenceCategories);
 
-const normalizeContextId = (value?: string | null) => {
+const normalizeCategoryLookupKey = (value?: string | null) => {
   if (!value) return "";
   return value
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
-    .replace(/[\s./]+/g, "_")
+    .replace(/\s*\([^)]*\)\s*/g, " ")
+    .replace(/[_./\\|:>#~\[\]-]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
+};
+
+const buildLookupVariants = (value?: string | null): string[] => {
+  if (!value) return [];
+  const base = String(value).trim();
+  if (!base) return [];
+
+  const variants = new Set<string>();
+  const push = (candidate?: string | null) => {
+    const normalized = normalizeCategoryLookupKey(candidate);
+    if (normalized) variants.add(normalized);
+  };
+
+  push(base);
+
+  const withoutParentheses = base.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+  if (withoutParentheses && withoutParentheses !== base) push(withoutParentheses);
+
+  const parentheticalMatches = base.matchAll(/\(([^)]*)\)/g);
+  for (const match of parentheticalMatches) {
+    push(match[1] || "");
+  }
+
+  return Array.from(variants);
+};
+
+const normalizeContextId = (value?: string | null) => normalizeCategoryLookupKey(value).replace(/\s+/g, "_");
+
+const CATEGORY_DEPRECATED_ALIAS_TARGETS: Partial<Record<CategoryType, Record<string, string>>> = {
+  proposal: {
+    life_style: 'lifestyle',
+    msg_motivational: 'message_motivational',
+    trends: 'trend',
+  },
+  context: {
+    personal_and_professional_relationships_family: 'relationships_family',
+    'Relacionamentos e Família': 'relationships_family',
+    'personal_and_professional.relationships_family': 'relationships_family',
+    'personal_and_professional/relationships_family': 'relationships_family',
+    event_celebration: 'events_celebrations',
+    eventos_celebrations: 'events_celebrations',
+    'hobbies_and_interests.autos': 'automotive',
+    'hobbies_and_interests.sports': 'fitness_sports',
+    sports: 'fitness_sports',
+    'hobbies_and_interests.trave_tourism': 'travel_tourism',
+    professional_and_personal: 'personal_and_professional',
+    'personal_and_professional.parents': 'parenting',
+    personal_and_professional_development: 'personal_development',
+    lifestyle_and_wellbeingbeauty_personal_care: 'beauty_personal_care',
+    lifestyle_and_wellbeingfashion_style: 'fashion_style',
+  },
+  reference: {
+    geographycity: 'city',
+  },
+};
+
+type CategoryAliasEntry = {
+  category: FlatCategory;
+  normalized: string;
 };
 
 const contextLabelMap = new Map<string, string>();
@@ -198,6 +278,9 @@ const humanizeContextLabel = (raw?: string | null) => {
 };
 
 export const resolveContextLabel = (raw?: string | null): { value: string; label: string } | null => {
+  const resolved = raw ? getCategoryByValue(raw, 'context') : undefined;
+  if (resolved) return { value: resolved.id, label: resolved.label };
+
   const normalized = normalizeContextId(raw);
   if (!normalized) return null;
 
@@ -216,8 +299,8 @@ export const resolveContextLabel = (raw?: string | null): { value: string; label
 };
 
 const getFlatCategoriesByType = (
-  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
-): Category[] => {
+  type: CategoryType
+): FlatCategory[] => {
   switch (type) {
     case 'format':
       return flatFormatCategories;
@@ -234,43 +317,138 @@ const getFlatCategoriesByType = (
   }
 };
 
+const buildCategoryAliasEntries = (type: CategoryType): CategoryAliasEntry[] => {
+  const categories = getFlatCategoriesByType(type);
+  const entries: CategoryAliasEntry[] = [];
+
+  for (const category of categories) {
+    const aliasCandidates = new Set<string>([category.id, category.label]);
+
+    if (category.parentIds.length > 0) {
+      const idPath = [...category.parentIds, category.id];
+      const labelPath = [...category.parentLabels, category.label];
+      for (const separator of ['.', '/', '_', '|'] as const) {
+        aliasCandidates.add(idPath.join(separator));
+        aliasCandidates.add(labelPath.join(separator));
+        aliasCandidates.add(`${category.parentIds[category.parentIds.length - 1]}${separator}${category.id}`);
+        aliasCandidates.add(`${category.parentLabels[category.parentLabels.length - 1]}${separator}${category.label}`);
+      }
+    }
+
+    for (const alias of aliasCandidates) {
+      for (const normalized of buildLookupVariants(alias)) {
+        entries.push({ category, normalized });
+      }
+    }
+  }
+
+  return entries.sort((left, right) => right.normalized.length - left.normalized.length);
+};
+
+const categoryAliasEntriesByType: Record<CategoryType, CategoryAliasEntry[]> = {
+  format: buildCategoryAliasEntries('format'),
+  proposal: buildCategoryAliasEntries('proposal'),
+  context: buildCategoryAliasEntries('context'),
+  tone: buildCategoryAliasEntries('tone'),
+  reference: buildCategoryAliasEntries('reference'),
+};
+
+const deprecatedAliasTargetByType: Partial<Record<CategoryType, Map<string, string>>> = Object.fromEntries(
+  Object.entries(CATEGORY_DEPRECATED_ALIAS_TARGETS).map(([type, aliases]) => [
+    type,
+    new Map(
+      Object.entries(aliases || {}).flatMap(([alias, target]) =>
+        buildLookupVariants(alias).map((normalized) => [normalized, target] as const)
+      )
+    ),
+  ])
+) as Partial<Record<CategoryType, Map<string, string>>>;
+
 export const getCategoryById = (
   id: string,
-  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+  type: CategoryType
 ): Category | undefined => {
   return getFlatCategoriesByType(type).find((cat) => cat.id === id);
 };
 
 export const getCategoryByValue = (
   value: string,
-  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+  type: CategoryType
 ): Category | undefined => {
-  const list = getFlatCategoriesByType(type);
-  const byId = list.find((cat) => cat.id === value);
-  if (byId) return byId;
-  return list.find(
-    (cat) => cat.label.toLocaleLowerCase() === value.toLocaleLowerCase()
-  );
+  const candidates = buildLookupVariants(value);
+  if (candidates.length === 0) return undefined;
+
+  const deprecatedAliases = deprecatedAliasTargetByType[type];
+  for (const candidate of candidates) {
+    const deprecatedTarget = deprecatedAliases?.get(candidate);
+    if (deprecatedTarget) {
+      const category = getCategoryById(deprecatedTarget, type);
+      if (category) return category;
+    }
+  }
+
+  const entries = categoryAliasEntriesByType[type];
+  for (const candidate of candidates) {
+    const exact = entries.find((entry) => entry.normalized === candidate);
+    if (exact) return exact.category;
+  }
+
+  for (const candidate of candidates) {
+    const suffix = entries.find((entry) => candidate.endsWith(` ${entry.normalized}`));
+    if (suffix) return suffix.category;
+  }
+
+  return undefined;
 };
 
 export const isValidCategoryId = (
   id: string,
-  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+  type: CategoryType
 ): boolean => {
   return Boolean(getCategoryByValue(id, type));
 };
 
-export function idsToLabels(ids: string[] | undefined, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'): string[] {
-  return (ids ?? []).map(id => getCategoryById(id, type)?.label ?? id);
+export function toCanonicalCategoryId(value: string | null | undefined, type: CategoryType): string | null {
+  if (!value) return null;
+  return getCategoryByValue(value, type)?.id ?? null;
 }
 
-export function commaSeparatedIdsToLabels(ids: string | string[] | undefined, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'): string {
+export function canonicalizeCategoryValues(
+  values: unknown,
+  type: CategoryType,
+  options?: { includeUnknown?: boolean }
+): string[] {
+  const rawValues = Array.isArray(values) ? values : typeof values === 'string' ? [values] : [];
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const rawValue of rawValues) {
+    if (typeof rawValue !== 'string') continue;
+    const trimmed = rawValue.trim();
+    if (!trimmed) continue;
+
+    const canonicalId = toCanonicalCategoryId(trimmed, type);
+    const nextValue = canonicalId || (options?.includeUnknown ? trimmed : null);
+    if (!nextValue || seen.has(nextValue)) continue;
+
+    seen.add(nextValue);
+    normalized.push(nextValue);
+  }
+
+  return normalized;
+}
+
+export function idsToLabels(ids: string[] | undefined, type: CategoryType): string[] {
+  return (ids ?? []).map((id) => getCategoryByValue(id, type)?.label ?? id);
+}
+
+export function commaSeparatedIdsToLabels(ids: string | string[] | undefined, type: CategoryType): string {
   if (!ids) return '';
   const idList = Array.isArray(ids) ? ids : ids.split(',');
   return idList
-    .map(id => id.trim())
-    .filter(id => id.length > 0)
-    .map(id => getCategoryById(id, type)?.label ?? id)
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0)
+    .map((id) => getCategoryByValue(id, type)?.label ?? id)
     .join(', ');
 }
 
@@ -290,8 +468,9 @@ const getAllCategoryIds = (category: Category): string[] => {
 
 export const getCategoryWithSubcategoryIds = (
   id: string,
-  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+  type: CategoryType
 ): string[] => {
+  const canonicalId = toCanonicalCategoryId(id, type) ?? id;
   // Define a lista de categorias de nível raiz com base no tipo
   const categories =
     type === 'context' ? contextCategories :
@@ -312,12 +491,34 @@ export const getCategoryWithSubcategoryIds = (
     return undefined; // Retorna undefined se não encontrar
   };
 
-  const rootCategory = findCategory(categories, id);
+  const rootCategory = findCategory(categories, canonicalId);
   if (!rootCategory) {
-    return [id]; // Se não encontrar a categoria (fallback), retorna o próprio ID em um array
+    return canonicalId ? [canonicalId] : []; // Se não encontrar a categoria (fallback), retorna o valor canônico em um array
   }
 
   // Se encontrou a categoria, retorna todos os seus IDs descendentes
   return getAllCategoryIds(rootCategory);
 };
+
+export function getStoredCategoryFilterValues(
+  value: string,
+  type: CategoryType
+): string[] {
+  const ids = getCategoryWithSubcategoryIds(value, type);
+  const labels = idsToLabels(ids, type);
+  return Array.from(new Set([...ids, ...labels]));
+}
+
+export function findCategoryMatchesAcrossTypes(value: string): Array<{
+  type: CategoryType;
+  id: string;
+  label: string;
+}> {
+  if (!value?.trim()) return [];
+
+  return CATEGORY_TYPES.flatMap((type) => {
+    const category = getCategoryByValue(value, type);
+    return category ? [{ type, id: category.id, label: category.label }] : [];
+  });
+}
 // =================== FIM DA ADIÇÃO ===================

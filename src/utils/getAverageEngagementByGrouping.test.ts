@@ -208,7 +208,7 @@ describe('getAverageEngagementByGrouping', () => {
       { creditMode: 'fractional' }
     );
 
-    expect(result.find((row) => row.name === 'News')?.value).toBeCloseTo(50);
+    expect(result.find((row) => row.name === 'Notícia')?.value).toBeCloseTo(50);
     expect(result.find((row) => row.name === 'Review')?.value).toBeCloseTo(45);
   });
 

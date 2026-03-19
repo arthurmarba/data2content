@@ -4,7 +4,7 @@ import { PipelineStage, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
-import { getCategoryWithSubcategoryIds, getCategoryById } from "@/app/lib/classification";
+import { getStoredCategoryFilterValues } from "@/app/lib/classification";
 import { resolveCreatorIdsByContext } from "@/app/lib/creatorContextHelper";
 
 export interface DayBucket {
@@ -89,19 +89,13 @@ export async function aggregatePlatformDayPerformance(
     };
 
     if (filters.format) {
-      const ids = getCategoryWithSubcategoryIds(filters.format, 'format');
-      const labels = ids.map(id => getCategoryById(id, 'format')?.label || id);
-      (matchStage.$match as any).format = { $in: labels };
+      (matchStage.$match as any).format = { $in: getStoredCategoryFilterValues(filters.format, 'format') };
     }
     if (filters.proposal) {
-      const ids = getCategoryWithSubcategoryIds(filters.proposal, 'proposal');
-      const labels = ids.map(id => getCategoryById(id, 'proposal')?.label || id);
-      (matchStage.$match as any).proposal = { $in: labels };
+      (matchStage.$match as any).proposal = { $in: getStoredCategoryFilterValues(filters.proposal, 'proposal') };
     }
     if (filters.context) {
-      const ids = getCategoryWithSubcategoryIds(filters.context, 'context');
-      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
-      (matchStage.$match as any).context = { $in: labels };
+      (matchStage.$match as any).context = { $in: getStoredCategoryFilterValues(filters.context, 'context') };
     }
 
     const pipeline: PipelineStage[] = [

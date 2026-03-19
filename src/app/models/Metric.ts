@@ -4,6 +4,7 @@
 // Adicionado índice simples em 'stats.total_interactions' para acelerar ordenações.
 
 import mongoose, { Schema, model, Document, Model, Types } from "mongoose";
+import { analyzeLegacyCategoryValues, CLASSIFICATION_DIMENSIONS, type MetricCategoryField } from "@/app/lib/classificationLegacy";
 
 const DEFAULT_MEDIA_TYPE = 'UNKNOWN';
 
@@ -52,6 +53,14 @@ export interface ISnapshot {
   [key: string]: any;
 }
 
+export interface IMetricClassificationQuarantine {
+  format?: string[];
+  proposal?: string[];
+  context?: string[];
+  tone?: string[];
+  references?: string[];
+}
+
 export interface IMetric extends Document {
   user: Types.ObjectId;
   postLink: string;
@@ -63,6 +72,7 @@ export interface IMetric extends Document {
   context: string[];
   tone: string[];
   references: string[];
+  classificationQuarantine?: IMetricClassificationQuarantine;
   theme?: string;
   collab?: boolean;
   collabCreator?: string;
@@ -81,6 +91,108 @@ export interface IMetric extends Document {
   updatedAt: Date;
 }
 
+function toStringArray(values: unknown): string[] {
+  if (Array.isArray(values)) {
+    return values
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+  if (typeof values === "string") {
+    const trimmed = values.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  return [];
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+
+  return result;
+}
+
+function buildClassificationValidationError(field: MetricCategoryField, values: string[]) {
+  const error = new mongoose.Error.ValidationError();
+  error.addError(
+    field,
+    new mongoose.Error.ValidatorError({
+      path: field,
+      message: `Unknown classification values for ${field}: ${values.join(", ")}`,
+      value: values,
+    })
+  );
+  return error;
+}
+
+function normalizeClassificationDocument(doc: mongoose.Document & { invalidate: (path: string, message: string, value?: unknown, kind?: string) => void }) {
+  const currentQuarantine = (doc.get("classificationQuarantine") ?? {}) as Partial<Record<MetricCategoryField, unknown>>;
+  const nextQuarantine: IMetricClassificationQuarantine = {};
+
+  for (const dimension of CLASSIFICATION_DIMENSIONS) {
+    const analysis = analyzeLegacyCategoryValues(doc.get(dimension.field), dimension.type);
+    doc.set(dimension.field, analysis.canonicalValues);
+
+    if (analysis.unknownValues.length > 0) {
+      doc.invalidate(
+        dimension.field,
+        `Unknown classification values for ${dimension.field}: ${analysis.unknownValues.join(", ")}`,
+        analysis.unknownValues
+      );
+    }
+
+    const quarantineValues = uniqueStrings(toStringArray(currentQuarantine[dimension.field]));
+    if (quarantineValues.length > 0) {
+      nextQuarantine[dimension.field] = quarantineValues;
+    }
+  }
+
+  doc.set("classificationQuarantine", nextQuarantine);
+}
+
+function normalizeClassificationUpdatePayload(update: Record<string, unknown>) {
+  const candidateTargets = [update];
+  const setUpdate = update.$set;
+  const setOnInsertUpdate = update.$setOnInsert;
+
+  if (setUpdate && typeof setUpdate === "object" && !Array.isArray(setUpdate)) {
+    candidateTargets.push(setUpdate as Record<string, unknown>);
+  }
+  if (setOnInsertUpdate && typeof setOnInsertUpdate === "object" && !Array.isArray(setOnInsertUpdate)) {
+    candidateTargets.push(setOnInsertUpdate as Record<string, unknown>);
+  }
+
+  for (const target of candidateTargets) {
+    for (const dimension of CLASSIFICATION_DIMENSIONS) {
+      if (!Object.prototype.hasOwnProperty.call(target, dimension.field)) continue;
+
+      const analysis = analyzeLegacyCategoryValues(target[dimension.field], dimension.type);
+      target[dimension.field] = analysis.canonicalValues;
+
+      if (analysis.unknownValues.length > 0) {
+        throw buildClassificationValidationError(dimension.field, analysis.unknownValues);
+      }
+    }
+  }
+}
+
+const classificationQuarantineSchema = new Schema<IMetricClassificationQuarantine>(
+  {
+    format: { type: [String], default: [] },
+    proposal: { type: [String], default: [] },
+    context: { type: [String], default: [] },
+    tone: { type: [String], default: [] },
+    references: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
 const metricSchema = new Schema<IMetric>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -93,6 +205,7 @@ const metricSchema = new Schema<IMetric>(
     context: { type: [String], default: [], index: true },
     tone: { type: [String], default: [], index: true },
     references: { type: [String], default: [], index: true },
+    classificationQuarantine: { type: classificationQuarantineSchema, default: undefined },
     theme: { type: String, trim: true, default: null },
     collab: { type: Boolean, default: false },
     collabCreator: { type: String, trim: true, default: null },
@@ -121,6 +234,30 @@ metricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true, sparse: tru
 
 // Suporte a ordenação/consulta frequente (simples):
 metricSchema.index({ 'stats.total_interactions': -1 });
+
+metricSchema.pre("validate", function metricClassificationValidation(next) {
+  try {
+    normalizeClassificationDocument(this as mongoose.Document & { invalidate: (path: string, message: string, value?: unknown, kind?: string) => void });
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+const metricClassificationQueryHooks = ["updateOne", "updateMany", "findOneAndUpdate"] as const;
+for (const hook of metricClassificationQueryHooks) {
+  metricSchema.pre(hook, function metricClassificationUpdateValidation(next) {
+    try {
+      const update = this.getUpdate();
+      if (update && typeof update === "object" && !Array.isArray(update)) {
+        normalizeClassificationUpdatePayload(update as Record<string, unknown>);
+      }
+      next();
+    } catch (error) {
+      next(error as Error);
+    }
+  });
+}
 
 const MetricModel = mongoose.models.Metric
   ? (mongoose.models.Metric as Model<IMetric>)

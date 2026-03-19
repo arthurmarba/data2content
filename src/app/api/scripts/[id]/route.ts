@@ -10,6 +10,7 @@ import { invalidatePlannerRecommendationMemory } from "@/app/lib/planner/recomme
 import { applyScriptToPlannerSlot, clearScriptFromPlannerSlot } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
 import { invalidateScriptsListCacheForUser } from "@/app/lib/scripts/scriptsListCache";
+import { getNormalizedScriptEntryMetadata } from "@/app/lib/scripts/scriptEntryMetadata";
 import { refreshScriptOutcomeProfile } from "@/app/lib/scripts/outcomeTraining";
 import { isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
@@ -198,12 +199,13 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
   const includeAdminAnnotation = Boolean(options?.includeAdminAnnotation);
   const hasRecommendation = Boolean(item?.isAdminRecommendation);
   const hasPostedContent = Boolean(item?.postedContent?.metricId);
+  const normalizedMetadata = getNormalizedScriptEntryMetadata(item);
   return {
     id: String(item._id),
     title: item.title,
     content: item.content,
-    source: item.source,
-    linkType: item.linkType,
+    source: normalizedMetadata.source,
+    linkType: normalizedMetadata.linkType,
     plannerRef: item.plannerRef || null,
     aiVersionId: item.aiVersionId ?? null,
     recommendation: hasRecommendation
@@ -404,10 +406,13 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const previousPostedMetricId = doc.postedContent?.metricId ? String(doc.postedContent.metricId) : null;
     const previousIsPosted = Boolean(previousPostedMetricId);
+    const normalizedMetadata = getNormalizedScriptEntryMetadata(doc);
 
     const scriptTextChanged = doc.title !== finalTitle || doc.content !== finalContent;
     doc.title = finalTitle;
     doc.content = finalContent;
+    doc.source = normalizedMetadata.source;
+    doc.linkType = normalizedMetadata.linkType;
     if (normalizedAdminAnnotation !== undefined) {
       doc.adminAnnotation = normalizedAdminAnnotation;
       doc.adminAnnotationUpdatedById = normalizedAdminAnnotation ? new Types.ObjectId(session.user.id as string) : null;

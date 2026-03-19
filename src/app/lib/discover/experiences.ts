@@ -9,6 +9,8 @@ type Spec = {
     format?: string[];
     proposal?: string[];
     context?: string[];
+    tone?: string[];
+    references?: string[];
   };
 };
 
@@ -22,7 +24,8 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
     key: 'learn',
     label: 'Aprender',
     include: {
-      proposal: ['tips', 'tutorial', 'how_to', 'educational', 'guide'],
+      proposal: ['tips'],
+      tone: ['educational'],
       format: ['reel', 'carousel'],
     },
   },
@@ -30,8 +33,9 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
     key: 'learn_fun',
     label: 'Aprender + diversão',
     include: {
-      proposal: ['tips', 'tutorial', 'how_to', 'educational', 'guide', 'humor_scene'],
-      context: ['pop_culture'],
+      proposal: ['tips', 'humor_scene'],
+      tone: ['educational'],
+      references: ['pop_culture'],
       format: ['reel', 'carousel'],
     },
   },
@@ -46,7 +50,8 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
     key: 'sell',
     label: 'Vender mais',
     include: {
-      proposal: ['call_to_action', 'announcement', 'product_review', 'before_after', 'testimonial'],
+      proposal: ['call_to_action', 'announcement', 'review', 'publi_divulgation'],
+      tone: ['promotional'],
     },
   },
   niche_humor: {
@@ -62,7 +67,7 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
 export function getExperienceFilters(
   exp: string | null,
   opts: { allowedPersonalized?: boolean; topContextIds?: string[] }
-): { format?: string; proposal?: string; context?: string } {
+): { format?: string; proposal?: string; context?: string; tone?: string; references?: string } {
   if (!exp) return {};
   const key = exp as ExperienceKey;
   const spec = EXPERIENCE_SPECS[key];
@@ -80,6 +85,8 @@ export function getExperienceFilters(
     format: toCsv(include.format),
     proposal: toCsv(include.proposal),
     context: toCsv(include.context),
+    tone: toCsv(include.tone),
+    references: toCsv(include.references),
   };
 }
 
